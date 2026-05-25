@@ -36,6 +36,8 @@ import {
   PendingActions as PendingActionsIcon,
   LocalShipping as LocalShippingIcon,
 } from '@mui/icons-material';
+import { ThemeProvider } from '@mui/material/styles';
+import { muiTheme } from '@/styles/muiTheme';
 
 // Import context và các component
 import { AppProvider, useApp } from '@/context/AppContext';
@@ -94,27 +96,53 @@ function AppContent() {
   };
 
   const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Toolbar sx={{ px: 2, display: 'flex', alignItems: 'center', gap: 1.5, minHeight: '64px' }}>
+        <Box sx={{ 
+          p: 0.8, 
+          bgcolor: 'secondary.main', 
+          borderRadius: 1.5, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.2)'
+        }}>
+          <EngineeringIcon sx={{ color: '#0f172a', fontSize: '22px' }} />
+        </Box>
+        <Typography 
+          variant="h6" 
+          noWrap 
+          component="div" 
+          sx={{ 
+            fontWeight: 800, 
+            fontFamily: '"Plus Jakarta Sans", sans-serif',
+            letterSpacing: '-0.5px',
+            color: '#ffffff' 
+          }}
+        >
           BPG Construction
         </Typography>
       </Toolbar>
-      <Divider />
-      <List>
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+      <List sx={{ px: 1, py: 1.5 }}>
         {menuItems.map((item) => (
-          <ListItem key={item.key} disablePadding>
+          <ListItem key={item.key} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
               selected={selectedMenu === item.key}
               onClick={() => handleMenuClick(item.key)}
             >
               <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
+              <ListItemText 
+                primary={item.text} 
+                primaryTypographyProps={{ 
+                  fontWeight: selectedMenu === item.key ? 600 : 500
+                }}
+              />
             </ListItemButton>
           </ListItem>
         ))}
       </List>
-    </div>
+    </Box>
   );
 
   // Function để render content dựa trên menu được chọn
@@ -157,9 +185,11 @@ function AppContent() {
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          backgroundColor: '#fff',
-          color: '#1a1a1a',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(8px)',
+          color: '#0f172a',
+          boxShadow: 'none',
+          borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
         }}
       >
         <Toolbar>
@@ -172,14 +202,14 @@ function AppContent() {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 700, fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
             {getPageTitle()}
           </Typography>
           
           {/* Role Switcher */}
-          <Box sx={{ mr: 2, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '10px', mb: 0.2 }}>
-              Đang giả lập vai trò
+          <Box sx={{ mr: 2.5, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', mb: 0.5 }}>
+              Giả lập vai trò
             </Typography>
             <select
               value={currentUser.id}
@@ -188,20 +218,22 @@ function AppContent() {
                 if (selected) setCurrentUser(selected);
               }}
               style={{
-                padding: '4px 8px',
-                borderRadius: '6px',
-                border: '1px solid #e0e0e0',
-                fontSize: '13px',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                fontSize: '12px',
                 fontWeight: '600',
-                backgroundColor: '#f8f9fa',
+                backgroundColor: '#f8fafc',
                 cursor: 'pointer',
                 outline: 'none',
-                color: '#1a1a1a',
+                color: '#0f172a',
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.2s',
               }}
             >
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.name} ({u.role})
+                  {u.name} ({u.role === 'TPKT' ? 'Trưởng phòng KT' : u.role === 'Kỹ sư' ? 'Kỹ sư công trường' : u.role === 'Kế toán' ? 'Kế toán vật tư' : u.role === 'Giám đốc' ? 'Giám đốc' : u.role})
                 </option>
               ))}
             </select>
@@ -265,7 +297,7 @@ function AppContent() {
           flexGrow: 1,
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
-          backgroundColor: '#f5f5f5',
+          backgroundColor: 'background.default',
           minHeight: '100vh',
         }}
       >
@@ -279,7 +311,9 @@ function AppContent() {
 export default function App() {
   return (
     <AppProvider>
-      <AppContent />
+      <ThemeProvider theme={muiTheme}>
+        <AppContent />
+      </ThemeProvider>
       <Toaster position="top-right" closeButton richColors />
     </AppProvider>
   );
