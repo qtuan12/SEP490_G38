@@ -1,0 +1,86 @@
+# ==========================================
+# Visual Studio & .NET GitIgnore Template
+# ==========================================
+
+# Build results
+bin/
+obj/
+out/
+[Bb]uild/
+[Ll]og/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vscode/
+*.vsix
+*.vsixmanifest
+
+# Visual Studio cache folder
+.vs/
+
+# Copilot, Rider, ReSharper, JetBrains
+.idea/
+*.DotSettings.user
+*.ReSharper/
+_CopilotIndices/
+CopilotIndices/
+FileContentIndex/
+.vscode/
+
+# Test results
+[Tt]est[Rr]esult*/
+*.VisualState.xml
+*.vsp
+*.vspx
+*.coverage
+*.coveragexml
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+packages/
+# Uncomment if using the nuget executable
+# *.nuget
+*.nuspec
+*.psmdcp
+
+# Entity Framework Migrations snapshot (optional)
+*MigrationsBackup/
+project.lock.json
+project.fragment.lock.json
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# OS generated files
+.DS_Store
+Icon?
+desktop.ini
+
+# Publish
+.publish/
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+Package.appxmanifest
+*.appx
+*.appxbundle
+*.appxupload
+
+# Backup files
+*.bak
+*.swp
+*.tmp
+*.old
+*.log
+
+# Other cache folders
+_ReSharper*/
+__pycache__/
+*.pyc
+*.db
+*.sqlite
