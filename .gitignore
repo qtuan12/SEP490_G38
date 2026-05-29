@@ -84,3 +84,12 @@ __pycache__/
 *.pyc
 *.db
 *.sqlite
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+!.env.example
+

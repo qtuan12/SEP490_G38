@@ -1,4 +1,4 @@
-﻿using BPG.Aapplication.IServices;
+using BPG.Aapplication.IServices;
 using BPG.Application.IServices;
 using BPG.Infrastructure.Authentication;
 using BPG.Infrastructure.Data;
@@ -21,6 +21,7 @@ public static class DependencyInjection
             ));
 
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IUserService, UserService>();
         services.AddScoped<IJwtService, JwtService>();
 
         return services;

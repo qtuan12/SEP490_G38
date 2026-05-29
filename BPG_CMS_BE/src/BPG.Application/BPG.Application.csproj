@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <Folder Include="Features\Auth\Queries\" />
+    <Folder Include="Features\NewFolder\NewFolder\" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -64,7 +64,25 @@ export const authService = {
     }
 
     // Call real backend endpoint
-    return apiClient.post<LoginResponse>('/auth/login', credentials);
+    interface BackendLoginResponse {
+      userId: string;
+      fullName: string;
+      email: string;
+      role: string;
+      accessToken: string;
+    }
+
+    const response = await apiClient.post<BackendLoginResponse>('/auth/login', credentials);
+    return {
+      token: response.accessToken,
+      user: {
+        id: response.userId,
+        name: response.fullName,
+        email: response.email,
+        role: response.role.toLowerCase() as UserProfile['role'],
+        status: 'active'
+      }
+    };
   },
 
   logout(): void {
