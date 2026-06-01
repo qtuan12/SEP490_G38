@@ -5,6 +5,13 @@ import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { UserManagement } from './pages/UserManagement';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
+import { Profile } from './pages/Profile';
+import { ProjectList } from './pages/ProjectList';
+import { ProjectLayoutHub } from './pages/ProjectLayoutHub';
+import { TaskDetailSE } from './pages/TaskDetailSE';
+import { PhaseAcceptance } from './pages/PhaseAcceptance';
 
 // Protected Route Guard
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
@@ -67,6 +74,24 @@ function App() {
             } 
           />
 
+          <Route 
+            path="/forgot-password" 
+            element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            } 
+          />
+
+          <Route 
+            path="/reset-password" 
+            element={
+              <PublicRoute>
+                <ResetPassword />
+              </PublicRoute>
+            } 
+          />
+
           {/* Protected routes */}
           <Route 
             path="/dashboard" 
@@ -78,10 +103,55 @@ function App() {
           />
 
           <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
             path="/users" 
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <UserManagement />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/projects" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <ProjectList />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/projects/:projectId" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <ProjectLayoutHub />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/projects/:projectId/phases/:phaseId/acceptance" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'tpkt']}>
+                <PhaseAcceptance />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/tasks/:taskId" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư']}>
+                <TaskDetailSE />
               </ProtectedRoute>
             } 
           />

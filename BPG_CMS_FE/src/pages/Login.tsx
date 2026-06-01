@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, Mail, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 export const Login: React.FC = () => {
@@ -11,6 +11,56 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [lockoutTimeLeft, setLockoutTimeLeft] = useState<number>(0);
+
+  // Lockout countdown effect
+  useEffect(() => {
+    if (lockoutTimeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setError(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutTimeLeft]);
+
+  const checkLockout = (userEmail: string): boolean => {
+    const key = `bpg_lock_time_${userEmail.toLowerCase()}`;
+    const lockTimeStr = localStorage.getItem(key);
+    if (lockTimeStr) {
+      const lockTime = parseInt(lockTimeStr, 10);
+      const now = Date.now();
+      const elapsed = now - lockTime;
+      const fifteenMinutes = 15 * 60 * 1000;
+      
+      if (elapsed < fifteenMinutes) {
+        const remainingSeconds = Math.ceil((fifteenMinutes - elapsed) / 1000);
+        setLockoutTimeLeft(remainingSeconds);
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        setError(`Tài khoản tạm thời bị khóa do nhập sai quá nhiều lần. Thử lại sau ${minutes}p ${seconds}s.`);
+        return true;
+      } else {
+        localStorage.removeItem(key);
+        localStorage.removeItem(`bpg_failed_attempts_${userEmail.toLowerCase()}`);
+      }
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    if (email) {
+      checkLockout(email);
+    } else {
+      setError(null);
+      setLockoutTimeLeft(0);
+    }
+  }, [email]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,14 +69,39 @@ export const Login: React.FC = () => {
       return;
     }
 
+    if (checkLockout(email)) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
+    const emailKey = email.toLowerCase();
+    const attemptsKey = `bpg_failed_attempts_${emailKey}`;
+
     try {
       await login({ email, password });
+      localStorage.removeItem(attemptsKey);
+      localStorage.removeItem(`bpg_lock_time_${emailKey}`);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Đã xảy ra lỗi khi đăng nhập.');
+      if (err.message && err.message.includes('bị khóa')) {
+        setError(err.message);
+        setLoading(false);
+        return;
+      }
+
+      const currentAttempts = parseInt(localStorage.getItem(attemptsKey) || '0', 10) + 1;
+      localStorage.setItem(attemptsKey, currentAttempts.toString());
+      
+      if (currentAttempts >= 5) {
+        const now = Date.now();
+        localStorage.setItem(`bpg_lock_time_${emailKey}`, now.toString());
+        setLockoutTimeLeft(15 * 60);
+        setError('Tài khoản đã bị khóa trong 15 phút do nhập sai mật khẩu 5 lần.');
+      } else {
+        setError(`${err.message || 'Đăng nhập thất bại.'} (Bạn còn ${5 - currentAttempts} lần thử)`);
+      }
     } finally {
       setLoading(false);
     }
@@ -134,13 +209,19 @@ export const Login: React.FC = () => {
             </div>
           </div>
 
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+            <Link to="/forgot-password" style={{ color: 'hsl(var(--primary))', fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500 }}>
+              Quên mật khẩu?
+            </Link>
+          </div>
+
           <button
             type="submit"
             className="btn btn-primary"
             style={{ width: '100%', padding: '12px', height: '46px', fontWeight: 600 }}
-            disabled={loading}
+            disabled={loading || lockoutTimeLeft > 0}
           >
-            {loading ? 'Đang xác thực...' : 'Đăng nhập'}
+            {loading ? 'Đang xác thực...' : lockoutTimeLeft > 0 ? 'Tài khoản đang bị khóa' : 'Đăng nhập'}
           </button>
         </form>
 

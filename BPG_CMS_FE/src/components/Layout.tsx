@@ -25,7 +25,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc', 'kế toán'] },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
-    { name: 'Dự án (WBS)', path: '#projects', icon: <Hammer size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc'], disabled: true },
+    { name: 'Dự án (WBS)', path: '/projects', icon: <Hammer size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc'] },
     { name: 'Kiểm soát Vật tư', path: '#materials', icon: <Boxes size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc', 'kế toán'], disabled: true },
     { name: 'Báo cáo', path: '#reports', icon: <FileText size={20} />, roles: ['admin', 'tpkt', 'giám đốc', 'kế toán'], disabled: true },
   ];
@@ -142,7 +142,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             flexDirection: 'column',
             gap: '12px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div 
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '4px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }} 
+              onClick={() => navigate('/profile')}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--bg-main))'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              title="Xem trang cá nhân"
+            >
               <div style={{
                 width: '40px',
                 height: '40px',
@@ -192,7 +198,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <Menu size={20} style={{ color: 'hsl(var(--text-secondary))', cursor: 'pointer', display: 'none' }} />
             <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>
               {location.pathname === '/dashboard' ? 'Bảng điều khiển' : 
-               location.pathname === '/users' ? 'Quản lý Thành viên' : 'Hệ thống'}
+               location.pathname === '/users' ? 'Quản lý Thành viên' : 
+               location.pathname === '/projects' ? 'Danh sách Dự án WBS' : 
+               location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
+               location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
             </h2>
           </div>
           <div style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.9rem' }}>

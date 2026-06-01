@@ -34,7 +34,13 @@ export const authService = {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       const mockUser = MOCK_USERS[credentials.email.toLowerCase()];
-      if (!mockUser || mockUser.password !== credentials.password) {
+      
+      // Check for custom password override in localStorage
+      const customPasswordsStr = localStorage.getItem('bpg_custom_passwords');
+      const customPasswords = customPasswordsStr ? JSON.parse(customPasswordsStr) : {};
+      const expectedPassword = customPasswords[credentials.email.toLowerCase()] || mockUser?.password;
+
+      if (!mockUser || expectedPassword !== credentials.password) {
         throw new Error('Email hoặc mật khẩu không chính xác.');
       }
 

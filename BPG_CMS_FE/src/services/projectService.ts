@@ -1,0 +1,475 @@
+import { USE_MOCK_API } from './api';
+
+export interface Project {
+  id: string;
+  name: string;
+  address: string;
+  startDate: string;
+  endDate: string;
+  status: 'draft' | 'active' | 'paused' | 'done';
+  drawingUrl?: string; // name or dummy data url of drawing design
+  progress: number; // overall progress % (derived or stored)
+}
+
+export interface ProjectMember {
+  projectId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userRole: string;
+  isLeader: boolean; // crown icon 👑 if true
+}
+
+export interface WBSPhase {
+  id: string;
+  projectId: string;
+  name: string;
+  status: 'active' | 'frozen'; // frozen after acceptance
+  acceptanceComment?: string;
+  acceptanceDate?: string;
+}
+
+export interface TaskHistory {
+  date: string;
+  oldProgress: number;
+  newProgress: number;
+  reason: string;
+}
+
+export interface WBSTask {
+  id: string;
+  phaseId: string;
+  projectId: string;
+  name: string;
+  assignedTo?: string; // userId of engineer
+  assignedName?: string; // name of engineer
+  deadline: string;
+  progress: number; // 0 - 100
+  history: TaskHistory[];
+}
+
+export interface DailyLogComment {
+  id: string;
+  userId: string;
+  userName: string;
+  role: string;
+  content: string;
+  date: string;
+}
+
+export interface DailyLog {
+  id: string;
+  projectId: string;
+  taskId: string;
+  taskName: string;
+  engineerId: string;
+  engineerName: string;
+  progressFrom: number;
+  progressTo: number;
+  date: string;
+  content: string; // work detail description
+  weather: string;
+  images: string[]; // array of base64 or mock URLs
+  comments: DailyLogComment[];
+}
+
+// Default initial data for simulation
+const DEFAULT_PROJECTS: Project[] = [
+  { id: 'p-1', name: 'Dự án Chung cư BPG - Biên Hòa', address: '12 Đường số 4, KCN Biên Hòa, Đồng Nai', startDate: '2026-05-01', endDate: '2026-12-30', status: 'active', progress: 45 },
+  { id: 'p-2', name: 'Dự án Cải tạo Văn phòng FPT', address: 'Lô E2a-7, Đường D1, KCNC, Quận 9, TP.HCM', startDate: '2026-05-10', endDate: '2026-08-15', status: 'active', progress: 20 },
+  { id: 'p-3', name: 'Dự án Biệt thự Nam Sài Gòn', address: 'Khu biệt thự Chateau, Phú Mỹ Hưng, Quận 7, TP.HCM', startDate: '2026-06-15', endDate: '2027-02-28', status: 'draft', progress: 0 },
+  { id: 'p-4', name: 'Dự án Cầu đường Nhơn Trạch', address: 'Huyện Nhơn Trạch, Tỉnh Đồng Nai', startDate: '2026-01-01', endDate: '2026-05-20', status: 'paused', progress: 90 },
+];
+
+const DEFAULT_MEMBERS: ProjectMember[] = [
+  { projectId: 'p-1', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userRole: 'kỹ sư', isLeader: true },
+  { projectId: 'p-1', userId: 'u-6', userName: 'Nguyễn Văn Nam', userEmail: 'se1@bpg.com', userRole: 'kỹ sư', isLeader: false },
+  { projectId: 'p-1', userId: 'u-7', userName: 'Phạm Minh Hải', userEmail: 'se2@bpg.com', userRole: 'kỹ sư', isLeader: false },
+  { projectId: 'p-2', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userRole: 'kỹ sư', isLeader: false },
+];
+
+const DEFAULT_PHASES: WBSPhase[] = [
+  { id: 'ph-1', projectId: 'p-1', name: 'Phase 1: Móng & Cột Trụ', status: 'frozen', acceptanceComment: 'Hoàn thành tốt, đạt yêu cầu kỹ thuật đổ bê tông móng cốt thép trục A-H.', acceptanceDate: '2026-05-28' },
+  { id: 'ph-2', projectId: 'p-1', name: 'Phase 2: Thân chung cư (Tầng 1 - Tầng 5)', status: 'active' },
+  { id: 'ph-3', projectId: 'p-1', name: 'Phase 3: Hoàn thiện & Điện nước', status: 'active' },
+  { id: 'ph-4', projectId: 'p-2', name: 'Phase 1: Tháo dỡ & Đi dây cáp ngầm', status: 'active' },
+];
+
+const DEFAULT_TASKS: WBSTask[] = [
+  // Phase 1 (p-1) - all 100%
+  { id: 't-1', phaseId: 'ph-1', projectId: 'p-1', name: 'Đào đất móng sâu 3m', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-05-15', progress: 100, history: [] },
+  { id: 't-2', phaseId: 'ph-1', projectId: 'p-1', name: 'Gia công cốt thép móng vây', assignedTo: 'u-6', assignedName: 'Nguyễn Văn Nam', deadline: '2026-05-20', progress: 100, history: [] },
+  { id: 't-3', phaseId: 'ph-1', projectId: 'p-1', name: 'Đổ bê tông lót móng M250', assignedTo: 'u-7', assignedName: 'Phạm Minh Hải', deadline: '2026-05-25', progress: 100, history: [] },
+  // Phase 2 (p-1)
+  { id: 't-4', phaseId: 'ph-2', projectId: 'p-1', name: 'Lắp dựng cốp pha cột tầng 1', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-06-10', progress: 80, history: [] },
+  { id: 't-5', phaseId: 'ph-2', projectId: 'p-1', name: 'Đổ bê tông cột tầng 1', assignedTo: 'u-6', assignedName: 'Nguyễn Văn Nam', deadline: '2026-06-15', progress: 40, history: [] },
+  { id: 't-6', phaseId: 'ph-2', projectId: 'p-1', name: 'Lắp đặt cốt thép dầm sàn tầng 1', assignedTo: 'u-7', assignedName: 'Phạm Minh Hải', deadline: '2026-06-25', progress: 0, history: [] },
+  // Phase 3 (p-1)
+  { id: 't-7', phaseId: 'ph-3', projectId: 'p-1', name: 'Xây tường bao quanh căn hộ', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-07-20', progress: 0, history: [] },
+  { id: 't-8', phaseId: 'ph-3', projectId: 'p-1', name: 'Đi đường ống điện âm tường', assignedTo: 'u-6', assignedName: 'Nguyễn Văn Nam', deadline: '2026-07-30', progress: 0, history: [] },
+  // Phase 1 (p-2)
+  { id: 't-9', phaseId: 'ph-4', projectId: 'p-2', name: 'Tháo dỡ vách thạch cao cũ', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-05-25', progress: 100, history: [] },
+  { id: 't-10', phaseId: 'ph-4', projectId: 'p-2', name: 'Đi dây cáp mạng CAT6 âm trần', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-06-15', progress: 20, history: [] },
+];
+
+const DEFAULT_LOGS: DailyLog[] = [
+  {
+    id: 'l-1',
+    projectId: 'p-1',
+    taskId: 't-4',
+    taskName: 'Lắp dựng cốp pha cột tầng 1',
+    engineerId: 'u-3',
+    engineerName: 'Trần Văn Công',
+    progressFrom: 60,
+    progressTo: 80,
+    date: '2026-06-01 16:30',
+    content: 'Đã hoàn thành lắp cốp pha trục A-B ổn định. Đang căn chỉnh vách trục C-D. Thời tiết nắng nóng 37 độ C, công nhân mất nhiều sức nhưng vẫn cố gắng bám tiến độ.',
+    weather: 'Nắng nóng gay gắt',
+    images: [
+      'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1590069261209-f8e9b8642343?auto=format&fit=crop&w=600&q=80'
+    ],
+    comments: [
+      { id: 'c-1', userId: 'u-2', userName: 'Nguyễn Văn Kỹ', role: 'tpkt', content: 'Gia cố kỹ chân cốp pha trục C nhé Công, tránh để phình bụng bê tông khi đổ vào ngày mai.', date: '2026-06-01 17:15' }
+    ]
+  },
+  {
+    id: 'l-2',
+    projectId: 'p-1',
+    taskId: 't-5',
+    taskName: 'Đổ bê tông cột tầng 1',
+    engineerId: 'u-6',
+    engineerName: 'Nguyễn Văn Nam',
+    progressFrom: 20,
+    progressTo: 40,
+    date: '2026-05-31 15:45',
+    content: 'Đã đổ xong bê tông 4 cột trục E. Chiều nay có giông lớn kèm mưa to từ 14h, phải phủ bạt che chắn bề mặt bê tông cột mới đổ kịp thời.',
+    weather: 'Mưa dông lớn',
+    images: [
+      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80'
+    ],
+    comments: []
+  }
+];
+
+// Helper functions for localStorage
+const getStorage = <T>(key: string, defaults: T[]): T[] => {
+  const data = localStorage.getItem(key);
+  if (!data) {
+    localStorage.setItem(key, JSON.stringify(defaults));
+    return defaults;
+  }
+  return JSON.parse(data);
+};
+
+const setStorage = <T>(key: string, data: T[]) => {
+  localStorage.setItem(key, JSON.stringify(data));
+};
+
+export const projectService = {
+  // Sync overall progress of projects based on task progress average
+  async syncProjectProgress(projectId: string): Promise<number> {
+    const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === projectId);
+    if (tasks.length === 0) return 0;
+    const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
+    const avg = Math.round(sum / tasks.length);
+
+    const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
+    const projIdx = projects.findIndex(p => p.id === projectId);
+    if (projIdx !== -1) {
+      projects[projIdx].progress = avg;
+      setStorage('bpg_projects', projects);
+    }
+    return avg;
+  },
+
+  // PROJECTS CRUD
+  async getProjects(): Promise<Project[]> {
+    if (USE_MOCK_API) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
+      // dynamically update progresses
+      for (const p of projects) {
+        const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === p.id);
+        if (tasks.length > 0) {
+          const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
+          p.progress = Math.round(sum / tasks.length);
+        }
+      }
+      setStorage('bpg_projects', projects);
+      return projects;
+    }
+    // real API call placeholder
+    return [];
+  },
+
+  async getProjectById(id: string): Promise<Project | null> {
+    const projects = await this.getProjects();
+    return projects.find(p => p.id === id) || null;
+  },
+
+  async createProject(project: Omit<Project, 'id' | 'progress'>): Promise<Project> {
+    const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
+    const newProj: Project = {
+      ...project,
+      id: `p-${Date.now()}`,
+      progress: 0
+    };
+    projects.push(newProj);
+    setStorage('bpg_projects', projects);
+    return newProj;
+  },
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<Project> {
+    const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
+    const idx = projects.findIndex(p => p.id === id);
+    if (idx === -1) throw new Error('Không tìm thấy dự án.');
+    projects[idx] = { ...projects[idx], ...updates };
+    setStorage('bpg_projects', projects);
+    return projects[idx];
+  },
+
+  // MEMBERS MANAGEMENT
+  async getMembers(projectId: string): Promise<ProjectMember[]> {
+    const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
+    return allMembers.filter(m => m.projectId === projectId);
+  },
+
+  async addMember(projectId: string, user: { id: string; name: string; email: string; role: string }): Promise<ProjectMember> {
+    const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
+    
+    if (allMembers.some(m => m.projectId === projectId && m.userId === user.id)) {
+      throw new Error('Thành viên này đã tham gia dự án.');
+    }
+
+    const newMember: ProjectMember = {
+      projectId,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      isLeader: false
+    };
+
+    allMembers.push(newMember);
+    setStorage('bpg_project_members', allMembers);
+    return newMember;
+  },
+
+  async removeMember(projectId: string, userId: string): Promise<void> {
+    const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
+    const filtered = allMembers.filter(m => !(m.projectId === projectId && m.userId === userId));
+    setStorage('bpg_project_members', filtered);
+  },
+
+  async toggleLeader(projectId: string, userId: string): Promise<ProjectMember[]> {
+    const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
+    const updated = allMembers.map(m => {
+      if (m.projectId === projectId && m.userId === userId) {
+        return { ...m, isLeader: !m.isLeader };
+      }
+      return m;
+    });
+    setStorage('bpg_project_members', updated);
+    return updated.filter(m => m.projectId === projectId);
+  },
+
+  // WBS PHASES & TASKS
+  async getPhases(projectId: string): Promise<WBSPhase[]> {
+    const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
+    return allPhases.filter(ph => ph.projectId === projectId);
+  },
+
+  async createPhase(projectId: string, name: string): Promise<WBSPhase> {
+    const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
+    const newPhase: WBSPhase = {
+      id: `ph-${Date.now()}`,
+      projectId,
+      name,
+      status: 'active'
+    };
+    allPhases.push(newPhase);
+    setStorage('bpg_wbs_phases', allPhases);
+    return newPhase;
+  },
+
+  async getTasks(projectId: string): Promise<WBSTask[]> {
+    return getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === projectId);
+  },
+
+  async createTask(task: Omit<WBSTask, 'id' | 'progress' | 'history'>): Promise<WBSTask> {
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    
+    // Check if phase is frozen
+    const phases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
+    const parentPhase = phases.find(p => p.id === task.phaseId);
+    if (parentPhase && parentPhase.status === 'frozen') {
+      throw new Error('Giai đoạn này đã bị đóng băng nghiệm thu. Không thể thêm công việc.');
+    }
+
+    const newTask: WBSTask = {
+      ...task,
+      id: `t-${Date.now()}`,
+      progress: 0,
+      history: []
+    };
+    allTasks.push(newTask);
+    setStorage('bpg_wbs_tasks', allTasks);
+    await this.syncProjectProgress(task.projectId);
+    return newTask;
+  },
+
+  async updateTask(id: string, updates: Partial<WBSTask>): Promise<WBSTask> {
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const idx = allTasks.findIndex(t => t.id === id);
+    if (idx === -1) throw new Error('Không tìm thấy công việc.');
+
+    const task = allTasks[idx];
+    
+    // Check phase status
+    const phases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
+    const parentPhase = phases.find(p => p.id === task.phaseId);
+    if (parentPhase && parentPhase.status === 'frozen') {
+      throw new Error('Giai đoạn này đã bị đóng băng nghiệm thu. Không thể chỉnh sửa.');
+    }
+
+    allTasks[idx] = { ...task, ...updates };
+    setStorage('bpg_wbs_tasks', allTasks);
+    await this.syncProjectProgress(task.projectId);
+    return allTasks[idx];
+  },
+
+  async shiftDeadline(id: string, newDeadline: string, reason: string): Promise<WBSTask> {
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const idx = allTasks.findIndex(t => t.id === id);
+    if (idx === -1) throw new Error('Không tìm thấy công việc.');
+
+    const task = allTasks[idx];
+    
+    // Check phase status
+    const phases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
+    const parentPhase = phases.find(p => p.id === task.phaseId);
+    if (parentPhase && parentPhase.status === 'frozen') {
+      throw new Error('Giai đoạn này đã nghiệm thu đóng băng. Không thể dời hạn.');
+    }
+
+    const historyEntry: TaskHistory = {
+      date: new Date().toLocaleString(),
+      oldProgress: task.progress,
+      newProgress: task.progress,
+      reason: `Dời hạn từ ${task.deadline} đến ${newDeadline}. Lý do: ${reason}`
+    };
+
+    allTasks[idx] = {
+      ...task,
+      deadline: newDeadline,
+      history: [historyEntry, ...task.history]
+    };
+    
+    setStorage('bpg_wbs_tasks', allTasks);
+    return allTasks[idx];
+  },
+
+  // DAILY LOGS & PROGRESS UPDATES
+  async getDailyLogs(projectId: string): Promise<DailyLog[]> {
+    const logs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS);
+    return logs.filter(l => l.projectId === projectId).sort((a, b) => b.date.localeCompare(a.date));
+  },
+
+  async createDailyLog(
+    logData: Omit<DailyLog, 'id' | 'date' | 'comments'>,
+    engineerName: string
+  ): Promise<DailyLog> {
+    // 1. Validate progress - cannot go backwards
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const taskIdx = allTasks.findIndex(t => t.id === logData.taskId);
+    if (taskIdx === -1) throw new Error('Không tìm thấy công việc.');
+    
+    const task = allTasks[taskIdx];
+    if (logData.progressTo < task.progress) {
+      throw new Error(`Tiến độ báo cáo (${logData.progressTo}%) không thể nhỏ hơn tiến độ hiện tại (${task.progress}%).`);
+    }
+
+    // 2. Create the daily log
+    const logs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS);
+    const newLog: DailyLog = {
+      ...logData,
+      id: `l-${Date.now()}`,
+      engineerName,
+      date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' '), // "YYYY-MM-DD HH:MM"
+      comments: []
+    };
+    logs.push(newLog);
+    setStorage('bpg_daily_logs', logs);
+
+    // 3. Update task progress & add to task history
+    const historyEntry: TaskHistory = {
+      date: newLog.date,
+      oldProgress: task.progress,
+      newProgress: logData.progressTo,
+      reason: `Cập nhật tiến độ: ${logData.content} (Thời tiết: ${logData.weather})`
+    };
+
+    allTasks[taskIdx] = {
+      ...task,
+      progress: logData.progressTo,
+      history: [historyEntry, ...task.history]
+    };
+    setStorage('bpg_wbs_tasks', allTasks);
+
+    // 4. Update project overall progress
+    await this.syncProjectProgress(logData.projectId);
+
+    return newLog;
+  },
+
+  async addLogComment(logId: string, user: { name: string; role: string; id: string }, content: string): Promise<DailyLogComment> {
+    const logs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS);
+    const logIdx = logs.findIndex(l => l.id === logId);
+    if (logIdx === -1) throw new Error('Không tìm thấy bài nhật ký.');
+
+    const newComment: DailyLogComment = {
+      id: `c-${Date.now()}`,
+      userId: user.id,
+      userName: user.name,
+      role: user.role,
+      content,
+      date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
+    };
+
+    logs[logIdx].comments.push(newComment);
+    setStorage('bpg_daily_logs', logs);
+    return newComment;
+  },
+
+  // PHASE ACCEPTANCE (FREEZE PHASE)
+  async acceptPhase(phaseId: string, comment: string): Promise<WBSPhase> {
+    const phases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
+    const phaseIdx = phases.findIndex(p => p.id === phaseId);
+    if (phaseIdx === -1) throw new Error('Không tìm thấy giai đoạn.');
+
+    // Validate all tasks of this phase must be 100%
+    const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.phaseId === phaseId);
+    if (tasks.length === 0) {
+      throw new Error('Giai đoạn này chưa có công việc nào.');
+    }
+    const uncompletedTasks = tasks.filter(t => t.progress < 100);
+    if (uncompletedTasks.length > 0) {
+      throw new Error(`Không thể nghiệm thu. Giai đoạn còn ${uncompletedTasks.length} công việc chưa đạt 100%.`);
+    }
+
+    if (comment.trim().length < 50) {
+      throw new Error('Văn bản nhận xét nghiệm thu phải từ 50 ký tự trở lên.');
+    }
+
+    phases[phaseIdx] = {
+      ...phases[phaseIdx],
+      status: 'frozen',
+      acceptanceComment: comment,
+      acceptanceDate: new Date().toLocaleDateString('vi-VN')
+    };
+
+    setStorage('bpg_wbs_phases', phases);
+    return phases[phaseIdx];
+  }
+};
