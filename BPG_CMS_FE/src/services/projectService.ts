@@ -27,6 +27,8 @@ export interface WBSPhase {
   status: 'active' | 'frozen'; // frozen after acceptance
   acceptanceComment?: string;
   acceptanceDate?: string;
+  revocationComment?: string;
+  revocationDate?: string;
 }
 
 export interface TaskHistory {
@@ -34,6 +36,9 @@ export interface TaskHistory {
   oldProgress: number;
   newProgress: number;
   reason: string;
+  type?: 'progress_increase' | 'progress_decrease' | 'deadline_shift' | 'obsolete' | 'status_change';
+  adjustedBy?: string;
+  incidentCategory?: 'khach_quan' | 'chu_quan';
 }
 
 export interface WBSTask {
@@ -46,6 +51,7 @@ export interface WBSTask {
   deadline: string;
   progress: number; // 0 - 100
   history: TaskHistory[];
+  status?: 'active' | 'obsolete';
 }
 
 export interface DailyLogComment {
@@ -169,7 +175,7 @@ const setStorage = <T>(key: string, data: T[]) => {
 export const projectService = {
   // Sync overall progress of projects based on task progress average
   async syncProjectProgress(projectId: string): Promise<number> {
-    const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === projectId);
+    const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === projectId && t.status !== 'obsolete');
     if (tasks.length === 0) return 0;
     const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
     const avg = Math.round(sum / tasks.length);
@@ -190,7 +196,7 @@ export const projectService = {
       const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
       // dynamically update progresses
       for (const p of projects) {
-        const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === p.id);
+        const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === p.id && t.status !== 'obsolete');
         if (tasks.length > 0) {
           const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
           p.progress = Math.round(sum / tasks.length);
@@ -378,16 +384,29 @@ export const projectService = {
 
   async createDailyLog(
     logData: Omit<DailyLog, 'id' | 'date' | 'comments'>,
-    engineerName: string
+    engineerName: string,
+    userRole: string = 'kỹ sư',
+    incidentCategory?: 'khach_quan' | 'chu_quan'
   ): Promise<DailyLog> {
+    // Check if project is paused or done
+    const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
+    const project = projects.find(p => p.id === logData.projectId);
+    if (project && (project.status === 'paused' || project.status === 'done')) {
+      throw new Error('Dự án đang tạm dừng hoặc đã hoàn thành. Không thể cập nhật tiến độ.');
+    }
+
     // 1. Validate progress - cannot go backwards
     const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
     const taskIdx = allTasks.findIndex(t => t.id === logData.taskId);
     if (taskIdx === -1) throw new Error('Không tìm thấy công việc.');
     
     const task = allTasks[taskIdx];
+    
+    // Validate decrease
     if (logData.progressTo < task.progress) {
-      throw new Error(`Tiến độ báo cáo (${logData.progressTo}%) không thể nhỏ hơn tiến độ hiện tại (${task.progress}%).`);
+      if (userRole !== 'tpkt' && userRole !== 'admin') {
+        throw new Error(`Tiến độ báo cáo (${logData.progressTo}%) không thể nhỏ hơn tiến độ hiện tại (${task.progress}%). Vui lòng báo cáo TPKT để xử lý sự cố.`);
+      }
     }
 
     // 2. Create the daily log
@@ -403,11 +422,15 @@ export const projectService = {
     setStorage('bpg_daily_logs', logs);
 
     // 3. Update task progress & add to task history
+    const type: TaskHistory['type'] = logData.progressTo < task.progress ? 'progress_decrease' : 'progress_increase';
     const historyEntry: TaskHistory = {
       date: newLog.date,
       oldProgress: task.progress,
       newProgress: logData.progressTo,
-      reason: `Cập nhật tiến độ: ${logData.content} (Thời tiết: ${logData.weather})`
+      reason: `Cập nhật tiến độ: ${logData.content} (Thời tiết: ${logData.weather})`,
+      type,
+      adjustedBy: engineerName,
+      incidentCategory: logData.progressTo < task.progress ? incidentCategory : undefined
     };
 
     allTasks[taskIdx] = {
@@ -449,9 +472,9 @@ export const projectService = {
     if (phaseIdx === -1) throw new Error('Không tìm thấy giai đoạn.');
 
     // Validate all tasks of this phase must be 100%
-    const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.phaseId === phaseId);
+    const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
     if (tasks.length === 0) {
-      throw new Error('Giai đoạn này chưa có công việc nào.');
+      throw new Error('Giai đoạn này chưa có công việc nào hợp lệ.');
     }
     const uncompletedTasks = tasks.filter(t => t.progress < 100);
     if (uncompletedTasks.length > 0) {
@@ -471,5 +494,59 @@ export const projectService = {
 
     setStorage('bpg_wbs_phases', phases);
     return phases[phaseIdx];
+  },
+
+  async revokePhase(phaseId: string, reason: string): Promise<WBSPhase> {
+    const phases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
+    const phaseIdx = phases.findIndex(p => p.id === phaseId);
+    if (phaseIdx === -1) throw new Error('Không tìm thấy giai đoạn.');
+
+    if (reason.trim().length < 20) {
+      throw new Error('Lý do hủy nghiệm thu phải từ 20 ký tự trở lên.');
+    }
+
+    phases[phaseIdx] = {
+      ...phases[phaseIdx],
+      status: 'active',
+      revocationComment: reason,
+      revocationDate: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
+    };
+
+    setStorage('bpg_wbs_phases', phases);
+    return phases[phaseIdx];
+  },
+
+  async markTaskObsolete(taskId: string, reason: string, user: { name: string; role: string }): Promise<WBSTask> {
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const idx = allTasks.findIndex(t => t.id === taskId);
+    if (idx === -1) throw new Error('Không tìm thấy công việc.');
+
+    const task = allTasks[idx];
+
+    // Check phase status
+    const phases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
+    const parentPhase = phases.find(p => p.id === task.phaseId);
+    if (parentPhase && parentPhase.status === 'frozen') {
+      throw new Error('Giai đoạn này đã bị đóng băng nghiệm thu. Không thể hủy việc.');
+    }
+
+    const historyEntry: TaskHistory = {
+      date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' '),
+      oldProgress: task.progress,
+      newProgress: task.progress,
+      reason: `Đánh dấu hủy bỏ (Obsolete). Lý do: ${reason}`,
+      type: 'obsolete',
+      adjustedBy: user.name
+    };
+
+    allTasks[idx] = {
+      ...task,
+      status: 'obsolete',
+      history: [historyEntry, ...task.history]
+    };
+
+    setStorage('bpg_wbs_tasks', allTasks);
+    await this.syncProjectProgress(task.projectId);
+    return allTasks[idx];
   }
 };

@@ -26,6 +26,8 @@ export const PhaseAcceptance: React.FC = () => {
   // Form states
   const [comment, setComment] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
+  const [revokeReason, setRevokeReason] = useState('');
 
   const isTPKT = user?.role === 'tpkt' || user?.role === 'admin';
 
@@ -77,6 +79,44 @@ export const PhaseAcceptance: React.FC = () => {
       loadData();
     } catch (err: any) {
       setError(err.message || 'Có lỗi xảy ra khi nghiệm thu.');
+    }
+  };
+
+  const handleRevoke = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phaseId) return;
+
+    if (revokeReason.trim().length < 20) {
+      setError('Lý do hủy nghiệm thu phải từ 20 ký tự trở lên.');
+      return;
+    }
+
+    if (phase?.acceptanceDate && phase.acceptanceDate.includes('/')) {
+      const parts = phase.acceptanceDate.split('/');
+      if (parts.length === 3) {
+        const [dd, mm, yyyy] = parts;
+        const acceptDateObj = new Date(`${yyyy}-${mm}-${dd}`);
+        const now = new Date();
+        const diffTime = now.getTime() - acceptDateObj.getTime();
+        const diffDays = diffTime / (1000 * 60 * 60 * 24); 
+        
+        if (diffDays > 7) {
+          setError('Không thể hủy nghiệm thu. Đã quá 7 ngày kể từ ngày đóng băng.');
+          return;
+        }
+      }
+    }
+
+    try {
+      await projectService.revokePhase(phaseId, revokeReason);
+      setIsSubmitted(false);
+      setIsRevoking(false);
+      setRevokeReason('');
+      setSuccess('Đã hủy nghiệm thu giai đoạn thành công!');
+      setTimeout(() => setSuccess(null), 3000);
+      loadData();
+    } catch (err: any) {
+      setError(err.message || 'Có lỗi xảy ra khi hủy nghiệm thu.');
     }
   };
 
@@ -316,16 +356,69 @@ KẾT LUẬN:
                   <span>Xác nhận & Đóng băng Phase</span>
                 </button>
               ) : (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  color: 'hsl(var(--success))',
-                  fontWeight: 600,
-                  fontSize: '0.9rem'
-                }}>
-                  <CheckCircle2 size={18} />
-                  <span>Đã Đóng Băng Nghiệm Thu</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px', width: '100%' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: 'hsl(var(--success))',
+                    fontWeight: 600,
+                    fontSize: '0.9rem'
+                  }}>
+                    <CheckCircle2 size={18} />
+                    <span>Đã Đóng Băng Nghiệm Thu ({phase.acceptanceDate})</span>
+                  </div>
+
+                  {!isRevoking ? (
+                    <button 
+                      type="button" 
+                      onClick={() => setIsRevoking(true)}
+                      className="btn"
+                      style={{ 
+                        fontSize: '0.85rem', 
+                        backgroundColor: 'hsl(var(--bg-main))', 
+                        color: 'hsl(var(--danger))', 
+                        border: '1px solid hsl(var(--danger) / 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <AlertTriangle size={15} />
+                      Yêu cầu Hủy Nghiệm Thu
+                    </button>
+                  ) : (
+                    <div style={{ 
+                      width: '100%', 
+                      marginTop: '12px', 
+                      padding: '16px', 
+                      backgroundColor: 'hsl(var(--danger-glow))', 
+                      border: '1px solid hsl(var(--danger) / 0.3)',
+                      borderRadius: 'var(--radius-sm)'
+                    }}>
+                      <label htmlFor="revoke-reason" style={{ color: 'hsl(var(--danger))', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                        Lý do hủy nghiệm thu (Tối thiểu 20 ký tự) <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                      </label>
+                      <textarea
+                        id="revoke-reason"
+                        placeholder="Nêu rõ nguyên nhân hủy bỏ (VD: Phát hiện sai sót trong biên bản, thi công chưa đạt chuẩn sau kiểm tra...)"
+                        value={revokeReason}
+                        onChange={(e) => setRevokeReason(e.target.value)}
+                        rows={3}
+                        style={{ width: '100%', marginBottom: '12px', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.3)' }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'hsl(var(--danger))', marginBottom: '12px' }}>
+                        <span>Lưu ý: Chỉ có thể hủy nghiệm thu trong vòng 7 ngày kể từ lúc đóng băng.</span>
+                        <span>{revokeReason.trim().length} / 20</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        <button type="button" className="btn btn-secondary" onClick={() => setIsRevoking(false)}>Hủy</button>
+                        <button type="button" className="btn" style={{ backgroundColor: 'hsl(var(--danger))', color: 'white' }} onClick={handleRevoke} disabled={revokeReason.trim().length < 20}>
+                          Xác nhận Hủy Nghiệm Thu
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

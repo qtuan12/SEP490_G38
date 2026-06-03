@@ -23,7 +23,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
 
-  const isTPKT = user?.role === 'tpkt';
+  const isTPKT = user?.role === 'tpkt' || user?.role === 'admin';
 
   const loadData = async () => {
     setLoading(true);

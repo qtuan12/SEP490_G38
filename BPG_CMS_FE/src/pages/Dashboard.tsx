@@ -12,9 +12,11 @@ import {
   TrendingDown
 } from 'lucide-react';
 import { userService } from '../services/userService';
+import { useNavigate } from 'react-router-dom';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [userCount, setUserCount] = useState(0);
 
   useEffect(() => {
@@ -147,7 +149,7 @@ export const Dashboard: React.FC = () => {
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Hoạt động & Nhật ký mới nhận</h3>
-            <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+            <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => navigate('/projects')}>
               Xem toàn bộ
             </button>
           </div>

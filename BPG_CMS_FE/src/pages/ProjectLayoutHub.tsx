@@ -12,16 +12,25 @@ import {
   History, 
   MapPin, 
   Calendar,
-  Loader2
+  Loader2,
+  AlertCircle,
+  Play,
+  Pause,
+  CheckCircle
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   
+  const { user } = useAuth();
+  const isTPKT = user?.role === 'tpkt' || user?.role === 'admin';
+
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'feed'>('wbs');
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const fetchProjectDetails = async () => {
     if (!projectId) return;
@@ -43,6 +52,33 @@ export const ProjectLayoutHub: React.FC = () => {
   // Handle reload when tabs perform updates
   const handleTabUpdate = () => {
     fetchProjectDetails();
+  };
+
+  const handleStatusChange = async (newStatus: 'active' | 'paused' | 'done') => {
+    if (!project) return;
+    setStatusError(null);
+    try {
+      if (newStatus === 'active') {
+        const tasks = await projectService.getTasks(project.id);
+        const validTasks = tasks.filter(t => t.status !== 'obsolete');
+        if (validTasks.length === 0) {
+          throw new Error('Dự án phải có ít nhất 1 công việc (task) hợp lệ để Kích hoạt.');
+        }
+        
+        // deadline task >= project startDate
+        const projStartDate = new Date(project.startDate);
+        for (const t of validTasks) {
+          if (new Date(t.deadline) < projStartDate) {
+             throw new Error(`Công việc "${t.name}" có hạn hoàn thành (${t.deadline}) trước ngày bắt đầu dự án (${project.startDate}). Vui lòng điều chỉnh.`);
+          }
+        }
+      }
+
+      await projectService.updateProject(project.id, { status: newStatus });
+      fetchProjectDetails(); // reload
+    } catch (err: any) {
+      setStatusError(err.message);
+    }
   };
 
   if (loading) {
@@ -91,7 +127,14 @@ export const ProjectLayoutHub: React.FC = () => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{project.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{project.name}</h1>
+              {project.status === 'draft' && <span className="badge" style={{ backgroundColor: 'hsl(var(--text-muted))', color: 'white' }}>Bản nháp (Draft)</span>}
+              {project.status === 'active' && <span className="badge badge-primary">Đang triển khai (Active)</span>}
+              {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng (Paused)</span>}
+              {project.status === 'done' && <span className="badge badge-success">Hoàn thành (Done)</span>}
+            </div>
+            
             <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <MapPin size={14} style={{ color: 'hsl(var(--text-muted))' }} />
@@ -103,7 +146,48 @@ export const ProjectLayoutHub: React.FC = () => {
               </span>
             </div>
           </div>
+
+          {/* Project Status Actions for TPKT */}
+          {isTPKT && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {project.status === 'draft' && (
+                <button onClick={() => handleStatusChange('active')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Play size={16} /> Kích hoạt Dự án
+                </button>
+              )}
+              {project.status === 'active' && (
+                <>
+                  <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
+                    <Pause size={16} /> Tạm dừng
+                  </button>
+                  <button onClick={() => handleStatusChange('done')} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'hsl(var(--success))', color: 'white' }}>
+                    <CheckCircle size={16} /> Hoàn thành
+                  </button>
+                </>
+              )}
+              {project.status === 'paused' && (
+                <button onClick={() => handleStatusChange('active')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Play size={16} /> Tiếp tục Dự án
+                </button>
+              )}
+            </div>
+          )}
         </div>
+
+        {statusError && (
+          <div className="animate-fade-in" style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '10px 14px',
+            backgroundColor: 'hsl(var(--danger-glow))',
+            border: '1px solid hsl(var(--danger) / 0.2)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'hsl(346 84% 35%)',
+            fontSize: '0.85rem'
+          }}>
+            <AlertCircle size={16} />
+            <span>{statusError}</span>
+          </div>
+        )}
       </div>
 
       {/* Progress display */}
@@ -217,7 +301,6 @@ export const ProjectLayoutHub: React.FC = () => {
       <div 
         className="animate-fade-in" 
         style={{ marginTop: '10px' }}
-        onClick={handleTabUpdate} // sync state updates when clicking inside tabs
       >
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}

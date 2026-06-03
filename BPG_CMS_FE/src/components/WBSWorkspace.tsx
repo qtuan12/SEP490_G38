@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type { WBSPhase, WBSTask } from '../services/projectService';
+import type { WBSPhase, WBSTask, Project } from '../services/projectService';
 import { 
   CreateNodeModal, 
   AssignEngineerModal, 
@@ -21,7 +21,9 @@ import {
   CalendarClock, 
   TrendingUp,
   FileSignature,
-  User
+  User,
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,6 +37,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -58,6 +61,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     try {
       const pList = await projectService.getPhases(projectId);
       const tList = await projectService.getTasks(projectId);
+      const allProjs = await projectService.getProjects();
+      setProject(allProjs.find(p => p.id === projectId) || null);
+      
       setPhases(pList);
       setTasks(tList);
 
@@ -103,9 +109,23 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
   // Check if a phase is ready for acceptance (all child tasks 100%)
   const isPhaseReadyForAcceptance = (phaseId: string) => {
-    const phaseTasks = tasks.filter(t => t.phaseId === phaseId);
+    const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
     if (phaseTasks.length === 0) return false;
     return phaseTasks.every(t => t.progress === 100);
+  };
+
+  const handleObsolete = async () => {
+    const reason = prompt('Nhập lý do hủy bỏ công việc này:');
+    if (!reason || reason.trim().length < 5) {
+      handleError('Lý do hủy bỏ không hợp lệ (ít nhất 5 ký tự).');
+      return;
+    }
+    try {
+      await projectService.markTaskObsolete(selectedTask!.id, reason, { name: user?.name || '', role: user?.role || '' });
+      handleSuccess('Đã đánh dấu hủy bỏ công việc.');
+    } catch (err: any) {
+      handleError(err.message);
+    }
   };
 
   return (
@@ -146,7 +166,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
           </p>
         </div>
 
-        {isTPKTOrPL && (
+        {isTPKTOrPL && project?.status !== 'paused' && project?.status !== 'done' && (
           <button 
             onClick={() => setIsCreateOpen(true)} 
             className="btn btn-primary"
@@ -254,17 +274,21 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                                 backgroundColor: isSelected ? 'hsl(var(--primary-glow))' : 'transparent',
                                 cursor: 'pointer',
                                 fontSize: '0.85rem',
-                                transition: 'all var(--transition-fast)'
+                                transition: 'all var(--transition-fast)',
+                                opacity: t.status === 'obsolete' ? 0.6 : 1
                               }}
                             >
                               <FileText size={15} style={{ color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))' }} />
                               <span style={{ 
                                 fontWeight: isSelected ? 600 : 500, 
-                                color: isSelected ? 'hsl(var(--primary-hover))' : 'hsl(var(--text-secondary))',
-                                textDecoration: isFrozen ? 'line-through' : 'none'
+                                color: t.status === 'obsolete' ? 'hsl(var(--text-muted))' : isSelected ? 'hsl(var(--primary-hover))' : 'hsl(var(--text-secondary))',
+                                textDecoration: (isFrozen || t.status === 'obsolete') ? 'line-through' : 'none'
                               }}>
                                 {t.name}
                               </span>
+                              {t.status === 'obsolete' && (
+                                <span className="badge badge-danger" style={{ fontSize: '0.6rem', padding: '1px 4px', marginLeft: '6px' }}>Đã hủy</span>
+                              )}
                               <span style={{ 
                                 marginLeft: 'auto', 
                                 fontSize: '0.75rem', 
@@ -351,8 +375,22 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                 </div>
               </div>
 
-              {/* Quick Actions (only enabled if phase not frozen) */}
-              {selectedTaskPhase?.status !== 'frozen' ? (
+              {/* Quick Actions (only enabled if phase not frozen and task not obsolete) */}
+              {project?.status === 'paused' || project?.status === 'done' ? (
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  backgroundColor: 'hsl(var(--danger-glow))',
+                  padding: '12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid hsl(var(--danger) / 0.2)',
+                  fontSize: '0.85rem',
+                  color: 'hsl(var(--danger))'
+                }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>Dự án đang tạm dừng hoặc đã hoàn thành. Không thể thao tác công việc.</span>
+                </div>
+              ) : selectedTaskPhase?.status !== 'frozen' && selectedTask.status !== 'obsolete' ? (
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {/* TPKT / PL Actions */}
                   {isTPKTOrPL && (
@@ -372,6 +410,19 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                       >
                         <CalendarClock size={16} />
                         <span>Dời Deadline</span>
+                      </button>
+                      <button 
+                        onClick={handleObsolete} 
+                        className="btn"
+                        style={{ 
+                          fontSize: '0.85rem', flex: 1, minWidth: '120px', 
+                          backgroundColor: 'hsl(var(--bg-main))', 
+                          color: 'hsl(var(--danger))', 
+                          border: '1px solid hsl(var(--danger) / 0.3)' 
+                        }}
+                      >
+                        <Trash2 size={16} />
+                        <span>Hủy việc</span>
                       </button>
                     </>
                   )}
@@ -400,7 +451,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                   color: 'hsl(var(--success))'
                 }}>
                   <CheckCircle size={16} style={{ flexShrink: 0 }} />
-                  <span>Phase này đã được nghiệm thu và khóa tiến độ thành công.</span>
+                  <span>{selectedTask.status === 'obsolete' ? 'Công việc đã bị hủy bỏ.' : 'Phase này đã được nghiệm thu và khóa tiến độ thành công.'}</span>
                 </div>
               )}
 
