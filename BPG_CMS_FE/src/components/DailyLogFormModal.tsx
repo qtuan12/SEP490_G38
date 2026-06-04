@@ -28,7 +28,6 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
   const isPrivileged = user?.role === 'admin' || user?.role === 'tpkt';
 
   const [progress, setProgress] = useState(task.progress);
-  const [weather, setWeather] = useState('Nắng ráo, gió nhẹ');
   const [content, setContent] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -39,7 +38,6 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
 
   useEffect(() => {
     setProgress(task.progress);
-    setWeather('Nắng ráo, gió nhẹ');
     setContent('');
     setImages([]);
     setIncidentCategory('khach_quan');
@@ -108,7 +106,7 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
         progressFrom: task.progress,
         progressTo: progress,
         content,
-        weather,
+        weather: '',
         images: finalImages
       }, engineerName, user?.role, incidentCategory);
 
@@ -212,19 +210,6 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
             </div>
           </div>
         )}
-
-        {/* Weather Input */}
-        <div>
-          <label htmlFor="log-weather">Tình hình thời tiết hôm nay</label>
-          <input
-            id="log-weather"
-            type="text"
-            placeholder="Ví dụ: Nắng ráo 32°C, chiều có mưa dông nhẹ"
-            value={weather}
-            onChange={(e) => setWeather(e.target.value)}
-            required
-          />
-        </div>
 
         {/* Work Content Textarea */}
         <div>

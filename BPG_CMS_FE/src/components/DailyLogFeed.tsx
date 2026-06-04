@@ -173,10 +173,12 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
             </div>
 
             {/* Weather / Conditions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'hsl(var(--warning))', fontWeight: 600 }}>
-              <CloudSun size={15} />
-              <span>Thời tiết: {log.weather}</span>
-            </div>
+            {log.weather && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'hsl(var(--warning))', fontWeight: 600 }}>
+                <CloudSun size={15} />
+                <span>Thời tiết: {log.weather}</span>
+              </div>
+            )}
 
             {/* Content Text */}
             <p style={{ 
