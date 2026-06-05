@@ -27,6 +27,7 @@ import {
   FilePlus2,
   Pencil,
   MoreVertical,
+  BarChart2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -298,11 +299,31 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
         </div>
       )}
 
-      <div>
-        <h3 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Cơ cấu phân rã công việc (WBS)</h3>
-        <p style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
-          Số thứ tự được hiển thị trước tên · Nhấn ▲▼ để sắp xếp lại · Click <strong>⋮</strong> để đổi tên / xóa
-        </p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+        <div>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 600, margin: 0 }}>Cơ cấu phân rã công việc (WBS)</h3>
+          <p style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', marginTop: '4px' }}>
+            Số thứ tự được hiển thị trước tên · Nhấn ▲▼ để sắp xếp lại · Click <strong>⋮</strong> để đổi tên / xóa
+          </p>
+        </div>
+        <button
+          onClick={() => navigate(`/projects/${projectId}/gantt`)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '7px',
+            padding: '8px 16px', flexShrink: 0,
+            border: '1px solid hsl(var(--primary) / 0.4)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'hsl(var(--primary-glow))',
+            color: 'hsl(var(--primary))',
+            cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={e => { const b = e.currentTarget; b.style.background = 'hsl(var(--primary))'; b.style.color = '#fff'; }}
+          onMouseLeave={e => { const b = e.currentTarget; b.style.background = 'hsl(var(--primary-glow))'; b.style.color = 'hsl(var(--primary))'; }}
+        >
+          <BarChart2 size={15} />
+          <span>Xem Gantt Chart</span>
+        </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'stretch' }}>

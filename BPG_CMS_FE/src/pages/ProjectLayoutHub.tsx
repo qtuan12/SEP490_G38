@@ -50,9 +50,9 @@ export const ProjectLayoutHub: React.FC = () => {
   }, [projectId]);
 
   // Handle reload when tabs perform updates
-  const handleTabUpdate = () => {
-    fetchProjectDetails();
-  };
+  // const handleTabUpdate = () => {
+  //   fetchProjectDetails();
+  // };
 
   const handleStatusChange = async (newStatus: 'active' | 'paused' | 'done') => {
     if (!project) return;

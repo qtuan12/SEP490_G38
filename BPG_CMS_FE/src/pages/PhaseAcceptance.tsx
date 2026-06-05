@@ -24,7 +24,7 @@ export const PhaseAcceptance: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   // Form states
-  const [comment, setComment] = useState('');
+  const [_comment, setComment] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');

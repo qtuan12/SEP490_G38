@@ -12,6 +12,7 @@ import { ProjectList } from './pages/ProjectList';
 import { ProjectLayoutHub } from './pages/ProjectLayoutHub';
 import { TaskDetailSE } from './pages/TaskDetailSE';
 import { PhaseAcceptance } from './pages/PhaseAcceptance';
+import { GanttChart } from './pages/GanttChart';
 
 // Protected Route Guard
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
@@ -143,6 +144,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'tpkt']}>
                 <PhaseAcceptance />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/projects/:projectId/gantt" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <GanttChart />
               </ProtectedRoute>
             } 
           />

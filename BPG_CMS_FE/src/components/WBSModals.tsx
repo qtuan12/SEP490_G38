@@ -53,7 +53,8 @@ export const CreateNodeModal: React.FC<CreateNodeModalProps> = ({
           phaseId,
           projectId,
           name,
-          deadline
+          deadline,
+          sortOrder: 0
         });
         onSuccess(`Đã tạo thành công Công việc mới: ${name}`);
       }
