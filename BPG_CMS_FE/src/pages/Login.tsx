@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { KeyRound, Mail, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { KeyRound, Mail, AlertTriangle } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
@@ -113,7 +113,7 @@ export const Login: React.FC = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'radial-gradient(circle at top, hsl(262 80% 92%) 0%, hsl(var(--bg-main)) 70%)',
+      background: 'radial-gradient(circle at top, hsl(240 100% 96%) 0%, hsl(var(--bg-main)) 70%)',
       padding: '20px'
     }}>
       <div className="glass-panel animate-slide-up" style={{
@@ -125,17 +125,17 @@ export const Login: React.FC = () => {
       }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{
-            display: 'inline-flex',
-            padding: '12px',
-            borderRadius: 'var(--radius-md)',
-            background: 'hsl(var(--primary-glow))',
-            color: 'hsl(var(--primary))',
-            marginBottom: '16px',
-            border: '1px solid hsl(var(--primary) / 0.1)'
-          }}>
-            <ShieldCheck size={32} />
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="BPG Logo" 
+            style={{ 
+              height: '80px', 
+              width: '80px', 
+              objectFit: 'contain',
+              marginBottom: '16px',
+              filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08))'
+            }} 
+          />
           <h2 className="gradient-text" style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '6px' }}>BPG CMS</h2>
           <p style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.9rem' }}>
             Hệ thống Quản lý Thi công & Kiểm soát Vật tư

@@ -67,26 +67,25 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       }}>
         {/* Logo Section */}
         <div style={{ 
-          padding: '24px', 
+          padding: '20px 24px', 
           borderBottom: '1px solid hsl(var(--border))', 
           display: 'flex', 
           alignItems: 'center', 
           gap: '12px' 
         }}>
-          <div style={{
-            background: 'hsl(var(--primary))',
-            color: '#fff',
-            padding: '8px',
-            borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <Boxes size={22} />
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="BPG Logo" 
+            style={{ 
+              height: '42px', 
+              width: '42px', 
+              objectFit: 'contain',
+              borderRadius: 'var(--radius-sm)'
+            }} 
+          />
           <div>
             <h1 style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '0.05em' }}>BPG CMS</h1>
-            <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Construction MVP</span>
+            <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 600 }}>Construction MVP</span>
           </div>
         </div>
 

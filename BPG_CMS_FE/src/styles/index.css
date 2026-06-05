@@ -6,9 +6,9 @@
   --bg-card: 0 0% 100%;           /* Pure white card */
   --bg-card-glass: 0 0% 100% / 0.75; /* Glassmorphism card */
   
-  --primary: 262 80% 50%;         /* Vibrant Purple/Indigo */
-  --primary-hover: 262 80% 43%;
-  --primary-glow: 262 80% 50% / 0.15;
+  --primary: 240 100% 50%;         /* Vibrant Blue from logo */
+  --primary-hover: 240 100% 43%;
+  --primary-glow: 240 100% 50% / 0.15;
   
   --success: 142 72% 29%;         /* Darker emerald green for contrast */
   --success-glow: 142 72% 29% / 0.08;
@@ -16,8 +16,8 @@
   --warning: 38 92% 38%;          /* Darker amber orange for contrast */
   --warning-glow: 38 92% 38% / 0.08;
   
-  --danger: 346 84% 45%;          /* Darker red/crimson for contrast */
-  --danger-glow: 346 84% 45% / 0.08;
+  --danger: 0 100% 45%;           /* Vibrant Red from logo */
+  --danger-glow: 0 100% 45% / 0.08;
   
   --text-primary: 224 71% 4%;     /* Very dark slate grey */
   --text-secondary: 215 16% 37%;  /* Muted slate grey */
@@ -84,7 +84,7 @@ body {
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, hsl(var(--text-primary)) 0%, hsl(var(--primary)) 100%);
+  background: linear-gradient(135deg, hsl(240 100% 50%) 0%, hsl(0 100% 45%) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
