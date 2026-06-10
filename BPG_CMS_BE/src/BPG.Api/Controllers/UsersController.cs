@@ -40,7 +40,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateUser(Guid id, UpdateUserRequest request)
+    public async Task<IActionResult> UpdateUser(long id, UpdateUserRequest request)
     {
         try
         {
@@ -56,7 +56,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteUser(Guid id)
+    public async Task<IActionResult> DeleteUser(long id)
     {
         var deleted = await _mediator.Send(new DeleteUserCommand(id));
         if (!deleted)
@@ -65,7 +65,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("{id}/toggle-status")]
-    public async Task<IActionResult> ToggleUserStatus(Guid id)
+    public async Task<IActionResult> ToggleUserStatus(long id)
     {
         var result = await _mediator.Send(new ToggleUserStatusCommand(id));
         if (result == null)
