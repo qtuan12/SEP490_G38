@@ -32,15 +32,11 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
   const [images, setImages] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  // Incident fields for progress decrease
-  const [incidentCategory, setIncidentCategory] = useState<'khach_quan' | 'chu_quan'>('khach_quan');
 
   useEffect(() => {
     setProgress(task.progress);
     setContent('');
     setImages([]);
-    setIncidentCategory('khach_quan');
   }, [task, isOpen]);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -108,7 +104,7 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
         content,
         weather: '',
         images: finalImages
-      }, engineerName, user?.role, incidentCategory);
+      }, engineerName, user?.role, undefined);
 
       onSuccess(`Đã báo cáo nhật ký thi công cho việc "${task.name}" thành công!`);
       onClose();
@@ -146,70 +142,23 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
-              {isPrivileged ? '0%' : `${task.progress}% (Hiện tại)`}
+              {task.progress}% (Hiện tại)
             </span>
             <input
               type="range"
-              min={isPrivileged ? 0 : task.progress}
+              min={task.progress}
               max={100}
               value={progress}
               onChange={(e) => setProgress(Number(e.target.value))}
-              style={{ flex: 1, cursor: 'pointer', height: '6px', accentColor: progress < task.progress ? 'hsl(var(--danger))' : 'hsl(var(--primary))' }}
-              disabled={!isPrivileged && task.progress === 100}
+              style={{ flex: 1, cursor: 'pointer', height: '6px', accentColor: 'hsl(var(--primary))' }}
+              disabled={task.progress === 100}
             />
             <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>100%</span>
           </div>
           <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'block', marginTop: '4px' }}>
-            {isPrivileged 
-              ? '* Quyền TPKT/Admin: Có thể kéo giảm tiến độ để báo cáo sự cố / điều chỉnh.'
-              : '* Khóa cứng chiều lùi: Bạn chỉ có thể kéo tiến độ tiến lên hoặc giữ nguyên.'
-            }
+            * Khóa cứng chiều lùi: Bạn chỉ có thể kéo tiến độ tiến lên hoặc giữ nguyên. Mọi sự cố phải được báo cáo qua thẻ "Sự cố" riêng biệt.
           </span>
         </div>
-
-        {/* Incident Reporting Block - Only if progress is decreased */}
-        {progress < task.progress && (
-          <div style={{
-            backgroundColor: 'hsl(var(--danger) / 0.1)',
-            border: '1px solid hsl(var(--danger) / 0.3)',
-            padding: '12px',
-            borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'hsl(var(--danger))', fontWeight: 600 }}>
-              <AlertTriangle size={18} />
-              <span>Báo cáo sự cố giảm tiến độ</span>
-            </div>
-            
-            <div>
-              <label>Phân loại sự cố</label>
-              <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'normal', cursor: 'pointer' }}>
-                  <input 
-                    type="radio" 
-                    name="incidentCategory" 
-                    value="khach_quan" 
-                    checked={incidentCategory === 'khach_quan'}
-                    onChange={() => setIncidentCategory('khach_quan')}
-                  />
-                  Sự cố khách quan (Thời tiết, thiên tai...)
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'normal', cursor: 'pointer' }}>
-                  <input 
-                    type="radio" 
-                    name="incidentCategory" 
-                    value="chu_quan" 
-                    checked={incidentCategory === 'chu_quan'}
-                    onChange={() => setIncidentCategory('chu_quan')}
-                  />
-                  Sự cố chủ quan (Lỗi thi công, thiếu vật tư...)
-                </label>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Work Content Textarea */}
         <div>

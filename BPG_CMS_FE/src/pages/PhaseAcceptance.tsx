@@ -8,8 +8,11 @@ import {
   CheckCircle2, 
   AlertTriangle, 
   Download,
-  Lock
+  Lock,
+  Clock
 } from 'lucide-react';
+import { Modal } from '../components/Modal';
+import type { AcceptanceRecord } from '../services/projectService';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -28,6 +31,7 @@ export const PhaseAcceptance: React.FC = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');
+  const [selectedHistory, setSelectedHistory] = useState<AcceptanceRecord | null>(null);
 
   // Structured acceptance states
   const [representativeA, setRepresentativeA] = useState('');
@@ -138,9 +142,18 @@ export const PhaseAcceptance: React.FC = () => {
         opinions,
         conclusion
       });
-      setIsSubmitted(true);
-      setSuccess('Đã nghiệm thu giai đoạn và đóng băng Phase thành công!');
-      setTimeout(() => setSuccess(null), 3000);
+      const isPassed = !conclusion.includes('Không chấp nhận');
+      
+      if (isPassed) {
+        setIsSubmitted(true);
+        setSuccess('Đã nghiệm thu giai đoạn và đóng băng Phase thành công!');
+      } else {
+        setSuccess('Đã ghi nhận biên bản đánh giá KHÔNG ĐẠT. Vui lòng yêu cầu nhà thầu khắc phục.');
+        // Reset some form fields to allow another submission later
+        setConclusion('Chấp nhận nghiệm thu và đồng ý cho triển khai các công việc tiếp theo.');
+      }
+      
+      setTimeout(() => setSuccess(null), 4000);
       loadData();
     } catch (err: any) {
       setError(err.message || 'Có lỗi xảy ra khi nghiệm thu.');
@@ -400,6 +413,51 @@ CÁN BỘ GIÁM SÁT THI CÔNG                 KỸ THUẬT THI CÔNG TRỰC TI�
               <strong>Chưa đủ điều kiện nghiệm thu:</strong> Tất cả công việc con phải đạt 100% tiến độ trước khi tiến hành nghiệm thu và đóng băng giai đoạn.
             </span>
           </div>
+        )}
+      </div>
+
+      {/* Acceptance History */}
+      <div className="card">
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '14px', borderBottom: '1px solid hsl(var(--border))', paddingBottom: '8px' }}>
+          Lịch sử Nghiệm thu Giai đoạn
+        </h3>
+        {phase.acceptanceHistory && phase.acceptanceHistory.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {phase.acceptanceHistory.map((record) => (
+              <div 
+                key={record.id}
+                onClick={() => setSelectedHistory(record)}
+                style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  padding: '12px 16px',
+                  backgroundColor: 'hsl(var(--bg-main) / 0.4)',
+                  border: `1px solid ${record.isPassed ? 'hsl(var(--success) / 0.5)' : 'hsl(var(--danger) / 0.5)'}`,
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--bg-muted))'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--bg-main) / 0.4)'}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Clock size={18} style={{ color: 'hsl(var(--text-muted))' }} />
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Nghiệm thu lúc {record.date}</span>
+                    <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Người đại diện: {record.representativeB} (Bên B)</span>
+                  </div>
+                </div>
+                <span className={`badge ${record.isPassed ? 'badge-success' : 'badge-danger'}`}>
+                  {record.isPassed ? 'ĐẠT (ĐÓNG BĂNG)' : 'KHÔNG ĐẠT'}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ textAlign: 'center', color: 'hsl(var(--text-muted))', padding: '20px 0' }}>
+            Chưa có biên bản nghiệm thu nào được ghi nhận.
+          </p>
         )}
       </div>
 
@@ -785,6 +843,70 @@ CÁN BỘ GIÁM SÁT THI CÔNG                 KỸ THUẬT THI CÔNG TRỰC TI�
         <div className="card" style={{ textAlign: 'center', color: 'hsl(var(--text-muted))' }}>
           Bạn cần đăng nhập với vai trò <strong>Trưởng phòng Kỹ Thuật (TPKT)</strong> để tiến hành nghiệm thu giai đoạn này.
         </div>
+      )}
+
+      {/* History Detail Modal */}
+      {selectedHistory && (
+        <Modal 
+          isOpen={!!selectedHistory} 
+          onClose={() => setSelectedHistory(null)} 
+          title={`Chi tiết Biên bản Nghiệm thu - ${selectedHistory.date}`}
+        >
+          <div style={{
+            backgroundColor: '#ffffff',
+            color: '#1a202c',
+            padding: '24px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid hsl(var(--border))',
+            lineHeight: '1.5',
+            fontSize: '0.9rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            maxHeight: '75vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+              <h4 style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', textTransform: 'uppercase' }}>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</h4>
+              <h5 style={{ margin: '4px 0 0 0', fontWeight: 700, fontSize: '0.85rem' }}>Độc lập – Tự do – Hạnh phúc</h5>
+            </div>
+            
+            <div style={{ textAlign: 'center', margin: '10px 0' }}>
+              <h2 style={{ margin: 0, fontWeight: 800, fontSize: '1.15rem' }}>BIÊN BẢN NGHIỆM THU CÔNG VIỆC XÂY DỰNG</h2>
+              <span className={`badge ${selectedHistory.isPassed ? 'badge-success' : 'badge-danger'}`} style={{ marginTop: '8px' }}>
+                {selectedHistory.isPassed ? 'KẾT QUẢ ĐẠT' : 'KẾT QUẢ KHÔNG ĐẠT'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div><strong>Thành phần nghiệm thu:</strong></div>
+              <div>- Bên A: {selectedHistory.representativeA} ({selectedHistory.roleA})</div>
+              <div>- Bên B: {selectedHistory.representativeB} ({selectedHistory.roleB})</div>
+            </div>
+
+            <div>
+              <strong>Thời gian:</strong> Từ {new Date(selectedHistory.startTime).toLocaleString('vi-VN')} đến {new Date(selectedHistory.endTime).toLocaleString('vi-VN')}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <strong>Đánh giá chất lượng:</strong>
+              <p style={{ margin: 0, paddingLeft: '8px', borderLeft: '3px solid #e2e8f0' }}>{selectedHistory.quality}</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <strong>Kết luận của TPKT:</strong>
+              <div style={{ 
+                padding: '8px 12px', 
+                backgroundColor: selectedHistory.isPassed ? '#f0fdf4' : '#fef2f2', 
+                borderLeft: `4px solid ${selectedHistory.isPassed ? '#16a34a' : '#dc2626'}`, 
+                fontWeight: 600,
+                color: selectedHistory.isPassed ? '#15803d' : '#b91c1c'
+              }}>
+                {selectedHistory.conclusion}
+              </div>
+            </div>
+          </div>
+        </Modal>
       )}
 
     </div>

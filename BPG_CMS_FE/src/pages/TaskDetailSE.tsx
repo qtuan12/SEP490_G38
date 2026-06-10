@@ -14,6 +14,27 @@ import {
   History
 } from 'lucide-react';
 
+const getInitials = (name: string) => {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
+
+const getAvatarColor = (userId: string) => {
+  const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const colors = [
+    '#3b82f6', // blue
+    '#10b981', // emerald
+    '#f59e0b', // amber
+    '#ef4444', // red
+    '#8b5cf6', // violet
+    '#ec4899', // pink
+    '#06b6d4', // cyan
+  ];
+  return colors[hash % colors.length];
+};
+
 export const TaskDetailSE: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
@@ -221,10 +242,42 @@ export const TaskDetailSE: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderTop: '1px solid hsl(var(--border) / 0.6)', paddingTop: '10px' }}>
-            <User size={18} style={{ color: 'hsl(var(--text-muted))' }} />
-            <div>
+            <User size={18} style={{ color: 'hsl(var(--text-muted))', flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'block' }}>KỸ SƯ CHỊU TRÁCH NHIỆM</span>
-              <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{task.assignedName || 'Chưa gán kỹ sư'}</strong>
+              {task.assignedTo && task.assignedName ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '2px' }}>
+                  {task.assignedTo.split(',').map((id, index) => {
+                    const names = task.assignedName ? task.assignedName.split(', ') : [];
+                    const name = names[index] || 'Kỹ sư';
+                    const initials = getInitials(name);
+                    const bgColor = getAvatarColor(id);
+                    return (
+                      <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            backgroundColor: bgColor,
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {initials}
+                        </div>
+                        <strong style={{ fontSize: '0.85rem', color: 'hsl(var(--text-primary))' }}>{name}</strong>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>Chưa gán kỹ sư</strong>
+              )}
             </div>
           </div>
         </div>

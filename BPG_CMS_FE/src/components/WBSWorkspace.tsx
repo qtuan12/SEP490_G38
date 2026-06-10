@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type { WBSPhase, WBSTask, Project, DailyLog } from '../services/projectService';
-import { AssignEngineerModal } from './WBSModals';
+import type { WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest } from '../services/projectService';
+import { AssignEngineerModal, CreatePhaseModal, EditPhaseModal, PhaseBOQModal, CreateTaskModal, EditTaskModal, AdjustDeadlineModal, LeaderApprovalModal, PhaseMaterialRequestsListModal } from './WBSModals';
 import { DailyLogFormModal } from './DailyLogFormModal';
 import { Modal } from './Modal';
 import {
@@ -20,16 +20,37 @@ import {
   User,
   Trash2,
   AlertCircle,
-  Loader2,
-  X,
-  Check,
+  AlertTriangle,
   FolderPlus,
   FilePlus2,
   Pencil,
   MoreVertical,
   BarChart2,
+  Box,
+  CornerDownRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+const getInitials = (name: string) => {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
+
+const getAvatarColor = (userId: string) => {
+  const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const colors = [
+    '#3b82f6', // blue
+    '#10b981', // emerald
+    '#f59e0b', // amber
+    '#ef4444', // red
+    '#8b5cf6', // violet
+    '#ec4899', // pink
+    '#06b6d4', // cyan
+  ];
+  return colors[hash % colors.length];
+};
 
 interface WBSWorkspaceProps {
   projectId: string;
@@ -45,46 +66,57 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
 
   // Tree collapse state
   const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({});
 
   // Selected task state
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   // Modal triggers
   const [isAssignOpen, setIsAssignOpen] = useState(false);
-  const [isLogsOpen, setIsLogsOpen] = useState(false);
   const [isLogOpen, setIsLogOpen] = useState(false);
+  const [isCreateMatReqOpen, setIsCreateMatReqOpen] = useState(false);
+  const [createMatReqType, setCreateMatReqType] = useState<'normal' | 'emergency'>('normal');
 
-  // Detailed task logs states
-  const [taskLogs, setTaskLogs] = useState<DailyLog[]>([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
+  // ── CREATE Phase popup modal ─────────────────────────
+  const [isCreatePhaseOpen, setIsCreatePhaseOpen] = useState(false);
+  const [isResubmitOpen, setIsResubmitOpen] = useState(false);
+  const [selectedResubmitRequest, setSelectedResubmitRequest] = useState<MaterialRequest | null>(null);
 
-  // ── CREATE Phase inline ──────────────────────────────
-  const [addingPhase, setAddingPhase] = useState(false);
-  const [newPhaseName, setNewPhaseName] = useState('');
-  const [savingPhase, setSavingPhase] = useState(false);
-  const phaseInputRef = useRef<HTMLInputElement>(null);
+  const [isEditPhaseOpen, setIsEditPhaseOpen] = useState(false);
+  const [selectedPhaseForEdit, setSelectedPhaseForEdit] = useState<WBSPhase | null>(null);
 
-  // ── CREATE Task inline ───────────────────────────────
-  const [addingTaskForPhaseId, setAddingTaskForPhaseId] = useState<string | null>(null);
-  const [newTaskName, setNewTaskName] = useState('');
-  const [newTaskDeadline, setNewTaskDeadline] = useState('');
-  const [savingTask, setSavingTask] = useState(false);
-  const taskInputRef = useRef<HTMLInputElement>(null);
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
+  const [selectedTaskForEdit, setSelectedTaskForEdit] = useState<WBSTask | null>(null);
 
-  // ── RENAME Phase inline ──────────────────────────────
-  const [renamingPhaseId, setRenamingPhaseId] = useState<string | null>(null);
-  const [renamePhaseValue, setRenamePhaseValue] = useState('');
-  const [savingRenamePhase, setSavingRenamePhase] = useState(false);
-  const renamePhaseRef = useRef<HTMLInputElement>(null);
 
-  // ── RENAME Task inline ───────────────────────────────
-  const [renamingTaskId, setRenamingTaskId] = useState<string | null>(null);
-  const [renameTaskValue, setRenameTaskValue] = useState('');
-  const [savingRenameTask, setSavingRenameTask] = useState(false);
-  const renameTaskRef = useRef<HTMLInputElement>(null);
+
+  // State for task allocations estimation
+  // State for task allocations estimation
+  const [isPhaseMatReqListOpen, setIsPhaseMatReqListOpen] = useState(false);
+  const [isPhaseMatReqOpen, setIsPhaseMatReqOpen] = useState(false);
+  const [isLeaderApprovalOpen, setIsLeaderApprovalOpen] = useState(false);
+  const [selectedPhaseForMatReq, setSelectedPhaseForMatReq] = useState<WBSPhase | null>(null);
+  const [isBOQOpen, setIsBOQOpen] = useState(false);
+  const [selectedPhaseForBOQ, setSelectedPhaseForBOQ] = useState<WBSPhase | null>(null);
+
+  // States for design drawing modal
+
+  // ── CREATE Task modal state ───────────────────────────────
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [selectedPhaseForTask, setSelectedPhaseForTask] = useState<string>('');
+  const [parentTaskForNew, setParentTaskForNew] = useState<string | undefined>(undefined);
+  const [parentDeadlineForNew, setParentDeadlineForNew] = useState<string | undefined>(undefined);
+
+  // ── ADJUST Deadline modal state ───────────────────────────
+  const [isAdjustDeadlineOpen, setIsAdjustDeadlineOpen] = useState(false);
+  const [adjustingTask, setAdjustingTask] = useState<WBSTask | null>(null);
+
+
 
   // ── Hover state ──────────────────────────────────────
   const [hoveredPhaseId, setHoveredPhaseId] = useState<string | null>(null);
@@ -101,27 +133,10 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return () => document.removeEventListener('click', handler);
   }, []);
 
-  // Auto-focus inline inputs
-  useEffect(() => { if (addingPhase && phaseInputRef.current) phaseInputRef.current.focus(); }, [addingPhase]);
-  useEffect(() => { if (addingTaskForPhaseId && taskInputRef.current) taskInputRef.current.focus(); }, [addingTaskForPhaseId]);
-  useEffect(() => { if (renamingPhaseId && renamePhaseRef.current) renamePhaseRef.current.focus(); }, [renamingPhaseId]);
-  useEffect(() => { if (renamingTaskId && renameTaskRef.current) renameTaskRef.current.focus(); }, [renamingTaskId]);
 
-  const loadTaskLogs = async () => {
-    if (!selectedTaskId) return;
-    setLoadingLogs(true);
-    try {
-      const allLogs = await projectService.getDailyLogs(projectId);
-      setTaskLogs(allLogs.filter(l => l.taskId === selectedTaskId));
-    } catch (err) { console.error(err); }
-    finally { setLoadingLogs(false); }
-  };
-
-  useEffect(() => {
-    if (selectedTaskId && isLogsOpen) loadTaskLogs();
-  }, [selectedTaskId, isLogsOpen, success]);
 
   const isTPKTOrPL = user?.role === 'tpkt' || user?.role === 'admin';
+
 
   const loadWBSData = async () => {
     setLoading(true);
@@ -129,13 +144,18 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
       const pList = await projectService.getPhases(projectId);
       const tList = await projectService.getTasks(projectId);
       const allProjs = await projectService.getProjects();
+      const memberList = await projectService.getMembers(projectId);
+      const mr = await projectService.getAllMaterialRequests();
+      setMaterialRequests(mr);
+
       setProject(allProjs.find(p => p.id === projectId) || null);
       setPhases(pList);
       setTasks(tList);
+      setMembers(memberList);
+
       const expands: Record<string, boolean> = {};
       pList.forEach(p => { expands[p.id] = true; });
       setExpandedPhases(expands);
-      if (tList.length > 0 && !selectedTaskId) setSelectedTaskId(tList[0].id);
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tải cơ cấu WBS.');
     } finally { setLoading(false); }
@@ -159,6 +179,10 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
   const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) : null;
 
+
+  const currentMember = members.find(m => m.userId === user?.id);
+  const isPL = (currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'tpkt';
+
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
     if (phaseTasks.length === 0) return false;
@@ -167,44 +191,63 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
   const canEdit = isTPKTOrPL && project?.status !== 'paused' && project?.status !== 'done';
 
+  // ── Material Request Actions ─────────────────────────
+  const handleApproveByLeader = async (requestId: string) => {
+    try {
+      await projectService.approveMaterialRequestByLeader(requestId, user?.name || 'Leader');
+      handleSuccess('Đã duyệt yêu cầu và gửi cho TPKT.');
+    } catch (err: any) { handleError(err.message); }
+  };
+
+  const handleApproveByTPKT = async (requestId: string) => {
+    try {
+      await projectService.approveMaterialRequestByTPKT(requestId, user?.name || 'TPKT');
+      handleSuccess('Đã duyệt yêu cầu và gửi cho Kế toán.');
+    } catch (err: any) { handleError(err.message); }
+  };
+
+  const handleRejectMatReq = async (requestId: string) => {
+    const reason = prompt('Nhập lý do từ chối:');
+    if (!reason || reason.trim().length < 5) {
+      handleError('Lý do từ chối phải từ 5 ký tự trở lên.');
+      return;
+    }
+    try {
+      await projectService.rejectMaterialRequest(requestId, reason);
+      handleSuccess('Đã từ chối yêu cầu vật tư.');
+    } catch (err: any) { handleError(err.message); }
+  };
+
+  const handleCancelMatReq = async (requestId: string) => {
+    const reason = prompt('Bạn đang hủy phiếu yêu cầu vật tư này. Nhập lý do hủy:');
+    if (!reason || reason.trim().length < 5) {
+      handleError('Lý do hủy phải từ 5 ký tự trở lên.');
+      return;
+    }
+    try {
+      await projectService.cancelMaterialRequest(requestId, reason);
+      handleSuccess('Đã hủy phiếu yêu cầu vật tư.');
+    } catch (err: any) { handleError(err.message); }
+  };
+
+  const handleConfirmReceived = async (requestId: string) => {
+    try {
+      await projectService.confirmMaterialReceived(requestId, user?.name || 'Leader');
+      handleSuccess('Đã xác nhận nhận đủ vật tư cho công việc này.');
+    } catch (err: any) { handleError(err.message); }
+  };
+
   // ── CRUD Handlers ─────────────────────────────────────
 
-  const handleSavePhase = async () => {
-    if (!newPhaseName.trim()) { handleError('Tên Phase không được để trống.'); return; }
-    setSavingPhase(true);
-    try {
-      await projectService.createPhase(projectId, newPhaseName.trim());
-      setNewPhaseName(''); setAddingPhase(false);
-      handleSuccess(`Đã tạo Phase mới: ${newPhaseName.trim()}`);
-    } catch (err: any) { handleError(err.message || 'Lỗi khi tạo Phase.'); }
-    finally { setSavingPhase(false); }
-  };
 
-  const handleSaveTask = async (phaseId: string) => {
-    if (!newTaskName.trim()) { handleError('Tên Task không được để trống.'); return; }
-    if (!newTaskDeadline) { handleError('Vui lòng chọn deadline.'); return; }
-    setSavingTask(true);
-    try {
-      await projectService.createTask({ phaseId, projectId, name: newTaskName.trim(), deadline: newTaskDeadline, sortOrder: 0 });
-      setNewTaskName(''); setNewTaskDeadline(''); setAddingTaskForPhaseId(null);
-      handleSuccess(`Đã tạo Task mới: ${newTaskName.trim()}`);
-    } catch (err: any) { handleError(err.message || 'Lỗi khi tạo Task.'); }
-    finally { setSavingTask(false); }
-  };
-
-  const handleRenamePhase = async (phaseId: string) => {
-    if (!renamePhaseValue.trim()) { handleError('Tên Phase không được để trống.'); return; }
-    setSavingRenamePhase(true);
-    try {
-      await projectService.updatePhase(phaseId, { name: renamePhaseValue.trim() });
-      setRenamingPhaseId(null);
-      handleSuccess('Đã đổi tên Phase.');
-    } catch (err: any) { handleError(err.message || 'Lỗi khi đổi tên Phase.'); }
-    finally { setSavingRenamePhase(false); }
-  };
 
   const handleDeletePhase = async (phaseId: string, phaseName: string) => {
-    if (!window.confirm(`Xác nhận xóa Phase "${phaseName}" và toàn bộ Task bên trong?`)) return;
+    const phaseTasks = tasks.filter(t => t.phaseId === phaseId);
+    if (phaseTasks.some(t => t.progress > 0)) {
+      handleError(`Không thể xóa Phase "${phaseName}" vì bên trong có Task đã ghi nhận tiến độ.`);
+      return;
+    }
+    if (!window.confirm(`Xác nhận xóa Phase "${phaseName}" và toàn bộ Task chưa bắt đầu bên trong?`)) return;
     try {
       await projectService.deletePhase(phaseId);
       if (selectedTask && tasks.find(t => t.id === selectedTaskId)?.phaseId === phaseId) setSelectedTaskId(null);
@@ -219,16 +262,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     } catch (err: any) { handleError(err.message || 'Lỗi khi sắp xếp.'); }
   };
 
-  const handleRenameTask = async (taskId: string) => {
-    if (!renameTaskValue.trim()) { handleError('Tên Task không được để trống.'); return; }
-    setSavingRenameTask(true);
-    try {
-      await projectService.renameTask(taskId, renameTaskValue.trim());
-      setRenamingTaskId(null);
-      handleSuccess('Đã đổi tên Task.');
-    } catch (err: any) { handleError(err.message || 'Lỗi khi đổi tên Task.'); }
-    finally { setSavingRenameTask(false); }
-  };
+
 
   const handleDeleteTask = async (taskId: string, taskName: string) => {
     if (!window.confirm(`Xác nhận xóa hẳn công việc "${taskName}"?`)) return;
@@ -250,33 +284,22 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     const reason = prompt('Nhập lý do hủy bỏ công việc này:');
     if (!reason || reason.trim().length < 5) { handleError('Lý do hủy bỏ không hợp lệ (ít nhất 5 ký tự).'); return; }
     try {
-      await projectService.markTaskObsolete(selectedTask!.id, reason, { name: user?.name || '', role: user?.role || '' });
+      await projectService.cancelTask(selectedTask!.id, reason, user?.name || 'User');
       handleSuccess('Đã đánh dấu hủy bỏ công việc.');
+      setSelectedTaskId(null);
+      setIsDetailOpen(false);
     } catch (err: any) { handleError(err.message); }
   };
 
-  // ── Inline input style ────────────────────────────────
-  const inlineInputStyle: React.CSSProperties = {
-    fontSize: '0.85rem', padding: '5px 9px',
-    borderRadius: 'var(--radius-sm)',
-    border: '1px solid hsl(var(--primary) / 0.5)',
-    backgroundColor: 'hsl(var(--bg-card))',
-    color: 'hsl(var(--text-primary))',
-    flex: 1, outline: 'none',
+  const handleActivateProject = async () => {
+    if (!window.confirm('Kích hoạt dự án sẽ đưa vào vận hành thực tế. Bạn có chắc chắn WBS đã hoàn thiện chưa?')) return;
+    try {
+      await projectService.activateProject(projectId);
+      handleSuccess('Dự án đã được Kích hoạt thành công!');
+    } catch (err: any) { handleError(err.message); }
   };
-  const inlineBtnSave: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: '3px',
-    padding: '4px 8px', fontSize: '0.78rem', border: 'none',
-    borderRadius: 'var(--radius-sm)', background: 'hsl(var(--primary))',
-    color: '#fff', cursor: 'pointer', fontWeight: 600, flexShrink: 0,
-  };
-  const inlineBtnCancel: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: '3px',
-    padding: '4px 8px', fontSize: '0.78rem',
-    border: '1px solid hsl(var(--border))',
-    borderRadius: 'var(--radius-sm)', background: 'transparent',
-    color: 'hsl(var(--text-muted))', cursor: 'pointer', flexShrink: 0,
-  };
+
+
   const menuItemStyle: React.CSSProperties = {
     display: 'flex', alignItems: 'center', gap: '8px',
     padding: '7px 12px', fontSize: '0.82rem', cursor: 'pointer',
@@ -299,6 +322,33 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
         </div>
       )}
 
+      {/* Draft Status Banner */}
+      {project?.status === 'draft' && (
+        <div className="animate-fade-in" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px', backgroundColor: '#fef3c7', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)', color: '#92400e'
+        }}>
+          <div>
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertTriangle size={18} />
+              Dự án đang ở trạng thái BẢN NHÁP (DRAFT)
+            </h4>
+            <p style={{ margin: 0, fontSize: '0.85rem' }}>
+              Hãy thêm thành viên, tạo cấu trúc WBS và đảm bảo Hạn chót công việc phải lớn hơn hoặc bằng Ngày bắt đầu dự án ({project.startDate}), sau đó bấm Kích hoạt để bắt đầu thi công.
+            </p>
+          </div>
+          {isTPKTOrPL && (
+            <button
+              onClick={handleActivateProject}
+              className="btn btn-primary animate-pulse"
+              style={{ fontWeight: 600, padding: '8px 20px' }}
+            >
+              🚀 Kích hoạt Dự án
+            </button>
+          )}
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
         <div>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 600, margin: 0 }}>Cơ cấu phân rã công việc (WBS)</h3>
@@ -306,27 +356,53 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
             Số thứ tự được hiển thị trước tên · Nhấn ▲▼ để sắp xếp lại · Click <strong>⋮</strong> để đổi tên / xóa
           </p>
         </div>
-        <button
-          onClick={() => navigate(`/projects/${projectId}/gantt`)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '7px',
-            padding: '8px 16px', flexShrink: 0,
-            border: '1px solid hsl(var(--primary) / 0.4)',
-            borderRadius: 'var(--radius-sm)',
-            background: 'hsl(var(--primary-glow))',
-            color: 'hsl(var(--primary))',
-            cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={e => { const b = e.currentTarget; b.style.background = 'hsl(var(--primary))'; b.style.color = '#fff'; }}
-          onMouseLeave={e => { const b = e.currentTarget; b.style.background = 'hsl(var(--primary-glow))'; b.style.color = 'hsl(var(--primary))'; }}
-        >
-          <BarChart2 size={15} />
-          <span>Xem Gantt Chart</span>
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => navigate(`/projects/${projectId}/drawing`)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '7px',
+              padding: '8px 16px', flexShrink: 0,
+              border: project?.drawingUrl ? '1px solid hsl(var(--border))' : '1px dashed #d97706',
+              borderRadius: 'var(--radius-sm)',
+              background: project?.drawingUrl ? 'hsl(var(--bg-card))' : '#fef3c7',
+              color: project?.drawingUrl ? 'hsl(var(--text-primary))' : '#b45309',
+              cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={e => {
+              const b = e.currentTarget;
+              b.style.background = project?.drawingUrl ? 'hsl(var(--border-light))' : '#fde68a';
+            }}
+            onMouseLeave={e => {
+              const b = e.currentTarget;
+              b.style.background = project?.drawingUrl ? 'hsl(var(--bg-card))' : '#fef3c7';
+            }}
+          >
+            <FileText size={15} />
+            <span>Xem Bản vẽ {project?.drawingUrl ? '' : '(Chưa có)'}</span>
+          </button>
+          <button
+            onClick={() => navigate(`/projects/${projectId}/gantt`)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '7px',
+              padding: '8px 16px', flexShrink: 0,
+              border: '1px solid hsl(var(--primary) / 0.4)',
+              borderRadius: 'var(--radius-sm)',
+              background: 'hsl(var(--primary-glow))',
+              color: 'hsl(var(--primary))',
+              cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={e => { const b = e.currentTarget; b.style.background = 'hsl(var(--primary))'; b.style.color = '#fff'; }}
+            onMouseLeave={e => { const b = e.currentTarget; b.style.background = 'hsl(var(--primary-glow))'; b.style.color = 'hsl(var(--primary))'; }}
+          >
+            <BarChart2 size={15} />
+            <span>Xem Gantt Chart</span>
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'stretch' }}>
+      <div>
 
         {/* ─── Left: WBS Tree ─────────────────────────────── */}
         <div className="card" style={{ padding: '20px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
@@ -339,7 +415,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
 
-              {phases.length === 0 && !addingPhase && (
+              {phases.length === 0 && !isCreatePhaseOpen && (
                 <div style={{ textAlign: 'center', margin: 'auto', color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>
                   Chưa có dữ liệu WBS. Nhấn "+ Thêm Phase" để bắt đầu.
                 </div>
@@ -347,16 +423,30 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
               {/* ═══ PHASE ROWS ═════════════════════════════════ */}
               {phases.map((ph, phaseIndex) => {
-                const phaseTasks = tasks
-                  .filter(t => t.phaseId === ph.id)
+                const topLevelTasks = tasks
+                  .filter(t => t.phaseId === ph.id && !t.parentTaskId)
                   .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? (i + 1) }))
                   .sort((a, b) => a.sortOrder - b.sortOrder);
+
+                const validTopLevelTasks = topLevelTasks.filter(t => t.status !== 'obsolete');
+                const phaseProgress = validTopLevelTasks.length > 0
+                  ? Math.round(validTopLevelTasks.reduce((sum, t) => sum + (t.progress || 0), 0) / validTopLevelTasks.length)
+                  : 0;
+
+                const allPhaseTasks = tasks.filter(t => t.phaseId === ph.id);
+                const phaseTasks: WBSTask[] = [];
+                topLevelTasks.forEach(parent => {
+                  phaseTasks.push(parent);
+                  const children = allPhaseTasks
+                    .filter(t => t.parentTaskId === parent.id)
+                    .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? (i + 1) }))
+                    .sort((a, b) => a.sortOrder - b.sortOrder);
+                  phaseTasks.push(...children);
+                });
                 const isExpanded = expandedPhases[ph.id];
                 const isFrozen = ph.status === 'frozen';
                 const readyForAcceptance = isPhaseReadyForAcceptance(ph.id) && !isFrozen;
                 const isHovered = hoveredPhaseId === ph.id;
-                const isAddingTaskHere = addingTaskForPhaseId === ph.id;
-                const isRenamingThis = renamingPhaseId === ph.id;
                 const showMenu = phaseMenuId === ph.id;
                 const isFirstPhase = phaseIndex === 0;
                 const isLastPhase = phaseIndex === phases.length - 1;
@@ -381,7 +471,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                     >
                       {/* Order number + ▲▼ buttons */}
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: '18px' }}>
-                        {canEdit && !isRenamingThis && (isHovered || isFirstPhase && isLastPhase) ? (
+                        {canEdit && (isHovered || isFirstPhase && isLastPhase) ? (
                           <>
                             <button
                               onClick={e => { e.stopPropagation(); handleReorderPhase(ph.id, 'up'); }}
@@ -414,51 +504,194 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
                       <Folder size={15} style={{ color: isFrozen ? 'hsl(var(--success))' : 'hsl(var(--primary))', flexShrink: 0 }} />
 
-                      {/* Name / Rename input */}
-                      {isRenamingThis ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flex: 1 }}>
-                          <input
-                            ref={renamePhaseRef}
-                            type="text"
-                            value={renamePhaseValue}
-                            onChange={e => setRenamePhaseValue(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') handleRenamePhase(ph.id); if (e.key === 'Escape') setRenamingPhaseId(null); }}
-                            style={inlineInputStyle}
-                          />
-                          <button onClick={() => handleRenamePhase(ph.id)} disabled={savingRenamePhase} style={inlineBtnSave}>
-                            {savingRenamePhase ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                          </button>
-                          <button onClick={() => setRenamingPhaseId(null)} style={inlineBtnCancel}><X size={11} /></button>
-                        </div>
-                      ) : (
+                      {/* Name */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden', flexWrap: 'wrap' }}>
                         <span
-                          style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isFrozen ? 'hsl(var(--text-muted))' : 'hsl(var(--text-primary))', textDecoration: isFrozen ? 'line-through' : 'none' }}
-                          title="Double-click để đổi tên"
-                          onDoubleClick={() => { if (canEdit && !isFrozen) { setRenamingPhaseId(ph.id); setRenamePhaseValue(ph.name); setPhaseMenuId(null); } }}
+                          style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isFrozen ? 'hsl(var(--text-muted))' : 'hsl(var(--text-primary))', textDecoration: isFrozen ? 'line-through' : 'none', cursor: canEdit && !isFrozen && phaseProgress === 0 ? 'pointer' : 'default' }}
+                          title={canEdit && !isFrozen && phaseProgress === 0 ? "Double-click để chỉnh sửa" : ""}
+                          onDoubleClick={() => { if (canEdit && !isFrozen && phaseProgress === 0) { setSelectedPhaseForEdit(ph); setIsEditPhaseOpen(true); setPhaseMenuId(null); } }}
                         >
                           {ph.name}
                         </span>
-                      )}
+
+                        {ph.startDate && ph.endDate && (
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              color: 'hsl(var(--text-muted))',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              border: '1px solid hsl(var(--border))',
+                              padding: '1px 5px',
+                              borderRadius: 'var(--radius-sm)'
+                            }}
+                          >
+                            📅 {ph.startDate} - {ph.endDate}
+                          </span>
+                        )}
+
+                        {ph.materials && ph.materials.length > 0 && (
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              color: 'hsl(var(--primary))',
+                              backgroundColor: 'hsl(var(--primary-glow))',
+                              padding: '1px 5px',
+                              borderRadius: 'var(--radius-sm)',
+                              fontWeight: 'normal',
+                              cursor: 'help',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              border: '1px solid hsl(var(--primary) / 0.15)'
+                            }}
+                            title={ph.materials.map(m => `${m.name}: ${m.quantity} ${m.unit}`).join(', ')}
+                          >
+                            📦 {ph.materials.length} vật tư
+                          </span>
+                        )}
+
+                        {materialRequests.filter(r => r.phaseId === ph.id && !r.taskId).map(r => (
+                          <span
+                            key={r.id}
+                            className={`badge badge-${r.status === 'approved' || r.status === 'disbursed' || r.status === 'received' ? 'success' :
+                              r.status === 'rejected' ? 'danger' : 'warning'
+                              }`}
+                            style={{ fontSize: '0.62rem', padding: '1px 5px', display: 'inline-flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}
+                          >
+                            Yêu cầu vật tư: {
+                              r.status === 'pending_leader' ? 'Chờ Leader' :
+                                r.status === 'pending_tpkt' ? 'Chờ TPKT' :
+                                  r.status === 'pending_accountant' ? 'Chờ KT' :
+                                    r.status === 'pending_director' ? 'Chờ GĐ duyệt' :
+                                      r.status === 'pending_disbursement' ? 'Chờ giải ngân' :
+                                        r.status === 'disbursed' ? 'Đã giải ngân' :
+                                          r.status === 'approved' ? 'Đã duyệt' :
+                                            r.status === 'received' ? 'Đã nhận' : 'Bị từ chối'
+                            }
+                            {r.status === 'rejected' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedResubmitRequest(r);
+                                  setIsResubmitOpen(true);
+                                }}
+                                style={{
+                                  marginLeft: '4px',
+                                  background: 'hsl(var(--primary))',
+                                  border: 'none',
+                                  borderRadius: 'var(--radius-sm)',
+                                  color: '#fff',
+                                  padding: '0px 4px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.55rem',
+                                  fontWeight: 'bold',
+                                  lineHeight: 1.2
+                                }}
+                                title="Sửa & Gửi lại"
+                              >
+                                Sửa & Gửi lại
+                              </button>
+                            )}
+                            {r.status === 'pending_accountant' && isPL && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelMatReq(r.id);
+                                }}
+                                style={{
+                                  marginLeft: '4px',
+                                  background: 'hsl(var(--danger))',
+                                  border: 'none',
+                                  borderRadius: 'var(--radius-sm)',
+                                  color: '#fff',
+                                  padding: '0px 4px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.55rem',
+                                  fontWeight: 'bold',
+                                  lineHeight: 1.2
+                                }}
+                                title="Hủy phiếu"
+                              >
+                                Hủy phiếu
+                              </button>
+                            )}
+                            {r.status === 'pending_accountant' && isPL && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelMatReq(r.id);
+                                }}
+                                style={{
+                                  marginLeft: '4px',
+                                  background: 'hsl(var(--danger))',
+                                  border: 'none',
+                                  borderRadius: 'var(--radius-sm)',
+                                  color: '#fff',
+                                  padding: '0px 4px',
+                                  cursor: 'pointer',
+                                  fontSize: '0.55rem',
+                                  fontWeight: 'bold',
+                                  lineHeight: 1.2
+                                }}
+                                title="Hủy phiếu"
+                              >
+                                Hủy phiếu
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+
 
                       {/* Badge */}
-                      {!isRenamingThis && (isFrozen ? (
-                        <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer', flexShrink: 0 }} onClick={() => navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`)}>Đã nghiệm thu</span>
+                      {isFrozen ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }} onClick={() => navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`)}>Đã nghiệm thu</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--success))', minWidth: '28px', textAlign: 'right' }}>100%</span>
+                            <div style={{ width: '50px', height: '6px', backgroundColor: 'hsl(var(--border))', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: '100%', height: '100%', backgroundColor: 'hsl(var(--success))' }} />
+                            </div>
+                          </div>
+                        </div>
                       ) : readyForAcceptance ? (
-                        <span className="badge badge-warning animate-fade-in" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}
-                          onClick={() => { if (isTPKTOrPL) navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>
-                          <FileSignature size={9} /><span>Chờ nghiệm thu</span>
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          <span className="badge badge-warning animate-fade-in" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                            onClick={() => { if (isTPKTOrPL) navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>
+                            <FileSignature size={9} /><span>Chờ nghiệm thu</span>
+                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--warning-text))', minWidth: '28px', textAlign: 'right' }}>{phaseProgress}%</span>
+                            <div style={{ width: '50px', height: '6px', backgroundColor: 'hsl(var(--border))', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: `${phaseProgress}%`, height: '100%', backgroundColor: 'hsl(var(--warning-text))', transition: 'width 0.3s ease' }} />
+                            </div>
+                          </div>
+                        </div>
                       ) : (
-                        <span className="badge badge-primary" style={{ fontSize: '0.6rem', padding: '1px 5px', flexShrink: 0 }}>{phaseTasks.length} việc</span>
-                      ))}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                          <span className="badge badge-primary" style={{ fontSize: '0.6rem', padding: '1px 5px' }}>{phaseTasks.length} việc</span>
+                          {phaseTasks.length > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: phaseProgress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-secondary))', minWidth: '28px', textAlign: 'right' }}>
+                                {phaseProgress}%
+                              </span>
+                              <div style={{ width: '50px', height: '6px', backgroundColor: 'hsl(var(--border))', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${phaseProgress}%`, height: '100%', backgroundColor: phaseProgress === 100 ? 'hsl(var(--success))' : 'hsl(var(--primary))', transition: 'width 0.3s ease' }} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Action buttons (hover) */}
-                      {!isRenamingThis && canEdit && (
+                      {canEdit && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: isHovered || showMenu ? 1 : 0, transition: 'opacity 0.13s', flexShrink: 0 }}>
                           {/* + Task */}
                           {!isFrozen && (
                             <button
-                              onClick={e => { e.stopPropagation(); setExpandedPhases(prev => ({ ...prev, [ph.id]: true })); setAddingTaskForPhaseId(isAddingTaskHere ? null : ph.id); setNewTaskName(''); setNewTaskDeadline(''); }}
+                              onClick={e => { e.stopPropagation(); setExpandedPhases(prev => ({ ...prev, [ph.id]: true })); setSelectedPhaseForTask(ph.id); setParentTaskForNew(undefined); setParentDeadlineForNew(ph.deadline); setIsCreateTaskOpen(true); }}
                               title="Thêm Task"
                               style={{ background: 'hsl(var(--primary))', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', padding: 0 }}
                             >
@@ -478,17 +711,68 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
                             {showMenu && (
                               <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', right: 0, top: '24px', zIndex: 200, backgroundColor: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', minWidth: '160px', overflow: 'hidden' }}>
+                                {!isFrozen && phaseProgress === 0 && (
+                                  <div
+                                    style={menuItemStyle}
+                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                    onClick={() => { setSelectedPhaseForEdit(ph); setIsEditPhaseOpen(true); setPhaseMenuId(null); }}
+                                  >
+                                    <Pencil size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                    <span>Chỉnh sửa Phase</span>
+                                  </div>
+                                )}
                                 {!isFrozen && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
                                     onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setRenamingPhaseId(ph.id); setRenamePhaseValue(ph.name); setPhaseMenuId(null); }}
+                                    onClick={() => { setPhaseMenuId(null); setSelectedPhaseForMatReq(ph); setIsPhaseMatReqListOpen(true); }}
                                   >
-                                    <Pencil size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                    <span>Đổi tên Phase</span>
+                                    <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                    <span>Yêu cầu vật tư Phase</span>
                                   </div>
                                 )}
+                                {!isFrozen && isPL && (
+                                  <div
+                                    style={menuItemStyle}
+                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                    onClick={() => { setPhaseMenuId(null); setSelectedPhaseForMatReq(ph); setCreateMatReqType('emergency'); setIsPhaseMatReqOpen(true); }}
+                                  >
+                                    <AlertTriangle size={13} style={{ color: 'hsl(var(--warning))' }} />
+                                    <span style={{ color: 'hsl(var(--warning-hover))' }}>Mua ngoài khẩn cấp Phase</span>
+                                  </div>
+                                )}
+                                {!isFrozen && (
+                                  <div
+                                    style={menuItemStyle}
+                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                    onClick={() => { setPhaseMenuId(null); setSelectedPhaseForBOQ(ph); setIsBOQOpen(true); }}
+                                  >
+                                    <Box size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                    <span>Cập nhật bảng BOQ</span>
+                                  </div>
+                                )}
+
+                                {!isFrozen && materialRequests.some(r => r.phaseId === ph.id && r.status === 'pending_leader') && (
+                                  <div
+                                    style={menuItemStyle}
+                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                    onClick={() => {
+                                      setPhaseMenuId(null);
+                                      // Mở modal duyệt đề xuất (Ta sẽ định nghĩa sau)
+                                      setSelectedPhaseForMatReq(ph);
+                                      setIsLeaderApprovalOpen(true);
+                                    }}
+                                  >
+                                    <CheckCircle size={13} style={{ color: 'hsl(var(--warning))' }} />
+                                    <span>Duyệt Yêu cầu từ SE</span>
+                                  </div>
+                                )}
+
                                 {!isFrozen && (
                                   <div
                                     style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
@@ -518,7 +802,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                         {phaseTasks.map((t, taskIndex) => {
                           const isSelected = selectedTaskId === t.id;
                           const isHoveredTask = hoveredTaskId === t.id;
-                          const isRenamingTask = renamingTaskId === t.id;
+
                           const showTaskMenu = taskMenuId === t.id;
                           // Task is locked for rename/delete once it has been worked on
                           const isWorkedOn = t.progress > 0 || t.history.length > 0;
@@ -536,17 +820,21 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                                 borderRadius: 'var(--radius-sm)',
                                 border: isSelected ? '1px solid hsl(var(--primary) / 0.4)' : '1px solid transparent',
                                 backgroundColor: isSelected ? 'hsl(var(--primary-glow))' : isHoveredTask ? 'hsl(var(--bg-main) / 0.6)' : 'transparent',
-                                cursor: isRenamingTask ? 'default' : 'pointer',
+                                cursor: 'pointer',
                                 fontSize: '0.85rem',
                                 transition: 'all var(--transition-fast)',
                                 opacity: t.status === 'obsolete' ? 0.6 : 1,
                                 position: 'relative',
+                                marginLeft: t.parentTaskId ? '28px' : '0px',
                               }}
-                              onClick={() => { if (!isRenamingTask) setSelectedTaskId(t.id); }}
+                              onClick={() => {
+                                setSelectedTaskId(t.id);
+                                setIsDetailOpen(true);
+                              }}
                             >
                               {/* Task order number + ▲▼ */}
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: '16px' }} onClick={e => e.stopPropagation()}>
-                                {canEdit && !isFrozen && t.status !== 'obsolete' && !isRenamingTask && isHoveredTask ? (
+                                {canEdit && !isFrozen && t.status !== 'obsolete' && isHoveredTask && !t.parentTaskId ? (
                                   <>
                                     <button
                                       onClick={e => { e.stopPropagation(); handleReorderTask(ph.id, t.id, 'up'); }}
@@ -572,55 +860,88 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                                 )}
                               </div>
 
-                              <FileText size={13} style={{ color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }} />
-
-                              {/* Rename input or name */}
-                              {isRenamingTask ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }} onClick={e => e.stopPropagation()}>
-                                  <input
-                                    ref={renameTaskRef}
-                                    type="text"
-                                    value={renameTaskValue}
-                                    onChange={e => setRenameTaskValue(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter') handleRenameTask(t.id); if (e.key === 'Escape') setRenamingTaskId(null); }}
-                                    style={inlineInputStyle}
-                                  />
-                                  <button onClick={() => handleRenameTask(t.id)} disabled={savingRenameTask} style={inlineBtnSave}>
-                                    {savingRenameTask ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
-                                  </button>
-                                  <button onClick={() => setRenamingTaskId(null)} style={inlineBtnCancel}><X size={10} /></button>
-                                </div>
+                              {t.parentTaskId ? (
+                                <CornerDownRight size={12} style={{ color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }} />
                               ) : (
-                                <span
-                                  style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSelected ? 600 : 500, color: t.status === 'obsolete' ? 'hsl(var(--text-muted))' : isSelected ? 'hsl(var(--primary-hover))' : 'hsl(var(--text-secondary))', textDecoration: (isFrozen || t.status === 'obsolete') ? 'line-through' : 'none' }}
-                                  title={isWorkedOn && t.status !== 'obsolete' ? 'Task đã có tiến độ — không thể đổi tên. Dùng "Hủy việc" và tạo lại.' : 'Double-click để đổi tên'}
-                                  onDoubleClick={e => { e.stopPropagation(); if (canEdit && !isFrozen && t.status !== 'obsolete' && !isWorkedOn) { setRenamingTaskId(t.id); setRenameTaskValue(t.name); setTaskMenuId(null); } }}
-                                >
-                                  {t.name}
-                                </span>
+                                <FileText size={13} style={{ color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }} />
                               )}
 
-                              {t.status === 'obsolete' && !isRenamingTask && (
+                              {/* Name */}
+                              <span
+                                style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSelected ? 600 : 500, color: t.status === 'obsolete' ? 'hsl(var(--text-muted))' : isSelected ? 'hsl(var(--primary-hover))' : 'hsl(var(--text-secondary))', textDecoration: (isFrozen || t.status === 'obsolete') ? 'line-through' : 'none', cursor: canEdit && !isFrozen && t.status !== 'obsolete' && !isWorkedOn ? 'pointer' : 'default' }}
+                                title={isWorkedOn && t.status !== 'obsolete' ? 'Task đã có tiến độ — không thể chỉnh sửa. Dùng "Hủy việc" và tạo lại.' : canEdit && !isFrozen && t.status !== 'obsolete' ? 'Double-click để chỉnh sửa' : ''}
+                                onDoubleClick={e => { e.stopPropagation(); if (canEdit && !isFrozen && t.status !== 'obsolete' && !isWorkedOn) { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); } }}
+                              >
+                                {t.name}
+                              </span>
+
+                              {t.status !== 'obsolete' && t.progress < 100 && (() => {
+                                const currentDate = new Date().toISOString().split('T')[0];
+                                const taskDeadline = t.deadline ? new Date(t.deadline).toISOString().split('T')[0] : '9999-12-31';
+                                const start = new Date(project?.startDate || Date.now());
+                                const end = new Date(t.deadline || project?.endDate || Date.now());
+                                const today = new Date();
+
+                                const totalMs = end.getTime() - start.getTime();
+                                const passedMs = today.getTime() - start.getTime();
+                                const expected = totalMs > 0 ? Math.min(100, Math.max(0, (passedMs / totalMs) * 100)) : 0;
+
+                                if (currentDate > taskDeadline) {
+                                  return <span style={{ marginLeft: '8px', padding: '2px 6px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: 'hsl(var(--danger) / 0.15)', color: 'hsl(var(--danger))', borderRadius: '4px', border: '1px solid hsl(var(--danger) / 0.3)', whiteSpace: 'nowrap' }} title={`Đã trễ hạn so với ${taskDeadline}`}>🚨 Trễ hạn</span>;
+                                } else if (t.progress < expected - 1) {
+                                  return <span style={{ marginLeft: '8px', padding: '2px 6px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: 'hsl(var(--warning) / 0.15)', color: 'hsl(var(--warning))', borderRadius: '4px', border: '1px solid hsl(var(--warning) / 0.3)', whiteSpace: 'nowrap' }} title={`Kỳ vọng: ${Math.round(expected)}% - Hiện tại: ${t.progress}%`}>⚠️ Nguy cơ</span>;
+                                }
+                                return null;
+                              })()}
+
+                              {t.assignedTo && t.assignedName && (
+                                <div style={{ display: 'flex', alignItems: 'center', marginRight: '8px', flexShrink: 0 }}>
+                                  {t.assignedTo.split(',').map((id, index) => {
+                                    const names = t.assignedName ? t.assignedName.split(', ') : [];
+                                    const name = names[index] || 'Kỹ sư';
+                                    const initials = getInitials(name);
+                                    const bgColor = getAvatarColor(id);
+                                    return (
+                                      <div
+                                        key={id}
+                                        title={name}
+                                        style={{
+                                          width: '22px',
+                                          height: '22px',
+                                          borderRadius: '50%',
+                                          backgroundColor: bgColor,
+                                          color: '#fff',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          fontSize: '0.65rem',
+                                          fontWeight: 700,
+                                          border: '2px solid hsl(var(--bg-card))',
+                                          marginLeft: index > 0 ? '-6px' : '0',
+                                          boxShadow: 'var(--shadow-sm)',
+                                          cursor: 'help',
+                                        }}
+                                      >
+                                        {initials}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {t.status === 'obsolete' && (
                                 <span className="badge badge-danger" style={{ fontSize: '0.6rem', padding: '1px 4px', flexShrink: 0 }}>Đã hủy</span>
                               )}
 
-                              {!isRenamingTask && (
-                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }}>
-                                  {t.progress}%
-                                </span>
-                              )}
+
 
                               {/* Task context menu — only show ⋮ when task has NOT been worked on */}
-                              {!isRenamingTask && canEdit && !isFrozen && t.status !== 'obsolete' && (
-                                isWorkedOn ? (
-                                  /* Locked indicator: 🔒 icon with tooltip */
-                                  <span
-                                    title="Task đã có tiến độ — chỉ có thể Hủy việc rồi tạo lại"
-                                    style={{ fontSize: '0.65rem', color: 'hsl(var(--text-muted))', opacity: isHoveredTask ? 0.8 : 0, transition: 'opacity 0.13s', flexShrink: 0, userSelect: 'none' }}
-                                  >
-                                    🔒
-                                  </span>
-                                ) : (
+                              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }}>
+                                {t.progress}%
+                              </span>
+
+                              {/* Task context menu */}
+                              {canEdit && !isFrozen && t.status !== 'obsolete' && (
                                   <div style={{ position: 'relative', opacity: isHoveredTask || showTaskMenu ? 1 : 0, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                                     <button
                                       onClick={e => { e.stopPropagation(); setTaskMenuId(showTaskMenu ? null : t.id); setPhaseMenuId(null); }}
@@ -636,10 +957,29 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                                           style={menuItemStyle}
                                           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
                                           onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setRenamingTaskId(t.id); setRenameTaskValue(t.name); setTaskMenuId(null); }}
+                                          onClick={() => { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); }}
                                         >
-                                          <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Đổi tên Task</span>
+                                          <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Chỉnh sửa Task</span>
                                         </div>
+
+                                        <div
+                                          style={menuItemStyle}
+                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                          onClick={() => { setTaskMenuId(null); navigate(`/projects/${projectId}/tasks/${t.id}/incidents`); }}
+                                        >
+                                          <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
+                                        </div>
+
+                                        <div
+                                          style={{ ...menuItemStyle, display: t.parentTaskId ? 'none' : 'flex' }}
+                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                          onClick={() => { setTaskMenuId(null); setSelectedPhaseForTask(ph.id); setParentTaskForNew(t.id); setParentDeadlineForNew(t.deadline); setIsCreateTaskOpen(true); }}
+                                        >
+                                          <FilePlus2 size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Thêm Task con</span>
+                                        </div>
+
                                         <div
                                           style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
                                           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
@@ -651,36 +991,13 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                                       </div>
                                     )}
                                   </div>
-                                )
                               )}
                             </div>
                           );
                         })}
 
-                        {phaseTasks.length === 0 && !isAddingTaskHere && (
+                        {phaseTasks.length === 0 && (
                           <div style={{ padding: '4px 10px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontStyle: 'italic' }}>Chưa có task nào.</div>
-                        )}
-
-                        {/* Inline Add Task Form */}
-                        {isAddingTaskHere && (
-                          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '7px', padding: '10px 10px', backgroundColor: 'hsl(var(--bg-main))', border: '1px dashed hsl(var(--primary) / 0.45)', borderRadius: 'var(--radius-sm)', marginTop: '3px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', fontWeight: 600, color: 'hsl(var(--primary))' }}>
-                              <FilePlus2 size={12} /><span>Thêm Task vào "{ph.name}"</span>
-                            </div>
-                            <input ref={taskInputRef} type="text" placeholder="Tên công việc..." value={newTaskName} onChange={e => setNewTaskName(e.target.value)}
-                              onKeyDown={e => { if (e.key === 'Enter' && newTaskDeadline) handleSaveTask(ph.id); if (e.key === 'Escape') { setAddingTaskForPhaseId(null); setNewTaskName(''); setNewTaskDeadline(''); } }}
-                              style={{ ...inlineInputStyle, border: '1px solid hsl(var(--border))' }}
-                            />
-                            <input type="date" value={newTaskDeadline} onChange={e => setNewTaskDeadline(e.target.value)}
-                              style={{ ...inlineInputStyle, border: '1px solid hsl(var(--border))' }}
-                            />
-                            <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
-                              <button onClick={() => { setAddingTaskForPhaseId(null); setNewTaskName(''); setNewTaskDeadline(''); }} style={inlineBtnCancel}><X size={11} /> Hủy</button>
-                              <button onClick={() => handleSaveTask(ph.id)} disabled={savingTask} style={inlineBtnSave}>
-                                {savingTask ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Tạo Task
-                              </button>
-                            </div>
-                          </div>
                         )}
                       </div>
                     )}
@@ -688,216 +1005,987 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                 );
               })}
 
-              {/* ── Add Phase inline ─────────────────────────── */}
+              {/* ── Add Phase button (Modal trigger) ─────────── */}
               {canEdit && (
                 <div style={{ marginTop: '8px' }}>
-                  {!addingPhase ? (
-                    <button
-                      onClick={() => setAddingPhase(true)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '8px 12px', border: '1px dashed hsl(var(--border-light))', borderRadius: 'var(--radius-sm)', background: 'transparent', cursor: 'pointer', color: 'hsl(var(--text-muted))', fontSize: '0.85rem', fontWeight: 500, transition: 'all 0.15s ease' }}
-                      onMouseEnter={e => { const b = e.currentTarget; b.style.borderColor = 'hsl(var(--primary))'; b.style.color = 'hsl(var(--primary))'; b.style.background = 'hsl(var(--primary-glow))'; }}
-                      onMouseLeave={e => { const b = e.currentTarget; b.style.borderColor = 'hsl(var(--border-light))'; b.style.color = 'hsl(var(--text-muted))'; b.style.background = 'transparent'; }}
-                    >
-                      <FolderPlus size={14} /><span>+ Thêm Phase mới</span>
-                    </button>
-                  ) : (
-                    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '7px', padding: '10px 12px', backgroundColor: 'hsl(var(--bg-main))', border: '1px dashed hsl(var(--primary) / 0.45)', borderRadius: 'var(--radius-sm)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', fontWeight: 600, color: 'hsl(var(--primary))' }}>
-                        <FolderPlus size={12} /><span>Tạo Giai đoạn (Phase) mới</span>
-                      </div>
-                      <input ref={phaseInputRef} type="text" placeholder="Ví dụ: Phase 4 – Hoàn thiện nội thất..." value={newPhaseName} onChange={e => setNewPhaseName(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleSavePhase(); if (e.key === 'Escape') { setAddingPhase(false); setNewPhaseName(''); } }}
-                        style={{ ...inlineInputStyle, border: '1px solid hsl(var(--border))' }}
-                      />
-                      <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
-                        <button onClick={() => { setAddingPhase(false); setNewPhaseName(''); }} style={inlineBtnCancel}><X size={11} /> Hủy</button>
-                        <button onClick={handleSavePhase} disabled={savingPhase} style={inlineBtnSave}>
-                          {savingPhase ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Tạo Phase
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  <button
+                    onClick={() => setIsCreatePhaseOpen(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '8px 12px', border: '1px dashed hsl(var(--border-light))', borderRadius: 'var(--radius-sm)', background: 'transparent', cursor: 'pointer', color: 'hsl(var(--text-muted))', fontSize: '0.85rem', fontWeight: 500, transition: 'all 0.15s ease' }}
+                    onMouseEnter={e => { const b = e.currentTarget; b.style.borderColor = 'hsl(var(--primary))'; b.style.color = 'hsl(var(--primary))'; b.style.background = 'hsl(var(--primary-glow))'; }}
+                    onMouseLeave={e => { const b = e.currentTarget; b.style.borderColor = 'hsl(var(--border-light))'; b.style.color = 'hsl(var(--text-muted))'; b.style.background = 'transparent'; }}
+                  >
+                    <FolderPlus size={14} /><span>+ Thêm Phase mới</span>
+                  </button>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* ─── Right: Task detail ─────────────────────────── */}
-        <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: '4px', borderBottom: '1px solid hsl(var(--border))', paddingBottom: '8px' }}>
-            Chi tiết Công việc đang chọn
-          </h4>
-
-          {selectedTask ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{selectedTask.name}</h3>
-                <p style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', marginTop: '2px' }}>
-                  Giai đoạn: <strong>{selectedTaskPhase?.name || 'Không xác định'}</strong>
-                  {selectedTaskPhase?.status === 'frozen' && (
-                    <span style={{ color: 'hsl(var(--danger))', marginLeft: '6px', fontWeight: 600 }}>[ĐÃ NGHIỆM THU - ĐÓNG BĂNG]</span>
-                  )}
-                </p>
-              </div>
-
-              {/* Progress */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 600 }}>
-                  <span>Tiến độ hoàn thành:</span>
-                  <span style={{ color: 'hsl(var(--primary))' }}>{selectedTask.progress}%</span>
-                </div>
-                <div style={{ height: '8px', backgroundColor: 'hsl(var(--border))', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                  <div style={{ width: `${selectedTask.progress}%`, height: '100%', backgroundColor: selectedTask.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--primary))', transition: 'width 0.4s ease' }} />
-                </div>
-              </div>
-
-              {/* Assignee + Deadline */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
-                    <User size={14} />KỸ SƯ PHỤ TRÁCH
-                  </span>
-                  <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.assignedName || 'Chưa phân công'}</strong>
-                </div>
-                <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
-                    <Calendar size={14} />HẠN HOÀN THÀNH
-                  </span>
-                  <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.deadline}</strong>
-                </div>
-              </div>
-
-              {/* Actions */}
-              {project?.status === 'paused' || project?.status === 'done' ? (
-                <div style={{ display: 'flex', gap: '8px', backgroundColor: 'hsl(var(--danger-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--danger))' }}>
-                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
-                  <span>Dự án đang tạm dừng hoặc đã hoàn thành. Không thể thao tác.</span>
-                </div>
-              ) : selectedTaskPhase?.status !== 'frozen' && selectedTask.status !== 'obsolete' ? (
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  {isTPKTOrPL && (
-                    <>
-                      <button onClick={() => setIsAssignOpen(true)} className="btn btn-secondary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px' }}>
-                        <UserPlus size={16} /><span>Phân công</span>
-                      </button>
-                      <button onClick={handleObsolete} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: 'hsl(var(--bg-main))', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
-                        <Trash2 size={16} /><span>Hủy việc</span>
-                      </button>
-                    </>
-                  )}
-                  {(user?.id === selectedTask.assignedTo || isTPKTOrPL) && (
-                    <button onClick={() => setIsLogOpen(true)} className="btn btn-primary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }}>
-                      <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: 'hsl(var(--success-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--success) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--success))' }}>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <CheckCircle size={16} style={{ flexShrink: 0 }} />
-                    <span>{selectedTask.status === 'obsolete' ? 'Công việc đã bị hủy bỏ.' : 'Phase này đã được nghiệm thu và khóa tiến độ.'}</span>
-                  </div>
-                  {selectedTask.status !== 'obsolete' && (
-                    <button onClick={() => navigate(`/projects/${projectId}/phases/${selectedTask.phaseId}/acceptance`)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'fit-content', marginTop: '4px', borderColor: 'hsl(var(--success))', color: 'hsl(var(--success))', backgroundColor: 'transparent' }}>
-                      Xem chi tiết &amp; Hủy nghiệm thu
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* History logs */}
-              <div onClick={() => setIsLogsOpen(true)} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', flex: 1, cursor: 'pointer' }} title="Nhấp để xem nhật ký thi công chi tiết">
-                <h5 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
-                  <History size={13} />
-                  <span>Nhật ký thi công chi tiết (Click để xem) ({selectedTask.history.length})</span>
-                </h5>
-                <div style={{ flex: 1, maxHeight: '160px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', pointerEvents: 'none' }}>
-                  {selectedTask.history.length === 0 ? (
-                    <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', padding: '12px', display: 'block', textAlign: 'center' }}>Chưa có lịch sử thay đổi nào.</span>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {selectedTask.history.map((h, i) => (
-                        <div key={i} style={{ fontSize: '0.75rem', borderBottom: '1px solid hsl(var(--border) / 0.5)', paddingBottom: '6px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'hsl(var(--text-muted))' }}>
-                            <span>{h.date}</span><strong>{h.oldProgress}% → {h.newProgress}%</strong>
-                          </div>
-                          <p style={{ color: 'hsl(var(--text-primary))', marginTop: '2px', fontWeight: 500 }}>{h.reason}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', color: 'hsl(var(--text-muted))', margin: 'auto' }}>
-              Vui lòng chọn một công việc bên sơ đồ cây để xem chi tiết.
-            </div>
-          )}
-        </div>
       </div>
+
+      {/* ─── Task detail Popup Modal ───────────────────── */}
+      {isDetailOpen && selectedTask && (
+        <Modal isOpen={isDetailOpen} onClose={() => { setIsDetailOpen(false); setSelectedTaskId(null); }} title="Chi tiết Công việc đang chọn">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{selectedTask.name}</h3>
+              <p style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', marginTop: '2px' }}>
+                Giai đoạn: <strong>{selectedTaskPhase?.name || 'Không xác định'}</strong>
+                {selectedTaskPhase?.status === 'frozen' && (
+                  <span style={{ color: 'hsl(var(--danger))', marginLeft: '6px', fontWeight: 600 }}>[ĐÃ NGHIỆM THU - ĐÓNG BĂNG]</span>
+                )}
+              </p>
+            </div>
+
+            {/* Check subtasks */}
+            {(() => {
+              const hasChildren = tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
+              if (hasChildren) {
+                return (
+                  <div style={{ padding: '10px 14px', backgroundColor: 'hsl(var(--primary-glow))', border: '1px solid hsl(var(--primary) / 0.3)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem' }}>
+                    <strong style={{ color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <AlertCircle size={16} /> Công việc này có chứa công việc con
+                    </strong>
+                    <p style={{ margin: '4px 0 0 0', color: 'hsl(var(--text-secondary))' }}>Tiến độ của công việc này sẽ được tính trung bình tự động dựa trên mức độ hoàn thành của các công việc con bên trong nó.</p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Progress */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 600 }}>
+                <span>Tiến độ hoàn thành:</span>
+                <span style={{ color: 'hsl(var(--primary))' }}>{selectedTask.progress}%</span>
+              </div>
+              <div style={{ height: '8px', backgroundColor: 'hsl(var(--border))', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                <div style={{ width: `${selectedTask.progress}%`, height: '100%', backgroundColor: selectedTask.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--primary))', transition: 'width 0.4s ease' }} />
+              </div>
+            </div>
+
+            {/* Assignee + Start Date + Deadline */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '16px' }}>
+              <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
+                  <User size={14} />KỸ SƯ PHỤ TRÁCH
+                </span>
+                {selectedTask.assignedTo && selectedTask.assignedName ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                    {selectedTask.assignedTo.split(',').map((id, index) => {
+                      const names = selectedTask.assignedName ? selectedTask.assignedName.split(', ') : [];
+                      const name = names[index] || 'Kỹ sư';
+                      const initials = getInitials(name);
+                      const bgColor = getAvatarColor(id);
+                      return (
+                        <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div
+                            style={{
+                              width: '22px',
+                              height: '22px',
+                              borderRadius: '50%',
+                              backgroundColor: bgColor,
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {initials}
+                          </div>
+                          <strong style={{ fontSize: '0.85rem', color: 'hsl(var(--text-primary))' }}>{name}</strong>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>Chưa phân công</strong>
+                )}
+              </div>
+              <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
+                  <Calendar size={14} />NGÀY BẮT ĐẦU
+                </span>
+                <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.startDate || 'Chưa xác định'}</strong>
+              </div>
+              <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
+                  <Calendar size={14} />HẠN HOÀN THÀNH
+                </span>
+                <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.deadline}</strong>
+              </div>
+            </div>
+
+            {/* Actions */}
+            {project?.status === 'paused' || project?.status === 'done' ? (
+              <div style={{ display: 'flex', gap: '8px', backgroundColor: 'hsl(var(--danger-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--danger))' }}>
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>Dự án đang tạm dừng hoặc đã hoàn thành. Không thể thao tác.</span>
+              </div>
+            ) : selectedTaskPhase?.status !== 'frozen' && selectedTask.status !== 'obsolete' ? (
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {isTPKTOrPL && (
+                  <>
+                    <button onClick={() => setIsAssignOpen(true)} className="btn btn-secondary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px' }}>
+                      <UserPlus size={16} /><span>Phân công</span>
+                    </button>
+                    <button onClick={handleObsolete} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: 'hsl(var(--bg-main))', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
+                      <Trash2 size={16} /><span>Hủy việc</span>
+                    </button>
+                  </>
+                )}
+                {(user?.id === selectedTask.assignedTo || isTPKTOrPL) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete') && (
+                  <button onClick={() => setIsLogOpen(true)} className="btn btn-primary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }}>
+                    <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: 'hsl(var(--success-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--success) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--success))' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <CheckCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>{selectedTask.status === 'obsolete' ? 'Công việc đã bị hủy bỏ.' : 'Phase này đã được nghiệm thu và khóa tiến độ.'}</span>
+                </div>
+                {selectedTask.status !== 'obsolete' && (
+                  <button onClick={() => navigate(`/projects/${projectId}/phases/${selectedTask.phaseId}/acceptance`)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'fit-content', marginTop: '4px', borderColor: 'hsl(var(--success))', color: 'hsl(var(--success))', backgroundColor: 'transparent' }}>
+                    Xem chi tiết & Hủy nghiệm thu
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* SE Đề xuất vật tư cho Leader */}
+            <div style={{ backgroundColor: 'hsl(var(--primary-glow) / 0.3)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'hsl(var(--text-primary))', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                  <Box size={16} style={{ color: 'hsl(var(--primary))' }} />
+                  Đề xuất vật tư cho công việc
+                </h4>
+                {selectedTaskPhase?.status !== 'frozen' && selectedTask.status !== 'obsolete' && project?.status !== 'done' && (
+                  <button
+                    onClick={() => { setCreateMatReqType('normal'); setIsCreateMatReqOpen(true); }}
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.8rem', padding: '6px 12px' }}
+                  >
+                    + Đề xuất Vật tư
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {materialRequests.filter(r => r.taskId === selectedTask.id && !r.taskName?.includes('[Rework]')).length > 0 ? (
+                  materialRequests.filter(r => r.taskId === selectedTask.id && !r.taskName?.includes('[Rework]')).map(r => (
+                    <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '8px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: 600 }}>{r.items.map(i => `${i.name} (${i.quantity} ${i.unit})`).join(', ')}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>{r.date} - {r.requesterName}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                        {r.status === 'pending_leader' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ Leader duyệt</span>}
+                        {r.status === 'approved_by_leader' && <span className="badge badge-info" style={{ fontSize: '0.62rem' }}>Đã tổng hợp</span>}
+                        {r.status === 'pending_tpkt' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ TPKT</span>}
+                        {r.status === 'pending_accountant' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ Kế toán</span>}
+                        {r.status === 'pending_director' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ Giám đốc</span>}
+                        {r.status === 'approved' && <span className="badge badge-success" style={{ fontSize: '0.62rem' }}>Đã duyệt</span>}
+                        {r.status === 'rejected' && <span className="badge badge-danger" style={{ fontSize: '0.62rem' }}>Từ chối</span>}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', textAlign: 'center', padding: '10px' }}>
+                    Chưa có đề xuất vật tư nào cho công việc này.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Step 5: Material Request for Rework */}
+            {selectedTask.isRework && (
+              <div style={{ backgroundColor: 'hsl(var(--danger-glow) / 0.5)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--danger) / 0.3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'hsl(var(--danger))', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                    <AlertTriangle size={16} />
+                    YÊU CẦU VẬT TƯ BÙ ĐẮP SỰ CỐ (STEP 5)
+                  </h4>
+                  <button
+                    onClick={() => { setCreateMatReqType('normal'); setIsCreateMatReqOpen(true); }}
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.8rem', padding: '4px 8px', borderColor: 'hsl(var(--danger))', color: 'hsl(var(--danger))' }}
+                  >
+                    + Tạo Yêu cầu Mới
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {materialRequests.filter(r => r.taskId === selectedTask.id).length === 0 ? (
+                    <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Chưa có yêu cầu vật tư bù đắp nào.</span>
+                  ) : (
+                    materialRequests.filter(r => r.taskId === selectedTask.id).map(r => {
+                      return (
+                        <div key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '10px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <strong style={{ fontSize: '0.85rem' }}>{r.items.map(i => `${i.name} (${i.quantity} ${i.unit})`).join(', ')}</strong>
+                              <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', marginTop: '2px' }}>
+                                Lý do: {r.reason || 'Không có'}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                              {r.status === 'pending_leader' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ Leader</span>}
+                              {r.status === 'pending_tpkt' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ TPKT</span>}
+                              {r.status === 'pending_accountant' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ KT</span>}
+                              {r.status === 'pending_director' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ GĐ</span>}
+                              {r.status === 'approved' && <span className="badge badge-success" style={{ fontSize: '0.62rem' }}>Đã duyệt (Chờ giao)</span>}
+                              {r.status === 'received' && <span className="badge badge-success" style={{ fontSize: '0.62rem' }}>Đã nhận vật tư</span>}
+                              {r.status === 'rejected' && (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                                  <span className="badge badge-danger" style={{ fontSize: '0.62rem' }}>Bị từ chối</span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedResubmitRequest(r);
+                                      setIsResubmitOpen(true);
+                                    }}
+                                    className="btn btn-secondary"
+                                    style={{ padding: '1px 4px', fontSize: '0.65rem' }}
+                                  >
+                                    Sửa & Gửi lại
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                            {isPL && r.status === 'pending_leader' && (
+                              <>
+                                <button onClick={(e) => { e.stopPropagation(); handleApproveByLeader(r.id); }} className="btn btn-primary" style={{ padding: '2px 8px', fontSize: '0.65rem' }}>Duyệt gửi TPKT</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleRejectMatReq(r.id); }} className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.65rem' }}>Từ chối</button>
+                              </>
+                            )}
+                            {isTPKTOrPL && user?.role !== 'kỹ sư' && r.status === 'pending_tpkt' && (
+                              <>
+                                <button onClick={(e) => { e.stopPropagation(); handleApproveByTPKT(r.id); }} className="btn btn-primary" style={{ padding: '2px 8px', fontSize: '0.65rem' }}>Duyệt gửi KT</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleRejectMatReq(r.id); }} className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.65rem' }}>Từ chối</button>
+                              </>
+                            )}
+                            {isPL && r.status === 'pending_accountant' && (
+                              <button onClick={(e) => { e.stopPropagation(); handleCancelMatReq(r.id); }} className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.65rem', color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))' }}>Hủy phiếu</button>
+                            )}
+                            {isPL && r.status === 'approved' && (
+                              <button onClick={(e) => { e.stopPropagation(); handleConfirmReceived(r.id); }} className="btn btn-primary" style={{ padding: '2px 8px', fontSize: '0.65rem', backgroundColor: 'hsl(var(--success))', borderColor: 'hsl(var(--success))' }}>Xác nhận đã nhận VT</button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* History logs */}
+            <div onClick={() => navigate(`/projects/${projectId}/logs`)} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', cursor: 'pointer' }} title="Nhấp để xem nhật ký thi công chi tiết">
+              <h5 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
+                <History size={13} />
+                <span>Nhật ký thi công chi tiết (Click để xem) ({selectedTask.history.length})</span>
+              </h5>
+              <div style={{ maxHeight: '160px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', pointerEvents: 'none' }}>
+                {selectedTask.history.length === 0 ? (
+                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', padding: '12px', display: 'block', textAlign: 'center' }}>Chưa có lịch sử thay đổi nào.</span>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {selectedTask.history.map((h, i) => (
+                      <div key={i} style={{ fontSize: '0.75rem', borderBottom: '1px solid hsl(var(--border) / 0.5)', paddingBottom: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'hsl(var(--text-muted))' }}>
+                          <span>{h.date}</span><strong>{h.oldProgress}% → {h.newProgress}%</strong>
+                        </div>
+                        <p style={{ color: 'hsl(var(--text-primary))', marginTop: '2px', fontWeight: 500 }}>{h.reason}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* ─── Modals ─────────────────────────────────────── */}
       {isAssignOpen && selectedTask && (
         <AssignEngineerModal isOpen={isAssignOpen} onClose={() => setIsAssignOpen(false)} taskId={selectedTask.id} taskName={selectedTask.name} projectId={projectId} onSuccess={handleSuccess} onError={handleError} />
       )}
 
-      {isLogsOpen && selectedTask && (
-        <Modal isOpen={isLogsOpen} onClose={() => setIsLogsOpen(false)} title={`Nhật ký thi công chi tiết: ${selectedTask.name}`}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '60vh', overflowY: 'auto', padding: '4px' }}>
-            {loadingLogs ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'hsl(var(--text-muted))' }}>Đang tải nhật ký...</div>
-            ) : taskLogs.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '30px', color: 'hsl(var(--text-muted))' }}>Chưa có báo cáo nhật ký nào cho công việc này.</div>
-            ) : taskLogs.map((log) => (
-              <div key={log.id} style={{ border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', padding: '16px', backgroundColor: 'hsl(var(--bg-main) / 0.1)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{log.engineerName}</strong>
-                    <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'block', marginTop: '2px' }}>{log.date}</span>
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'hsl(var(--primary))' }}>
-                    Tiến độ: {log.progressFrom}% → {log.progressTo}%
-                  </div>
-                </div>
-                <p style={{ margin: 0, fontSize: '0.875rem', whiteSpace: 'pre-wrap', lineHeight: '1.4', color: 'hsl(var(--text-primary))' }}>{log.content}</p>
-                {log.images && log.images.length > 0 && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
-                    {log.images.map((img, idx) => (
-                      <div key={idx} style={{ width: '80px', height: '80px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
-                        <img src={img} alt="Hiện trường" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {log.comments && log.comments.length > 0 && (
-                  <div style={{ marginTop: '8px', borderTop: '1px solid hsl(var(--border) / 0.5)', paddingTop: '8px' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--text-secondary))', display: 'block', marginBottom: '6px' }}>
-                      Ý kiến chỉ đạo &amp; bình luận ({log.comments.length}):
-                    </span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {log.comments.map((c) => (
-                        <div key={c.id} style={{ padding: '6px 10px', backgroundColor: 'hsl(var(--bg-main) / 0.3)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, marginBottom: '2px', color: 'hsl(var(--text-primary))' }}>
-                            <span>{c.userName} ({c.role === 'tpkt' ? 'TP Kỹ Thuật' : c.role === 'admin' ? 'Admin' : c.role})</span>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 'normal', color: 'hsl(var(--text-muted))' }}>{c.date}</span>
-                          </div>
-                          <p style={{ margin: 0, color: 'hsl(var(--text-secondary))' }}>{c.content}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Modal>
-      )}
 
       {isLogOpen && selectedTask && user && (
         <DailyLogFormModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} task={selectedTask} engineerId={user.id} engineerName={user.name} onSuccess={handleSuccess} onError={handleError} />
       )}
+
+      {isCreateMatReqOpen && selectedTask && (
+        <CreateMaterialRequestModal
+          isOpen={isCreateMatReqOpen}
+          onClose={() => setIsCreateMatReqOpen(false)}
+          task={selectedTask}
+          phase={selectedTaskPhase || undefined}
+          projectId={projectId}
+          user={user}
+          isLeader={isPL}
+          allMaterialRequests={materialRequests}
+          requestType={createMatReqType}
+          onSuccess={(msg) => {
+            handleSuccess(msg);
+            projectService.getMaterialRequests(projectId).then(setMaterialRequests);
+          }}
+          onError={handleError}
+        />
+      )}
+
+      {isCreatePhaseOpen && (
+        <CreatePhaseModal
+          isOpen={isCreatePhaseOpen}
+          onClose={() => setIsCreatePhaseOpen(false)}
+          projectId={projectId}
+          onSuccess={handleSuccess}
+          onError={handleError}
+        />
+      )}
+
+      {isEditPhaseOpen && selectedPhaseForEdit && (
+        <EditPhaseModal
+          isOpen={isEditPhaseOpen}
+          onClose={() => {
+            setIsEditPhaseOpen(false);
+            setSelectedPhaseForEdit(null);
+          }}
+          phase={selectedPhaseForEdit}
+          onSuccess={handleSuccess}
+          onError={handleError}
+        />
+      )}
+
+      {isLeaderApprovalOpen && selectedPhaseForMatReq && (
+        <LeaderApprovalModal
+          isOpen={isLeaderApprovalOpen}
+          onClose={() => {
+            setIsLeaderApprovalOpen(false);
+            setSelectedPhaseForMatReq(null);
+          }}
+          phase={selectedPhaseForMatReq}
+          projectId={projectId}
+          user={user}
+          allMaterialRequests={materialRequests}
+          onSuccess={(msg) => {
+            handleSuccess(msg);
+            projectService.getMaterialRequests(projectId).then(setMaterialRequests);
+          }}
+          onError={handleError}
+        />
+      )}
+
+      {isPhaseMatReqListOpen && selectedPhaseForMatReq && (
+        <PhaseMaterialRequestsListModal
+          isOpen={isPhaseMatReqListOpen}
+          onClose={() => {
+            setIsPhaseMatReqListOpen(false);
+            setSelectedPhaseForMatReq(null);
+          }}
+          phase={selectedPhaseForMatReq}
+          allMaterialRequests={materialRequests}
+          onCreateNew={() => {
+            setIsPhaseMatReqListOpen(false);
+            setCreateMatReqType('normal');
+            setIsPhaseMatReqOpen(true);
+          }}
+        />
+      )}
+
+      {isResubmitOpen && selectedResubmitRequest && (
+        <ResubmitMaterialRequestModal
+          isOpen={isResubmitOpen}
+          onClose={() => {
+            setIsResubmitOpen(false);
+            setSelectedResubmitRequest(null);
+          }}
+          request={selectedResubmitRequest}
+          projectId={projectId}
+          user={user}
+          isLeader={isPL}
+          onSuccess={(msg) => {
+            handleSuccess(msg);
+            projectService.getMaterialRequests(projectId).then(setMaterialRequests);
+          }}
+          onError={handleError}
+        />
+      )}
+      {/* Create Phase Material Request Modal */}
+
+      {/* Create Phase Material Request Modal */}
+      {selectedPhaseForMatReq && (
+        <CreateMaterialRequestModal
+          isOpen={isPhaseMatReqOpen}
+          onClose={() => { setIsPhaseMatReqOpen(false); setSelectedPhaseForMatReq(null); }}
+          phase={selectedPhaseForMatReq}
+          projectId={projectId}
+          user={user}
+          isLeader={isPL}
+          allMaterialRequests={materialRequests}
+          requestType={createMatReqType}
+          onSuccess={handleSuccess}
+          onError={handleError}
+        />
+      )}
+
+      {/* Phase BOQ Modal */}
+      {selectedPhaseForBOQ && (
+        <PhaseBOQModal
+          isOpen={isBOQOpen}
+          onClose={() => { setIsBOQOpen(false); setSelectedPhaseForBOQ(null); }}
+          phase={selectedPhaseForBOQ}
+          onSuccess={handleSuccess}
+          onError={handleError}
+        />
+      )}
+
+      {/* Create Task Modal */}
+      <CreateTaskModal
+        isOpen={isCreateTaskOpen}
+        onClose={() => setIsCreateTaskOpen(false)}
+        projectId={projectId}
+        phaseId={selectedPhaseForTask}
+        parentTaskId={parentTaskForNew}
+        parentDeadline={parentDeadlineForNew}
+        members={members}
+        onSuccess={handleSuccess}
+        onError={handleError}
+      />
+
+      {/* Edit Task Modal */}
+      {isEditTaskOpen && selectedTaskForEdit && (
+        <EditTaskModal
+          isOpen={isEditTaskOpen}
+          onClose={() => {
+            setIsEditTaskOpen(false);
+            setSelectedTaskForEdit(null);
+          }}
+          task={selectedTaskForEdit}
+          parentDeadline={selectedTaskForEdit.parentTaskId ? tasks.find(t => t.id === selectedTaskForEdit.parentTaskId)?.deadline : undefined}
+          members={members}
+          onSuccess={handleSuccess}
+          onError={handleError}
+        />
+      )}
+
+      {/* Adjust Deadline Modal */}
+      {adjustingTask && (
+        <AdjustDeadlineModal
+          isOpen={isAdjustDeadlineOpen}
+          onClose={() => { setIsAdjustDeadlineOpen(false); setAdjustingTask(null); }}
+          taskId={adjustingTask.id}
+          taskName={adjustingTask.name}
+          currentDeadline={adjustingTask.deadline}
+          user={user?.name || 'User'}
+          onSuccess={handleSuccess}
+          onError={handleError}
+        />
+      )}
+
+      {/* Report Incident Modal */}
+
     </div>
+  );
+};
+
+// ─── CREATE MATERIAL REQUEST MODAL (STEP 5) ───
+interface CreateMaterialRequestModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  task?: WBSTask;
+  phase?: WBSPhase;
+  projectId: string;
+  user: any;
+  isLeader?: boolean;
+  allMaterialRequests: MaterialRequest[];
+  requestType: 'normal' | 'emergency';
+  onSuccess: (msg: string) => void;
+  onError: (msg: string) => void;
+}
+
+export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProps> = ({
+  isOpen,
+  onClose,
+  task,
+  phase,
+  projectId,
+  user,
+  isLeader,
+  allMaterialRequests,
+  onSuccess,
+  onError,
+  requestType
+}) => {
+  const type = requestType;
+  const [reason, setReason] = useState('');
+  const [invoiceImage, setInvoiceImage] = useState('');
+  const [items, setItems] = useState<{ name: string; quantity: number; unit: string }[]>([
+    { name: '', quantity: 1, unit: '' }
+  ]);
+  const [saving, setSaving] = useState(false);
+
+
+
+  // Lấy BOQ materials của Phase
+  const boqMaterials = phase?.materials || [];
+
+  // Tính tổng số lượng đã yêu cầu cho một vật tư
+  const getUsedQuantity = (materialName: string) => {
+    let sum = 0;
+    allMaterialRequests.forEach(r => {
+      if (r.phaseId === phase?.id && r.status !== 'rejected') {
+        const item = r.items.find(i => i.name === materialName);
+        if (item) sum += item.quantity;
+      }
+    });
+    return sum;
+  };
+
+  const checkIsOverBOQ = () => {
+    for (const it of items) {
+      if (!it.name) continue;
+      const boqItem = boqMaterials.find(m => m.name === it.name);
+      const boqLimit = boqItem ? boqItem.quantity : 0;
+      const used = getUsedQuantity(it.name);
+      if (used + it.quantity > boqLimit) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const isOverBOQ = checkIsOverBOQ();
+
+  const handleAddItem = () => {
+    setItems([...items, { name: '', quantity: 1, unit: '' }]);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    if (items.length === 1) return;
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handleItemChange = (index: number, field: keyof typeof items[0], value: string | number) => {
+    const updated = [...items];
+    const targetItem = updated[index];
+    (targetItem as any)[field] = value;
+    setItems(updated);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (items.some(it => !it.name.trim() || !it.unit.trim() || it.quantity <= 0)) {
+      alert('Vui lòng điền đầy đủ thông tin tên vật tư, đơn vị và số lượng (> 0).');
+      return;
+    }
+    if (type === 'emergency' && !invoiceImage.trim()) {
+      alert('Mua ngoài khẩn cấp bắt buộc phải tải ảnh hóa đơn.');
+      return;
+    }
+    if (isOverBOQ && !reason.trim()) {
+      alert('Yêu cầu VƯỢT ĐỊNH MỨC bắt buộc phải nhập Lý do giải trình!');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await projectService.createMaterialRequest({
+        projectId,
+        taskId: task?.id,
+        taskName: task?.name,
+        phaseId: phase?.id,
+        phaseName: phase?.name,
+        requesterName: user?.name || 'PL',
+        items: items.map(it => ({ name: it.name, quantity: it.quantity, unit: it.unit })),
+        type,
+        invoiceImage: type === 'emergency' ? invoiceImage.trim() : undefined,
+        reason: reason.trim() || undefined,
+        isOverBOQ: isOverBOQ
+      }, user?.role, isLeader);
+      onSuccess(type === 'emergency'
+        ? 'Đã lập phiếu mua ngoài khẩn cấp! Hệ thống tự động sinh PO & Phiếu nhập kho, tăng tồn kho ảo tức thì.'
+        : (isOverBOQ ? 'Đã gửi yêu cầu vật tư VƯỢT ĐỊNH MỨC (Chờ Giám đốc).' : 'Đã gửi yêu cầu vật tư (Chờ Kế toán).')
+      );
+      onClose();
+    } catch (err: any) {
+      onError(err.message || 'Lỗi khi tạo yêu cầu vật tư.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={task ? "Đề xuất Vật tư cho Công việc" : "Yêu cầu Vật tư cho Phase"}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }}>
+        <div style={{ fontSize: '0.85rem', backgroundColor: 'hsl(var(--primary-glow))', padding: '10px 14px', borderRadius: 'var(--radius-sm)' }}>
+          {task ? (
+            <span>Công việc: <strong>{task.name}</strong></span>
+          ) : (
+            <span>Giai đoạn (Phase): <strong>{phase?.name}</strong></span>
+          )}
+        </div>
+
+        {/* Hiển thị loại yêu cầu tĩnh */}
+        <div>
+          <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Hình thức yêu cầu:</label>
+          <div style={{ marginTop: '4px', fontSize: '0.9rem', color: type === 'emergency' ? 'hsl(var(--warning-hover))' : 'hsl(var(--primary))' }}>
+            {type === 'normal' ? 'Yêu cầu thông thường (Chờ Kế toán)' : 'Mua ngoài khẩn cấp (Direct Purchase - Chờ Kế toán duyệt)'}
+          </div>
+        </div>
+
+        {isOverBOQ ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', backgroundColor: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.3)', borderRadius: 'var(--radius-sm)' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--danger))' }}>
+              ⚠️ TỔNG YÊU CẦU VƯỢT ĐỊNH MỨC BOQ. Bắt buộc giải trình lý do và phải chờ Giám đốc duyệt.
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', backgroundColor: 'hsl(var(--success-glow))', border: '1px solid hsl(var(--success) / 0.3)', borderRadius: 'var(--radius-sm)' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--success))' }}>
+              ✅ Các vật tư yêu cầu nằm trong định mức cho phép. Sau khi được duyệt sẽ cấp phát cho công trường.
+            </span>
+          </div>
+        )}
+
+        {/* Dynamic Items List */}
+        <div>
+          <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span>Danh sách vật tư yêu cầu <span style={{ color: 'hsl(var(--danger))' }}>*</span></span>
+            <button type="button" onClick={handleAddItem} className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.72rem' }}>
+              + Thêm vật tư
+            </button>
+          </label>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {items.map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', alignItems: 'center' }}>
+                  {boqMaterials.length > 0 ? (
+                    <select
+                      value={item.name}
+                      onChange={e => {
+                        const selName = e.target.value;
+                        const selBoq = boqMaterials.find(m => m.name === selName);
+                        handleItemChange(idx, 'name', selName);
+                        if (selBoq) handleItemChange(idx, 'unit', selBoq.unit);
+                      }}
+                      required
+                      style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}
+                    >
+                      <option value="" disabled>-- Chọn vật tư (BOQ) --</option>
+                      {boqMaterials.map(bm => (
+                        <option key={bm.name} value={bm.name}>{bm.name} (Max: {bm.quantity} {bm.unit})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Tên vật tư..."
+                      value={item.name}
+                      onChange={e => handleItemChange(idx, 'name', e.target.value)}
+                      required
+                      style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}
+                    />
+                  )}
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="SL"
+                    value={item.quantity}
+                    onChange={e => handleItemChange(idx, 'quantity', Number(e.target.value))}
+                    required
+                    style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: `1px solid hsl(var(--border))`, backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="ĐVT"
+                    value={item.unit}
+                    onChange={e => handleItemChange(idx, 'unit', e.target.value)}
+                    required
+                    disabled={boqMaterials.length > 0}
+                    style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}
+                  />
+                  <button
+                    type="button"
+                    disabled={items.length === 1}
+                    onClick={() => handleRemoveItem(idx)}
+                    className="btn"
+                    style={{ padding: '4px', backgroundColor: 'transparent', color: 'hsl(var(--danger))', cursor: items.length === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    X
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {type === 'emergency' && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label htmlFor="invoice-url">Hình ảnh hóa đơn mua ngoài bắt buộc <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+            <input
+              id="invoice-url"
+              type="text"
+              placeholder="https://example.com/invoice.jpg"
+              value={invoiceImage}
+              onChange={e => setInvoiceImage(e.target.value)}
+              required
+              style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}
+            />
+            <span style={{ fontSize: '0.72rem', color: 'hsl(var(--text-muted))', display: 'block', marginTop: '4px' }}>
+              * Hệ thống sẽ tự động đối chiếu, tăng tồn kho ảo lập tức để thợ sử dụng tại công trường.
+            </span>
+          </div>
+        )}
+
+        <div>
+          <label htmlFor="req-reason">Lý do yêu cầu / Giải trình</label>
+          <textarea
+            id="req-reason"
+            placeholder="Nêu lý do hao hụt, hư hỏng hoặc sự cần thiết..."
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            rows={2}
+            style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', width: '100%', outline: 'none' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
+          <button type="submit" disabled={saving} className="btn btn-primary">
+            {saving ? 'Đang gửi...' : type === 'emergency' ? 'Nhập kho khẩn cấp' : 'Gửi yêu cầu'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+// ─── RESUBMIT MATERIAL REQUEST MODAL ───
+interface ResubmitMaterialRequestModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  request: MaterialRequest;
+  projectId: string;
+  user: any;
+  isLeader?: boolean;
+  onSuccess: (msg: string) => void;
+  onError: (msg: string) => void;
+}
+
+export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModalProps> = ({
+  isOpen,
+  onClose,
+  request,
+  user,
+  isLeader,
+  onSuccess,
+  onError
+}) => {
+  const [type, setType] = useState<'normal' | 'emergency'>(request.type || 'normal');
+  const [reason, setReason] = useState(request.reason || '');
+  const [invoiceImage, setInvoiceImage] = useState(request.invoiceImage || '');
+  const [isOverBOQ, setIsOverBOQ] = useState(request.isOverBOQ || false);
+  const [items, setItems] = useState<{ name: string; quantity: number; unit: string }[]>(
+    request.items.map(it => ({ name: it.name, quantity: it.quantity, unit: it.unit }))
+  );
+  const [saving, setSaving] = useState(false);
+
+  const handleAddItem = () => {
+    setItems([...items, { name: '', quantity: 1, unit: '' }]);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    if (items.length === 1) return;
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handleItemChange = (index: number, field: keyof typeof items[0], value: string | number) => {
+    const updated = [...items];
+    const targetItem = updated[index];
+    (targetItem as any)[field] = value;
+    setItems(updated);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // const isPhaseRequest = !!request.phaseId && !request.taskId;
+
+    if (items.some(it => !it.name.trim() || !it.unit.trim() || it.quantity <= 0)) {
+      alert('Vui lòng điền đầy đủ thông tin tên vật tư, đơn vị và số lượng (> 0).');
+      return;
+    }
+    if (type === 'emergency' && !invoiceImage.trim()) {
+      alert('Mua ngoài khẩn cấp bắt buộc phải tải ảnh hóa đơn.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await projectService.resubmitMaterialRequest(request.id, {
+        items: items.map(it => ({ name: it.name.trim(), quantity: it.quantity, unit: it.unit })),
+        type,
+        invoiceImage: type === 'emergency' ? invoiceImage.trim() : undefined,
+        reason: reason.trim() || undefined,
+        isOverBOQ
+      }, user?.role, isLeader);
+      onSuccess(type === 'emergency'
+        ? 'Đã gửi lại yêu cầu mua ngoài khẩn cấp! Hệ thống tự động sinh PO & Phiếu nhập kho, tăng tồn kho ảo tức thì.'
+        : 'Đã gửi lại yêu cầu cấp vật tư.'
+      );
+      onClose();
+    } catch (err: any) {
+      onError(err.message || 'Lỗi khi gửi lại yêu cầu vật tư.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isPhaseRequest = !!request.phaseId && !request.taskId;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Sửa & Gửi lại Yêu cầu cấp Vật tư">
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }}>
+        <div style={{ fontSize: '0.85rem', backgroundColor: 'hsl(var(--danger-glow))', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)' }}>
+          Lý do từ chối trước đó: <strong>{request.rejectionReason || 'Không có'}</strong>
+        </div>
+
+        <div style={{ fontSize: '0.85rem', backgroundColor: 'hsl(var(--primary-glow))', padding: '10px 14px', borderRadius: 'var(--radius-sm)' }}>
+          {isPhaseRequest ? (
+            <span>Giai đoạn: <strong>{request.phaseName}</strong></span>
+          ) : (
+            <span>Công việc: <strong>{request.taskName}</strong></span>
+          )}
+        </div>
+
+        {!isPhaseRequest && (
+          <div>
+            <label>Hình thức yêu cầu</label>
+            <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'normal', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <input type="radio" checked={type === 'normal'} onChange={() => setType('normal')} style={{ width: 'auto' }} />
+                Yêu cầu thông thường (Trình duyệt)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'normal', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <input type="radio" checked={type === 'emergency'} onChange={() => setType('emergency')} style={{ width: 'auto' }} />
+                Mua ngoài khẩn cấp (Direct Purchase)
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Over BOQ Checkbox */}
+        {!isPhaseRequest && type === 'normal' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input
+              id="is-over-boq-resubmit"
+              type="checkbox"
+              checked={isOverBOQ}
+              onChange={e => setIsOverBOQ(e.target.checked)}
+              style={{ width: 'auto', cursor: 'pointer' }}
+            />
+            <label htmlFor="is-over-boq-resubmit" style={{ fontSize: '0.85rem', fontWeight: 'normal', cursor: 'pointer', color: 'hsl(var(--danger))' }}>
+              ⚠️ Vượt định mức (Over BOQ) - Cần Giám đốc phê duyệt
+            </label>
+          </div>
+        )}
+
+        {/* Dynamic Items List */}
+        <div>
+          <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span>Danh sách vật tư yêu cầu <span style={{ color: 'hsl(var(--danger))' }}>*</span></span>
+            <button type="button" onClick={handleAddItem} className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.72rem' }}>
+              + Thêm vật tư
+            </button>
+          </label>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {items.map((item, idx) => (
+              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Tên vật tư..."
+                  value={item.name}
+                  onChange={e => handleItemChange(idx, 'name', e.target.value)}
+                  required
+                  style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}
+                />
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="SL"
+                  value={item.quantity}
+                  onChange={e => handleItemChange(idx, 'quantity', Number(e.target.value))}
+                  required
+                  style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}
+                />
+                <input
+                  type="text"
+                  placeholder="ĐVT"
+                  value={item.unit}
+                  onChange={e => handleItemChange(idx, 'unit', e.target.value)}
+                  required
+                  style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}
+                />
+                <button
+                  type="button"
+                  disabled={items.length === 1}
+                  onClick={() => handleRemoveItem(idx)}
+                  className="btn"
+                  style={{ padding: '4px', backgroundColor: 'transparent', color: 'hsl(var(--danger))', cursor: items.length === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  X
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {type === 'emergency' && !isPhaseRequest && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label htmlFor="resubmit-invoice-url">Hình ảnh hóa đơn mua ngoài bắt buộc <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+            <input
+              id="resubmit-invoice-url"
+              type="text"
+              placeholder="https://example.com/invoice.jpg"
+              value={invoiceImage}
+              onChange={e => setInvoiceImage(e.target.value)}
+              required
+              style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}
+            />
+          </div>
+        )}
+
+        <div>
+          <label htmlFor="resubmit-reason">Lý do yêu cầu / Giải trình</label>
+          <textarea
+            id="resubmit-reason"
+            placeholder="Nêu lý do hao hụt, hư hỏng hoặc giải trình bổ sung..."
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            rows={2}
+            style={{ fontSize: '0.85rem', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', width: '100%', outline: 'none' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>Hủy</button>
+          <button type="submit" disabled={saving} className="btn btn-primary">
+            {saving ? 'Đang gửi...' : 'Gửi lại yêu cầu'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 };

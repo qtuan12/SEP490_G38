@@ -64,7 +64,8 @@ Leader project
  - Nhận báo cáo sự cố từ Site Engineer, kiểm tra sơ bộ, sau đó chuyển lên Trưởng phòng để xác nhận và điều chỉnh tiến độ 
 Giám đốc
 - Xem tất cả dự án, dashboard tổng thể (cảnh báo trễ đỏ/vàng).
-- Xem báo cáo AI tóm tắt nhật ký.
+
+
 - Duyệt tất cả các yêu cầu vật tư vượt định mức (sau khi Kế toán trình) 
 - Duyệt phiếu điều chỉnh giảm tồn (hao hụt, mất mát, kiểm kê thiếu).
 
@@ -336,98 +337,69 @@ Lưu, hệ thống trừ tồn kho.
 Exception:
 Xuất dùng nhưng sau đó phát hiện bị hư hỏng, mất mát: không có cơ chế hoàn nhập trực tiếp. Thay vào đó, tạo phiếu "điều chỉnh giảm tồn" (kiểu kiểm kê) với lý do hư hỏng, cần Giám đốc duyệt (xem mục 2.8.3).
 Nếu xuất cho task nhưng task đó sau bị hủy (obsolete), vật tư đã dùng không thể hoàn lại. Nhưng có thể tạo phiếu nhập lại nếu vật tư chưa dùng và còn nguyên (rất hiếm, có thể xử lý thủ công bằng phiếu điều chỉnh tăng tồn).
-2.7. Quy trình xử lý vật tư thừa (Surplus Material Handling)
-Mục tiêu nghiệp vụ:
-Khi phát sinh vật tư dư thừa tại công trình, hệ thống ép buộc người dùng phải tuân thủ thứ tự ưu tiên xử lý để chống thất thoát tài sản: (1) Trả NCC => (2) Chuyển công trình => (3) Thanh lý.
-"Thanh lý" là lựa chọn cuối cùng và chỉ được mở khóa khi 2 phương án trên thất bại.
-2.7.1. Khởi tạo phiếu đề xuất (Người thực hiện: Leader dự án)
-Bước 1: Leader chọn Dự án => Chọn vật tư dư thừa (Hệ thống tự filter các vật tư có Tồn kho ảo > 0 và chưa bị khóa bởi phiếu khác).
-Bước 2: Nhập số lượng cần xử lý (<= Tồn kho hiện tại).
-Bước 3: Hệ thống tự động đẩy yêu cầu vào Luồng 1 (Trả NCC) làm mặc định. Nếu Leader muốn nhảy cóc sang Luồng 2 hoặc Luồng 3, hệ thống sẽ yêu cầu tick chọn xác nhận ngoại lệ (Ví dụ: "Vật tư này công ty tự sản xuất, không có NCC" hoặc "Vật tư đã hết hạn đổi trả").
-2.7.2. Luồng 1: Trả lại Nhà cung cấp (Ưu tiên 1 - Xử lý bởi Kế toán)
-Phiếu được gửi cho Kế toán.
-Kế toán liên hệ NCC ở bên ngoài hệ thống.
-Nếu NCC đồng ý nhận lại: Kế toán nhập số tiền dự kiến thu hồi => Bấm "Hoàn tất trả hàng". Hệ thống trừ tồn kho ảo công trình và đóng phiếu.
-Nếu NCC TỪ CHỐI: Kế toán bấm nút "NCC từ chối nhận". Phiếu tự động chuyển trạng thái thành Need Reprocess (Cần chuyển hướng) và bắn thông báo trả về cho Leader dự án.
-2.7.3. Luồng 2: Chuyển công trình khác (Ưu tiên 2 - Xử lý bởi TPKT)
-Thỏa thuận trước (Ngoài hệ thống): Leader Dự án A chủ động liên hệ nội bộ (Zalo/Gọi điện) với các công trình khác. Khi có Dự án B đồng ý nhận, Leader A mới bắt đầu thao tác trên hệ thống.
-Cập nhật phiếu: Sau khi bị NCC từ chối (hoặc chọn ngoại lệ từ đầu), Leader A chuyển mục đích phiếu sang "Chuyển công trình" và chủ động chọn đích đến là Dự án B.
-TPKT kiểm duyệt: Phiếu được đẩy lên cho Trưởng phòng Kỹ thuật (TPKT). TPKT kiểm tra để đảm bảo tính hợp lý (Ví dụ: Dự án B có thực sự phù hợp để dùng loại vật tư này không, quãng đường vận chuyển có quá xa gây lãng phí không).
-Nếu TPKT TỪ CHỐI: TPKT nhập lý do (VD: "Dự án B sắp đóng rồi không nhận thêm"). Phiếu chuyển về trạng thái Need Process và trả lại cho Leader A để chuyển sang phương án Thanh lý.
-Nếu TPKT ĐỒNG Ý: 1. Phiếu chuyển trạng thái thành Chờ xuất hàng. 2. Hàng được bốc lên xe, Leader Dự án A bấm nút "Xác nhận đã xuất". 3. Phiếu chuyển trạng thái thành Chờ nhận hàng. Khi xe tới nơi, Leader Dự án B kiểm đếm và bấm nút "Xác nhận đã nhận". 4. Hệ thống ngầm định hoàn tất giao dịch: Trừ (-) tồn kho Dự án A và Cộng (+) tồn kho Dự án B.
-2.7.4. Luồng 3: Thanh lý (Lựa chọn cuối - Xử lý bởi Kế toán)
-Chỉ khi phiếu bị TPKT từ chối điều chuyển, Leader mới được phép cập nhật phiếu sang mục đích "Thanh lý".
-Leader nhập mô tả tình trạng vật tư, đính kèm ảnh chụp => Gửi đi.
-Phiếu được gửi cho Kế toán.
-Kế toán thực hiện gọi người mua ve chai/thanh lý bên ngoài. Sau khi bán xong, Kế toán điền "Giá trị thu hồi thực tế" vào phiếu => Bấm "Hoàn tất thanh lý".
-Hệ thống trừ tồn kho ảo. (Số tiền thanh lý được lưu lại làm tham chiếu báo cáo lỗ/lãi dự án).
-2.7.5. Edge Cases & Exception (Các tình huống ngoại lệ)
-Tình huống phát sinh
-Cách hệ thống xử lý
-NCC từ chối nhận lại một phần
-Kế toán duyệt số lượng NCC chịu nhận (hệ thống trừ kho phần này). Phần dư còn lại, Leader phải tạo 1 Phiếu xử lý thừa mới để đi luồng Chuyển kho/Thanh lý.
-Chuyển kho nhưng Dự án B không xác nhận nhận hàng
-Nếu sau 7 ngày Dự án B không bấm "Xác nhận nhận", hệ thống auto-tag Giám đốc và TPKT vào để cảnh báo thất thoát vật tư trên đường vận chuyển.
-Hàng hư hỏng trong lúc chuyển kho (từ A sang B)
-Leader Dự án B từ chối nhận hàng trên hệ thống. Hàng bị trả về trạng thái của Dự án A. Leader Dự án A phải tạo "Phiếu Giảm tồn" (Lý do: Hư hỏng khi vận chuyển) để Giám đốc duyệt trừ kho.
-Dự án B chưa từng khai báo loại vật tư này trong BOQ
-Hệ thống vẫn cho phép nhận chuyển kho. Nó sẽ tự động Add loại vật tư đó vào kho ảo của Dự án B với Định mức (BOQ) = 0.
-Khóa vật tư đang xử lý
-Một khi vật tư (VD: Xi măng) đang nằm trong 1 Phiếu xử lý thừa chưa đóng, Leader không được phép tạo thêm phiếu xử lý khác cho phần tồn kho đó để tránh xuất âm (Double-booking).
+2.7. Quy trình xử lý vật tư thừa (Surplus Material Management)
+Mục tiêu của quy trình là tập hợp các loại vật tư dư thừa sau khi hoàn thành công việc để phân bổ vào các luồng xử lý kinh tế, đảm bảo tài sản được kiểm soát chặt chẽ từ khi phát sinh đến khi hoàn tất.
+2.7.1. Tập hợp và đề xuất xử lý (Batch Processing)
+Khi kết thúc một giai đoạn thi công (Phase) hoặc toàn bộ dự án, Project Leader (PL) tiến hành gom nhóm các vật tư đang dư thừa tại kho ảo của công trình để đưa vào một Phiếu đề xuất xử lý.
+Chọn danh mục: PL liệt kê toàn bộ vật tư dư thừa cần xử lý vào phiếu.
+Trạng thái nháp: Phiếu ở trạng thái Draft, cho phép PL điều chỉnh số lượng hoặc thêm/bớt vật tư linh hoạt cho đến khi chốt danh sách.
+Khóa tài sản: Khi PL gửi đi (Submit), hệ thống sẽ chuyển phiếu sang trạng thái Proccessing và đồng thời "đóng băng" số lượng vật tư này trong kho của dự án để đảm bảo không bị xuất dùng nhầm lẫn trong quá trình xử lý.
+2.7.2. Phân tách mục đích và thực hiện (Action Assignment)
+Tại mỗi loại vật tư trong phiếu, hệ thống yêu cầu xác định cụ thể cách thức giải quyết. Một vật tư có thể được chia nhỏ thành nhiều mục đích khác nhau để tối ưu hóa việc thu hồi:
+Trả Nhà cung cấp: Dành cho vật tư còn mới, nguyên kiện và nhà cung cấp đồng ý thu hồi.
+Chuyển công trình: Dành cho vật tư dư thừa tại dự án này nhưng lại đang là nhu cầu cấp thiết của dự án khác.
+Thanh lý: Dành cho vật tư đã qua sử dụng, hư hỏng hoặc không còn giá trị sử dụng nội bộ.
+Mỗi hành động này được hệ thống ghi nhận chi tiết, độc lập và chạy song song với nhau.
+2.7.3. Phối hợp liên phòng ban
+Đây là quy trình làm việc phẳng, nơi các bộ phận cùng truy cập vào phiếu để xử lý phần việc thuộc thẩm quyền:
+Bộ phận Kế toán: Tiếp nhận các đầu việc liên quan đến tài chính là Trả NCC và Thanh lý. Kế toán trực tiếp làm việc với đối tác bên ngoài, cập nhật giá trị thu hồi (số tiền được hoàn lại hoặc tiền bán phế liệu) và xác nhận hoàn tất.
+Bộ phận Kỹ thuật (TM): Tiếp nhận đầu việc Chuyển công trình được PL tạo phiếu nhé. TM sẽ kiểm tra sự hợp lý về mặt kỹ thuật giữa dự án gửi và dự án nhận. Nếu duyệt, TM xác nhận để quy trình điều chuyển nội bộ bắt đầu.
+2.7.4. Quy trình điều chuyển nội bộ (Transfer Flow)
+Đối với vật tư chuyển công trình, hệ thống yêu cầu sự phối hợp chặt chẽ giữa hai công trình để tránh thất thoát:
+Duyệt: Sau khi TM đồng ý, phiếu chuyển sang trạng thái chờ thực hiện.
+Xuất hàng: PL của dự án gửi xác nhận đã bốc hàng lên xe.
+Nhận hàng: PL của dự án nhận kiểm đếm và xác nhận đã nhận đủ hàng.
+Kết thúc: Hệ thống tự động trừ kho dự án gửi và cộng kho dự án nhận, hoàn tất giao dịch.
+2.7.5. Hoàn tất và Đóng hồ sơ
+Cập nhật tiến độ: Với mỗi mục đích (Trả, Chuyển, Thanh lý), hệ thống luôn theo dõi trạng thái riêng biệt của nó.
+Đóng phiếu: Khi tất cả các mục đích xử lý cho toàn bộ vật tư trong phiếu đã được thực hiện xong, hệ thống tự động xác nhận phiếu đề xuất đã xử lý thành công.
+Tính minh bạch: Mọi thay đổi từ lúc chọn vật tư, duyệt luồng xử lý cho đến khi xác nhận thu hồi tiền hay nhận hàng đều được lưu vết, giúp việc đối soát vật tư cuối kỳ không còn là gánh nặng.
 
-
-
-2.8. Phiếu điều chỉnh tồn kho (Tăng / Giảm)
+2.8. Phiếu điều chỉnh tồn kho (Inventory Adjustment)
 2.8.1. Nguyên tắc phân luồng
-Để đảm bảo kho ảo khớp với thực tế mà không làm quá tải ban lãnh đạo, hệ thống chia làm 2 luồng rõ rệt:
-Luồng Tăng Tồn (Tự động): Áp dụng khi thợ xuất dùng không hết trả lại kho, hoặc kiểm kê phát hiện thừa. Vì việc tăng tồn có lợi cho tài sản công ty nên hệ thống không cần ai duyệt (Auto-approve). Tạo phiếu xong là kho cộng lập tức.
-Luồng Giảm Tồn (Kiểm soát chặt): Áp dụng khi vật tư bị mất mát, hao hụt tự nhiên, hoặc kiểm kê thiếu. Mọi phiếu giảm tồn đều gắn liền với thất thoát tài chính nên bắt buộc phải qua Kế toán soát xét và Giám đốc duyệt trước khi trừ kho.
-2.8.2. Các tình huống điều chỉnh và Thẩm quyền
-Loại Phiếu
+Luồng Tăng Tồn (Tự động - PL thực hiện): Áp dụng cho các trường hợp thu hồi vật tư dư thừa, thợ trả lại hoặc kiểm kê dư. Đây là gia tăng tài sản, được phép thực hiện nhanh chóng bởi Leader dự án.
+Luồng Giảm Tồn (Kiểm soát - Kế toán thực hiện): Áp dụng khi vật tư mất mát, hư hỏng, thất thoát. Vì đây là thất thoát tài sản, chỉ Kế toán mới có quyền lập phiếu giảm tồn dựa trên Báo cáo sự cố đã xác minh.
+2.8.2. Quy trình chi tiết
+Loại phiếu
 Tình huống
-Người khởi tạo
-Người duyệt
-Điều kiện / Ghi chú
+Khởi tạo
+Duyệt
+Cập nhật tồn kho
 TĂNG TỒN
-Thợ dùng dư trả lại kho, hoặc kiểm kê phát hiện thừa.
-Leader dự án
+Thợ trả dư, kiểm kê thừa
+Leader
 Hệ thống (Auto)
-Bắt buộc ghi chú rõ nguồn gốc trả lại hoặc đính kèm biên bản kiểm kê.
+Ngay lập tức
 GIẢM TỒN
-Hao hụt tự nhiên (xi măng ẩm mốc, cát rơi vãi...).
-Leader dự án
-Giám đốc (Kế toán soát)
-Bắt buộc đính kèm ảnh chụp tình trạng hao hụt.
-GIẢM TỒN
-Mất mát, thất lạc, mất trộm tại công trình.
-Leader dự án
-Giám đốc (Kế toán soát)
-Bắt buộc đính kèm biên bản xác nhận mất mát.
-GIẢM TỒN
-Kiểm kê cuối kỳ phát hiện thiếu hụt kho ảo vs kho thực tế.
+Mất mát, hư hỏng, kiểm kê thiếu
 Kế toán
 Giám đốc
-Bắt buộc có biên bản kiểm kê đối chiếu sổ sách.
+Sau khi Giám đốc duyệt
 
-2.8.3. Quy trình thực hiện chi tiết
-Luồng 1: Điều chỉnh Tăng Tồn 
-Leader dự án/Kế toán tạo Phiếu tăng tồn => Chọn vật tư, nhập số lượng dư, ghi chú lý do.
-Bấm Lưu. Hệ thống tự động hoàn thành phiếu và cộng (+) số lượng vào kho ảo công trình mà không cần chờ Kế toán hay Giám đốc.
-Luồng 2: Điều chỉnh Giảm Tồn (Có thất thoát)
-Leader dự án (hoặc Kế toán) tạo Phiếu giảm tồn =>  Chọn vật tư, nhập số lượng hụt, đính kèm ảnh/biên bản minh chứng.
-Phiếu được đẩy sang Kế toán. Kế toán kiểm tra tính hợp lệ, hệ thống tự tính giá trị tiền bị thất thoát (dựa trên đơn giá PO gần nhất). Kế toán có thể thêm ghi chú rồi bấm "Trình Giám đốc".
-Giám đốc xem báo cáo tổn thất => Quyết định Duyệt hoặc Từ chối (kèm lý do).
-Ngay khi Giám đốc duyệt, hệ thống tự động trừ (-) tồn kho ảo và lưu giá trị hao hụt vào log tài chính.
-2.8.4. Xử lý ngoại lệ: Hư hỏng vật tư do thi công sai (Rework/Damages)
-Hệ thống TUYỆT ĐỐI KHÔNG dùng "Phiếu Giảm Tồn" cho các vật tư đã được trộn/thi công hỏng (vì vật tư đó đã bị trừ khỏi kho lúc xuất dùng, nếu trừ nữa sẽ ra tồn kho âm). Quy trình ghi nhận thiệt hại như sau:
-Site Engineer tạo Báo cáo sự cố. Leader kiểm tra và đẩy lên TPKT.
-TPKT ra quyết định giảm % tiến độ Task hoặc yêu cầu đập đi làm lại.
-Leader dự án tạo Yêu cầu vật tư mới để bù vào phần làm hỏng. Do hao hụt, yêu cầu này tự động bị hệ thống gắn nhãn "Vượt định mức (Over BOQ)".
-Khi Giám đốc duyệt cái Yêu cầu vật tư Vượt định mức này, đồng nghĩa với việc Giám đốc chấp nhận chi phí thiệt hại do sự cố thi công sai. Hệ thống luân chuyển sang Kế toán tạo PO và Nhập kho bình thường.
-2.8.5. Edge Cases (Ngoại lệ xử lý khác)
-Sai sót quy trình (Quên nhập kho): Nếu kiểm kê thấy kho ảo thiếu do Kế toán/Leader quên làm thủ tục "Nhận hàng" từ PO, thì TUYỆT ĐỐI KHÔNG dùng Phiếu Tăng Tồn để bù vào. Phải quay lại làm đúng luồng "Ghi nhận nhận hàng" từ PO gốc.
-Thiếu ảnh minh chứng (Giảm tồn): Nếu Leader tạo phiếu Giảm tồn mà không up ảnh, hệ thống cảnh báo đỏ nhưng vẫn cho Submit. Kế toán/Giám đốc có quyền Từ chối nếu thấy không thuyết phục.
-Cảnh báo hao hụt lớn: Nếu Leader nhập số lượng Giảm tồn > 20% tồn kho hiện tại, hệ thống bật cờ cảnh báo "Số lượng hao hụt lớn bất thường" để Kế toán và Giám đốc soi kỹ khi duyệt.
+A. Luồng Tăng Tồn (Leader dự án)
+Khởi tạo: Leader dự án tạo Phiếu tăng tồn, chọn vật tư, số lượng và nhập ghi chú nguồn gốc (VD: "Vật tư thu hồi từ Task A").
+Cập nhật: Hệ thống tự động cộng (+) số lượng vào kho ngay khi nhấn "Lưu".
+B. Luồng Giảm Tồn (Kế toán)
+Bước 1: Báo cáo sự cố: Leader phát hiện mất mát/hư hỏng phải tạo Báo cáo sự cố (Incident Report) kèm ảnh/biên bản minh chứng.
+Bước 2: Khởi tạo phiếu giảm tồn: Kế toán kiểm tra Báo cáo sự cố và biên bản hiện trường. Nếu hợp lệ, Kế toán tạo Phiếu giảm tồn (liên kết với Báo cáo sự cố đó).
+Bước 3: Phê duyệt (Giám đốc): Giám đốc xem xét nội dung sự cố, giá trị tổn thất và ký duyệt.
+Bước 4: Cập nhật: Ngay khi Giám đốc phê duyệt, hệ thống tự động trừ (-) tồn kho và lưu giá trị hao hụt vào log tài chính dự án.
+2.8.3. Kiểm soát chặt chẽ
+Quyền hạn: Leader dự án hoàn toàn không có quyền tạo Phiếu giảm tồn. Nếu muốn xử lý hao hụt, Leader chỉ có nhiệm vụ tạo Báo cáo sự cố, mọi thao tác trừ kho phải thông qua Kế toán.
+Tính liên kết: Phiếu giảm tồn bắt buộc phải gắn với một Báo cáo sự cố. Kế toán không thể tự ý tạo phiếu giảm tồn khống mà không có bằng chứng sự cố từ hiện trường.
+Ngưỡng cảnh báo: Phiếu giảm tồn có số lượng > 20% tồn kho hiện tại sẽ kích hoạt cảnh báo đỏ, bắt buộc Giám đốc phải giải trình trước khi duyệt.
+
+
 
 2.9. Kiểm kê cuối kỳ
 Bước 1: Chỉ cần cung cấp 1 nút "Xuất Excel" ở màn hình Tồn kho. File này sẽ in ra danh sách số lượng vật tư đáng lẽ phải có (Tồn kho lý thuyết).
@@ -462,7 +434,6 @@ Hệ thống có job chạy ngầm (batch job) hàng ngày: Gửi email cảnh b
 3. BÁO CÁO & DASHBOARD (HỖ TRỢ QUẢN LÝ)
 Hệ thống cung cấp các báo cáo trực quan và chi tiết phục vụ Giám đốc, Trưởng phòng Kỹ thuật, Kế toán. Tất cả báo cáo đều có thể xuất ra Excel/PDF.
 3.1. Dashboard tổng thể (dành cho Giám đốc & TPKT): Cung cấp biểu đồ trực quan về sức khỏe các dự án (số dự án đúng hạn/trễ hạn, tỷ lệ vượt định mức vật tư, cảnh báo tồn kho đỏ).
-3.2. Báo cáo AI tóm tắt tiến độ: Sử dụng Gemini AI tóm tắt các nhật ký công trường rải rác thành một đoạn báo cáo ngắn gọn hàng tuần, nêu bật rủi ro và các mốc hoàn thành.
 3.3. Báo cáo tiến độ dự án (Gantt Chart & Dạng lưới): Hiển thị WBS, so sánh ngày Baseline (Kế hoạch) với Actual (Thực tế) để theo dõi độ trễ của từng Task/Phase.
 3.4. Báo cáo nhật ký công trường: Liệt kê lịch sử cập nhật tiến độ, hình ảnh thi công và các comment theo từng Task/Ngày.
 3.5. Báo cáo đối chiếu Định mức vật tư (BOQ vs Actual): So sánh tổng số lượng vật tư Đã xuất dùng so với Định mức thiết kế ban đầu. Highlight đỏ các vật tư vượt BOQ.

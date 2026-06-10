@@ -13,6 +13,9 @@ import { ProjectLayoutHub } from './pages/ProjectLayoutHub';
 import { TaskDetailSE } from './pages/TaskDetailSE';
 import { PhaseAcceptance } from './pages/PhaseAcceptance';
 import { GanttChart } from './pages/GanttChart';
+import { ProjectDrawing } from './pages/ProjectDrawing';
+import { ProjectDailyLogs } from './pages/ProjectDailyLogs';
+import { TaskIncidents } from './pages/TaskIncidents';
 
 // Protected Route Guard
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
@@ -140,6 +143,24 @@ function App() {
           />
 
           <Route 
+            path="/projects/:projectId/logs" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <ProjectDailyLogs />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/projects/:projectId/tasks/:taskId/incidents" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <TaskIncidents />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
             path="/projects/:projectId/phases/:phaseId/acceptance" 
             element={
               <ProtectedRoute allowedRoles={['admin', 'tpkt']}>
@@ -153,6 +174,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
                 <GanttChart />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/projects/:projectId/drawing" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <ProjectDrawing />
               </ProtectedRoute>
             } 
           />

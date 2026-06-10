@@ -4,7 +4,7 @@ import { projectService } from '../services/projectService';
 import type { Project } from '../services/projectService';
 import { ProjectMembers } from '../components/ProjectMembers';
 import { WBSWorkspace } from '../components/WBSWorkspace';
-import { DailyLogFeed } from '../components/DailyLogFeed';
+
 import { 
   ArrowLeft, 
   Users, 
@@ -16,7 +16,8 @@ import {
   AlertCircle,
   Play,
   Pause,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -29,7 +30,7 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'feed'>('wbs');
+  const [activeTab, setActiveTab] = useState<'members' | 'wbs'>('wbs');
   const [statusError, setStatusError] = useState<string | null>(null);
 
   const fetchProjectDetails = async () => {
@@ -274,27 +275,6 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Kế hoạch WBS</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('feed')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 18px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'feed' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
-            color: activeTab === 'feed' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-            fontWeight: activeTab === 'feed' ? 600 : 500,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'all var(--transition-fast)'
-          }}
-        >
-          <History size={18} />
-          <span>Dòng thời gian Nhật ký</span>
-        </button>
       </div>
 
       {/* Tab Contents */}
@@ -304,7 +284,6 @@ export const ProjectLayoutHub: React.FC = () => {
       >
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
-        {activeTab === 'feed' && <DailyLogFeed projectId={project.id} />}
       </div>
 
     </div>

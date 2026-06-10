@@ -394,16 +394,10 @@ export const ProjectList: React.FC = () => {
             </div>
           </div>
 
-          <div>
-            <label htmlFor="proj-status">Trạng thái khởi tạo</label>
-            <select
-              id="proj-status"
-              value={formData.status}
-              onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as Project['status'] }))}
-            >
-              <option value="draft">Bản nháp (Draft)</option>
-              <option value="active">Đang hoạt động (Active)</option>
-            </select>
+          <div style={{ padding: '12px 16px', backgroundColor: 'hsl(var(--primary-glow))', border: '1px solid hsl(var(--primary)/0.2)', borderRadius: 'var(--radius-sm)' }}>
+            <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: 'hsl(var(--primary))' }}>ℹ️</span> Dự án mới sẽ được lưu ở trạng thái <strong>Bản nháp (Draft)</strong>. Sau khi tạo, hãy vào trang chi tiết dự án (WBS) để thêm thành viên và Kích hoạt thi công.
+            </p>
           </div>
 
           {/* Dashed Drag and Drop Drawing Box */}

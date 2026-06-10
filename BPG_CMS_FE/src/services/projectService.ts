@@ -20,6 +20,30 @@ export interface ProjectMember {
   isLeader: boolean; // crown icon 👑 if true
 }
 
+export interface PhaseMaterialItem {
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
+export interface AcceptanceRecord {
+  id: string;
+  date: string;
+  isPassed: boolean;
+  representativeA: string;
+  roleA: string;
+  representativeB: string;
+  roleB: string;
+  startTime: string;
+  endTime: string;
+  drawings: string;
+  standards: string;
+  results: string;
+  quality: string;
+  opinions: string;
+  conclusion: string;
+}
+
 export interface WBSPhase {
   id: string;
   projectId: string;
@@ -42,14 +66,72 @@ export interface WBSPhase {
   acceptanceQuality?: string;
   acceptanceOpinions?: string;
   acceptanceConclusion?: string;
+  acceptanceHistory?: AcceptanceRecord[];
+  deadline?: string; // Phase deadline for schedule reserve checks
+  startDate?: string;
+  endDate?: string;
+  materials?: PhaseMaterialItem[];
 }
+
+export interface IncidentReport {
+  id: string;
+  projectId: string;
+  taskId: string;
+  taskName: string;
+  reporterId: string;
+  reporterName: string;
+  reviewerId?: string;
+  reviewerName?: string;
+  incidentType: 'Construction' | 'InventoryLoss' | 'InventoryDamage' | 'Delay' | 'Safety' | 'Other';
+  description: string;
+  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'Approved' | 'Rejected' | 'Closed';
+  damageDescription?: string;
+  estimatedMaterialLoss?: number;
+  estimatedLaborDays?: number;
+  estimatedDelayDays?: number;
+  proposedAction?: string;
+  reworkTaskId?: string;
+  
+  // Custom fields for frontend
+  date: string;
+  images: string[];
+  comments?: DailyLogComment[];
+  revisionComment?: string;
+}
+
+export interface MaterialRequestItem {
+  name: string;
+  quantity: number;
+  unit: string;
+}
+
+export interface MaterialRequest {
+  id: string;
+  projectId: string;
+  taskId?: string;
+  taskName?: string;
+  phaseId?: string;
+  phaseName?: string;
+  requesterName: string;
+  items: MaterialRequestItem[];
+  status: 'pending_leader' | 'approved_by_leader' | 'pending_tpkt' | 'pending_accountant' | 'pending_director' | 'approved' | 'rejected' | 'pending_disbursement' | 'disbursed' | 'received';
+  isOverBOQ: boolean;
+  type: 'normal' | 'emergency'; // normal vs emergency (direct purchase)
+  invoiceImage?: string;
+  reason?: string;
+  date: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+}
+
+
 
 export interface TaskHistory {
   date: string;
   oldProgress: number;
   newProgress: number;
   reason: string;
-  type?: 'progress_increase' | 'progress_decrease' | 'deadline_shift' | 'obsolete' | 'status_change';
+  type?: 'progress_increase' | 'progress_decrease' | 'deadline_shift' | 'obsolete' | 'status_change' | 'created' | 'update';
   adjustedBy?: string;
   incidentCategory?: 'khach_quan' | 'chu_quan';
 }
@@ -58,14 +140,19 @@ export interface WBSTask {
   id: string;
   phaseId: string;
   projectId: string;
+  parentTaskId?: string;
   name: string;
+  description?: string;
   sortOrder: number; // display order within phase
   assignedTo?: string; // userId of engineer
   assignedName?: string; // name of engineer
+  startDate?: string;
   deadline: string;
   progress: number; // 0 - 100
   history: TaskHistory[];
   status?: 'active' | 'obsolete';
+  estimatedMaterials?: PhaseMaterialItem[];
+  isRework?: boolean;
 }
 
 export interface DailyLogComment {
@@ -95,10 +182,10 @@ export interface DailyLog {
 
 // Default initial data for simulation
 const DEFAULT_PROJECTS: Project[] = [
-  { id: 'p-1', name: 'Dự án Chung cư BPG - Biên Hòa', address: '12 Đường số 4, KCN Biên Hòa, Đồng Nai', startDate: '2026-05-01', endDate: '2026-12-30', status: 'active', progress: 45 },
-  { id: 'p-2', name: 'Dự án Cải tạo Văn phòng FPT', address: 'Lô E2a-7, Đường D1, KCNC, Quận 9, TP.HCM', startDate: '2026-05-10', endDate: '2026-08-15', status: 'active', progress: 20 },
-  { id: 'p-3', name: 'Dự án Biệt thự Nam Sài Gòn', address: 'Khu biệt thự Chateau, Phú Mỹ Hưng, Quận 7, TP.HCM', startDate: '2026-06-15', endDate: '2027-02-28', status: 'draft', progress: 0 },
-  { id: 'p-4', name: 'Dự án Cầu đường Nhơn Trạch', address: 'Huyện Nhơn Trạch, Tỉnh Đồng Nai', startDate: '2026-01-01', endDate: '2026-05-20', status: 'paused', progress: 90 },
+  { id: 'p-1', name: 'Dự án Chung cư BPG - Biên Hòa', address: '12 Đường số 4, KCN Biên Hòa, Đồng Nai', startDate: '2026-05-01', endDate: '2026-12-30', status: 'active', drawingUrl: 'ban_ve_chung_cu_bpg_bien_hoa.pdf', progress: 45 },
+  { id: 'p-2', name: 'Dự án Cải tạo Văn phòng FPT', address: 'Lô E2a-7, Đường D1, KCNC, Quận 9, TP.HCM', startDate: '2026-05-10', endDate: '2026-08-15', status: 'active', drawingUrl: 'thiet_ke_cai_tao_fpt.png', progress: 20 },
+  { id: 'p-3', name: 'Dự án Biệt thự Nam Sài Gòn', address: 'Khu biệt thự Chateau, Phú Mỹ Hưng, Quận 7, TP.HCM', startDate: '2026-06-15', endDate: '2027-02-28', status: 'draft', drawingUrl: 'ban_ve_biet_thu_nam_sai_gon.pdf', progress: 0 },
+  { id: 'p-4', name: 'Dự án Cầu đường Nhơn Trạch', address: 'Huyện Nhơn Trạch, Tỉnh Đồng Nai', startDate: '2026-01-01', endDate: '2026-05-20', status: 'paused', drawingUrl: 'quy_hoach_cau_nhon_trach.jpg', progress: 90 },
 ];
 
 const DEFAULT_MEMBERS: ProjectMember[] = [
@@ -109,10 +196,10 @@ const DEFAULT_MEMBERS: ProjectMember[] = [
 ];
 
 const DEFAULT_PHASES: WBSPhase[] = [
-  { id: 'ph-1', projectId: 'p-1', sortOrder: 1, name: 'Phase 1: Móng & Cột Trụ', status: 'frozen', acceptanceComment: 'Hoàn thành tốt, đạt yêu cầu kỹ thuật đổ bê tông móng cốt thép trục A-H.', acceptanceDate: '2026-05-28' },
-  { id: 'ph-2', projectId: 'p-1', sortOrder: 2, name: 'Phase 2: Thân chung cư (Tầng 1 - Tầng 5)', status: 'active' },
-  { id: 'ph-3', projectId: 'p-1', sortOrder: 3, name: 'Phase 3: Hoàn thiện & Điện nước', status: 'active' },
-  { id: 'ph-4', projectId: 'p-2', sortOrder: 1, name: 'Phase 1: Tháo dỡ & Đi dây cáp ngầm', status: 'active' },
+  { id: 'ph-1', projectId: 'p-1', sortOrder: 1, name: 'Phase 1: Móng & Cột Trụ', status: 'frozen', acceptanceComment: 'Hoàn thành tốt, đạt yêu cầu kỹ thuật đổ bê tông móng cốt thép trục A-H.', acceptanceDate: '2026-05-28', deadline: '2026-05-30' },
+  { id: 'ph-2', projectId: 'p-1', sortOrder: 2, name: 'Phase 2: Thân chung cư (Tầng 1 - Tầng 5)', status: 'active', deadline: '2026-06-30' },
+  { id: 'ph-3', projectId: 'p-1', sortOrder: 3, name: 'Phase 3: Hoàn thiện & Điện nước', status: 'active', deadline: '2026-08-30' },
+  { id: 'ph-4', projectId: 'p-2', sortOrder: 1, name: 'Phase 1: Tháo dỡ & Đi dây cáp ngầm', status: 'active', deadline: '2026-06-20' },
 ];
 
 const DEFAULT_TASKS: WBSTask[] = [
@@ -172,6 +259,27 @@ const DEFAULT_LOGS: DailyLog[] = [
   }
 ];
 
+const DEFAULT_INCIDENTS: IncidentReport[] = [];
+
+const DEFAULT_MATERIAL_REQUESTS: MaterialRequest[] = [
+  {
+    id: 'mat-req-1',
+    projectId: 'p-1',
+    taskId: 't-rework-mock-1',
+    taskName: '[Rework] Khắc phục - Đổ bê tông cột tầng 1',
+    requesterName: 'Trần Văn Công',
+    items: [
+      { name: 'Xi măng Hải Vân M300', quantity: 20, unit: 'bao' },
+      { name: 'Thép Pomina Φ10', quantity: 5, unit: 'cây' }
+    ],
+    status: 'pending_accountant',
+    isOverBOQ: true,
+    type: 'normal',
+    reason: 'Bổ sung vật tư khắc phục sự cố sạt lở cột tầng 1.',
+    date: '2026-06-01 08:30'
+  }
+];
+
 // Helper functions for localStorage
 const getStorage = <T>(key: string, defaults: T[]): T[] => {
   const data = localStorage.getItem(key);
@@ -203,20 +311,58 @@ export const projectService = {
     return avg;
   },
 
+  async syncParentTaskProgress(parentId: string): Promise<void> {
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const children = allTasks.filter(t => t.parentTaskId === parentId && t.status !== 'obsolete');
+    if (children.length === 0) return;
+    
+    const sum = children.reduce((acc, t) => acc + t.progress, 0);
+    const avg = Math.round(sum / children.length);
+
+    const parentIdx = allTasks.findIndex(t => t.id === parentId);
+    if (parentIdx !== -1) {
+      if (allTasks[parentIdx].progress !== avg) {
+        allTasks[parentIdx].progress = avg;
+        setStorage('bpg_wbs_tasks', allTasks);
+        await this.syncProjectProgress(allTasks[parentIdx].projectId);
+        
+        // Recursive if the parent itself has a parent
+        if (allTasks[parentIdx].parentTaskId) {
+          await this.syncParentTaskProgress(allTasks[parentIdx].parentTaskId!);
+        }
+      }
+    }
+  },
+
   // PROJECTS CRUD
   async getProjects(): Promise<Project[]> {
     if (USE_MOCK_API) {
       await new Promise(resolve => setTimeout(resolve, 300));
       const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
+      let changed = false;
       // dynamically update progresses
       for (const p of projects) {
         const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === p.id && t.status !== 'obsolete');
         if (tasks.length > 0) {
           const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
-          p.progress = Math.round(sum / tasks.length);
+          const newProgress = Math.round(sum / tasks.length);
+          if (p.progress !== newProgress) {
+            p.progress = newProgress;
+            changed = true;
+          }
+        }
+        
+        // backfill drawingUrl for default mock projects if not set
+        if (!p.drawingUrl) {
+          if (p.id === 'p-1') { p.drawingUrl = 'ban_ve_chung_cu_bpg_bien_hoa.pdf'; changed = true; }
+          else if (p.id === 'p-2') { p.drawingUrl = 'thiet_ke_cai_tao_fpt.png'; changed = true; }
+          else if (p.id === 'p-3') { p.drawingUrl = 'ban_ve_biet_thu_nam_sai_gon.pdf'; changed = true; }
+          else if (p.id === 'p-4') { p.drawingUrl = 'quy_hoach_cau_nhon_trach.jpg'; changed = true; }
         }
       }
-      setStorage('bpg_projects', projects);
+      if (changed) {
+        setStorage('bpg_projects', projects);
+      }
       return projects;
     }
     // real API call placeholder
@@ -247,6 +393,27 @@ export const projectService = {
     projects[idx] = { ...projects[idx], ...updates };
     setStorage('bpg_projects', projects);
     return projects[idx];
+  },
+
+  async activateProject(projectId: string): Promise<Project> {
+    const project = await this.getProjectById(projectId);
+    if (!project) throw new Error('Không tìm thấy dự án.');
+    if (project.status !== 'draft') throw new Error('Dự án không ở trạng thái bản nháp.');
+
+    const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === projectId && t.status !== 'obsolete');
+    
+    if (tasks.length === 0) {
+      throw new Error('Cơ cấu WBS phải có ít nhất 1 công việc trước khi Kích hoạt.');
+    }
+
+    const projectStartDate = new Date(project.startDate);
+    const invalidTasks = tasks.filter(t => new Date(t.deadline) < projectStartDate);
+    
+    if (invalidTasks.length > 0) {
+      throw new Error(`Có ${invalidTasks.length} công việc có Hạn chót nhỏ hơn Ngày bắt đầu dự án (${project.startDate}). Vui lòng điều chỉnh lại kế hoạch WBS.`);
+    }
+
+    return this.updateProject(projectId, { status: 'active' });
   },
 
   // MEMBERS MANAGEMENT
@@ -303,7 +470,13 @@ export const projectService = {
       .sort((a, b) => a.sortOrder - b.sortOrder);
   },
 
-  async createPhase(projectId: string, name: string): Promise<WBSPhase> {
+  async createPhase(
+    projectId: string,
+    name: string,
+    startDate?: string,
+    endDate?: string,
+    materials?: PhaseMaterialItem[]
+  ): Promise<WBSPhase> {
     const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     // Assign next sortOrder for this project
     const projectPhases = allPhases.filter(p => p.projectId === projectId);
@@ -313,19 +486,65 @@ export const projectService = {
       projectId,
       name,
       sortOrder: maxOrder + 1,
-      status: 'active'
+      status: 'active',
+      startDate,
+      endDate,
+      deadline: endDate,
+      materials
     };
     allPhases.push(newPhase);
     setStorage('bpg_wbs_phases', allPhases);
+
+    // Auto-create Phase-level Material Request if materials exist
+    if (materials && materials.length > 0) {
+      const requestItems = materials.map(m => ({
+        name: m.name,
+        quantity: m.quantity,
+        unit: m.unit,
+        price: 0
+      }));
+
+      const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+      const newRequest: MaterialRequest = {
+        id: `mat-req-${Date.now()}`,
+        projectId,
+        phaseId: newPhase.id,
+        phaseName: newPhase.name,
+        requesterName: 'Leader (Tạo Phase)',
+        items: requestItems,
+        status: 'pending_accountant',
+        isOverBOQ: false,
+        type: 'normal',
+        reason: `Yêu cầu cấp vật tư lập kế hoạch cho Giai đoạn: ${name}`,
+        date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
+      };
+      list.push(newRequest);
+      setStorage('bpg_material_requests', list);
+    }
+
     return newPhase;
   },
 
-  async updatePhase(phaseId: string, updates: Partial<Pick<WBSPhase, 'name'>>): Promise<WBSPhase> {
+  async updatePhase(phaseId: string, updates: Partial<WBSPhase>): Promise<WBSPhase> {
     const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     const idx = allPhases.findIndex(p => p.id === phaseId);
     if (idx === -1) throw new Error('Không tìm thấy giai đoạn.');
-    if (allPhases[idx].status === 'frozen') throw new Error('Giai đoạn đã nghiệm thu, không thể sửa tên.');
+    if (allPhases[idx].status === 'frozen' && updates.name) {
+      throw new Error('Giai đoạn đã nghiệm thu, không thể sửa tên.');
+    }
     allPhases[idx] = { ...allPhases[idx], ...updates };
+    setStorage('bpg_wbs_phases', allPhases);
+    return allPhases[idx];
+  },
+
+  async updatePhaseMaterials(phaseId: string, materials: PhaseMaterialItem[]): Promise<WBSPhase> {
+    const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
+    const idx = allPhases.findIndex(p => p.id === phaseId);
+    if (idx === -1) throw new Error('Không tìm thấy giai đoạn.');
+    if (allPhases[idx].status === 'frozen') {
+      throw new Error('Giai đoạn đã đóng băng nghiệm thu, không thể cập nhật BOQ.');
+    }
+    allPhases[idx] = { ...allPhases[idx], materials };
     setStorage('bpg_wbs_phases', allPhases);
     return allPhases[idx];
   },
@@ -353,25 +572,51 @@ export const projectService = {
     if (task.progress > 0 || task.history.length > 0) {
       throw new Error('Công việc đã được cập nhật tiến độ. Vui lòng dùng chức năng "Hủy việc" thay vì xóa.');
     }
-    const filtered = allTasks.filter(t => t.id !== taskId);
+    // Also delete any subtasks of this task
+    const filtered = allTasks.filter(t => t.id !== taskId && t.parentTaskId !== taskId);
     setStorage('bpg_wbs_tasks', filtered);
     await this.syncProjectProgress(task.projectId);
+    if (task.parentTaskId) {
+      await this.syncParentTaskProgress(task.parentTaskId);
+    }
   },
 
-  async renameTask(taskId: string, newName: string): Promise<WBSTask> {
+  async cancelTask(taskId: string, reason: string, user: string): Promise<void> {
     const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
     const idx = allTasks.findIndex(t => t.id === taskId);
     if (idx === -1) throw new Error('Không tìm thấy công việc.');
-    const task = allTasks[idx];
-    const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
-    const parentPhase = allPhases.find(p => p.id === task.phaseId);
-    if (parentPhase && parentPhase.status === 'frozen') throw new Error('Giai đoạn đã đóng băng, không thể đổi tên.');
-    if (task.progress > 0 || task.history.length > 0) {
-      throw new Error('Công việc đã được cập nhật tiến độ. Không thể đổi tên. Hãy hủy việc và tạo lại.');
-    }
-    allTasks[idx] = { ...task, name: newName };
+    
+    allTasks[idx].status = 'obsolete';
+    allTasks[idx].history.unshift({
+      date: new Date().toISOString(),
+      oldProgress: allTasks[idx].progress,
+      newProgress: allTasks[idx].progress,
+      reason: `Hủy công việc: ${reason}`,
+      type: 'status_change',
+      adjustedBy: user
+    });
     setStorage('bpg_wbs_tasks', allTasks);
-    return allTasks[idx];
+    await this.syncProjectProgress(allTasks[idx].projectId);
+    if (allTasks[idx].parentTaskId) {
+      await this.syncParentTaskProgress(allTasks[idx].parentTaskId!);
+    }
+  },
+
+  async adjustTaskDeadline(taskId: string, newDeadline: string, reason: string, user: string): Promise<void> {
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const idx = allTasks.findIndex(t => t.id === taskId);
+    if (idx === -1) throw new Error('Không tìm thấy công việc.');
+    
+    allTasks[idx].deadline = newDeadline;
+    allTasks[idx].history.unshift({
+      date: new Date().toISOString(),
+      oldProgress: allTasks[idx].progress,
+      newProgress: allTasks[idx].progress,
+      reason: `Dời hạn hoàn thành (hạn mới: ${newDeadline}): ${reason}`,
+      type: 'deadline_shift',
+      adjustedBy: user
+    });
+    setStorage('bpg_wbs_tasks', allTasks);
   },
 
   async reorderPhase(projectId: string, phaseId: string, direction: 'up' | 'down'): Promise<void> {
@@ -413,6 +658,23 @@ export const projectService = {
       throw new Error('Giai đoạn này đã bị đóng băng nghiệm thu. Không thể thêm công việc.');
     }
 
+    // Validate deadline against Phase deadline
+    if (parentPhase && parentPhase.deadline && task.deadline) {
+      if (new Date(task.deadline) > new Date(parentPhase.deadline)) {
+        throw new Error(`Hạn chót của công việc (${task.deadline}) không được vượt quá hạn chót của Giai đoạn (${parentPhase.deadline}).`);
+      }
+    }
+
+    // Validate deadline against Parent Task deadline (if it is a subtask)
+    if (task.parentTaskId) {
+      const parentTask = allTasks.find(t => t.id === task.parentTaskId);
+      if (parentTask && parentTask.deadline && task.deadline) {
+        if (new Date(task.deadline) > new Date(parentTask.deadline)) {
+          throw new Error(`Hạn chót của công việc con (${task.deadline}) không được vượt quá hạn chót của Công việc cha (${parentTask.deadline}).`);
+        }
+      }
+    }
+
     const newTask: WBSTask = {
       ...task,
       id: `t-${Date.now()}`,
@@ -427,6 +689,9 @@ export const projectService = {
     allTasks.push(newTask);
     setStorage('bpg_wbs_tasks', allTasks);
     await this.syncProjectProgress(task.projectId);
+    if (task.parentTaskId) {
+      await this.syncParentTaskProgress(task.parentTaskId);
+    }
     return newTask;
   },
 
@@ -526,6 +791,12 @@ export const projectService = {
     if (taskIdx === -1) throw new Error('Không tìm thấy công việc.');
     
     const task = allTasks[taskIdx];
+
+    // Kiểm tra xem task có subtask không. Nếu có thì không cho phép cập nhật tiến độ thủ công.
+    const children = allTasks.filter(t => t.parentTaskId === task.id && t.status !== 'obsolete');
+    if (children.length > 0) {
+      throw new Error('Công việc này có các công việc con. Tiến độ sẽ được tự động tính toán từ các công việc con.');
+    }
     
     // Validate decrease
     if (logData.progressTo < task.progress) {
@@ -565,8 +836,11 @@ export const projectService = {
     };
     setStorage('bpg_wbs_tasks', allTasks);
 
-    // 4. Update project overall progress
+    // 4. Update project overall progress and parent task progress
     await this.syncProjectProgress(logData.projectId);
+    if (task.parentTaskId) {
+      await this.syncParentTaskProgress(task.parentTaskId);
+    }
 
     return newLog;
   },
@@ -626,13 +900,32 @@ export const projectService = {
     if (!details && comment.trim().length < 50) {
       throw new Error('Văn bản nhận xét nghiệm thu phải từ 50 ký tự trở lên.');
     }
+    const isPassed = details ? !details.conclusion.includes('Không chấp nhận') : true;
+
+    const newRecord: AcceptanceRecord = {
+      id: `acc-${Date.now()}`,
+      date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN'),
+      isPassed,
+      representativeA: details?.representativeA || '',
+      roleA: details?.roleA || '',
+      representativeB: details?.representativeB || '',
+      roleB: details?.roleB || '',
+      startTime: details?.startTime || '',
+      endTime: details?.endTime || '',
+      drawings: details?.drawings || '',
+      standards: details?.standards || '',
+      results: details?.results || '',
+      quality: details?.quality || '',
+      opinions: details?.opinions || '',
+      conclusion: details?.conclusion || ''
+    };
 
     phases[phaseIdx] = {
       ...phases[phaseIdx],
-      status: 'frozen',
-      acceptanceComment: comment,
-      acceptanceDate: new Date().toLocaleDateString('vi-VN'),
-      ...(details ? {
+      status: isPassed ? 'frozen' : 'active',
+      acceptanceComment: isPassed ? comment : phases[phaseIdx].acceptanceComment,
+      acceptanceDate: isPassed ? new Date().toLocaleDateString('vi-VN') : phases[phaseIdx].acceptanceDate,
+      ...(details && isPassed ? {
         acceptanceRepresentativeA: details.representativeA,
         acceptanceRoleA: details.roleA,
         acceptanceRepresentativeB: details.representativeB,
@@ -645,7 +938,8 @@ export const projectService = {
         acceptanceQuality: details.quality,
         acceptanceOpinions: details.opinions,
         acceptanceConclusion: details.conclusion,
-      } : {})
+      } : {}),
+      acceptanceHistory: isPassed ? phases[phaseIdx].acceptanceHistory : [...(phases[phaseIdx].acceptanceHistory || []), newRecord]
     };
 
     setStorage('bpg_wbs_phases', phases);
@@ -661,11 +955,33 @@ export const projectService = {
       throw new Error('Lý do hủy nghiệm thu phải từ 20 ký tự trở lên.');
     }
 
+    const currentPhase = phases[phaseIdx];
+
+    // Ghi nhận lại biên bản thành công trước đó thành một lịch sử thất bại (do bị huỷ)
+    const revokedRecord: AcceptanceRecord = {
+      id: `rev-${Date.now()}`,
+      date: new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN'),
+      isPassed: false,
+      representativeA: currentPhase.acceptanceRepresentativeA || '',
+      roleA: currentPhase.acceptanceRoleA || '',
+      representativeB: currentPhase.acceptanceRepresentativeB || '',
+      roleB: currentPhase.acceptanceRoleB || '',
+      startTime: currentPhase.acceptanceStartTime || '',
+      endTime: currentPhase.acceptanceEndTime || '',
+      drawings: currentPhase.acceptanceDrawings || '',
+      standards: currentPhase.acceptanceStandards || '',
+      results: currentPhase.acceptanceResults || '',
+      quality: currentPhase.acceptanceQuality || '',
+      opinions: currentPhase.acceptanceOpinions || '',
+      conclusion: `[ĐÃ BỊ HỦY NGHIỆM THU] Lý do: ${reason}`
+    };
+
     phases[phaseIdx] = {
-      ...phases[phaseIdx],
+      ...currentPhase,
       status: 'active',
       revocationComment: reason,
-      revocationDate: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
+      revocationDate: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' '),
+      acceptanceHistory: [...(currentPhase.acceptanceHistory || []), revokedRecord]
     };
 
     setStorage('bpg_wbs_phases', phases);
@@ -704,5 +1020,485 @@ export const projectService = {
     setStorage('bpg_wbs_tasks', allTasks);
     await this.syncProjectProgress(task.projectId);
     return allTasks[idx];
+  },
+
+  // INCIDENTS & REWORK APIs
+  async getIncidents(projectId: string): Promise<IncidentReport[]> {
+    const list = getStorage<IncidentReport>('bpg_incidents', DEFAULT_INCIDENTS);
+    return list.filter(i => i.projectId === projectId).sort((a, b) => b.date.localeCompare(a.date));
+  },
+
+  async createIncident(incident: Omit<IncidentReport, 'id' | 'date' | 'status'>): Promise<IncidentReport> {
+    const list = getStorage<IncidentReport>('bpg_incidents', DEFAULT_INCIDENTS);
+    const newIncident: IncidentReport = {
+      ...incident,
+      id: `inc-${Date.now()}`,
+      date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' '),
+      status: 'WaitingReview'
+    };
+    list.push(newIncident);
+    setStorage('bpg_incidents', list);
+    return newIncident;
+  },
+
+  async resolveIncident(
+    incidentId: string, 
+    resolutionType: 'rework' | 'reduce_progress',
+    resolutionData: any, 
+    tpkt: { id: string, name: string }
+  ): Promise<IncidentReport> {
+    const list = getStorage<IncidentReport>('bpg_incidents', DEFAULT_INCIDENTS);
+    const idx = list.findIndex(i => i.id === incidentId);
+    if (idx === -1) throw new Error('Không tìm thấy báo cáo sự cố.');
+    
+    const incident = list[idx];
+
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const originalTaskIdx = allTasks.findIndex(t => t.id === incident.taskId);
+    if (originalTaskIdx === -1) throw new Error('Không tìm thấy công việc gốc bị sự cố.');
+
+    const oldTask = allTasks[originalTaskIdx];
+
+    if (resolutionType === 'rework') {
+      // 1. Mark the original task as obsolete
+      const reworkTaskData = resolutionData as { name: string, deadline: string, assignedTo: string, assignedName: string };
+      const oldHistoryEntry: TaskHistory = {
+        date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' '),
+        oldProgress: oldTask.progress,
+        newProgress: oldTask.progress,
+        reason: `Đánh dấu Obsolete do sự cố: ${incident.description}. Giải quyết bởi TPKT ${tpkt.name}. Rework: ${reworkTaskData.name}`,
+        type: 'obsolete',
+        adjustedBy: tpkt.name
+      };
+
+      allTasks[originalTaskIdx] = {
+        ...oldTask,
+        status: 'obsolete',
+        history: [oldHistoryEntry, ...oldTask.history]
+      };
+
+      // 2. Create the Rework task
+      const nextOrder = allTasks.filter(t => t.phaseId === oldTask.phaseId).reduce((m, t) => Math.max(m, t.sortOrder ?? 0), 0) + 1;
+      const reworkTask: WBSTask = {
+        id: `t-rework-${Date.now()}`,
+        phaseId: oldTask.phaseId,
+        projectId: oldTask.projectId,
+        name: reworkTaskData.name,
+        sortOrder: nextOrder,
+        assignedTo: reworkTaskData.assignedTo,
+        assignedName: reworkTaskData.assignedName,
+        deadline: reworkTaskData.deadline,
+        progress: 0,
+        history: [{
+          date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' '),
+          oldProgress: 0,
+          newProgress: 0,
+          reason: 'Khởi tạo công việc khắc phục (Rework) từ sự cố: ' + incident.description,
+          type: 'created',
+          adjustedBy: tpkt.name
+        }],
+        status: 'active',
+        isRework: true
+      };
+
+      allTasks.push(reworkTask);
+      list[idx].reworkTaskId = reworkTask.id;
+    } else if (resolutionType === 'reduce_progress') {
+      const reduceData = resolutionData as { reduction: number, reason: string };
+      const newProgress = Math.max(0, oldTask.progress - reduceData.reduction);
+      
+      const historyEntry: TaskHistory = {
+        date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' '),
+        oldProgress: oldTask.progress,
+        newProgress: newProgress,
+        reason: `Trừ ${reduceData.reduction}% tiến độ do sự cố: ${reduceData.reason}. Giải quyết bởi TPKT ${tpkt.name}.`,
+        type: 'update',
+        adjustedBy: tpkt.name
+      };
+
+      allTasks[originalTaskIdx] = {
+        ...oldTask,
+        progress: newProgress,
+        history: [historyEntry, ...oldTask.history]
+      };
+    }
+
+    setStorage('bpg_wbs_tasks', allTasks);
+    await this.syncProjectProgress(oldTask.projectId);
+
+    // Update Incident status
+    list[idx].status = 'Approved';
+    list[idx].reviewerId = tpkt.id;
+    list[idx].reviewerName = tpkt.name;
+
+    setStorage('bpg_incidents', list);
+    return list[idx];
+  },
+
+  // MATERIAL REQUESTS FOR REWORK & COMPENSATION (Section 1.7)
+  async getMaterialRequests(projectId: string): Promise<MaterialRequest[]> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    return list.filter(r => r.projectId === projectId).sort((a, b) => b.date.localeCompare(a.date));
+  },
+
+  async getAllMaterialRequests(): Promise<MaterialRequest[]> {
+    return getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS).sort((a, b) => b.date.localeCompare(a.date));
+  },
+
+  async createMaterialRequest(
+    request: Omit<MaterialRequest, 'id' | 'status' | 'date'> & { isOverBOQ?: boolean },
+    userRole?: string,
+    isLeader?: boolean
+  ): Promise<MaterialRequest> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    
+    const isRework = request.taskName ? (request.taskName.startsWith('[Rework]') || request.taskName.toLowerCase().includes('rework') || request.taskName.toLowerCase().includes('khắc phục')) : false;
+    
+    const isEmergency = request.type === 'emergency';
+    
+    if (isEmergency && !request.invoiceImage) {
+      throw new Error('Yêu cầu mua ngoài khẩn cấp bắt buộc phải tải ảnh hóa đơn.');
+    }
+
+    const defaultIsOverBOQ = request.isOverBOQ !== undefined ? request.isOverBOQ : isRework;
+
+    let initialStatus: MaterialRequest['status'] = 'pending_accountant';
+    
+    if (isEmergency) {
+      initialStatus = 'pending_disbursement';
+    } else if (userRole === 'kỹ sư' && !isLeader) {
+      initialStatus = 'pending_leader';
+    }
+
+    const newRequest: MaterialRequest = {
+      ...request,
+      id: `mat-req-${Date.now()}`,
+      status: initialStatus,
+      approvedBy: isEmergency ? 'Hệ thống (Tự động PO & Nhập kho)' : undefined,
+      isOverBOQ: defaultIsOverBOQ,
+      date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
+    };
+    
+    list.push(newRequest);
+    setStorage('bpg_material_requests', list);
+    return newRequest;
+  },
+
+  async aggregateSERequests(
+    requestIds: string[],
+    phaseId: string,
+    phaseName: string,
+    leaderName: string,
+    isOverBOQ: boolean,
+    reason?: string
+  ): Promise<MaterialRequest> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    
+    const selectedReqs = list.filter(r => requestIds.includes(r.id) && r.status === 'pending_leader');
+    if (selectedReqs.length === 0) throw new Error('Không có yêu cầu hợp lệ nào để tổng hợp.');
+
+    const mergedItems: Record<string, MaterialRequestItem> = {};
+    selectedReqs.forEach(req => {
+      req.items.forEach(item => {
+        if (mergedItems[item.name]) {
+          mergedItems[item.name].quantity += item.quantity;
+        } else {
+          mergedItems[item.name] = { ...item };
+        }
+      });
+      // Update SE request status
+      const idx = list.findIndex(r => r.id === req.id);
+      if (idx !== -1) {
+        list[idx].status = 'approved_by_leader';
+        list[idx].approvedBy = leaderName;
+      }
+    });
+
+    const finalItems = Object.values(mergedItems);
+
+    const aggregatedReq: MaterialRequest = {
+      id: `mat-req-${Date.now()}`,
+      projectId: selectedReqs[0].projectId,
+      phaseId,
+      phaseName,
+      requesterName: leaderName,
+      items: finalItems,
+      status: isOverBOQ ? 'pending_director' : 'pending_accountant',
+      isOverBOQ,
+      reason: reason || `Tổng hợp từ ${selectedReqs.length} yêu cầu của Kỹ sư hiện trường.`,
+      type: 'normal',
+      date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
+    };
+
+    list.push(aggregatedReq);
+    setStorage('bpg_material_requests', list);
+    return aggregatedReq;
+  },
+
+  async getMaterialUsage(phaseId: string, materialName: string): Promise<number> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    let total = 0;
+    list.forEach(req => {
+      // Chỉ tính các yêu cầu thuộc phase này và KHÔNG BỊ TỪ CHỐI
+      if (req.phaseId === phaseId && req.status !== 'rejected') {
+        const item = req.items.find(i => i.name === materialName);
+        if (item) {
+          total += item.quantity;
+        }
+      }
+    });
+    return total;
+  },
+
+  async cancelMaterialRequest(requestId: string, reason: string): Promise<void> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    const idx = list.findIndex(r => r.id === requestId);
+    if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
+    
+    if (list[idx].status !== 'pending_accountant') {
+      throw new Error('Chỉ có thể hủy yêu cầu khi đang chờ Kế toán duyệt.');
+    }
+    
+    list[idx].status = 'rejected';
+    list[idx].rejectionReason = `Người tạo tự hủy: ${reason}`;
+    setStorage('bpg_material_requests', list);
+  },
+
+  async processMaterialRequestByAccountant(requestId: string): Promise<MaterialRequest> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    const idx = list.findIndex(r => r.id === requestId);
+    if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
+    
+    const request = list[idx];
+    if (request.isOverBOQ) {
+      request.status = 'pending_director'; // Trình Giám đốc duyệt
+    } else {
+      request.status = 'approved'; // Duyệt luôn cấp PO
+      request.approvedBy = 'Kế toán (Duyệt trong định mức)';
+      
+      // Auto-add to Phase BOQ if it's a Phase request
+      if (!request.taskId && request.phaseId) {
+        const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', []);
+        const phaseIdx = allPhases.findIndex(p => p.id === request.phaseId);
+        if (phaseIdx !== -1) {
+          const currentMaterials = allPhases[phaseIdx].materials || [];
+          request.items.forEach(reqItem => {
+            const exist = currentMaterials.find(m => m.name === reqItem.name);
+            if (exist) {
+              exist.quantity += reqItem.quantity;
+            } else {
+              currentMaterials.push({ name: reqItem.name, quantity: reqItem.quantity, unit: reqItem.unit });
+            }
+          });
+          allPhases[phaseIdx].materials = currentMaterials;
+          setStorage('bpg_wbs_phases', allPhases);
+        }
+      }
+    }
+
+    setStorage('bpg_material_requests', list);
+    return list[idx];
+  },
+
+  async disburseEmergencyRequest(requestId: string): Promise<MaterialRequest> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    const idx = list.findIndex(r => r.id === requestId);
+    if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
+    
+    list[idx] = {
+      ...list[idx],
+      status: 'disbursed',
+      approvedBy: 'Kế toán (Đã giải ngân chi phí)'
+    };
+    setStorage('bpg_material_requests', list);
+    return list[idx];
+  },
+
+  async approveMaterialRequestByDirector(requestId: string, approvedBy: string): Promise<MaterialRequest> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    const idx = list.findIndex(r => r.id === requestId);
+    if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
+    
+    list[idx] = {
+      ...list[idx],
+      status: 'approved',
+      approvedBy
+    };
+
+    // Auto-add to Phase BOQ if it's a Phase request
+    const request = list[idx];
+    if (!request.taskId && request.phaseId) {
+      const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', []);
+      const phaseIdx = allPhases.findIndex(p => p.id === request.phaseId);
+      if (phaseIdx !== -1) {
+        const currentMaterials = allPhases[phaseIdx].materials || [];
+        request.items.forEach(reqItem => {
+          const exist = currentMaterials.find(m => m.name === reqItem.name);
+          if (exist) {
+            exist.quantity += reqItem.quantity;
+          } else {
+            currentMaterials.push({ name: reqItem.name, quantity: reqItem.quantity, unit: reqItem.unit });
+          }
+        });
+        allPhases[phaseIdx].materials = currentMaterials;
+        setStorage('bpg_wbs_phases', allPhases);
+      }
+    }
+
+    setStorage('bpg_material_requests', list);
+    return list[idx];
+  },
+
+  async rejectMaterialRequest(requestId: string, reason: string): Promise<MaterialRequest> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    const idx = list.findIndex(r => r.id === requestId);
+    if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
+    
+    list[idx] = {
+      ...list[idx],
+      status: 'rejected',
+      rejectionReason: reason
+    };
+    setStorage('bpg_material_requests', list);
+    return list[idx];
+  },
+
+  async approveMaterialRequestByLeader(requestId: string, leaderName: string): Promise<MaterialRequest> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    const idx = list.findIndex(r => r.id === requestId);
+    if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
+    
+    const request = list[idx];
+    if (request.status !== 'pending_leader') throw new Error('Yêu cầu không ở trạng thái chờ Leader duyệt.');
+
+    const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const task = tasks.find(t => t.id === request.taskId);
+    if (task && task.estimatedMaterials) {
+      for (const reqItem of request.items) {
+        const estItem = task.estimatedMaterials.find(m => m.name === reqItem.name);
+        const estQty = estItem ? estItem.quantity : 0;
+        
+        const existingRequests = list.filter(r => r.taskId === task.id && r.id !== request.id && r.status !== 'rejected');
+        const existingQty = existingRequests.reduce((sum, r) => {
+          const matched = r.items.find(i => i.name === reqItem.name);
+          return sum + (matched ? matched.quantity : 0);
+        }, 0);
+
+        if (existingQty + reqItem.quantity > estQty) {
+          throw new Error(`Số lượng ${reqItem.name} yêu cầu (${existingQty + reqItem.quantity}) vượt quá mức định mức của Task (${estQty}).`);
+        }
+      }
+    }
+
+    list[idx] = {
+      ...request,
+      status: 'pending_tpkt',
+      approvedBy: leaderName
+    };
+    
+    setStorage('bpg_material_requests', list);
+    return list[idx];
+  },
+
+  async approveMaterialRequestByTPKT(requestId: string, tpktName: string): Promise<MaterialRequest> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    const idx = list.findIndex(r => r.id === requestId);
+    if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
+    
+    const request = list[idx];
+    if (request.status !== 'pending_tpkt') throw new Error('Yêu cầu không ở trạng thái chờ TPKT duyệt.');
+
+    list[idx] = {
+      ...request,
+      status: 'pending_accountant',
+      approvedBy: tpktName
+    };
+    
+    setStorage('bpg_material_requests', list);
+    return list[idx];
+  },
+
+  async confirmMaterialReceived(requestId: string, leaderName: string): Promise<MaterialRequest> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    const idx = list.findIndex(r => r.id === requestId);
+    if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
+    
+    const request = list[idx];
+    if (request.status !== 'approved' && request.status !== 'disbursed') {
+      throw new Error('Chỉ có thể nhận vật tư đã được kế toán duyệt/giải ngân.');
+    }
+
+    list[idx] = {
+      ...request,
+      status: 'received',
+      approvedBy: `${request.approvedBy || ''} - Nhận bởi: ${leaderName}`
+    };
+    
+    setStorage('bpg_material_requests', list);
+    return list[idx];
+  },
+
+  async resubmitMaterialRequest(
+    requestId: string,
+    updates: Partial<Pick<MaterialRequest, 'items' | 'reason' | 'invoiceImage' | 'type' | 'isOverBOQ'>>,
+    userRole?: string,
+    isLeader?: boolean
+  ): Promise<MaterialRequest> {
+    const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
+    const idx = list.findIndex(r => r.id === requestId);
+    if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
+    
+    const request = list[idx];
+    if (request.status !== 'rejected') {
+      throw new Error('Chỉ có thể gửi lại yêu cầu đã bị từ chối.');
+    }
+
+    const type = updates.type ?? request.type;
+    const isEmergency = type === 'emergency';
+
+    let newStatus: MaterialRequest['status'] = 'pending_accountant';
+    if (isEmergency) {
+      newStatus = 'pending_disbursement';
+    } else if (request.taskId) {
+      if (userRole === 'kỹ sư' && !isLeader) {
+        newStatus = 'pending_leader';
+      } else if (userRole === 'kỹ sư' && isLeader) {
+        newStatus = 'pending_tpkt';
+      }
+    }
+
+    list[idx] = {
+      ...request,
+      ...updates,
+      status: newStatus,
+      approvedBy: isEmergency ? 'Hệ thống (Tự động PO & Nhập kho)' : undefined,
+      rejectionReason: undefined,
+      date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
+    };
+
+    setStorage('bpg_material_requests', list);
+    return list[idx];
+  },
+
+  async addIncidentComment(incidentId: string, user: { name: string; role: string; id: string }, content: string): Promise<DailyLogComment> {
+    const list = getStorage<IncidentReport>('bpg_incidents', DEFAULT_INCIDENTS);
+    const idx = list.findIndex(i => i.id === incidentId);
+    if (idx === -1) throw new Error('Không tìm thấy báo cáo sự cố.');
+
+    const newComment: DailyLogComment = {
+      id: `c-inc-${Date.now()}`,
+      userId: user.id,
+      userName: user.name,
+      role: user.role,
+      content,
+      date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
+    };
+
+    if (!list[idx].comments) {
+      list[idx].comments = [];
+    }
+    list[idx].comments!.push(newComment);
+    setStorage('bpg_incidents', list);
+    return newComment;
   }
 };
