@@ -6,19 +6,11 @@ import {
   AlertTriangle, 
   ClipboardList, 
   Users, 
-  Clock, 
-  TrendingUp,
-  ChevronRight,
-  TrendingDown,
-  CheckCircle,
-  XCircle,
-  FileCheck2,
   Boxes
 } from 'lucide-react';
 import { userService } from '../services/userService';
 import { projectService } from '../services/projectService';
 import type {MaterialRequest} from '../types/common';
-import { useNavigate } from 'react-router-dom';
 import { MaterialCompensationTable } from './Dashboard/components/MaterialCompensationTable';
 import { RecentActivities } from './Dashboard/components/RecentActivities';
 import { QuickActionsPanel } from './Dashboard/components/QuickActionsPanel';
@@ -26,7 +18,6 @@ import { DashboardStats } from './Dashboard/components/DashboardStats';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [userCount, setUserCount] = useState(0);
   const [criticalAlerts, setCriticalAlerts] = useState<string[]>([]);
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
@@ -67,7 +58,7 @@ export const Dashboard: React.FC = () => {
         const tasksList = await projectService.getTasks(p.id);
         
         incs.forEach(inc => {
-          if (inc.status === 'resolved') {
+          if (inc.status === 'Closed' || inc.status === 'Approved') {
             const reworkTask = tasksList.find(t => 
               (inc.reworkTaskId && t.id === inc.reworkTaskId) ||
               (t.name.includes(inc.taskName) && t.name.startsWith('[Rework]'))
@@ -166,24 +157,7 @@ export const Dashboard: React.FC = () => {
     { id: 4, user: 'Phạm Huy Hoàng', role: 'Giám Đốc', action: 'Duyệt yêu cầu vật tư vượt định mức', time: '4 giờ trước', detail: 'Dự án Cải tạo văn phòng FPT - Xi măng vượt định mức 15% (đã có giải trình).' },
   ];
 
-  const getStatusBadgeMR = (status: MaterialRequest['status']) => {
-    switch (status) {
-      case 'pending_accountant':
-        return <span className="badge badge-warning" style={{ fontSize: '0.72rem' }}>Chờ Kế toán soát</span>;
-      case 'pending_director':
-        return <span className="badge badge-primary" style={{ fontSize: '0.72rem' }}>Chờ Giám đốc duyệt</span>;
-      case 'pending_disbursement':
-        return <span className="badge badge-warning" style={{ fontSize: '0.72rem', backgroundColor: 'hsl(38 92% 95%)', color: 'hsl(38 90% 40%)' }}>Chờ Giải ngân (PO/Kho Auto)</span>;
-      case 'disbursed':
-        return <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>Đã giải ngân</span>;
-      case 'approved':
-        return <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>Đã duyệt (PO Auto)</span>;
-      case 'rejected':
-        return <span className="badge badge-danger" style={{ fontSize: '0.72rem' }}>Đã từ chối</span>;
-      default:
-        return null;
-    }
-  };
+
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>

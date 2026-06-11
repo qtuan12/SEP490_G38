@@ -374,10 +374,8 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
         </div>
       </div>
 
-      <div className="w-full overflow-x-auto pb-4">
-        <div style={{ minWidth: '700px' }}>
-          <WBSTree />
-        </div>
+      <div>
+        <WBSTree />
       </div>
 
 

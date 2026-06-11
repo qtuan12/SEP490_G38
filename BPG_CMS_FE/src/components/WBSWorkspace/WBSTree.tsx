@@ -1,7 +1,7 @@
-import React from 'react';
 import { useWBS } from './WBSContext';
 import { useNavigate } from 'react-router-dom';
-import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, AlertCircle } from 'lucide-react';
+import type { WBSTask } from '../../types/common';
+import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight } from 'lucide-react';
 
 
 const getInitials = (name: string) => {
@@ -18,19 +18,19 @@ const getAvatarColor = (userId: string) => {
 };
 
 export const WBSTree = () => {
-  const handleReorderPhase = () => {};
+  const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => {};
   const {
-    projectId, project, phases, tasks, user, isTPKTOrPL, isPL, canEdit, materialRequests,
+    projectId, project, phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests,
     expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
     setIsCreatePhaseOpen, setSelectedPhaseForEdit, setIsEditPhaseOpen,
     setSelectedPhaseForTask, setParentTaskForNew, setParentDeadlineForNew, setIsCreateTaskOpen,
-    setSelectedTaskForEdit, setIsEditTaskOpen, setAdjustingTask, setIsAdjustDeadlineOpen,
+    setSelectedTaskForEdit, setIsEditTaskOpen,
     setSelectedPhaseForMatReq, setCreateMatReqType, setIsPhaseMatReqOpen, setIsLeaderApprovalOpen,
     setSelectedPhaseForBOQ, setIsBOQOpen, setSelectedResubmitRequest, setIsResubmitOpen,
-    setSelectedTaskId, setIsDetailOpen, handleApproveByLeader, handleApproveByTPKT,
-    handleRejectMatReq, handleCancelMatReq, handleConfirmReceived, 
+    setSelectedTaskId, setIsDetailOpen,
+    handleCancelMatReq,
     isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase
   } = useWBS();
   
@@ -101,10 +101,11 @@ export const WBSTree = () => {
 
                     {/* Phase row */}
                     <div
+                      onClick={() => togglePhase(ph.id)}
                       onMouseEnter={() => setHoveredPhaseId(ph.id)}
                       onMouseLeave={() => setHoveredPhaseId(null)}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: '6px',
+                        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px',
                         padding: '7px 8px',
                         backgroundColor: isFrozen ? 'hsl(var(--success-glow) / 0.08)' : isHovered ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-main) / 0.5)',
                         borderRadius: 'var(--radius-sm)',
@@ -112,6 +113,7 @@ export const WBSTree = () => {
                         fontWeight: 600, fontSize: '0.9rem',
                         transition: 'all 0.13s ease',
                         position: 'relative',
+                        cursor: 'pointer',
                       }}
                     >
                       {/* Order number + ▲▼ buttons */}
@@ -143,21 +145,20 @@ export const WBSTree = () => {
                       </div>
 
                       {/* Collapse toggle */}
-                      <button onClick={() => togglePhase(ph.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'hsl(var(--text-secondary))', flexShrink: 0 }}>
+                      <button onClick={(e) => { e.stopPropagation(); togglePhase(ph.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'hsl(var(--text-secondary))', flexShrink: 0 }}>
                         {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                       </button>
 
                       <Folder size={15} style={{ color: isFrozen ? 'hsl(var(--success))' : 'hsl(var(--primary))', flexShrink: 0 }} />
 
                       {/* Name */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden', flexWrap: 'wrap' }}>
-                        <span
-                          style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isFrozen ? 'hsl(var(--text-muted))' : 'hsl(var(--text-primary))', textDecoration: isFrozen ? 'line-through' : 'none', cursor: canEdit && !isFrozen && phaseProgress === 0 ? 'pointer' : 'default' }}
-                          title={canEdit && !isFrozen && phaseProgress === 0 ? "Double-click để chỉnh sửa" : ""}
-                          onDoubleClick={() => { if (canEdit && !isFrozen && phaseProgress === 0) { setSelectedPhaseForEdit(ph); setIsEditPhaseOpen(true); setPhaseMenuId(null); } }}
-                        >
-                          {ph.name}
-                        </span>
+                      <span
+                        style={{ flex: 1, minWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isExpanded ? 'normal' : 'nowrap', color: isFrozen ? 'hsl(var(--text-muted))' : 'hsl(var(--text-primary))', textDecoration: isFrozen ? 'line-through' : 'none' }}
+                        title={canEdit && !isFrozen && phaseProgress === 0 ? "Double-click để chỉnh sửa" : ""}
+                        onDoubleClick={(e) => { e.stopPropagation(); if (canEdit && !isFrozen && phaseProgress === 0) { setSelectedPhaseForEdit(ph); setIsEditPhaseOpen(true); setPhaseMenuId(null); } }}
+                      >
+                        {ph.name}
+                      </span>
 
                         {ph.startDate && ph.endDate && (
                           <span
@@ -169,7 +170,8 @@ export const WBSTree = () => {
                               gap: '3px',
                               border: '1px solid hsl(var(--border))',
                               padding: '1px 5px',
-                              borderRadius: 'var(--radius-sm)'
+                              borderRadius: 'var(--radius-sm)',
+                              whiteSpace: 'nowrap'
                             }}
                           >
                             📅 {ph.startDate} - {ph.endDate}
@@ -189,7 +191,8 @@ export const WBSTree = () => {
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
-                              border: '1px solid hsl(var(--primary) / 0.15)'
+                              border: '1px solid hsl(var(--primary) / 0.15)',
+                              whiteSpace: 'nowrap'
                             }}
                             title={ph.materials.map(m => `${m.name}: ${m.quantity} ${m.unit}`).join(', ')}
                           >
@@ -203,7 +206,7 @@ export const WBSTree = () => {
                             className={`badge badge-${r.status === 'approved' || r.status === 'disbursed' || r.status === 'received' ? 'success' :
                               r.status === 'rejected' ? 'danger' : 'warning'
                               }`}
-                            style={{ fontSize: '0.62rem', padding: '1px 5px', display: 'inline-flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}
+                            style={{ fontSize: '0.62rem', padding: '1px 5px', display: 'inline-flex', alignItems: 'center', gap: '3px', flexShrink: 0, whiteSpace: 'nowrap' }}
                           >
                             Yêu cầu vật tư: {
                               r.status === 'pending_leader' ? 'Chờ Leader' :
@@ -287,13 +290,11 @@ export const WBSTree = () => {
                             )}
                           </span>
                         ))}
-                      </div>
-
 
                       {/* Badge */}
                       {isFrozen ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                          <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }} onClick={() => navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`)}>Đã nghiệm thu</span>
+                          <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>Đã nghiệm thu</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--success))', minWidth: '28px', textAlign: 'right' }}>100%</span>
                             <div style={{ width: '50px', height: '6px', backgroundColor: 'hsl(var(--border))', borderRadius: '3px', overflow: 'hidden' }}>
@@ -304,7 +305,7 @@ export const WBSTree = () => {
                       ) : readyForAcceptance ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                           <span className="badge badge-warning animate-fade-in" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
-                            onClick={() => { if (isTPKTOrPL) navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>
+                            onClick={(e) => { e.stopPropagation(); if (isTPKTOrPL) navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>
                             <FileSignature size={9} /><span>Chờ nghiệm thu</span>
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -460,7 +461,7 @@ export const WBSTree = () => {
                               onMouseEnter={() => setHoveredTaskId(t.id)}
                               onMouseLeave={() => setHoveredTaskId(null)}
                               style={{
-                                display: 'flex', alignItems: 'center', gap: '7px',
+                                display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '7px',
                                 padding: '6px 8px',
                                 borderRadius: 'var(--radius-sm)',
                                 border: isSelected ? '1px solid hsl(var(--primary) / 0.4)' : '1px solid transparent',
@@ -541,7 +542,7 @@ export const WBSTree = () => {
 
                               {t.assignedTo && t.assignedName && (
                                 <div style={{ display: 'flex', alignItems: 'center', marginRight: '8px', flexShrink: 0 }}>
-                                  {t.assignedTo.split(',').map((id, index) => {
+                                  {t.assignedTo.split(',').map((id: string, index: number) => {
                                     const names = t.assignedName ? t.assignedName.split(', ') : [];
                                     const name = names[index] || 'Kỹ sư';
                                     const initials = getInitials(name);
