@@ -1972,6 +1972,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<string>("UpdateReason")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("TaskProgressLogId");
 
                     b.HasIndex("TaskId");

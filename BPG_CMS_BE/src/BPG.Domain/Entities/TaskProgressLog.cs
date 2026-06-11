@@ -7,6 +7,7 @@ public class TaskProgressLog
     public byte OldProgress { get; set; }
     public byte NewProgress { get; set; }
     public string? UpdateReason { get; set; }
+    public DateTime UpdatedAt { get; set; }
 
     public ProjectTask Task { get; set; } = null!;
 }

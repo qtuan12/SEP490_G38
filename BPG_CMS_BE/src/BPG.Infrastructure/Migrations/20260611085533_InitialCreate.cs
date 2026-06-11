@@ -1339,7 +1339,8 @@ namespace BPG.Infrastructure.Migrations
                     TaskId = table.Column<long>(type: "bigint", nullable: false),
                     OldProgress = table.Column<byte>(type: "tinyint", nullable: false),
                     NewProgress = table.Column<byte>(type: "tinyint", nullable: false),
-                    UpdateReason = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    UpdateReason = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
