@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using BPG.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,31 +12,21 @@ public static class DbSeeder
     public static async Task SeedAsync(AppDbContext context)
     {
         await context.Database.MigrateAsync();
-
-        if (await context.Units.AnyAsync() && await context.Projects.AnyAsync())
-            return;
+        if (await context.Units.AnyAsync() && await context.Projects.AnyAsync()) return;
 
         var users      = await SeedAuthAsync(context);
         var masterData = await SeedMasterDataAsync(context);
         var catalogs   = await SeedMaterialsAsync(context, masterData.Units, masterData.Categories);
-        var projects   = await SeedProjectsAsync(context, users, masterData.Units, catalogs);
-        await SeedProcurementAsync(context, projects, catalogs, masterData.Suppliers, users);
-        await SeedIssuancesAsync(context, projects, catalogs, users);
-        await SeedIncidentsAndAdjustmentsAsync(context, projects, catalogs, users);
-        await SeedSurplusAsync(context, projects, catalogs, users);
+        await SeedProjectsAndLifecyclesAsync(context, users, masterData.Units, catalogs, masterData.Suppliers);
         await SeedNotificationsAsync(context, users);
     }
 
-    // ====================================================================
-    // 1. USERS & ROLES
-    // ====================================================================
     private static async Task<Dictionary<string, User>> SeedAuthAsync(AppDbContext context)
     {
         var result = new Dictionary<string, User>();
         if (await context.Users.AnyAsync())
         {
-            var all = await context.Users.ToListAsync();
-            foreach (var u in all) result[u.Email] = u;
+            foreach (var u in await context.Users.ToListAsync()) result[u.Email] = u;
             return result;
         }
 
@@ -46,6 +40,11 @@ public static class DbSeeder
             ("leader3@bpg.com",  "Đinh Văn Cường",         "ProjectLeader",    "0945 333 444"),
             ("leader4@bpg.com",  "Nguyễn Trọng Tài",       "ProjectLeader",    "0945 555 666"),
             ("leader5@bpg.com",  "Lê Bá Tòng",             "ProjectLeader",    "0945 777 888"),
+            ("leader6@bpg.com",  "Vũ Trọng Phụng",         "ProjectLeader",    "0945 888 999"),
+            ("leader7@bpg.com",  "Ngô Tất Tố",             "ProjectLeader",    "0945 999 000"),
+            ("leader8@bpg.com",  "Nam Cao",                "ProjectLeader",    "0946 111 222"),
+            ("leader9@bpg.com",  "Thạch Lam",              "ProjectLeader",    "0946 222 333"),
+            ("leader10@bpg.com", "Xuân Diệu",              "ProjectLeader",    "0946 333 444"),
             ("kysu1@bpg.com",    "Vũ Tiến Dũng",           "SiteEngineer",     "0956 222 333"),
             ("kysu2@bpg.com",    "Nguyễn Thị Thu Hà",      "SiteEngineer",     "0967 333 444"),
             ("kysu3@bpg.com",    "Trần Văn Mạnh",          "SiteEngineer",     "0978 444 555"),
@@ -56,6 +55,16 @@ public static class DbSeeder
             ("kysu8@bpg.com",    "Hồ Ngọc Hân",            "SiteEngineer",     "0933 444 555"),
             ("kysu9@bpg.com",    "Phan Đình Phùng",        "SiteEngineer",     "0944 555 666"),
             ("kysu10@bpg.com",   "Ngô Bảo Châu",           "SiteEngineer",     "0955 666 777"),
+            ("kysu11@bpg.com",   "Tôn Thất Tùng",          "SiteEngineer",     "0955 777 888"),
+            ("kysu12@bpg.com",   "Trần Hưng Đạo",          "SiteEngineer",     "0955 888 999"),
+            ("kysu13@bpg.com",   "Nguyễn Huệ",             "SiteEngineer",     "0955 999 000"),
+            ("kysu14@bpg.com",   "Lê Lợi",                 "SiteEngineer",     "0956 111 222"),
+            ("kysu15@bpg.com",   "Phan Bội Châu",          "SiteEngineer",     "0956 222 333"),
+            ("kysu16@bpg.com",   "Phan Chu Trinh",         "SiteEngineer",     "0956 333 444"),
+            ("kysu17@bpg.com",   "Hoàng Diệu",             "SiteEngineer",     "0956 444 555"),
+            ("kysu18@bpg.com",   "Nguyễn Tri Phương",      "SiteEngineer",     "0956 555 666"),
+            ("kysu19@bpg.com",   "Lý Thường Kiệt",         "SiteEngineer",     "0956 666 777"),
+            ("kysu20@bpg.com",   "Lý Thái Tổ",             "SiteEngineer",     "0956 777 888"),
             ("ketoan@bpg.com",   "Đỗ Thị Bích Ngọc",       "Accountant",       "0989 555 666"),
         };
 
@@ -84,14 +93,9 @@ public static class DbSeeder
         return result;
     }
 
-    // ====================================================================
-    // 2. MASTER DATA: Đơn vị, NCC, Danh mục, Cấu hình
-    // ====================================================================
     record MasterData(List<Unit> Units, List<MaterialCategory> Categories, List<Supplier> Suppliers);
-
     private static async Task<MasterData> SeedMasterDataAsync(AppDbContext context)
     {
-        // Đơn vị tính
         var units = await context.Units.ToListAsync();
         if (!units.Any())
         {
@@ -112,7 +116,6 @@ public static class DbSeeder
             await context.SaveChangesAsync();
         }
 
-        // Nhà cung cấp
         var suppliers = await context.Suppliers.ToListAsync();
         if (!suppliers.Any())
         {
@@ -128,7 +131,6 @@ public static class DbSeeder
             await context.SaveChangesAsync();
         }
 
-        // Danh mục vật tư
         var cats = await context.MaterialCategories.ToListAsync();
         if (!cats.Any())
         {
@@ -146,7 +148,6 @@ public static class DbSeeder
             await context.SaveChangesAsync();
         }
 
-        // Cấu hình hệ thống
         if (!await context.SystemConfigs.AnyAsync())
         {
             context.SystemConfigs.AddRange(
@@ -160,9 +161,6 @@ public static class DbSeeder
         return new MasterData(units, cats, suppliers);
     }
 
-    // ====================================================================
-    // 3. DANH MỤC VẬT TƯ (23 loại)
-    // ====================================================================
     private static async Task<List<MaterialCatalog>> SeedMaterialsAsync(AppDbContext context, List<Unit> units, List<MaterialCategory> cats)
     {
         var catalogs = await context.MaterialCatalogs.ToListAsync();
@@ -173,86 +171,73 @@ public static class DbSeeder
 
         catalogs = new List<MaterialCatalog>
         {
-            // Xi măng
             new() { Code="VT-001", Name="Xi măng Hà Tiên PCB40",               Specification="Bao 50kg, TCVN 6260:2009, mác 400",                    CategoryId=Cat("Xi măng").CategoryId,                   BaseUnitId=Bao("BAO").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-002", Name="Xi măng Hà Tiên PCB50",               Specification="Bao 50kg, cường độ cao, dùng kết cấu chịu lực",        CategoryId=Cat("Xi măng").CategoryId,                   BaseUnitId=Bao("BAO").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-003", Name="Xi măng trắng Hải Phòng",             Specification="Bao 25kg, dùng trang trí hoàn thiện",                  CategoryId=Cat("Xi măng").CategoryId,                   BaseUnitId=Bao("BAO").UnitId, CreatedAt=DateTime.UtcNow },
-            // Sắt thép
-            new() { Code="VT-010", Name="Thép cuộn tròn trơn CB240-T D6",      Specification="Pomina, cuộn ~50kg, TCVN 1651-1:2018",                 CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("TAN").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-011", Name="Thép cuộn vằn CB300-V D8",            Specification="Pomina, cuộn ~50kg, TCVN 1651-2:2018",                 CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("TAN").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-012", Name="Thép thanh vằn CB300-V D10",          Specification="Pomina, cây 11.7m, TCVN 1651-2:2018",                  CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("TAN").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-013", Name="Thép thanh vằn CB300-V D12",          Specification="Pomina, cây 11.7m, TCVN 1651-2:2018",                  CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("TAN").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-014", Name="Thép hộp vuông 40x40x1.5mm",          Specification="Cây 6m, mạ kẽm nhúng nóng, dùng khung cửa",            CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("MET").UnitId, CreatedAt=DateTime.UtcNow },
-            // Cát đá
+            new() { Code="VT-010", Name="Thép cuộn tròn trơn CB240-T D6",      Specification="Pomina, cuộn ~50kg, TCVN 1651-1:2018",                 CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="VT-012", Name="Thép thanh vằn CB300-V D10",          Specification="Pomina, cây 11.7m, TCVN 1651-2:2018",                  CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
             new() { Code="VT-020", Name="Cát vàng xây dựng (cát sông Đồng Nai)", Specification="Sạch, mô đun độ lớn 2.5-3.0, không lẫn bùn sét",    CategoryId=Cat("Cát đá vật liệu rời").CategoryId,       BaseUnitId=Bao("M3").UnitId,  CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-021", Name="Cát mịn trát tường",                  Specification="Mô đun độ lớn <1.5, đảm bảo TCVN 7570",               CategoryId=Cat("Cát đá vật liệu rời").CategoryId,       BaseUnitId=Bao("M3").UnitId,  CreatedAt=DateTime.UtcNow },
             new() { Code="VT-022", Name="Đá dăm 1x2 (đá 4x6)",                Specification="Đá nghiền Đồng Nai, kích thước 10-20mm",                CategoryId=Cat("Cát đá vật liệu rời").CategoryId,       BaseUnitId=Bao("M3").UnitId,  CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-023", Name="Đá dăm 0.5x1 (đá 2x4)",              Specification="Đá nghiền, kích thước 5-10mm, dùng bê tông mác cao",    CategoryId=Cat("Cát đá vật liệu rời").CategoryId,       BaseUnitId=Bao("M3").UnitId,  CreatedAt=DateTime.UtcNow },
-            // Gạch
             new() { Code="VT-030", Name="Gạch ống 4 lỗ 8x8x19cm",             Specification="Mác 75, TCVN 1450:2009, xây tường 100",                CategoryId=Cat("Gạch xây dựng").CategoryId,             BaseUnitId=Bao("CAI").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-031", Name="Gạch thẻ đặc 4x8x19cm",              Specification="Mác 100, TCVN 1450:2009, xây tường bao",                CategoryId=Cat("Gạch xây dựng").CategoryId,             BaseUnitId=Bao("CAI").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-032", Name="Gạch block bê tông 10x20x40cm",       Specification="Mác 100, dùng tường móng, tường bao ngoài",             CategoryId=Cat("Gạch xây dựng").CategoryId,             BaseUnitId=Bao("CAI").UnitId, CreatedAt=DateTime.UtcNow },
-            // Sơn & hoàn thiện
-            new() { Code="VT-040", Name="Sơn lót kháng kiềm Kova KP",         Specification="Thùng 18 lít, phủ 90-100m²/thùng",                     CategoryId=Cat("Sơn & vật liệu hoàn thiện").CategoryId, BaseUnitId=Bao("THUNG").UnitId, CreatedAt=DateTime.UtcNow },
             new() { Code="VT-041", Name="Sơn nước nội thất Kova A910",         Specification="Thùng 18 lít, bóng mờ, kháng mốc, kháng khuẩn",       CategoryId=Cat("Sơn & vật liệu hoàn thiện").CategoryId, BaseUnitId=Bao("THUNG").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-042", Name="Bột bả tường nội thất Bảo Thạch",    Specification="Bao 20kg, chống ẩm, phẳng mịn",                        CategoryId=Cat("Sơn & vật liệu hoàn thiện").CategoryId, BaseUnitId=Bao("BAO").UnitId, CreatedAt=DateTime.UtcNow },
-            // Điện
             new() { Code="VT-050", Name="Dây cáp điện đôi Trần Phú 2x1.5mm²", Specification="Cuộn 100m, vỏ PVC chịu nhiệt 70°C, chịu tải 13A",    CategoryId=Cat("Thiết bị điện").CategoryId,             BaseUnitId=Bao("CUON").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-051", Name="Dây cáp điện đôi Trần Phú 2x2.5mm²", Specification="Cuộn 100m, chịu tải 16A, ổ cắm & điều hòa",           CategoryId=Cat("Thiết bị điện").CategoryId,             BaseUnitId=Bao("CUON").UnitId, CreatedAt=DateTime.UtcNow },
-            // Nước
             new() { Code="VT-060", Name="Ống nhựa PVC Tiền Phong Phi 90",     Specification="Cây 4m, áp lực PN10, tiêu chuẩn TCVN 6151",            CategoryId=Cat("Vật liệu cấp thoát nước").CategoryId,   BaseUnitId=Bao("MET").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-061", Name="Ống nhựa PVC Tiền Phong Phi 50",     Specification="Cây 4m, thoát nước sàn, ban công",                     CategoryId=Cat("Vật liệu cấp thoát nước").CategoryId,   BaseUnitId=Bao("MET").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-062", Name="Ống nước PPR Dekko Phi 21",           Specification="Cây 4m, dùng cho đường nước nóng/lạnh âm tường",       CategoryId=Cat("Vật liệu cấp thoát nước").CategoryId,   BaseUnitId=Bao("MET").UnitId, CreatedAt=DateTime.UtcNow },
         };
-
         context.MaterialCatalogs.AddRange(catalogs);
         await context.SaveChangesAsync();
+
+        if (!await context.MaterialConversions.AnyAsync())
+        {
+            var thepCuon = catalogs.First(c => c.Code == "VT-010");
+            var thepVan = catalogs.First(c => c.Code == "VT-012");
+            var unitTan = units.First(u => u.UnitCode == "TAN").UnitId;
+
+            context.MaterialConversions.AddRange(
+                new MaterialConversion { MaterialId = thepCuon.MaterialId, AlternativeUnitId = unitTan, ConversionRate = 0.001m, CreatedAt = DateTime.UtcNow },
+                new MaterialConversion { MaterialId = thepVan.MaterialId, AlternativeUnitId = unitTan, ConversionRate = 0.001m, CreatedAt = DateTime.UtcNow }
+            );
+            await context.SaveChangesAsync();
+        }
+
         return catalogs;
     }
 
-    // ====================================================================
-    // 4. DỰ ÁN, PHASE, TASK, BOQ, NHẬT KÝ, NGHIỆM THU
-    // ====================================================================
-    private static async Task<List<Project>> SeedProjectsAsync(AppDbContext context, Dictionary<string, User> users, List<Unit> units, List<MaterialCatalog> catalogs)
+    private static async Task SeedProjectsAndLifecyclesAsync(AppDbContext context, Dictionary<string, User> users, List<Unit> units, List<MaterialCatalog> catalogs, List<Supplier> suppliers)
     {
-        var projects = await context.Projects.ToListAsync();
-        if (projects.Any()) return projects;
-
         var tpkt   = users["tpkt@bpg.com"];
-        var ld1    = users["leader1@bpg.com"];
-        var ld2    = users["leader2@bpg.com"];
-        var ld3    = users["leader3@bpg.com"];
-        var ld4    = users["leader4@bpg.com"];
-        var ld5    = users["leader5@bpg.com"];
-        var ks1    = users["kysu1@bpg.com"];
-        var ks2    = users["kysu2@bpg.com"];
-        var ks3    = users["kysu3@bpg.com"];
-        var ks4    = users["kysu4@bpg.com"];
-        var ks5    = users["kysu5@bpg.com"];
-        var ks6    = users["kysu6@bpg.com"];
-        var ks7    = users["kysu7@bpg.com"];
-        var ks8    = users["kysu8@bpg.com"];
-        var ks9    = users["kysu9@bpg.com"];
-        var ks10   = users["kysu10@bpg.com"];
         var ketoan = users["ketoan@bpg.com"];
-
+        var gd     = users["giamdoc@bpg.com"];
+        var leaders = users.Values.Where(u => u.Email.StartsWith("leader")).ToArray();
+        var kysus   = users.Values.Where(u => u.Email.StartsWith("kysu")).ToArray();
+        
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var rnd = new Random(123);
+        var unitTan = units.First(u => u.UnitCode == "TAN").UnitId;
+        var unitKg = units.First(u => u.UnitCode == "KG").UnitId;
 
         var dsDuAn = new[]
         {
-            new { Ten="Khu nhà ở thương mại Hưng Phú – Giai đoạn 1",       DiaChi="Đường Hưng Phú, P.9, Q.8, TP.HCM",                     BatDau=today.AddDays(-180), KetThuc=today.AddDays(90),  TrangThai="InProgress", Leader=ld1, KsA=ks1, KsB=ks2 },
-            new { Ten="Chung cư cao tầng SkyView Bình Dương",               DiaChi="Đại lộ Bình Dương, TX. Thuận An, Bình Dương",           BatDau=today.AddDays(-90),  KetThuc=today.AddDays(180), TrangThai="InProgress", Leader=ld2, KsA=ks3, KsB=ks4 },
-            new { Ten="Trường tiểu học Lê Văn Tám – TP. Biên Hòa",         DiaChi="Khu phố 5, P. Tân Hiệp, TP. Biên Hòa, Đồng Nai",      BatDau=today.AddDays(-30),  KetThuc=today.AddDays(240), TrangThai="Planning",   Leader=ld3, KsA=ks5, KsB=ks6 },
-            new { Ten="Bệnh viện Đa khoa Phương Đông – Tây Ninh",          DiaChi="Quốc lộ 22B, P. Ninh Sơn, TP. Tây Ninh",               BatDau=today.AddDays(-300), KetThuc=today.AddDays(-10), TrangThai="Completed",  Leader=ld4, KsA=ks7, KsB=ks8 },
-            new { Ten="Nhà máy May mặc Thiên Long – KCN Long Hậu",         DiaChi="Lô C-2, KCN Long Hậu, H. Cần Giuộc, Long An",          BatDau=today.AddDays(-10),  KetThuc=today.AddDays(330), TrangThai="Planning",   Leader=ld5, KsA=ks9, KsB=ks10 },
+            new { Ten="Bệnh viện Phương Đông",         TrangThai="Completed",  BatDau=today.AddDays(-300), KetThuc=today.AddDays(-10) },
+            new { Ten="Khu nhà ở thương mại Hưng Phú", TrangThai="Completed",  BatDau=today.AddDays(-180), KetThuc=today.AddDays(-5) },
+            new { Ten="Nhà máy May mặc Thiên Long",    TrangThai="Completed",  BatDau=today.AddDays(-200), KetThuc=today.AddDays(-2) },
+            new { Ten="Chung cư cao tầng SkyView",     TrangThai="InProgress", BatDau=today.AddDays(-90),  KetThuc=today.AddDays(180) },
+            new { Ten="Trường quốc tế Á Châu",         TrangThai="InProgress", BatDau=today.AddDays(-50),  KetThuc=today.AddDays(150) },
+            new { Ten="TTTM Vincom Dĩ An",             TrangThai="InProgress", BatDau=today.AddDays(-30),  KetThuc=today.AddDays(240) },
+            new { Ten="KDC Sài Gòn Mới",               TrangThai="InProgress", BatDau=today.AddDays(-10),  KetThuc=today.AddDays(200) },
+            new { Ten="Trường tiểu học Lê Văn Tám",    TrangThai="Planning",   BatDau=today.AddDays(10),   KetThuc=today.AddDays(240) },
+            new { Ten="Khách sạn Mường Thanh CT",      TrangThai="Planning",   BatDau=today.AddDays(30),   KetThuc=today.AddDays(300) },
+            new { Ten="Cầu Vượt Ngã Tư Thủ Đức",       TrangThai="Planning",   BatDau=today.AddDays(45),   KetThuc=today.AddDays(400) },
         };
 
-        foreach (var dp in dsDuAn)
+        for (int i = 0; i < dsDuAn.Length; i++)
         {
+            var dp = dsDuAn[i];
+            var leader = leaders[i % leaders.Length];
+            var ksA = kysus[(i * 2) % kysus.Length];
+            var ksB = kysus[(i * 2 + 1) % kysus.Length];
+
             var project = new Project
             {
                 Name         = dp.Ten,
-                Address      = dp.DiaChi,
+                Address      = "Việt Nam",
                 PlannedStart = dp.BatDau,
                 PlannedEnd   = dp.KetThuc,
                 Status       = dp.TrangThai,
@@ -261,26 +246,30 @@ public static class DbSeeder
             };
             context.Projects.Add(project);
             await context.SaveChangesAsync();
-            projects.Add(project);
 
-            // Thành viên
             context.ProjectMembers.AddRange(
-                new ProjectMember { ProjectId=project.ProjectId, UserId=dp.Leader.UserId, IsLeader=true,  JoinedAt=DateTime.UtcNow, CreatedAt=DateTime.UtcNow },
-                new ProjectMember { ProjectId=project.ProjectId, UserId=dp.KsA.UserId,       IsLeader=false, JoinedAt=DateTime.UtcNow, CreatedAt=DateTime.UtcNow },
-                new ProjectMember { ProjectId=project.ProjectId, UserId=dp.KsB.UserId,       IsLeader=false, JoinedAt=DateTime.UtcNow, CreatedAt=DateTime.UtcNow }
+                new ProjectMember { ProjectId=project.ProjectId, UserId=leader.UserId, IsLeader=true,  JoinedAt=DateTime.UtcNow, CreatedAt=DateTime.UtcNow },
+                new ProjectMember { ProjectId=project.ProjectId, UserId=ksA.UserId,    IsLeader=false, JoinedAt=DateTime.UtcNow, CreatedAt=DateTime.UtcNow },
+                new ProjectMember { ProjectId=project.ProjectId, UserId=ksB.UserId,    IsLeader=false, JoinedAt=DateTime.UtcNow, CreatedAt=DateTime.UtcNow }
             );
             await context.SaveChangesAsync();
 
-            // Phases
-            var phaseDefs = GetPhaseDefs(dp.TrangThai);
-            foreach (var pd in phaseDefs)
+            // Phases & Tasks
+            var phases = new[] {
+                new { Ten="Móng", ThuTu=1, Pct=(dp.TrangThai=="Completed"||dp.TrangThai=="InProgress"?100:(dp.TrangThai=="Planning"?0:0)) },
+                new { Ten="Khung", ThuTu=2, Pct=(dp.TrangThai=="Completed"?100:(dp.TrangThai=="InProgress"?50:0)) },
+                new { Ten="Hoàn thiện", ThuTu=3, Pct=(dp.TrangThai=="Completed"?100:0) }
+            };
+
+            foreach (var pd in phases)
             {
+                var phaseStatus = pd.Pct == 100 ? "Completed" : (pd.Pct > 0 ? "InProgress" : "Draft");
                 var phase = new Phase
                 {
                     ProjectId  = project.ProjectId,
                     Name       = pd.Ten,
                     OrderIndex = pd.ThuTu,
-                    Status     = pd.TrangThai,
+                    Status     = phaseStatus,
                     StartDate  = dp.BatDau.AddDays((pd.ThuTu - 1) * 60),
                     EndDate    = dp.BatDau.AddDays(pd.ThuTu * 60),
                     CreatedAt  = DateTime.UtcNow
@@ -288,506 +277,145 @@ public static class DbSeeder
                 context.Phases.Add(phase);
                 await context.SaveChangesAsync();
 
-                // BOQ
-                var boqMats = catalogs.Take(6).ToList();
-                int boqQty = 200;
-                foreach (var mat in boqMats)
+                // BOQ for phase
+                foreach (var mat in catalogs)
                 {
-                    context.BOQItems.Add(new BOQItem
-                    {
-                        PhaseId        = phase.PhaseId,
-                        MaterialId     = mat.MaterialId,
-                        UnitId         = mat.BaseUnitId,
-                        Quantity       = boqQty,
-                        ConversionRate = 1,
-                        CreatedAt      = DateTime.UtcNow
-                    });
-                    boqQty += 100;
+                    decimal qty = 0;
+                    decimal convRate = 1;
+                    int finalUnit = mat.BaseUnitId;
+
+                    if (mat.Name.Contains("Thép")) { qty = rnd.Next(10, 50); finalUnit = unitTan; convRate = 0.001m; } // BOQ Tấn, Base Kg
+                    else if (mat.Name.Contains("Cát") || mat.Name.Contains("Đá")) { qty = rnd.Next(100, 500); }
+                    else if (mat.Name.Contains("Xi măng")) { qty = rnd.Next(200, 1000); }
+                    else { qty = rnd.Next(50, 200); }
+
+                    context.BOQItems.Add(new BOQItem { PhaseId=phase.PhaseId, MaterialId=mat.MaterialId, UnitId=finalUnit, Quantity=qty, ConversionRate=convRate, CreatedAt=DateTime.UtcNow });
                 }
                 await context.SaveChangesAsync();
 
-                // Nghiệm thu Phase (nếu hoàn thành)
-                if (pd.TrangThai == "Completed")
+                if (phaseStatus == "Completed")
                 {
-                    var acceptance = new PhaseAcceptance
-                    {
-                        PhaseId        = phase.PhaseId,
-                        AcceptedBy     = tpkt.UserId,
-                        AcceptanceDate = DateTime.UtcNow.AddDays(-5),
-                        ReportContent  = $"Biên bản nghiệm thu {pd.Ten}: Tất cả các hạng mục thuộc giai đoạn đã hoàn thành đạt 100%, chất lượng thi công đảm bảo theo thiết kế và tiêu chuẩn TCXD hiện hành. Đề nghị chuyển sang giai đoạn tiếp theo.",
-                        IsCancelled    = false,
-                        CreatedAt      = DateTime.UtcNow,
-                        CreatedBy      = tpkt.UserId
-                    };
-                    context.PhaseAcceptances.Add(acceptance);
-                    await context.SaveChangesAsync();
+                    context.PhaseAcceptances.Add(new PhaseAcceptance { PhaseId=phase.PhaseId, AcceptedBy=tpkt.UserId, AcceptanceDate=DateTime.UtcNow.AddDays(-5), ReportContent="Đạt yêu cầu", IsCancelled=false, CreatedAt=DateTime.UtcNow, CreatedBy=tpkt.UserId });
                 }
 
                 // Tasks
-                var taskDefs = GetTaskDefs(pd.ThuTu, pd.TrangThai);
-                int idx = 1;
-                foreach (var td in taskDefs)
+                var taskNames = new[] { "Nhiệm vụ 1", "Nhiệm vụ 2", "Nhiệm vụ 3" };
+                foreach (var tName in taskNames)
                 {
-                    var status   = td.TrangThai;
-                    var progress = td.TienDo;
-
                     var task = new ProjectTask
                     {
-                        PhaseId         = phase.PhaseId,
-                        Name            = td.Ten,
-                        Description     = $"Hạng mục: {td.Ten}. Thi công theo bản vẽ số {phase.PhaseId:D3}-TC-{idx:D2}.",
-                        OrderIndex      = idx,
-                        StartDate       = phase.StartDate!.Value.AddDays((idx - 1) * 12),
-                        EndDate         = phase.StartDate!.Value.AddDays(idx * 12),
-                        Status          = status,
-                        ProgressPercent = progress,
-                        IsLocked        = pd.TrangThai == "Completed",
-                        CreatedAt       = DateTime.UtcNow,
-                        CreatedBy       = tpkt.UserId
+                        PhaseId = phase.PhaseId, Name = $"{pd.Ten} - {tName}", OrderIndex = 1, StartDate = phase.StartDate.Value, EndDate = phase.EndDate.Value,
+                        Status = pd.Pct == 100 ? "Completed" : (pd.Pct > 0 ? "InProgress" : "New"), ProgressPercent = (byte)pd.Pct, IsLocked = pd.Pct == 100,
+                        CreatedAt = DateTime.UtcNow, CreatedBy = tpkt.UserId
                     };
                     context.Tasks.Add(task);
                     await context.SaveChangesAsync();
+                    context.TaskAssignees.Add(new TaskAssignee { TaskId=task.TaskId, UserId=ksA.UserId, AssignedAt=DateTime.UtcNow });
+                    await context.SaveChangesAsync();
+                }
 
-                    // Gán kỹ sư
-                    context.TaskAssignees.Add(new TaskAssignee { TaskId=task.TaskId, UserId=idx%2==0 ? dp.KsA.UserId : dp.KsB.UserId, AssignedAt=DateTime.UtcNow });
+                // Procurement flow if InProgress or Completed
+                if (pd.Pct > 0)
+                {
+                    var mr = new MaterialRequest
+                    {
+                        PhaseId = phase.PhaseId, Reason = "Xin cấp vật tư", Status = "Approved", BOQCheckStatus = "WithinBOQ",
+                        CheckedBy = ketoan.UserId, ApprovedBy = gd.UserId, AccountantNote = "Hợp lệ", CreatedAt = DateTime.UtcNow.AddDays(-20), CreatedBy = leader.UserId
+                    };
+                    context.MaterialRequests.Add(mr);
                     await context.SaveChangesAsync();
 
-                    // TaskProgressLog
-                    if (progress > 0)
+                    var po = new PurchaseOrder
                     {
-                        context.TaskProgressLogs.Add(new TaskProgressLog { TaskId=task.TaskId, OldProgress=0,         NewProgress=(byte)(progress/2), UpdateReason="Bắt đầu triển khai thi công" });
-                        context.TaskProgressLogs.Add(new TaskProgressLog { TaskId=task.TaskId, OldProgress=(byte)(progress/2), NewProgress=progress,   UpdateReason="Hoàn thành đợt thi công tiếp theo, đạt tiến độ kế hoạch" });
-                    }
+                        RequestId = mr.RequestId, SupplierId = suppliers.First().SupplierId, PONumber = $"PO-{rnd.Next(1000,9999)}",
+                        OrderDate = DateTime.UtcNow.AddDays(-19), ExpectedDeliveryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-15)), Status = "FullyReceived",
+                        TotalAmount = 5000000, CreatedAt = DateTime.UtcNow.AddDays(-19), CreatedBy = ketoan.UserId
+                    };
+                    context.PurchaseOrders.Add(po);
+                    await context.SaveChangesAsync();
 
-                    // Nhật ký thi công
-                    if (progress > 0)
+                    var gr = new GoodsReceipt
                     {
-                        var log1 = new DailyLog
-                        {
-                            TaskId             = task.TaskId,
-                            LogDate            = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)),
-                            NewProgressPercent = (byte)(progress / 2),
-                            Description        = $"Ngày 1 thi công hạng mục [{td.Ten}]: Tổ thợ 10 người bắt đầu triển khai. Thời tiết nắng ráo, thuận lợi. Đã hoàn thành {progress/2}% khối lượng.",
-                            CreatedBy          = dp.KsA.UserId,
-                            CreatedAt          = DateTime.UtcNow.AddDays(-7)
-                        };
-                        context.DailyLogs.Add(log1);
-                        await context.SaveChangesAsync();
+                        POId = po.POId, ReceiptNo = $"GR-{rnd.Next(1000,9999)}", DelivererInfo = "Test", DeliveryDocNo = "DOC-123",
+                        Status = "Approved", CreatedAt = DateTime.UtcNow.AddDays(-15), CreatedBy = leader.UserId
+                    };
+                    context.GoodsReceipts.Add(gr);
+                    await context.SaveChangesAsync();
 
-                        var log2 = new DailyLog
-                        {
-                            TaskId             = task.TaskId,
-                            LogDate            = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-3)),
-                            NewProgressPercent = progress,
-                            Description        = $"Ngày tiếp theo [{td.Ten}]: Hoàn thành {progress}% khối lượng. Vật tư đầy đủ, không phát sinh sự cố. Chất lượng nghiệm thu sơ bộ đạt yêu cầu.",
-                            CreatedBy          = dp.KsB.UserId,
-                            CreatedAt          = DateTime.UtcNow.AddDays(-3)
-                        };
-                        context.DailyLogs.Add(log2);
-                        await context.SaveChangesAsync();
-
-                        // Bình luận của Leader vào nhật ký
-                        context.Comments.Add(new Comment
-                        {
-                            LogId     = log2.LogId,
-                            AuthorId  = dp.Leader.UserId,
-                            Content   = "Tiến độ ổn, anh em chú ý an toàn lao động, đặc biệt khi làm việc trên cao. Nhắc thợ đội nón bảo hộ đầy đủ.",
-                            CreatedAt = DateTime.UtcNow.AddDays(-2)
-                        });
-                        await context.SaveChangesAsync();
+                    foreach (var mat in catalogs.Take(4))
+                    {
+                        decimal qty = mat.Name.Contains("Thép") ? 5000 : 100; // 5000kg = 5 Tấn
+                        context.MaterialRequestItems.Add(new MaterialRequestItem { RequestId=mr.RequestId, MaterialId=mat.MaterialId, UnitId=mat.BaseUnitId, Quantity=qty, ConversionRate=1, IsOverBOQ=false });
+                        context.PurchaseOrderItems.Add(new PurchaseOrderItem { POId=po.POId, MaterialId=mat.MaterialId, UnitId=mat.BaseUnitId, Quantity=qty, UnitPrice=10000, LineTotal=qty*10000, ConversionRate=1 });
+                        context.GoodsReceiptItems.Add(new GoodsReceiptItem { ReceiptId=gr.ReceiptId, MaterialId=mat.MaterialId, UnitId=mat.BaseUnitId, Quantity=qty, ConversionRate=1 });
+                        
+                        var inv = await context.CurrentInventories.FirstOrDefaultAsync(ci => ci.ProjectId == project.ProjectId && ci.MaterialId == mat.MaterialId);
+                        if (inv == null) {
+                            inv = new CurrentInventory { ProjectId=project.ProjectId, MaterialId=mat.MaterialId, UnitId=mat.BaseUnitId, Quantity=qty, ReservedQuantity=0, LastUpdated=DateTime.UtcNow };
+                            context.CurrentInventories.Add(inv);
+                        } else {
+                            inv.Quantity += qty; inv.LastUpdated = DateTime.UtcNow;
+                        }
                     }
-                    idx++;
+                    await context.SaveChangesAsync();
+                }
+            }
+
+            // Incidents for Completed Projects
+            if (dp.TrangThai == "Completed" && rnd.Next(2) == 0)
+            {
+                var task = await context.Tasks.FirstAsync(t => t.Phase.ProjectId == project.ProjectId);
+                var incident = new Incident
+                {
+                    ProjectId = project.ProjectId, TaskId = task.TaskId, ReportedBy = ksA.UserId, ReviewedBy = tpkt.UserId,
+                    IncidentType = "NgoaiLuc", Description = "Mưa ngập hố móng", Status = "Resolved", DamageDescription = "Hỏng 5m3 bê tông",
+                    EstimatedMaterialLoss = 5, EstimatedLaborDays = 2, EstimatedDelayDays = 2, ProposedAction = "Làm lại",
+                    CreatedAt = DateTime.UtcNow.AddDays(-10), CreatedBy = leader.UserId
+                };
+                context.Incidents.Add(incident);
+                await context.SaveChangesAsync();
+
+                var adj = new InventoryAdjustment
+                {
+                    ProjectId = project.ProjectId, AdjustmentType = "Decrease", Reason = "Thiệt hại do sự cố", Description = "Giảm do ngập nước",
+                    Status = "Approved", ApprovedBy = gd.UserId, ApprovedAt = DateTime.UtcNow.AddDays(-9), CreatedAt = DateTime.UtcNow.AddDays(-9), CreatedBy = ketoan.UserId
+                };
+                context.InventoryAdjustments.Add(adj);
+                await context.SaveChangesAsync();
+            }
+
+            // Surplus Material for Completed Projects
+            if (dp.TrangThai == "Completed")
+            {
+                var invItems = await context.CurrentInventories.Where(c => c.ProjectId == project.ProjectId && c.Quantity > 0).ToListAsync();
+                if (invItems.Any())
+                {
+                    var surplus = new SurplusRequest
+                    {
+                        ProjectId = project.ProjectId, Reason = "Kết thúc dự án dư vật tư", Status = "Processed",
+                        CreatedAt = DateTime.UtcNow.AddDays(-2), CreatedBy = leader.UserId
+                    };
+                    context.SurplusRequests.Add(surplus);
+                    await context.SaveChangesAsync();
+
+                    foreach (var inv in invItems)
+                    {
+                        var qty = inv.Quantity;
+                        context.SurplusRequestItems.Add(new SurplusRequestItem { SurplusRequestId=surplus.SurplusRequestId, MaterialId=inv.MaterialId, UnitId=inv.UnitId, Quantity=qty, ConversionRate=1, Status="Completed" });
+                        inv.Quantity = 0; // Trả hết
+                        inv.LastUpdated = DateTime.UtcNow;
+                    }
+                    await context.SaveChangesAsync();
                 }
             }
         }
-        return projects;
     }
 
-    static (string Ten, int ThuTu, string TrangThai)[] GetPhaseDefs(string projectStatus) => new[]
-    {
-        (Ten: "Giai đoạn 1: Chuẩn bị mặt bằng & Ép cọc",            ThuTu: 1, TrangThai: projectStatus is "InProgress" or "Completed" ? "Completed" : "Draft"),
-        (Ten: "Giai đoạn 2: Thi công phần thô (Móng – Khung – Sàn)", ThuTu: 2, TrangThai: projectStatus == "InProgress" ? "InProgress" : (projectStatus == "Completed" ? "Completed" : "Draft")),
-        (Ten: "Giai đoạn 3: Hoàn thiện nội thất & Bàn giao",         ThuTu: 3, TrangThai: projectStatus == "Completed" ? "Completed" : "Draft"),
-    };
-
-    static (string Ten, string TrangThai, byte TienDo)[] GetTaskDefs(int phase, string phaseStatus) => phase switch
-    {
-        1 => new[]
-        {
-            ("Khảo sát địa chất & lập biện pháp thi công",              phaseStatus=="Completed"?"Completed":"New",         phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Phá dỡ công trình cũ & vận chuyển phế thải ra khỏi công trường", phaseStatus=="Completed"?"Completed":"New",  phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("San lấp & lu lèn mặt bằng theo cao độ thiết kế",          phaseStatus=="Completed"?"Completed":"New",         phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Định vị tim cọc, ép cọc bê tông đúc sẵn",                 phaseStatus=="Completed"?"Completed":"New",         phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Đào đất hố móng theo đúng cao độ & mặt bằng thiết kế",    phaseStatus=="Completed"?"Completed":"New",         phaseStatus=="Completed"?(byte)100:(byte)0),
-        },
-        2 => new[]
-        {
-            ("Thi công đài cọc & giằng móng (coffa – thép – đổ BT)",    phaseStatus=="Completed"?"Completed":(phaseStatus=="InProgress"?"InProgress":"New"),  phaseStatus=="Completed"?(byte)100:(phaseStatus=="InProgress"?(byte)70:(byte)0)),
-            ("Xây tường bao, tường ngăn tầng 1",                        phaseStatus=="Completed"?"Completed":"New",         phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Thi công sàn tầng 2 (lắp thép – đổ bê tông M250)",        phaseStatus=="Completed"?"Completed":"New",         phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Thi công cột – dầm – vách BTCT tầng 2 đến tầng mái",      phaseStatus=="Completed"?"Completed":"New",         phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Xây tường bao các tầng, đặt cửa sổ chờ sẵn",             phaseStatus=="Completed"?"Completed":"New",         phaseStatus=="Completed"?(byte)100:(byte)0),
-        },
-        _ => new[]
-        {
-            ("Trát tường trong và ngoài (vữa xi măng cát 1:4)",          phaseStatus=="Completed"?"Completed":"New", phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Ốp lát gạch ceramic nền & tường nhà vệ sinh",             phaseStatus=="Completed"?"Completed":"New", phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Lắp đặt hệ thống điện hoàn thiện, đi âm tường",          phaseStatus=="Completed"?"Completed":"New", phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Lắp đặt hệ thống cấp thoát nước, thiết bị vệ sinh",       phaseStatus=="Completed"?"Completed":"New", phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Sơn lót kháng kiềm & sơn phủ nội ngoại thất 2 lớp",      phaseStatus=="Completed"?"Completed":"New", phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Lắp cửa đi, cửa sổ nhôm kính, lan can inox",             phaseStatus=="Completed"?"Completed":"New", phaseStatus=="Completed"?(byte)100:(byte)0),
-            ("Tổng vệ sinh & nghiệm thu bàn giao công trình",           phaseStatus=="Completed"?"Completed":"New", phaseStatus=="Completed"?(byte)100:(byte)0),
-        }
-    };
-
-    // ====================================================================
-    // 5. MUA HÀNG & NHẬP KHO (3 dự án đầu)
-    // ====================================================================
-    private static async Task SeedProcurementAsync(AppDbContext context, List<Project> projects, List<MaterialCatalog> catalogs, List<Supplier> suppliers, Dictionary<string, User> users)
-    {
-        if (await context.PurchaseOrders.AnyAsync()) return;
-
-        var ketoan = users["ketoan@bpg.com"];
-        var gd     = users["giamdoc@bpg.com"];
-        var rnd    = new Random(99);
-
-        foreach (var project in projects.Take(3))
-        {
-            var projectLeaderId = await context.ProjectMembers
-                .Where(m => m.ProjectId == project.ProjectId && m.IsLeader)
-                .Select(m => m.UserId)
-                .FirstOrDefaultAsync();
-
-            if (projectLeaderId == 0) continue;
-            var phase = await context.Phases.FirstOrDefaultAsync(p => p.ProjectId == project.ProjectId);
-            if (phase == null) continue;
-
-            var selectedMats = catalogs.Skip(rnd.Next(0, 5)).Take(4).ToList();
-
-            // Yêu cầu vật tư
-            var mr = new MaterialRequest
-            {
-                PhaseId        = phase.PhaseId,
-                Reason         = $"Xin cấp vật tư đợt 1 thi công giai đoạn 1 – Dự án {project.Name.Split('–')[0].Trim()}",
-                Status         = "Approved",
-                BOQCheckStatus = "WithinBOQ",
-                CheckedBy      = ketoan.UserId,
-                ApprovedBy     = gd.UserId,
-                AccountantNote = "Đã đối chiếu BOQ, số lượng xin cấp nằm trong định mức, đề nghị duyệt mua.",
-                CreatedAt      = DateTime.UtcNow.AddDays(-25),
-                CreatedBy      = projectLeaderId
-            };
-            context.MaterialRequests.Add(mr);
-            await context.SaveChangesAsync();
-
-            var reqItems = new List<MaterialRequestItem>();
-            foreach (var mat in selectedMats)
-            {
-                var ri = new MaterialRequestItem { RequestId=mr.RequestId, MaterialId=mat.MaterialId, UnitId=mat.BaseUnitId, Quantity=rnd.Next(80,400), ConversionRate=1, IsOverBOQ=false };
-                context.MaterialRequestItems.Add(ri);
-                reqItems.Add(ri);
-            }
-            await context.SaveChangesAsync();
-
-            // Purchase Order
-            var sup = suppliers[rnd.Next(suppliers.Count)];
-            var po  = new PurchaseOrder
-            {
-                RequestId            = mr.RequestId,
-                SupplierId           = sup.SupplierId,
-                PONumber             = $"PO-{DateTime.UtcNow.Year}-{project.ProjectId:D2}{rnd.Next(100,999)}",
-                OrderDate            = DateTime.UtcNow.AddDays(-22),
-                ExpectedDeliveryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-12)),
-                Status               = "FullyReceived",
-                TotalAmount          = 0,
-                CreatedAt            = DateTime.UtcNow.AddDays(-22),
-                CreatedBy            = ketoan.UserId
-            };
-            context.PurchaseOrders.Add(po);
-            await context.SaveChangesAsync();
-
-            decimal total = 0;
-            var poItems = new List<PurchaseOrderItem>();
-            foreach (var ri in reqItems)
-            {
-                var price = rnd.Next(80_000, 900_000);
-                var line  = ri.Quantity * price;
-                total += line;
-                poItems.Add(new PurchaseOrderItem { POId=po.POId, MaterialId=ri.MaterialId, UnitId=ri.UnitId, Quantity=ri.Quantity, UnitPrice=price, LineTotal=line, ConversionRate=1 });
-            }
-            context.PurchaseOrderItems.AddRange(poItems);
-            po.TotalAmount = total;
-            await context.SaveChangesAsync();
-
-            // Goods Receipt (Phiếu nhập kho)
-            var gr = new GoodsReceipt
-            {
-                POId          = po.POId,
-                ReceiptNo     = $"NK-{DateTime.UtcNow.Year}-{project.ProjectId:D2}{rnd.Next(100,999)}",
-                DelivererInfo = sup.SupplierName,
-                DeliveryDocNo = $"GH-{rnd.Next(10000, 99999)}",
-                Status        = "Approved",
-                CreatedAt     = DateTime.UtcNow.AddDays(-12),
-                CreatedBy     = projectLeaderId
-            };
-            context.GoodsReceipts.Add(gr);
-            await context.SaveChangesAsync();
-
-            foreach (var pi in poItems)
-            {
-                context.GoodsReceiptItems.Add(new GoodsReceiptItem { ReceiptId=gr.ReceiptId, MaterialId=pi.MaterialId, UnitId=pi.UnitId, Quantity=pi.Quantity, ConversionRate=1 });
-
-                // Tồn kho ảo
-                var inv = await context.CurrentInventories.FirstOrDefaultAsync(ci => ci.ProjectId==project.ProjectId && ci.MaterialId==pi.MaterialId);
-                if (inv != null) { inv.Quantity += pi.Quantity; inv.LastUpdated = DateTime.UtcNow; }
-                else context.CurrentInventories.Add(new CurrentInventory { ProjectId=project.ProjectId, MaterialId=pi.MaterialId, UnitId=pi.UnitId, Quantity=pi.Quantity, ReservedQuantity=0, LastUpdated=DateTime.UtcNow });
-
-                // Inventory Transaction ledger
-                context.InventoryTransactions.Add(new InventoryTransaction { ProjectId=project.ProjectId, MaterialId=pi.MaterialId, TransactionType=1, ReferenceId=gr.ReceiptId, QuantityChange=pi.Quantity, BalanceAfter=pi.Quantity, CreatedBy=projectLeaderId, CreatedAt=DateTime.UtcNow.AddDays(-12) });
-            }
-            await context.SaveChangesAsync();
-        }
-    }
-
-    // ====================================================================
-    // 6. PHIẾU XUẤT KHO (Material Issuance)
-    // ====================================================================
-    private static async Task SeedIssuancesAsync(AppDbContext context, List<Project> projects, List<MaterialCatalog> catalogs, Dictionary<string, User> users)
-    {
-        if (await context.MaterialIssuances.AnyAsync()) return;
-
-        foreach (var project in projects.Take(2))
-        {
-            var projectLeaderId = await context.ProjectMembers
-                .Where(m => m.ProjectId == project.ProjectId && m.IsLeader)
-                .Select(m => m.UserId)
-                .FirstOrDefaultAsync();
-
-            if (projectLeaderId == 0) continue;
-            var task = await context.Tasks.FirstOrDefaultAsync(t => t.Phase.ProjectId == project.ProjectId && t.Status == "InProgress");
-            if (task == null)
-                task = await context.Tasks.FirstOrDefaultAsync(t => t.Phase.ProjectId == project.ProjectId);
-            if (task == null) continue;
-
-            var inv = await context.CurrentInventories.Where(ci => ci.ProjectId == project.ProjectId && ci.Quantity > 0).Take(3).ToListAsync();
-            if (!inv.Any()) continue;
-
-            var issuance = new MaterialIssuance
-            {
-                TaskId    = task.TaskId,
-                Purpose   = $"Xuất vật tư phục vụ thi công hạng mục [{task.Name}] – đợt triển khai ngày {DateTime.UtcNow.AddDays(-5):dd/MM/yyyy}",
-                CreatedAt = DateTime.UtcNow.AddDays(-5),
-                CreatedBy = projectLeaderId
-            };
-            context.MaterialIssuances.Add(issuance);
-            await context.SaveChangesAsync();
-
-            foreach (var i in inv)
-            {
-                var xuat = Math.Min(i.Quantity * 0.3m, i.Quantity);
-                context.MaterialIssuanceItems.Add(new MaterialIssuanceItem { MaterialIssuanceId=issuance.MaterialIssuanceId, MaterialId=i.MaterialId, UnitId=i.UnitId, Quantity=xuat, ConversionRate=1 });
-                i.Quantity -= xuat;
-                i.LastUpdated = DateTime.UtcNow;
-
-                context.InventoryTransactions.Add(new InventoryTransaction { ProjectId=project.ProjectId, MaterialId=i.MaterialId, TransactionType=2, ReferenceId=issuance.MaterialIssuanceId, QuantityChange=-xuat, BalanceAfter=i.Quantity, CreatedBy=projectLeaderId, CreatedAt=DateTime.UtcNow.AddDays(-5) });
-            }
-            await context.SaveChangesAsync();
-        }
-    }
-
-    // ====================================================================
-    // 7. SỰ CỐ & PHIẾU ĐIỀU CHỈNH TỒN KHO
-    // ====================================================================
-    private static async Task SeedIncidentsAndAdjustmentsAsync(AppDbContext context, List<Project> projects, List<MaterialCatalog> catalogs, Dictionary<string, User> users)
-    {
-        if (await context.Incidents.AnyAsync()) return;
-
-        var tpkt   = users["tpkt@bpg.com"];
-        var ketoan = users["ketoan@bpg.com"];
-        var gd     = users["giamdoc@bpg.com"];
-
-        var project = projects.FirstOrDefault(p => p.Status == "InProgress");
-        if (project == null) return;
-
-        var task = await context.Tasks.FirstOrDefaultAsync(t => t.Phase.ProjectId == project.ProjectId && t.Status == "InProgress");
-        if (task == null) return;
-
-        var projectLeaderId = await context.ProjectMembers.Where(m => m.ProjectId == project.ProjectId && m.IsLeader).Select(m => m.UserId).FirstOrDefaultAsync();
-        var siteEngineerId = await context.ProjectMembers.Where(m => m.ProjectId == project.ProjectId && !m.IsLeader).Select(m => m.UserId).FirstOrDefaultAsync();
-
-        // Sự cố thi công
-        var incident = new Incident
-        {
-            ProjectId             = project.ProjectId,
-            TaskId                = task.TaskId,
-            ReportedBy            = siteEngineerId,
-            ReviewedBy            = tpkt.UserId,
-            IncidentType          = "NgoaiLuc",
-            Description           = "Trong quá trình đào đất, gặp túi nước ngầm không có trong bản đồ địa chất. Nước tràn vào hố móng, ảnh hưởng đến tiến độ đổ bê tông lót.",
-            Status                = "Resolved",
-            DamageDescription     = "Hố móng khu vực trục B-C bị ngập, phải bơm nước mất 2 ngày. Phần bê tông lót đã đổ (~5m²) bị ảnh hưởng chất lượng, cần đục bỏ đổ lại.",
-            EstimatedMaterialLoss = 2.5m,
-            EstimatedLaborDays    = 3,
-            EstimatedDelayDays    = 4,
-            ProposedAction        = "Hút nước, gia cố taluy hố đào, đổ lại bê tông lót. Đề xuất tạo Rework Task để theo dõi riêng.",
-            CreatedAt             = DateTime.UtcNow.AddDays(-10),
-            CreatedBy             = projectLeaderId
-        };
-        context.Incidents.Add(incident);
-        await context.SaveChangesAsync();
-
-        // Phiếu điều chỉnh TĂNG tồn (Leader tạo – Auto duyệt)
-        var invItem = await context.CurrentInventories.FirstOrDefaultAsync(ci => ci.ProjectId == project.ProjectId);
-        if (invItem != null)
-        {
-            var adjTang = new InventoryAdjustment
-            {
-                ProjectId   = project.ProjectId,
-                AdjustmentType = "Increase",
-                Reason      = "Thu hồi vật tư thừa từ công nhân",
-                Description = "Thu hồi 15 bao xi măng PCB40 còn nguyên kiện tổ thợ trả lại sau khi hoàn thành task đổ bê tông cột trục A, do tính toán lại hao hụt thực tế ít hơn định mức.",
-                Status      = "Approved",
-                ApprovedBy  = null,
-                ApprovedAt  = DateTime.UtcNow.AddDays(-8),
-                CreatedAt   = DateTime.UtcNow.AddDays(-8),
-                CreatedBy   = projectLeaderId
-            };
-            context.InventoryAdjustments.Add(adjTang);
-            await context.SaveChangesAsync();
-
-            context.AdjustmentItems.Add(new AdjustmentItem { AdjustmentId=adjTang.AdjustmentId, MaterialId=invItem.MaterialId, UnitId=invItem.UnitId, Quantity=15, ConversionRate=1 });
-            invItem.Quantity += 15;
-            invItem.LastUpdated = DateTime.UtcNow;
-            await context.SaveChangesAsync();
-
-            // Phiếu điều chỉnh GIẢM tồn (Kế toán tạo – Giám đốc duyệt)
-            var adjGiam = new InventoryAdjustment
-            {
-                ProjectId      = project.ProjectId,
-                IncidentId     = incident.IncidentId,
-                AdjustmentType = "Decrease",
-                Reason         = "Hao hụt vật tư do sự cố ngập nước hố móng",
-                Description    = "Căn cứ biên bản sự cố ngập hố móng ngày " + DateTime.UtcNow.AddDays(-10).ToString("dd/MM/yyyy") + ", xi măng bị ướt không còn sử dụng được. Đề nghị giảm tồn 20 bao xi măng PCB40.",
-                Status         = "Approved",
-                ApprovedBy     = gd.UserId,
-                ApprovedAt     = DateTime.UtcNow.AddDays(-6),
-                CreatedAt      = DateTime.UtcNow.AddDays(-7),
-                CreatedBy      = ketoan.UserId
-            };
-            context.InventoryAdjustments.Add(adjGiam);
-            await context.SaveChangesAsync();
-
-            var giamQty = Math.Min(20m, invItem.Quantity);
-            context.AdjustmentItems.Add(new AdjustmentItem { AdjustmentId=adjGiam.AdjustmentId, MaterialId=invItem.MaterialId, UnitId=invItem.UnitId, Quantity=giamQty, ConversionRate=1 });
-            invItem.Quantity -= giamQty;
-            invItem.LastUpdated = DateTime.UtcNow;
-            await context.SaveChangesAsync();
-        }
-    }
-
-    // ====================================================================
-    // 8. VẬT TƯ THỪA (Surplus)
-    // ====================================================================
-    private static async Task SeedSurplusAsync(AppDbContext context, List<Project> projects, List<MaterialCatalog> catalogs, Dictionary<string, User> users)
-    {
-        if (await context.SurplusRequests.AnyAsync()) return;
-
-        var ketoan = users["ketoan@bpg.com"];
-        var tpkt   = users["tpkt@bpg.com"];
-
-        // Lấy dự án đã hoàn thành
-        var doneProject = projects.FirstOrDefault(p => p.Status == "Completed");
-        if (doneProject == null) return;
-
-        var projectLeaderId = await context.ProjectMembers.Where(m => m.ProjectId == doneProject.ProjectId && m.IsLeader).Select(m => m.UserId).FirstOrDefaultAsync();
-
-        var doneInv = await context.CurrentInventories.Where(ci => ci.ProjectId == doneProject.ProjectId && ci.Quantity > 0).Take(2).ToListAsync();
-        if (!doneInv.Any()) return;
-
-        var surplus = new SurplusRequest
-        {
-            ProjectId = doneProject.ProjectId,
-            Reason    = $"Vật tư thừa sau khi hoàn thành dự án {doneProject.Name.Split('–')[0].Trim()}. Đề xuất xử lý trả NCC và thanh lý theo quy định.",
-            Status    = "Processing",
-            CreatedAt = DateTime.UtcNow.AddDays(-3),
-            CreatedBy = projectLeaderId
-        };
-        context.SurplusRequests.Add(surplus);
-        await context.SaveChangesAsync();
-
-        int stt = 0;
-        foreach (var inv in doneInv)
-        {
-            var item = new SurplusRequestItem
-            {
-                SurplusRequestId  = surplus.SurplusRequestId,
-                MaterialId        = inv.MaterialId,
-                UnitId            = inv.UnitId,
-                Quantity          = inv.Quantity,
-                ProcessedQuantity = 0,
-                ConversionRate    = 1,
-                Status            = "Pending",
-                CreatedAt         = DateTime.UtcNow.AddDays(-3)
-            };
-            context.SurplusRequestItems.Add(item);
-            await context.SaveChangesAsync();
-
-            if (stt == 0)
-            {
-                // Trả NCC
-                context.SurplusReturnSuppliers.Add(new SurplusReturnSupplier
-                {
-                    SurplusRequestItemId = item.SurplusRequestItemId,
-                    SupplierId           = null,
-                    ReturnQuantity       = inv.Quantity,
-                    RefundAmount         = inv.Quantity * 85_000m,
-                    Note                 = "NCC đồng ý thu hồi lại hàng nguyên kiện, hoàn tiền 85.000đ/đơn vị. Kế toán liên hệ NCC để lấy xe thu gom.",
-                    CreatedAt            = DateTime.UtcNow.AddDays(-2)
-                });
-            }
-            else
-            {
-                // Thanh lý
-                context.SurplusLiquidations.Add(new SurplusLiquidation
-                {
-                    SurplusRequestItemId = item.SurplusRequestItemId,
-                    BuyerName            = "Cơ sở Ve chai Thanh Bình",
-                    LiquidationQuantity  = inv.Quantity,
-                    TotalAmount          = inv.Quantity * 5_000m,
-                    CreatedAt            = DateTime.UtcNow.AddDays(-1)
-                });
-            }
-            stt++;
-        }
-        await context.SaveChangesAsync();
-    }
-
-    // ====================================================================
-    // 9. THÔNG BÁO HỆ THỐNG
-    // ====================================================================
     private static async Task SeedNotificationsAsync(AppDbContext context, Dictionary<string, User> users)
     {
-        if (await context.Notifications.AnyAsync()) return;
-
-        var gd     = users["giamdoc@bpg.com"];
-        var tpkt   = users["tpkt@bpg.com"];
-        var ld1    = users["leader1@bpg.com"];
-        var ks1    = users["kysu1@bpg.com"];
-        var ketoan = users["ketoan@bpg.com"];
-
-        var dsThongBao = new List<Notification>
-        {
-            new() { UserId=gd.UserId,     Title="Yêu cầu vật tư vượt định mức chờ duyệt",       Content="Dự án Chung cư SkyView có 1 phiếu yêu cầu vật tư vượt BOQ đang chờ Giám đốc phê duyệt. Vui lòng kiểm tra và ra quyết định.",                          NotificationType="MaterialRequest", IsRead=false, CreatedAt=DateTime.UtcNow.AddDays(-1) },
-            new() { UserId=tpkt.UserId,   Title="Sự cố thi công mới cần xử lý",                  Content="Kỹ sư Vũ Tiến Dũng vừa tạo báo cáo sự cố tại dự án Khu nhà ở Hưng Phú. Vui lòng xem xét và ra quyết định xử lý.",                                    NotificationType="Incident",        IsRead=false, CreatedAt=DateTime.UtcNow.AddDays(-1) },
-            new() { UserId=tpkt.UserId,   Title="Task thi công sắp trễ hạn",                      Content="Task [Thi công đài cọc & giằng móng] thuộc dự án Khu nhà ở Hưng Phú đang có nguy cơ trễ hạn. Tiến độ hiện tại 70%, kỳ vọng 85%. Đề nghị đôn đốc.", NotificationType="TaskDeadline",    IsRead=true,  CreatedAt=DateTime.UtcNow.AddDays(-2) },
-            new() { UserId=ld1.UserId,    Title="Phiếu yêu cầu vật tư đã được duyệt",            Content="Phiếu yêu cầu vật tư đợt 1 của dự án Khu nhà ở Hưng Phú đã được Kế toán phê duyệt. Đơn đặt hàng sẽ được tạo trong hôm nay.",                         NotificationType="MaterialRequest", IsRead=true,  CreatedAt=DateTime.UtcNow.AddDays(-3) },
-            new() { UserId=ks1.UserId,    Title="Nhật ký thi công cần cập nhật",                  Content="Hôm nay bạn chưa cập nhật nhật ký thi công cho Task [Thi công đài cọc & giằng móng]. Vui lòng cập nhật tiến độ trước 17h.",                           NotificationType="DailyLog",        IsRead=false, CreatedAt=DateTime.UtcNow },
-            new() { UserId=ketoan.UserId, Title="Có 2 yêu cầu vật tư chờ kiểm tra",              Content="Hiện có 2 phiếu yêu cầu vật tư từ các dự án đang chờ Kế toán kiểm tra và xử lý. Vui lòng vào hệ thống xem xét.",                                     NotificationType="MaterialRequest", IsRead=false, CreatedAt=DateTime.UtcNow },
-            new() { UserId=gd.UserId,     Title="Giai đoạn 1 dự án Bệnh viện Phương Đông đã nghiệm thu", Content="Trưởng phòng Kỹ thuật Lê Minh Tuấn vừa ký nghiệm thu Giai đoạn 1 dự án Bệnh viện Đa khoa Phương Đông. Mời Giám đốc xem biên bản.", NotificationType="PhaseAcceptance", IsRead=true,  CreatedAt=DateTime.UtcNow.AddDays(-5) },
-            new() { UserId=tpkt.UserId,   Title="Phiếu giảm tồn kho đã được Giám đốc duyệt",     Content="Phiếu điều chỉnh giảm tồn 20 bao xi măng PCB40 tại dự án Khu nhà ở Hưng Phú đã được Giám đốc Trần Quốc Hùng phê duyệt.",                            NotificationType="InventoryAdj",    IsRead=true,  CreatedAt=DateTime.UtcNow.AddDays(-6) },
-        };
-
-        context.Notifications.AddRange(dsThongBao);
+        // Simple notification seed
+        var gd = users["giamdoc@bpg.com"];
+        context.Notifications.Add(new Notification { UserId=gd.UserId, Title="Chào mừng", Content="Chào mừng giám đốc", IsRead=false, CreatedAt=DateTime.UtcNow });
         await context.SaveChangesAsync();
     }
 }
