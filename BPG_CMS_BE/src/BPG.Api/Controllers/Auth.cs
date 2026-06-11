@@ -1,34 +1,22 @@
-﻿using BPG.Application.Features.Auth.Commands;
-using BPG.Application.Features.Auth.Handlers;
-using MediatR;
+using BPG.Application.Common.Models;
+using BPG.Application.Features.Auth.Commands;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BPG.Api.Controllers;
 
-[ApiController]
 [Route("api/auth")]
-public class AuthController : ControllerBase
+public class AuthController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public AuthController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginCommand command)
     {
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
 
         if (result == null)
         {
-            return Unauthorized(new
-            {
-                message = "Email or password is incorrect"
-            });
+            return Unauthorized(ApiResponse<string>.FailureResult("Email or password is incorrect"));
         }
 
-        return Ok(result);
+        return ApiOk(result, "Đăng nhập thành công");
     }
 }

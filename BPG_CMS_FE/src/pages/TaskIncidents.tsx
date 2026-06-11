@@ -61,6 +61,7 @@ export const TaskIncidents: React.FC = () => {
   const canReportIncident = isPL || isTPKT; // Only PL or TPKT/Admin
 
   const loadData = async () => {
+    if (!projectId || !taskId) return;
     setLoading(true);
     try {
       const incList = await projectService.getIncidents(projectId);

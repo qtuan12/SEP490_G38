@@ -9,15 +9,13 @@ import {
   ArrowLeft, 
   Users, 
   FolderGit2, 
-  History, 
   MapPin, 
   Calendar,
   Loader2,
   AlertCircle,
   Play,
   Pause,
-  CheckCircle,
-  AlertTriangle
+  CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 

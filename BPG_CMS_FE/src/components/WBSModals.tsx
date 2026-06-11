@@ -822,7 +822,6 @@ export const LeaderApprovalModal: React.FC<LeaderApprovalModalProps> = ({
   isOpen,
   onClose,
   phase,
-  projectId,
   user,
   allMaterialRequests,
   onSuccess,

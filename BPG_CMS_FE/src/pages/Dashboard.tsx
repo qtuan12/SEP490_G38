@@ -63,7 +63,7 @@ export const Dashboard: React.FC = () => {
         const tasksList = await projectService.getTasks(p.id);
         
         incs.forEach(inc => {
-          if (inc.status === 'resolved') {
+          if (inc.status === 'Approved') {
             const reworkTask = tasksList.find(t => 
               (inc.reworkTaskId && t.id === inc.reworkTaskId) ||
               (t.name.includes(inc.taskName) && t.name.startsWith('[Rework]'))

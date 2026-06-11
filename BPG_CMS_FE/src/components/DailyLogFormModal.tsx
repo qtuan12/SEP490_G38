@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { projectService } from '../services/projectService';
 import type { WBSTask } from '../services/projectService';
-import { UploadCloud, X, AlertCircle, AlertTriangle } from 'lucide-react';
+import { UploadCloud, X, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface DailyLogFormModalProps {
@@ -25,7 +25,6 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
   onError
 }) => {
   const { user } = useAuth();
-  const isPrivileged = user?.role === 'admin' || user?.role === 'tpkt';
 
   const [progress, setProgress] = useState(task.progress);
   const [content, setContent] = useState('');

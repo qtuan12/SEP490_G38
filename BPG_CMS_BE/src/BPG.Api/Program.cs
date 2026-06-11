@@ -1,4 +1,5 @@
-﻿using System.Text;
+using System.Text;
+using BPG.Api.Middleware;
 using BPG.Application;
 using BPG.Domain.Entities;
 using BPG.Infrastructure;
@@ -60,6 +61,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 using (var scope = app.Services.CreateScope())
 {
