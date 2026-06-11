@@ -23,6 +23,10 @@ const MOCK_USERS: Record<string, UserProfile & { password: string }> = {
   'admin@bpg.com': { id: 'u-1', name: 'Hệ thống Admin', email: 'admin@bpg.com', password: 'admin123', role: 'admin', status: 'active' },
   'tpkt@bpg.com': { id: 'u-2', name: 'Nguyễn Văn Kỹ', email: 'tpkt@bpg.com', password: 'tpkt123', role: 'tpkt', status: 'active' },
   'engineer@bpg.com': { id: 'u-3', name: 'Trần Văn Công', email: 'engineer@bpg.com', password: 'eng123', role: 'kỹ sư', status: 'active' },
+  'se1@bpg.com': { id: 'u-6', name: 'Nguyễn Văn Nam', email: 'se1@bpg.com', password: 'se123', role: 'kỹ sư', status: 'active' },
+  'se2@bpg.com': { id: 'u-7', name: 'Phạm Minh Hải', email: 'se2@bpg.com', password: 'se123', role: 'kỹ sư', status: 'active' },
+  'se3@bpg.com': { id: 'u-8', name: 'Hoàng Việt Anh', email: 'se3@bpg.com', password: 'se123', role: 'kỹ sư', status: 'active' },
+  'se4@bpg.com': { id: 'u-9', name: 'Đỗ Thùy Linh', email: 'se4@bpg.com', password: 'se123', role: 'kỹ sư', status: 'active' },
   'giamdoc@bpg.com': { id: 'u-4', name: 'Phạm Huy Hoàng', email: 'giamdoc@bpg.com', password: 'gd123', role: 'giám đốc', status: 'active' },
   'ketoan@bpg.com': { id: 'u-5', name: 'Lê Thị Thu', email: 'ketoan@bpg.com', password: 'kt123', role: 'kế toán', status: 'active' },
 };
@@ -34,7 +38,13 @@ export const authService = {
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       const mockUser = MOCK_USERS[credentials.email.toLowerCase()];
-      if (!mockUser || mockUser.password !== credentials.password) {
+      
+      // Check for custom password override in localStorage
+      const customPasswordsStr = localStorage.getItem('bpg_custom_passwords');
+      const customPasswords = customPasswordsStr ? JSON.parse(customPasswordsStr) : {};
+      const expectedPassword = customPasswords[credentials.email.toLowerCase()] || mockUser?.password;
+
+      if (!mockUser || expectedPassword !== credentials.password) {
         throw new Error('Email hoặc mật khẩu không chính xác.');
       }
 
@@ -45,10 +55,23 @@ export const authService = {
       // Generate a mock JWT token
       const mockToken = `mock-jwt-token-for-${mockUser.id}`;
 
-      // Save mock users to localStorage for CRUD sync if not present
-      if (!localStorage.getItem('bpg_users_list')) {
-        const usersList = Object.values(MOCK_USERS).map(({ password, ...user }) => user);
+      // Save mock users to localStorage for CRUD sync
+      const currentListStr = localStorage.getItem('bpg_users_list');
+      const usersList = Object.values(MOCK_USERS).map(({ password, ...user }) => user);
+      if (!currentListStr) {
         localStorage.setItem('bpg_users_list', JSON.stringify(usersList));
+      } else {
+        const currentUsers: UserProfile[] = JSON.parse(currentListStr);
+        let updated = false;
+        usersList.forEach(d => {
+          if (!currentUsers.some(u => u.id === d.id)) {
+            currentUsers.push(d);
+            updated = true;
+          }
+        });
+        if (updated) {
+          localStorage.setItem('bpg_users_list', JSON.stringify(currentUsers));
+        }
       }
 
       return {
