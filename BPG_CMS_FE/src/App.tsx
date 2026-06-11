@@ -16,9 +16,10 @@ import { GanttChart } from './pages/GanttChart';
 import { ProjectDrawing } from './pages/ProjectDrawing';
 import { ProjectDailyLogs } from './pages/ProjectDailyLogs';
 import { TaskIncidents } from './pages/TaskIncidents';
+import { PhaseMaterialRequests } from './pages/PhaseMaterialRequests';
 
 // Protected Route Guard
-const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[]; noLayout?: boolean }> = ({ children, allowedRoles, noLayout }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -45,7 +46,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <Layout>{children}</Layout>;
+  return noLayout ? <>{children}</> : <Layout>{children}</Layout>;
 };
 
 // Route wrapper for redirecting authenticated users away from Login page
@@ -156,6 +157,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
                 <TaskIncidents />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/projects/:projectId/phases/:phaseId/material-requests" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc', 'kế toán']} noLayout>
+                <PhaseMaterialRequests />
               </ProtectedRoute>
             } 
           />

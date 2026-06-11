@@ -263,7 +263,6 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
           </div>
         </div>
 
-        {/* Commented out temporarily for discussion later
         <div className="timeline-stat-card" style={{ borderColor: stats.pendingDirectives > 0 ? 'hsl(var(--warning) / 0.3)' : 'hsl(var(--border))' }}>
           <div className="timeline-stat-icon-wrapper" style={{ 
             backgroundColor: stats.pendingDirectives > 0 ? 'hsl(var(--warning-glow))' : 'hsl(var(--border) / 0.3)', 
@@ -278,7 +277,6 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
             <span className="timeline-stat-label">Chỉ đạo mới</span>
           </div>
         </div>
-        */}
       </div>
 
       {/* 2. FILTER & SEARCH BAR */}
@@ -548,7 +546,6 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                         </div>
                       )}
 
-                      {/* Comments Area temporarily commented out for discussion later
                       <div style={{ 
                         marginTop: '6px', 
                         borderTop: '1px solid hsl(var(--border) / 0.5)', 
@@ -556,10 +553,10 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                       }}>
                         <h4 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <MessageSquare size={13} />
-                          <span>Ý kiến Chỉ đạo & Bình luận ({log.comments.length})</span>
+                          <span>Ý kiến Chỉ đạo & Bình luận ({log.comments?.length || 0})</span>
                         </h4>
 
-                        {log.comments.length > 0 && (
+                        {(log.comments?.length || 0) > 0 && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                             {log.comments.map((comm) => {
                               const isManager = comm.role === 'tpkt' || comm.role === 'giám đốc';
@@ -681,7 +678,6 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                           </form>
                         )}
                       </div>
-                      */}
                     </div>
                   </div>
                 );
