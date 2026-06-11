@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type { WBSTask } from '../services/projectService';
-import { DailyLogFormModal } from '../components/DailyLogFormModal';
+import type {WBSTask} from '../types/common';
+import { DailyLogFormModal } from './Incidents/modals/DailyLogFormModal';
 import { 
   ArrowLeft, 
   Calendar, 

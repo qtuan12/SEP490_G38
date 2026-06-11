@@ -124,7 +124,7 @@ export const Profile: React.FC = () => {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         
         {/* Read-Only Info Card */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

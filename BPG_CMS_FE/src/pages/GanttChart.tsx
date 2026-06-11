@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Gantt from 'frappe-gantt';
 import '../styles/frappe-gantt.css';
 import { projectService } from '../services/projectService';
-import type { WBSPhase, WBSTask, Project } from '../services/projectService';
+import type {WBSPhase, WBSTask, Project} from '../types/common';
 import {
   ArrowLeft,
   Calendar,

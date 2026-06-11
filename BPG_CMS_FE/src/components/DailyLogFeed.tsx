@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type { DailyLog, WBSTask } from '../services/projectService';
+import type {DailyLog, WBSTask} from '../types/common';
 import { 
   Clock, 
   Send, 

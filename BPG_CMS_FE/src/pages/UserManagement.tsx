@@ -264,7 +264,8 @@ export const UserManagement: React.FC = () => {
         </div>
       ) : (
         <div className="table-container animate-fade-in">
-          <table>
+          <div className="overflow-x-auto w-full">
+            <table>
             <thead>
               <tr>
                 <th>Tên thành viên</th>
@@ -333,6 +334,7 @@ export const UserManagement: React.FC = () => {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
-import type { Project } from '../services/projectService';
+import type {Project} from '../types/common';
 import { Modal } from '../components/Modal';
 import { 
   Search, 
@@ -247,7 +247,7 @@ export const ProjectList: React.FC = () => {
           <span style={{ color: 'hsl(var(--text-secondary))' }}>Đang tải danh sách dự án...</span>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
           {filteredProjects.length === 0 ? (
             <div className="card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0', color: 'hsl(var(--text-muted))' }}>
               <Layers size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
@@ -371,7 +371,7 @@ export const ProjectList: React.FC = () => {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="proj-start">Ngày dự kiến bắt đầu <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
               <input

@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type { WBSPhase, MaterialRequest, Project } from '../services/projectService';
-import { CreateMaterialRequestModal } from '../components/MaterialRequestModals';
+import type {WBSPhase, MaterialRequest, Project} from '../types/common';
+import { CreateMaterialRequestModal } from './MaterialRequests/modals/CreateMaterialRequestModal';
 import { Plus, ArrowLeft, ClipboardList, Package, Calendar, User as UserIcon, FileText, AlertTriangle } from 'lucide-react';
 
 export const PhaseMaterialRequests: React.FC = () => {
@@ -192,7 +192,8 @@ export const PhaseMaterialRequests: React.FC = () => {
                   <Package size={18} /> Danh sách vật tư
                 </h4>
                 <div style={{ border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <div className="overflow-x-auto w-full">
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead style={{ backgroundColor: 'hsl(var(--bg-main))' }}>
                       <tr>
                         <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>STT</th>
@@ -212,6 +213,7 @@ export const PhaseMaterialRequests: React.FC = () => {
                       ))}
                     </tbody>
                   </table>
+          </div>
                 </div>
               </div>
 

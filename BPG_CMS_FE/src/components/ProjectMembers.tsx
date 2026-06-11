@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type { ProjectMember } from '../services/projectService';
+import type {ProjectMember} from '../types/common';
 import { userService } from '../services/userService';
 import type { UserProfile } from '../services/authService';
 import { Modal } from './Modal';
@@ -162,7 +162,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       </div>
 
       {/* Member Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
         {members.map((m) => (
           <div 
             key={m.userId} 
