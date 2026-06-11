@@ -104,7 +104,24 @@ Leader tạo Direct Purchase Request (kèm ảnh hóa đơn) → system tự sin
 
 ---
 
-## 7. Cách prompt AI hiệu quả
+## 7. QUY CHUẨN XỬ LÝ LỖI (ERROR HANDLING)
+**Nguyên tắc:** Tuyệt đối không hardcode message lỗi bằng text thuần trong code. ExceptionMiddleware sẽ tự động map các exception type sang HTTP status.
+
+### Các exception chuẩn và mã lỗi:
+- `EntityNotFoundException`: HTTP 404. Mã lỗi: `ERR_ENTITY_NOT_FOUND`. Dùng khi truy vấn DB không ra dữ liệu.
+- `ValidationException` (Từ FluentValidation): HTTP 400. Mã lỗi: `ERR_VALIDATION`. Lỗi định dạng input.
+- `BusinessRuleValidationException`: HTTP 400. Dùng cho lỗi nghiệp vụ. **Mã lỗi bắt buộc phải là tên Rule** (VD: `ERR_OVER_BOQ`, `ERR_INSUFFICIENT_STOCK`).
+- `UnauthorizedAccessException`: HTTP 403. Mã lỗi: `ERR_FORBIDDEN`.
+
+### Cách viết trong Handler:
+```csharp
+// ❌ SAI:
+throw new Exception("Vượt định mức vật tư rồi");
+
+// ✅ ĐÚNG:
+throw new BusinessRuleValidationException("ERR_OVER_BOQ", "Yêu cầu vượt quá định mức BOQ cho phép.");
+---
+## 8. Cách prompt AI hiệu quả
 
 Khi yêu cầu AI sinh code cho một feature, hãy **copy các phần liên quan** từ file này vào prompt, đặc biệt là:
 
