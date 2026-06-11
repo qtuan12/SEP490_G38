@@ -4,6 +4,7 @@ using BPG.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BPG.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260611100649_FixShadowFKProperties")]
+    partial class FixShadowFKProperties
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1534,7 +1537,7 @@ namespace BPG.Infrastructure.Migrations
                         {
                             RoleId = 1L,
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Quản trị viên hệ thống",
+                            Description = "System Administrator",
                             IsDeleted = false,
                             RoleName = "Admin"
                         },
@@ -1542,7 +1545,7 @@ namespace BPG.Infrastructure.Migrations
                         {
                             RoleId = 2L,
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Trưởng phòng kỹ thuật",
+                            Description = "Technical Manager",
                             IsDeleted = false,
                             RoleName = "TechnicalManager"
                         },
@@ -1550,7 +1553,7 @@ namespace BPG.Infrastructure.Migrations
                         {
                             RoleId = 3L,
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Quản lý dự án",
+                            Description = "Project Leader",
                             IsDeleted = false,
                             RoleName = "ProjectLeader"
                         },
@@ -1558,7 +1561,7 @@ namespace BPG.Infrastructure.Migrations
                         {
                             RoleId = 4L,
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Nhân viên kỹ thuật",
+                            Description = "Site Engineer",
                             IsDeleted = false,
                             RoleName = "SiteEngineer"
                         },
@@ -1566,7 +1569,7 @@ namespace BPG.Infrastructure.Migrations
                         {
                             RoleId = 5L,
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Kế toán",
+                            Description = "Accountant",
                             IsDeleted = false,
                             RoleName = "Accountant"
                         },
@@ -1574,7 +1577,7 @@ namespace BPG.Infrastructure.Migrations
                         {
                             RoleId = 6L,
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Description = "Giám đốc",
+                            Description = "Director",
                             IsDeleted = false,
                             RoleName = "Director"
                         });

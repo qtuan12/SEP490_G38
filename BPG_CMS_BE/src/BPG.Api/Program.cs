@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using BPG.Application;
 using BPG.Domain.Entities;
 using BPG.Infrastructure;
@@ -65,33 +65,7 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    await context.Database.MigrateAsync();
-
-    if (!await context.Users.AnyAsync())
-    {
-        var adminUser = new User
-        {
-            FullName = "Admin BPG",
-            Email = "admin@bpg.com",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
-        context.Users.Add(adminUser);
-        await context.SaveChangesAsync();
-
-        var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Admin");
-        if (adminRole != null)
-        {
-            context.UserRoles.Add(new UserRole
-            {
-                UserId = adminUser.UserId,
-                RoleId = adminRole.RoleId,
-                CreatedAt = DateTime.UtcNow
-            });
-            await context.SaveChangesAsync();
-        }
-    }
+    await DbSeeder.SeedAsync(context);
 }
 
 app.UseSwagger();

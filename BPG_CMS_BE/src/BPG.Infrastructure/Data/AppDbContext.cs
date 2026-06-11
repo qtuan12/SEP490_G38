@@ -281,7 +281,12 @@ public class AppDbContext : DbContext
             .HasForeignKey(m => m.ApprovedBy)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // PurchaseOrderItem precision
+        // PurchaseOrderItem - explicit FK to avoid shadow property PurchaseOrderPOId
+        modelBuilder.Entity<PurchaseOrderItem>()
+            .HasOne(x => x.PurchaseOrder)
+            .WithMany(x => x.Items)
+            .HasForeignKey(x => x.POId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<PurchaseOrderItem>()
             .Property(x => x.Quantity).HasPrecision(18, 3);
         modelBuilder.Entity<PurchaseOrderItem>()
@@ -290,6 +295,13 @@ public class AppDbContext : DbContext
             .Property(x => x.LineTotal).HasPrecision(18, 2);
         modelBuilder.Entity<PurchaseOrderItem>()
             .Property(x => x.ConversionRate).HasPrecision(18, 6);
+
+        // GoodsReceipt - explicit FK to avoid shadow property PurchaseOrderPOId
+        modelBuilder.Entity<GoodsReceipt>()
+            .HasOne(x => x.PurchaseOrder)
+            .WithMany(x => x.GoodsReceipts)
+            .HasForeignKey(x => x.POId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // PurchaseOrder
         modelBuilder.Entity<PurchaseOrder>()
@@ -382,7 +394,12 @@ public class AppDbContext : DbContext
             .HasForeignKey(i => i.ApprovedBy)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // DirectPurchaseItem unique (DirectPurchaseId, MaterialId) + precision
+        // DirectPurchaseItem - explicit FK to avoid shadow property DirectPurchaseRequestDirectPurchaseId
+        modelBuilder.Entity<DirectPurchaseItem>()
+            .HasOne(x => x.DirectPurchaseRequest)
+            .WithMany(x => x.Items)
+            .HasForeignKey(x => x.DirectPurchaseId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<DirectPurchaseItem>()
             .HasIndex(x => new { x.DirectPurchaseId, x.MaterialId })
             .IsUnique();
@@ -444,12 +461,12 @@ public class AppDbContext : DbContext
 
         // Seed data: Roles
         modelBuilder.Entity<Role>().HasData(
-            new Role { RoleId = 1, RoleName = "Admin", Description = "System Administrator" },
-            new Role { RoleId = 2, RoleName = "TechnicalManager", Description = "Technical Manager" },
-            new Role { RoleId = 3, RoleName = "ProjectLeader", Description = "Project Leader" },
-            new Role { RoleId = 4, RoleName = "SiteEngineer", Description = "Site Engineer" },
-            new Role { RoleId = 5, RoleName = "Accountant", Description = "Accountant" },
-            new Role { RoleId = 6, RoleName = "Director", Description = "Director" }
+            new Role { RoleId = 1, RoleName = "Admin", Description = "Quản trị viên hệ thống" },
+            new Role { RoleId = 2, RoleName = "TechnicalManager", Description = "Trưởng phòng kỹ thuật" },
+            new Role { RoleId = 3, RoleName = "ProjectLeader", Description = "Quản lý dự án" },
+            new Role { RoleId = 4, RoleName = "SiteEngineer", Description = "Nhân viên kỹ thuật" },
+            new Role { RoleId = 5, RoleName = "Accountant", Description = "Kế toán" },
+            new Role { RoleId = 6, RoleName = "Director", Description = "Giám đốc" }
         );
     }
 }

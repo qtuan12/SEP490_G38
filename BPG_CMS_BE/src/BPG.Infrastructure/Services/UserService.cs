@@ -122,12 +122,18 @@ public class UserService : IUserService
 
     private static string NormalizeRole(string role) => role.ToLower() switch
     {
-        "admin" => "Admin",
-        "technicalmanager" => "TechnicalManager",
-        "projectleader" => "ProjectLeader",
-        "siteengineer" => "SiteEngineer",
-        "accountant" => "Accountant",
-        "director" => "Director",
+        "admin" => "Quản trị viên",
+        "quản trị viên" => "Quản trị viên",
+        "technicalmanager" => "Trưởng phòng Kỹ thuật",
+        "trưởng phòng kỹ thuật" => "Trưởng phòng Kỹ thuật",
+        "projectleader" => "Quản lý Dự án",
+        "quản lý dự án" => "Quản lý Dự án",
+        "siteengineer" => "Nhân viên Kỹ thuật",
+        "nhân viên kỹ thuật" => "Nhân viên Kỹ thuật",
+        "accountant" => "Kế toán",
+        "kế toán" => "Kế toán",
+        "director" => "Giám đốc",
+        "giám đốc" => "Giám đốc",
         _ => role
     };
 }
