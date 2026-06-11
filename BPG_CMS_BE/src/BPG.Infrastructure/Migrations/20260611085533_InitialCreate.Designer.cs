@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BPG.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260610134221_InitialCreate")]
+    [Migration("20260611085533_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -1985,6 +1985,9 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<string>("UpdateReason")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("TaskProgressLogId");
 
