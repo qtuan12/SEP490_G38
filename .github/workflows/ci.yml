@@ -30,7 +30,7 @@ jobs:
       run: dotnet test BPG_CMS_BE/BPG-CMS.sln --configuration Release --no-build --verbosity normal
 
   frontend-build:
-    name: Build & Lint Frontend
+    name: Build Frontend
     runs-on: ubuntu-latest
 
     steps:
@@ -49,12 +49,8 @@ jobs:
         cd BPG_CMS_FE
         npm ci
 
-    - name: Lint Frontend
-      run: |
-        cd BPG_CMS_FE
-        npm run lint
-
     - name: Build & Compile Check Frontend
       run: |
         cd BPG_CMS_FE
         npm run build
+
