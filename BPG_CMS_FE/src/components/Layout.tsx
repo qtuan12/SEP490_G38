@@ -25,7 +25,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc', 'kế toán'] },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
-    { name: 'Dự án (WBS)', path: '#projects', icon: <Hammer size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc'], disabled: true },
+    { name: 'Dự án (WBS)', path: '/projects', icon: <Hammer size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc'] },
     { name: 'Kiểm soát Vật tư', path: '#materials', icon: <Boxes size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc', 'kế toán'], disabled: true },
     { name: 'Báo cáo', path: '#reports', icon: <FileText size={20} />, roles: ['admin', 'tpkt', 'giám đốc', 'kế toán'], disabled: true },
   ];
@@ -67,26 +67,25 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       }}>
         {/* Logo Section */}
         <div style={{ 
-          padding: '24px', 
+          padding: '20px 24px', 
           borderBottom: '1px solid hsl(var(--border))', 
           display: 'flex', 
           alignItems: 'center', 
           gap: '12px' 
         }}>
-          <div style={{
-            background: 'hsl(var(--primary))',
-            color: '#fff',
-            padding: '8px',
-            borderRadius: 'var(--radius-sm)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <Boxes size={22} />
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="BPG Logo" 
+            style={{ 
+              height: '42px', 
+              width: '42px', 
+              objectFit: 'contain',
+              borderRadius: 'var(--radius-sm)'
+            }} 
+          />
           <div>
             <h1 style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '0.05em' }}>BPG CMS</h1>
-            <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Construction MVP</span>
+            <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 600 }}>Construction MVP</span>
           </div>
         </div>
 
@@ -142,7 +141,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             flexDirection: 'column',
             gap: '12px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div 
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '4px', borderRadius: 'var(--radius-sm)', transition: 'background var(--transition-fast)' }} 
+              onClick={() => navigate('/profile')}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'hsl(var(--bg-main))'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              title="Xem trang cá nhân"
+            >
               <div style={{
                 width: '40px',
                 height: '40px',
@@ -192,7 +197,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <Menu size={20} style={{ color: 'hsl(var(--text-secondary))', cursor: 'pointer', display: 'none' }} />
             <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>
               {location.pathname === '/dashboard' ? 'Bảng điều khiển' : 
-               location.pathname === '/users' ? 'Quản lý Thành viên' : 'Hệ thống'}
+               location.pathname === '/users' ? 'Quản lý Thành viên' : 
+               location.pathname === '/projects' ? 'Danh sách Dự án WBS' : 
+               location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
+               location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
             </h2>
           </div>
           <div style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.9rem' }}>
