@@ -69,18 +69,28 @@ using (var scope = app.Services.CreateScope())
 
     if (!await context.Users.AnyAsync())
     {
-        context.Users.Add(new User
+        var adminUser = new User
         {
-            Id = Guid.NewGuid(),
             FullName = "Admin BPG",
             Email = "admin@bpg.com",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
-            Role = "Admin",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
             IsActive = true,
             CreatedAt = DateTime.UtcNow
-        });
-
+        };
+        context.Users.Add(adminUser);
         await context.SaveChangesAsync();
+
+        var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Admin");
+        if (adminRole != null)
+        {
+            context.UserRoles.Add(new UserRole
+            {
+                UserId = adminUser.UserId,
+                RoleId = adminRole.RoleId,
+                CreatedAt = DateTime.UtcNow
+            });
+            await context.SaveChangesAsync();
+        }
     }
 }
 

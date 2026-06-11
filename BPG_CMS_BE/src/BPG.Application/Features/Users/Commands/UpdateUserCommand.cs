@@ -4,7 +4,7 @@ using MediatR;
 namespace BPG.Application.Features.Users.Commands
 {
     public record UpdateUserCommand(
-        Guid Id,
+        long Id,
         string? Name,
         string? Email,
         string? Role

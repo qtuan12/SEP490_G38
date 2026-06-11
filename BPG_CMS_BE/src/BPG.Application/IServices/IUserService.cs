@@ -6,8 +6,8 @@ namespace BPG.Application.IServices
     {
         Task<List<UserDto>> GetUsersAsync();
         Task<UserDto> CreateUserAsync(string name, string email, string role);
-        Task<UserDto?> UpdateUserAsync(Guid id, string? name, string? email, string? role);
-        Task<bool> DeleteUserAsync(Guid id);
-        Task<UserDto?> ToggleUserStatusAsync(Guid id);
+        Task<UserDto?> UpdateUserAsync(long id, string? name, string? email, string? role);
+        Task<bool> DeleteUserAsync(long id);
+        Task<UserDto?> ToggleUserStatusAsync(long id);
     }
 }
