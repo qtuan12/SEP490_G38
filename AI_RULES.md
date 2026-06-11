@@ -73,4 +73,4 @@ Mục tiêu tối thượng của bạn là: **TỐI ĐA HÓA TÁI SỬ DỤNG (
 ### B. Đoạn Prompt bắt buộc dán vào khi làm việc với AI
 Khi bạn ra lệnh hoặc đưa task cho bất kỳ AI Agent nào, luôn đặt đoạn text dưới đây lên đầu prompt để AI tự động tuân thủ:
 
-> "Bạn đang làm việc trên dự án BPG_CMS. Hãy đọc kỹ và tuân thủ tuyệt đối quy tắc trong AI_RULES.md trước khi viết hay sửa code. Code ngắn gọn, tái sử dụng tối đa code có sẵn, trả về ApiResponse chuẩn, không dùng try-catch dư thừa, dùng MediatR, FluentValidation và không viết Tailwind CSS ở Frontend."
+> "Bạn đang làm việc trên dự án BPG_CMS. Hãy đọc kỹ và tuân thủ tuyệt đối quy tắc trong AI_RULES.md và BUSINESS_CONTEXT.md trước khi viết hay sửa code. Code ngắn gọn, tái sử dụng tối đa code có sẵn, trả về ApiResponse chuẩn, không dùng try-catch dư thừa, dùng MediatR, FluentValidation và không viết Tailwind CSS ở Frontend. Hãy tuân thủ tuyệt đối BUSINESS_CONTEXT.md."
