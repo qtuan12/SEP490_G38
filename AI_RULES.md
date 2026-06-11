@@ -64,7 +64,26 @@ Mục tiêu tối thượng của bạn là: **TỐI ĐA HÓA TÁI SỬ DỤNG (
 
 ---
 
-## 4. 🚀 QUY TẮC LÀM VIỆC VỚI GIT & CÁCH PROMPT AI
+## 4. TRÌNH TỰ CODE BẮT BUỘC (DEVELOPMENT WORKFLOW)
+Bạn (AI Agent) PHẢI thực hiện code tính năng mới theo đúng thứ tự sau (từ trong ra ngoài):
+1. **Domain & Infra:** Tạo Entity (kế thừa `BaseEntity`) -> Cấu hình mapping EF Core (`IEntityTypeConfiguration`) -> Báo user chạy Migration.
+2. **Application:** Tạo `DTO` -> Định nghĩa `Command/Query` (MediatR) -> Viết `Validator` (FluentValidation) -> Viết `Handler`. **Trong Handler, inject trực tiếp `AppDbContext`, TUYỆT ĐỐI KHÔNG dùng Repository.**
+3. **API Layer:** Tạo Request Payload -> Thêm Endpoint vào Controller (kế thừa `BaseApiController`). Trả về `ApiResponse<T>`.
+---
+## 5. ASYNC, CANCELLATION & PERFORMANCE
+- **Async 100%:** Mọi hàm I/O (database, http) phải là `async Task` và có hậu tố `Async`. Cấm dùng `.Result` hay `.Wait()`.
+- **CancellationToken:** Bắt buộc truyền `CancellationToken ct` xuyên suốt từ Controller -> Handler -> DbContext.
+- **Performance:** Khi đọc dữ liệu không cần sửa, bắt buộc dùng `.AsNoTracking()`. Tránh query N+1 bằng cách dùng `.Include()` hoặc `.Select()`.
+---
+## 6. DEFINITION OF DONE (TỰ KIỂM TRA CHÉO)
+Trước khi kết thúc câu trả lời, bạn (AI Agent) PHẢI tự động verify các tiêu chí dưới đây ngầm:
+- [ ] Controller đã sạch bóng logic nghiệp vụ chưa? (Chỉ gọi Mediator).
+- [ ] Handler đã dùng `AppDbContext` trực tiếp thay vì Repository chưa?
+- [ ] Mọi thay đổi về `CurrentInventory` đã đi kèm lệnh INSERT vào `InventoryTransactions` chưa?
+- [ ] Có lỡ dùng `try-catch` bọc logic nghiệp vụ không? (Bỏ ngay, để Middleware tự bắt).
+> **Nếu thiếu bất kỳ tiêu chí nào, hãy tự động sửa lại code trước khi hiển thị cho người dùng.**
+---
+## . 🚀 QUY TẮC LÀM VIỆC VỚI GIT & CÁCH PROMPT AI
 
 ### A. Git Workflow
 * Commit message tuân thủ chuẩn **Conventional Commits** (ví dụ: `feat(auth): add login form`, `fix(api): handle validation errors`).
@@ -74,3 +93,5 @@ Mục tiêu tối thượng của bạn là: **TỐI ĐA HÓA TÁI SỬ DỤNG (
 Khi bạn ra lệnh hoặc đưa task cho bất kỳ AI Agent nào, luôn đặt đoạn text dưới đây lên đầu prompt để AI tự động tuân thủ:
 
 > "Bạn đang làm việc trên dự án BPG_CMS. Hãy đọc kỹ và tuân thủ tuyệt đối quy tắc trong AI_RULES.md và BUSINESS_CONTEXT.md trước khi viết hay sửa code. Code ngắn gọn, tái sử dụng tối đa code có sẵn, trả về ApiResponse chuẩn, không dùng try-catch dư thừa, dùng MediatR, FluentValidation và không viết Tailwind CSS ở Frontend. Hãy tuân thủ tuyệt đối BUSINESS_CONTEXT.md."
+
+
