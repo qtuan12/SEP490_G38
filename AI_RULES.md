@@ -66,7 +66,7 @@ Mục tiêu tối thượng của bạn là: **TỐI ĐA HÓA TÁI SỬ DỤNG (
 ## 4. TRÌNH TỰ CODE BẮT BUỘC (DEVELOPMENT WORKFLOW)
 Bạn (AI Agent) PHẢI thực hiện code tính năng mới theo đúng thứ tự sau (từ trong ra ngoài):
 1. **Domain & Infra:** Tạo Entity (kế thừa `BaseEntity`) -> Cấu hình mapping EF Core (`IEntityTypeConfiguration`) -> Báo user chạy Migration.
-2. **Application:** Tạo `DTO` -> Định nghĩa `Command/Query` (MediatR) -> Viết `Validator` (FluentValidation) -> Viết `Handler`. **Trong Handler, inject trực tiếp `AppDbContext`, TUYỆT ĐỐI KHÔNG dùng Repository.**
+2. **Application:** Tạo `DTO` -> Định nghĩa `Command/Query` (MediatR) -> Viết `Validator` (FluentValidation) -> Viết `Handler`. **Trong Handler, bắt buộc inject IUnitOfWork để truy cập các repository và lưu thay đổi, TUYỆT ĐỐI KHÔNG inject trực tiếp AppDbContext.**
 3. **API Layer:** Tạo Request Payload -> Thêm Endpoint vào Controller (kế thừa `BaseApiController`). Trả về `ApiResponse<T>`.
 
 ---
@@ -75,13 +75,23 @@ Bạn (AI Agent) PHẢI thực hiện code tính năng mới theo đúng thứ t
 - **Async 100%:** Mọi hàm I/O (database, http) phải là `async Task` và có hậu tố `Async`. Cấm dùng `.Result` hay `.Wait()`.
 - **CancellationToken:** Bắt buộc truyền `CancellationToken ct` xuyên suốt từ Controller -> Handler -> DbContext.
 - **Performance:** Khi đọc dữ liệu không cần sửa, bắt buộc dùng `.AsNoTracking()`. Tránh query N+1 bằng cách dùng `.Include()` hoặc `.Select()`.
+- **Phân trang:** Đối với các query lấy danh sách, bắt buộc kế thừa `PaginationRequest` và dùng extension async `ToPagedListAsync(request, ct)`.
 
 ---
 
-## 6. DEFINITION OF DONE (TỰ KIỂM TRA CHÉO)
+## 6. EXCEPTION HANDLING & SECURITY RULES
+- **DomainExceptions:** Khi xảy ra lỗi nghiệp vụ, hãy throw các Exception cụ thể (`NotFoundException`, `DuplicateEntryException`, `UnauthorizedException`, `ForbiddenException`) kế thừa từ `DomainException` trực tiếp tại Handler.
+- **Không check null ở Controller**: Controller chỉ nhận command, gửi qua mediator và trả về `ApiOk`. Bỏ qua các khối `try-catch` hoặc kiểm tra kết quả null thủ công để trả về lỗi, hãy để `GlobalExceptionMiddleware` tự bắt exception và format thành `ApiResponse`.
+- **JWT Standard Claims:** Chỉ sử dụng standard claims từ `System.Security.Claims` (`ClaimTypes.NameIdentifier` cho UserId, `ClaimTypes.Name` cho FullName, `ClaimTypes.Email` cho Email, và `ClaimTypes.Role` cho Roles). `CurrentUserService` chỉ đọc thông tin qua các standard claims này để giữ kích thước token gọn gàng và chuẩn chỉ.
+
+---
+
+## 7. DEFINITION OF DONE (TỰ KIỂM TRA CHÉO)
 Trước khi kết thúc câu trả lời, bạn (AI Agent) PHẢI tự động verify các tiêu chí dưới đây ngầm:
-- [ ] Controller đã sạch bóng logic nghiệp vụ chưa? (Chỉ gọi Mediator).
-- [ ] Handler đã dùng `AppDbContext` trực tiếp thay vì Repository chưa?
+- [ ] Controller đã sạch bóng logic nghiệp vụ và check null chưa? (Chỉ gửi qua Mediator và return ApiOk).
+- [ ] Handler đã sử dụng `IUnitOfWork` (thông qua Repository<T>()) thay vì inject trực tiếp `AppDbContext` chưa?
+- [ ] Các lỗi nghiệp vụ/không tìm thấy thực thể đã được xử lý bằng cách ném các Domain Exception phù hợp chưa?
+- [ ] Token JWT phát hành và claims đọc từ `CurrentUserService` chỉ dùng standard `ClaimTypes` chưa?
 - [ ] Mọi thay đổi về `CurrentInventory` đã đi kèm lệnh INSERT vào `InventoryTransactions` chưa?
 - [ ] Có lỡ dùng `try-catch` bọc logic nghiệp vụ không? (Bỏ ngay, để Middleware tự bắt).
 > **Nếu thiếu bất kỳ tiêu chí nào, hãy tự động sửa lại code trước khi hiển thị cho người dùng.**

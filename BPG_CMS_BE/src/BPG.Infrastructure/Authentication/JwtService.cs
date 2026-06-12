@@ -1,7 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using BPG.Aapplication.IServices;
+using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -27,10 +27,10 @@ public class JwtService : IJwtService
         {
             new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
             new Claim(ClaimTypes.Name, user.FullName),
-            new Claim(ClaimTypes.Email, user.Email)
+            new Claim(ClaimTypes.Email, user.Email),
         };
 
-        // Add role claims from UserRoles navigation property
+        // Add role claims – chỉ dùng ClaimTypes.Role (standard), không duplicate
         foreach (var ur in user.UserRoles)
         {
             if (ur.Role != null)
@@ -44,7 +44,7 @@ public class JwtService : IJwtService
             issuer: jwtIssuer,
             audience: jwtAudience,
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(3),
+            expires: DateTime.UtcNow.AddHours(8),
             signingCredentials: credentials
         );
 

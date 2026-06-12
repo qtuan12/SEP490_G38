@@ -1,7 +1,8 @@
-using BPG.Aapplication.IServices;
+using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Infrastructure.Authentication;
 using BPG.Infrastructure.Data;
+using BPG.Infrastructure.Repositories;
 using BPG.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -27,11 +28,14 @@ public static class DependencyInjection
             );
         });
 
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IUserService, UserService>();
+        // Repositories & UnitOfWork
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Application Services
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
 
         return services;
     }
 }
+

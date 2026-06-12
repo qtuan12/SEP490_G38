@@ -36,77 +36,60 @@ public class ExceptionMiddleware
     {
         context.Response.ContentType = "application/json";
 
-        var (statusCode, errorCode, message, errors) = exception switch
+        HttpStatusCode statusCode;
+        ApiResponse response;
+
+        switch (exception)
         {
-            // ── Domain Exceptions ──────────────────────────────────────────────
-            NotFoundException ex =>
-                (HttpStatusCode.NotFound, ex.ErrorCode, ex.Message, (List<string>?)null),
+            case NotFoundException ex:
+                statusCode = HttpStatusCode.NotFound;
+                response = ApiResponse.FailureResult(ex.ErrorCode, ex.Message);
+                break;
 
-            UnauthorizedException ex =>
-                (HttpStatusCode.Unauthorized, ex.ErrorCode, ex.Message, null),
+            case UnauthorizedException ex:
+                statusCode = HttpStatusCode.Unauthorized;
+                response = ApiResponse.FailureResult(ex.ErrorCode, ex.Message);
+                break;
 
-            ForbiddenException ex =>
-                (HttpStatusCode.Forbidden, ex.ErrorCode, ex.Message, null),
+            case ForbiddenException ex:
+                statusCode = HttpStatusCode.Forbidden;
+                response = ApiResponse.FailureResult(ex.ErrorCode, ex.Message);
+                break;
 
-            InvalidStatusTransitionException ex =>
-                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
+            case DuplicateEntryException ex:
+                statusCode = HttpStatusCode.Conflict;
+                response = ApiResponse.FailureResult(ex.ErrorCode, ex.Message);
+                break;
 
-            AlreadyApprovedException ex =>
-                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
+            case InvalidFileException ex:
+                statusCode = HttpStatusCode.BadRequest;
+                response = ApiResponse.FailureResult(ex.ErrorCode, ex.Message);
+                break;
 
-            InsufficientStockException ex =>
-                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
+            // Mọi DomainException còn lại (business rule) → 422 Unprocessable Entity
+            case DomainException ex:
+                statusCode = HttpStatusCode.UnprocessableEntity;
+                response = ApiResponse.FailureResult(ex.ErrorCode, ex.Message);
+                break;
 
-            ExceedsBOQException ex =>
-                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
+            case FluentValidation.ValidationException ex:
+                statusCode = HttpStatusCode.BadRequest;
+                var validationErrors = ex.Errors.Select(e => e.ErrorMessage).Distinct().ToList();
+                response = ApiResponse.FailureResult(ErrorCodes.ValidationFailed, ResponseMessages.ValidationError, validationErrors);
+                break;
 
-            ExceedsDirectPurchaseLimitException ex =>
-                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
-
-            StockFrozenException ex =>
-                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
-
-            DuplicateEntryException ex =>
-                (HttpStatusCode.Conflict, ex.ErrorCode, ex.Message, null),
-
-            InvalidFileException ex =>
-                (HttpStatusCode.BadRequest, ex.ErrorCode, ex.Message, null),
-
-            // Catch-all for any remaining DomainException subclass
-            DomainException ex =>
-                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
-
-            // ── FluentValidation ───────────────────────────────────────────────
-            FluentValidation.ValidationException ex => (
-                HttpStatusCode.BadRequest,
-                ErrorCodes.ValidationFailed,
-                ResponseMessages.ValidationError,
-                ex.Errors.Select(e => e.ErrorMessage).Distinct().ToList()),
-
-            // ── Fallback ───────────────────────────────────────────────────────
-            _ => (
-                HttpStatusCode.InternalServerError,
-                ErrorCodes.DatabaseError,
-                _env.IsDevelopment() ? exception.Message : ResponseMessages.InternalError,
-                _env.IsDevelopment() ? new List<string> { exception.StackTrace ?? "" } : null)
-        };
+            default:
+                statusCode = HttpStatusCode.InternalServerError;
+                var msg = _env.IsDevelopment() ? exception.Message : ResponseMessages.InternalError;
+                var devErrors = _env.IsDevelopment()
+                    ? new List<string> { exception.StackTrace ?? "" }
+                    : null;
+                response = ApiResponse.FailureResult(ErrorCodes.DatabaseError, msg, devErrors);
+                break;
+        }
 
         context.Response.StatusCode = (int)statusCode;
-
-        ApiResponse response = errors is { Count: > 0 }
-            ? ApiResponse.FailureResult(message, errors)
-            : ApiResponse.FailureResult(message);
-
-        // Đính kèm errorCode vào response (nếu ApiResponse hỗ trợ)
-        var payload = new
-        {
-            success = false,
-            errorCode,
-            message,
-            errors
-        };
-
         var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-        await context.Response.WriteAsync(JsonSerializer.Serialize(payload, options));
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response, options));
     }
 }

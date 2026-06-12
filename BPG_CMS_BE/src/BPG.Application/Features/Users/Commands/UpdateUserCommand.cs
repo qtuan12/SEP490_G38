@@ -8,5 +8,5 @@ namespace BPG.Application.Features.Users.Commands
         string? Name,
         string? Email,
         string? Role
-    ) : IRequest<UserDto?>;
+    ) : IRequest<UserDto>;
 }
