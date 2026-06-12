@@ -35,7 +35,7 @@ const getAvatarColor = (userId: string) => {
 };
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
-  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, materialRequests, isTPKTOrPL, isPL,
+  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, materialRequests, isTPKTOrPL,
   onAssignOpen, onLogOpen, onCreateMatReqOpen, onObsolete
 }) => {
   const navigate = useNavigate();

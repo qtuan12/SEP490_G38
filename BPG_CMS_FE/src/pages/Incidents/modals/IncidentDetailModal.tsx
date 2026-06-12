@@ -2,7 +2,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/Modal';
 import { projectService } from '../../../services/projectService';
 import type {IncidentReport, WBSPhase} from '../../../types/common';
@@ -38,8 +38,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   onResolveClick,
   onSuccess,
   onError,
-  onIncidentUpdated,
-  projectId
+  onIncidentUpdated
 }) => {
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<CommentFormData>({
     resolver: zodResolver(commentSchema)

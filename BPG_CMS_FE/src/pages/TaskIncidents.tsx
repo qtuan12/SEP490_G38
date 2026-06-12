@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 import type {IncidentReport, WBSTask, WBSPhase, ProjectMember} from '../types/common';
-import { Modal } from '../components/Modal';
 import { ReportIncidentModal } from './Incidents/modals/ReportIncidentModal';
 import { ResolveIncidentModal } from './Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from './Incidents/modals/IncidentDetailModal';
@@ -11,10 +10,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Plus,
-  ArrowRight,
-  Info,
-  AlertCircle
+  Plus
 } from 'lucide-react';
 
 export const TaskIncidents: React.FC = () => {
@@ -46,19 +42,16 @@ export const TaskIncidents: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const incList = await projectService.getIncidents(projectId);
-      const taskList = await projectService.getTasks(projectId);
-      const phaseList = await projectService.getPhases(projectId);
-      const memberList = await projectService.getMembers(projectId);
+      const incList = await projectService.getIncidents(projectId!);
+      const taskList = await projectService.getTasks(projectId!);
+      const phaseList = await projectService.getPhases(projectId!);
+      const memberList = await projectService.getMembers(projectId!);
 
       setIncidents(incList.filter(i => i.taskId === taskId));
       setTasks(taskList.filter(t => t.status !== 'obsolete'));
       setPhases(phaseList);
       setMembers(memberList);
 
-      if (memberList.length > 0) {
-        setReworkAssigneeId(memberList[0].userId);
-      }
     } catch (err: any) {
       console.error(err);
       setError('Lỗi khi tải dữ liệu sự cố.');
@@ -108,7 +101,7 @@ export const TaskIncidents: React.FC = () => {
 
   // Check deadline reserves
   const selectedTask = selectedIncident ? tasks.find(t => t.id === selectedIncident.taskId) : null;
-  const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) : null;
+  const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) || null : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

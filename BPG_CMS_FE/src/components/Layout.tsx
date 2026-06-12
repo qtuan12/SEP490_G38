@@ -7,7 +7,7 @@ import {
   LogOut, 
   Hammer, 
   Boxes, 
-  Menu, ChevronLeft, ChevronRight, 
+  Menu, 
   FileText,
   User
 } from 'lucide-react';
