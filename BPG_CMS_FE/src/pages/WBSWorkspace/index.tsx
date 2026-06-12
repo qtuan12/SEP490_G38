@@ -1,13 +1,14 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { projectService } from '../services/projectService';
-import type { WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest } from '../types/common';
-import { WBSContext } from './WBSWorkspace/WBSContext';
-import { WBSTree } from './WBSWorkspace/WBSTree';
-import { WBSModalsContainer } from './WBSWorkspace/WBSModalsContainer';
+import { useAuth } from '../../context/AuthContext';
+import { projectService } from '../../services/projectService';
+import type { WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest } from '../../types/common';
+import { WBSContext } from './components/WBSContext';
+import { WBSTree } from './components/WBSTree';
+import { WBSModalsContainer } from './components/WBSModalsContainer';
 import { AlertTriangle, FileText, BarChart2 } from 'lucide-react';
+import { Button } from '../../components/ui';
 
 
 interface WBSWorkspaceProps {
@@ -280,93 +281,66 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
   return (
     <WBSContext.Provider value={contextValue}>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="flex flex-col gap-5">
 
       {/* Alerts */}
       {success && (
-        <div className="animate-fade-in" style={{ padding: '10px 14px', backgroundColor: 'hsl(var(--success-glow))', border: '1px solid hsl(var(--success) / 0.2)', borderRadius: 'var(--radius-sm)', color: 'hsl(142 70% 30%)', fontSize: '0.85rem' }}>
+        <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
           {success}
         </div>
       )}
       {error && (
-        <div className="animate-fade-in" style={{ padding: '10px 14px', backgroundColor: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.2)', borderRadius: 'var(--radius-sm)', color: 'hsl(346 84% 35%)', fontSize: '0.85rem' }}>
+        <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
           {error}
         </div>
       )}
 
       {/* Draft Status Banner */}
       {project?.status === 'draft' && (
-        <div className="animate-fade-in" style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 20px', backgroundColor: '#fef3c7', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)', color: '#92400e'
-        }}>
+        <div className="animate-fade-in flex items-center justify-between py-3.5 px-5 bg-[#fef3c7] border border-[#fde68a] rounded-sm text-[#92400e]">
           <div>
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h4 className="m-0 mb-1 text-base flex items-center gap-2">
               <AlertTriangle size={18} />
               Dự án đang ở trạng thái BẢN NHÁP (DRAFT)
             </h4>
-            <p style={{ margin: 0, fontSize: '0.85rem' }}>
+            <p className="m-0 text-[0.85rem]">
               Hãy thêm thành viên, tạo cấu trúc WBS và đảm bảo Hạn chót công việc phải lớn hơn hoặc bằng Ngày bắt đầu dự án ({project.startDate}), sau đó bấm Kích hoạt để bắt đầu thi công.
             </p>
           </div>
           {isTPKTOrPL && (
-            <button
+            <Button
               onClick={handleActivateProject}
-              className="btn btn-primary animate-pulse"
-              style={{ fontWeight: 600, padding: '8px 20px' }}
+              variant="primary"
+              className="animate-pulse font-semibold py-2 px-5 ml-4 shrink-0"
             >
               🚀 Kích hoạt Dự án
-            </button>
+            </Button>
           )}
         </div>
       )}
 
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 600, margin: 0 }}>Cơ cấu phân rã công việc (WBS)</h3>
-          <p style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', marginTop: '4px' }}>
-            Số thứ tự được hiển thị trước tên · Nhấn ▲▼ để sắp xếp lại · Click <strong>⋮</strong> để đổi tên / xóa
+          <h3 className="text-[1.15rem] font-semibold m-0">Cơ cấu phân rã công việc (WBS)</h3>
+          <p className="text-[0.8rem] text-[hsl(var(--text-muted))] mt-1 mb-0">
+            Số thứ tự được hiển thị trước tên · Nhấn ▲▼ để sắp xếp lại · Click <strong className="font-bold">⋮</strong> để đổi tên / xóa
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => navigate(`/projects/${projectId}/drawing`)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '7px',
-              padding: '8px 16px', flexShrink: 0,
-              border: project?.drawingUrl ? '1px solid hsl(var(--border))' : '1px dashed #d97706',
-              borderRadius: 'var(--radius-sm)',
-              background: project?.drawingUrl ? 'hsl(var(--bg-card))' : '#fef3c7',
-              color: project?.drawingUrl ? 'hsl(var(--text-primary))' : '#b45309',
-              cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={e => {
-              const b = e.currentTarget;
-              b.style.background = project?.drawingUrl ? 'hsl(var(--border-light))' : '#fde68a';
-            }}
-            onMouseLeave={e => {
-              const b = e.currentTarget;
-              b.style.background = project?.drawingUrl ? 'hsl(var(--bg-card))' : '#fef3c7';
-            }}
+            className={`flex items-center gap-2 py-2 px-4 shrink-0 rounded-sm text-[0.85rem] font-semibold transition-all duration-150 cursor-pointer ${
+              project?.drawingUrl 
+                ? 'border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--border-light))]' 
+                : 'border border-dashed border-[#d97706] bg-[#fef3c7] text-[#b45309] hover:bg-[#fde68a]'
+            }`}
           >
             <FileText size={15} />
             <span>Xem Bản vẽ {project?.drawingUrl ? '' : '(Chưa có)'}</span>
           </button>
           <button
             onClick={() => navigate(`/projects/${projectId}/gantt`)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '7px',
-              padding: '8px 16px', flexShrink: 0,
-              border: '1px solid hsl(var(--primary) / 0.4)',
-              borderRadius: 'var(--radius-sm)',
-              background: 'hsl(var(--primary-glow))',
-              color: 'hsl(var(--primary))',
-              cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={e => { const b = e.currentTarget; b.style.background = 'hsl(var(--primary))'; b.style.color = '#fff'; }}
-            onMouseLeave={e => { const b = e.currentTarget; b.style.background = 'hsl(var(--primary-glow))'; b.style.color = 'hsl(var(--primary))'; }}
+            className="flex items-center gap-2 py-2 px-4 shrink-0 border border-[hsl(var(--primary)/0.4)] rounded-sm bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] cursor-pointer text-[0.85rem] font-semibold transition-all duration-150 hover:bg-[hsl(var(--primary))] hover:text-white"
           >
             <BarChart2 size={15} />
             <span>Xem Gantt Chart</span>
@@ -385,4 +359,3 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     </WBSContext.Provider>
   );
 };
-

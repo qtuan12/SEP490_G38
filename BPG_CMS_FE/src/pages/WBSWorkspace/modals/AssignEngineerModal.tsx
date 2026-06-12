@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { projectService } from '../../../../src/services/projectService';
-import { Modal } from '../../../../src/components/Modal';
+import { Modal } from '../../../../src/components/ui/Modal';
 
 interface AssignEngineerModalProps {
   isOpen: boolean;

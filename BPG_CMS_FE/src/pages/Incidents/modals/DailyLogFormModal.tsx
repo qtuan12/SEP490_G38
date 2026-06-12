@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { UploadCloud, X, AlertCircle, Loader2 } from 'lucide-react';
 import {projectService} from '../../../../src/services/projectService';
 import type {WBSTask} from '../../../types/common';
-import { Modal } from '../../../../src/components/Modal';
+import { Modal } from '../../../../src/components/ui/Modal';
 import { useAuth } from '../../../../src/context/AuthContext';
 
 const dailyLogSchema = z.object({

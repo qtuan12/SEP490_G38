@@ -60,11 +60,11 @@ export const apiClient = {
   },
 
   get<T>(endpoint: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'GET' });
+    return apiClient.request<T>(endpoint, { ...options, method: 'GET' });
   },
 
   post<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
-    return this.request<T>(endpoint, {
+    return apiClient.request<T>(endpoint, {
       ...options,
       method: 'POST',
       body: JSON.stringify(body),
@@ -72,7 +72,7 @@ export const apiClient = {
   },
 
   put<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
-    return this.request<T>(endpoint, {
+    return apiClient.request<T>(endpoint, {
       ...options,
       method: 'PUT',
       body: JSON.stringify(body),
@@ -80,6 +80,6 @@ export const apiClient = {
   },
 
   delete<T>(endpoint: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'DELETE' });
+    return apiClient.request<T>(endpoint, { ...options, method: 'DELETE' });
   },
 };

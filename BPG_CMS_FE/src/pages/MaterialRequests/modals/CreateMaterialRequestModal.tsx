@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import {projectService} from '../../../../src/services/projectService';
 import type {WBSTask, WBSPhase, MaterialRequest} from '../../../types/common';
-import { Modal } from '../../../../src/components/Modal';
+import { Modal } from '../../../../src/components/ui/Modal';
 
 const createMaterialRequestSchema = z.object({
   type: z.enum(['normal', 'emergency']),

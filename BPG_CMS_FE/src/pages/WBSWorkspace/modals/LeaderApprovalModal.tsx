@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import {projectService} from '../../../../src/services/projectService';
 import type {WBSPhase, MaterialRequest} from '../../../types/common';
-import { Modal } from '../../../../src/components/Modal';
+import { Modal } from '../../../../src/components/ui/Modal';
 
 interface LeaderApprovalModalProps {
   isOpen: boolean;

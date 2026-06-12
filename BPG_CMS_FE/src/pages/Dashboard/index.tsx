@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { 
   Shield, 
   Layers, 
@@ -8,13 +8,13 @@ import {
   Users, 
   Boxes
 } from 'lucide-react';
-import { userService } from '../services/userService';
-import { projectService } from '../services/projectService';
-import type {MaterialRequest} from '../types/common';
-import { MaterialCompensationTable } from './Dashboard/components/MaterialCompensationTable';
-import { RecentActivities } from './Dashboard/components/RecentActivities';
-import { QuickActionsPanel } from './Dashboard/components/QuickActionsPanel';
-import { DashboardStats } from './Dashboard/components/DashboardStats';
+import { userService } from '../../services/userService';
+import { projectService } from '../../services/projectService';
+import type {MaterialRequest} from '../../types/common';
+import { MaterialCompensationTable } from '../Dashboard/components/MaterialCompensationTable';
+import { RecentActivities } from '../Dashboard/components/RecentActivities';
+import { QuickActionsPanel } from '../Dashboard/components/QuickActionsPanel';
+import { DashboardStats } from '../Dashboard/components/DashboardStats';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -157,67 +157,36 @@ export const Dashboard: React.FC = () => {
     { id: 4, user: 'Phạm Huy Hoàng', role: 'director', action: 'Duyệt yêu cầu vật tư vượt định mức', time: '4 giờ trước', detail: 'Dự án Cải tạo văn phòng FPT - Xi măng vượt định mức 15% (đã có giải trình).' },
   ];
 
-
-
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="flex flex-col gap-8 animate-fade-in">
       {/* Welcome Banner */}
-      <div className="glass-panel" style={{
-        padding: '32px',
-        background: 'linear-gradient(135deg, hsl(var(--bg-card-glass)) 0%, hsl(var(--primary-glow)) 100%)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '20px'
-      }}>
+      <div className="glass-panel p-8 bg-[linear-gradient(135deg,_hsl(var(--bg-card-glass))_0%,_hsl(var(--primary-glow))_100%)] flex justify-between items-center flex-wrap gap-5">
         <div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '8px' }}>
-            Chào mừng trở lại, <span style={{ color: 'hsl(var(--primary-hover))' }}>{user?.name}</span>!
+          <h2 className="text-[1.75rem] font-bold mb-2">
+            Chào mừng trở lại, <span className="text-[hsl(var(--primary-hover))]">{user?.name}</span>!
           </h2>
-          <p style={{ color: 'hsl(var(--text-secondary))', maxWidth: '600px', lineHeight: 1.5 }}>
-            Bạn đang truy cập hệ thống với vai trò <strong style={{ color: 'hsl(var(--text-primary))' }}>{user?.role.toUpperCase()}</strong>. 
+          <p className="text-[hsl(var(--text-secondary))] max-w-[600px] leading-relaxed">
+            Bạn đang truy cập hệ thống với vai trò <strong className="text-[hsl(var(--text-primary))]">{user?.role.toUpperCase()}</strong>. 
             Mọi hành động kiểm soát tiến độ & vật tư đều được lưu nhật ký hệ thống tự động.
           </p>
         </div>
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 16px',
-          backgroundColor: 'hsl(var(--bg-main))',
-          borderRadius: 'var(--radius-sm)',
-          border: '1px solid hsl(var(--border))',
-          fontSize: '0.85rem'
-        }}>
-          <Shield size={16} style={{ color: 'hsl(var(--success))' }} />
+        <div className="inline-flex items-center gap-2 py-2 px-4 bg-[hsl(var(--bg-main))] rounded-sm border border-[hsl(var(--border))] text-[0.85rem]">
+          <Shield size={16} className="text-[hsl(var(--success))]" />
           <span>Hệ thống bảo mật & ghi log hoạt động (Active)</span>
         </div>
       </div>
 
       {/* Critical Alerts for Directors/TPKTs */}
       {(user?.role === 'admin' || user?.role === 'technicalmanager' || user?.role === 'director') && criticalAlerts.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="flex flex-col gap-3">
           {criticalAlerts.map((alert, idx) => (
             <div
               key={idx}
-              className="animate-fade-in"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '16px 20px',
-                backgroundColor: 'hsl(var(--danger) / 0.1)',
-                border: '2px solid hsl(var(--danger) / 0.4)',
-                borderRadius: 'var(--radius-md)',
-                color: 'hsl(var(--danger))',
-                fontSize: '0.9rem',
-                fontWeight: 600
-              }}
+              className="animate-fade-in flex items-center gap-3 py-4 px-5 bg-[hsl(var(--danger)/0.1)] border-2 border-[hsl(var(--danger)/0.4)] rounded-md text-[hsl(var(--danger))] text-[0.9rem] font-semibold"
             >
-              <AlertTriangle size={24} style={{ flexShrink: 0 }} />
+              <AlertTriangle size={24} className="shrink-0" />
               <div>
-                <strong style={{ fontSize: '0.95rem', display: 'block', marginBottom: '2px' }}>
+                <strong className="text-[0.95rem] block mb-0.5">
                   CẢNH BÁO KHẨN CẤP: VỠ TIẾN ĐỘ DỰ PHÒNG (REWORK BREACH)!
                 </strong>
                 <span>{alert} Vỡ quỹ thời gian dự phòng! Hãy thương lượng lại hợp đồng hoặc huy động tài lực.</span>
@@ -231,12 +200,7 @@ export const Dashboard: React.FC = () => {
       <DashboardStats stats={stats} />
 
       {/* Main Content Sections */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '2fr 1fr',
-        gap: '24px',
-        alignItems: 'flex-start'
-      }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-start">
         {/* Recent Activities / site diary */}
         <RecentActivities activities={recentActivities} />
 
@@ -258,5 +222,3 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
-
-

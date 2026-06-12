@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import {projectService} from '../../../../src/services/projectService';
 import type {WBSPhase} from '../../../types/common';
-import { Modal } from '../../../../src/components/Modal';
+import { Modal } from '../../../../src/components/ui/Modal';
 
 const phaseBOQSchema = z.object({
   materials: z.array(

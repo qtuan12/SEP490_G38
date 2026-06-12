@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import {projectService} from '../../../../src/services/projectService';
 import type {WBSPhase} from '../../../types/common';
-import { Modal } from '../../../../src/components/Modal';
+import { Modal } from '../../../../src/components/ui/Modal';
 
 const editPhaseSchema = z.object({
   name: z.string().min(1, 'Vui lòng nhập tên Phase.'),

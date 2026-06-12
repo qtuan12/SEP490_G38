@@ -6,7 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { projectService } from '../../../../src/services/projectService';
-import { Modal } from '../../../../src/components/Modal';
+import { Modal } from '../../../../src/components/ui/Modal';
 
 const createPhaseSchema = z.object({
   name: z.string().min(1, 'Vui lòng nhập tên Phase.'),

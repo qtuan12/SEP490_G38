@@ -1,21 +1,22 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { projectService } from '../services/projectService';
-import type {WBSPhase, WBSTask, Project} from '../types/common';
+import { useAuth } from '../../context/AuthContext';
+import { projectService } from '../../services/projectService';
+import type {WBSPhase, WBSTask, Project} from '../../types/common';
 import { 
   ArrowLeft, 
   AlertTriangle, 
   Download
 } from 'lucide-react';
-import type {AcceptanceRecord} from '../types/common';
-import { AcceptanceDocument } from './PhaseAcceptance/components/AcceptanceDocument';
-import type { AcceptanceData } from '../types/common';
-import { AcceptanceForm } from './PhaseAcceptance/components/AcceptanceForm';
-import { AcceptanceHistoryModal } from './PhaseAcceptance/components/AcceptanceHistoryModal';
-import { AcceptanceTasksChecklist } from './PhaseAcceptance/components/AcceptanceTasksChecklist';
-import { AcceptanceHistoryList } from './PhaseAcceptance/components/AcceptanceHistoryList';
-import { exportAcceptancePDF } from '../utils/exportAcceptancePDF';
+import type {AcceptanceRecord} from '../../types/common';
+import { AcceptanceDocument } from '../PhaseAcceptance/components/AcceptanceDocument';
+import type { AcceptanceData } from '../../types/common';
+import { AcceptanceForm } from '../PhaseAcceptance/components/AcceptanceForm';
+import { AcceptanceHistoryModal } from '../PhaseAcceptance/components/AcceptanceHistoryModal';
+import { AcceptanceTasksChecklist } from '../PhaseAcceptance/components/AcceptanceTasksChecklist';
+import { AcceptanceHistoryList } from '../PhaseAcceptance/components/AcceptanceHistoryList';
+import { exportAcceptancePDF } from '../../utils/exportAcceptancePDF';
+import { Button } from '../../components/ui';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -136,19 +137,19 @@ export const PhaseAcceptance: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
-        <span>Đang tải thông tin nghiệm thu giai đoạn...</span>
+      <div className="flex justify-center items-center h-[300px]">
+        <span className="text-[hsl(var(--text-muted))]">Đang tải thông tin nghiệm thu giai đoạn...</span>
       </div>
     );
   }
 
   if (!project || !phase) {
     return (
-      <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
-        <h3>Không tìm thấy giai đoạn hoặc dự án</h3>
-        <button onClick={() => navigate('/projects')} className="btn btn-secondary" style={{ marginTop: '16px' }}>
+      <div className="card text-center p-10">
+        <h3 className="text-lg font-semibold m-0">Không tìm thấy giai đoạn hoặc dự án</h3>
+        <Button variant="secondary" onClick={() => navigate('/projects')} className="mt-4">
           Quay lại danh sách dự án
-        </button>
+        </Button>
       </div>
     );
   }
@@ -156,59 +157,32 @@ export const PhaseAcceptance: React.FC = () => {
   const allCompleted = tasks.length > 0 && tasks.every(t => t.progress === 100);
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '780px', margin: '0 auto' }}>
+    <div className="flex flex-col gap-6 max-w-[780px] mx-auto animate-fade-in">
       
       {/* Navigation and Title */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div className="flex flex-col gap-3">
         <button 
           onClick={() => navigate(`/projects/${projectId}`)} 
-          style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '6px', 
-            background: 'none', 
-            border: 'none', 
-            color: 'hsl(var(--text-secondary))', 
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            fontWeight: 500,
-            width: 'fit-content'
-          }}
+          className="inline-flex items-center gap-1.5 bg-transparent border-none text-[hsl(var(--text-secondary))] cursor-pointer text-[0.9rem] font-medium w-fit hover:text-[hsl(var(--primary))] transition-colors p-0"
         >
           <ArrowLeft size={16} />
           <span>Quay lại Không gian dự án</span>
         </button>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Nghiệm thu Giai đoạn</h1>
-        <p style={{ fontSize: '0.875rem', color: 'hsl(var(--text-secondary))' }}>
-          Dự án: <strong>{project.name}</strong> &rarr; Giai đoạn: <strong>{phase.name}</strong>
+        <h1 className="text-[1.75rem] font-extrabold m-0">Nghiệm thu Giai đoạn</h1>
+        <p className="text-[0.875rem] text-[hsl(var(--text-secondary))] m-0">
+          Dự án: <strong className="font-semibold">{project.name}</strong> &rarr; Giai đoạn: <strong className="font-semibold">{phase.name}</strong>
         </p>
       </div>
 
       {/* Messages */}
       {success && (
-        <div className="animate-fade-in" style={{
-          padding: '12px 18px',
-          backgroundColor: 'hsl(var(--success-glow))',
-          border: '1px solid hsl(var(--success) / 0.2)',
-          borderRadius: 'var(--radius-sm)',
-          color: 'hsl(142 70% 30%)',
-          fontSize: '0.9rem',
-          fontWeight: 500
-        }}>
+        <div className="animate-fade-in py-3 px-4.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.9rem] font-medium">
           {success}
         </div>
       )}
 
       {error && (
-        <div className="animate-fade-in" style={{
-          padding: '12px 18px',
-          backgroundColor: 'hsl(var(--danger-glow))',
-          border: '1px solid hsl(var(--danger) / 0.2)',
-          borderRadius: 'var(--radius-sm)',
-          color: 'hsl(346 84% 35%)',
-          fontSize: '0.9rem',
-          fontWeight: 500
-        }}>
+        <div className="animate-fade-in py-3 px-4.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.9rem] font-medium">
           {error}
         </div>
       )}
@@ -221,7 +195,7 @@ export const PhaseAcceptance: React.FC = () => {
 
       {/* Evaluation Form */}
       {isTPKT ? (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="card flex flex-col gap-5 bg-[hsl(var(--bg-card))]">
           
           {isSubmitted && documentData ? (
             <AcceptanceDocument project={project} phase={phase} data={documentData} />
@@ -237,48 +211,32 @@ export const PhaseAcceptance: React.FC = () => {
           )}
 
           {/* Action buttons & Revocation */}
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
+          <div className="flex gap-3 justify-end mt-2.5">
             {isSubmitted && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px', width: '100%' }}>
-                <button
+              <div className="flex flex-col items-end gap-3 w-full">
+                <Button
                   type="button"
                   onClick={handleDownloadPDF}
-                  className="btn btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-hover))' }}
+                  variant="secondary"
+                  className="flex items-center gap-2 border-[hsl(var(--primary))] text-[hsl(var(--primary-hover))] bg-transparent hover:bg-[hsl(var(--primary-glow))]"
                 >
                   <Download size={16} />
                   <span>Tải File Báo Cáo Nghiệm Thu</span>
-                </button>
+                </Button>
 
                 {!isRevoking ? (
                   <button 
                     type="button" 
                     onClick={() => setIsRevoking(true)}
-                    className="btn"
-                    style={{ 
-                      fontSize: '0.85rem', 
-                      backgroundColor: 'hsl(var(--bg-main))', 
-                      color: 'hsl(var(--danger))', 
-                      border: '1px solid hsl(var(--danger) / 0.3)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
+                    className="flex items-center gap-1.5 py-2 px-4 rounded-sm font-semibold transition-all duration-200 cursor-pointer text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--danger))] border border-[hsl(var(--danger)/0.3)] hover:bg-[hsl(var(--danger-glow))] hover:border-[hsl(var(--danger))]"
                   >
                     <AlertTriangle size={15} />
                     Yêu cầu Hủy Nghiệm Thu
                   </button>
                 ) : (
-                  <div style={{ 
-                    width: '100%', 
-                    marginTop: '12px', 
-                    padding: '16px', 
-                    backgroundColor: 'hsl(var(--danger-glow))', 
-                    border: '1px solid hsl(var(--danger) / 0.3)',
-                    borderRadius: 'var(--radius-sm)'
-                  }}>
-                    <label htmlFor="revoke-reason" style={{ color: 'hsl(var(--danger))', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
-                      Lý do hủy nghiệm thu (Tối thiểu 20 ký tự) <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                  <div className="w-full mt-3 p-4 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm">
+                    <label htmlFor="revoke-reason" className="text-[hsl(var(--danger))] font-semibold block mb-2">
+                      Lý do hủy nghiệm thu (Tối thiểu 20 ký tự) <span className="text-[hsl(var(--danger))]">*</span>
                     </label>
                     <textarea
                       id="revoke-reason"
@@ -286,15 +244,20 @@ export const PhaseAcceptance: React.FC = () => {
                       value={revokeReason}
                       onChange={(e) => setRevokeReason(e.target.value)}
                       rows={3}
-                      style={{ width: '100%', marginBottom: '12px', padding: '10px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.3)' }}
+                      className="w-full mb-3 p-2.5 rounded-sm border border-[hsl(var(--danger)/0.3)] bg-[hsl(var(--bg-main))] text-[0.9rem] font-medium resize-y focus:outline-none focus:border-[hsl(var(--danger))]"
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'hsl(var(--danger))', marginBottom: '12px' }}>
+                    <div className="flex justify-between text-[0.8rem] text-[hsl(var(--danger))] mb-3">
                       <span>Lưu ý: Chỉ có thể hủy nghiệm thu trong vòng 7 ngày kể từ lúc đóng băng.</span>
-                      <span>{revokeReason.trim().length} / 20</span>
+                      <span className="font-semibold">{revokeReason.trim().length} / 20</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                      <button type="button" className="btn btn-secondary" onClick={() => setIsRevoking(false)}>Hủy</button>
-                      <button type="button" className="btn" style={{ backgroundColor: 'hsl(var(--danger))', color: 'white' }} onClick={handleRevoke} disabled={revokeReason.trim().length < 20}>
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="secondary" onClick={() => setIsRevoking(false)}>Hủy</Button>
+                      <button 
+                        type="button" 
+                        className="py-2 px-4 rounded-sm font-semibold transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-[hsl(var(--danger))] text-white border-none hover:bg-[#b91c1c]" 
+                        onClick={handleRevoke} 
+                        disabled={revokeReason.trim().length < 20}
+                      >
                         Xác nhận Hủy Nghiệm Thu
                       </button>
                     </div>
@@ -305,8 +268,8 @@ export const PhaseAcceptance: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="card" style={{ textAlign: 'center', color: 'hsl(var(--text-muted))' }}>
-          Bạn cần đăng nhập với vai trò <strong>Trưởng phòng Kỹ Thuật (TPKT)</strong> để tiến hành nghiệm thu giai đoạn này.
+        <div className="card text-center text-[hsl(var(--text-muted))] bg-[hsl(var(--bg-card))]">
+          Bạn cần đăng nhập với vai trò <strong className="font-semibold text-[hsl(var(--text-primary))]">Trưởng phòng Kỹ Thuật (TPKT)</strong> để tiến hành nghiệm thu giai đoạn này.
         </div>
       )}
 
@@ -318,4 +281,3 @@ export const PhaseAcceptance: React.FC = () => {
     </div>
   );
 };
-

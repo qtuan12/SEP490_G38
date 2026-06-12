@@ -4,7 +4,7 @@ import { projectService } from '../services/projectService';
 import type {ProjectMember} from '../types/common';
 import { userService } from '../services/userService';
 import type { UserProfile } from '../services/authService';
-import { Modal } from './Modal';
+import { Modal } from './ui/Modal';
 import { Crown, UserPlus, UserX, Loader2, UserCheck } from 'lucide-react';
 
 interface ProjectMembersProps {

@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Modal } from '../../../components/Modal';
+import { Modal } from '../../../components/ui/Modal';
 import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Box, History, Package, FileText, ArrowLeft } from 'lucide-react';
 import type {WBSTask, WBSPhase, Project, MaterialRequest} from '../../../types/common';
 

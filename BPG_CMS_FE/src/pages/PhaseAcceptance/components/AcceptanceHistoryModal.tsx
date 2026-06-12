@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal } from '../../../components/Modal';
+import { Modal } from '../../../components/ui/Modal';
 import type {AcceptanceRecord} from '../../../types/common';
 
 interface AcceptanceHistoryModalProps {
