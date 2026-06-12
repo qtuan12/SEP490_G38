@@ -177,8 +177,8 @@ All contributors must adhere to the following Git flow guidelines:
 1. **Branch Nomenclature:**
    * `main` — Production-ready release code.
    * `develop` — Shared development integration branch.
-   * `feature/name-of-feature` — Isolated branches for new features.
-   * `fix/name-of-bug` — Isolated bug fix branches.
+   * `feature/name-of-member/name-of-feature` — Isolated branches for new features.
+   * `fix/name-of-member/name-of-bug` — Isolated bug fix branches.
 2. **Branch Merging:**
    * Create a Pull Request (PR) targeting `develop`.
    * PRs must pass the automated GitHub Actions CI Build & Test workflow.
