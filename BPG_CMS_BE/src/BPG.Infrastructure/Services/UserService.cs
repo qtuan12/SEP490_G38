@@ -30,7 +30,7 @@ public class UserService : IUserService
 
         var roleName = NormalizeRole(role);
         var roleEntity = await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == roleName)
-            ?? await _context.Roles.FirstAsync();
+            ?? throw new KeyNotFoundException($"Role '{role}' không tồn tại trong hệ thống.");
 
         var newUser = new User
         {

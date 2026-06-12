@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Gantt from 'frappe-gantt';
-import '../styles/frappe-gantt.css';
+
 import { projectService } from '../services/projectService';
-import type { WBSPhase, WBSTask, Project } from '../services/projectService';
+import type {WBSPhase, WBSTask, Project} from '../types/common';
 import {
   ArrowLeft,
   Calendar,
@@ -217,7 +217,7 @@ export const GanttChart: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '12px', color: 'hsl(var(--text-muted))' }}>
+      <div className="flex items-center justify-center min-h-[60vh] gap-3 text-[hsl(var(--text-muted))]">
         <Loader2 size={24} className="animate-spin" />
         <span>Đang tải Gantt Chart...</span>
       </div>
@@ -226,41 +226,29 @@ export const GanttChart: React.FC = () => {
 
   if (error) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center', color: 'hsl(var(--danger))' }}>
+      <div className="p-10 text-center text-[hsl(var(--danger))]">
         {error}
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+    <div className="flex flex-col gap-0">
 
       {/* ── Top bar ──────────────────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 24px',
-        borderBottom: '1px solid hsl(var(--border))',
-        backgroundColor: 'hsl(var(--bg-card))',
-        flexWrap: 'wrap', gap: '12px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div className="flex items-center justify-between py-4 px-6 border-b border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] flex-wrap gap-3">
+        <div className="flex items-center gap-3.5">
           <button
             onClick={() => navigate(`/projects/${projectId}`)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              padding: '6px 14px', border: '1px solid hsl(var(--border))',
-              borderRadius: 'var(--radius-sm)', background: 'transparent',
-              cursor: 'pointer', color: 'hsl(var(--text-secondary))',
-              fontSize: '0.85rem', fontWeight: 500,
-            }}
+            className="flex items-center gap-1.5 py-1.5 px-3.5 border border-[hsl(var(--border))] rounded-sm bg-transparent cursor-pointer text-[hsl(var(--text-secondary))] text-[0.85rem] font-medium hover:bg-[hsl(var(--bg-main))] transition-colors"
           >
             <ArrowLeft size={15} /><span>Quay lại</span>
           </button>
           <div>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+            <h2 className="text-[1.1rem] font-bold m-0">
               Gantt Chart — {project?.name ?? ''}
             </h2>
-            <p style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', margin: '3px 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <p className="text-[0.75rem] text-[hsl(var(--text-muted))] m-0 mt-1 flex items-center gap-1">
               <Calendar size={11} />
               {project ? `${formatDate(project.startDate)} → ${formatDate(project.endDate)}` : ''}
             </p>
@@ -268,21 +256,18 @@ export const GanttChart: React.FC = () => {
         </div>
 
         {/* View mode switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <LayoutGrid size={15} style={{ color: 'hsl(var(--text-muted))' }} />
-          <div style={{ display: 'flex', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-            {VIEW_MODES.map(m => (
+        <div className="flex items-center gap-2">
+          <LayoutGrid size={15} className="text-[hsl(var(--text-muted))]" />
+          <div className="flex border border-[hsl(var(--border))] rounded-sm overflow-hidden">
+            {VIEW_MODES.map((m, idx) => (
               <button
                 key={m.value}
                 onClick={() => handleViewMode(m.value)}
-                style={{
-                  padding: '6px 14px', border: 'none', cursor: 'pointer',
-                  fontSize: '0.82rem', fontWeight: viewMode === m.value ? 700 : 500,
-                  backgroundColor: viewMode === m.value ? 'hsl(var(--primary))' : 'transparent',
-                  color: viewMode === m.value ? '#fff' : 'hsl(var(--text-secondary))',
-                  transition: 'all 0.12s',
-                  borderRight: m.value !== 'Month' ? '1px solid hsl(var(--border))' : 'none',
-                }}
+                className={`py-1.5 px-3.5 border-none cursor-pointer text-[0.82rem] transition-all duration-150 ${
+                  viewMode === m.value 
+                    ? 'font-bold bg-[hsl(var(--primary))] text-white' 
+                    : 'font-medium bg-transparent text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-main))]'
+                } ${idx < VIEW_MODES.length - 1 ? 'border-r border-[hsl(var(--border))]' : ''}`}
               >
                 {m.label}
               </button>
@@ -292,47 +277,44 @@ export const GanttChart: React.FC = () => {
       </div>
 
       {/* ── Stats strip ──────────────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '28px',
-        padding: '10px 24px',
-        backgroundColor: 'hsl(var(--bg-main))',
-        borderBottom: '1px solid hsl(var(--border))',
-        fontSize: '0.82rem', flexWrap: 'wrap',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-          <TrendingUp size={14} style={{ color: 'hsl(var(--primary))' }} />
-          <span style={{ color: 'hsl(var(--text-muted))' }}>Tiến độ dự án:</span>
-          <div style={{ width: '80px', height: '6px', backgroundColor: 'hsl(var(--border))', borderRadius: '9999px', overflow: 'hidden' }}>
-            <div style={{ width: `${project?.progress ?? 0}%`, height: '100%', background: 'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary-hover)))' }} />
+      <div className="flex items-center gap-7 py-2.5 px-6 bg-[hsl(var(--bg-main))] border-b border-[hsl(var(--border))] text-[0.82rem] flex-wrap">
+        <div className="flex items-center gap-2">
+          <TrendingUp size={14} className="text-[hsl(var(--primary))]" />
+          <span className="text-[hsl(var(--text-muted))]">Tiến độ dự án:</span>
+          <div className="w-[80px] h-[6px] bg-[hsl(var(--border))] rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary-hover))]" 
+              style={{ width: `${project?.progress ?? 0}%` }} 
+            />
           </div>
-          <strong style={{ color: 'hsl(var(--primary))' }}>{project?.progress ?? 0}%</strong>
+          <strong className="text-[hsl(var(--primary))]">{project?.progress ?? 0}%</strong>
         </div>
 
-        <span style={{ color: 'hsl(var(--border))', fontSize: '1rem' }}>|</span>
+        <span className="text-[hsl(var(--border))] text-base">|</span>
 
-        <div style={{ display: 'flex', gap: '20px' }}>
+        <div className="flex gap-5">
           {[
-            { label: '✅ Hoàn thành', val: doneTasks.length, color: 'hsl(142 70% 38%)' },
-            { label: '🔵 Đang thi công', val: inProgressTasks.length, color: 'hsl(217 91% 52%)' },
-            { label: '⚫ Chưa bắt đầu', val: activeTasks.filter(t => t.progress === 0).length, color: 'hsl(var(--text-muted))' },
-            { label: '⛔ Đã hủy', val: tasks.filter(t => t.status === 'obsolete').length, color: 'hsl(346 84% 50%)' },
+            { label: '✅ Hoàn thành', val: doneTasks.length, color: 'text-[hsl(142_70%_38%)]' },
+            { label: '🔵 Đang thi công', val: inProgressTasks.length, color: 'text-[hsl(217_91%_52%)]' },
+            { label: '⚫ Chưa bắt đầu', val: activeTasks.filter(t => t.progress === 0).length, color: 'text-[hsl(var(--text-muted))]' },
+            { label: '⛔ Đã hủy', val: tasks.filter(t => t.status === 'obsolete').length, color: 'text-[hsl(346_84%_50%)]' },
           ].map(s => (
-            <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <strong style={{ color: s.color, fontSize: '1rem' }}>{s.val}</strong>
-              <span style={{ color: 'hsl(var(--text-muted))' }}>{s.label}</span>
+            <div key={s.label} className="flex items-center gap-1.5">
+              <strong className={`text-base ${s.color}`}>{s.val}</strong>
+              <span className="text-[hsl(var(--text-muted))]">{s.label}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* ── Gantt container ───────────────────────────────────────────── */}
-      <div style={{ padding: '24px', backgroundColor: 'hsl(var(--bg-main))' }}>
-        <div className="gantt-wrapper card" style={{ padding: '0', overflow: 'auto', borderRadius: 'var(--radius-md)' }}>
+      <div className="p-6 bg-[hsl(var(--bg-main))]">
+        <div className="gantt-wrapper card p-0 overflow-auto rounded-md">
           <div ref={ganttContainerRef} />
         </div>
 
         {phases.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '60px', color: 'hsl(var(--text-muted))' }}>
+          <div className="text-center py-15 text-[hsl(var(--text-muted))]">
             Chưa có dữ liệu WBS. Hãy tạo Phase và Task trước.
           </div>
         )}

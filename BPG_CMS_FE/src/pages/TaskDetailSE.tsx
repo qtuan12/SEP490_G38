@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type { WBSTask } from '../services/projectService';
-import { DailyLogFormModal } from '../components/DailyLogFormModal';
+import type {WBSTask} from '../types/common';
+import { DailyLogFormModal } from './Incidents/modals/DailyLogFormModal';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -249,7 +249,7 @@ export const TaskDetailSE: React.FC = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '2px' }}>
                   {task.assignedTo.split(',').map((id, index) => {
                     const names = task.assignedName ? task.assignedName.split(', ') : [];
-                    const name = names[index] || 'Kỹ sư';
+                    const name = names[index] || 'siteengineer';
                     const initials = getInitials(name);
                     const bgColor = getAvatarColor(id);
                     return (
@@ -362,3 +362,4 @@ export const TaskDetailSE: React.FC = () => {
     </div>
   );
 };
+

@@ -19,13 +19,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const VALID_ROLES = ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'accountant', 'director'];
+
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('bpg_token');
       const storedUser = localStorage.getItem('bpg_user');
 
       if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        try {
+          const parsed = JSON.parse(storedUser);
+          if (parsed && VALID_ROLES.includes(parsed.role)) {
+            setToken(storedToken);
+            setUser(parsed);
+          } else {
+            // Role cũ hoặc không hợp lệ → clear session
+            localStorage.removeItem('bpg_token');
+            localStorage.removeItem('bpg_user');
+          }
+        } catch {
+          localStorage.removeItem('bpg_token');
+          localStorage.removeItem('bpg_user');
+        }
       }
       setIsLoading(false);
     };
@@ -34,7 +48,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
-    setIsLoading(true);
     try {
       const response = await authService.login(credentials);
       setToken(response.token);
@@ -47,8 +60,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setToken(null);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 

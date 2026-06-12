@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type { DailyLog, WBSTask } from '../services/projectService';
+import type {DailyLog, WBSTask} from '../types/common';
 import { 
   Clock, 
   Send, 
@@ -13,7 +13,8 @@ import {
   CheckCircle, 
   ClipboardList 
 } from 'lucide-react';
-import { Modal } from './Modal';
+import { Modal, Input, Select, Badge, Button } from './ui';
+import type { BadgeVariant } from './ui';
 
 interface DailyLogFeedProps {
   projectId: string;
@@ -167,7 +168,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
         incidentCount++;
       }
       log.comments.forEach(comment => {
-        if ((comment.role === 'tpkt' || comment.role === 'giám đốc') && !acknowledgedComments.includes(comment.id)) {
+        if ((comment.role === 'technicalmanager' || comment.role === 'director') && !acknowledgedComments.includes(comment.id)) {
           directiveCount++;
         }
       });
@@ -184,22 +185,22 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'admin': return 'Admin';
-      case 'tpkt': return 'TP Kỹ Thuật';
-      case 'kỹ sư': return 'Kỹ Sư Hiện Trường';
-      case 'giám đốc': return 'Giám Đốc';
-      case 'kế toán': return 'Kế Toán';
+      case 'technicalmanager': return 'TP Kỹ Thuật';
+      case 'siteengineer': return 'Kỹ Sư Hiện Trường';
+      case 'director': return 'director';
+      case 'accountant': return 'accountant';
       default: return role;
     }
   };
 
-  const getRoleBadgeClass = (role: string) => {
+  const getRoleBadgeVariant = (role: string): BadgeVariant => {
     switch (role) {
-      case 'admin': return 'badge-danger';
-      case 'tpkt': return 'badge-primary';
-      case 'kỹ sư': return 'badge-success';
-      case 'giám đốc': return 'badge-warning';
-      case 'kế toán': return 'badge-primary';
-      default: return 'badge-secondary';
+      case 'admin': return 'danger';
+      case 'technicalmanager': return 'default'; // Using default since primary isn't available
+      case 'siteengineer': return 'success';
+      case 'director': return 'warning';
+      case 'accountant': return 'default'; // Using default since primary isn't available
+      default: return 'default';
     }
   };
 
@@ -216,12 +217,12 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '800px', margin: '0 auto', paddingBottom: '40px' }}>
+    <div className="flex flex-col gap-6 max-w-[800px] mx-auto pb-10">
       
       {/* Title & Header */}
-      <div style={{ borderBottom: '1px solid hsl(var(--border))', paddingBottom: '12px' }}>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Dòng thời gian Nhật ký Công trường</h3>
-        <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', marginTop: '4px' }}>
+      <div className="border-b border-[hsl(var(--border))] pb-3">
+        <h3 className="text-[1.25rem] font-bold">Dòng thời gian Nhật ký Công trường</h3>
+        <p className="text-[0.85rem] text-[hsl(var(--text-muted))] mt-1">
           Xem và theo dõi lịch sử cập nhật thi công của dự án theo trục thời gian thực tế.
         </p>
       </div>
@@ -229,7 +230,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
       {/* 1. STATS MINI-DASHBOARD */}
       <div className="timeline-stats-grid">
         <div className="timeline-stat-card">
-          <div className="timeline-stat-icon-wrapper" style={{ backgroundColor: 'hsl(var(--primary-glow))', color: 'hsl(var(--primary))' }}>
+          <div className="timeline-stat-icon-wrapper bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))]">
             <ClipboardList size={20} />
           </div>
           <div className="timeline-stat-content">
@@ -239,7 +240,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
         </div>
 
         <div className="timeline-stat-card">
-          <div className="timeline-stat-icon-wrapper" style={{ backgroundColor: 'hsl(var(--success-glow))', color: 'hsl(var(--success))' }}>
+          <div className="timeline-stat-icon-wrapper bg-[hsl(var(--success-glow))] text-[hsl(var(--success))]">
             <ImageIcon size={20} />
           </div>
           <div className="timeline-stat-content">
@@ -248,30 +249,24 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
           </div>
         </div>
 
-        <div className="timeline-stat-card" style={{ borderColor: stats.totalIncidents > 0 ? 'hsl(var(--danger) / 0.3)' : 'hsl(var(--border))' }}>
-          <div className="timeline-stat-icon-wrapper" style={{ 
-            backgroundColor: stats.totalIncidents > 0 ? 'hsl(var(--danger-glow))' : 'hsl(var(--border) / 0.3)', 
-            color: stats.totalIncidents > 0 ? 'hsl(var(--danger))' : 'hsl(var(--text-secondary))' 
-          }}>
+        <div className={`timeline-stat-card ${stats.totalIncidents > 0 ? 'border-[hsl(var(--danger)/0.3)]' : 'border-[hsl(var(--border))]'}`}>
+          <div className={`timeline-stat-icon-wrapper ${stats.totalIncidents > 0 ? 'bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))]' : 'bg-[hsl(var(--border)/0.3)] text-[hsl(var(--text-secondary))]'}`}>
             <AlertTriangle size={20} />
           </div>
           <div className="timeline-stat-content">
-            <span className="timeline-stat-val" style={{ color: stats.totalIncidents > 0 ? 'hsl(var(--danger))' : 'inherit' }}>
+            <span className={`timeline-stat-val ${stats.totalIncidents > 0 ? 'text-[hsl(var(--danger))]' : ''}`}>
               {stats.totalIncidents}
             </span>
             <span className="timeline-stat-label">Số Sự Cố</span>
           </div>
         </div>
 
-        <div className="timeline-stat-card" style={{ borderColor: stats.pendingDirectives > 0 ? 'hsl(var(--warning) / 0.3)' : 'hsl(var(--border))' }}>
-          <div className="timeline-stat-icon-wrapper" style={{ 
-            backgroundColor: stats.pendingDirectives > 0 ? 'hsl(var(--warning-glow))' : 'hsl(var(--border) / 0.3)', 
-            color: stats.pendingDirectives > 0 ? 'hsl(var(--warning))' : 'hsl(var(--text-secondary))' 
-          }}>
+        <div className={`timeline-stat-card ${stats.pendingDirectives > 0 ? 'border-[hsl(var(--warning)/0.3)]' : 'border-[hsl(var(--border))]'}`}>
+          <div className={`timeline-stat-icon-wrapper ${stats.pendingDirectives > 0 ? 'bg-[hsl(var(--warning-glow))] text-[hsl(var(--warning))]' : 'bg-[hsl(var(--border)/0.3)] text-[hsl(var(--text-secondary))]'}`}>
             <MessageSquare size={20} />
           </div>
           <div className="timeline-stat-content">
-            <span className="timeline-stat-val" style={{ color: stats.pendingDirectives > 0 ? 'hsl(var(--warning))' : 'inherit' }}>
+            <span className={`timeline-stat-val ${stats.pendingDirectives > 0 ? 'text-[hsl(var(--warning))]' : ''}`}>
               {stats.pendingDirectives}
             </span>
             <span className="timeline-stat-label">Chỉ đạo mới</span>
@@ -280,85 +275,83 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
       </div>
 
       {/* 2. FILTER & SEARCH BAR */}
-      <div className="card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'hsl(var(--bg-card))' }}>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="card p-4 sm:p-5 flex flex-col gap-3 bg-[hsl(var(--bg-card))]">
+        <div className="flex gap-3 flex-wrap items-center">
           
           {/* Text Search */}
-          <div style={{ flex: 2, minWidth: '200px', position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
-            <input
+          <div className="flex-[2] min-w-[200px] relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
+            <Input
               type="text"
               placeholder="Tìm nội dung, công việc, kỹ sư..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ paddingLeft: '36px', height: '38px' }}
+              className="pl-9 h-[38px]"
             />
           </div>
 
           {/* Task Dropdown */}
-          <div style={{ flex: 1, minWidth: '150px' }}>
-            <select
+          <div className="flex-1 min-w-[150px]">
+            <Select
               value={selectedTaskId}
               onChange={(e) => setSelectedTaskId(e.target.value)}
-              style={{ height: '38px', fontSize: '0.85rem' }}
-            >
-              <option value="">Tất cả Công việc</option>
-              {tasks.map(task => (
-                <option key={task.id} value={task.id}>{task.name}</option>
-              ))}
-            </select>
+              className="h-[38px] text-[0.85rem]"
+              options={[
+                { label: 'Tất cả Công việc', value: '' },
+                ...tasks.map(t => ({ label: t.name, value: t.id }))
+              ]}
+            />
           </div>
 
           {/* Engineer Dropdown */}
-          <div style={{ flex: 1, minWidth: '150px' }}>
-            <select
+          <div className="flex-1 min-w-[150px]">
+            <Select
               value={selectedEngineerId}
               onChange={(e) => setSelectedEngineerId(e.target.value)}
-              style={{ height: '38px', fontSize: '0.85rem' }}
-            >
-              <option value="">Tất cả Kỹ sư</option>
-              {uniqueEngineers.map(eng => (
-                <option key={eng.id} value={eng.id}>{eng.name}</option>
-              ))}
-            </select>
+              className="h-[38px] text-[0.85rem]"
+              options={[
+                { label: 'Tất cả Kỹ sư', value: '' },
+                ...uniqueEngineers.map(e => ({ label: e.name, value: e.id }))
+              ]}
+            />
           </div>
 
         </div>
 
         {/* Checkbox filters */}
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', borderTop: '1px solid hsl(var(--border) / 0.5)', paddingTop: '10px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0 }}>
-            <input
-              type="checkbox"
-              checked={filterWithImages}
-              onChange={(e) => setFilterWithImages(e.target.checked)}
-              style={{ width: '15px', height: '15px' }}
-            />
-            <span>Có ảnh chụp hiện trường</span>
-          </label>
+        <div className="flex gap-4 flex-wrap text-[0.85rem] text-[hsl(var(--text-secondary))] border-t border-[hsl(var(--border)/0.5)] pt-2.5">
+        <label className="flex items-center gap-1.5 cursor-pointer m-0">
+          <input
+            type="checkbox"
+            checked={filterWithImages}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterWithImages(e.target.checked)}
+            className="w-3.5 h-3.5"
+          />
+          <span>Có ảnh chụp hiện trường</span>
+        </label>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0 }}>
-            <input
-              type="checkbox"
-              checked={filterWithIncidents}
-              onChange={(e) => setFilterWithIncidents(e.target.checked)}
-              style={{ width: '15px', height: '15px' }}
-            />
-            <span style={{ color: filterWithIncidents ? 'hsl(var(--danger))' : 'inherit', fontWeight: filterWithIncidents ? 600 : 'normal' }}>
-              Sự cố / Rework (tiến độ giảm)
-            </span>
-          </label>
+        <label className="flex items-center gap-1.5 cursor-pointer m-0">
+          <input
+            type="checkbox"
+            checked={filterWithIncidents}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterWithIncidents(e.target.checked)}
+            className="w-3.5 h-3.5"
+          />
+          <span className={filterWithIncidents ? "text-[hsl(var(--danger))] font-semibold" : ""}>
+            Sự cố / Rework (tiến độ giảm)
+          </span>
+        </label>
         </div>
       </div>
 
       {/* 3. TIMELINE LIST */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'hsl(var(--text-muted))' }}>
+        <div className="text-center py-10 text-[hsl(var(--text-muted))]">
           Đang tải dòng thời gian...
         </div>
       ) : groupedLogs.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: 'hsl(var(--text-muted))', border: '1px dashed hsl(var(--border))', borderRadius: 'var(--radius-md)' }}>
-          <MessageSquare size={36} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+        <div className="text-center py-16 text-[hsl(var(--text-muted))] border border-dashed border-[hsl(var(--border))] rounded-md">
+          <MessageSquare size={36} className="mx-auto mb-3 opacity-40" />
           <p>Không có nhật ký thi công nào khớp với bộ lọc hiện tại.</p>
         </div>
       ) : (
@@ -398,40 +391,25 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
 
                     {/* Main Log Card */}
                     <div 
-                      className="card" 
+                      className="card flex flex-col gap-3.5 bg-[hsl(var(--bg-card))]" 
                       style={{ 
                         padding: '20px', 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        gap: '14px',
-                        backgroundColor: 'hsl(var(--bg-card))',
                         border: isIncident ? '1.5px solid hsl(var(--danger) / 0.3)' : '1px solid hsl(var(--border))',
                         boxShadow: isIncident ? '0 4px 12px hsl(var(--danger-glow))' : 'var(--shadow-sm)'
                       }}
                     >
                       {/* Log Header */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          <div style={{
-                            width: '38px',
-                            height: '38px',
-                            borderRadius: '50%',
-                            backgroundColor: isIncident ? 'hsl(var(--danger-glow))' : 'hsl(var(--primary-glow))',
-                            color: isIncident ? 'hsl(var(--danger))' : 'hsl(var(--primary))',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700,
-                            fontSize: '0.85rem'
-                          }}>
+                      <div className="flex justify-between items-start flex-wrap gap-3">
+                        <div className="flex gap-2.5 items-center">
+                          <div className={`w-[38px] h-[38px] rounded-full flex items-center justify-center font-bold text-[0.85rem] shrink-0 ${isIncident ? 'bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))]' : 'bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))]'}`}>
                             {log.engineerName.charAt(0)}
                           </div>
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <strong style={{ fontSize: '0.9rem' }}>{log.engineerName}</strong>
-                              <span className="badge badge-success" style={{ fontSize: '0.6rem', textTransform: 'none', padding: '2px 6px' }}>Kỹ sư hiện trường</span>
+                            <div className="flex items-center gap-2">
+                              <strong className="text-[0.9rem]">{log.engineerName}</strong>
+                              <Badge variant="success" className="text-[0.6rem] normal-case py-0.5 px-1.5 h-auto">Kỹ sư hiện trường</Badge>
                             </div>
-                            <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                            <span className="text-[0.7rem] text-[hsl(var(--text-muted))] flex items-center gap-1 mt-0.5">
                               <Clock size={11} />
                               {log.date.split(' ')[1] || ''}
                             </span>
@@ -439,13 +417,13 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                         </div>
 
                         {/* Progress changes */}
-                        <div style={{ textAlign: 'right' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', fontWeight: 500 }}>Thay đổi tiến độ</span>
-                          <div style={{ fontWeight: 800, fontSize: '1rem', color: isIncident ? 'hsl(var(--danger))' : 'hsl(var(--success))', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                        <div className="text-right">
+                          <span className="text-[0.7rem] text-[hsl(var(--text-muted))] font-medium">Thay đổi tiến độ</span>
+                          <div className={`font-extrabold text-base flex items-center justify-end gap-1 ${isIncident ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
                             <span>{log.progressFrom}%</span>
                             <span>&rarr;</span>
                             <span>{log.progressTo}%</span>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                            <span className="text-xs font-bold">
                               ({delta > 0 ? `+${delta}%` : `${delta}%`})
                             </span>
                           </div>
@@ -453,35 +431,19 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                       </div>
 
                       {/* Task Info Row */}
-                      <div style={{ 
-                        backgroundColor: 'hsl(var(--bg-main))', 
-                        padding: '8px 12px', 
-                        borderRadius: 'var(--radius-sm)', 
-                        fontSize: '0.8rem',
-                        borderLeft: `3px solid ${isIncident ? 'hsl(var(--danger))' : 'hsl(var(--primary))'}`,
-                        fontWeight: 500,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}>
-                        <span>Công việc: <strong style={{ color: 'hsl(var(--text-primary))' }}>{log.taskName}</strong></span>
-                        {isIncident && <span className="badge badge-danger" style={{ fontSize: '0.6rem' }}>Báo cáo sự cố</span>}
+                      <div className={`bg-[hsl(var(--bg-main))] px-3 py-2 rounded-sm text-sm font-medium flex items-center justify-between border-l-4 ${isIncident ? 'border-[hsl(var(--danger))]' : 'border-[hsl(var(--primary))]'}`}>
+                        <span>Công việc: <strong className="text-[hsl(var(--text-primary))]">{log.taskName}</strong></span>
+                        {isIncident && <Badge variant="danger" className="text-[0.6rem] py-0.5 h-auto">Báo cáo sự cố</Badge>}
                       </div>
 
                       {/* Content Text */}
-                      <p style={{ 
-                        fontSize: '0.9rem', 
-                        color: 'hsl(var(--text-primary))', 
-                        lineHeight: 1.5, 
-                        whiteSpace: 'pre-wrap',
-                        margin: 0
-                      }}>
+                      <p className="text-[0.9rem] text-[hsl(var(--text-primary))] leading-relaxed whitespace-pre-wrap m-0">
                         {log.content}
                       </p>
 
                       {/* 3. PROGRESS DELTA VISUAL BAR */}
                       <div className="progress-delta-container">
-                        <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-secondary))', fontWeight: 600 }}>Biểu đồ thay đổi công việc</span>
+                        <span className="text-[0.7rem] text-[hsl(var(--text-secondary))] font-semibold">Biểu đồ thay đổi công việc</span>
                         <div className="progress-delta-bar">
                           {/* Base Progress */}
                           <div 
@@ -501,44 +463,19 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
 
                       {/* Images Grid */}
                       {log.images && log.images.length > 0 && (
-                        <div style={{ 
-                          display: 'grid', 
-                          gridTemplateColumns: log.images.length === 1 ? '1fr' : log.images.length === 2 ? '1fr 1fr' : 'repeat(auto-fit, minmax(140px, 1fr))', 
-                          gap: '8px',
-                          marginTop: '4px'
-                        }}>
+                        <div className={`grid gap-2 mt-1 ${log.images.length === 1 ? 'grid-cols-1' : log.images.length === 2 ? 'grid-cols-2' : 'grid-cols-[repeat(auto-fit,_minmax(140px,_1fr))]'}`}>
                           {log.images.map((img, index) => (
                             <div 
                               key={index} 
-                              style={{ 
-                                borderRadius: 'var(--radius-md)', 
-                                overflow: 'hidden', 
-                                height: log.images.length === 1 ? '240px' : '120px',
-                                position: 'relative',
-                                border: '1px solid hsl(var(--border))',
-                                cursor: 'zoom-in'
-                              }}
+                              className={`rounded-md overflow-hidden relative border border-[hsl(var(--border))] cursor-zoom-in group ${log.images?.length === 1 ? 'h-[240px]' : 'h-[120px]'}`}
                               onClick={() => setZoomImage(img)}
                             >
                               <img 
                                 src={img} 
                                 alt={`Hiện trường ${index + 1}`} 
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform var(--transition-fast)' }}
-                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
-                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                               />
-                              <div style={{
-                                position: 'absolute',
-                                bottom: '6px',
-                                right: '6px',
-                                backgroundColor: 'rgba(0,0,0,0.5)',
-                                color: 'white',
-                                padding: '4px',
-                                borderRadius: '50%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}>
+                              <div className="absolute bottom-1.5 right-1.5 bg-black/50 text-white p-1 rounded-full flex items-center justify-center">
                                 <Eye size={10} />
                               </div>
                             </div>
@@ -546,20 +483,16 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                         </div>
                       )}
 
-                      <div style={{ 
-                        marginTop: '6px', 
-                        borderTop: '1px solid hsl(var(--border) / 0.5)', 
-                        paddingTop: '12px' 
-                      }}>
-                        <h4 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div className="mt-1.5 border-t border-[hsl(var(--border)/0.5)] pt-3">
+                        <h4 className="text-xs font-semibold text-[hsl(var(--text-secondary))] mb-2 flex items-center gap-1.5">
                           <MessageSquare size={13} />
                           <span>Ý kiến Chỉ đạo & Bình luận ({log.comments?.length || 0})</span>
                         </h4>
 
                         {(log.comments?.length || 0) > 0 && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
-                            {log.comments.map((comm) => {
-                              const isManager = comm.role === 'tpkt' || comm.role === 'giám đốc';
+                          <div className="flex flex-col gap-2 mb-3">
+                            {log.comments?.map((comm) => {
+                              const isManager = comm.role === 'technicalmanager' || comm.role === 'director';
                               const isAcknowledged = acknowledgedComments.includes(comm.id);
                               
                               let commentClass = "";
@@ -573,80 +506,40 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                               return (
                                 <div 
                                   key={comm.id} 
-                                  className={commentClass}
-                                  style={{ 
-                                    display: 'flex', 
-                                    gap: '10px', 
-                                    padding: '8px 12px', 
-                                    backgroundColor: 'hsl(var(--bg-main) / 0.4)', 
-                                    borderRadius: 'var(--radius-sm)',
-                                    fontSize: '0.825rem',
-                                    border: '1px solid hsl(var(--border) / 0.5)',
-                                    transition: 'all var(--transition-fast)'
-                                  }}
+                                  className={`flex gap-2.5 px-3 py-2 bg-[hsl(var(--bg-main)/0.4)] rounded-sm text-[0.825rem] border border-[hsl(var(--border)/0.5)] transition-all duration-200 ${commentClass}`}
                                 >
-                                  <div style={{
-                                    width: '26px',
-                                    height: '26px',
-                                    borderRadius: '50%',
-                                    backgroundColor: isManager ? 'hsl(var(--warning-glow))' : 'hsl(var(--border))',
-                                    color: isManager ? 'hsl(var(--warning))' : 'hsl(var(--text-primary))',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontWeight: 700,
-                                    fontSize: '0.75rem',
-                                    flexShrink: 0
-                                  }}>
+                                  <div className={`w-[26px] h-[26px] rounded-full flex items-center justify-center font-bold text-[0.75rem] shrink-0 ${isManager ? 'bg-[hsl(var(--warning-glow))] text-[hsl(var(--warning))]' : 'bg-[hsl(var(--border))] text-[hsl(var(--text-primary))]'}`}>
                                     {comm.userName.charAt(0)}
                                   </div>
                                   
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', alignItems: 'center' }}>
+                                  <div className="flex flex-col gap-0.5 flex-1">
+                                    <div className="flex justify-between flex-wrap items-center">
                                       <span>
-                                        <strong style={{ marginRight: '6px' }}>{comm.userName}</strong>
-                                        <span className={`badge ${getRoleBadgeClass(comm.role)}`} style={{ fontSize: '0.5rem', padding: '1px 5px', textTransform: 'none' }}>
+                                        <strong className="mr-1.5">{comm.userName}</strong>
+                                        <Badge variant={getRoleBadgeVariant(comm.role)} className="text-[0.5rem] py-0 px-1 normal-case leading-tight h-auto">
                                           {getRoleLabel(comm.role)}
-                                        </span>
+                                        </Badge>
                                       </span>
-                                      <span style={{ fontSize: '0.65rem', color: 'hsl(var(--text-muted))' }}>{comm.date}</span>
+                                      <span className="text-[0.65rem] text-[hsl(var(--text-muted))]">{comm.date}</span>
                                     </div>
-                                    <p style={{ color: 'hsl(var(--text-primary))', marginTop: '2px', lineHeight: 1.4 }}>
+                                    <p className="text-[hsl(var(--text-primary))] mt-0.5 leading-snug">
                                       {comm.content}
                                     </p>
 
-                                    {isManager && !isAcknowledged && user?.role === 'kỹ sư' && (
-                                      <button
+                                    {isManager && !isAcknowledged && user?.role === 'siteengineer' && (
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
                                         onClick={() => handleAcknowledgeComment(comm.id)}
-                                        className="btn btn-secondary"
-                                        style={{ 
-                                          alignSelf: 'flex-start',
-                                          padding: '2px 6px',
-                                          fontSize: '0.65rem',
-                                          marginTop: '6px',
-                                          height: '22px',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '4px',
-                                          borderColor: 'hsl(var(--success) / 0.4)',
-                                          color: 'hsl(var(--success))'
-                                        }}
+                                        className="self-start py-0.5 px-1.5 text-[0.65rem] mt-1.5 h-auto flex items-center gap-1 border-[hsl(var(--success)/0.4)] text-[hsl(var(--success))]"
                                       >
                                         <CheckCircle size={10} />
                                         <span>Xác nhận đã đọc chỉ đạo</span>
-                                      </button>
+                                      </Button>
                                     )}
 
                                     {isManager && isAcknowledged && (
-                                      <span style={{ 
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '3px',
-                                        fontSize: '0.65rem',
-                                        color: 'hsl(var(--success))',
-                                        fontWeight: 600,
-                                        marginTop: '4px'
-                                      }}>
+                                      <span className="inline-flex items-center gap-1 text-[0.65rem] text-[hsl(var(--success))] font-semibold mt-1">
                                         <CheckCircle size={10} />
                                         <span>Đã ghi nhận chỉ đạo</span>
                                       </span>
@@ -659,22 +552,22 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                         )}
 
                         {user && (
-                          <form onSubmit={(e) => handleCommentSubmit(e, log.id)} style={{ display: 'flex', gap: '8px' }}>
-                            <input
+                          <form onSubmit={(e) => handleCommentSubmit(e, log.id)} className="flex gap-2">
+                            <Input
                               type="text"
                               placeholder="Nhập ý kiến chỉ đạo trực tuyến của Ban lãnh đạo..."
                               value={commentInputs[log.id] || ''}
                               onChange={(e) => handleCommentChange(log.id, e.target.value)}
-                              style={{ height: '36px', fontSize: '0.8rem', flex: 1 }}
+                              className="h-9 text-xs flex-1"
                               required
                             />
-                            <button 
+                            <Button 
                               type="submit" 
-                              className="btn btn-primary" 
-                              style={{ width: '36px', height: '36px', padding: 0, borderRadius: 'var(--radius-sm)', flexShrink: 0 }}
+                              variant="primary"
+                              className="w-9 h-9 p-0 rounded-sm shrink-0 flex items-center justify-center"
                             >
                               <Send size={13} />
-                            </button>
+                            </Button>
                           </form>
                         )}
                       </div>
@@ -689,12 +582,12 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
 
       {/* IMAGE ZOOM MODAL */}
       <Modal isOpen={!!zoomImage} onClose={() => setZoomImage(null)} title="Ảnh hiện trường thực tế">
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+        <div className="flex justify-center items-center overflow-hidden">
           {zoomImage && (
             <img 
               src={zoomImage} 
               alt="Zoomed" 
-              style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: 'var(--radius-md)' }} 
+              className="max-w-full max-h-[75vh] object-contain rounded-md"
             />
           )}
         </div>

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
-import type { Project } from '../services/projectService';
+import type {Project} from '../types/common';
 import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeft,
@@ -29,7 +29,7 @@ export const ProjectDrawing: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  const isTPKTOrAdmin = user?.role === 'tpkt' || user?.role === 'admin';
+  const isTPKTOrAdmin = user?.role === 'technicalmanager' || user?.role === 'admin';
   const canEdit = isTPKTOrAdmin && project?.status !== 'paused' && project?.status !== 'done';
 
   const loadProject = async () => {
@@ -457,3 +457,4 @@ export const ProjectDrawing: React.FC = () => {
     </div>
   );
 };
+

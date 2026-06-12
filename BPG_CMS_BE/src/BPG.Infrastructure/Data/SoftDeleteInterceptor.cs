@@ -6,14 +6,26 @@ namespace BPG.Infrastructure.Data;
 
 public class SoftDeleteInterceptor : SaveChangesInterceptor
 {
+    public override InterceptionResult<int> SavingChanges(
+        DbContextEventData eventData,
+        InterceptionResult<int> result)
+    {
+        Apply(eventData.Context);
+        return base.SavingChanges(eventData, result);
+    }
+
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
-        var context = eventData.Context;
-        if (context == null)
-            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        Apply(eventData.Context);
+        return base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
+    private static void Apply(DbContext? context)
+    {
+        if (context == null) return;
 
         foreach (var entry in context.ChangeTracker.Entries<BaseEntity>())
         {
@@ -23,7 +35,5 @@ public class SoftDeleteInterceptor : SaveChangesInterceptor
                 entry.Entity.IsDeleted = true;
             }
         }
-
-        return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 }

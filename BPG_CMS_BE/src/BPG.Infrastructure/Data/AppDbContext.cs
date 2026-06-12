@@ -78,6 +78,17 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Global soft delete filter for all BaseEntity
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes()
+            .Where(e => typeof(BPG.Domain.Entities.BaseEntity).IsAssignableFrom(e.ClrType)))
+        {
+            var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
+            var property = System.Linq.Expressions.Expression.Property(parameter, nameof(BPG.Domain.Entities.BaseEntity.IsDeleted));
+            var condition = System.Linq.Expressions.Expression.Equal(property, System.Linq.Expressions.Expression.Constant(false));
+            var lambda = System.Linq.Expressions.Expression.Lambda(condition, parameter);
+            modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+        }
+
         // Apply decimal precision globally
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {

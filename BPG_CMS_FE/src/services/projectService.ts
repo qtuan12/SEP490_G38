@@ -1,184 +1,7 @@
+﻿import type { Project, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, TaskHistory, WBSTask, DailyLogComment, DailyLog } from '../types/common';
 import { USE_MOCK_API } from './api';
 
-export interface Project {
-  id: string;
-  name: string;
-  address: string;
-  startDate: string;
-  endDate: string;
-  status: 'draft' | 'active' | 'paused' | 'done';
-  drawingUrl?: string; // name or dummy data url of drawing design
-  progress: number; // overall progress % (derived or stored)
-}
-
-export interface ProjectMember {
-  projectId: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  userRole: string;
-  isLeader: boolean; // crown icon 👑 if true
-}
-
-export interface PhaseMaterialItem {
-  name: string;
-  quantity: number;
-  unit: string;
-}
-
-export interface AcceptanceRecord {
-  id: string;
-  date: string;
-  isPassed: boolean;
-  representativeA: string;
-  roleA: string;
-  representativeB: string;
-  roleB: string;
-  startTime: string;
-  endTime: string;
-  drawings: string;
-  standards: string;
-  results: string;
-  quality: string;
-  opinions: string;
-  conclusion: string;
-}
-
-export interface WBSPhase {
-  id: string;
-  projectId: string;
-  name: string;
-  sortOrder: number; // display order within project
-  status: 'active' | 'frozen'; // frozen after acceptance
-  acceptanceComment?: string;
-  acceptanceDate?: string;
-  revocationComment?: string;
-  revocationDate?: string;
-  acceptanceRepresentativeA?: string;
-  acceptanceRoleA?: string;
-  acceptanceRepresentativeB?: string;
-  acceptanceRoleB?: string;
-  acceptanceStartTime?: string;
-  acceptanceEndTime?: string;
-  acceptanceDrawings?: string;
-  acceptanceStandards?: string;
-  acceptanceResults?: string;
-  acceptanceQuality?: string;
-  acceptanceOpinions?: string;
-  acceptanceConclusion?: string;
-  acceptanceHistory?: AcceptanceRecord[];
-  deadline?: string; // Phase deadline for schedule reserve checks
-  startDate?: string;
-  endDate?: string;
-  materials?: PhaseMaterialItem[];
-}
-
-export interface IncidentReport {
-  id: string;
-  projectId: string;
-  taskId: string;
-  taskName: string;
-  reporterId: string;
-  reporterName: string;
-  reviewerId?: string;
-  reviewerName?: string;
-  incidentType: 'Construction' | 'InventoryLoss' | 'InventoryDamage' | 'Delay' | 'Safety' | 'Other';
-  description: string;
-  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'Approved' | 'Rejected' | 'Closed';
-  damageDescription?: string;
-  estimatedMaterialLoss?: number;
-  estimatedLaborDays?: number;
-  estimatedDelayDays?: number;
-  proposedAction?: string;
-  reworkTaskId?: string;
-  
-  // Custom fields for frontend
-  date: string;
-  images: string[];
-  comments?: DailyLogComment[];
-  revisionComment?: string;
-}
-
-export interface MaterialRequestItem {
-  name: string;
-  quantity: number;
-  unit: string;
-}
-
-export interface MaterialRequest {
-  id: string;
-  projectId: string;
-  taskId?: string;
-  taskName?: string;
-  phaseId?: string;
-  phaseName?: string;
-  requesterName: string;
-  items: MaterialRequestItem[];
-  status: 'pending_leader' | 'approved_by_leader' | 'pending_tpkt' | 'pending_accountant' | 'pending_director' | 'approved' | 'rejected' | 'pending_disbursement' | 'disbursed' | 'received';
-  isOverBOQ: boolean;
-  type: 'normal' | 'emergency'; // normal vs emergency (direct purchase)
-  invoiceImage?: string;
-  reason?: string;
-  date: string;
-  approvedBy?: string;
-  rejectionReason?: string;
-}
-
-
-
-export interface TaskHistory {
-  date: string;
-  oldProgress: number;
-  newProgress: number;
-  reason: string;
-  type?: 'progress_increase' | 'progress_decrease' | 'deadline_shift' | 'obsolete' | 'status_change' | 'created' | 'update';
-  adjustedBy?: string;
-  incidentCategory?: 'khach_quan' | 'chu_quan';
-}
-
-export interface WBSTask {
-  id: string;
-  phaseId: string;
-  projectId: string;
-  parentTaskId?: string;
-  name: string;
-  description?: string;
-  sortOrder: number; // display order within phase
-  assignedTo?: string; // userId of engineer
-  assignedName?: string; // name of engineer
-  startDate?: string;
-  deadline: string;
-  progress: number; // 0 - 100
-  history: TaskHistory[];
-  status?: 'active' | 'obsolete';
-  estimatedMaterials?: PhaseMaterialItem[];
-  isRework?: boolean;
-}
-
-export interface DailyLogComment {
-  id: string;
-  userId: string;
-  userName: string;
-  role: string;
-  content: string;
-  date: string;
-}
-
-export interface DailyLog {
-  id: string;
-  projectId: string;
-  taskId: string;
-  taskName: string;
-  engineerId: string;
-  engineerName: string;
-  progressFrom: number;
-  progressTo: number;
-  date: string;
-  content: string; // work detail description
-  weather: string;
-  images: string[]; // array of base64 or mock URLs
-  comments: DailyLogComment[];
-}
+export * from '../types/common';
 
 // Default initial data for simulation
 const DEFAULT_PROJECTS: Project[] = [
@@ -189,10 +12,10 @@ const DEFAULT_PROJECTS: Project[] = [
 ];
 
 const DEFAULT_MEMBERS: ProjectMember[] = [
-  { projectId: 'p-1', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userRole: 'kỹ sư', isLeader: true },
-  { projectId: 'p-1', userId: 'u-6', userName: 'Nguyễn Văn Nam', userEmail: 'se1@bpg.com', userRole: 'kỹ sư', isLeader: false },
-  { projectId: 'p-1', userId: 'u-7', userName: 'Phạm Minh Hải', userEmail: 'se2@bpg.com', userRole: 'kỹ sư', isLeader: false },
-  { projectId: 'p-2', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userRole: 'kỹ sư', isLeader: false },
+  { projectId: 'p-1', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userRole: 'siteengineer', isLeader: true },
+  { projectId: 'p-1', userId: 'u-6', userName: 'Nguyễn Văn Nam', userEmail: 'se1@bpg.com', userRole: 'siteengineer', isLeader: false },
+  { projectId: 'p-1', userId: 'u-7', userName: 'Phạm Minh Hải', userEmail: 'se2@bpg.com', userRole: 'siteengineer', isLeader: false },
+  { projectId: 'p-2', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userRole: 'siteengineer', isLeader: false },
 ];
 
 const DEFAULT_PHASES: WBSPhase[] = [
@@ -237,7 +60,7 @@ const DEFAULT_LOGS: DailyLog[] = [
       'https://images.unsplash.com/photo-1590069261209-f8e9b8642343?auto=format&fit=crop&w=600&q=80'
     ],
     comments: [
-      { id: 'c-1', userId: 'u-2', userName: 'Nguyễn Văn Kỹ', role: 'tpkt', content: 'Gia cố kỹ chân cốp pha trục C nhé Công, tránh để phình bụng bê tông khi đổ vào ngày mai.', date: '2026-06-01 17:15' }
+      { id: 'c-1', userId: 'u-2', userName: 'Nguyễn Văn Kỹ', role: 'technicalmanager', content: 'Gia cố kỹ chân cốp pha trục C nhé Công, tránh để phình bụng bê tông khi đổ vào ngày mai.', date: '2026-06-01 17:15' }
     ]
   },
   {
@@ -775,7 +598,7 @@ export const projectService = {
   async createDailyLog(
     logData: Omit<DailyLog, 'id' | 'date' | 'comments'>,
     engineerName: string,
-    userRole: string = 'kỹ sư',
+    userRole: string = 'siteengineer',
     incidentCategory?: 'khach_quan' | 'chu_quan'
   ): Promise<DailyLog> {
     // Check if project is paused or done
@@ -800,7 +623,7 @@ export const projectService = {
     
     // Validate decrease
     if (logData.progressTo < task.progress) {
-      if (userRole !== 'tpkt' && userRole !== 'admin') {
+      if (userRole !== 'technicalmanager' && userRole !== 'admin') {
         throw new Error(`Tiến độ báo cáo (${logData.progressTo}%) không thể nhỏ hơn tiến độ hiện tại (${task.progress}%). Vui lòng báo cáo TPKT để xử lý sự cố.`);
       }
     }
@@ -1166,7 +989,7 @@ export const projectService = {
     
     if (isEmergency) {
       initialStatus = 'pending_disbursement';
-    } else if (userRole === 'kỹ sư' && !isLeader) {
+    } else if (userRole === 'siteengineer' && !isLeader) {
       initialStatus = 'pending_leader';
     }
 
@@ -1460,9 +1283,9 @@ export const projectService = {
     if (isEmergency) {
       newStatus = 'pending_disbursement';
     } else if (request.taskId) {
-      if (userRole === 'kỹ sư' && !isLeader) {
+      if (userRole === 'siteengineer' && !isLeader) {
         newStatus = 'pending_leader';
-      } else if (userRole === 'kỹ sư' && isLeader) {
+      } else if (userRole === 'siteengineer' && isLeader) {
         newStatus = 'pending_tpkt';
       }
     }
@@ -1502,3 +1325,4 @@ export const projectService = {
     return newComment;
   }
 };
+

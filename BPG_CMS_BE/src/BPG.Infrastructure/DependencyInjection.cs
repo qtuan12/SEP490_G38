@@ -22,8 +22,8 @@ public static class DependencyInjection
         {
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"));
             options.AddInterceptors(
-                sp.GetRequiredService<AuditInterceptor>(),
-                sp.GetRequiredService<SoftDeleteInterceptor>()
+                sp.GetRequiredService<SoftDeleteInterceptor>(),
+                sp.GetRequiredService<AuditInterceptor>()
             );
         });
 
