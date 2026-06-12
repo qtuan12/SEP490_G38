@@ -5,16 +5,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/Modal';
 import { projectService } from '../../../services/projectService';
-import type {WBSTask} from '../../../types/common';
 
 const schema = z.object({
   incidentType: z.enum(['Construction', 'InventoryLoss', 'InventoryDamage', 'Delay', 'Safety', 'Other']),
   description: z.string().min(5, 'Mô tả sự cố phải có ít nhất 5 ký tự'),
   images: z.string().optional(),
   damageDescription: z.string().min(5, 'Mô tả thiệt hại phải có ít nhất 5 ký tự'),
-  estimatedMaterialLoss: z.number().min(0).default(0),
-  estimatedLaborDays: z.number().min(0, 'Số ngày không hợp lệ').default(1),
-  estimatedDelayDays: z.number().min(0, 'Số ngày không hợp lệ').default(0),
+  estimatedMaterialLoss: z.coerce.number().min(0),
+  estimatedLaborDays: z.coerce.number().min(0, 'Số ngày không hợp lệ'),
+  estimatedDelayDays: z.coerce.number().min(0, 'Số ngày không hợp lệ'),
   proposedAction: z.string().min(1, 'Vui lòng chọn đề xuất xử lý')
 });
 
@@ -42,7 +41,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   onError
 }) => {
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       incidentType: 'Construction',
       estimatedMaterialLoss: 0,

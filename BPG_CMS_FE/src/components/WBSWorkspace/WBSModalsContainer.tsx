@@ -52,7 +52,7 @@ export const WBSModalsContainer = () => {
           onAssignOpen={() => { setIsDetailOpen(false); setIsAssignOpen(true); }}
           onLogOpen={() => { setIsDetailOpen(false); setIsLogOpen(true); }}
           onCreateMatReqOpen={(type) => { setIsDetailOpen(false); setCreateMatReqType(type); setIsCreateMatReqOpen(true); }}
-          onObsolete={() => { setIsDetailOpen(false); handleDeleteTask && handleDeleteTask(selectedTask.id); }}
+          onObsolete={() => { setIsDetailOpen(false); handleDeleteTask && handleDeleteTask(selectedTask.id, selectedTask.name); }}
         />
       )}
     

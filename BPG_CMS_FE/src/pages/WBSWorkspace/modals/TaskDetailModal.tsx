@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/Modal';
-import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Box, History } from 'lucide-react';
+import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Box, History, Package, FileText, ArrowLeft } from 'lucide-react';
 import type {WBSTask, WBSPhase, Project, MaterialRequest} from '../../../types/common';
 
 interface TaskDetailModalProps {
@@ -39,6 +39,96 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onAssignOpen, onLogOpen, onCreateMatReqOpen, onObsolete
 }) => {
   const navigate = useNavigate();
+  const [viewingRequest, setViewingRequest] = useState<MaterialRequest | null>(null);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending_leader': return <span className="badge badge-warning">Chờ Leader</span>;
+      case 'approved_by_leader': return <span className="badge badge-info">Đã tổng hợp</span>;
+      case 'pending_accountant': return <span className="badge badge-warning">Chờ Kế toán</span>;
+      case 'pending_disbursement': return <span className="badge badge-warning">Chờ Tạm ứng</span>;
+      case 'pending_director': return <span className="badge badge-warning">Chờ Giám đốc</span>;
+      case 'approved': return <span className="badge badge-success">Đã duyệt</span>;
+      case 'rejected': return <span className="badge badge-danger">Từ chối</span>;
+      default: return <span className="badge badge-secondary">{status}</span>;
+    }
+  };
+
+  if (viewingRequest) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Yêu cầu Vật tư" maxWidth="750px">
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '16px', borderBottom: '1px solid hsl(var(--border))' }}>
+            <button onClick={() => setViewingRequest(null)} className="btn btn-secondary" style={{ padding: '8px' }} title="Quay lại">
+              <ArrowLeft size={20} />
+            </button>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem' }}>Yêu cầu vật tư bởi {viewingRequest.requesterName}</h3>
+              <div style={{ display: 'flex', gap: '16px', color: 'hsl(var(--text-secondary))', fontSize: '0.9rem' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={14} /> {viewingRequest.date}</span>
+              </div>
+            </div>
+            <div>
+              {getStatusBadge(viewingRequest.status)}
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem' }}>
+              <Package size={18} /> Danh sách vật tư
+            </h4>
+            <div style={{ border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead style={{ backgroundColor: 'hsl(var(--bg-main))' }}>
+                  <tr>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>STT</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>Tên Vật tư</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>Số lượng</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>ĐVT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewingRequest.items.map((item, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid hsl(var(--border-light))' }}>
+                      <td style={{ padding: '12px 16px' }}>{idx + 1}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 500 }}>{item.name}</td>
+                      <td style={{ padding: '12px 16px', color: 'hsl(var(--primary))', fontWeight: 600 }}>{item.quantity}</td>
+                      <td style={{ padding: '12px 16px', color: 'hsl(var(--text-secondary))' }}>{item.unit}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {(viewingRequest.reason || viewingRequest.rejectionReason) && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              {viewingRequest.reason && (
+                <div style={{ padding: '16px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--border))' }}>
+                  <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.95rem' }}>
+                    <FileText size={16} /> Ghi chú / Giải trình
+                  </strong>
+                  <div style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                    {viewingRequest.reason}
+                  </div>
+                </div>
+              )}
+              {viewingRequest.rejectionReason && (
+                <div style={{ padding: '16px', backgroundColor: 'hsl(var(--danger-glow))', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--danger) / 0.3)' }}>
+                  <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.95rem', color: 'hsl(var(--danger))' }}>
+                    <AlertCircle size={16} /> Lý do từ chối
+                  </strong>
+                  <div style={{ fontSize: '0.9rem', color: 'hsl(var(--danger))', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                    {viewingRequest.rejectionReason}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Công việc đang chọn" maxWidth="700px">
@@ -193,19 +283,18 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {materialRequests.filter(r => r.taskId === selectedTask.id && !r.taskName?.includes('[Rework]')).length > 0 ? (
               materialRequests.filter(r => r.taskId === selectedTask.id && !r.taskName?.includes('[Rework]')).map(r => (
-                <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '8px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontWeight: 600 }}>{r.items.map(i => `${i.name} (${i.quantity} ${i.unit})`).join(', ')}</span>
+                <div 
+                  key={r.id} 
+                  onClick={() => setViewingRequest(r)}
+                  className="hover-card"
+                  style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', transition: 'all 0.2s' }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontWeight: 600 }}>{r.items.length} loại vật tư</span>
                     <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>{r.date} - {r.requesterName}</span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                    {r.status === 'pending_leader' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ Leader duyệt</span>}
-                    {r.status === 'approved_by_leader' && <span className="badge badge-info" style={{ fontSize: '0.62rem' }}>Đã tổng hợp</span>}
-                    {r.status === 'pending_tpkt' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ TPKT</span>}
-                    {r.status === 'pending_accountant' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ Kế toán</span>}
-                    {r.status === 'pending_director' && <span className="badge badge-warning" style={{ fontSize: '0.62rem' }}>Chờ Giám đốc</span>}
-                    {r.status === 'approved' && <span className="badge badge-success" style={{ fontSize: '0.62rem' }}>Đã duyệt</span>}
-                    {r.status === 'rejected' && <span className="badge badge-danger" style={{ fontSize: '0.62rem' }}>Bị từ chối</span>}
+                    {getStatusBadge(r.status)}
                   </div>
                 </div>
               ))

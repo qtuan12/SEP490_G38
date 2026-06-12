@@ -5,11 +5,8 @@ import { projectService } from '../services/projectService';
 import type {WBSPhase, WBSTask, Project} from '../types/common';
 import { 
   ArrowLeft, 
-  CheckCircle2, 
   AlertTriangle, 
-  Download,
-  Lock,
-  Clock
+  Download
 } from 'lucide-react';
 import type {AcceptanceRecord} from '../types/common';
 import { AcceptanceDocument } from './PhaseAcceptance/components/AcceptanceDocument';
@@ -122,7 +119,6 @@ export const PhaseAcceptance: React.FC = () => {
 
     try {
       await projectService.revokePhase(phaseId, revokeReason);
-      setIsSubmitted(false);
       setIsRevoking(false);
       setRevokeReason('');
       setSuccess('Đã hủy nghiệm thu giai đoạn thành công!');
