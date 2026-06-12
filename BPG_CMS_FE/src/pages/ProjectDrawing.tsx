@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
-import type { Project } from '../services/projectService';
+import type {Project} from '../types/common';
 import { useAuth } from '../context/AuthContext';
 import {
   ArrowLeft,

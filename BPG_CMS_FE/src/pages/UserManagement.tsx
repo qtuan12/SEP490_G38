@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { userService } from '../services/userService';
 import type { UserProfile } from '../services/authService';
 import { Modal } from '../components/Modal';
@@ -148,9 +148,9 @@ export const UserManagement: React.FC = () => {
       case 'admin': return 'Admin';
       case 'technicalmanager': return 'TP Kỹ Thuật';
       case 'projectleader': return 'Trưởng Dự án';
-      case 'siteengineer': return 'Kỹ Sư';
-      case 'accountant': return 'Kế Toán';
-      case 'director': return 'Giám Đốc';
+      case 'siteengineer': return 'siteengineer';
+      case 'accountant': return 'accountant';
+      case 'director': return 'director';
       default: return role;
     }
   };
@@ -266,7 +266,8 @@ export const UserManagement: React.FC = () => {
         </div>
       ) : (
         <div className="table-container animate-fade-in">
-          <table>
+          <div className="overflow-x-auto w-full">
+            <table>
             <thead>
               <tr>
                 <th>Tên thành viên</th>
@@ -335,6 +336,7 @@ export const UserManagement: React.FC = () => {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -447,3 +449,4 @@ export const UserManagement: React.FC = () => {
     </div>
   );
 };
+

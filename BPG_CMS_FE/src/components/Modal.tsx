@@ -14,18 +14,11 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content animate-slide-up" onClick={(e) => e.stopPropagation()} style={maxWidth ? { maxWidth } : undefined}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{title}</h3>
+        <div className="flex justify-between items-center mb-5">
+          <h3 className="text-xl font-semibold">{title}</h3>
           <button 
             onClick={onClose} 
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              color: 'hsl(var(--text-secondary))', 
-              fontSize: '1.5rem', 
-              cursor: 'pointer',
-              lineHeight: 1
-            }}
+            className="bg-transparent border-none text-[hsl(var(--text-secondary))] text-2xl cursor-pointer leading-none hover:text-[hsl(var(--text-primary))] transition-colors"
           >
             &times;
           </button>

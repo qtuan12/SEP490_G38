@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { DailyLogFeed } from '../components/DailyLogFeed';
 import { ArrowLeft } from 'lucide-react';
 import { projectService } from '../services/projectService';
-import type { Project } from '../services/projectService';
+import type {Project} from '../types/common';
 
 export const ProjectDailyLogs: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();

@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type { DailyLog, WBSTask } from '../services/projectService';
+import type {DailyLog, WBSTask} from '../types/common';
 import { 
   Clock, 
   Send, 
@@ -186,8 +186,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
       case 'admin': return 'Admin';
       case 'technicalmanager': return 'TP Kỹ Thuật';
       case 'siteengineer': return 'Kỹ Sư Hiện Trường';
-      case 'director': return 'Giám Đốc';
-      case 'accountant': return 'Kế Toán';
+      case 'director': return 'director';
+      case 'accountant': return 'accountant';
       default: return role;
     }
   };
@@ -703,5 +703,6 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
     </div>
   );
 };
+
 
 

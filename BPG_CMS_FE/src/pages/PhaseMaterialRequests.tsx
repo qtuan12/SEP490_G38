@@ -2,9 +2,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type { WBSPhase, MaterialRequest, Project } from '../services/projectService';
-import { CreateMaterialRequestModal } from '../components/MaterialRequestModals';
-import { Plus, ArrowLeft, ClipboardList, Package, Calendar, User as UserIcon, FileText, AlertTriangle } from 'lucide-react';
+import type {WBSPhase, MaterialRequest, Project} from '../types/common';
+import { CreateMaterialRequestModal } from './MaterialRequests/modals/CreateMaterialRequestModal';
+import { Plus, ArrowLeft, ClipboardList, Package, Calendar, User as UserIcon, FileText, AlertTriangle, Menu } from 'lucide-react';
 
 export const PhaseMaterialRequests: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -20,6 +20,7 @@ export const PhaseMaterialRequests: React.FC = () => {
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const fetchData = async () => {
     if (!projectId || !phaseId) return;
@@ -88,8 +89,11 @@ export const PhaseMaterialRequests: React.FC = () => {
       
       {/* HEADER */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', backgroundColor: 'hsl(var(--bg-card))', padding: '16px 20px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--border))' }}>
-        <button onClick={() => navigate(`/projects/${projectId}`)} className="btn btn-secondary" style={{ padding: '8px' }}>
+        <button onClick={() => navigate(`/projects/${projectId}`)} className="btn btn-secondary" title="Quay lại" style={{ padding: '8px' }}>
           <ArrowLeft size={20} />
+        </button>
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="btn btn-secondary" title="Thu gọn/Mở rộng danh sách đề xuất" style={{ padding: '8px' }}>
+          <Menu size={20} />
         </button>
         <div>
           <h2 style={{ margin: 0, fontSize: '1.4rem', color: 'hsl(var(--text-primary))' }}>Yêu cầu Vật tư: {phase.name}</h2>
@@ -103,7 +107,20 @@ export const PhaseMaterialRequests: React.FC = () => {
       <div style={{ display: 'flex', gap: '24px', flex: 1, overflow: 'hidden' }}>
         
         {/* LEFT PANEL: LIST */}
-        <div style={{ width: '400px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'hsl(var(--bg-card))', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--border))' }}>
+        <div style={{ 
+          width: isSidebarOpen ? '400px' : '0px', 
+          minWidth: isSidebarOpen ? '400px' : '0px',
+          opacity: isSidebarOpen ? 1 : 0,
+          overflow: 'hidden',
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '16px', 
+          backgroundColor: 'hsl(var(--bg-card))', 
+          padding: isSidebarOpen ? '20px' : '0px', 
+          borderRadius: 'var(--radius-md)', 
+          border: isSidebarOpen ? '1px solid hsl(var(--border))' : 'none',
+          transition: 'all 0.3s ease'
+        }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ClipboardList size={20} /> Danh sách đề xuất
@@ -192,7 +209,8 @@ export const PhaseMaterialRequests: React.FC = () => {
                   <Package size={18} /> Danh sách vật tư
                 </h4>
                 <div style={{ border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <div className="overflow-x-auto w-full">
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead style={{ backgroundColor: 'hsl(var(--bg-main))' }}>
                       <tr>
                         <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>STT</th>
@@ -212,6 +230,7 @@ export const PhaseMaterialRequests: React.FC = () => {
                       ))}
                     </tbody>
                   </table>
+          </div>
                 </div>
               </div>
 

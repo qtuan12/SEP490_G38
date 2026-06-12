@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -7,7 +7,7 @@ import {
   LogOut, 
   Hammer, 
   Boxes, 
-  Menu, 
+  Menu, ChevronLeft, ChevronRight, 
   FileText,
   User
 } from 'lucide-react';
@@ -15,6 +15,8 @@ import {
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
 
   const handleLogout = () => {
@@ -38,8 +40,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       case 'technicalmanager': return 'TP Kỹ Thuật';
       case 'projectleader': return 'Trưởng Dự án';
       case 'siteengineer': return 'Kỹ Sư Hiện Trường';
-      case 'accountant': return 'Kế Toán';
-      case 'director': return 'Giám Đốc';
+      case 'accountant': return 'accountant';
+      case 'director': return 'director';
       default: return role;
     }
   };
@@ -57,38 +59,62 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'hsl(var(--bg-main))' }}>
+    <div className="flex h-screen overflow-hidden bg-[hsl(var(--bg-main))]">
       {/* Sidebar */}
-      <aside style={{
-        width: '260px',
-        backgroundColor: 'hsl(var(--bg-card))',
-        borderRight: '1px solid hsl(var(--border))',
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0
-      }}>
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-50
+        ${isCollapsed ? 'w-[80px]' : 'w-[260px]'} 
+        bg-[hsl(var(--bg-card))] border-r border-[hsl(var(--border))]
+        flex flex-col shrink-0
+        transition-all duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
         {/* Logo Section */}
         <div style={{ 
-          padding: '20px 24px', 
+          padding: isCollapsed ? '20px 0' : '20px 24px', 
           borderBottom: '1px solid hsl(var(--border))', 
           display: 'flex', 
           alignItems: 'center', 
+          justifyContent: isCollapsed ? 'center' : 'space-between',
           gap: '12px' 
         }}>
-          <img 
-            src="/logo.png" 
-            alt="BPG Logo" 
-            style={{ 
-              height: '42px', 
-              width: '42px', 
-              objectFit: 'contain',
-              borderRadius: 'var(--radius-sm)'
-            }} 
-          />
-          <div>
-            <h1 style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '0.05em' }}>BPG CMS</h1>
-            <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 600 }}>Construction MVP</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'center' }}>
+            {!isCollapsed && (
+              <img 
+                src="/logo.png" 
+                alt="BPG Logo" 
+                style={{ 
+                  height: '40px', 
+                  width: '40px', 
+                  objectFit: 'contain',
+                  borderRadius: 'var(--radius-sm)'
+                }} 
+              />
+            )}
+            {!isCollapsed && (
+            <div className="overflow-hidden whitespace-nowrap">
+              <h1 style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '0.05em' }}>BPG CMS</h1>
+              <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', textTransform: 'uppercase', fontWeight: 600 }}>Construction MVP</span>
+            </div>
+            )}
           </div>
+          
+          <button 
+            onClick={() => setIsCollapsed(!isCollapsed)} 
+            className="flex items-center justify-center text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--primary))] transition-colors"
+            title="Thu gọn/Mở rộng Sidebar"
+          >
+            <Menu size={24} />
+          </button>
         </div>
 
         {/* Navigation */}
@@ -98,13 +124,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             return (
               <button
                 key={item.name}
-                onClick={() => !item.disabled && navigate(item.path)}
+                onClick={() => { if(!item.disabled) { navigate(item.path); setIsSidebarOpen(false); } }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
                   width: '100%',
                   padding: '12px 16px',
+                  justifyContent: isCollapsed ? 'center' : 'flex-start',
                   borderRadius: 'var(--radius-sm)',
                   border: 'none',
                   backgroundColor: isActive ? 'hsl(var(--primary-glow))' : 'transparent',
@@ -118,8 +145,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 disabled={item.disabled}
               >
                 {item.icon}
-                <span>{item.name}</span>
-                {item.disabled && (
+                {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
+                {item.disabled && !isCollapsed && (
                   <span style={{ 
                     fontSize: '0.65rem', 
                     marginLeft: 'auto', 
@@ -162,6 +189,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               }}>
                 <User size={20} />
               </div>
+              {!isCollapsed && (
               <div style={{ overflow: 'hidden' }}>
                 <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {user.name}
@@ -170,14 +198,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   {getRoleLabel(user.role)}
                 </span>
               </div>
+              )}
             </div>
+            
             <button
               onClick={handleLogout}
               className="btn btn-secondary"
               style={{ width: '100%', fontSize: '0.85rem', padding: '8px 12px' }}
             >
               <LogOut size={16} />
-              <span>Đăng xuất</span>
+              {!isCollapsed && <span>Đăng xuất</span>}
             </button>
           </div>
         )}
@@ -186,35 +216,36 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       {/* Main Content Area */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
         {/* Top Header */}
-        <header style={{
-          height: '70px',
-          backgroundColor: 'hsl(var(--bg-card))',
-          borderBottom: '1px solid hsl(var(--border))',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 32px',
-          justifyContent: 'space-between'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Menu size={20} style={{ color: 'hsl(var(--text-secondary))', cursor: 'pointer', display: 'none' }} />
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>
-              {location.pathname === '/dashboard' ? 'Bảng điều khiển' : 
-               location.pathname === '/users' ? 'Quản lý Thành viên' : 
-               location.pathname === '/projects' ? 'Danh sách Dự án WBS' : 
-               location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
-               location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
-            </h2>
-          </div>
-          <div style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.9rem' }}>
-            Dự án: <strong style={{ color: 'hsl(var(--text-primary))' }}>BPG Construction (MVP)</strong>
+        <header className="h-[70px] bg-[hsl(var(--bg-card))] border-b border-[hsl(var(--border))] flex items-center sticky top-0 z-30" style={{ padding: window.innerWidth >= 1024 ? '0 48px' : '0 24px' }}>
+          <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Menu 
+                size={24} 
+                className="text-[hsl(var(--text-secondary))] cursor-pointer lg:hidden" 
+                onClick={() => setIsSidebarOpen(true)} 
+              />
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>
+                {location.pathname === '/dashboard' ? 'Bảng điều khiển' : 
+                 location.pathname === '/users' ? 'Quản lý Thành viên' : 
+                 location.pathname === '/projects' ? 'Danh sách Dự án WBS' : 
+                 location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
+                 location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
+              </h2>
+            </div>
+            <div style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.9rem', display: 'flex', gap: '4px' }} className="hidden md:flex">
+              Dự án: <strong style={{ color: 'hsl(var(--text-primary))' }}>BPG Construction (MVP)</strong>
+            </div>
           </div>
         </header>
 
         {/* Scrollable Content */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
-          {children}
+        <main className="flex-1 overflow-y-auto" style={{ padding: window.innerWidth >= 1024 ? '48px' : '24px' }}>
+          <div className="max-w-[1400px] mx-auto w-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>
   );
 };
+
