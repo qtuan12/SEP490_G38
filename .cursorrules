@@ -30,15 +30,24 @@ Mục tiêu tối thượng của bạn là: **TỐI ĐA HÓA TÁI SỬ DỤNG (
   - `ApiNotFound(message)` -> Trả về `404 Not Found`.
 * **Phân trang (Pagination):** API lấy danh sách lớn phải sử dụng `PagedList<T>` và `ToPagedListAsync()` (hoặc `PagedList<T>.CreateAsync()`). Nhận `pageIndex` và `pageSize` từ query string (mặc định: pageIndex=1, pageSize=10).
 
-### C. CQRS, Validation & Exception Handling
-* **CQRS & MediatR:** Mọi logic nghiệp vụ phải đặt trong thư mục `Features/.../Handlers/` (ở tầng Application). Controller chỉ nhận Request và gọi `_mediator.Send()` (hoặc property `Mediator` từ `BaseApiController`).
-* **Validation (FluentValidation):** KHÔNG viết logic kiểm tra dữ liệu (kiểm tra rỗng, độ dài, định dạng...) thủ công trong Handler hay Controller. Bắt buộc tạo class kế thừa `AbstractValidator<T>` đặt cùng thư mục với Command/Query đó.
-* **Không dùng Try-Catch dư thừa:** Hệ thống đã cấu hình `GlobalExceptionMiddleware` để tự động bắt lỗi và format thành `ApiResponse`. Không viết các khối `try-catch` trống hoặc dư thừa ở Controller hay Handler. Đối với các lỗi nghiệp vụ, hãy throw `InvalidOperationException` kèm message hiển thị cho user.
+### C. CQRS, Validation, Exceptions & Security
+* **CQRS & MediatR & UnitOfWork:** Mọi logic nghiệp vụ phải đặt trong thư mục `Features/.../Handlers/` (Application layer).
+  - **Trong Handler, bắt buộc inject IUnitOfWork để truy cập các repository và lưu thay đổi, TUYỆT ĐỐI KHÔNG inject trực tiếp AppDbContext.**
+  - Controller chỉ nhận Request, gọi `Mediator.Send(command)` và trả trực tiếp `ApiOk(result)`.
+* **Validation (FluentValidation):** KHÔNG viết logic kiểm tra dữ liệu (kiểm tra rỗng, độ dài, định dạng...) thủ công. Tạo class kế thừa `AbstractValidator<T>` đặt cùng thư mục với Command/Query.
+* **Không dùng Try-Catch & Check Null dư thừa:** 
+  - Khi có lỗi nghiệp vụ (ví dụ: không tìm thấy, trùng lặp, sai auth), hãy throw các exception tương ứng (`NotFoundException`, `DuplicateEntryException`, `UnauthorizedException`, `ForbiddenException`).
+  - Hệ thống đã cấu hình `GlobalExceptionMiddleware` để tự động bắt lỗi và format thành `ApiResponse`. Controller tuyệt đối không check `result == null` hoặc bọc `try-catch` thủ công để trả về mã lỗi.
+* **JWT & Claims:** Chỉ sử dụng standard claims (`ClaimTypes.NameIdentifier` cho UserId, `ClaimTypes.Name` cho FullName, `ClaimTypes.Email` cho Email, và `ClaimTypes.Role` cho Roles). `CurrentUserService` chỉ đọc thông tin qua các standard claims này để giữ kích thước token gọn gàng và nhất quán.
 
 ### D. Database & EF Core
 * **BaseEntity:** Tất cả thực thể database phải kế thừa `BaseEntity` (chứa CreatedAt, UpdatedAt, IsDeleted, CreatedBy, UpdatedBy).
 * **Soft Delete:** Sử dụng soft delete bằng cách set `IsDeleted = true`, không delete vật lý (xóa cứng) dữ liệu trừ khi được yêu cầu đặc biệt.
 * **Cấu hình DbContext:** Chỉ được thêm mới cấu hình map bảng khi có Entity mới, tuyệt đối **KHÔNG** tự ý sửa hoặc xóa cấu hình map bảng cũ.
+
+### E. Sử dụng Constants (Tránh Magic Strings)
+* **Tuyệt đối KHÔNG hardcode các chuỗi ký tự (Magic Strings)** cho các giá trị hệ thống như Roles, Error Codes, Response Messages, System Settings, Statuses, Notification Types, Entity Types, v.v.
+* **Bắt buộc sử dụng các class Constants** đã được định nghĩa tập trung trong namespace `BPG.Domain.Constants` (ví dụ: `UserRole`, `PolicyNames`, `ErrorCodes`, `ResponseMessages`, `SystemConfigKeys`, `TypeConstants`, `StatusConstants`, v.v.).
 
 ---
 

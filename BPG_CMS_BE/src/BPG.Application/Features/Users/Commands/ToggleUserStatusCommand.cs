@@ -3,5 +3,5 @@ using MediatR;
 
 namespace BPG.Application.Features.Users.Commands
 {
-    public record ToggleUserStatusCommand(long Id) : IRequest<UserDto?>;
+    public record ToggleUserStatusCommand(long Id) : IRequest<UserDto>;
 }

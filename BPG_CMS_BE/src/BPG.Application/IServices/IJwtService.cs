@@ -1,6 +1,6 @@
-﻿using BPG.Domain.Entities;
+using BPG.Domain.Entities;
 
-namespace BPG.Aapplication.IServices
+namespace BPG.Application.IServices
 {
     public interface IJwtService
     {

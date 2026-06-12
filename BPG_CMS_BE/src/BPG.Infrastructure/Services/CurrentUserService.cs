@@ -1,7 +1,7 @@
 using BPG.Application.IServices;
+using BPG.Domain.Constants;
+using BPG.Domain.Exceptions;
 using Microsoft.AspNetCore.Http;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 
 namespace BPG.Infrastructure.Services;
@@ -15,18 +15,20 @@ public class CurrentUserService : ICurrentUserService
         _httpContextAccessor = httpContextAccessor;
     }
 
+    private ClaimsPrincipal? User => _httpContextAccessor.HttpContext?.User;
+
+    public bool IsAuthenticated =>
+        User?.Identity != null && User.Identity.IsAuthenticated;
+
     public long? UserId
     {
         get
         {
-            var user = _httpContextAccessor.HttpContext?.User;
-            if (user?.Identity == null || !user.Identity.IsAuthenticated)
-            {
+            if (!IsAuthenticated)
                 return 1; // Mock Admin ID khi chạy local chưa đăng nhập
-            }
 
-            var idClaim = user.FindFirst("userId")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            return long.TryParse(idClaim, out var id) ? id : null;
+            var raw = User!.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return long.TryParse(raw, out var id) ? id : null;
         }
     }
 
@@ -34,12 +36,10 @@ public class CurrentUserService : ICurrentUserService
     {
         get
         {
-            var user = _httpContextAccessor.HttpContext?.User;
-            if (user?.Identity == null || !user.Identity.IsAuthenticated)
-            {
-                return "admin@bpg.com"; // Mock Admin email
-            }
-            return user.FindFirst(ClaimTypes.Email)?.Value ?? user.FindFirst("email")?.Value;
+            if (!IsAuthenticated)
+                return "admin@bpg.com";
+
+            return User!.FindFirst(ClaimTypes.Email)?.Value;
         }
     }
 
@@ -47,15 +47,35 @@ public class CurrentUserService : ICurrentUserService
     {
         get
         {
-            var user = _httpContextAccessor.HttpContext?.User;
-            if (user?.Identity == null || !user.Identity.IsAuthenticated)
-            {
-                return new List<string> { "Admin" }; // Mock Admin role khi chưa đăng nhập
-            }
+            if (!IsAuthenticated)
+                return new List<string> { UserRole.Admin }; // Mock Admin role khi chưa đăng nhập
 
-            return user.FindAll(ClaimTypes.Role)
-                       .Select(c => c.Value)
-                       .ToList();
+            return User!.FindAll(ClaimTypes.Role)
+                        .Select(c => c.Value)
+                        .ToList();
         }
     }
+
+    /// <summary>
+    /// Lấy UserId, throw UnauthorizedException nếu chưa đăng nhập hoặc claim thiếu.
+    /// </summary>
+    public long GetRequiredUserId()
+    {
+        if (!IsAuthenticated)
+            throw new UnauthorizedException();
+
+        var id = UserId;
+        if (id == null)
+            throw new UnauthorizedException("Không thể xác định danh tính người dùng từ token.");
+
+        return id.Value;
+    }
+
+    /// <summary>Kiểm tra user có vai trò chỉ định không (case-insensitive).</summary>
+    public bool IsInRole(string role) =>
+        Roles.Any(r => r.Equals(role, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Kiểm tra user có ít nhất 1 trong các vai trò chỉ định không.</summary>
+    public bool IsInAnyRole(params string[] roles) =>
+        roles.Any(IsInRole);
 }
