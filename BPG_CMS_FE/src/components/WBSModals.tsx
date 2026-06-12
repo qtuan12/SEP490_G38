@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { projectService } from '../services/projectService';
 import type { WBSPhase, ProjectMember, PhaseMaterialItem } from '../services/projectService';
@@ -155,7 +155,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const [loading, setLoading] = useState(false);
 
   // Filter only site engineers (Nhân viên kỹ thuật / SE)
-  const engineers = members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'kỹ sư' || m.userRole === 'Nhân viên kỹ thuật');
+  const engineers = members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'siteengineer' || m.userRole === 'Nhân viên kỹ thuật');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -999,5 +999,7 @@ export const LeaderApprovalModal: React.FC<LeaderApprovalModalProps> = ({
     </Modal>
   );
 };
+
+
 
 

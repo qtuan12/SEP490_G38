@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
@@ -38,7 +38,7 @@ export const PhaseMaterialRequests: React.FC = () => {
 
       const members = await projectService.getMembers(projectId);
       const currentMember = members.find(m => m.userId === user?.id);
-      setIsLeader((currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'tpkt');
+      setIsLeader((currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager');
     } catch (err) {
       console.error(err);
     } finally {
@@ -289,3 +289,4 @@ export const PhaseMaterialRequests: React.FC = () => {
     </div>
   );
 };
+

@@ -5,14 +5,14 @@ const getLocalUsers = (): UserProfile[] => {
   const usersStr = localStorage.getItem('bpg_users_list');
   const defaults: UserProfile[] = [
     { id: 'u-1', name: 'Hệ thống Admin', email: 'admin@bpg.com', role: 'admin', status: 'active' },
-    { id: 'u-2', name: 'Nguyễn Văn Kỹ', email: 'tpkt@bpg.com', role: 'tpkt', status: 'active' },
-    { id: 'u-3', name: 'Trần Văn Công', email: 'engineer@bpg.com', role: 'kỹ sư', status: 'active' },
-    { id: 'u-6', name: 'Nguyễn Văn Nam', email: 'se1@bpg.com', role: 'kỹ sư', status: 'active' },
-    { id: 'u-7', name: 'Phạm Minh Hải', email: 'se2@bpg.com', role: 'kỹ sư', status: 'active' },
-    { id: 'u-8', name: 'Hoàng Việt Anh', email: 'se3@bpg.com', role: 'kỹ sư', status: 'active' },
-    { id: 'u-9', name: 'Đỗ Thùy Linh', email: 'se4@bpg.com', role: 'kỹ sư', status: 'active' },
-    { id: 'u-4', name: 'Phạm Huy Hoàng', email: 'giamdoc@bpg.com', role: 'giám đốc', status: 'active' },
-    { id: 'u-5', name: 'Lê Thị Thu', email: 'ketoan@bpg.com', role: 'kế toán', status: 'active' },
+    { id: 'u-2', name: 'Nguyễn Văn Kỹ', email: 'tpkt@bpg.com', role: 'technicalmanager', status: 'active' },
+    { id: 'u-3', name: 'Trần Văn Công', email: 'engineer@bpg.com', role: 'siteengineer', status: 'active' },
+    { id: 'u-6', name: 'Nguyễn Văn Nam', email: 'se1@bpg.com', role: 'siteengineer', status: 'active' },
+    { id: 'u-7', name: 'Phạm Minh Hải', email: 'se2@bpg.com', role: 'siteengineer', status: 'active' },
+    { id: 'u-8', name: 'Hoàng Việt Anh', email: 'se3@bpg.com', role: 'siteengineer', status: 'active' },
+    { id: 'u-9', name: 'Đỗ Thùy Linh', email: 'se4@bpg.com', role: 'siteengineer', status: 'active' },
+    { id: 'u-4', name: 'Phạm Huy Hoàng', email: 'giamdoc@bpg.com', role: 'director', status: 'active' },
+    { id: 'u-5', name: 'Lê Thị Thu', email: 'ketoan@bpg.com', role: 'accountant', status: 'active' },
   ];
 
   if (!usersStr) {

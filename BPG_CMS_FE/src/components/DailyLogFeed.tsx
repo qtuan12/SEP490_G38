@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 import type { DailyLog, WBSTask } from '../services/projectService';
@@ -167,7 +167,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
         incidentCount++;
       }
       log.comments.forEach(comment => {
-        if ((comment.role === 'tpkt' || comment.role === 'giám đốc') && !acknowledgedComments.includes(comment.id)) {
+        if ((comment.role === 'technicalmanager' || comment.role === 'director') && !acknowledgedComments.includes(comment.id)) {
           directiveCount++;
         }
       });
@@ -184,10 +184,10 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'admin': return 'Admin';
-      case 'tpkt': return 'TP Kỹ Thuật';
-      case 'kỹ sư': return 'Kỹ Sư Hiện Trường';
-      case 'giám đốc': return 'Giám Đốc';
-      case 'kế toán': return 'Kế Toán';
+      case 'technicalmanager': return 'TP Kỹ Thuật';
+      case 'siteengineer': return 'Kỹ Sư Hiện Trường';
+      case 'director': return 'Giám Đốc';
+      case 'accountant': return 'Kế Toán';
       default: return role;
     }
   };
@@ -195,10 +195,10 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
   const getRoleBadgeClass = (role: string) => {
     switch (role) {
       case 'admin': return 'badge-danger';
-      case 'tpkt': return 'badge-primary';
-      case 'kỹ sư': return 'badge-success';
-      case 'giám đốc': return 'badge-warning';
-      case 'kế toán': return 'badge-primary';
+      case 'technicalmanager': return 'badge-primary';
+      case 'siteengineer': return 'badge-success';
+      case 'director': return 'badge-warning';
+      case 'accountant': return 'badge-primary';
       default: return 'badge-secondary';
     }
   };
@@ -559,7 +559,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                         {(log.comments?.length || 0) > 0 && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                             {log.comments.map((comm) => {
-                              const isManager = comm.role === 'tpkt' || comm.role === 'giám đốc';
+                              const isManager = comm.role === 'technicalmanager' || comm.role === 'director';
                               const isAcknowledged = acknowledgedComments.includes(comm.id);
                               
                               let commentClass = "";
@@ -615,7 +615,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                                       {comm.content}
                                     </p>
 
-                                    {isManager && !isAcknowledged && user?.role === 'kỹ sư' && (
+                                    {isManager && !isAcknowledged && user?.role === 'siteengineer' && (
                                       <button
                                         onClick={() => handleAcknowledgeComment(comm.id)}
                                         className="btn btn-secondary"
@@ -703,3 +703,5 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
     </div>
   );
 };
+
+

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   Shield, 
@@ -28,8 +28,8 @@ export const Dashboard: React.FC = () => {
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
 
-  const isAccountant = user?.role === 'kế toán' || user?.role === 'admin';
-  const isDirector = user?.role === 'giám đốc' || user?.role === 'admin';
+  const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
+  const isDirector = user?.role === 'director' || user?.role === 'admin';
 
   const fetchUsers = async () => {
     try {
@@ -218,7 +218,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Critical Alerts for Directors/TPKTs */}
-      {(user?.role === 'admin' || user?.role === 'tpkt' || user?.role === 'giám đốc') && criticalAlerts.length > 0 && (
+      {(user?.role === 'admin' || user?.role === 'technicalmanager' || user?.role === 'director') && criticalAlerts.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {criticalAlerts.map((alert, idx) => (
             <div
@@ -604,3 +604,4 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+

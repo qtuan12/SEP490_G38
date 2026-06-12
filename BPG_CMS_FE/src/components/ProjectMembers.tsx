@@ -23,7 +23,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
 
-  const isTPKT = user?.role === 'tpkt' || user?.role === 'admin';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const loadData = async () => {
     setLoading(true);
@@ -35,8 +35,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       // Load all system users
       const allUsers = await userService.getUsers();
       // Filter out those who are not engineers or are already members of this project
-      const engineers = allUsers.filter(u => 
-        u.role === 'kỹ sư' && !projMembers.some(m => m.userId === u.id)
+      const engineers = allUsers.filter(u =>
+        u.role === 'siteengineer' && !projMembers.some(m => m.userId === u.id)
       );
       setAvailableEngineers(engineers);
       if (engineers.length > 0) {

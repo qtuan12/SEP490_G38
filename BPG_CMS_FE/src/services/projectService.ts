@@ -1,4 +1,4 @@
-import { USE_MOCK_API } from './api';
+﻿import { USE_MOCK_API } from './api';
 
 export interface Project {
   id: string;
@@ -189,10 +189,10 @@ const DEFAULT_PROJECTS: Project[] = [
 ];
 
 const DEFAULT_MEMBERS: ProjectMember[] = [
-  { projectId: 'p-1', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userRole: 'kỹ sư', isLeader: true },
-  { projectId: 'p-1', userId: 'u-6', userName: 'Nguyễn Văn Nam', userEmail: 'se1@bpg.com', userRole: 'kỹ sư', isLeader: false },
-  { projectId: 'p-1', userId: 'u-7', userName: 'Phạm Minh Hải', userEmail: 'se2@bpg.com', userRole: 'kỹ sư', isLeader: false },
-  { projectId: 'p-2', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userRole: 'kỹ sư', isLeader: false },
+  { projectId: 'p-1', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userrole: 'siteengineer', isLeader: true },
+  { projectId: 'p-1', userId: 'u-6', userName: 'Nguyễn Văn Nam', userEmail: 'se1@bpg.com', userrole: 'siteengineer', isLeader: false },
+  { projectId: 'p-1', userId: 'u-7', userName: 'Phạm Minh Hải', userEmail: 'se2@bpg.com', userrole: 'siteengineer', isLeader: false },
+  { projectId: 'p-2', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userrole: 'siteengineer', isLeader: false },
 ];
 
 const DEFAULT_PHASES: WBSPhase[] = [
@@ -237,7 +237,7 @@ const DEFAULT_LOGS: DailyLog[] = [
       'https://images.unsplash.com/photo-1590069261209-f8e9b8642343?auto=format&fit=crop&w=600&q=80'
     ],
     comments: [
-      { id: 'c-1', userId: 'u-2', userName: 'Nguyễn Văn Kỹ', role: 'tpkt', content: 'Gia cố kỹ chân cốp pha trục C nhé Công, tránh để phình bụng bê tông khi đổ vào ngày mai.', date: '2026-06-01 17:15' }
+      { id: 'c-1', userId: 'u-2', userName: 'Nguyễn Văn Kỹ', role: 'technicalmanager', content: 'Gia cố kỹ chân cốp pha trục C nhé Công, tránh để phình bụng bê tông khi đổ vào ngày mai.', date: '2026-06-01 17:15' }
     ]
   },
   {
@@ -800,7 +800,7 @@ export const projectService = {
     
     // Validate decrease
     if (logData.progressTo < task.progress) {
-      if (userRole !== 'tpkt' && userRole !== 'admin') {
+      if (userRole !== 'technicalmanager' && userRole !== 'admin') {
         throw new Error(`Tiến độ báo cáo (${logData.progressTo}%) không thể nhỏ hơn tiến độ hiện tại (${task.progress}%). Vui lòng báo cáo TPKT để xử lý sự cố.`);
       }
     }
@@ -1166,7 +1166,7 @@ export const projectService = {
     
     if (isEmergency) {
       initialStatus = 'pending_disbursement';
-    } else if (userRole === 'kỹ sư' && !isLeader) {
+    } else if (userRole === 'siteengineer' && !isLeader) {
       initialStatus = 'pending_leader';
     }
 
@@ -1460,9 +1460,9 @@ export const projectService = {
     if (isEmergency) {
       newStatus = 'pending_disbursement';
     } else if (request.taskId) {
-      if (userRole === 'kỹ sư' && !isLeader) {
+      if (userRole === 'siteengineer' && !isLeader) {
         newStatus = 'pending_leader';
-      } else if (userRole === 'kỹ sư' && isLeader) {
+      } else if (userRole === 'siteengineer' && isLeader) {
         newStatus = 'pending_tpkt';
       }
     }
@@ -1502,3 +1502,5 @@ export const projectService = {
     return newComment;
   }
 };
+
+

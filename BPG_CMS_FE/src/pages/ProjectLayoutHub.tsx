@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import type { Project } from '../services/projectService';
@@ -24,7 +24,7 @@ export const ProjectLayoutHub: React.FC = () => {
   const navigate = useNavigate();
   
   const { user } = useAuth();
-  const isTPKT = user?.role === 'tpkt' || user?.role === 'admin';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -287,3 +287,4 @@ export const ProjectLayoutHub: React.FC = () => {
     </div>
   );
 };
+

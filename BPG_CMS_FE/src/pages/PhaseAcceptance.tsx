@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
@@ -47,7 +47,7 @@ export const PhaseAcceptance: React.FC = () => {
   const [opinions, setOpinions] = useState('Nhà thầu cần tiếp tục dọn dẹp vệ sinh sạch sẽ mặt bằng sau khi hoàn thành.');
   const [conclusion, setConclusion] = useState('Chấp nhận nghiệm thu và đồng ý cho triển khai các công việc tiếp theo.');
 
-  const isTPKT = user?.role === 'tpkt' || user?.role === 'admin';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const loadData = async () => {
     if (!projectId || !phaseId) return;
@@ -912,3 +912,4 @@ CÁN BỘ GIÁM SÁT THI CÔNG                 KỸ THUẬT THI CÔNG TRỰC TI�
     </div>
   );
 };
+

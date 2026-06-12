@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 import type { WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest } from '../services/projectService';
@@ -135,7 +135,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
 
-  const isTPKTOrPL = user?.role === 'tpkt' || user?.role === 'admin';
+  const isTPKTOrPL = user?.role === 'technicalmanager' || user?.role === 'admin';
 
 
   const loadWBSData = async () => {
@@ -181,7 +181,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const currentMember = members.find(m => m.userId === user?.id);
-  const isPL = (currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'tpkt';
+  const isPL = (currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager';
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
@@ -1267,7 +1267,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                                 <button onClick={(e) => { e.stopPropagation(); handleRejectMatReq(r.id); }} className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.65rem' }}>Từ chối</button>
                               </>
                             )}
-                            {isTPKTOrPL && user?.role !== 'kỹ sư' && r.status === 'pending_tpkt' && (
+                            {isTPKTOrPL && user?.role !== 'siteengineer' && r.status === 'pending_tpkt' && (
                               <>
                                 <button onClick={(e) => { e.stopPropagation(); handleApproveByTPKT(r.id); }} className="btn btn-primary" style={{ padding: '2px 8px', fontSize: '0.65rem' }}>Duyệt gửi KT</button>
                                 <button onClick={(e) => { e.stopPropagation(); handleRejectMatReq(r.id); }} className="btn btn-secondary" style={{ padding: '2px 8px', fontSize: '0.65rem' }}>Từ chối</button>
@@ -1483,3 +1483,4 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     </div>
   );
 };
+
