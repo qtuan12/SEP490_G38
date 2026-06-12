@@ -41,6 +41,10 @@ Mục tiêu tối thượng của bạn là: **TỐI ĐA HÓA TÁI SỬ DỤNG (
 * **Soft Delete:** Sử dụng soft delete bằng cách set `IsDeleted = true`, không delete vật lý (xóa cứng) dữ liệu trừ khi được yêu cầu đặc biệt.
 * **Cấu hình DbContext:** Chỉ được thêm mới cấu hình map bảng khi có Entity mới, tuyệt đối **KHÔNG** tự ý sửa hoặc xóa cấu hình map bảng cũ.
 
+### E. Sử dụng Constants (Tránh Magic Strings)
+* **Tuyệt đối KHÔNG hardcode các chuỗi ký tự (Magic Strings)** cho các giá trị hệ thống như Roles, Error Codes, Response Messages, System Settings, Statuses, Notification Types, Entity Types, v.v.
+* **Bắt buộc sử dụng các class Constants** đã được định nghĩa tập trung trong namespace `BPG.Domain.Constants` (ví dụ: `UserRole`, `PolicyNames`, `ErrorCodes`, `ResponseMessages`, `SystemConfigKeys`, `TypeConstants`, `StatusConstants`, v.v.).
+
 ---
 
 ## 3. 🎨 QUY TẮC FRONTEND (REACT + TYPESCRIPT + VITE)
@@ -98,13 +102,13 @@ Trước khi kết thúc câu trả lời, bạn (AI Agent) PHẢI tự động 
 
 ---
 
-## 7. 📝 QUY TẮC CẬP NHẬT TRẠNG THÁI (PROJECT-STATUS.md)
+## 8. 📝 QUY TẮC CẬP NHẬT TRẠNG THÁI (PROJECT-STATUS.md)
 - **Tự động cập nhật tiến độ:** Mỗi khi hoàn thành code Backend, Frontend, viết Unit Test hoặc tài liệu cho bất kỳ task nào, AI Agent hoặc lập trình viên **BẮT BUỘC** phải cập nhật trạng thái của hạng mục đó trong file [PROJECT-STATUS.md](file:///d:/Semester_9_SU26/SEP490/Project/SEP490_G38/PROJECT-STATUS.md) (To Do ➔ 🚧 Đang làm ➔ ✅ Đã xong).
 - **Đảm bảo tính đồng bộ:** Bảng theo dõi trong `PROJECT-STATUS.md` là nguồn tin cậy duy nhất giúp các thành viên nhóm và các AI Agent khác biết dự án đang phát triển đến đâu mà không cần bàn giao thủ công.
 
 ---
 
-## 8. 🚀 QUY TẮC LÀM VIỆC VỚI GIT & CÁCH PROMPT AI
+## 9. 🚀 QUY TẮC LÀM VIỆC VỚI GIT & CÁCH PROMPT AI
 
 ### A. Git Workflow
 * Commit message tuân thủ chuẩn **Conventional Commits** (ví dụ: `feat(auth): add login form`, `fix(api): handle validation errors`).
@@ -113,6 +117,6 @@ Trước khi kết thúc câu trả lời, bạn (AI Agent) PHẢI tự động 
 ### B. Đoạn Prompt bắt buộc dán vào khi làm việc với AI
 Khi bạn ra lệnh hoặc đưa task cho bất kỳ AI Agent nào, luôn đặt đoạn text dưới đây lên đầu prompt để AI tự động tuân thủ:
 
-> "Bạn đang làm việc trên dự án BPG_CMS. Hãy đọc kỹ và tuân thủ tuyệt đối quy tắc trong AI_RULES.md và BUSINESS_CONTEXT.md trước khi viết hay sửa code. Code ngắn gọn, tái sử dụng tối đa code có sẵn, trả về ApiResponse chuẩn, không dùng try-catch dư thừa, dùng MediatR, FluentValidation và không viết Tailwind CSS ở Frontend. Hãy tuân thủ tuyệt đối BUSINESS_CONTEXT.md."
+> "Bạn đang làm việc trên dự án BPG_CMS. Hãy đọc kỹ và tuân thủ tuyệt đối quy tắc trong AI_RULES.md và BUSINESS_CONTEXT.md trước khi viết hay sửa code. Code ngắn gọn, tái sử dụng tối đa code có sẵn, trả về ApiResponse chuẩn thông qua GlobalExceptionMiddleware (ném Exception cụ thể từ Handler, không bắt try-catch hay check null ở Controller), dùng MediatR, FluentValidation, sử dụng IUnitOfWork/Repository thay vì inject trực tiếp AppDbContext vào Handler, và không viết Tailwind CSS ở Frontend. Hãy tuân thủ tuyệt đối BUSINESS_CONTEXT.md."
 
 
