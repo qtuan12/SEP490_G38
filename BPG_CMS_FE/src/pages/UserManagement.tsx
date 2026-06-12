@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { userService } from '../services/userService';
 import type { UserProfile } from '../services/authService';
 import { Modal } from '../components/Modal';
@@ -34,7 +34,7 @@ export const UserManagement: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'kỹ sư' as UserProfile['role']
+    role: 'siteengineer' as UserProfile['role']
   });
 
   const loadUsers = async () => {
@@ -71,7 +71,7 @@ export const UserManagement: React.FC = () => {
       await userService.createUser(formData);
       setIsCreateOpen(false);
       showSuccess(`Đã tạo tài khoản cho ${formData.name} thành công.`);
-      setFormData({ name: '', email: '', role: 'kỹ sư' });
+      setFormData({ name: '', email: '', role: 'siteengineer' });
       loadUsers();
     } catch (err: any) {
       setError(err.message || 'Không thể tạo tài khoản.');
@@ -146,10 +146,11 @@ export const UserManagement: React.FC = () => {
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'admin': return 'Admin';
-      case 'tpkt': return 'TP Kỹ Thuật';
-      case 'kỹ sư': return 'Kỹ Sư';
-      case 'giám đốc': return 'Giám Đốc';
-      case 'kế toán': return 'Kế Toán';
+      case 'technicalmanager': return 'TP Kỹ Thuật';
+      case 'projectleader': return 'Trưởng Dự án';
+      case 'siteengineer': return 'siteengineer';
+      case 'accountant': return 'accountant';
+      case 'director': return 'director';
       default: return role;
     }
   };
@@ -234,10 +235,11 @@ export const UserManagement: React.FC = () => {
           >
             <option value="">Tất cả Vai trò</option>
             <option value="admin">Admin</option>
-            <option value="tpkt">Trưởng phòng Kỹ thuật</option>
-            <option value="kỹ sư">Nhân viên Kỹ thuật</option>
-            <option value="giám đốc">Giám Đốc</option>
-            <option value="kế toán">Kế Toán</option>
+            <option value="technicalmanager">TP Kỹ Thuật</option>
+            <option value="projectleader">Trưởng Dự án</option>
+            <option value="siteengineer">Kỹ Sư Hiện Trường</option>
+            <option value="accountant">Kế Toán</option>
+            <option value="director">Giám Đốc</option>
           </select>
         </div>
 
@@ -245,7 +247,7 @@ export const UserManagement: React.FC = () => {
         <button
           onClick={() => {
             setError(null);
-            setFormData({ name: '', email: '', role: 'kỹ sư' });
+            setFormData({ name: '', email: '', role: 'siteengineer' });
             setIsCreateOpen(true);
           }}
           className="btn btn-primary"
@@ -289,9 +291,9 @@ export const UserManagement: React.FC = () => {
                     <td style={{ color: 'hsl(var(--text-secondary))' }}>{u.email}</td>
                     <td>
                       <span className={`badge ${
-                        u.role === 'admin' ? 'badge-danger' : 
-                        u.role === 'tpkt' ? 'badge-primary' : 
-                        u.role === 'kỹ sư' ? 'badge-success' : 'badge-warning'
+                        u.role === 'admin' ? 'badge-danger' :
+                        u.role === 'director' ? 'badge-warning' :
+                        u.role === 'siteengineer' ? 'badge-success' : 'badge-primary'
                       }`}>
                         {getRoleLabel(u.role)}
                       </span>
@@ -370,11 +372,12 @@ export const UserManagement: React.FC = () => {
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value as UserProfile['role'] })}
             >
-              <option value="admin">Hệ thống Admin</option>
-              <option value="tpkt">Trưởng phòng Kỹ thuật (TPKT)</option>
-              <option value="kỹ sư">Nhân viên Kỹ thuật (Kỹ sư)</option>
-              <option value="giám đốc">Giám Đốc</option>
-              <option value="kế toán">Kế Toán</option>
+              <option value="admin">Admin</option>
+              <option value="director">Giám Đốc</option>
+              <option value="technicalmanager">TP Kỹ Thuật (TechnicalManager)</option>
+              <option value="projectleader">Trưởng Dự án (ProjectLeader)</option>
+              <option value="siteengineer">Kỹ Sư Hiện Trường (SiteEngineer)</option>
+              <option value="accountant">Kế Toán (Accountant)</option>
             </select>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
@@ -414,11 +417,12 @@ export const UserManagement: React.FC = () => {
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value as UserProfile['role'] })}
             >
-              <option value="admin">Hệ thống Admin</option>
-              <option value="tpkt">Trưởng phòng Kỹ thuật (TPKT)</option>
-              <option value="kỹ sư">Nhân viên Kỹ thuật (Kỹ sư)</option>
-              <option value="giám đốc">Giám Đốc</option>
-              <option value="kế toán">Kế Toán</option>
+              <option value="admin">Admin</option>
+              <option value="director">Giám Đốc</option>
+              <option value="technicalmanager">TP Kỹ Thuật (TechnicalManager)</option>
+              <option value="projectleader">Trưởng Dự án (ProjectLeader)</option>
+              <option value="siteengineer">Kỹ Sư Hiện Trường (SiteEngineer)</option>
+              <option value="accountant">Kế Toán (Accountant)</option>
             </select>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
@@ -445,3 +449,4 @@ export const UserManagement: React.FC = () => {
     </div>
   );
 };
+

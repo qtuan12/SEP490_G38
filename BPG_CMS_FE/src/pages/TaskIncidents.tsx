@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
@@ -35,7 +35,7 @@ export const TaskIncidents: React.FC = () => {
 
   const currentMember = members.find(m => m.userId === user?.id);
   const isPL = currentMember ? currentMember.isLeader : false;
-  const isTPKT = user?.role === 'tpkt' || user?.role === 'admin';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
   const canApproveOrRequestRevision = isTPKT; // Only TPKT/Admin can approve/request revision
   const canReportIncident = isPL || isTPKT; // Only PL or TPKT/Admin
 
@@ -284,3 +284,4 @@ export const TaskIncidents: React.FC = () => {
     </div>
   );
 };
+

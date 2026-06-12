@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, KeyRound, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
 
@@ -14,10 +14,11 @@ export const Profile: React.FC = () => {
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'admin': return 'Quản trị viên (Admin)';
-      case 'tpkt': return 'Trưởng phòng Kỹ Thuật (TPKT)';
-      case 'kỹ sư': return 'Kỹ Sư Hiện Trường';
-      case 'giám đốc': return 'Giám Đốc';
-      case 'kế toán': return 'Kế Toán';
+      case 'technicalmanager': return 'Trưởng phòng Kỹ Thuật';
+      case 'projectleader': return 'Trưởng Dự án';
+      case 'siteengineer': return 'Kỹ Sư Hiện Trường';
+      case 'accountant': return 'accountant';
+      case 'director': return 'director';
       default: return role;
     }
   };
@@ -250,3 +251,4 @@ export const Profile: React.FC = () => {
     </div>
   );
 };
+

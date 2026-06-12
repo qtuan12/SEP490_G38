@@ -5,14 +5,14 @@ const getLocalUsers = (): UserProfile[] => {
   const usersStr = localStorage.getItem('bpg_users_list');
   const defaults: UserProfile[] = [
     { id: 'u-1', name: 'Hệ thống Admin', email: 'admin@bpg.com', role: 'admin', status: 'active' },
-    { id: 'u-2', name: 'Nguyễn Văn Kỹ', email: 'tpkt@bpg.com', role: 'tpkt', status: 'active' },
-    { id: 'u-3', name: 'Trần Văn Công', email: 'engineer@bpg.com', role: 'kỹ sư', status: 'active' },
-    { id: 'u-6', name: 'Nguyễn Văn Nam', email: 'se1@bpg.com', role: 'kỹ sư', status: 'active' },
-    { id: 'u-7', name: 'Phạm Minh Hải', email: 'se2@bpg.com', role: 'kỹ sư', status: 'active' },
-    { id: 'u-8', name: 'Hoàng Việt Anh', email: 'se3@bpg.com', role: 'kỹ sư', status: 'active' },
-    { id: 'u-9', name: 'Đỗ Thùy Linh', email: 'se4@bpg.com', role: 'kỹ sư', status: 'active' },
-    { id: 'u-4', name: 'Phạm Huy Hoàng', email: 'giamdoc@bpg.com', role: 'giám đốc', status: 'active' },
-    { id: 'u-5', name: 'Lê Thị Thu', email: 'ketoan@bpg.com', role: 'kế toán', status: 'active' },
+    { id: 'u-2', name: 'Nguyễn Văn Kỹ', email: 'tpkt@bpg.com', role: 'technicalmanager', status: 'active' },
+    { id: 'u-3', name: 'Trần Văn Công', email: 'engineer@bpg.com', role: 'siteengineer', status: 'active' },
+    { id: 'u-6', name: 'Nguyễn Văn Nam', email: 'se1@bpg.com', role: 'siteengineer', status: 'active' },
+    { id: 'u-7', name: 'Phạm Minh Hải', email: 'se2@bpg.com', role: 'siteengineer', status: 'active' },
+    { id: 'u-8', name: 'Hoàng Việt Anh', email: 'se3@bpg.com', role: 'siteengineer', status: 'active' },
+    { id: 'u-9', name: 'Đỗ Thùy Linh', email: 'se4@bpg.com', role: 'siteengineer', status: 'active' },
+    { id: 'u-4', name: 'Phạm Huy Hoàng', email: 'giamdoc@bpg.com', role: 'director', status: 'active' },
+    { id: 'u-5', name: 'Lê Thị Thu', email: 'ketoan@bpg.com', role: 'accountant', status: 'active' },
   ];
 
   if (!usersStr) {
@@ -40,35 +40,35 @@ const saveLocalUsers = (users: UserProfile[]) => {
   localStorage.setItem('bpg_users_list', JSON.stringify(users));
 };
 
+type ApiResponse<T> = { success: boolean; message?: string; data: T };
+
+const unwrap = <T>(res: ApiResponse<T>): T => {
+  if (!res.success) throw new Error(res.message || 'Yêu cầu thất bại.');
+  return res.data;
+};
+
 export const userService = {
   async getUsers(): Promise<UserProfile[]> {
     if (USE_MOCK_API) {
       await new Promise(resolve => setTimeout(resolve, 300));
       return getLocalUsers();
     }
-    return apiClient.get<UserProfile[]>('/users');
+    return unwrap(await apiClient.get<ApiResponse<UserProfile[]>>('/users'));
   },
 
   async createUser(userData: Omit<UserProfile, 'id' | 'status'>): Promise<UserProfile> {
     if (USE_MOCK_API) {
       await new Promise(resolve => setTimeout(resolve, 400));
       const users = getLocalUsers();
-      
       if (users.some(u => u.email.toLowerCase() === userData.email.toLowerCase())) {
         throw new Error('Email đã tồn tại trong hệ thống.');
       }
-
-      const newUser: UserProfile = {
-        ...userData,
-        id: `u-${Date.now()}`,
-        status: 'active',
-      };
-      
+      const newUser: UserProfile = { ...userData, id: `u-${Date.now()}`, status: 'active' };
       users.push(newUser);
       saveLocalUsers(users);
       return newUser;
     }
-    return apiClient.post<UserProfile>('/users', userData);
+    return unwrap(await apiClient.post<ApiResponse<UserProfile>>('/users', userData));
   },
 
   async updateUser(id: string, userData: Partial<UserProfile>): Promise<UserProfile> {
@@ -76,39 +76,28 @@ export const userService = {
       await new Promise(resolve => setTimeout(resolve, 400));
       const users = getLocalUsers();
       const userIndex = users.findIndex(u => u.id === id);
-      
-      if (userIndex === -1) {
-        throw new Error('Không tìm thấy người dùng.');
-      }
-
-      // Check email uniqueness if email is changed
+      if (userIndex === -1) throw new Error('Không tìm thấy người dùng.');
       if (userData.email && userData.email.toLowerCase() !== users[userIndex].email.toLowerCase()) {
         if (users.some(u => u.email.toLowerCase() === userData.email!.toLowerCase())) {
           throw new Error('Email đã được sử dụng bởi tài khoản khác.');
         }
       }
-
-      const updatedUser = {
-        ...users[userIndex],
-        ...userData,
-      };
-
+      const updatedUser = { ...users[userIndex], ...userData };
       users[userIndex] = updatedUser;
       saveLocalUsers(users);
       return updatedUser;
     }
-    return apiClient.put<UserProfile>(`/users/${id}`, userData);
+    return unwrap(await apiClient.put<ApiResponse<UserProfile>>(`/users/${id}`, userData));
   },
 
   async deleteUser(id: string): Promise<void> {
     if (USE_MOCK_API) {
       await new Promise(resolve => setTimeout(resolve, 300));
       const users = getLocalUsers();
-      const filtered = users.filter(u => u.id !== id);
-      saveLocalUsers(filtered);
+      saveLocalUsers(users.filter(u => u.id !== id));
       return;
     }
-    return apiClient.delete<void>(`/users/${id}`);
+    await apiClient.delete<ApiResponse<null>>(`/users/${id}`);
   },
 
   async toggleUserStatus(id: string): Promise<UserProfile> {
@@ -116,21 +105,12 @@ export const userService = {
       await new Promise(resolve => setTimeout(resolve, 300));
       const users = getLocalUsers();
       const userIndex = users.findIndex(u => u.id === id);
-      
-      if (userIndex === -1) {
-        throw new Error('Không tìm thấy người dùng.');
-      }
-
-      const user = users[userIndex];
-      const updatedUser: UserProfile = {
-        ...user,
-        status: user.status === 'active' ? 'locked' : 'active',
-      };
-
+      if (userIndex === -1) throw new Error('Không tìm thấy người dùng.');
+      const updatedUser: UserProfile = { ...users[userIndex], status: users[userIndex].status === 'active' ? 'locked' : 'active' };
       users[userIndex] = updatedUser;
       saveLocalUsers(users);
       return updatedUser;
     }
-    return apiClient.post<UserProfile>(`/users/${id}/toggle-status`, {});
+    return unwrap(await apiClient.post<ApiResponse<UserProfile>>(`/users/${id}/toggle-status`, {}));
   }
 };

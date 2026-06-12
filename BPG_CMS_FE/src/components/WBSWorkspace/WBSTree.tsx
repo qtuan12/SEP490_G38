@@ -1,4 +1,4 @@
-import { useWBS } from './WBSContext';
+﻿import { useWBS } from './WBSContext';
 import { useNavigate } from 'react-router-dom';
 import type { WBSTask } from '../../types/common';
 import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight } from 'lucide-react';
@@ -544,7 +544,7 @@ export const WBSTree = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', marginRight: '8px', flexShrink: 0 }}>
                                   {t.assignedTo.split(',').map((id: string, index: number) => {
                                     const names = t.assignedName ? t.assignedName.split(', ') : [];
-                                    const name = names[index] || 'Kỹ sư';
+                                    const name = names[index] || 'siteengineer';
                                     const initials = getInitials(name);
                                     const bgColor = getAvatarColor(id);
                                     return (
@@ -670,3 +670,4 @@ export const WBSTree = () => {
     </>
   );
 };
+

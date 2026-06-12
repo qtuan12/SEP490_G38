@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -119,7 +119,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
         incident.id, 
         data.resolutionAction,
         resolutionData,
-        { id: user?.id || 'u-admin', name: user?.name || 'TPKT' }
+        { id: user?.id || 'u-admin', name: user?.name || 'technicalmanager' }
       );
       
       return data;
@@ -285,3 +285,4 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
     </Modal>
   );
 };
+

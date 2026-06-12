@@ -4,7 +4,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'tpkt' | 'kỹ sư' | 'giám đốc' | 'kế toán';
+  role: 'admin' | 'technicalmanager' | 'projectleader' | 'siteengineer' | 'accountant' | 'director';
   status: 'active' | 'locked';
 }
 
@@ -21,14 +21,14 @@ export type LoginCredentials = {
 // Define predefined mock users matching roles in "Mô tả chi tiết.md"
 const MOCK_USERS: Record<string, UserProfile & { password: string }> = {
   'admin@bpg.com': { id: 'u-1', name: 'Hệ thống Admin', email: 'admin@bpg.com', password: 'admin123', role: 'admin', status: 'active' },
-  'tpkt@bpg.com': { id: 'u-2', name: 'Nguyễn Văn Kỹ', email: 'tpkt@bpg.com', password: 'tpkt123', role: 'tpkt', status: 'active' },
-  'engineer@bpg.com': { id: 'u-3', name: 'Trần Văn Công', email: 'engineer@bpg.com', password: 'eng123', role: 'kỹ sư', status: 'active' },
-  'se1@bpg.com': { id: 'u-6', name: 'Nguyễn Văn Nam', email: 'se1@bpg.com', password: 'se123', role: 'kỹ sư', status: 'active' },
-  'se2@bpg.com': { id: 'u-7', name: 'Phạm Minh Hải', email: 'se2@bpg.com', password: 'se123', role: 'kỹ sư', status: 'active' },
-  'se3@bpg.com': { id: 'u-8', name: 'Hoàng Việt Anh', email: 'se3@bpg.com', password: 'se123', role: 'kỹ sư', status: 'active' },
-  'se4@bpg.com': { id: 'u-9', name: 'Đỗ Thùy Linh', email: 'se4@bpg.com', password: 'se123', role: 'kỹ sư', status: 'active' },
-  'giamdoc@bpg.com': { id: 'u-4', name: 'Phạm Huy Hoàng', email: 'giamdoc@bpg.com', password: 'gd123', role: 'giám đốc', status: 'active' },
-  'ketoan@bpg.com': { id: 'u-5', name: 'Lê Thị Thu', email: 'ketoan@bpg.com', password: 'kt123', role: 'kế toán', status: 'active' },
+  'tpkt@bpg.com': { id: 'u-2', name: 'Nguyễn Văn Kỹ', email: 'tpkt@bpg.com', password: 'tpkt123', role: 'technicalmanager', status: 'active' },
+  'engineer@bpg.com': { id: 'u-3', name: 'Trần Văn Công', email: 'engineer@bpg.com', password: 'eng123', role: 'siteengineer', status: 'active' },
+  'se1@bpg.com': { id: 'u-6', name: 'Nguyễn Văn Nam', email: 'se1@bpg.com', password: 'se123', role: 'siteengineer', status: 'active' },
+  'se2@bpg.com': { id: 'u-7', name: 'Phạm Minh Hải', email: 'se2@bpg.com', password: 'se123', role: 'siteengineer', status: 'active' },
+  'se3@bpg.com': { id: 'u-8', name: 'Hoàng Việt Anh', email: 'se3@bpg.com', password: 'se123', role: 'siteengineer', status: 'active' },
+  'se4@bpg.com': { id: 'u-9', name: 'Đỗ Thùy Linh', email: 'se4@bpg.com', password: 'se123', role: 'siteengineer', status: 'active' },
+  'giamdoc@bpg.com': { id: 'u-4', name: 'Phạm Huy Hoàng', email: 'giamdoc@bpg.com', password: 'gd123', role: 'director', status: 'active' },
+  'ketoan@bpg.com': { id: 'u-5', name: 'Lê Thị Thu', email: 'ketoan@bpg.com', password: 'kt123', role: 'accountant', status: 'active' },
 };
 
 export const authService = {
@@ -88,21 +88,31 @@ export const authService = {
 
     // Call real backend endpoint
     interface BackendLoginResponse {
-      userId: string;
-      fullName: string;
-      email: string;
-      role: string;
-      accessToken: string;
+      success: boolean;
+      message: string;
+      data: {
+        userId: string;
+        fullName: string;
+        email: string;
+        role: string;
+        accessToken: string;
+      };
     }
 
     const response = await apiClient.post<BackendLoginResponse>('/auth/login', credentials);
+
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Đăng nhập thất bại.');
+    }
+
+    const { data } = response;
     return {
-      token: response.accessToken,
+      token: data.accessToken,
       user: {
-        id: response.userId,
-        name: response.fullName,
-        email: response.email,
-        role: response.role.toLowerCase() as UserProfile['role'],
+        id: String(data.userId),
+        name: data.fullName,
+        email: data.email,
+        role: data.role.toLowerCase() as UserProfile['role'],
         status: 'active'
       }
     };

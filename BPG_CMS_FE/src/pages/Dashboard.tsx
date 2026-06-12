@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   Shield, 
@@ -23,8 +23,8 @@ export const Dashboard: React.FC = () => {
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
 
-  const isAccountant = user?.role === 'kế toán' || user?.role === 'admin';
-  const isDirector = user?.role === 'giám đốc' || user?.role === 'admin';
+  const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
+  const isDirector = user?.role === 'director' || user?.role === 'admin';
 
   const fetchUsers = async () => {
     try {
@@ -116,7 +116,7 @@ export const Dashboard: React.FC = () => {
 
   const handleApproveRequestByDirector = async (reqId: string) => {
     try {
-      const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'Giám đốc');
+      const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'director');
       const totalCost = updated.items.reduce((sum, item) => sum + (item.quantity * ((item as any).price || 0)), 0);
       alert(`Phê duyệt thành công! Khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND đã được ghi nhận vào báo cáo lỗ/lãi của dự án.`);
       fetchMaterialRequests();
@@ -152,9 +152,9 @@ export const Dashboard: React.FC = () => {
 
   const recentActivities = [
     { id: 1, user: 'Nguyễn Văn Kỹ', role: 'TP Kỹ Thuật', action: 'Nghiệm thu Phase 1: Móng & Cột', time: '10 phút trước', detail: 'Dự án Chung cư BPG - Biên bản nghiệm thu PDF đã ký số.' },
-    { id: 2, user: 'Trần Văn Công', role: 'Kỹ Sư', action: 'Cập nhật tiến độ: Đổ bê tông dầm sàn', time: '35 phút trước', detail: 'Tiến độ task tăng lên 60% (+15%). Đính kèm 3 hình ảnh.' },
-    { id: 3, user: 'Lê Thị Thu', role: 'Kế Toán', action: 'Tạo đơn đặt hàng PO-2026-0048', time: '2 giờ trước', detail: 'Vật tư: Xi măng Hải Vân (150 bao), Đơn giá: 85,000đ.' },
-    { id: 4, user: 'Phạm Huy Hoàng', role: 'Giám Đốc', action: 'Duyệt yêu cầu vật tư vượt định mức', time: '4 giờ trước', detail: 'Dự án Cải tạo văn phòng FPT - Xi măng vượt định mức 15% (đã có giải trình).' },
+    { id: 2, user: 'Trần Văn Công', role: 'siteengineer', action: 'Cập nhật tiến độ: Đổ bê tông dầm sàn', time: '35 phút trước', detail: 'Tiến độ task tăng lên 60% (+15%). Đính kèm 3 hình ảnh.' },
+    { id: 3, user: 'Lê Thị Thu', role: 'accountant', action: 'Tạo đơn đặt hàng PO-2026-0048', time: '2 giờ trước', detail: 'Vật tư: Xi măng Hải Vân (150 bao), Đơn giá: 85,000đ.' },
+    { id: 4, user: 'Phạm Huy Hoàng', role: 'director', action: 'Duyệt yêu cầu vật tư vượt định mức', time: '4 giờ trước', detail: 'Dự án Cải tạo văn phòng FPT - Xi măng vượt định mức 15% (đã có giải trình).' },
   ];
 
 
@@ -196,7 +196,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Critical Alerts for Directors/TPKTs */}
-      {(user?.role === 'admin' || user?.role === 'tpkt' || user?.role === 'giám đốc') && criticalAlerts.length > 0 && (
+      {(user?.role === 'admin' || user?.role === 'technicalmanager' || user?.role === 'director') && criticalAlerts.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {criticalAlerts.map((alert, idx) => (
             <div
@@ -258,3 +258,5 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+
+

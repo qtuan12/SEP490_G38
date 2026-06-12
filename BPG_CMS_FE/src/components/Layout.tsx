@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -25,11 +25,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   };
 
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc', 'kế toán'] },
+    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
-    { name: 'Dự án (WBS)', path: '/projects', icon: <Hammer size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc'] },
-    { name: 'Kiểm soát Vật tư', path: '#materials', icon: <Boxes size={20} />, roles: ['admin', 'tpkt', 'kỹ sư', 'giám đốc', 'kế toán'], disabled: true },
-    { name: 'Báo cáo', path: '#reports', icon: <FileText size={20} />, roles: ['admin', 'tpkt', 'giám đốc', 'kế toán'], disabled: true },
+    { name: 'Dự án (WBS)', path: '/projects', icon: <Hammer size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director'] },
+    { name: 'Kiểm soát Vật tư', path: '#materials', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'], disabled: true },
+    { name: 'Báo cáo', path: '#reports', icon: <FileText size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'], disabled: true },
   ];
 
   const filteredNavItems = navItems.filter(item => user && item.roles.includes(user.role));
@@ -37,10 +37,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'admin': return 'Admin';
-      case 'tpkt': return 'TP Kỹ Thuật';
-      case 'kỹ sư': return 'Kỹ Sư Hiện Trường';
-      case 'giám đốc': return 'Giám Đốc';
-      case 'kế toán': return 'Kế Toán';
+      case 'technicalmanager': return 'TP Kỹ Thuật';
+      case 'projectleader': return 'Trưởng Dự án';
+      case 'siteengineer': return 'Kỹ Sư Hiện Trường';
+      case 'accountant': return 'accountant';
+      case 'director': return 'director';
       default: return role;
     }
   };
@@ -48,10 +49,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const getRoleBadgeClass = (role: string) => {
     switch (role) {
       case 'admin': return 'badge-danger';
-      case 'tpkt': return 'badge-primary';
-      case 'kỹ sư': return 'badge-success';
-      case 'giám đốc': return 'badge-warning';
-      case 'kế toán': return 'badge-primary';
+      case 'director': return 'badge-warning';
+      case 'siteengineer': return 'badge-success';
+      case 'technicalmanager':
+      case 'projectleader':
+      case 'accountant': return 'badge-primary';
       default: return 'badge-secondary';
     }
   };
@@ -246,3 +248,4 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     </div>
   );
 };
+

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
@@ -51,7 +51,7 @@ export const PhaseAcceptance: React.FC = () => {
     acceptanceDate: phase.acceptanceDate || ''
   } : null;
 
-  const isTPKT = user?.role === 'tpkt' || user?.role === 'admin';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const loadData = async () => {
     if (!projectId || !phaseId) return;
@@ -318,3 +318,4 @@ export const PhaseAcceptance: React.FC = () => {
     </div>
   );
 };
+

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -65,7 +65,11 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return null; // Let the protected route handle loading state
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'hsl(var(--bg-main))' }}>
+        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Đang tải...</h3>
+      </div>
+    );
   }
 
   if (isAuthenticated) {
@@ -140,7 +144,7 @@ function App() {
             <Route 
               path="/projects" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
                   <ProjectList />
                 </ProtectedRoute>
               } 
@@ -149,7 +153,7 @@ function App() {
             <Route 
               path="/projects/:projectId" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
                   <ProjectLayoutHub />
                 </ProtectedRoute>
               } 
@@ -158,7 +162,7 @@ function App() {
             <Route 
               path="/projects/:projectId/logs" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
                   <ProjectDailyLogs />
                 </ProtectedRoute>
               } 
@@ -167,7 +171,7 @@ function App() {
             <Route 
               path="/projects/:projectId/tasks/:taskId/incidents" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
                   <TaskIncidents />
                 </ProtectedRoute>
               } 
@@ -176,7 +180,7 @@ function App() {
             <Route 
               path="/projects/:projectId/phases/:phaseId/material-requests" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc', 'kế toán']} noLayout>
+                <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director', 'accountant']} noLayout>
                   <PhaseMaterialRequests />
                 </ProtectedRoute>
               } 
@@ -185,7 +189,7 @@ function App() {
             <Route 
               path="/projects/:projectId/phases/:phaseId/acceptance" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'tpkt']}>
+                <ProtectedRoute allowedRoles={['admin', 'technicalmanager']}>
                   <PhaseAcceptance />
                 </ProtectedRoute>
               } 
@@ -194,7 +198,7 @@ function App() {
             <Route 
               path="/projects/:projectId/gantt" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
                   <GanttChart />
                 </ProtectedRoute>
               } 
@@ -203,7 +207,7 @@ function App() {
             <Route 
               path="/projects/:projectId/drawing" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư', 'giám đốc']}>
+                <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
                   <ProjectDrawing />
                 </ProtectedRoute>
               } 
@@ -212,14 +216,14 @@ function App() {
             <Route 
               path="/tasks/:taskId" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'tpkt', 'kỹ sư']}>
+                <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer']}>
                   <TaskDetailSE />
                 </ProtectedRoute>
               } 
             />
 
             {/* Fallback route */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </Router>
       </AuthProvider>
@@ -229,3 +233,4 @@ function App() {
 }
 
 export default App;
+

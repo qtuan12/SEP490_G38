@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/Modal';
 import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Box, History, Package, FileText, ArrowLeft } from 'lucide-react';
@@ -180,7 +180,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
                 {selectedTask.assignedTo.split(',').map((id, index) => {
                   const names = selectedTask.assignedName ? selectedTask.assignedName.split(', ') : [];
-                  const name = names[index] || 'Kỹ sư';
+                  const name = names[index] || 'siteengineer';
                   const initials = getInitials(name);
                   const bgColor = getAvatarColor(id);
                   return (
@@ -333,3 +333,4 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     </Modal>
   );
 };
+

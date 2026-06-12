@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -63,7 +63,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     }
   }, [isOpen, task, reset]);
 
-  const engineers = members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'kỹ sư' || m.userRole === 'Nhân viên kỹ thuật');
+  const engineers = members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'siteengineer' || m.userRole === 'Nhân viên kỹ thuật');
 
   const mutation = useMutation({
     mutationFn: async (data: EditTaskForm) => {
@@ -170,3 +170,4 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     </Modal>
   );
 };
+

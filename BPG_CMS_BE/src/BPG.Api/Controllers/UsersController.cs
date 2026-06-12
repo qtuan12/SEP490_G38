@@ -25,7 +25,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateUser(Guid id, UpdateUserRequest request)
+    public async Task<IActionResult> UpdateUser(long id, UpdateUserRequest request)
     {
         var result = await Mediator.Send(new UpdateUserCommand(id, request.Name, request.Email, request.Role));
         if (result == null)
@@ -34,7 +34,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteUser(Guid id)
+    public async Task<IActionResult> DeleteUser(long id)
     {
         var deleted = await Mediator.Send(new DeleteUserCommand(id));
         if (!deleted)
@@ -43,7 +43,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpPost("{id}/toggle-status")]
-    public async Task<IActionResult> ToggleUserStatus(Guid id)
+    public async Task<IActionResult> ToggleUserStatus(long id)
     {
         var result = await Mediator.Send(new ToggleUserStatusCommand(id));
         if (result == null)

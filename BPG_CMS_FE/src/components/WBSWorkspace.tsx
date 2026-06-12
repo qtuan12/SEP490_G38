@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -92,7 +92,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
 
-  const isTPKTOrPL = user?.role === 'tpkt' || user?.role === 'admin';
+  const isTPKTOrPL = user?.role === 'technicalmanager' || user?.role === 'admin';
 
 
   const loadWBSData = async () => {
@@ -137,7 +137,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   
 
   const currentMember = members.find(m => m.userId === user?.id);
-  const isPL = (currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'tpkt';
+  const isPL = (currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager';
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
@@ -157,7 +157,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
   const handleApproveByTPKT = async (requestId: string) => {
     try {
-      await projectService.approveMaterialRequestByTPKT(requestId, user?.name || 'TPKT');
+      await projectService.approveMaterialRequestByTPKT(requestId, user?.name || 'technicalmanager');
       handleSuccess('Đã duyệt yêu cầu và gửi cho Kế toán.');
     } catch (err: any) { handleError(err.message); }
   };
@@ -385,3 +385,4 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     </WBSContext.Provider>
   );
 };
+
