@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { Loader2, Plus, Trash2, AlertCircle } from 'lucide-react';
 import {projectService} from '../../../../src/services/projectService';
 import type {MaterialRequest} from '../../../types/common';
-import { Modal } from '../../../../src/components/Modal';
+import { Modal } from '../../../../src/components/ui/Modal';
 
 const resubmitMaterialRequestSchema = z.object({
   type: z.enum(['normal', 'emergency']),

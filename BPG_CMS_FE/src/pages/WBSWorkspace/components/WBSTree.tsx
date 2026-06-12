@@ -1,6 +1,6 @@
 ﻿import { useWBS } from './WBSContext';
 import { useNavigate } from 'react-router-dom';
-import type { WBSTask } from '../../types/common';
+import type { WBSTask } from '../../../types/common';
 import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight } from 'lucide-react';
 
 

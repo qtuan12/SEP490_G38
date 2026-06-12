@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { Modal } from '../../../components/Modal';
+import { Modal } from '../../../components/ui/Modal';
 import { projectService } from '../../../services/projectService';
 
 const schema = z.object({

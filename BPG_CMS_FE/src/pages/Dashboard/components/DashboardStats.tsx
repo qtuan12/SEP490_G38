@@ -16,56 +16,31 @@ interface DashboardStatsProps {
 
 export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats }) => {
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-      gap: '24px'
-    }}>
+    <div className="grid grid-cols-[repeat(auto-fit,_minmax(240px,_1fr))] gap-6">
       {stats.map((stat, i) => (
-        <div key={i} className="card" style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          transition: 'transform var(--transition-fast), border-color var(--transition-fast)',
-          cursor: 'pointer'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-4px)';
-          e.currentTarget.style.borderColor = 'hsl(var(--primary) / 0.5)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.borderColor = 'hsl(var(--border))';
-        }}
-        >
+        <div key={i} className="card flex justify-between items-start transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:border-[hsl(var(--primary)/0.5)] hover:shadow-md">
           <div>
-            <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', fontWeight: 500 }}>
+            <span className="text-[0.85rem] text-[hsl(var(--text-secondary))] font-medium">
               {stat.title}
             </span>
-            <h3 style={{ fontSize: '2rem', fontWeight: 700, margin: '8px 0' }}>
+            <h3 className="text-3xl font-bold my-2">
               {stat.value}
             </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}>
+            <div className="flex items-center gap-1.5 text-xs">
               {stat.isPositive ? (
-                <TrendingUp size={14} style={{ color: 'hsl(var(--success))' }} />
+                <TrendingUp size={14} className="text-[hsl(var(--success))]" />
               ) : (
-                <TrendingDown size={14} style={{ color: 'hsl(var(--danger))' }} />
+                <TrendingDown size={14} className="text-[hsl(var(--danger))]" />
               )}
-              <span style={{ color: stat.isPositive ? 'hsl(142 70% 60%)' : 'hsl(346 84% 65%)', fontWeight: 600 }}>
+              <span className={`font-semibold ${stat.isPositive ? 'text-[hsl(142_70%_60%)]' : 'text-[hsl(346_84%_65%)]'}`}>
                 {stat.change}
               </span>
             </div>
           </div>
-          <div style={{
-            backgroundColor: 'hsl(var(--bg-main))',
-            color: stat.color,
-            padding: '12px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid hsl(var(--border))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
+          <div 
+            className="bg-[hsl(var(--bg-main))] p-3 rounded-sm border border-[hsl(var(--border))] flex items-center justify-center shrink-0"
+            style={{ color: stat.color }}
+          >
             {stat.icon}
           </div>
         </div>

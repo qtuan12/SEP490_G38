@@ -3,12 +3,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Layout } from './components/Layout';
-import { Login } from './pages/Login';
+import { Layout } from './components/layout/MainLayout';
+import { Login } from './pages/Auth/Login';
 import { Dashboard } from './pages/Dashboard';
 import { UserManagement } from './pages/UserManagement';
-import { ForgotPassword } from './pages/ForgotPassword';
-import { ResetPassword } from './pages/ResetPassword';
+import { ForgotPassword } from './pages/Auth/ForgotPassword';
+import { ResetPassword } from './pages/Auth/ResetPassword';
 import { Profile } from './pages/Profile';
 import { ProjectList } from './pages/ProjectList';
 import { ProjectLayoutHub } from './pages/ProjectLayoutHub';
@@ -18,7 +18,7 @@ import { GanttChart } from './pages/GanttChart';
 import { ProjectDrawing } from './pages/ProjectDrawing';
 import { ProjectDailyLogs } from './pages/ProjectDailyLogs';
 import { TaskIncidents } from './pages/TaskIncidents';
-import { PhaseMaterialRequests } from './pages/PhaseMaterialRequests';
+import { PhaseMaterialRequests } from './pages/MaterialRequests';
 
 const queryClient = new QueryClient({
   defaultOptions: {

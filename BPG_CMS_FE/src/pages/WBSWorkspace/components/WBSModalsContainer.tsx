@@ -1,17 +1,17 @@
 import { useWBS } from './WBSContext';
 
-import { CreatePhaseModal } from '../../pages/WBSWorkspace/modals/CreatePhaseModal';
-import { EditPhaseModal } from '../../pages/WBSWorkspace/modals/EditPhaseModal';
-import { CreateTaskModal } from '../../pages/WBSWorkspace/modals/CreateTaskModal';
-import { EditTaskModal } from '../../pages/WBSWorkspace/modals/EditTaskModal';
-import { AssignEngineerModal } from '../../pages/WBSWorkspace/modals/AssignEngineerModal';
-import { AdjustDeadlineModal } from '../../pages/WBSWorkspace/modals/AdjustDeadlineModal';
-import { PhaseBOQModal } from '../../pages/WBSWorkspace/modals/PhaseBOQModal';
-import { LeaderApprovalModal } from '../../pages/WBSWorkspace/modals/LeaderApprovalModal';
-import { CreateMaterialRequestModal } from '../../pages/MaterialRequests/modals/CreateMaterialRequestModal';
-import { ResubmitMaterialRequestModal } from '../../pages/MaterialRequests/modals/ResubmitMaterialRequestModal';
-import { TaskDetailModal } from '../../pages/WBSWorkspace/modals/TaskDetailModal';
-import { DailyLogFormModal } from '../../pages/Incidents/modals/DailyLogFormModal';
+import { CreatePhaseModal } from '../modals/CreatePhaseModal';
+import { EditPhaseModal } from '../modals/EditPhaseModal';
+import { CreateTaskModal } from '../modals/CreateTaskModal';
+import { EditTaskModal } from '../modals/EditTaskModal';
+import { AssignEngineerModal } from '../modals/AssignEngineerModal';
+import { AdjustDeadlineModal } from '../modals/AdjustDeadlineModal';
+import { PhaseBOQModal } from '../modals/PhaseBOQModal';
+import { LeaderApprovalModal } from '../modals/LeaderApprovalModal';
+import { CreateMaterialRequestModal } from '../../MaterialRequests/modals/CreateMaterialRequestModal';
+import { ResubmitMaterialRequestModal } from '../../MaterialRequests/modals/ResubmitMaterialRequestModal';
+import { TaskDetailModal } from '../modals/TaskDetailModal';
+import { DailyLogFormModal } from '../../Incidents/modals/DailyLogFormModal';
 
 export const WBSModalsContainer = () => {
   const {

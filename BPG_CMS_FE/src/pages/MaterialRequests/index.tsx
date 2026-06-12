@@ -1,9 +1,9 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { projectService } from '../services/projectService';
-import type {WBSPhase, MaterialRequest, Project} from '../types/common';
-import { CreateMaterialRequestModal } from './MaterialRequests/modals/CreateMaterialRequestModal';
+import { useAuth } from '../../context/AuthContext';
+import { projectService } from '../../services/projectService';
+import type {WBSPhase, MaterialRequest, Project} from '../../types/common';
+import { CreateMaterialRequestModal } from '../MaterialRequests/modals/CreateMaterialRequestModal';
 import { Plus, ArrowLeft, ClipboardList, Package, Calendar, User as UserIcon, FileText, AlertTriangle, Menu } from 'lucide-react';
 
 export const PhaseMaterialRequests: React.FC = () => {

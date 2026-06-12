@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, Mail, AlertTriangle } from 'lucide-react';
+import { Button, Input, FormItem } from '../../components/ui';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
@@ -108,135 +109,85 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'radial-gradient(circle at top, hsl(240 100% 96%) 0%, hsl(var(--bg-main)) 70%)',
-      padding: '20px'
-    }}>
-      <div className="glass-panel animate-slide-up" style={{
-        width: '100%',
-        maxWidth: '440px',
-        padding: '40px',
-        position: 'relative',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.06), 0 0 40px hsl(var(--primary-glow))'
-      }}>
+    <div className="min-h-screen flex items-center justify-center p-5 bg-[radial-gradient(circle_at_top,_hsl(240_100%_96%)_0%,_hsl(var(--bg-main))_70%)]">
+      <div className="glass-panel animate-slide-up w-full max-w-[440px] p-10 relative shadow-[0_20px_40px_rgba(0,0,0,0.06),0_0_40px_hsl(var(--primary-glow))]">
+        
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <div className="text-center mb-8">
           <img 
             src="/logo.png" 
             alt="BPG Logo" 
-            style={{ 
-              height: '80px', 
-              width: '80px', 
-              objectFit: 'contain',
-              marginBottom: '16px',
-              filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08))'
-            }} 
+            className="h-20 w-20 object-contain mb-4 drop-shadow-md mx-auto"
           />
-          <h2 className="gradient-text" style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '6px' }}>BPG CMS</h2>
-          <p style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.9rem' }}>
+          <h2 className="gradient-text text-[1.75rem] font-bold mb-1.5">BPG CMS</h2>
+          <p className="text-[hsl(var(--text-secondary))] text-[0.9rem]">
             Hệ thống Quản lý Thi công & Kiểm soát Vật tư
           </p>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="animate-fade-in" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            backgroundColor: 'hsl(var(--danger-glow))',
-            border: '1px solid hsl(var(--danger) / 0.2)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '12px',
-            marginBottom: '20px',
-            color: 'hsl(346 84% 35%)',
-            fontSize: '0.875rem'
-          }}>
-            <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+          <div className="animate-fade-in flex items-center gap-2.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm p-3 mb-5 text-[hsl(346_84%_35%)] text-sm">
+            <AlertTriangle size={18} className="shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '20px' }}>
-            <label htmlFor="email">Email tài khoản</label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={18} style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'hsl(var(--text-muted))'
-              }} />
-              <input
-                id="email"
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <FormItem label="Email tài khoản">
+            <div className="relative">
+              <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
+              <Input
                 type="email"
                 placeholder="ten@bpg.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                style={{ paddingLeft: '40px' }}
                 disabled={loading}
                 required
+                className="pl-10"
               />
             </div>
-          </div>
+          </FormItem>
 
-          <div style={{ marginBottom: '28px' }}>
-            <label htmlFor="password">Mật khẩu</label>
-            <div style={{ position: 'relative' }}>
-              <KeyRound size={18} style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'hsl(var(--text-muted))'
-              }} />
-              <input
-                id="password"
+          <FormItem label="Mật khẩu">
+            <div className="relative">
+              <KeyRound size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
+              <Input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={{ paddingLeft: '40px' }}
                 disabled={loading}
                 required
+                className="pl-10"
               />
             </div>
-          </div>
+          </FormItem>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
-            <Link to="/forgot-password" style={{ color: 'hsl(var(--primary))', fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500 }}>
+          <div className="flex justify-end -mt-2">
+            <Link to="/forgot-password" className="text-[hsl(var(--primary))] text-[0.85rem] font-medium no-underline hover:underline">
               Quên mật khẩu?
             </Link>
           </div>
 
-          <button
+          <Button
             type="submit"
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '12px', height: '46px', fontWeight: 600 }}
+            variant="primary"
+            className="w-full py-3 h-[46px] font-semibold mt-1"
             disabled={loading || lockoutTimeLeft > 0}
+            isLoading={loading}
           >
-            {loading ? 'Đang xác thực...' : lockoutTimeLeft > 0 ? 'Tài khoản đang bị khóa' : 'Đăng nhập'}
-          </button>
+            {lockoutTimeLeft > 0 ? 'Tài khoản đang bị khóa' : 'Đăng nhập'}
+          </Button>
         </form>
 
         {/* Developer Cheat Sheet */}
-        <div style={{
-          marginTop: '32px',
-          paddingTop: '20px',
-          borderTop: '1px solid hsl(var(--border))',
-          fontSize: '0.8rem',
-          color: 'hsl(var(--text-muted))'
-        }}>
-          <p style={{ fontWeight: 500, color: 'hsl(var(--text-secondary))', marginBottom: '8px' }}>
+        <div className="mt-8 pt-5 border-t border-[hsl(var(--border))] text-xs text-[hsl(var(--text-muted))]">
+          <p className="font-medium text-[hsl(var(--text-secondary))] mb-2">
             Tài khoản dùng thử (Mock Accounts):
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div className="grid grid-cols-2 gap-2 leading-relaxed">
             <div>
               <strong>Admin:</strong> admin@bpg.com<br />
               <strong>Pass:</strong> admin123

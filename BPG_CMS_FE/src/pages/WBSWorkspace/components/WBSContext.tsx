@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type {WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest} from '../../types/common';
+import type {WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest} from '../../../types/common';
 
 export interface WBSContextType {
   projectId: string;
