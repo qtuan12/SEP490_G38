@@ -88,21 +88,31 @@ export const authService = {
 
     // Call real backend endpoint
     interface BackendLoginResponse {
-      userId: string;
-      fullName: string;
-      email: string;
-      role: string;
-      accessToken: string;
+      success: boolean;
+      message: string;
+      data: {
+        userId: string;
+        fullName: string;
+        email: string;
+        role: string;
+        accessToken: string;
+      };
     }
 
     const response = await apiClient.post<BackendLoginResponse>('/auth/login', credentials);
+
+    if (!response.success || !response.data) {
+      throw new Error(response.message || 'Đăng nhập thất bại.');
+    }
+
+    const { data } = response;
     return {
-      token: response.accessToken,
+      token: data.accessToken,
       user: {
-        id: response.userId,
-        name: response.fullName,
-        email: response.email,
-        role: response.role.toLowerCase() as UserProfile['role'],
+        id: String(data.userId),
+        name: data.fullName,
+        email: data.email,
+        role: data.role.toLowerCase() as UserProfile['role'],
         status: 'active'
       }
     };

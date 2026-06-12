@@ -65,7 +65,11 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return null; // Let the protected route handle loading state
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'hsl(var(--bg-main))' }}>
+        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Đang tải...</h3>
+      </div>
+    );
   }
 
   if (isAuthenticated) {
@@ -219,7 +223,7 @@ function App() {
             />
 
             {/* Fallback route */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </Router>
       </AuthProvider>
