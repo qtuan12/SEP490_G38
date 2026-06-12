@@ -11,12 +11,6 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> Login(LoginCommand command)
     {
         var result = await Mediator.Send(command);
-
-        if (result == null)
-        {
-            return Unauthorized(ApiResponse<string>.FailureResult("Email or password is incorrect"));
-        }
-
         return ApiOk(result, "Đăng nhập thành công");
     }
 }

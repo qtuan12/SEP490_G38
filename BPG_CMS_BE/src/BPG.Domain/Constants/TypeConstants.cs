@@ -1,0 +1,107 @@
+namespace BPG.Domain.Constants;
+
+public static class UserRole
+{
+    public const string Admin = "Admin";
+    public const string Director = "Director";
+    public const string TechnicalManager = "TechnicalManager";
+    public const string SiteEngineer = "SiteEngineer";
+    public const string Accountant = "Accountant";
+}
+
+public static class SupplierRelationshipHealth
+{
+    public const string Excellent = "Excellent";     // Nhiệt tình, chuyên nghiệp, hỗ trợ tối đa.
+    public const string Good = "Good";               // Làm việc đúng cam kết, không có gì phàn nàn.
+    public const string Neutral = "Neutral";         // Bình thường, không quá nhiệt tình nhưng không gây rắc rối.
+    public const string Strained = "Strained";       // "Ghét nhau", làm việc khó khăn, thủ tục rườm rà, thái độ kém.
+    public const string Poor = "Poor";               // Hay trễ hạn, hàng hóa lỗi, giao tiếp không vui vẻ, cần cân nhắc cắt hợp đồng.
+}
+
+public static class NotificationType
+{
+    public const string System = "System";
+    public const string Progress = "Progress";
+    public const string Procurement = "Procurement";
+    public const string Incident = "Incident";
+}
+
+public static class IncidentType
+{
+    public const string NgoaiLuc = "NgoaiLuc";   // Nguyên nhân ngoại lực (thiên tai, bên thứ 3...)
+    public const string NoiLuc = "NoiLuc";       // Nguyên nhân nội bộ (tay nghề, giám sát...)
+    public const string VatTu = "VatTu";         // Do vật tư (kém chất lượng, thiếu hàng...)
+}
+
+public static class SurplusActionType
+{
+    public const string ReturnSupplier = "ReturnSupplier"; // Trả lại nhà cung cấp
+    public const string Transfer = "Transfer";             // Chuyển sang dự án khác
+    public const string Liquidate = "Liquidate";           // Thanh lý
+}
+
+public static class InventoryAdjustmentType
+{
+    public const string Increase = "Increase"; // Điều chỉnh tăng
+    public const string Decrease = "Decrease"; // Điều chỉnh giảm
+}
+
+public static class InventoryTransactionType
+{
+    public const byte GoodsReceipt = 1;     // Nhập kho từ PO (tăng)
+    public const byte Issuance = 2;         // Xuất kho cho task (giảm)
+    public const byte TransferIn = 3;       // Nhận chuyển kho từ dự án khác (tăng)
+    public const byte TransferOut = 4;      // Chuyển kho sang dự án khác (giảm)
+    public const byte ReturnToSupplier = 5; // Trả lại NCC (giảm)
+    public const byte Adjustment = 6;       // Điều chỉnh tăng/giảm (có thể dấu ±)
+    public const byte Liquidation = 7;      // Thanh lý vật tư (giảm)
+}
+
+public static class AttachmentType
+{
+    public const string Design = "Design";               // Bản vẽ thiết kế (Project)
+    public const string DailyLogPhoto = "DailyLogPhoto"; // Ảnh nhật ký công trường
+    public const string DeliveryPhoto = "DeliveryPhoto"; // Ảnh phiếu giao hàng (GoodsReceipt)
+    public const string InvoicePhoto = "InvoicePhoto";   // Ảnh hóa đơn mua ngoài (DirectPurchase)
+    public const string IncidentPhoto = "IncidentPhoto"; // Ảnh sự cố (Incident)
+    public const string AcceptancePdf = "AcceptancePdf"; // PDF nghiệm thu phase
+    public const string Other = "Other";                 // Khác
+}
+
+public static class NotificationReferenceType
+{
+    public const string MaterialRequest = "MaterialRequest";
+    public const string PurchaseOrder = "PurchaseOrder";
+    public const string Incident = "Incident";
+    public const string Task = "Task";
+    public const string PhaseAcceptance = "PhaseAcceptance";
+    public const string InventoryAdjustment = "InventoryAdjustment";
+    public const string SurplusRequest = "SurplusRequest";
+}
+
+public static class EntityType
+{
+    public const string Project = "Project";
+    public const string Phase = "Phase";
+    public const string ProjectTask = "ProjectTask";
+    public const string DailyLog = "DailyLog";
+    public const string Incident = "Incident";
+    public const string PhaseAcceptance = "PhaseAcceptance";
+    public const string MaterialRequest = "MaterialRequest";
+    public const string PurchaseOrder = "PurchaseOrder";
+    public const string GoodsReceipt = "GoodsReceipt";
+    public const string DirectPurchaseRequest = "DirectPurchaseRequest";
+    public const string SurplusRequest = "SurplusRequest";
+    public const string InventoryAdjustment = "InventoryAdjustment";
+}
+
+public static class UnitGroup
+{
+    public const string Length = "Length";       // Chiều dài: m, cm, mm
+    public const string Area = "Area";           // Diện tích: m², cm²
+    public const string Volume = "Volume";       // Thể tích / khối lượng khô: m³, lít
+    public const string Weight = "Weight";       // Khối lượng: kg, tấn
+    public const string Count = "Count";         // Cái, bộ, cặp, chiếc...
+    public const string Package = "Package";     // Bao, túi, hộp, cuộn
+    public const string Time = "Time";           // Ngày công, ca, giờ
+}

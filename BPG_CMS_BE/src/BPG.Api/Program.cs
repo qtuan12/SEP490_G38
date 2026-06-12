@@ -55,6 +55,15 @@ builder.Services.AddAuthentication(options =>
             Encoding.UTF8.GetBytes(jwtKey!)
         )
     };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"[JWT Auth Failed] {context.Exception.Message}");
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -64,14 +73,15 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "BPG Construction Management API", Version = "v1" });
 
-    // Cấu hình Bearer Token cho Swagger
+    // Cấu hình Bearer Token cho Swagger chuẩn xác để tự thêm prefix Bearer
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "Nhập JWT Token của bạn theo định dạng: Bearer {token}",
+        Description = "Nhập token JWT của bạn (không cần gõ chữ Bearer)",
         Name = "Authorization",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -83,10 +93,7 @@ builder.Services.AddSwaggerGen(c =>
                 {
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
-                },
-                Scheme = "oauth2",
-                Name = "Bearer",
-                In = ParameterLocation.Header
+                }
             },
             new List<string>()
         }

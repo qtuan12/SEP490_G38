@@ -1,22 +1,35 @@
 using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Commands;
-using BPG.Application.IServices;
+using BPG.Application.IRepositories;
+using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Users.Handlers
 {
-    public class ToggleUserStatusHandler : IRequestHandler<ToggleUserStatusCommand, UserDto?>
+    public class ToggleUserStatusHandler : IRequestHandler<ToggleUserStatusCommand, UserDto>
     {
-        private readonly IUserService _userService;
+        private readonly IUnitOfWork _uow;
 
-        public ToggleUserStatusHandler(IUserService userService)
+        public ToggleUserStatusHandler(IUnitOfWork uow)
         {
-            _userService = userService;
+            _uow = uow;
         }
 
-        public async Task<UserDto?> Handle(ToggleUserStatusCommand request, CancellationToken cancellationToken)
+        public async Task<UserDto> Handle(ToggleUserStatusCommand request, CancellationToken cancellationToken)
         {
-            return await _userService.ToggleUserStatusAsync(request.Id);
+            var user = await _uow.Repository<User>().Query()
+                .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.UserId == request.Id && !u.IsDeleted, cancellationToken)
+                ?? throw new NotFoundException(nameof(User), request.Id);
+
+            user.IsActive = !user.IsActive;
+
+            _uow.Repository<User>().Update(user);
+            await _uow.SaveChangesAsync(cancellationToken);
+
+            return UserDto.FromEntity(user);
         }
     }
 }
