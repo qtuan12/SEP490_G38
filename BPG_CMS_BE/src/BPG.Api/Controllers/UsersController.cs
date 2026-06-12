@@ -1,83 +1,53 @@
+using BPG.Application.Common.Models;
+using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Commands;
 using BPG.Application.Features.Users.Queries;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BPG.Api.Controllers;
 
-[ApiController]
-[Route("api/users")]
 [Authorize]
-public class UsersController : ControllerBase
+public class UsersController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public UsersController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     [HttpGet]
     public async Task<IActionResult> GetUsers()
     {
-        var result = await _mediator.Send(new GetUsersQuery());
-        return Ok(result);
+        var result = await Mediator.Send(new GetUsersQuery());
+        return ApiOk(result, "Lấy danh sách người dùng thành công");
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateUser(CreateUserCommand command)
     {
-        try
-        {
-            var result = await _mediator.Send(command);
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await Mediator.Send(command);
+        return ApiOk(result, "Tạo người dùng thành công");
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateUser(long id, UpdateUserRequest request)
     {
-        try
-        {
-            var result = await _mediator.Send(new UpdateUserCommand(id, request.Name, request.Email, request.Role));
-            if (result == null)
-                return NotFound(new { message = "Không tìm thấy người dùng." });
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await Mediator.Send(new UpdateUserCommand(id, request.Name, request.Email, request.Role));
+        if (result == null)
+            return ApiNotFound("Không tìm thấy người dùng.");
+        return ApiOk(result, "Cập nhật người dùng thành công");
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteUser(long id)
     {
-        var deleted = await _mediator.Send(new DeleteUserCommand(id));
+        var deleted = await Mediator.Send(new DeleteUserCommand(id));
         if (!deleted)
-            return NotFound(new { message = "Không tìm thấy người dùng." });
-        return NoContent();
+            return ApiNotFound("Không tìm thấy người dùng.");
+        return ApiOk("Xóa người dùng thành công");
     }
 
     [HttpPost("{id}/toggle-status")]
     public async Task<IActionResult> ToggleUserStatus(long id)
     {
-        var result = await _mediator.Send(new ToggleUserStatusCommand(id));
+        var result = await Mediator.Send(new ToggleUserStatusCommand(id));
         if (result == null)
-            return NotFound(new { message = "Không tìm thấy người dùng." });
-        return Ok(result);
+            return ApiNotFound("Không tìm thấy người dùng.");
+        return ApiOk(result, "Cập nhật trạng thái người dùng thành công");
     }
-}
-
-/// <summary>Request body cho PUT /api/users/{id} — chỉ chứa các trường cần update.</summary>
-public class UpdateUserRequest
-{
-    public string? Name { get; set; }
-    public string? Email { get; set; }
-    public string? Role { get; set; }
 }

@@ -6,10 +6,18 @@ interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
 }
 
-export const apiClient = {
+interface ApiClient {
+  request<T>(endpoint: string, options?: RequestOptions): Promise<T>;
+  get<T>(endpoint: string, options?: Omit<RequestOptions, 'method'>): Promise<T>;
+  post<T>(endpoint: string, body: any, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T>;
+  put<T>(endpoint: string, body: any, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T>;
+  delete<T>(endpoint: string, options?: Omit<RequestOptions, 'method'>): Promise<T>;
+}
+
+export const apiClient: ApiClient = {
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const token = localStorage.getItem('bpg_token');
-    
+
     // Setup headers
     const headers = new Headers(options.headers);
     if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
@@ -44,7 +52,8 @@ export const apiClient = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+        const message = errorData.message || (errorData.errors && errorData.errors.join(', ')) || `HTTP error! Status: ${response.status}`;
+        throw new Error(message);
       }
 
       // If response is empty (e.g. 204 No Content)
@@ -52,7 +61,18 @@ export const apiClient = {
         return {} as T;
       }
 
-      return await response.json() as T;
+      const json = await response.json();
+
+      // Check if response matches the standardized ApiResponse format
+      if (json && typeof json === 'object' && 'success' in json) {
+        if (!json.success) {
+          const message = json.message || (json.errors && json.errors.join(', ')) || 'API request failed';
+          throw new Error(message);
+        }
+        return json.data as T;
+      }
+
+      return json as T;
     } catch (error: any) {
       console.error('API Request Error:', error.message);
       throw error;
@@ -60,11 +80,11 @@ export const apiClient = {
   },
 
   get<T>(endpoint: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'GET' });
+    return apiClient.request<T>(endpoint, { ...options, method: 'GET' });
   },
 
   post<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
-    return this.request<T>(endpoint, {
+    return apiClient.request<T>(endpoint, {
       ...options,
       method: 'POST',
       body: JSON.stringify(body),
@@ -72,7 +92,7 @@ export const apiClient = {
   },
 
   put<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
-    return this.request<T>(endpoint, {
+    return apiClient.request<T>(endpoint, {
       ...options,
       method: 'PUT',
       body: JSON.stringify(body),
@@ -80,6 +100,6 @@ export const apiClient = {
   },
 
   delete<T>(endpoint: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'DELETE' });
+    return apiClient.request<T>(endpoint, { ...options, method: 'DELETE' });
   },
 };
