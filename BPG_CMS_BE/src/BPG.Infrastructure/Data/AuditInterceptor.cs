@@ -14,14 +14,26 @@ public class AuditInterceptor : SaveChangesInterceptor
         _httpContextAccessor = httpContextAccessor;
     }
 
+    public override InterceptionResult<int> SavingChanges(
+        DbContextEventData eventData,
+        InterceptionResult<int> result)
+    {
+        Apply(eventData.Context);
+        return base.SavingChanges(eventData, result);
+    }
+
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData,
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
-        var context = eventData.Context;
-        if (context == null)
-            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        Apply(eventData.Context);
+        return base.SavingChangesAsync(eventData, result, cancellationToken);
+    }
+
+    private void Apply(DbContext? context)
+    {
+        if (context == null) return;
 
         var userId = GetCurrentUserId();
         var now = DateTime.UtcNow;
@@ -42,8 +54,6 @@ public class AuditInterceptor : SaveChangesInterceptor
                 entry.Entity.UpdatedBy = userId;
             }
         }
-
-        return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
     private long? GetCurrentUserId()
