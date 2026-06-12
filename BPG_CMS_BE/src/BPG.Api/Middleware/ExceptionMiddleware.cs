@@ -1,79 +1,112 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Text.Json;
-using System.Threading.Tasks;
 using BPG.Application.Common.Models;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using BPG.Domain.Constants;
+using BPG.Domain.Exceptions;
 
-namespace BPG.Api.Middleware
+namespace BPG.Api.Middleware;
+
+public class ExceptionMiddleware
 {
-    public class ExceptionMiddleware
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionMiddleware> _logger;
+    private readonly IHostEnvironment _env;
+
+    public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger, IHostEnvironment env)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<ExceptionMiddleware> _logger;
-        private readonly IHostEnvironment _env;
+        _next = next;
+        _logger = logger;
+        _env = env;
+    }
 
-        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger, IHostEnvironment env)
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
         {
-            _next = next;
-            _logger = logger;
-            _env = env;
+            await _next(context);
         }
-
-        public async Task InvokeAsync(HttpContext context)
+        catch (Exception ex)
         {
-            try
-            {
-                await _next(context);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unhandled exception occurred: {Message}", ex.Message);
-                await HandleExceptionAsync(context, ex);
-            }
+            _logger.LogError(ex, "Unhandled exception: [{Type}] {Message}", ex.GetType().Name, ex.Message);
+            await HandleExceptionAsync(context, ex);
         }
+    }
 
-        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    {
+        context.Response.ContentType = "application/json";
+
+        var (statusCode, errorCode, message, errors) = exception switch
         {
-            context.Response.ContentType = "application/json";
+            // ── Domain Exceptions ──────────────────────────────────────────────
+            NotFoundException ex =>
+                (HttpStatusCode.NotFound, ex.ErrorCode, ex.Message, (List<string>?)null),
 
-            var statusCode = exception switch
-            {
-                FluentValidation.ValidationException => HttpStatusCode.BadRequest,
-                InvalidOperationException => HttpStatusCode.BadRequest,
-                KeyNotFoundException => HttpStatusCode.NotFound,
-                UnauthorizedAccessException => HttpStatusCode.Unauthorized,
-                _ => HttpStatusCode.InternalServerError
-            };
+            UnauthorizedException ex =>
+                (HttpStatusCode.Unauthorized, ex.ErrorCode, ex.Message, null),
 
-            context.Response.StatusCode = (int)statusCode;
+            ForbiddenException ex =>
+                (HttpStatusCode.Forbidden, ex.ErrorCode, ex.Message, null),
 
-            ApiResponse response;
+            InvalidStatusTransitionException ex =>
+                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
 
-            if (exception is FluentValidation.ValidationException validationException)
-            {
-                var errors = validationException.Errors.Select(e => e.ErrorMessage).ToList();
-                response = ApiResponse.FailureResult("Dữ liệu không hợp lệ.", errors);
-            }
-            else if (statusCode == HttpStatusCode.InternalServerError)
-            {
-                var message = _env.IsDevelopment() ? exception.Message : "Đã xảy ra lỗi hệ thống. Vui lòng liên hệ ban quản trị.";
-                var errors = _env.IsDevelopment() ? new List<string> { exception.StackTrace ?? "" } : null;
-                response = ApiResponse.FailureResult(message, errors);
-            }
-            else
-            {
-                response = ApiResponse.FailureResult(exception.Message);
-            }
+            AlreadyApprovedException ex =>
+                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
 
-            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-            var json = JsonSerializer.Serialize(response, options);
+            InsufficientStockException ex =>
+                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
 
-            await context.Response.WriteAsync(json);
-        }
+            ExceedsBOQException ex =>
+                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
+
+            ExceedsDirectPurchaseLimitException ex =>
+                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
+
+            StockFrozenException ex =>
+                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
+
+            DuplicateEntryException ex =>
+                (HttpStatusCode.Conflict, ex.ErrorCode, ex.Message, null),
+
+            InvalidFileException ex =>
+                (HttpStatusCode.BadRequest, ex.ErrorCode, ex.Message, null),
+
+            // Catch-all for any remaining DomainException subclass
+            DomainException ex =>
+                (HttpStatusCode.UnprocessableEntity, ex.ErrorCode, ex.Message, null),
+
+            // ── FluentValidation ───────────────────────────────────────────────
+            FluentValidation.ValidationException ex => (
+                HttpStatusCode.BadRequest,
+                ErrorCodes.ValidationFailed,
+                ResponseMessages.ValidationError,
+                ex.Errors.Select(e => e.ErrorMessage).Distinct().ToList()),
+
+            // ── Fallback ───────────────────────────────────────────────────────
+            _ => (
+                HttpStatusCode.InternalServerError,
+                ErrorCodes.DatabaseError,
+                _env.IsDevelopment() ? exception.Message : ResponseMessages.InternalError,
+                _env.IsDevelopment() ? new List<string> { exception.StackTrace ?? "" } : null)
+        };
+
+        context.Response.StatusCode = (int)statusCode;
+
+        ApiResponse response = errors is { Count: > 0 }
+            ? ApiResponse.FailureResult(message, errors)
+            : ApiResponse.FailureResult(message);
+
+        // Đính kèm errorCode vào response (nếu ApiResponse hỗ trợ)
+        var payload = new
+        {
+            success = false,
+            errorCode,
+            message,
+            errors
+        };
+
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        await context.Response.WriteAsync(JsonSerializer.Serialize(payload, options));
     }
 }
