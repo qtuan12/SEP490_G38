@@ -46,21 +46,20 @@ Mục tiêu tối thượng của bạn là: **TỐI ĐA HÓA TÁI SỬ DỤNG (
 ## 3. 🎨 QUY TẮC FRONTEND (REACT + TYPESCRIPT + VITE)
 
 ### A. Thiết kế & Styling
-* **KHÔNG DÙNG TAILWIND CSS:** Dự án dùng Vanilla CSS thuần với CSS Variables. Không sử dụng các utility classes của Tailwind (như `flex items-center mt-4`).
-* **Sử dụng CSS có sẵn:** Tận dụng tối đa các style định nghĩa trong `src/styles/index.css`:
+* **Hạn chế viết trực tiếp Tailwind Utility Classes trong trang Page:** Dự án có tích hợp Tailwind CSS v4 để xây dựng các component dùng chung (trong `src/components/ui/`). Tuy nhiên, khi viết các trang màn hình (`src/pages/`), lập trình viên và AI **không được viết trực tiếp các class Tailwind dài dòng** (như `flex justify-between items-center bg-gray-50 p-4`).
+* **Sử dụng CSS và Component có sẵn:** Tận dụng tối đa các component UI dùng chung (`<Button>`, `<Card>`, `<Input>`, `<Select>`, `<DataTable>`, `<Badge>`) và các class CSS định nghĩa trong `src/index.css`:
   - Panel mờ: `.glass-panel`
   - Container/Thẻ: `.card`
-  - Nút bấm: `.btn` cùng với `.btn-primary`, `.btn-secondary`, `.btn-danger`
-  - Badge trạng thái: `.badge` cùng với `.badge-primary`, `.badge-success`, `.badge-warning`, `.badge-danger`
   - Bảng dữ liệu: `.table-container` bao quanh `<table>`, `<th>`, `<td>`
-  - Nhập liệu: `input`, `select`, `textarea` kế thừa trực tiếp từ style form chung.
-* **Cân đối Layout:** Dùng inline style React cho các khoảng cách đơn giản (ví dụ: `style={{ display: 'flex', gap: '12px' }}`) nếu không có class định nghĩa sẵn phù hợp.
+* **Căn chỉnh Layout đơn giản:** Đối với các căn chỉnh layout nhỏ (như `gap`, `display: flex`), khuyến khích dùng inline style (ví dụ: `style={{ display: 'flex', gap: '12px' }}`) nếu không có class định nghĩa sẵn, giúp code JSX của trang Page luôn ngắn gọn, dễ đọc.
 
-### B. Tái sử dụng Component & API Client
-* **Tận dụng Component có sẵn:** Trước khi làm một màn hình mới, hãy xem thư mục `src/components/` đã có các component dùng chung như `Modal.tsx`, `Layout.tsx`,... để tái sử dụng thay vì viết lại từ đầu.
-* **Gọi API qua apiClient:** KHÔNG sử dụng `fetch` hoặc `axios` độc lập trong file UI. Mọi request phải gọi qua `apiClient` từ `src/services/api.ts` (đã tích hợp Interceptor đính kèm Token và tự động unwrap payload `ApiResponse` để trả về trực tiếp `.data`).
+### B. Gọi API, Quản lý State & Form
+* **Quản lý Data Fetching bằng React Query:** BẮT BUỘC dùng `@tanstack/react-query`. Không viết `useEffect` kết hợp với `apiClient` một cách thủ công để gọi dữ liệu và quản lý state. 
+  - Sử dụng hook `useQuery` cho các thao tác đọc (GET).
+  - Sử dụng hook `useMutation` cho các thao tác thay đổi dữ liệu (POST, PUT, DELETE).
+* **Gọi API qua Service:** Mọi request API phải được định nghĩa trong thư mục `src/services/` (gọi qua `apiClient` từ `src/services/api.ts`). Không viết code gọi `fetch` hay `axios` trực tiếp trong file UI.
+* **Xử lý Form & Validation:** Sử dụng `react-hook-form` kết hợp với `zod` để quản lý trạng thái form và tự động validate dữ liệu theo schema khớp với DTO của Backend.
 * **TypeScript Strict Mode:** KHÔNG sử dụng kiểu `any`. Mọi response từ api và props component phải có `interface` rõ ràng khớp với DTO backend.
-* **Tách biệt Logic & Giao diện:** Logic gọi API và quản lý state phức tạp nên tách ra các custom hooks (ví dụ: `useFetchUsers.ts`), không nhồi nhét `useEffect` và logic tính toán nặng vào file giao diện `.tsx`.
 
 ---
 
@@ -69,12 +68,16 @@ Bạn (AI Agent) PHẢI thực hiện code tính năng mới theo đúng thứ t
 1. **Domain & Infra:** Tạo Entity (kế thừa `BaseEntity`) -> Cấu hình mapping EF Core (`IEntityTypeConfiguration`) -> Báo user chạy Migration.
 2. **Application:** Tạo `DTO` -> Định nghĩa `Command/Query` (MediatR) -> Viết `Validator` (FluentValidation) -> Viết `Handler`. **Trong Handler, inject trực tiếp `AppDbContext`, TUYỆT ĐỐI KHÔNG dùng Repository.**
 3. **API Layer:** Tạo Request Payload -> Thêm Endpoint vào Controller (kế thừa `BaseApiController`). Trả về `ApiResponse<T>`.
+
 ---
+
 ## 5. ASYNC, CANCELLATION & PERFORMANCE
 - **Async 100%:** Mọi hàm I/O (database, http) phải là `async Task` và có hậu tố `Async`. Cấm dùng `.Result` hay `.Wait()`.
 - **CancellationToken:** Bắt buộc truyền `CancellationToken ct` xuyên suốt từ Controller -> Handler -> DbContext.
 - **Performance:** Khi đọc dữ liệu không cần sửa, bắt buộc dùng `.AsNoTracking()`. Tránh query N+1 bằng cách dùng `.Include()` hoặc `.Select()`.
+
 ---
+
 ## 6. DEFINITION OF DONE (TỰ KIỂM TRA CHÉO)
 Trước khi kết thúc câu trả lời, bạn (AI Agent) PHẢI tự động verify các tiêu chí dưới đây ngầm:
 - [ ] Controller đã sạch bóng logic nghiệp vụ chưa? (Chỉ gọi Mediator).
@@ -82,8 +85,16 @@ Trước khi kết thúc câu trả lời, bạn (AI Agent) PHẢI tự động 
 - [ ] Mọi thay đổi về `CurrentInventory` đã đi kèm lệnh INSERT vào `InventoryTransactions` chưa?
 - [ ] Có lỡ dùng `try-catch` bọc logic nghiệp vụ không? (Bỏ ngay, để Middleware tự bắt).
 > **Nếu thiếu bất kỳ tiêu chí nào, hãy tự động sửa lại code trước khi hiển thị cho người dùng.**
+
 ---
-## . 🚀 QUY TẮC LÀM VIỆC VỚI GIT & CÁCH PROMPT AI
+
+## 7. 📝 QUY TẮC CẬP NHẬT TRẠNG THÁI (PROJECT-STATUS.md)
+- **Tự động cập nhật tiến độ:** Mỗi khi hoàn thành code Backend, Frontend, viết Unit Test hoặc tài liệu cho bất kỳ task nào, AI Agent hoặc lập trình viên **BẮT BUỘC** phải cập nhật trạng thái của hạng mục đó trong file [PROJECT-STATUS.md](file:///d:/Semester_9_SU26/SEP490/Project/SEP490_G38/PROJECT-STATUS.md) (To Do ➔ 🚧 Đang làm ➔ ✅ Đã xong).
+- **Đảm bảo tính đồng bộ:** Bảng theo dõi trong `PROJECT-STATUS.md` là nguồn tin cậy duy nhất giúp các thành viên nhóm và các AI Agent khác biết dự án đang phát triển đến đâu mà không cần bàn giao thủ công.
+
+---
+
+## 8. 🚀 QUY TẮC LÀM VIỆC VỚI GIT & CÁCH PROMPT AI
 
 ### A. Git Workflow
 * Commit message tuân thủ chuẩn **Conventional Commits** (ví dụ: `feat(auth): add login form`, `fix(api): handle validation errors`).
