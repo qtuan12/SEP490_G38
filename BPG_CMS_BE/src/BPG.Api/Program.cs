@@ -65,11 +65,25 @@ var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
+if (args.Contains("--seed"))
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Console.WriteLine("Applying migrations and seeding database...");
+        await DbSeeder.SeedAsync(context);
+        Console.WriteLine("Seeding completed successfully.");
+    }
+    
+    // Thoát ứng dụng sau khi seed xong
+    return;
+}
+
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    await DbSeeder.SeedAsync(context);
+    // Cập nhật cấu trúc database nếu có thay đổi (chỉ migrate, không seed data)
+    await context.Database.MigrateAsync();
 }
 
 app.UseSwagger();
