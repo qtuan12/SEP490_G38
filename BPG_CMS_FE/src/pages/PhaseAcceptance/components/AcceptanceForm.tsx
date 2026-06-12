@@ -2,11 +2,10 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { projectService } from '../../../services/projectService';
 import type {WBSPhase} from '../../../types/common';
 import { Lock } from 'lucide-react';
-import type { AcceptanceData } from '../../../types/common';
 
 const acceptanceSchema = z.object({
   representativeA: z.string().min(1, 'Vui lòng nhập tên người đại diện bên A'),

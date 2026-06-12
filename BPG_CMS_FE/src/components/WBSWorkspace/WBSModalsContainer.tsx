@@ -32,7 +32,7 @@ export const WBSModalsContainer = () => {
   } = useWBS();
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
-  const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) : null;
+  const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) || null : null;
 
   return (
     <>
