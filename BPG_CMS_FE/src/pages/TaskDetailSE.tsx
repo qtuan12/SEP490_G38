@@ -6,6 +6,7 @@ import type {WBSTask} from '../types/common';
 import { DailyLogFormModal } from './Incidents/modals/DailyLogFormModal';
 import { Modal } from '../components/ui/Modal';
 import { DailyLogFeed } from '../components/DailyLogFeed';
+import { TaskProgressHistoryPanel } from '../components/TaskProgressHistoryPanel';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -344,12 +345,12 @@ export const TaskDetailSE: React.FC = () => {
           </button>
         </div>
 
-        {/* Brief History Roll */}
+        {/* Brief History Roll — dùng API thật thay mock task.history */}
         <div style={{ marginTop: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'hsl(var(--text-muted))', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
               <History size={14} />
-              LỊCH SỬ GHI NHẬT KÝ GẦN NHẤT
+              LỊCH SỬ THAY ĐỔI TIẾN ĐỘ
             </h4>
             <button
               onClick={() => setIsDetailedLogsOpen(true)}
@@ -362,24 +363,10 @@ export const TaskDetailSE: React.FC = () => {
                 fontWeight: 600
               }}
             >
-              Xem chi tiết
+              Xem nhật ký chi tiết
             </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '120px', overflowY: 'auto' }}>
-            {task.history.length === 0 ? (
-              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontStyle: 'italic' }}>Chưa có lịch sử cập nhật.</span>
-            ) : (
-              task.history.slice(0, 3).map((h, index) => (
-                <div key={index} style={{ padding: '8px', backgroundColor: 'hsl(var(--bg-main) / 0.4)', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                    <span>{h.date}</span>
-                    <span style={{ color: 'hsl(var(--primary))' }}>{h.oldProgress}% &rarr; {h.newProgress}%</span>
-                  </div>
-                  <p style={{ color: 'hsl(var(--text-secondary))', marginTop: '2px' }}>{h.reason}</p>
-                </div>
-              ))
-            )}
-          </div>
+          <TaskProgressHistoryPanel taskId={task.id} limit={3} compact />
         </div>
 
       </div>

@@ -1,4 +1,4 @@
-import type { Project, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, TaskHistory, WBSTask, DailyLogComment, DailyLog } from '../types/common';
+import type { Project, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, TaskHistory, WBSTask, DailyLogComment, DailyLog, TaskProgressLog } from '../types/common';
 import { apiClient, USE_MOCK_API } from './api';
 
 interface ApiResponse<T> {
@@ -925,17 +925,25 @@ export const projectService = {
     throw new Error('Không tìm thấy bình luận.');
   },
 
-  async getTaskProgressHistory(taskId: string): Promise<any[]> {
+  async getTaskProgressHistory(taskId: string): Promise<TaskProgressLog[]> {
     if (!USE_MOCK_API) {
       const parsedTaskId = taskId.startsWith('t-') ? parseInt(taskId.substring(2)) : parseInt(taskId);
-      const res = await apiClient.get<ApiResponse<any[]>>(`/dailylogs/tasks/${parsedTaskId}/progress-history`);
+      const res = await apiClient.get<ApiResponse<TaskProgressLog[]>>(`/dailylogs/tasks/${parsedTaskId}/progress-history`);
       if (!res.success) throw new Error(res.message || 'Lấy lịch sử tiến độ thất bại.');
-      return res.data;
+      return res.data ?? [];
     }
 
+    // Mock fallback: convert WBSTask history to TaskProgressLog shape
     const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
     const task = allTasks.find(t => t.id === taskId);
-    return task?.history || [];
+    return (task?.history || []).map((h, idx) => ({
+      taskProgressLogId: idx + 1,
+      taskId: 0,
+      oldProgress: h.oldProgress,
+      newProgress: h.newProgress,
+      updateReason: h.reason,
+      updatedAt: h.date
+    }));
   },
 
   async uploadFiles(files: File[], folder: string = 'dailylogs'): Promise<string[]> {

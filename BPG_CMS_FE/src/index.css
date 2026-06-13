@@ -477,6 +477,148 @@ tr:hover td {
   box-shadow: 0 0 6px hsl(var(--danger) / 0.5);
 }
 
+/* Daily Logs 2-column layout: feed (7fr) + progress history (2fr) */
+.daily-logs-layout {
+  display: grid;
+  grid-template-columns: 7fr 2fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.daily-logs-layout .progress-history-col {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+/* Tablet: thu nhỏ cột phải */
+@media (max-width: 1024px) {
+  .daily-logs-layout {
+    grid-template-columns: 3fr 1fr;
+  }
+}
+
+/* Mobile / PWA: stack dọc */
+@media (max-width: 768px) {
+  .daily-logs-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .daily-logs-layout .progress-history-col {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    /* Trên mobile, panel lịch sử nằm dưới feed */
+    order: 2;
+  }
+}
+
+/* ── Drawer ──────────────────────────────────────────────── */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.drawer-overlay--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  max-width: 100vw;
+  background: hsl(var(--bg-card));
+  border-left: 1px solid hsl(var(--border));
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0s linear 0.3s;
+  will-change: transform;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.drawer-panel--open {
+  transform: translateX(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0s linear 0s;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid hsl(var(--border));
+  flex-shrink: 0;
+}
+
+.drawer-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: hsl(var(--text-primary));
+}
+
+.drawer-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: hsl(var(--text-muted));
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.drawer-close:hover {
+  background: hsl(var(--border));
+  color: hsl(var(--text-primary));
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Drawer full-width trên mobile — bottom sheet */
+@media (max-width: 640px) {
+  .drawer-panel {
+    width: 100% !important;
+    border-left: none;
+    border-top: 1px solid hsl(var(--border));
+    top: auto;
+    bottom: 0;
+    transform: translateY(100%);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 85vh;
+  }
+
+  .drawer-panel--open {
+    transform: translateY(0);
+  }
+}
+
 /* Manager Comment Highlights */
 .comment-highlight-manager {
   border: 1px solid hsl(var(--warning) / 0.3) !important;
@@ -485,9 +627,6 @@ tr:hover td {
 
 .comment-acknowledged {
   border-left: 3px solid hsl(var(--success)) !important;
-}
-
-
 }
 
 /* merged from frappe-gantt.css */
