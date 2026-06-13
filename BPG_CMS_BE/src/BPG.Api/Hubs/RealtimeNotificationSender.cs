@@ -1,10 +1,9 @@
-using BPG.Api.Hubs;
 using BPG.Application.IServices;
 using Microsoft.AspNetCore.SignalR;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BPG.Api.Services
+namespace BPG.Api.Hubs
 {
     public class RealtimeNotificationSender : IRealtimeNotificationSender
     {

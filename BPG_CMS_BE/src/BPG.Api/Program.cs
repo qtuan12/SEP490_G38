@@ -14,7 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
-builder.Services.AddScoped<BPG.Application.IServices.IRealtimeNotificationSender, BPG.Api.Services.RealtimeNotificationSender>();
+builder.Services.AddScoped<BPG.Application.IServices.IRealtimeNotificationSender, BPG.Api.Hubs.RealtimeNotificationSender>();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
