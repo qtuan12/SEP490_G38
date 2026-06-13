@@ -26,12 +26,55 @@ namespace BPG.Infrastructure.Services
         {
             // Gửi Command qua MediatR, Handler sẽ đảm nhận việc lưu DB và bắn realtime
             await _mediator.Send(new SendNotificationCommand(
-                userId,
-                title,
-                content,
-                notificationType,
-                referenceType,
-                referenceId
+                UserId: userId,
+                Title: title,
+                Content: content,
+                NotificationType: notificationType,
+                SendToAll: false,
+                RoleName: null,
+                ReferenceType: referenceType,
+                ReferenceId: referenceId
+            ), ct);
+        }
+
+        public async Task SendNotificationToAllAsync(
+            string title,
+            string content,
+            string notificationType,
+            string? referenceType = null,
+            long? referenceId = null,
+            CancellationToken ct = default)
+        {
+            await _mediator.Send(new SendNotificationCommand(
+                UserId: null,
+                Title: title,
+                Content: content,
+                NotificationType: notificationType,
+                SendToAll: true,
+                RoleName: null,
+                ReferenceType: referenceType,
+                ReferenceId: referenceId
+            ), ct);
+        }
+
+        public async Task SendNotificationToRoleAsync(
+            string roleName,
+            string title,
+            string content,
+            string notificationType,
+            string? referenceType = null,
+            long? referenceId = null,
+            CancellationToken ct = default)
+        {
+            await _mediator.Send(new SendNotificationCommand(
+                UserId: null,
+                Title: title,
+                Content: content,
+                NotificationType: notificationType,
+                SendToAll: false,
+                RoleName: roleName,
+                ReferenceType: referenceType,
+                ReferenceId: referenceId
             ), ct);
         }
     }

@@ -65,6 +65,23 @@ Mục tiêu tối thượng của bạn là: **TỐI ĐA HÓA TÁI SỬ DỤNG (
     var userListDto = _mapper.Map<List<UserDto>>(users);
     ```
 
+### G. Sử dụng Notification Engine (Realtime & DB Notifications)
+* **Quy định sử dụng:** Khi cần gửi thông báo đến người dùng trong bất kỳ API/Handler nào (ví dụ: tạo mới nhật ký, phê duyệt, bình luận, v.v.), **bắt buộc** tiêm `INotificationService` qua Constructor để gọi.
+* **Cấm gọi trực tiếp:** Cấm tự tạo HubContext hoặc bắn SignalR trực tiếp từ các module khác để gửi thông báo.
+* **Các phương thức hỗ trợ:**
+  1. **Gửi cho 1 User cụ thể:**
+     ```csharp
+     await _notificationService.SendNotificationAsync(userId, title, content, notificationType, referenceType, referenceId, ct);
+     ```
+  2. **Gửi cho TOÀN BỘ User active:**
+     ```csharp
+     await _notificationService.SendNotificationToAllAsync(title, content, notificationType, referenceType, referenceId, ct);
+     ```
+  3. **Gửi cho toàn bộ User thuộc một Role:**
+     ```csharp
+     await _notificationService.SendNotificationToRoleAsync(roleName, title, content, notificationType, referenceType, referenceId, ct);
+     ```
+
 ---
 
 ## 3. 🎨 QUY TẮC FRONTEND (REACT + TYPESCRIPT + VITE)

@@ -5,6 +5,9 @@ using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,21 +28,63 @@ namespace BPG.Application.Features.Notifications.Handlers
 
         public async Task Handle(SendNotificationCommand request, CancellationToken cancellationToken)
         {
-            // 1. Map Command sang Entity sử dụng AutoMapper
-            var notification = _mapper.Map<Notification>(request);
+            var usersQuery = _uow.Repository<User>().Query().Where(u => u.IsActive && !u.IsDeleted);
+            List<User> targetUsers = new();
 
-            // Lưu thông báo vào cơ sở dữ liệu qua Repository/UnitOfWork
-            await _uow.Repository<Notification>().AddAsync(notification, cancellationToken);
+            // 1. Xác định danh sách người nhận
+            if (request.SendToAll)
+            {
+                targetUsers = await usersQuery.ToListAsync(cancellationToken);
+            }
+            else if (!string.IsNullOrWhiteSpace(request.RoleName))
+            {
+                targetUsers = await usersQuery
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .Where(u => u.UserRoles.Any(ur => ur.Role.RoleName == request.RoleName))
+                    .ToListAsync(cancellationToken);
+            }
+            else if (request.UserId.HasValue)
+            {
+                var user = await _uow.Repository<User>().GetByIdAsync(request.UserId.Value, cancellationToken);
+                if (user != null && user.IsActive && !user.IsDeleted)
+                {
+                    targetUsers.Add(user);
+                }
+            }
+
+            if (!targetUsers.Any())
+                return;
+
+            // 2. Tạo thực thể Notification cho từng người nhận
+            var notifications = new List<Notification>();
+            foreach (var user in targetUsers)
+            {
+                var notification = _mapper.Map<Notification>(request);
+                notification.UserId = user.UserId;
+                notifications.Add(notification);
+            }
+
+            // Lưu hàng loạt vào cơ sở dữ liệu
+            await _uow.Repository<Notification>().AddRangeAsync(notifications, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            // 2. Map Entity sang NotificationDto chuẩn hóa để gửi đi
-            var notificationDto = _mapper.Map<NotificationDto>(notification);
-
-            // Gửi thông báo realtime thông qua SignalR Sender
-            await _realtimeSender.SendNotificationToUserAsync(
-                request.UserId.ToString(),
-                notificationDto,
-                cancellationToken);
+            // 3. Gửi thông báo realtime qua SignalR
+            if (request.SendToAll)
+            {
+                // Gửi một gói tin broadcast duy nhất cho tất cả clients đang kết nối để tối ưu hiệu năng
+                var sampleDto = _mapper.Map<NotificationDto>(notifications.First());
+                await _realtimeSender.SendNotificationToAllAsync(sampleDto, cancellationToken);
+            }
+            else
+            {
+                // Gửi realtime riêng cho từng user được nhắm tới
+                foreach (var noti in notifications)
+                {
+                    var dto = _mapper.Map<NotificationDto>(noti);
+                    await _realtimeSender.SendNotificationToUserAsync(noti.UserId.ToString(), dto, cancellationToken);
+                }
+            }
         }
     }
 }

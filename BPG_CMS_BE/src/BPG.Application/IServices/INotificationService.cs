@@ -23,5 +23,28 @@ namespace BPG.Application.IServices
             string? referenceType = null,
             long? referenceId = null,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Gửi thông báo đến toàn bộ người dùng đang kích hoạt trong hệ thống.
+        /// </summary>
+        Task SendNotificationToAllAsync(
+            string title,
+            string content,
+            string notificationType,
+            string? referenceType = null,
+            long? referenceId = null,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Gửi thông báo đến toàn bộ người dùng thuộc một Vai Trò (Role) cụ thể.
+        /// </summary>
+        Task SendNotificationToRoleAsync(
+            string roleName,
+            string title,
+            string content,
+            string notificationType,
+            string? referenceType = null,
+            long? referenceId = null,
+            CancellationToken ct = default);
     }
 }
