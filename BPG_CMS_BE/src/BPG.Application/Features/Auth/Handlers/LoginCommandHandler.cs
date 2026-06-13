@@ -1,3 +1,4 @@
+using AutoMapper;
 using BPG.Application.DTOs.Auth;
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
@@ -13,11 +14,13 @@ namespace BPG.Application.Features.Auth.Handlers
     {
         private readonly IUnitOfWork _uow;
         private readonly IJwtService _jwtService;
+        private readonly IMapper _mapper;
 
-        public LoginCommandHandler(IUnitOfWork uow, IJwtService jwtService)
+        public LoginCommandHandler(IUnitOfWork uow, IJwtService jwtService, IMapper mapper)
         {
             _uow = uow;
             _jwtService = jwtService;
+            _mapper = mapper;
         }
 
         public async Task<LoginResponse> Handle(
@@ -40,16 +43,9 @@ namespace BPG.Application.Features.Auth.Handlers
                 throw new UnauthorizedException("Email hoặc mật khẩu không chính xác.");
             }
 
-            var roleName = user.UserRoles.FirstOrDefault()?.Role?.RoleName ?? "User";
-
-            return new LoginResponse
-            {
-                UserId = user.UserId,
-                FullName = user.FullName,
-                Email = user.Email,
-                Role = roleName,
-                AccessToken = _jwtService.GenerateToken(user)
-            };
+            var response = _mapper.Map<LoginResponse>(user);
+            response.AccessToken = _jwtService.GenerateToken(user);
+            return response;
         }
     }
 }

@@ -1,3 +1,4 @@
+using AutoMapper;
 using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Queries;
 using BPG.Application.IRepositories;
@@ -11,8 +12,13 @@ namespace BPG.Application.Features.Users.Handlers;
 public class GetUsersHandler : IRequestHandler<GetUsersQuery, List<UserDto>>
 {
     private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
 
-    public GetUsersHandler(IUnitOfWork uow) => _uow = uow;
+    public GetUsersHandler(IUnitOfWork uow, IMapper mapper)
+    {
+        _uow = uow;
+        _mapper = mapper;
+    }
 
     public async Task<List<UserDto>> Handle(GetUsersQuery request, CancellationToken ct)
     {
@@ -22,6 +28,6 @@ public class GetUsersHandler : IRequestHandler<GetUsersQuery, List<UserDto>>
             .OrderBy(u => u.FullName)
             .ToListAsync(ct);
 
-        return users.Select(UserDto.FromEntity).ToList();
+        return _mapper.Map<List<UserDto>>(users);
     }
 }

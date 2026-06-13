@@ -1,3 +1,4 @@
+using AutoMapper;
 using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Commands;
 using BPG.Application.IRepositories;
@@ -11,8 +12,13 @@ namespace BPG.Application.Features.Users.Handlers;
 public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserDto>
 {
     private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
 
-    public UpdateUserHandler(IUnitOfWork uow) => _uow = uow;
+    public UpdateUserHandler(IUnitOfWork uow, IMapper mapper)
+    {
+        _uow = uow;
+        _mapper = mapper;
+    }
 
     public async Task<UserDto> Handle(UpdateUserCommand cmd, CancellationToken ct)
     {
@@ -53,6 +59,6 @@ public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserDto>
         _uow.Repository<User>().Update(user);
         await _uow.SaveChangesAsync(ct);
 
-        return UserDto.FromEntity(user);
+        return _mapper.Map<UserDto>(user);
     }
 }

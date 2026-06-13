@@ -34,6 +34,7 @@ public static class DependencyInjection
         // Application Services
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<INotificationService, NotificationService>();
 
         return services;
     }

@@ -21,6 +21,8 @@ namespace BPG.Application
                 cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
             });
 
+            services.AddAutoMapper(typeof(DependencyInjection).Assembly);
+
             return services;
         }
     }

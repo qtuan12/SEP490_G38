@@ -1,6 +1,6 @@
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5160/api';
 
-export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== 'false';
+export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
