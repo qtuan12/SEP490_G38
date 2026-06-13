@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: bpg-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=BPG_CMS_Password2026!
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P BPG_CMS_Password2026! -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - mssql-data:/var/opt/mssql
+    networks:
+      - bpg-network
+
+  backend:
+    build:
+      context: ./BPG_CMS_BE
+      dockerfile: src/BPG.Api/Dockerfile
+    container_name: bpg-backend
+    ports:
+      - "5160:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=db,1433;Database=BPGDB;User ID=sa;Password=BPG_CMS_Password2026!;TrustServerCertificate=True;Encrypt=True;
+      - ConnectionStrings__RedisConnection=redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - bpg-network
+
+  frontend:
+    build:
+      context: ./BPG_CMS_FE
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:5160/api
+        - VITE_USE_MOCK_API=false
+    container_name: bpg-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - bpg-network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: bpg-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - bpg-network
+
+volumes:
+  mssql-data:
+  redis-data:
+
+networks:
+  bpg-network:
+    driver: bridge
+
