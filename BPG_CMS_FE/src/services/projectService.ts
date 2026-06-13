@@ -562,19 +562,36 @@ export const projectService = {
   },
 
   // DAILY LOGS & PROGRESS UPDATES
-  async getDailyLogs(projectId: string, taskId?: string): Promise<DailyLog[]> {
+
+  /**
+   * Fetch a single page of daily logs.
+   * Returns items + hasNextPage so the caller can implement "load more" without
+   * re-fetching previously loaded data.
+   */
+  async getDailyLogsPage(
+    projectId: string,
+    page: number,
+    pageSize: number,
+    taskId?: string
+  ): Promise<{ items: DailyLog[]; hasNextPage: boolean; totalCount: number }> {
     if (!USE_MOCK_API) {
       const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const params: Record<string, string> = {
         projectId: parsedProjectId,
-        pageIndex: '1',
-        pageSize: '100'
+        pageNumber: String(page),
+        pageSize: String(pageSize)
       };
       if (taskId) {
         const parsedTaskId = taskId.startsWith('t-') ? taskId.substring(2) : taskId;
         params.taskId = parsedTaskId;
       }
-      const res = await apiClient.get<ApiResponse<{ items: any[] }>>(`/dailylogs`, { params });
+
+      const res = await apiClient.get<ApiResponse<{
+        items: any[];
+        hasNextPage: boolean;
+        totalCount: number;
+      }>>(`/dailylogs`, { params });
+
       if (!res.success) throw new Error(res.message || 'Lấy danh sách nhật ký thất bại.');
 
       const mapComment = (c: any): DailyLogComment => ({
@@ -586,9 +603,9 @@ export const projectService = {
         date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
       });
 
-      return (res.data?.items || []).map((l: any) => ({
+      const items = (res.data?.items || []).map((l: any) => ({
         id: l.logId.toString(),
-        projectId: projectId,
+        projectId,
         taskId: l.taskId.toString(),
         taskName: l.taskName,
         engineerId: l.createdBy.toString(),
@@ -601,11 +618,33 @@ export const projectService = {
         images: l.images || [],
         comments: (l.comments || []).map(mapComment)
       }));
+
+      return {
+        items,
+        hasNextPage: res.data?.hasNextPage ?? false,
+        totalCount: res.data?.totalCount ?? items.length
+      };
     }
-    const logs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS);
-    return logs
+
+    // Mock fallback: slice the local storage array to simulate pagination
+    const allLogs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS)
       .filter(l => l.projectId === projectId && (!taskId || l.taskId === taskId))
       .sort((a, b) => b.date.localeCompare(a.date));
+
+    const start = (page - 1) * pageSize;
+    const items = allLogs.slice(start, start + pageSize);
+
+    return {
+      items,
+      hasNextPage: start + pageSize < allLogs.length,
+      totalCount: allLogs.length
+    };
+  },
+
+  /** @deprecated Use getDailyLogsPage for paginated loading. Kept for backward compatibility. */
+  async getDailyLogs(projectId: string, taskId?: string): Promise<DailyLog[]> {
+    const result = await this.getDailyLogsPage(projectId, 1, 100, taskId);
+    return result.items;
   },
 
   async createDailyLog(

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 import { USE_MOCK_API } from '../services/api';
@@ -12,8 +12,11 @@ import {
   CheckCircle, 
   Plus,
   Edit2,
-  Trash2
+  Trash2,
+  ChevronDown
 } from 'lucide-react';
+
+const PAGE_SIZE = 2;
 import { Modal, Input, Select, Badge, Button } from './ui';
 import type { BadgeVariant } from './ui';
 import { DailyLogFormModal } from '../pages/Incidents/modals/DailyLogFormModal';
@@ -28,6 +31,9 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Modal states for creating/editing Daily Logs
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,10 +68,13 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const loadData = async () => {
     setLoading(true);
     try {
-      const logsData = await projectService.getDailyLogs(projectId, taskId);
-      setLogs(logsData);
-      
-      const tasksData = await projectService.getTasks(projectId);
+      const [logsResult, tasksData] = await Promise.all([
+        projectService.getDailyLogsPage(projectId, 1, PAGE_SIZE, taskId),
+        projectService.getTasks(projectId)
+      ]);
+      setLogs(logsResult.items);
+      setHasNextPage(logsResult.hasNextPage);
+      setCurrentPage(1);
       setTasks(tasksData.filter(t => t.status !== 'obsolete'));
     } catch (err: any) {
       console.error('Error loading daily logs data:', err);
@@ -74,9 +83,47 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     }
   };
 
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || !hasNextPage) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const result = await projectService.getDailyLogsPage(projectId, nextPage, PAGE_SIZE, taskId);
+      setLogs(prev => [...prev, ...result.items]);
+      setHasNextPage(result.hasNextPage);
+      setCurrentPage(nextPage);
+    } catch (err: any) {
+      console.error('Error loading more daily logs:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasNextPage, currentPage, projectId, taskId]);
+
   useEffect(() => {
     loadData();
   }, [projectId]);
+
+  const reloadLogs = async () => {
+    // After a mutation (comment add/edit/delete or log edit), reload the current
+    // visible window by fetching pages 1..currentPage so we don't lose items the
+    // user already scrolled through.
+    try {
+      const allItems: DailyLog[] = [];
+      for (let p = 1; p <= currentPage; p++) {
+        const result = await projectService.getDailyLogsPage(projectId, p, PAGE_SIZE, taskId);
+        allItems.push(...result.items);
+        if (!result.hasNextPage) {
+          setHasNextPage(false);
+          break;
+        } else if (p === currentPage) {
+          setHasNextPage(result.hasNextPage);
+        }
+      }
+      setLogs(allItems);
+    } catch (err: any) {
+      console.error('Error reloading daily logs:', err);
+    }
+  };
 
   const handleCommentChange = (logId: string, value: string) => {
     setCommentInputs(prev => ({ ...prev, [logId]: value }));
@@ -100,8 +147,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       setCommentInputs(prev => ({ ...prev, [logId]: '' }));
       
       // Reload to show updated comments
-      const logsData = await projectService.getDailyLogs(projectId);
-      setLogs(logsData);
+      await reloadLogs();
     } catch (err: any) {
       alert(err.message || 'Không thể gửi bình luận.');
     }
@@ -117,8 +163,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       setEditingCommentId(null);
       
       // Reload comments
-      const logsData = await projectService.getDailyLogs(projectId);
-      setLogs(logsData);
+      await reloadLogs();
     } catch (err: any) {
       alert(err.message || 'Không thể cập nhật bình luận.');
     }
@@ -130,8 +175,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       const success = await projectService.deleteLogComment(commentId);
       if (success) {
         // Reload comments
-        const logsData = await projectService.getDailyLogs(projectId);
-        setLogs(logsData);
+        await reloadLogs();
       }
     } catch (err: any) {
       alert(err.message || 'Không thể xóa bình luận.');
@@ -691,6 +735,53 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
               })}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* LOAD MORE BUTTON */}
+      {!loading && hasNextPage && (
+        <div className="flex justify-center pt-2 pb-4">
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 24px',
+              borderRadius: '8px',
+              border: '1.5px solid hsl(var(--border))',
+              background: 'hsl(var(--bg-card))',
+              color: 'hsl(var(--text-secondary))',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              cursor: loadingMore ? 'not-allowed' : 'pointer',
+              opacity: loadingMore ? 0.6 : 1,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            {loadingMore ? (
+              <>
+                <span
+                  className="animate-spin"
+                  style={{
+                    width: 14,
+                    height: 14,
+                    border: '2px solid hsl(var(--border))',
+                    borderTopColor: 'hsl(var(--primary))',
+                    borderRadius: '50%',
+                    display: 'inline-block'
+                  }}
+                />
+                Đang tải...
+              </>
+            ) : (
+              <>
+                <ChevronDown size={15} />
+                Xem thêm nhật ký
+              </>
+            )}
+          </button>
         </div>
       )}
 
