@@ -13,6 +13,7 @@
 | **Inventory & GR** | ✅ | ❌ | ❌ | Bảng CurrentInventory và Ledger đã có |
 | **Surplus & Adjustment**| ✅ | ❌ | ❌ | |
 | **Auth & Users** | ✅ | ✅ | ✅ | Login, Phân quyền cơ bản |
+| **Daily Log & Comments** | ✅ | ✅ | ✅ | Backend API hoàn thành (CRUD Daily Logs & Comments) |
 
 ## 2. Frontend Modules (React 19)
 | Feature | Giao diện (UI) | API Integration | Ghi chú |
