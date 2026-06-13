@@ -3,11 +3,11 @@ import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signal
 import { useAuth } from './AuthContext';
 import { notificationService } from '../services/notificationService';
 import type { Notification } from '../types/notification';
-import toast from 'react-hot-toast';
 
 interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
+  totalCount: number;
   isLoading: boolean;
   fetchNotifications: (page?: number, size?: number) => Promise<void>;
   markAsRead: (notificationId: number) => Promise<void>;
@@ -20,6 +20,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const { token, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
   const connectionRef = useRef<HubConnection | null>(null);
@@ -31,16 +32,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       const result = await notificationService.getNotifications(page, size);
       
-      if (page === 1) {
-        setNotifications(result.items);
-      } else {
-        setNotifications(prev => {
-          const existingIds = new Set(prev.map(n => n.notificationId));
-          const newItems = result.items.filter(n => !existingIds.has(n.notificationId));
-          return [...prev, ...newItems];
-        });
-      }
-
+      setNotifications(result.items);
+      setTotalCount(result.totalCount);
       setUnreadCount(result.items.filter(n => !n.isRead).length);
     } catch (error) {
       console.error('Lỗi khi lấy thông báo:', error);
@@ -113,24 +106,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       console.log('Nhận thông báo realtime:', noti);
       setNotifications(prev => [noti, ...prev]);
       setUnreadCount(prev => prev + 1);
-
-      toast(() => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <strong style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{noti.title}</strong>
-          <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{noti.content}</span>
-        </div>
-      ), {
-        icon: '🔔',
-        duration: 6000,
-        style: {
-          background: 'rgba(15, 23, 42, 0.9)',
-          color: '#f8fafc',
-          backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '12px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-        }
-      });
     });
 
     connection
@@ -155,6 +130,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       value={{
         notifications,
         unreadCount,
+        totalCount,
         isLoading,
         fetchNotifications,
         markAsRead,
