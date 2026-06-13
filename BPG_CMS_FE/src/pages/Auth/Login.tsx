@@ -190,23 +190,23 @@ export const Login: React.FC = () => {
           <div className="grid grid-cols-2 gap-2 leading-relaxed">
             <div>
               <strong>Admin:</strong> admin@bpg.com<br />
-              <strong>Pass:</strong> admin123
+              <strong>Pass:</strong> 123456
             </div>
             <div>
               <strong>TPKT:</strong> tpkt@bpg.com<br />
-              <strong>Pass:</strong> tpkt123
+              <strong>Pass:</strong> 123456
             </div>
             <div>
-              <strong>Kỹ sư:</strong> engineer@bpg.com<br />
-              <strong>Pass:</strong> eng123
+              <strong>Kỹ sư:</strong> kysu1@bpg.com<br />
+              <strong>Pass:</strong> 123456
             </div>
             <div>
               <strong>Giám đốc:</strong> giamdoc@bpg.com<br />
-              <strong>Pass:</strong> gd123
+              <strong>Pass:</strong> 123456
             </div>
             <div>
               <strong>Kế toán:</strong> ketoan@bpg.com<br />
-              <strong>Pass:</strong> kt123
+              <strong>Pass:</strong> 123456
             </div>
           </div>
         </div>
