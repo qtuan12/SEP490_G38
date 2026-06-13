@@ -4,6 +4,7 @@ using BPG.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BPG.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260613083056_RemoveProjectLeaderRole")]
+    partial class RemoveProjectLeaderRole
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1548,7 +1551,7 @@ namespace BPG.Infrastructure.Migrations
                         },
                         new
                         {
-                            RoleId = 3L,
+                            RoleId = 4L,
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Description = "Nhân viên kỹ thuật hiện trường",
                             IsDeleted = false,
@@ -1556,7 +1559,7 @@ namespace BPG.Infrastructure.Migrations
                         },
                         new
                         {
-                            RoleId = 4L,
+                            RoleId = 5L,
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Description = "Kế toán",
                             IsDeleted = false,
@@ -1564,7 +1567,7 @@ namespace BPG.Infrastructure.Migrations
                         },
                         new
                         {
-                            RoleId = 5L,
+                            RoleId = 6L,
                             CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Description = "Giám đốc",
                             IsDeleted = false,
