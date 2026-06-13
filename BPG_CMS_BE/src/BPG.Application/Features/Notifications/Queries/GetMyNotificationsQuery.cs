@@ -6,6 +6,5 @@ namespace BPG.Application.Features.Notifications.Queries
 {
     public class GetMyNotificationsQuery : PaginationRequest, IRequest<PagedList<NotificationDto>>
     {
-        public long UserId { get; set; }
     }
 }

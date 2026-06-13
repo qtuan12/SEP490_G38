@@ -2,6 +2,7 @@ using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Notifications;
 using BPG.Application.Features.Notifications.Queries;
+using BPG.Application.IServices;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;
@@ -17,18 +18,22 @@ namespace BPG.Application.Features.Notifications.Handlers
     {
         private readonly IUnitOfWork _uow;
         private readonly IMapper _mapper;
+        private readonly ICurrentUserService _currentUserService;
 
-        public GetMyNotificationsQueryHandler(IUnitOfWork uow, IMapper mapper)
+        public GetMyNotificationsQueryHandler(IUnitOfWork uow, IMapper mapper, ICurrentUserService currentUserService)
         {
             _uow = uow;
             _mapper = mapper;
+            _currentUserService = currentUserService;
         }
 
         public async Task<PagedList<NotificationDto>> Handle(GetMyNotificationsQuery request, CancellationToken cancellationToken)
         {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+
             var query = _uow.Repository<Notification>().Query()
                 .AsNoTracking()
-                .Where(n => n.UserId == request.UserId)
+                .Where(n => n.UserId == currentUserId)
                 .OrderByDescending(n => n.CreatedAt);
 
             // Phân trang danh sách entities

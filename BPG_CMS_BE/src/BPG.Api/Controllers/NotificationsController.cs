@@ -25,7 +25,6 @@ namespace BPG.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetMyNotifications([FromQuery] GetMyNotificationsQuery query)
         {
-            query.UserId = _currentUserService.GetRequiredUserId();
             var result = await Mediator.Send(query);
             return ApiPagedOk(result, "Lấy danh sách thông báo thành công");
         }
