@@ -49,6 +49,26 @@ Mục tiêu tối thượng của bạn là: **TỐI ĐA HÓA TÁI SỬ DỤNG (
 * **Tuyệt đối KHÔNG hardcode các chuỗi ký tự (Magic Strings)** cho các giá trị hệ thống như Roles, Error Codes, Response Messages, System Settings, Statuses, Notification Types, Entity Types, v.v.
 * **Bắt buộc sử dụng các class Constants** đã được định nghĩa tập trung trong namespace `BPG.Domain.Constants` (ví dụ: `UserRole`, `PolicyNames`, `ErrorCodes`, `ResponseMessages`, `SystemConfigKeys`, `TypeConstants`, `StatusConstants`, v.v.).
 
+### F. Sử dụng AutoMapper (Mapping)
+* **Quy định bắt buộc:** KHÔNG viết hàm map thủ công (như các hàm static `FromEntity`, `ToEntity` tự chế) hoặc khởi tạo `new Dto { ... }` gán từng trường dữ liệu tĩnh trong Handlers. Bắt buộc sử dụng `IMapper` (AutoMapper) được tiêm qua Constructor.
+* **Đăng ký Mapping:** Định nghĩa cấu hình map tại [MappingProfile.cs](file:///d:/Semester_9_SU26/SEP490/Project/SEP490_G38/BPG_CMS_BE/src/BPG.Application/Common/Mappings/MappingProfile.cs).
+  - Ví dụ đăng ký:
+    ```csharp
+    CreateMap<User, UserDto>()
+        .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.UserId.ToString()))
+        .ForMember(dest => dest.Role, opt => opt.MapFrom(src => 
+            src.UserRoles != null && src.UserRoles.Any() 
+                ? src.UserRoles.FirstOrDefault().Role.RoleName 
+                : string.Empty));
+    ```
+  - Ví dụ sử dụng trong Handler:
+    ```csharp
+    private readonly IMapper _mapper;
+    // Constructor...
+    var userDto = _mapper.Map<UserDto>(user);
+    var userListDto = _mapper.Map<List<UserDto>>(users);
+    ```
+
 ---
 
 ## 3. 🎨 QUY TẮC FRONTEND (REACT + TYPESCRIPT + VITE)

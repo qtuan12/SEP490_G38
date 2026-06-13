@@ -1,3 +1,4 @@
+using AutoMapper;
 using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Commands;
 using BPG.Application.IRepositories;
@@ -11,10 +12,12 @@ namespace BPG.Application.Features.Users.Handlers
     public class ToggleUserStatusHandler : IRequestHandler<ToggleUserStatusCommand, UserDto>
     {
         private readonly IUnitOfWork _uow;
+        private readonly IMapper _mapper;
 
-        public ToggleUserStatusHandler(IUnitOfWork uow)
+        public ToggleUserStatusHandler(IUnitOfWork uow, IMapper mapper)
         {
             _uow = uow;
+            _mapper = mapper;
         }
 
         public async Task<UserDto> Handle(ToggleUserStatusCommand request, CancellationToken cancellationToken)
@@ -29,7 +32,7 @@ namespace BPG.Application.Features.Users.Handlers
             _uow.Repository<User>().Update(user);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            return UserDto.FromEntity(user);
+            return _mapper.Map<UserDto>(user);
         }
     }
 }

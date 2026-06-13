@@ -1,3 +1,4 @@
+using AutoMapper;
 using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Commands;
 using BPG.Application.IRepositories;
@@ -12,8 +13,13 @@ namespace BPG.Application.Features.Users.Handlers;
 public class CreateUserHandler : IRequestHandler<CreateUserCommand, UserDto>
 {
     private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
 
-    public CreateUserHandler(IUnitOfWork uow) => _uow = uow;
+    public CreateUserHandler(IUnitOfWork uow, IMapper mapper)
+    {
+        _uow = uow;
+        _mapper = mapper;
+    }
 
     public async Task<UserDto> Handle(CreateUserCommand cmd, CancellationToken ct)
     {
@@ -45,6 +51,6 @@ public class CreateUserHandler : IRequestHandler<CreateUserCommand, UserDto>
         await _uow.SaveChangesAsync(ct);
 
         user.UserRoles = new List<BPG.Domain.Entities.UserRole> { new() { Role = role } };
-        return UserDto.FromEntity(user);
+        return _mapper.Map<UserDto>(user);
     }
 }
