@@ -16,7 +16,7 @@ namespace BPG.Application.Features.DailyLogs.Commands
                 .NotEmpty()
                 .WithMessage(ValidationMessages.Required)
                 .MaximumLength(2000)
-                .WithMessage(string.Format(ValidationMessages.MaxLength, 2000));
+                .WithMessage(ValidationMessages.MaxLength);
         }
     }
 }

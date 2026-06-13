@@ -3,18 +3,27 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { DailyLogFeed } from '../components/DailyLogFeed';
 import { ArrowLeft } from 'lucide-react';
 import { projectService } from '../services/projectService';
-import type {Project} from '../types/common';
+import type { Project } from '../types/common';
 
 export const ProjectDailyLogs: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId, taskId } = useParams<{ projectId: string; taskId?: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
+  const [taskName, setTaskName] = useState<string>('');
 
   useEffect(() => {
     if (projectId) {
       projectService.getProjectById(projectId).then(setProject).catch(console.error);
     }
-  }, [projectId]);
+    if (projectId && taskId) {
+      projectService.getTasks(projectId).then(tasks => {
+        const found = tasks.find(t => t.id === taskId || t.id.replace(/^t-/, '') === taskId.replace(/^t-/, ''));
+        if (found) {
+          setTaskName(found.name);
+        }
+      }).catch(console.error);
+    }
+  }, [projectId, taskId]);
 
   if (!projectId) return null;
 
@@ -41,11 +50,11 @@ export const ProjectDailyLogs: React.FC = () => {
 
       {project && (
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
-          Nhật ký thi công: {project.name}
+          {taskId ? `Nhật ký công việc: ${taskName || 'Đang tải...'}` : `Nhật ký thi công: ${project.name}`}
         </h2>
       )}
 
-      <DailyLogFeed projectId={projectId} />
+      <DailyLogFeed projectId={projectId} taskId={taskId} />
     </div>
   );
 };

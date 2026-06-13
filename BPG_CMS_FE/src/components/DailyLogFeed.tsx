@@ -1,37 +1,48 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type {DailyLog, WBSTask} from '../types/common';
+import { USE_MOCK_API } from '../services/api';
+import type { DailyLog, WBSTask } from '../types/common';
 import { 
   Clock, 
   Send, 
   MessageSquare, 
   Eye, 
   Search, 
-  Image as ImageIcon, 
-  AlertTriangle, 
   CheckCircle, 
-  ClipboardList 
+  Plus,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { Modal, Input, Select, Badge, Button } from './ui';
 import type { BadgeVariant } from './ui';
+import { DailyLogFormModal } from '../pages/Incidents/modals/DailyLogFormModal';
 
 interface DailyLogFeedProps {
   projectId: string;
+  taskId?: string;
 }
 
-export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
+export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId }) => {
   const { user } = useAuth();
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Modal states for creating/editing Daily Logs
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editLog, setEditLog] = useState<DailyLog | undefined>(undefined);
+
+  // States for comment editing
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentContent, setEditingCommentContent] = useState<string>('');
+
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTaskId, setSelectedTaskId] = useState('');
+  const [selectedTaskId, setSelectedTaskId] = useState(taskId || '');
   const [selectedEngineerId, setSelectedEngineerId] = useState('');
-  const [filterWithImages, setFilterWithImages] = useState(false);
-  const [filterWithIncidents, setFilterWithIncidents] = useState(false);
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
 
   // Acknowledged Comments State (Simulated on client-side via localStorage for simplicity)
   const [acknowledgedComments, setAcknowledgedComments] = useState<string[]>(() => {
@@ -51,7 +62,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const logsData = await projectService.getDailyLogs(projectId);
+      const logsData = await projectService.getDailyLogs(projectId, taskId);
       setLogs(logsData);
       
       const tasksData = await projectService.getTasks(projectId);
@@ -96,22 +107,106 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
     }
   };
 
+  const handleCommentUpdateSubmit = async (e: React.FormEvent, commentId: string) => {
+    e.preventDefault();
+    const content = editingCommentContent.trim();
+    if (!content) return;
+
+    try {
+      await projectService.updateLogComment(commentId, content);
+      setEditingCommentId(null);
+      
+      // Reload comments
+      const logsData = await projectService.getDailyLogs(projectId);
+      setLogs(logsData);
+    } catch (err: any) {
+      alert(err.message || 'Không thể cập nhật bình luận.');
+    }
+  };
+
+  const handleCommentDelete = async (commentId: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này không?')) return;
+    try {
+      const success = await projectService.deleteLogComment(commentId);
+      if (success) {
+        // Reload comments
+        const logsData = await projectService.getDailyLogs(projectId);
+        setLogs(logsData);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Không thể xóa bình luận.');
+    }
+  };
+
   const handleAcknowledgeComment = (commentId: string) => {
     const updated = [...acknowledgedComments, commentId];
     setAcknowledgedComments(updated);
     localStorage.setItem('bpg_acknowledged_comments', JSON.stringify(updated));
   };
 
-  // Extract unique engineers from logs
-  const uniqueEngineers = React.useMemo(() => {
+  // Find the currently selected task object for filters
+  const currentFilteredTask = React.useMemo(() => {
+    const targetId = taskId || selectedTaskId;
+    if (!targetId) return null;
+    return tasks.find(t => t.id === targetId || t.id.replace(/^t-/, '') === targetId.replace(/^t-/, ''));
+  }, [taskId, selectedTaskId, tasks]);
+
+  // Extract engineers assigned to the selected task
+  const assignedEngineers = React.useMemo(() => {
     const map = new Map<string, string>();
+
+    // 1. Gather from task assignments (exclude mock IDs starting with 'u-' if in real API mode)
+    if (currentFilteredTask) {
+      if (currentFilteredTask.assignedTo && currentFilteredTask.assignedName) {
+        const ids = currentFilteredTask.assignedTo.split(',').map(s => s.trim());
+        const names = currentFilteredTask.assignedName.split(',').map(s => s.trim());
+        ids.forEach((id, idx) => {
+          if (id && names[idx]) {
+            if (!USE_MOCK_API && id.startsWith('u-')) {
+              return;
+            }
+            map.set(id, names[idx]);
+          }
+        });
+      }
+    } else {
+      tasks.forEach(t => {
+        if (t.assignedTo && t.assignedName) {
+          const ids = t.assignedTo.split(',').map(s => s.trim());
+          const names = t.assignedName.split(',').map(s => s.trim());
+          ids.forEach((id, idx) => {
+            if (id && names[idx]) {
+              if (!USE_MOCK_API && id.startsWith('u-')) {
+                return;
+              }
+              map.set(id, names[idx]);
+            }
+          });
+        }
+      });
+    }
+
+    // 2. Gather from actual authors of daily logs (crucial for real API mode where tasks have mock assignments)
     logs.forEach(log => {
-      if (log.engineerId && log.engineerName) {
+      const targetTaskId = taskId || selectedTaskId;
+      const matchesTask = !targetTaskId || log.taskId === targetTaskId || log.taskId.replace(/^t-/, '') === targetTaskId.replace(/^t-/, '');
+      if (matchesTask && log.engineerId && log.engineerName) {
         map.set(log.engineerId, log.engineerName);
       }
     });
+
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [logs]);
+  }, [currentFilteredTask, tasks, logs, selectedTaskId, taskId]);
+
+  // Reset selected engineer if they are not in the assigned list of the newly selected task
+  useEffect(() => {
+    if (selectedEngineerId) {
+      const isAssigned = assignedEngineers.some(e => e.id === selectedEngineerId);
+      if (!isAssigned) {
+        setSelectedEngineerId('');
+      }
+    }
+  }, [selectedTaskId, taskId, assignedEngineers, selectedEngineerId]);
 
   // Apply filters in memory
   const filteredLogs = React.useMemo(() => {
@@ -124,20 +219,19 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
         log.engineerName.toLowerCase().includes(q);
 
       // 2. Task filter
-      const matchesTask = !selectedTaskId || log.taskId === selectedTaskId;
+      const matchesTask = !selectedTaskId || log.taskId === selectedTaskId || log.taskId.replace(/^t-/, '') === selectedTaskId.replace(/^t-/, '');
 
       // 3. Engineer filter
       const matchesEngineer = !selectedEngineerId || log.engineerId === selectedEngineerId;
 
-      // 4. Image filter
-      const matchesImage = !filterWithImages || (log.images && log.images.length > 0);
+      // 4. Date Range filters
+      const logDateOnly = log.date.split(' ')[0]; // YYYY-MM-DD
+      const matchesStartDate = !startDateFilter || logDateOnly >= startDateFilter;
+      const matchesEndDate = !endDateFilter || logDateOnly <= endDateFilter;
 
-      // 5. Incident filter (progress decreases)
-      const matchesIncident = !filterWithIncidents || (log.progressTo < log.progressFrom);
-
-      return matchesSearch && matchesTask && matchesEngineer && matchesImage && matchesIncident;
+      return matchesSearch && matchesTask && matchesEngineer && matchesStartDate && matchesEndDate;
     });
-  }, [logs, searchQuery, selectedTaskId, selectedEngineerId, filterWithImages, filterWithIncidents]);
+  }, [logs, searchQuery, selectedTaskId, selectedEngineerId, startDateFilter, endDateFilter]);
 
   // Group logs by date (YYYY-MM-DD)
   const groupedLogs = React.useMemo(() => {
@@ -156,39 +250,14 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
       .map(([date, items]) => ({ date, items }));
   }, [filteredLogs]);
 
-  // Calculate stats based on filtered logs
-  const stats = React.useMemo(() => {
-    let imageCount = 0;
-    let incidentCount = 0;
-    let directiveCount = 0;
-
-    filteredLogs.forEach(log => {
-      imageCount += log.images?.length || 0;
-      if (log.progressTo < log.progressFrom) {
-        incidentCount++;
-      }
-      log.comments.forEach(comment => {
-        if ((comment.role === 'technicalmanager' || comment.role === 'director') && !acknowledgedComments.includes(comment.id)) {
-          directiveCount++;
-        }
-      });
-    });
-
-    return {
-      totalLogs: filteredLogs.length,
-      totalImages: imageCount,
-      totalIncidents: incidentCount,
-      pendingDirectives: directiveCount
-    };
-  }, [filteredLogs, acknowledgedComments]);
-
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'admin': return 'Admin';
       case 'technicalmanager': return 'TP Kỹ Thuật';
       case 'siteengineer': return 'Kỹ Sư Hiện Trường';
-      case 'director': return 'director';
-      case 'accountant': return 'accountant';
+      case 'projectleader': return 'Trưởng Dự Án';
+      case 'director': return 'Giám Đốc';
+      case 'accountant': return 'Kế Toán';
       default: return role;
     }
   };
@@ -196,10 +265,11 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
   const getRoleBadgeVariant = (role: string): BadgeVariant => {
     switch (role) {
       case 'admin': return 'danger';
-      case 'technicalmanager': return 'default'; // Using default since primary isn't available
+      case 'technicalmanager': return 'default';
       case 'siteengineer': return 'success';
+      case 'projectleader': return 'warning';
       case 'director': return 'warning';
-      case 'accountant': return 'default'; // Using default since primary isn't available
+      case 'accountant': return 'default';
       default: return 'default';
     }
   };
@@ -216,63 +286,35 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
     return dateStr;
   };
 
+  const canReport = user?.role === 'siteengineer' || user?.role === 'projectleader' || user?.role === 'technicalmanager' || user?.role === 'admin';
+
   return (
     <div className="flex flex-col gap-6 max-w-[800px] mx-auto pb-10">
       
       {/* Title & Header */}
-      <div className="border-b border-[hsl(var(--border))] pb-3">
-        <h3 className="text-[1.25rem] font-bold">Dòng thời gian Nhật ký Công trường</h3>
-        <p className="text-[0.85rem] text-[hsl(var(--text-muted))] mt-1">
-          Xem và theo dõi lịch sử cập nhật thi công của dự án theo trục thời gian thực tế.
-        </p>
+      <div className="border-b border-[hsl(var(--border))] pb-3 flex justify-between items-center flex-wrap gap-3">
+        <div>
+          <h3 className="text-[1.25rem] font-bold">Dòng thời gian Nhật ký Công trường</h3>
+          <p className="text-[0.85rem] text-[hsl(var(--text-muted))] mt-1">
+            Xem và theo dõi lịch sử cập nhật thi công của dự án theo trục thời gian thực tế.
+          </p>
+        </div>
+        {canReport && (
+          <Button
+            variant="primary"
+            onClick={() => {
+              setEditLog(undefined);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-1.5"
+          >
+            <Plus size={16} />
+            <span>Thêm Nhật ký</span>
+          </Button>
+        )}
       </div>
 
-      {/* 1. STATS MINI-DASHBOARD */}
-      <div className="timeline-stats-grid">
-        <div className="timeline-stat-card">
-          <div className="timeline-stat-icon-wrapper bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))]">
-            <ClipboardList size={20} />
-          </div>
-          <div className="timeline-stat-content">
-            <span className="timeline-stat-val">{stats.totalLogs}</span>
-            <span className="timeline-stat-label">Số Nhật ký</span>
-          </div>
-        </div>
-
-        <div className="timeline-stat-card">
-          <div className="timeline-stat-icon-wrapper bg-[hsl(var(--success-glow))] text-[hsl(var(--success))]">
-            <ImageIcon size={20} />
-          </div>
-          <div className="timeline-stat-content">
-            <span className="timeline-stat-val">{stats.totalImages}</span>
-            <span className="timeline-stat-label">Ảnh Thực Địa</span>
-          </div>
-        </div>
-
-        <div className={`timeline-stat-card ${stats.totalIncidents > 0 ? 'border-[hsl(var(--danger)/0.3)]' : 'border-[hsl(var(--border))]'}`}>
-          <div className={`timeline-stat-icon-wrapper ${stats.totalIncidents > 0 ? 'bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))]' : 'bg-[hsl(var(--border)/0.3)] text-[hsl(var(--text-secondary))]'}`}>
-            <AlertTriangle size={20} />
-          </div>
-          <div className="timeline-stat-content">
-            <span className={`timeline-stat-val ${stats.totalIncidents > 0 ? 'text-[hsl(var(--danger))]' : ''}`}>
-              {stats.totalIncidents}
-            </span>
-            <span className="timeline-stat-label">Số Sự Cố</span>
-          </div>
-        </div>
-
-        <div className={`timeline-stat-card ${stats.pendingDirectives > 0 ? 'border-[hsl(var(--warning)/0.3)]' : 'border-[hsl(var(--border))]'}`}>
-          <div className={`timeline-stat-icon-wrapper ${stats.pendingDirectives > 0 ? 'bg-[hsl(var(--warning-glow))] text-[hsl(var(--warning))]' : 'bg-[hsl(var(--border)/0.3)] text-[hsl(var(--text-secondary))]'}`}>
-            <MessageSquare size={20} />
-          </div>
-          <div className="timeline-stat-content">
-            <span className={`timeline-stat-val ${stats.pendingDirectives > 0 ? 'text-[hsl(var(--warning))]' : ''}`}>
-              {stats.pendingDirectives}
-            </span>
-            <span className="timeline-stat-label">Chỉ đạo mới</span>
-          </div>
-        </div>
-      </div>
+      {/* Stats Dashboard Removed */}
 
       {/* 2. FILTER & SEARCH BAR */}
       <div className="card p-4 sm:p-5 flex flex-col gap-3 bg-[hsl(var(--bg-card))]">
@@ -291,17 +333,19 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
           </div>
 
           {/* Task Dropdown */}
-          <div className="flex-1 min-w-[150px]">
-            <Select
-              value={selectedTaskId}
-              onChange={(e) => setSelectedTaskId(e.target.value)}
-              className="h-[38px] text-[0.85rem]"
-              options={[
-                { label: 'Tất cả Công việc', value: '' },
-                ...tasks.map(t => ({ label: t.name, value: t.id }))
-              ]}
-            />
-          </div>
+          {!taskId && (
+            <div className="flex-1 min-w-[150px]">
+              <Select
+                value={selectedTaskId}
+                onChange={(e) => setSelectedTaskId(e.target.value)}
+                className="h-[38px] text-[0.85rem]"
+                options={[
+                  { label: 'Tất cả Công việc', value: '' },
+                  ...tasks.map(t => ({ label: t.name, value: t.id }))
+                ]}
+              />
+            </div>
+          )}
 
           {/* Engineer Dropdown */}
           <div className="flex-1 min-w-[150px]">
@@ -311,36 +355,47 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
               className="h-[38px] text-[0.85rem]"
               options={[
                 { label: 'Tất cả Kỹ sư', value: '' },
-                ...uniqueEngineers.map(e => ({ label: e.name, value: e.id }))
+                ...assignedEngineers.map(e => ({ label: e.name, value: e.id }))
               ]}
             />
           </div>
 
         </div>
 
-        {/* Checkbox filters */}
-        <div className="flex gap-4 flex-wrap text-[0.85rem] text-[hsl(var(--text-secondary))] border-t border-[hsl(var(--border)/0.5)] pt-2.5">
-        <label className="flex items-center gap-1.5 cursor-pointer m-0">
-          <input
-            type="checkbox"
-            checked={filterWithImages}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterWithImages(e.target.checked)}
-            className="w-3.5 h-3.5"
-          />
-          <span>Có ảnh chụp hiện trường</span>
-        </label>
-
-        <label className="flex items-center gap-1.5 cursor-pointer m-0">
-          <input
-            type="checkbox"
-            checked={filterWithIncidents}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilterWithIncidents(e.target.checked)}
-            className="w-3.5 h-3.5"
-          />
-          <span className={filterWithIncidents ? "text-[hsl(var(--danger))] font-semibold" : ""}>
-            Sự cố / Rework (tiến độ giảm)
-          </span>
-        </label>
+        {/* Date range filters */}
+        <div className="flex gap-3 flex-wrap items-center text-[0.85rem] text-[hsl(var(--text-secondary))] border-t border-[hsl(var(--border)/0.5)] pt-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 whitespace-nowrap">Từ ngày:</span>
+            <Input
+              type="date"
+              value={startDateFilter}
+              onChange={(e) => setStartDateFilter(e.target.value)}
+              className="h-[32px] text-xs py-1"
+              style={{ width: '135px' }}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 whitespace-nowrap">Đến ngày:</span>
+            <Input
+              type="date"
+              value={endDateFilter}
+              onChange={(e) => setEndDateFilter(e.target.value)}
+              className="h-[32px] text-xs py-1"
+              style={{ width: '135px' }}
+            />
+          </div>
+          {(startDateFilter || endDateFilter) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStartDateFilter('');
+                setEndDateFilter('');
+              }}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
+            >
+              Xóa bộ lọc ngày
+            </button>
+          )}
         </div>
       </div>
 
@@ -383,6 +438,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                   nodeClass = "timeline-node-success";
                 }
 
+                const canEditLog = log.engineerId === user?.id || user?.role === 'technicalmanager' || user?.role === 'admin';
+
                 return (
                   <div key={log.id} className="timeline-item animate-fade-in">
                     
@@ -408,6 +465,18 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                             <div className="flex items-center gap-2">
                               <strong className="text-[0.9rem]">{log.engineerName}</strong>
                               <Badge variant="success" className="text-[0.6rem] normal-case py-0.5 px-1.5 h-auto">Kỹ sư hiện trường</Badge>
+                              {canEditLog && (
+                                <button
+                                  onClick={() => {
+                                    setEditLog(log);
+                                    setIsModalOpen(true);
+                                  }}
+                                  className="text-slate-400 hover:text-blue-600 transition-colors p-1"
+                                  title="Sửa nhật ký"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                              )}
                             </div>
                             <span className="text-[0.7rem] text-[hsl(var(--text-muted))] flex items-center gap-1 mt-0.5">
                               <Clock size={11} />
@@ -503,6 +572,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                                 commentClass += " comment-acknowledged";
                               }
 
+                              const canEditComment = comm.userId === user?.id || user?.role === 'technicalmanager' || user?.role === 'admin';
+
                               return (
                                 <div 
                                   key={comm.id} 
@@ -520,11 +591,54 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
                                           {getRoleLabel(comm.role)}
                                         </Badge>
                                       </span>
-                                      <span className="text-[0.65rem] text-[hsl(var(--text-muted))]">{comm.date}</span>
+                                      
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[0.65rem] text-[hsl(var(--text-muted))]">{comm.date}</span>
+                                        {canEditComment && editingCommentId !== comm.id && (
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              onClick={() => {
+                                                setEditingCommentId(comm.id);
+                                                setEditingCommentContent(comm.content);
+                                              }}
+                                              className="text-slate-400 hover:text-blue-600 transition-colors"
+                                              title="Sửa bình luận"
+                                            >
+                                              <Edit2 size={11} />
+                                            </button>
+                                            <button
+                                              onClick={() => handleCommentDelete(comm.id)}
+                                              className="text-slate-400 hover:text-red-600 transition-colors"
+                                              title="Xóa bình luận"
+                                            >
+                                              <Trash2 size={11} />
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
-                                    <p className="text-[hsl(var(--text-primary))] mt-0.5 leading-snug">
-                                      {comm.content}
-                                    </p>
+
+                                    {editingCommentId === comm.id ? (
+                                      <form 
+                                        onSubmit={(e) => handleCommentUpdateSubmit(e, comm.id)} 
+                                        className="flex gap-2 mt-1.5 w-full"
+                                      >
+                                        <Input
+                                          type="text"
+                                          value={editingCommentContent}
+                                          onChange={(e) => setEditingCommentContent(e.target.value)}
+                                          className="h-8 text-xs flex-1"
+                                          required
+                                          autoFocus
+                                        />
+                                        <Button size="sm" type="submit" variant="primary" className="h-8 px-2 py-0.5 text-xs">Lưu</Button>
+                                        <Button size="sm" type="button" variant="outline" className="h-8 px-2 py-0.5 text-xs" onClick={() => setEditingCommentId(null)}>Hủy</Button>
+                                      </form>
+                                    ) : (
+                                      <p className="text-[hsl(var(--text-primary))] mt-0.5 leading-snug">
+                                        {comm.content}
+                                      </p>
+                                    )}
 
                                     {isManager && !isAcknowledged && user?.role === 'siteengineer' && (
                                       <Button
@@ -592,6 +706,22 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId }) => {
           )}
         </div>
       </Modal>
+
+      {/* INTEGRATED FORM MODAL */}
+      {isModalOpen && user && (
+        <DailyLogFormModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          tasks={tasks}
+          taskId={taskId || selectedTaskId}
+          editLog={editLog}
+          engineerId={user.id}
+          engineerName={user.name}
+          onSuccess={() => {
+            loadData();
+          }}
+        />
+      )}
 
     </div>
   );

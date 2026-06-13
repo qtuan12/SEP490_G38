@@ -16,7 +16,7 @@ namespace BPG.Application.Features.Comments.Commands
                 .NotEmpty()
                 .WithMessage(ValidationMessages.Required)
                 .MaximumLength(1000)
-                .WithMessage(string.Format(ValidationMessages.MaxLength, 1000));
+                .WithMessage(ValidationMessages.MaxLength);
         }
     }
 }

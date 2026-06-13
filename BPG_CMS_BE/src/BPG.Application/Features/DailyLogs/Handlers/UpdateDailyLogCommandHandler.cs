@@ -120,11 +120,14 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     .FirstOrDefaultAsync(u => u.UserId == log.CreatedBy, cancellationToken);
 
                 // Lấy lại danh sách progress logs của Task này để xác định OldProgressPercent
-                var progressLog = await _uow.Repository<TaskProgressLog>().Query()
+                var progressLogs = await _uow.Repository<TaskProgressLog>().Query()
                     .AsNoTracking()
                     .Where(tpl => tpl.TaskId == log.TaskId && tpl.NewProgress == log.NewProgressPercent)
+                    .ToListAsync(cancellationToken);
+
+                var progressLog = progressLogs
                     .OrderBy(tpl => Math.Abs((tpl.UpdatedAt - log.CreatedAt).TotalSeconds))
-                    .FirstOrDefaultAsync(cancellationToken);
+                    .FirstOrDefault();
 
                 var dto = _mapper.Map<DailyLogDto>(log);
                 dto.TaskName = log.Task.Name;

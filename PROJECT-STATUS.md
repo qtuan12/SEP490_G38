@@ -23,6 +23,8 @@
 | **Dashboard** | ❌ | ❌ | |
 | **WBS Workspace**| 🚧 | ❌ | Đã dựng Layout Tree, chưa nối API |
 | **Inventory View**| ❌ | ❌ | |
+| **Daily Log & Comments** | ✅ | ✅ | Refactored form, feed timeline, and comment CRUD |
+
 
 ---
 **Hướng dẫn cho AI Agent:**

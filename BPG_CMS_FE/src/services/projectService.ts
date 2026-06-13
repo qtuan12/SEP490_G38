@@ -1,5 +1,11 @@
-﻿import type { Project, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, TaskHistory, WBSTask, DailyLogComment, DailyLog } from '../types/common';
-import { USE_MOCK_API } from './api';
+import type { Project, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, TaskHistory, WBSTask, DailyLogComment, DailyLog } from '../types/common';
+import { apiClient, USE_MOCK_API } from './api';
+
+interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
 
 export * from '../types/common';
 
@@ -42,45 +48,7 @@ const DEFAULT_TASKS: WBSTask[] = [
   { id: 't-10', phaseId: 'ph-4', projectId: 'p-2', sortOrder: 2, name: 'Đi dây cáp mạng CAT6 âm trần', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-06-15', progress: 20, history: [] },
 ];
 
-const DEFAULT_LOGS: DailyLog[] = [
-  {
-    id: 'l-1',
-    projectId: 'p-1',
-    taskId: 't-4',
-    taskName: 'Lắp dựng cốp pha cột tầng 1',
-    engineerId: 'u-3',
-    engineerName: 'Trần Văn Công',
-    progressFrom: 60,
-    progressTo: 80,
-    date: '2026-06-01 16:30',
-    content: 'Đã hoàn thành lắp cốp pha trục A-B ổn định. Đang căn chỉnh vách trục C-D. Thời tiết nắng nóng 37 độ C, công nhân mất nhiều sức nhưng vẫn cố gắng bám tiến độ.',
-    weather: 'Nắng nóng gay gắt',
-    images: [
-      'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1590069261209-f8e9b8642343?auto=format&fit=crop&w=600&q=80'
-    ],
-    comments: [
-      { id: 'c-1', userId: 'u-2', userName: 'Nguyễn Văn Kỹ', role: 'technicalmanager', content: 'Gia cố kỹ chân cốp pha trục C nhé Công, tránh để phình bụng bê tông khi đổ vào ngày mai.', date: '2026-06-01 17:15' }
-    ]
-  },
-  {
-    id: 'l-2',
-    projectId: 'p-1',
-    taskId: 't-5',
-    taskName: 'Đổ bê tông cột tầng 1',
-    engineerId: 'u-6',
-    engineerName: 'Nguyễn Văn Nam',
-    progressFrom: 20,
-    progressTo: 40,
-    date: '2026-05-31 15:45',
-    content: 'Đã đổ xong bê tông 4 cột trục E. Chiều nay có giông lớn kèm mưa to từ 14h, phải phủ bạt che chắn bề mặt bê tông cột mới đổ kịp thời.',
-    weather: 'Mưa dông lớn',
-    images: [
-      'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80'
-    ],
-    comments: []
-  }
-];
+const DEFAULT_LOGS: DailyLog[] = [];
 
 const DEFAULT_INCIDENTS: IncidentReport[] = [];
 
@@ -138,7 +106,7 @@ export const projectService = {
     const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
     const children = allTasks.filter(t => t.parentTaskId === parentId && t.status !== 'obsolete');
     if (children.length === 0) return;
-    
+
     const sum = children.reduce((acc, t) => acc + t.progress, 0);
     const avg = Math.round(sum / children.length);
 
@@ -148,7 +116,7 @@ export const projectService = {
         allTasks[parentIdx].progress = avg;
         setStorage('bpg_wbs_tasks', allTasks);
         await this.syncProjectProgress(allTasks[parentIdx].projectId);
-        
+
         // Recursive if the parent itself has a parent
         if (allTasks[parentIdx].parentTaskId) {
           await this.syncParentTaskProgress(allTasks[parentIdx].parentTaskId!);
@@ -174,7 +142,7 @@ export const projectService = {
             changed = true;
           }
         }
-        
+
         // backfill drawingUrl for default mock projects if not set
         if (!p.drawingUrl) {
           if (p.id === 'p-1') { p.drawingUrl = 'ban_ve_chung_cu_bpg_bien_hoa.pdf'; changed = true; }
@@ -193,8 +161,9 @@ export const projectService = {
   },
 
   async getProjectById(id: string): Promise<Project | null> {
+    const normalizedId = id.match(/^\d+$/) ? `p-${id}` : id;
     const projects = await this.getProjects();
-    return projects.find(p => p.id === id) || null;
+    return projects.find(p => p.id === normalizedId || p.id === id) || null;
   },
 
   async createProject(project: Omit<Project, 'id' | 'progress'>): Promise<Project> {
@@ -224,14 +193,14 @@ export const projectService = {
     if (project.status !== 'draft') throw new Error('Dự án không ở trạng thái bản nháp.');
 
     const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === projectId && t.status !== 'obsolete');
-    
+
     if (tasks.length === 0) {
       throw new Error('Cơ cấu WBS phải có ít nhất 1 công việc trước khi Kích hoạt.');
     }
 
     const projectStartDate = new Date(project.startDate);
     const invalidTasks = tasks.filter(t => new Date(t.deadline) < projectStartDate);
-    
+
     if (invalidTasks.length > 0) {
       throw new Error(`Có ${invalidTasks.length} công việc có Hạn chót nhỏ hơn Ngày bắt đầu dự án (${project.startDate}). Vui lòng điều chỉnh lại kế hoạch WBS.`);
     }
@@ -241,13 +210,14 @@ export const projectService = {
 
   // MEMBERS MANAGEMENT
   async getMembers(projectId: string): Promise<ProjectMember[]> {
+    const normalizedProjectId = projectId.match(/^\d+$/) ? `p-${projectId}` : projectId;
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
-    return allMembers.filter(m => m.projectId === projectId);
+    return allMembers.filter(m => m.projectId === normalizedProjectId || m.projectId === projectId);
   },
 
   async addMember(projectId: string, user: { id: string; name: string; email: string; role: string }): Promise<ProjectMember> {
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
-    
+
     if (allMembers.some(m => m.projectId === projectId && m.userId === user.id)) {
       throw new Error('Thành viên này đã tham gia dự án.');
     }
@@ -286,9 +256,10 @@ export const projectService = {
 
   // WBS PHASES & TASKS
   async getPhases(projectId: string): Promise<WBSPhase[]> {
+    const normalizedProjectId = projectId.match(/^\d+$/) ? `p-${projectId}` : projectId;
     const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     return allPhases
-      .filter(ph => ph.projectId === projectId)
+      .filter(ph => ph.projectId === normalizedProjectId || ph.projectId === projectId)
       .map((ph, i) => ({ ...ph, sortOrder: ph.sortOrder ?? (i + 1) })) // backfill if missing
       .sort((a, b) => a.sortOrder - b.sortOrder);
   },
@@ -408,7 +379,7 @@ export const projectService = {
     const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
     const idx = allTasks.findIndex(t => t.id === taskId);
     if (idx === -1) throw new Error('Không tìm thấy công việc.');
-    
+
     allTasks[idx].status = 'obsolete';
     allTasks[idx].history.unshift({
       date: new Date().toISOString(),
@@ -429,7 +400,7 @@ export const projectService = {
     const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
     const idx = allTasks.findIndex(t => t.id === taskId);
     if (idx === -1) throw new Error('Không tìm thấy công việc.');
-    
+
     allTasks[idx].deadline = newDeadline;
     allTasks[idx].history.unshift({
       date: new Date().toISOString(),
@@ -465,15 +436,16 @@ export const projectService = {
   },
 
   async getTasks(projectId: string): Promise<WBSTask[]> {
+    const normalizedProjectId = projectId.match(/^\d+$/) ? `p-${projectId}` : projectId;
     return getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS)
-      .filter(t => t.projectId === projectId)
+      .filter(t => t.projectId === normalizedProjectId || t.projectId === projectId)
       .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? (i + 1) })); // backfill if missing
     // Note: tasks are sorted per-phase in the component using sortOrder
   },
 
   async createTask(task: Omit<WBSTask, 'id' | 'progress' | 'history'>): Promise<WBSTask> {
     const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
-    
+
     // Check if phase is frozen
     const phases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     const parentPhase = phases.find(p => p.id === task.phaseId);
@@ -544,7 +516,7 @@ export const projectService = {
     if (idx === -1) throw new Error('Không tìm thấy công việc.');
 
     const task = allTasks[idx];
-    
+
     // Check phase status
     const phases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     const parentPhase = phases.find(p => p.id === task.phaseId);
@@ -564,7 +536,7 @@ export const projectService = {
     if (idx === -1) throw new Error('Không tìm thấy công việc.');
 
     const task = allTasks[idx];
-    
+
     // Check phase status
     const phases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     const parentPhase = phases.find(p => p.id === task.phaseId);
@@ -584,15 +556,56 @@ export const projectService = {
       deadline: newDeadline,
       history: [historyEntry, ...task.history]
     };
-    
+
     setStorage('bpg_wbs_tasks', allTasks);
     return allTasks[idx];
   },
 
   // DAILY LOGS & PROGRESS UPDATES
-  async getDailyLogs(projectId: string): Promise<DailyLog[]> {
+  async getDailyLogs(projectId: string, taskId?: string): Promise<DailyLog[]> {
+    if (!USE_MOCK_API) {
+      const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const params: Record<string, string> = {
+        projectId: parsedProjectId,
+        pageIndex: '1',
+        pageSize: '100'
+      };
+      if (taskId) {
+        const parsedTaskId = taskId.startsWith('t-') ? taskId.substring(2) : taskId;
+        params.taskId = parsedTaskId;
+      }
+      const res = await apiClient.get<ApiResponse<{ items: any[] }>>(`/dailylogs`, { params });
+      if (!res.success) throw new Error(res.message || 'Lấy danh sách nhật ký thất bại.');
+
+      const mapComment = (c: any): DailyLogComment => ({
+        id: c.commentId.toString(),
+        userId: c.authorId.toString(),
+        userName: c.authorName,
+        role: c.authorRole,
+        content: c.content,
+        date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+      });
+
+      return (res.data?.items || []).map((l: any) => ({
+        id: l.logId.toString(),
+        projectId: projectId,
+        taskId: l.taskId.toString(),
+        taskName: l.taskName,
+        engineerId: l.createdBy.toString(),
+        engineerName: l.creatorName,
+        progressFrom: l.oldProgressPercent,
+        progressTo: l.newProgressPercent,
+        date: l.createdAt ? l.createdAt.slice(0, 16).replace('T', ' ') : l.logDate,
+        content: l.description,
+        weather: '',
+        images: l.images || [],
+        comments: (l.comments || []).map(mapComment)
+      }));
+    }
     const logs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS);
-    return logs.filter(l => l.projectId === projectId).sort((a, b) => b.date.localeCompare(a.date));
+    return logs
+      .filter(l => l.projectId === projectId && (!taskId || l.taskId === taskId))
+      .sort((a, b) => b.date.localeCompare(a.date));
   },
 
   async createDailyLog(
@@ -601,6 +614,71 @@ export const projectService = {
     userRole: string = 'siteengineer',
     incidentCategory?: 'khach_quan' | 'chu_quan'
   ): Promise<DailyLog> {
+    if (!USE_MOCK_API) {
+      const parsedTaskId = logData.taskId.startsWith('t-') ? parseInt(logData.taskId.substring(2)) : parseInt(logData.taskId);
+      const payload = {
+        taskId: parsedTaskId,
+        newProgressPercent: logData.progressTo,
+        description: logData.content,
+        images: logData.images || []
+      };
+
+      const res = await apiClient.post<ApiResponse<any>>(`/dailylogs`, payload);
+      if (!res.success) throw new Error(res.message || 'Tạo nhật ký thi công thất bại.');
+
+      const l = res.data;
+      const mapComment = (c: any): DailyLogComment => ({
+        id: c.commentId.toString(),
+        userId: c.authorId.toString(),
+        userName: c.authorName,
+        role: c.authorRole,
+        content: c.content,
+        date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+      });
+
+      // Synchronize task progress in localStorage WBS so frontend stays in sync
+      const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+      const taskIdx = allTasks.findIndex(t => String(t.id).replace(/^t-/, '') === String(logData.taskId).replace(/^t-/, ''));
+      if (taskIdx !== -1) {
+        const task = allTasks[taskIdx];
+        const type = logData.progressTo < task.progress ? 'progress_decrease' : 'progress_increase';
+        const historyEntry: TaskHistory = {
+          date: l.createdAt ? l.createdAt.slice(0, 16).replace('T', ' ') : l.logDate,
+          oldProgress: task.progress,
+          newProgress: logData.progressTo,
+          reason: `Cập nhật tiến độ (API): ${logData.content}`,
+          type,
+          adjustedBy: engineerName,
+        };
+        allTasks[taskIdx] = {
+          ...task,
+          progress: logData.progressTo,
+          history: [historyEntry, ...task.history]
+        };
+        setStorage('bpg_wbs_tasks', allTasks);
+        await this.syncProjectProgress(logData.projectId);
+        if (task.parentTaskId) {
+          await this.syncParentTaskProgress(task.parentTaskId);
+        }
+      }
+
+      return {
+        id: l.logId.toString(),
+        projectId: logData.projectId,
+        taskId: logData.taskId,
+        taskName: l.taskName,
+        engineerId: l.createdBy.toString(),
+        engineerName: l.creatorName,
+        progressFrom: l.oldProgressPercent,
+        progressTo: l.newProgressPercent,
+        date: l.createdAt ? l.createdAt.slice(0, 16).replace('T', ' ') : l.logDate,
+        content: l.description,
+        weather: '',
+        images: l.images || [],
+        comments: (l.comments || []).map(mapComment)
+      };
+    }
+
     // Check if project is paused or done
     const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
     const project = projects.find(p => p.id === logData.projectId);
@@ -612,7 +690,7 @@ export const projectService = {
     const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
     const taskIdx = allTasks.findIndex(t => t.id === logData.taskId);
     if (taskIdx === -1) throw new Error('Không tìm thấy công việc.');
-    
+
     const task = allTasks[taskIdx];
 
     // Kiểm tra xem task có subtask không. Nếu có thì không cho phép cập nhật tiến độ thủ công.
@@ -620,7 +698,7 @@ export const projectService = {
     if (children.length > 0) {
       throw new Error('Công việc này có các công việc con. Tiến độ sẽ được tự động tính toán từ các công việc con.');
     }
-    
+
     // Validate decrease
     if (logData.progressTo < task.progress) {
       if (userRole !== 'technicalmanager' && userRole !== 'admin') {
@@ -668,7 +746,75 @@ export const projectService = {
     return newLog;
   },
 
+  async updateDailyLog(
+    logId: string,
+    description: string,
+    images: string[]
+  ): Promise<DailyLog> {
+    if (!USE_MOCK_API) {
+      const parsedLogId = logId.startsWith('l-') ? parseInt(logId.substring(2)) : parseInt(logId);
+      const payload = {
+        description,
+        images
+      };
+      const res = await apiClient.put<ApiResponse<any>>(`/dailylogs/${parsedLogId}`, payload);
+      if (!res.success) throw new Error(res.message || 'Cập nhật nhật ký thất bại.');
+
+      const l = res.data;
+      const mapComment = (c: any): DailyLogComment => ({
+        id: c.commentId.toString(),
+        userId: c.authorId.toString(),
+        userName: c.authorName,
+        role: c.authorRole,
+        content: c.content,
+        date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+      });
+
+      return {
+        id: l.logId.toString(),
+        projectId: '',
+        taskId: l.taskId.toString(),
+        taskName: l.taskName,
+        engineerId: l.createdBy.toString(),
+        engineerName: l.creatorName,
+        progressFrom: l.oldProgressPercent,
+        progressTo: l.newProgressPercent,
+        date: l.createdAt ? l.createdAt.slice(0, 16).replace('T', ' ') : l.logDate,
+        content: l.description,
+        weather: '',
+        images: l.images || [],
+        comments: (l.comments || []).map(mapComment)
+      };
+    }
+
+    const logs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS);
+    const logIdx = logs.findIndex(l => l.id === logId);
+    if (logIdx !== -1) {
+      logs[logIdx].content = description;
+      logs[logIdx].images = images;
+      setStorage('bpg_daily_logs', logs);
+      return logs[logIdx];
+    }
+    throw new Error('Không tìm thấy nhật ký thi công.');
+  },
+
   async addLogComment(logId: string, user: { name: string; role: string; id: string }, content: string): Promise<DailyLogComment> {
+    if (!USE_MOCK_API) {
+      const parsedLogId = logId.startsWith('l-') ? parseInt(logId.substring(2)) : parseInt(logId);
+      const res = await apiClient.post<ApiResponse<any>>(`/dailylogs/${parsedLogId}/comments`, { content });
+      if (!res.success) throw new Error(res.message || 'Thêm bình luận thất bại.');
+
+      const c = res.data;
+      return {
+        id: c.commentId.toString(),
+        userId: c.authorId.toString(),
+        userName: c.authorName,
+        role: c.authorRole,
+        content: c.content,
+        date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+      };
+    }
+
     const logs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS);
     const logIdx = logs.findIndex(l => l.id === logId);
     if (logIdx === -1) throw new Error('Không tìm thấy bài nhật ký.');
@@ -685,6 +831,98 @@ export const projectService = {
     logs[logIdx].comments.push(newComment);
     setStorage('bpg_daily_logs', logs);
     return newComment;
+  },
+
+  async updateLogComment(commentId: string, content: string): Promise<DailyLogComment> {
+    if (!USE_MOCK_API) {
+      const parsedCommentId = commentId.startsWith('c-') ? parseInt(commentId.substring(2)) : parseInt(commentId);
+      const res = await apiClient.put<ApiResponse<any>>(`/dailylogs/comments/${parsedCommentId}`, { content });
+      if (!res.success) throw new Error(res.message || 'Cập nhật bình luận thất bại.');
+
+      const c = res.data;
+      return {
+        id: c.commentId.toString(),
+        userId: c.authorId.toString(),
+        userName: c.authorName,
+        role: c.authorRole,
+        content: c.content,
+        date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+      };
+    }
+
+    const logs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS);
+    for (const log of logs) {
+      const cIdx = log.comments.findIndex(c => c.id === commentId);
+      if (cIdx !== -1) {
+        log.comments[cIdx].content = content;
+        setStorage('bpg_daily_logs', logs);
+        return log.comments[cIdx];
+      }
+    }
+    throw new Error('Không tìm thấy bình luận.');
+  },
+
+  async deleteLogComment(commentId: string): Promise<boolean> {
+    if (!USE_MOCK_API) {
+      const parsedCommentId = commentId.startsWith('c-') ? parseInt(commentId.substring(2)) : parseInt(commentId);
+      const res = await apiClient.delete<ApiResponse<boolean>>(`/dailylogs/comments/${parsedCommentId}`);
+      return res.success;
+    }
+
+    const logs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS);
+    let deleted = false;
+    for (const log of logs) {
+      const cIdx = log.comments.findIndex(c => c.id === commentId);
+      if (cIdx !== -1) {
+        log.comments.splice(cIdx, 1);
+        deleted = true;
+        break;
+      }
+    }
+    if (deleted) {
+      setStorage('bpg_daily_logs', logs);
+      return true;
+    }
+    throw new Error('Không tìm thấy bình luận.');
+  },
+
+  async getTaskProgressHistory(taskId: string): Promise<any[]> {
+    if (!USE_MOCK_API) {
+      const parsedTaskId = taskId.startsWith('t-') ? parseInt(taskId.substring(2)) : parseInt(taskId);
+      const res = await apiClient.get<ApiResponse<any[]>>(`/dailylogs/tasks/${parsedTaskId}/progress-history`);
+      if (!res.success) throw new Error(res.message || 'Lấy lịch sử tiến độ thất bại.');
+      return res.data;
+    }
+
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const task = allTasks.find(t => t.id === taskId);
+    return task?.history || [];
+  },
+
+  async uploadFiles(files: File[], folder: string = 'dailylogs'): Promise<string[]> {
+    if (USE_MOCK_API) {
+      return files.map(file => URL.createObjectURL(file));
+    }
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    formData.append('folder', folder);
+
+    const res = await apiClient.request<ApiResponse<any[]>>('/files/upload-multiple', {
+      method: 'POST',
+      body: formData
+    });
+    if (!res.success) throw new Error(res.message || 'Tải ảnh lên thất bại.');
+    return (res.data || []).map(item => item.fileUrl);
+  },
+
+  async deleteFile(fileUrl: string): Promise<boolean> {
+    if (USE_MOCK_API) return true;
+    const res = await apiClient.delete<ApiResponse<boolean>>('/files/delete', {
+      params: { fileUrl }
+    });
+    return res.success;
   },
 
   // PHASE ACCEPTANCE (FREEZE PHASE)
@@ -865,15 +1103,15 @@ export const projectService = {
   },
 
   async resolveIncident(
-    incidentId: string, 
+    incidentId: string,
     resolutionType: 'rework' | 'reduce_progress',
-    resolutionData: any, 
+    resolutionData: any,
     tpkt: { id: string, name: string }
   ): Promise<IncidentReport> {
     const list = getStorage<IncidentReport>('bpg_incidents', DEFAULT_INCIDENTS);
     const idx = list.findIndex(i => i.id === incidentId);
     if (idx === -1) throw new Error('Không tìm thấy báo cáo sự cố.');
-    
+
     const incident = list[idx];
 
     const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
@@ -929,7 +1167,7 @@ export const projectService = {
     } else if (resolutionType === 'reduce_progress') {
       const reduceData = resolutionData as { reduction: number, reason: string };
       const newProgress = Math.max(0, oldTask.progress - reduceData.reduction);
-      
+
       const historyEntry: TaskHistory = {
         date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' '),
         oldProgress: oldTask.progress,
@@ -974,11 +1212,11 @@ export const projectService = {
     isLeader?: boolean
   ): Promise<MaterialRequest> {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
-    
+
     const isRework = request.taskName ? (request.taskName.startsWith('[Rework]') || request.taskName.toLowerCase().includes('rework') || request.taskName.toLowerCase().includes('khắc phục')) : false;
-    
+
     const isEmergency = request.type === 'emergency';
-    
+
     if (isEmergency && !request.invoiceImage) {
       throw new Error('Yêu cầu mua ngoài khẩn cấp bắt buộc phải tải ảnh hóa đơn.');
     }
@@ -986,7 +1224,7 @@ export const projectService = {
     const defaultIsOverBOQ = request.isOverBOQ !== undefined ? request.isOverBOQ : isRework;
 
     let initialStatus: MaterialRequest['status'] = 'pending_accountant';
-    
+
     if (isEmergency) {
       initialStatus = 'pending_disbursement';
     } else if (userRole === 'siteengineer' && !isLeader) {
@@ -1001,7 +1239,7 @@ export const projectService = {
       isOverBOQ: defaultIsOverBOQ,
       date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
     };
-    
+
     list.push(newRequest);
     setStorage('bpg_material_requests', list);
     return newRequest;
@@ -1016,7 +1254,7 @@ export const projectService = {
     reason?: string
   ): Promise<MaterialRequest> {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
-    
+
     const selectedReqs = list.filter(r => requestIds.includes(r.id) && r.status === 'pending_leader');
     if (selectedReqs.length === 0) throw new Error('Không có yêu cầu hợp lệ nào để tổng hợp.');
 
@@ -1077,11 +1315,11 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
-    
+
     if (list[idx].status !== 'pending_accountant') {
       throw new Error('Chỉ có thể hủy yêu cầu khi đang chờ Kế toán duyệt.');
     }
-    
+
     list[idx].status = 'rejected';
     list[idx].rejectionReason = `Người tạo tự hủy: ${reason}`;
     setStorage('bpg_material_requests', list);
@@ -1091,14 +1329,14 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
-    
+
     const request = list[idx];
     if (request.isOverBOQ) {
       request.status = 'pending_director'; // Trình Giám đốc duyệt
     } else {
       request.status = 'approved'; // Duyệt luôn cấp PO
       request.approvedBy = 'Kế toán (Duyệt trong định mức)';
-      
+
       // Auto-add to Phase BOQ if it's a Phase request
       if (!request.taskId && request.phaseId) {
         const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', []);
@@ -1127,7 +1365,7 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
-    
+
     list[idx] = {
       ...list[idx],
       status: 'disbursed',
@@ -1141,7 +1379,7 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
-    
+
     list[idx] = {
       ...list[idx],
       status: 'approved',
@@ -1176,7 +1414,7 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
-    
+
     list[idx] = {
       ...list[idx],
       status: 'rejected',
@@ -1190,7 +1428,7 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
-    
+
     const request = list[idx];
     if (request.status !== 'pending_leader') throw new Error('Yêu cầu không ở trạng thái chờ Leader duyệt.');
 
@@ -1200,7 +1438,7 @@ export const projectService = {
       for (const reqItem of request.items) {
         const estItem = task.estimatedMaterials.find(m => m.name === reqItem.name);
         const estQty = estItem ? estItem.quantity : 0;
-        
+
         const existingRequests = list.filter(r => r.taskId === task.id && r.id !== request.id && r.status !== 'rejected');
         const existingQty = existingRequests.reduce((sum, r) => {
           const matched = r.items.find(i => i.name === reqItem.name);
@@ -1218,7 +1456,7 @@ export const projectService = {
       status: 'pending_tpkt',
       approvedBy: leaderName
     };
-    
+
     setStorage('bpg_material_requests', list);
     return list[idx];
   },
@@ -1227,7 +1465,7 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
-    
+
     const request = list[idx];
     if (request.status !== 'pending_tpkt') throw new Error('Yêu cầu không ở trạng thái chờ TPKT duyệt.');
 
@@ -1236,7 +1474,7 @@ export const projectService = {
       status: 'pending_accountant',
       approvedBy: tpktName
     };
-    
+
     setStorage('bpg_material_requests', list);
     return list[idx];
   },
@@ -1245,7 +1483,7 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
-    
+
     const request = list[idx];
     if (request.status !== 'approved' && request.status !== 'disbursed') {
       throw new Error('Chỉ có thể nhận vật tư đã được kế toán duyệt/giải ngân.');
@@ -1256,7 +1494,7 @@ export const projectService = {
       status: 'received',
       approvedBy: `${request.approvedBy || ''} - Nhận bởi: ${leaderName}`
     };
-    
+
     setStorage('bpg_material_requests', list);
     return list[idx];
   },
@@ -1270,7 +1508,7 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
-    
+
     const request = list[idx];
     if (request.status !== 'rejected') {
       throw new Error('Chỉ có thể gửi lại yêu cầu đã bị từ chối.');
