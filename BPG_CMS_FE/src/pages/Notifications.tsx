@@ -22,7 +22,6 @@ export const NotificationsList: React.FC = () => {
 
   const filtered = filter === 'unread' ? notifications.filter(n => !n.isRead) : notifications;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const displayTotal = filter === 'unread' ? unreadCount : totalCount;
 
   const tabs: { key: 'all' | 'unread'; label: string }[] = [
     { key: 'all', label: 'Tất cả' },

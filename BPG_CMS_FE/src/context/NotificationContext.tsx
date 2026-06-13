@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
+import { toast } from 'react-hot-toast';
 import { useAuth } from './AuthContext';
 import { notificationService } from '../services/notificationService';
 import type { Notification } from '../types/notification';
@@ -22,7 +23,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [unreadCount, setUnreadCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const connectionRef = useRef<HubConnection | null>(null);
 
   // Lấy danh sách thông báo
@@ -31,7 +32,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setIsLoading(true);
     try {
       const result = await notificationService.getNotifications(page, size);
-      
+
       setNotifications(result.items);
       setTotalCount(result.totalCount);
       setUnreadCount(result.items.filter(n => !n.isRead).length);
