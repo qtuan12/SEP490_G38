@@ -5,7 +5,7 @@
 [![Frontend](https://img.shields.io/badge/Frontend-React_19_|_TypeScript-cyan.svg)]()
 [![Database](https://img.shields.io/badge/Database-SQL_Server-red.svg)]()
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-orange.svg)]()
-
+## [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/qtuan12/SEP490_G38)
 An internal web-based construction management platform designed for **BPG Investment and Construction Company Limited** (Bùi Phú Gia Co., Ltd) — a small-to-medium general contractor in Northern Vietnam. This system serves as a graduation project for course **SEP490 at FPT University**.
 
 ---
