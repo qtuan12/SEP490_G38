@@ -1,0 +1,9 @@
+.vs/
+.git/
+.vscode/
+bin/
+obj/
+out/
+*.user
+**/bin
+**/obj
