@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
 import type { BadgeVariant } from '../ui';
+import { HeaderNotification } from './HeaderNotification';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
@@ -175,8 +176,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                  location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
               </h2>
             </div>
-            <div className="hidden md:flex text-sm gap-1 text-[hsl(var(--text-secondary))]">
-              Dự án: <strong className="text-[hsl(var(--text-primary))]">BPG Construction (MVP)</strong>
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex text-sm gap-1 text-[hsl(var(--text-secondary))]">
+                Dự án: <strong className="text-[hsl(var(--text-primary))]">BPG Construction (MVP)</strong>
+              </div>
+              <HeaderNotification />
             </div>
           </div>
         </header>
