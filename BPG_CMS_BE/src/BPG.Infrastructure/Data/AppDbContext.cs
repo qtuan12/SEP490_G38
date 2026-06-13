@@ -471,13 +471,15 @@ public class AppDbContext : DbContext
             .Property(x => x.BalanceAfter).HasPrecision(18, 3);
 
         // Seed data: Roles
+        // NOTE: ProjectLeader không phải một role riêng.
+        //       Leadership được xác định bởi IsLeader=true trong bảng ProjectMember.
+        //       Mọi leader đều có role SiteEngineer (RoleId=3).
         modelBuilder.Entity<Role>().HasData(
-            new Role { RoleId = 1, RoleName = "Admin", Description = "Quản trị viên hệ thống" },
+            new Role { RoleId = 1, RoleName = "Admin",            Description = "Quản trị viên hệ thống" },
             new Role { RoleId = 2, RoleName = "TechnicalManager", Description = "Trưởng phòng kỹ thuật" },
-            new Role { RoleId = 3, RoleName = "ProjectLeader", Description = "Quản lý dự án" },
-            new Role { RoleId = 4, RoleName = "SiteEngineer", Description = "Nhân viên kỹ thuật" },
-            new Role { RoleId = 5, RoleName = "Accountant", Description = "Kế toán" },
-            new Role { RoleId = 6, RoleName = "Director", Description = "Giám đốc" }
+            new Role { RoleId = 3, RoleName = "SiteEngineer",     Description = "Nhân viên kỹ thuật hiện trường" },
+            new Role { RoleId = 4, RoleName = "Accountant",       Description = "Kế toán" },
+            new Role { RoleId = 5, RoleName = "Director",         Description = "Giám đốc" }
         );
     }
 }
