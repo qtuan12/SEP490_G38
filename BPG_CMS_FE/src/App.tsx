@@ -7,6 +7,7 @@ import { Layout } from './components/layout/MainLayout';
 import { Login } from './pages/Auth/Login';
 import { Dashboard } from './pages/Dashboard';
 import { UserManagement } from './pages/UserManagement';
+import { SupplierManagement } from './pages/SupplierManagement';
 import { ForgotPassword } from './pages/Auth/ForgotPassword';
 import { ResetPassword } from './pages/Auth/ResetPassword';
 import { Profile } from './pages/Profile';
@@ -149,6 +150,15 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <UserManagement />
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
+                path="/suppliers" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <SupplierManagement />
                   </ProtectedRoute>
                 } 
               />

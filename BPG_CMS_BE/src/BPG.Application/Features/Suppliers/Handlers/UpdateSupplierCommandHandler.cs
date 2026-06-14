@@ -29,9 +29,10 @@ namespace BPG.Application.Features.Suppliers.Handlers
                 throw new NotFoundException("Supplier", request.SupplierId);
             }
 
+            var trimmedName = request.SupplierName.Trim();
             // Kiểm tra trùng tên với nhà cung cấp khác
             var nameExists = await _uow.Repository<Supplier>().AnyAsync(
-                s => s.SupplierId != request.SupplierId && s.SupplierName.ToLower() == request.SupplierName.ToLower(),
+                s => s.SupplierId != request.SupplierId && s.SupplierName.Trim().ToLower() == trimmedName.ToLower(),
                 cancellationToken
             );
 
@@ -40,12 +41,12 @@ namespace BPG.Application.Features.Suppliers.Handlers
                 throw new DuplicateEntryException("SupplierName", request.SupplierName);
             }
 
-            supplier.SupplierName = request.SupplierName;
-            supplier.ContactInfo = request.ContactInfo;
-            supplier.Address = request.Address;
-            supplier.ServiceArea = request.ServiceArea;
+            supplier.SupplierName = trimmedName;
+            supplier.ContactInfo = request.ContactInfo?.Trim();
+            supplier.Address = request.Address?.Trim();
+            supplier.ServiceArea = request.ServiceArea?.Trim();
             supplier.Rating = request.Rating;
-            supplier.EvaluationNote = request.EvaluationNote;
+            supplier.EvaluationNote = request.EvaluationNote?.Trim();
             supplier.CollaborationStatus = request.CollaborationStatus;
 
             _uow.Repository<Supplier>().Update(supplier);

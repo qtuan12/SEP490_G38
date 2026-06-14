@@ -23,9 +23,10 @@ namespace BPG.Application.Features.Suppliers.Handlers
 
         public async Task<SupplierDto> Handle(CreateSupplierCommand request, CancellationToken cancellationToken)
         {
+            var trimmedName = request.SupplierName.Trim();
             // Kiểm tra trùng tên nhà cung cấp (với những NCC chưa bị xóa mềm)
             var nameExists = await _uow.Repository<Supplier>().AnyAsync(
-                s => s.SupplierName.ToLower() == request.SupplierName.ToLower(),
+                s => s.SupplierName.Trim().ToLower() == trimmedName.ToLower(),
                 cancellationToken
             );
 
@@ -36,12 +37,12 @@ namespace BPG.Application.Features.Suppliers.Handlers
 
             var supplier = new Supplier
             {
-                SupplierName = request.SupplierName,
-                ContactInfo = request.ContactInfo,
-                Address = request.Address,
-                ServiceArea = request.ServiceArea,
+                SupplierName = trimmedName,
+                ContactInfo = request.ContactInfo?.Trim(),
+                Address = request.Address?.Trim(),
+                ServiceArea = request.ServiceArea?.Trim(),
                 Rating = request.Rating,
-                EvaluationNote = request.EvaluationNote,
+                EvaluationNote = request.EvaluationNote?.Trim(),
                 CollaborationStatus = request.CollaborationStatus
             };
 

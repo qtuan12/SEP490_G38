@@ -12,6 +12,7 @@ namespace BPG.Application.Features.Suppliers.Validators
 
             RuleFor(x => x.SupplierName)
                 .NotEmpty().WithMessage("Tên nhà cung cấp không được để trống.")
+                .Must(x => !string.IsNullOrWhiteSpace(x)).WithMessage("Tên nhà cung cấp không được chỉ chứa khoảng trắng.")
                 .MaximumLength(200).WithMessage("Tên nhà cung cấp không được vượt quá 200 ký tự.");
 
             RuleFor(x => x.CollaborationStatus)
