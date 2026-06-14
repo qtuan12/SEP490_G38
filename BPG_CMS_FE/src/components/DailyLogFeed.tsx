@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { projectService } from '../services/projectService';
 import { USE_MOCK_API } from '../services/api';
-import type { DailyLog, WBSTask, DailyLogComment } from '../types/common';
+import type { DailyLog, WBSTask, DailyLogComment, WBSPhase } from '../types/common';
 import {
   Clock,
   Send,
@@ -32,6 +32,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const { connection } = useNotification();
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
+  const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -70,14 +71,16 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const loadData = async () => {
     setLoading(true);
     try {
-      const [logsResult, tasksData] = await Promise.all([
+      const [logsResult, tasksData, phasesData] = await Promise.all([
         projectService.getDailyLogsPage(projectId, 1, PAGE_SIZE, taskId),
-        projectService.getTasks(projectId)
+        projectService.getTasks(projectId),
+        projectService.getPhases(projectId)
       ]);
       setLogs(logsResult.items);
       setHasNextPage(logsResult.hasNextPage);
       setCurrentPage(1);
       setTasks(tasksData.filter(t => t.status !== 'obsolete'));
+      setPhases(phasesData);
     } catch (err: any) {
       console.error('Error loading daily logs data:', err);
     } finally {
@@ -387,6 +390,46 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [currentFilteredTask, tasks, logs, selectedTaskId, taskId]);
 
+  const taskOptions = React.useMemo(() => {
+    const options: { label: string; value: string }[] = [
+      { label: 'Tất cả Công việc', value: '' }
+    ];
+
+    // 1. Xác định các parentTask để lọc ra chỉ giữ các task con (leaf tasks)
+    const parentTaskIds = new Set(
+      tasks
+        .map(t => t.parentTaskId)
+        .filter((id): id is string => !!id)
+        .map(id => id.replace(/^t-/, ''))
+    );
+
+    // 2. Nhóm các task con theo từng Phase
+    phases.forEach(phase => {
+      const phaseTasks = tasks.filter(t => 
+        (t.phaseId === phase.id || t.phaseId.replace(/^p-/, '') === phase.id.replace(/^p-/, '')) &&
+        !parentTaskIds.has(t.id.replace(/^t-/, ''))
+      );
+
+      if (phaseTasks.length > 0) {
+        // Thêm option tiêu đề Phase
+        options.push({
+          label: `📁 Giai đoạn: ${phase.name}`,
+          value: `phase-${phase.id}`
+        });
+
+        // Thêm các task con của phase đó thụt lề vào trong
+        phaseTasks.forEach(t => {
+          options.push({
+            label: `    ↳ ${t.name}`,
+            value: t.id
+          });
+        });
+      }
+    });
+
+    return options;
+  }, [tasks, phases]);
+
   // Reset selected engineer if they are not in the assigned list of the newly selected task
   useEffect(() => {
     if (selectedEngineerId) {
@@ -407,8 +450,17 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
         log.taskName.toLowerCase().includes(q) ||
         log.engineerName.toLowerCase().includes(q);
 
-      // 2. Task filter
-      const matchesTask = !selectedTaskId || log.taskId === selectedTaskId || log.taskId.replace(/^t-/, '') === selectedTaskId.replace(/^t-/, '');
+      // 2. Task / Phase filter
+      let matchesTask = true;
+      if (selectedTaskId) {
+        if (selectedTaskId.startsWith('phase-')) {
+          const targetPhaseId = selectedTaskId.replace(/^phase-/, '');
+          const logTask = tasks.find(t => t.id === log.taskId || t.id.replace(/^t-/, '') === log.taskId.replace(/^t-/, ''));
+          matchesTask = !!logTask && (logTask.phaseId === targetPhaseId || logTask.phaseId.replace(/^p-/, '') === targetPhaseId.replace(/^p-/, ''));
+        } else {
+          matchesTask = log.taskId === selectedTaskId || log.taskId.replace(/^t-/, '') === selectedTaskId.replace(/^t-/, '');
+        }
+      }
 
       // 3. Engineer filter
       const matchesEngineer = !selectedEngineerId || log.engineerId === selectedEngineerId;
@@ -420,7 +472,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
       return matchesSearch && matchesTask && matchesEngineer && matchesStartDate && matchesEndDate;
     });
-  }, [logs, searchQuery, selectedTaskId, selectedEngineerId, startDateFilter, endDateFilter]);
+  }, [logs, searchQuery, selectedTaskId, selectedEngineerId, startDateFilter, endDateFilter, tasks]);
 
   // Group logs by date (YYYY-MM-DD)
   const groupedLogs = React.useMemo(() => {
@@ -528,10 +580,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                 value={selectedTaskId}
                 onChange={(e) => setSelectedTaskId(e.target.value)}
                 className="h-[38px] text-[0.85rem]"
-                options={[
-                  { label: 'Tất cả Công việc', value: '' },
-                  ...tasks.map(t => ({ label: t.name, value: t.id }))
-                ]}
+                options={taskOptions}
               />
             </div>
           )}
@@ -928,6 +977,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           tasks={tasks}
+          phases={phases}
           taskId={taskId || selectedTaskId}
           editLog={editLog}
           engineerId={user.id}

@@ -6,8 +6,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { UploadCloud, X, AlertCircle } from 'lucide-react';
 import { projectService } from '../../../services/projectService';
-import type { WBSTask, DailyLog } from '../../../types/common';
-import { Modal, Button, Textarea } from '../../../components/ui';
+import type { WBSTask, DailyLog, WBSPhase } from '../../../types/common';
+import { Modal, Button, Textarea, Select } from '../../../components/ui';
 import { useAuth } from '../../../context/AuthContext';
 
 const dailyLogSchema = z.object({
@@ -23,6 +23,7 @@ interface DailyLogFormModalProps {
   task?: WBSTask;
   taskId?: string;
   tasks?: WBSTask[];
+  phases?: WBSPhase[];
   editLog?: DailyLog;
   engineerId: string;
   engineerName: string;
@@ -36,6 +37,7 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
   task,
   taskId,
   tasks = [],
+  phases = [],
   editLog,
   engineerId,
   engineerName,
@@ -56,7 +58,17 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
   // Track selected task when in feed mode
   const [selectedTaskId, setSelectedTaskId] = useState<string>(() => {
     if (task) return task.id;
-    if (taskId) return taskId;
+    if (taskId && !taskId.startsWith('phase-')) return taskId;
+    
+    // Default to the first leaf task if no task is preselected
+    const parentTaskIds = new Set(
+      tasks
+        .map(t => t.parentTaskId)
+        .filter((id): id is string => !!id)
+        .map(id => id.replace(/^t-/, ''))
+    );
+    const leafTasks = tasks.filter(t => !parentTaskIds.has(t.id.replace(/^t-/, '')));
+    if (leafTasks.length > 0) return leafTasks[0].id;
     if (tasks && tasks.length > 0) return tasks[0].id;
     return '';
   });
@@ -66,13 +78,64 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
     if (task) return task;
     if (editLog) return undefined; // Task is not changeable in edit mode
     if (!tasks || tasks.length === 0) return undefined;
-    const activeId = taskId || selectedTaskId || tasks[0]?.id;
+    const activeId = selectedTaskId;
     if (!activeId) return undefined;
-    return tasks.find(t => String(t.id).replace(/^t-/, '') === String(activeId).replace(/^t-/, '')) || tasks[0];
-  }, [task, taskId, selectedTaskId, tasks, editLog]);
+    return tasks.find(t => String(t.id).replace(/^t-/, '') === String(activeId).replace(/^t-/, ''));
+  }, [task, selectedTaskId, tasks, editLog]);
 
   const minProgress = currentTask ? currentTask.progress : 0;
   const isProgressDisabled = !currentTask || currentTask.progress === 100;
+
+  const isTaskPreselected = !!task || (!!taskId && !taskId.startsWith('phase-'));
+
+  const modalTaskOptions = React.useMemo(() => {
+    const options: { label: string; value: string; disabled?: boolean }[] = [];
+
+    // 1. Identify parent tasks
+    const parentTaskIds = new Set(
+      tasks
+        .map(t => t.parentTaskId)
+        .filter((id): id is string => !!id)
+        .map(id => id.replace(/^t-/, ''))
+    );
+
+    // 2. Group leaf tasks by phase
+    if (phases && phases.length > 0) {
+      phases.forEach(phase => {
+        const phaseTasks = tasks.filter(t => 
+          (t.phaseId === phase.id || t.phaseId.replace(/^p-/, '') === phase.id.replace(/^p-/, '')) &&
+          !parentTaskIds.has(t.id.replace(/^t-/, ''))
+        );
+
+        if (phaseTasks.length > 0) {
+          // Add phase header as disabled option
+          options.push({
+            label: `📁 Giai đoạn: ${phase.name}`,
+            value: `phase-header-${phase.id}`,
+            disabled: true
+          });
+
+          phaseTasks.forEach(t => {
+            options.push({
+              label: `    ↳ ${t.name}`,
+              value: t.id
+            });
+          });
+        }
+      });
+    } else {
+      // Fallback: list all leaf tasks directly
+      const leafTasks = tasks.filter(t => !parentTaskIds.has(t.id.replace(/^t-/, '')));
+      leafTasks.forEach(t => {
+        options.push({
+          label: t.name,
+          value: t.id
+        });
+      });
+    }
+
+    return options;
+  }, [tasks, phases]);
 
   const schema = React.useMemo(() => {
     const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
@@ -310,10 +373,22 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
             <AlertCircle size={18} />
             <span>Đang sửa nhật ký cho việc: <strong>{editLog.taskName}</strong></span>
           </div>
-        ) : currentTask ? (
+        ) : isTaskPreselected && currentTask ? (
           <div className="flex items-center gap-2 bg-blue-50 text-blue-700 p-3 rounded-md border border-blue-100 text-sm">
             <AlertCircle size={18} />
             <span>Báo cáo cho việc: <strong>{currentTask.name}</strong></span>
+          </div>
+        ) : !isTaskPreselected ? (
+          <div>
+            <label className="block text-sm font-medium mb-1.5 text-slate-600">
+              Công việc thi công <span className="text-red-500">*</span>
+            </label>
+            <Select
+              value={selectedTaskId}
+              onChange={(e) => setSelectedTaskId(e.target.value)}
+              className="h-[38px] text-[0.85rem]"
+              options={modalTaskOptions}
+            />
           </div>
         ) : null}
 
