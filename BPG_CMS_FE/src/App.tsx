@@ -181,6 +181,15 @@ function App() {
               />
 
               <Route 
+                path="/projects/:projectId/tasks/:taskId/logs" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
+                    <ProjectDailyLogs />
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
                 path="/projects/:projectId/tasks/:taskId/incidents" 
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>

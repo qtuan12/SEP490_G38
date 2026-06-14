@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IFileStorageService, CloudinaryService>();
 
         return services;
     }

@@ -1,9 +1,12 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 import type {WBSTask} from '../types/common';
 import { DailyLogFormModal } from './Incidents/modals/DailyLogFormModal';
+import { Modal } from '../components/ui/Modal';
+import { DailyLogFeed } from '../components/DailyLogFeed';
+import { TaskProgressHistoryPanel } from '../components/TaskProgressHistoryPanel';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -47,6 +50,7 @@ export const TaskDetailSE: React.FC = () => {
 
   // Modal triggers
   const [isLogOpen, setIsLogOpen] = useState(false);
+  const [isDetailedLogsOpen, setIsDetailedLogsOpen] = useState(false);
 
   const loadTaskData = async () => {
     if (!taskId) return;
@@ -58,7 +62,7 @@ export const TaskDetailSE: React.FC = () => {
       
       for (const p of projects) {
         const pTasks = await projectService.getTasks(p.id);
-        const t = pTasks.find(item => item.id === taskId);
+        const t = pTasks.find(item => item.id === taskId || item.id.replace(/^t-/, '') === taskId.replace(/^t-/, ''));
         if (t) {
           foundTask = t;
           break;
@@ -283,7 +287,7 @@ export const TaskDetailSE: React.FC = () => {
         </div>
 
         {/* Big Update Button (Locked if task completed or not assigned to user) */}
-        <div style={{ marginTop: 'auto' }}>
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {task.progress === 100 ? (
             <div style={{
               display: 'flex',
@@ -319,29 +323,50 @@ export const TaskDetailSE: React.FC = () => {
               <span>CẬP NHẬT TIẾN ĐỘ HÔM NAY</span>
             </button>
           )}
+
+          <button
+            onClick={() => navigate(`/projects/${task.projectId}/logs`)}
+            className="btn btn-outline"
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              height: '48px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            <History size={16} />
+            <span>XEM DÒNG NHẬT KÝ DỰ ÁN</span>
+          </button>
         </div>
 
-        {/* Brief History Roll */}
+        {/* Brief History Roll — dùng API thật thay mock task.history */}
         <div style={{ marginTop: '12px' }}>
-          <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'hsl(var(--text-muted))', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <History size={14} />
-            LỊCH SỬ GHI NHẬT KÝ GẦN NHẤT
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '120px', overflowY: 'auto' }}>
-            {task.history.length === 0 ? (
-              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontStyle: 'italic' }}>Chưa có lịch sử cập nhật.</span>
-            ) : (
-              task.history.slice(0, 3).map((h, index) => (
-                <div key={index} style={{ padding: '8px', backgroundColor: 'hsl(var(--bg-main) / 0.4)', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                    <span>{h.date}</span>
-                    <span style={{ color: 'hsl(var(--primary))' }}>{h.oldProgress}% &rarr; {h.newProgress}%</span>
-                  </div>
-                  <p style={{ color: 'hsl(var(--text-secondary))', marginTop: '2px' }}>{h.reason}</p>
-                </div>
-              ))
-            )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'hsl(var(--text-muted))', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <History size={14} />
+              LỊCH SỬ THAY ĐỔI TIẾN ĐỘ
+            </h4>
+            <button
+              onClick={() => setIsDetailedLogsOpen(true)}
+              style={{
+                fontSize: '0.75rem',
+                color: 'hsl(var(--primary))',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              Xem nhật ký chi tiết
+            </button>
           </div>
+          <TaskProgressHistoryPanel taskId={task.id} limit={3} compact />
         </div>
 
       </div>
@@ -357,6 +382,20 @@ export const TaskDetailSE: React.FC = () => {
           onSuccess={handleSuccess}
           onError={handleError}
         />
+      )}
+
+      {/* DETAILED DAILY LOGS FEED MODAL */}
+      {isDetailedLogsOpen && (
+        <Modal 
+          isOpen={isDetailedLogsOpen} 
+          onClose={() => setIsDetailedLogsOpen(false)} 
+          title={`Nhật ký chi tiết: ${task.name}`}
+          maxWidth="800px"
+        >
+          <div style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }}>
+            <DailyLogFeed projectId={task.projectId} taskId={task.id} />
+          </div>
+        </Modal>
       )}
 
     </div>
