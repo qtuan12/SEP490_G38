@@ -19,12 +19,18 @@ namespace BPG.Application.Features.Comments.Handlers
         private readonly IUnitOfWork _uow;
         private readonly IMapper _mapper;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
 
-        public UpdateCommentCommandHandler(IUnitOfWork uow, IMapper mapper, ICurrentUserService currentUserService)
+        public UpdateCommentCommandHandler(
+            IUnitOfWork uow, 
+            IMapper mapper, 
+            ICurrentUserService currentUserService,
+            IRealtimeNotificationSender realtimeSender)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
+            _realtimeSender = realtimeSender;
         }
 
         public async Task<CommentDto> Handle(UpdateCommentCommand request, CancellationToken cancellationToken)
@@ -36,6 +42,9 @@ namespace BPG.Application.Features.Comments.Handlers
                 .Include(c => c.Author)
                     .ThenInclude(u => u.UserRoles)
                         .ThenInclude(ur => ur.Role)
+                .Include(c => c.DailyLog)
+                    .ThenInclude(l => l.Task)
+                        .ThenInclude(t => t.Phase)
                 .FirstOrDefaultAsync(c => c.CommentId == request.CommentId, cancellationToken);
 
             if (comment == null)
@@ -58,7 +67,12 @@ namespace BPG.Application.Features.Comments.Handlers
             _uow.Repository<Comment>().Update(comment);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            return _mapper.Map<CommentDto>(comment);
+            var dto = _mapper.Map<CommentDto>(comment);
+
+            // Gửi realtime cho client thuộc dự án
+            await _realtimeSender.SendToGroupAsync($"Project_{comment.DailyLog.Task.Phase.ProjectId}", "ReceiveCommentUpdated", dto, cancellationToken);
+
+            return dto;
         }
     }
 }

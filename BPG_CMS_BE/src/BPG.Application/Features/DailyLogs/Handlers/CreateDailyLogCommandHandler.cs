@@ -23,17 +23,20 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         private readonly IMapper _mapper;
         private readonly ICurrentUserService _currentUserService;
         private readonly INotificationService _notificationService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
 
         public CreateDailyLogCommandHandler(
             IUnitOfWork uow, 
             IMapper mapper, 
             ICurrentUserService currentUserService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IRealtimeNotificationSender realtimeSender)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
+            _realtimeSender = realtimeSender;
         }
 
         public async Task<DailyLogDto> Handle(CreateDailyLogCommand request, CancellationToken cancellationToken)
@@ -83,10 +86,19 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             // 5. Kiểm tra lùi tiến độ (chỉ Admin/TM được phép lùi tiến độ)
             byte oldProgress = task.ProgressPercent;
-            if (request.NewProgressPercent < oldProgress && !isAdminOrTM)
+            if (request.NewProgressPercent < oldProgress)
             {
-                throw new BusinessException("ERR_DECREASE_PROGRESS_FORBIDDEN", 
-                    "Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
+                if (!isAdminOrTM)
+                {
+                    throw new BusinessException("ERR_DECREASE_PROGRESS_FORBIDDEN", 
+                        "Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Description))
+                {
+                    throw new BusinessException("ERR_DECREASE_PROGRESS_REASON_REQUIRED", 
+                        "Vui lòng nhập lý do giảm tiến độ công việc.");
+                }
             }
 
             // Bắt đầu một transaction để đảm bảo lưu dữ liệu nhất quán
@@ -173,6 +185,9 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
                 // 10. Gửi thông báo đến những người liên quan
                 await SendNotificationsAsync(task, creator?.FullName ?? "Kỹ sư", request.NewProgressPercent, cancellationToken);
+
+                // 11. Gửi realtime cho client dòng thời gian dự án
+                await _realtimeSender.SendToGroupAsync($"Project_{project.ProjectId}", "ReceiveDailyLogCreated", dto, cancellationToken);
 
                 return dto;
             }

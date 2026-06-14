@@ -13,7 +13,7 @@
 | **Inventory & GR** | ✅ | ❌ | ❌ | Bảng CurrentInventory và Ledger đã có |
 | **Surplus & Adjustment**| ✅ | ❌ | ❌ | |
 | **Auth & Users** | ✅ | ✅ | ✅ | Login, Phân quyền cơ bản |
-| **Daily Log & Comments** | ✅ | ✅ | ✅ | Backend API hoàn thành (CRUD Daily Logs & Comments) |
+| **Daily Log & Comments** | ✅ | ✅ | ✅ | Backend API & SignalR Real-time hoàn thành (CRUD & Realtime sync) |
 
 ## 2. Frontend Modules (React 19)
 | Feature | Giao diện (UI) | API Integration | Ghi chú |
@@ -23,7 +23,7 @@
 | **Dashboard** | ❌ | ❌ | |
 | **WBS Workspace**| 🚧 | ❌ | Đã dựng Layout Tree, chưa nối API |
 | **Inventory View**| ❌ | ❌ | |
-| **Daily Log & Comments** | ✅ | ✅ | Refactored form, feed timeline, and comment CRUD |
+| **Daily Log & Comments** | ✅ | ✅ | Refactored form, feed timeline, comment CRUD & Realtime sync |
 
 
 ---

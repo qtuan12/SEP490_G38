@@ -21,17 +21,20 @@ namespace BPG.Application.Features.Comments.Handlers
         private readonly IMapper _mapper;
         private readonly ICurrentUserService _currentUserService;
         private readonly INotificationService _notificationService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
 
         public AddCommentCommandHandler(
             IUnitOfWork uow, 
             IMapper mapper, 
             ICurrentUserService currentUserService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IRealtimeNotificationSender realtimeSender)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
+            _realtimeSender = realtimeSender;
         }
 
         public async Task<CommentDto> Handle(AddCommentCommand request, CancellationToken cancellationToken)
@@ -98,7 +101,12 @@ namespace BPG.Application.Features.Comments.Handlers
                 );
             }
 
-            return _mapper.Map<CommentDto>(comment);
+            var dto = _mapper.Map<CommentDto>(comment);
+
+            // Gửi realtime cho client thuộc dự án
+            await _realtimeSender.SendToGroupAsync($"Project_{dailyLog.Task.Phase.ProjectId}", "ReceiveCommentAdded", dto, cancellationToken);
+
+            return dto;
         }
     }
 }

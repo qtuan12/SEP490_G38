@@ -22,12 +22,18 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         private readonly IUnitOfWork _uow;
         private readonly IMapper _mapper;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
 
-        public UpdateDailyLogCommandHandler(IUnitOfWork uow, IMapper mapper, ICurrentUserService currentUserService)
+        public UpdateDailyLogCommandHandler(
+            IUnitOfWork uow, 
+            IMapper mapper, 
+            ICurrentUserService currentUserService,
+            IRealtimeNotificationSender realtimeSender)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
+            _realtimeSender = realtimeSender;
         }
 
         public async Task<DailyLogDto> Handle(UpdateDailyLogCommand request, CancellationToken cancellationToken)
@@ -134,6 +140,9 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.CreatorName = creator?.FullName ?? string.Empty;
                 dto.Images = newUrls;
                 dto.OldProgressPercent = progressLog?.OldProgress ?? 0;
+
+                // Gửi realtime cho client dòng thời gian dự án
+                await _realtimeSender.SendToGroupAsync($"Project_{project.ProjectId}", "ReceiveDailyLogUpdated", dto, cancellationToken);
 
                 return dto;
             }

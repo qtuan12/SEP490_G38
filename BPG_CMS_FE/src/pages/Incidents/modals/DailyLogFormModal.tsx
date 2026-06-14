@@ -81,7 +81,23 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
       progress: z.number()
         .min(minVal, `Tiến độ không được nhỏ hơn tiến độ hiện tại (${minVal}%).`)
         .max(100),
-      content: z.string().min(1, 'Vui lòng nhập chi tiết diễn biến thi công.')
+      content: z.string()
+    }).refine(data => {
+      if (data.progress < minProgress && (!data.content || data.content.trim().length === 0)) {
+        return false;
+      }
+      return true;
+    }, {
+      message: 'Vui lòng nhập lý do giảm tiến độ công việc.',
+      path: ['content']
+    }).refine(data => {
+      if (data.progress >= minProgress && (!data.content || data.content.trim().length === 0)) {
+        return false;
+      }
+      return true;
+    }, {
+      message: 'Vui lòng nhập chi tiết diễn biến thi công.',
+      path: ['content']
     });
   }, [minProgress, user?.role]);
 
@@ -304,10 +320,10 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
         {/* Detailed Description */}
         <div>
           <label className="block text-sm font-medium mb-1.5 text-slate-600">
-            Diễn biến công việc chi tiết <span className="text-red-500">*</span>
+            {progress < minProgress ? 'Lý do giảm tiến độ' : 'Diễn biến công việc chi tiết'} <span className="text-red-500">*</span>
           </label>
           <Textarea
-            placeholder="Mô tả công việc đã làm được hôm nay, số lượng nhân công huy động, các khó khăn gặp phải nếu có..."
+            placeholder={progress < minProgress ? "Vui lòng nhập lý do cụ thể vì sao tiến độ công việc bị giảm..." : "Mô tả công việc đã làm được hôm nay, số lượng nhân công huy động, các khó khăn gặp phải nếu có..."}
             {...register('content')}
             rows={4}
             error={!!errors.content}

@@ -1,15 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import { projectService } from '../services/projectService';
 import { USE_MOCK_API } from '../services/api';
-import type { DailyLog, WBSTask } from '../types/common';
-import { 
-  Clock, 
-  Send, 
-  MessageSquare, 
-  Eye, 
-  Search, 
-  CheckCircle, 
+import type { DailyLog, WBSTask, DailyLogComment } from '../types/common';
+import {
+  Clock,
+  Send,
+  MessageSquare,
+  Eye,
+  Search,
+  CheckCircle,
   Plus,
   Edit2,
   Trash2,
@@ -28,13 +29,14 @@ interface DailyLogFeedProps {
 
 export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId }) => {
   const { user } = useAuth();
+  const { connection } = useNotification();
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   // Modal states for creating/editing Daily Logs
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editLog, setEditLog] = useState<DailyLog | undefined>(undefined);
@@ -103,6 +105,149 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     loadData();
   }, [projectId]);
 
+  // Real-time synchronization using SignalR group for project
+  useEffect(() => {
+    if (USE_MOCK_API || !connection) return;
+
+    const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+    const numericProjectId = Number(parsedProjectId);
+    if (isNaN(numericProjectId)) return;
+
+    // Join Project group
+    connection.invoke('JoinProjectGroup', numericProjectId)
+      .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
+      .catch(err => console.error('Error joining Project Group:', err));
+
+    // Map helpers
+    const mapRawComment = (c: any): DailyLogComment => ({
+      id: c.commentId.toString(),
+      userId: c.authorId.toString(),
+      userName: c.authorName,
+      role: c.authorRole,
+      content: c.content,
+      date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+    });
+
+    const mapRawDailyLog = (l: any): DailyLog => ({
+      id: l.logId.toString(),
+      projectId: projectId,
+      taskId: l.taskId.toString(),
+      taskName: l.taskName,
+      engineerId: l.createdBy.toString(),
+      engineerName: l.creatorName,
+      progressFrom: l.oldProgressPercent,
+      progressTo: l.newProgressPercent,
+      date: l.createdAt ? l.createdAt.slice(0, 16).replace('T', ' ') : l.logDate,
+      content: l.description,
+      weather: '',
+      images: l.images || [],
+      comments: (l.comments || []).map(mapRawComment)
+    });
+
+    // Event handlers
+    const handleDailyLogCreated = (rawLog: any) => {
+      console.log('SignalR: DailyLogCreated', rawLog);
+      const mapped = mapRawDailyLog(rawLog);
+
+      // Update logs list
+      setLogs(prev => {
+        if (prev.some(l => l.id === mapped.id)) return prev;
+
+        const matchesTaskFilter = !taskId || mapped.taskId === taskId || mapped.taskId.replace(/^t-/, '') === taskId.replace(/^t-/, '');
+        if (!matchesTaskFilter) return prev;
+
+        return [mapped, ...prev];
+      });
+
+      // Update tasks list to reflect immediate progress change
+      setTasks(prevTasks => prevTasks.map(t => {
+        const matchesId = t.id === mapped.taskId || t.id.replace(/^t-/, '') === mapped.taskId.replace(/^t-/, '');
+        if (matchesId) {
+          return {
+            ...t,
+            progress: mapped.progressTo
+          };
+        }
+        return t;
+      }));
+
+      // Reload tasks list in background to sync parent tasks averages properly
+      projectService.getTasks(projectId)
+        .then(tasksData => setTasks(tasksData.filter(t => t.status !== 'obsolete')))
+        .catch(err => console.error('Error reloading tasks list in background:', err));
+    };
+
+    const handleDailyLogUpdated = (rawLog: any) => {
+      console.log('SignalR: DailyLogUpdated', rawLog);
+      const mapped = mapRawDailyLog(rawLog);
+      setLogs(prev => prev.map(l => l.id === mapped.id ? {
+        ...mapped,
+        comments: mapped.comments && mapped.comments.length > 0 ? mapped.comments : l.comments
+      } : l));
+    };
+
+    const handleCommentAdded = (rawComment: any) => {
+      console.log('SignalR: CommentAdded', rawComment);
+      const mapped = mapRawComment(rawComment);
+      const logIdStr = rawComment.logId.toString();
+      setLogs(prev => prev.map(l => {
+        if (l.id !== logIdStr) return l;
+        if (l.comments.some(c => c.id === mapped.id)) return l;
+        return {
+          ...l,
+          comments: [...l.comments, mapped]
+        };
+      }));
+    };
+
+    const handleCommentUpdated = (rawComment: any) => {
+      console.log('SignalR: CommentUpdated', rawComment);
+      const mapped = mapRawComment(rawComment);
+      const logIdStr = rawComment.logId.toString();
+      setLogs(prev => prev.map(l => {
+        if (l.id !== logIdStr) return l;
+        return {
+          ...l,
+          comments: l.comments.map(c => c.id === mapped.id ? mapped : c)
+        };
+      }));
+    };
+
+    const handleCommentDeleted = (payload: { commentId: number, logId: number }) => {
+      console.log('SignalR: CommentDeleted', payload);
+      const commentIdStr = payload.commentId.toString();
+      const logIdStr = payload.logId.toString();
+      setLogs(prev => prev.map(l => {
+        if (l.id !== logIdStr) return l;
+        return {
+          ...l,
+          comments: l.comments.filter(c => c.id !== commentIdStr)
+        };
+      }));
+    };
+
+    // Register listeners
+    connection.on('ReceiveDailyLogCreated', handleDailyLogCreated);
+    connection.on('ReceiveDailyLogUpdated', handleDailyLogUpdated);
+    connection.on('ReceiveCommentAdded', handleCommentAdded);
+    connection.on('ReceiveCommentUpdated', handleCommentUpdated);
+    connection.on('ReceiveCommentDeleted', handleCommentDeleted);
+
+    return () => {
+      // Unsubscribe
+      connection.off('ReceiveDailyLogCreated', handleDailyLogCreated);
+      connection.off('ReceiveDailyLogUpdated', handleDailyLogUpdated);
+      connection.off('ReceiveCommentAdded', handleCommentAdded);
+      connection.off('ReceiveCommentUpdated', handleCommentUpdated);
+      connection.off('ReceiveCommentDeleted', handleCommentDeleted);
+
+      // Leave Project group
+      connection.invoke('LeaveProjectGroup', numericProjectId)
+        .then(() => console.log(`Left SignalR project group: Project_${numericProjectId}`))
+        .catch(err => console.error('Error leaving Project Group:', err));
+    };
+  }, [connection, projectId, taskId]);
+
   const reloadLogs = async () => {
     // After a mutation (comment add/edit/delete or log edit), reload the current
     // visible window by fetching pages 1..currentPage so we don't lose items the
@@ -132,7 +277,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const handleCommentSubmit = async (e: React.FormEvent, logId: string) => {
     e.preventDefault();
     if (!user) return;
-    
+
     const content = commentInputs[logId]?.trim();
     if (!content) return;
 
@@ -145,7 +290,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
       // Clear input
       setCommentInputs(prev => ({ ...prev, [logId]: '' }));
-      
+
       // Reload to show updated comments
       await reloadLogs();
     } catch (err: any) {
@@ -161,7 +306,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     try {
       await projectService.updateLogComment(commentId, content);
       setEditingCommentId(null);
-      
+
       // Reload comments
       await reloadLogs();
     } catch (err: any) {
@@ -257,9 +402,9 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     return logs.filter(log => {
       // 1. Search Query (check content, engineerName, taskName)
       const q = searchQuery.trim().toLowerCase();
-      const matchesSearch = !q || 
-        log.content.toLowerCase().includes(q) || 
-        log.taskName.toLowerCase().includes(q) || 
+      const matchesSearch = !q ||
+        log.content.toLowerCase().includes(q) ||
+        log.taskName.toLowerCase().includes(q) ||
         log.engineerName.toLowerCase().includes(q);
 
       // 2. Task filter
@@ -321,7 +466,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const formatDateLabel = (dateStr: string) => {
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    
+
     if (dateStr === today) {
       return 'Hôm nay, ' + dateStr;
     } else if (dateStr === yesterday) {
@@ -334,7 +479,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
   return (
     <div className="flex flex-col gap-6 max-w-[800px] mx-auto pb-10">
-      
+
       {/* Title & Header */}
       <div className="border-b border-[hsl(var(--border))] pb-3 flex justify-between items-center flex-wrap gap-3">
         <div>
@@ -363,7 +508,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       {/* 2. FILTER & SEARCH BAR */}
       <div className="card p-4 sm:p-5 flex flex-col gap-3 bg-[hsl(var(--bg-card))]">
         <div className="flex gap-3 flex-wrap items-center">
-          
+
           {/* Text Search */}
           <div className="flex-[2] min-w-[200px] relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
@@ -455,14 +600,14 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
         </div>
       ) : (
         <div className="timeline-container">
-          
+
           {/* Vertical Track Line */}
           <div className="timeline-track" />
 
           {/* Grouped Logs by Date */}
           {groupedLogs.map((group) => (
             <div key={group.date}>
-              
+
               {/* Date Header */}
               <div className="timeline-date-header">
                 <Clock size={14} />
@@ -473,7 +618,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
               {group.items.map((log) => {
                 const isIncident = log.progressTo < log.progressFrom;
                 const delta = log.progressTo - log.progressFrom;
-                
+
                 // Determine node color type
                 let nodeClass = "timeline-node-info";
                 if (isIncident) {
@@ -486,15 +631,15 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
                 return (
                   <div key={log.id} className="timeline-item animate-fade-in">
-                    
+
                     {/* Circle Node on Timeline Track */}
                     <div className={`timeline-node ${nodeClass}`} />
 
                     {/* Main Log Card */}
-                    <div 
-                      className="card flex flex-col gap-3.5 bg-[hsl(var(--bg-card))]" 
-                      style={{ 
-                        padding: '20px', 
+                    <div
+                      className="card flex flex-col gap-3.5 bg-[hsl(var(--bg-card))]"
+                      style={{
+                        padding: '20px',
                         border: isIncident ? '1.5px solid hsl(var(--danger) / 0.3)' : '1px solid hsl(var(--border))',
                         boxShadow: isIncident ? '0 4px 12px hsl(var(--danger-glow))' : 'var(--shadow-sm)'
                       }}
@@ -546,7 +691,6 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                       {/* Task Info Row */}
                       <div className={`bg-[hsl(var(--bg-main))] px-3 py-2 rounded-sm text-sm font-medium flex items-center justify-between border-l-4 ${isIncident ? 'border-[hsl(var(--danger))]' : 'border-[hsl(var(--primary))]'}`}>
                         <span>Công việc: <strong className="text-[hsl(var(--text-primary))]">{log.taskName}</strong></span>
-                        {isIncident && <Badge variant="danger" className="text-[0.6rem] py-0.5 h-auto">Báo cáo sự cố</Badge>}
                       </div>
 
                       {/* Content Text */}
@@ -554,38 +698,18 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                         {log.content}
                       </p>
 
-                      {/* 3. PROGRESS DELTA VISUAL BAR */}
-                      <div className="progress-delta-container">
-                        <span className="text-[0.7rem] text-[hsl(var(--text-secondary))] font-semibold">Biểu đồ thay đổi công việc</span>
-                        <div className="progress-delta-bar">
-                          {/* Base Progress */}
-                          <div 
-                            className="progress-delta-fill-base"
-                            style={{ width: `${Math.min(log.progressFrom, log.progressTo)}%` }}
-                          />
-                          {/* Dynamic Delta portion */}
-                          <div 
-                            className={isIncident ? "progress-delta-fill-decrease" : "progress-delta-fill-increase"}
-                            style={{ 
-                              left: `${Math.min(log.progressFrom, log.progressTo)}%`,
-                              width: `${Math.abs(delta)}%`
-                            }}
-                          />
-                        </div>
-                      </div>
-
                       {/* Images Grid */}
                       {log.images && log.images.length > 0 && (
                         <div className={`grid gap-2 mt-1 ${log.images.length === 1 ? 'grid-cols-1' : log.images.length === 2 ? 'grid-cols-2' : 'grid-cols-[repeat(auto-fit,_minmax(140px,_1fr))]'}`}>
                           {log.images.map((img, index) => (
-                            <div 
-                              key={index} 
+                            <div
+                              key={index}
                               className={`rounded-md overflow-hidden relative border border-[hsl(var(--border))] cursor-zoom-in group ${log.images?.length === 1 ? 'h-[240px]' : 'h-[120px]'}`}
                               onClick={() => setZoomImage(img)}
                             >
-                              <img 
-                                src={img} 
-                                alt={`Hiện trường ${index + 1}`} 
+                              <img
+                                src={img}
+                                alt={`Hiện trường ${index + 1}`}
                                 className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                               />
                               <div className="absolute bottom-1.5 right-1.5 bg-black/50 text-white p-1 rounded-full flex items-center justify-center">
@@ -607,7 +731,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                             {log.comments?.map((comm) => {
                               const isManager = comm.role === 'technicalmanager' || comm.role === 'director';
                               const isAcknowledged = acknowledgedComments.includes(comm.id);
-                              
+
                               let commentClass = "";
                               if (isManager) {
                                 commentClass = "comment-highlight-manager";
@@ -619,14 +743,14 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                               const canEditComment = comm.userId === user?.id || user?.role === 'technicalmanager' || user?.role === 'admin';
 
                               return (
-                                <div 
-                                  key={comm.id} 
+                                <div
+                                  key={comm.id}
                                   className={`flex gap-2.5 px-3 py-2 bg-[hsl(var(--bg-main)/0.4)] rounded-sm text-[0.825rem] border border-[hsl(var(--border)/0.5)] transition-all duration-200 ${commentClass}`}
                                 >
                                   <div className={`w-[26px] h-[26px] rounded-full flex items-center justify-center font-bold text-[0.75rem] shrink-0 ${isManager ? 'bg-[hsl(var(--warning-glow))] text-[hsl(var(--warning))]' : 'bg-[hsl(var(--border))] text-[hsl(var(--text-primary))]'}`}>
                                     {comm.userName.charAt(0)}
                                   </div>
-                                  
+
                                   <div className="flex flex-col gap-0.5 flex-1">
                                     <div className="flex justify-between flex-wrap items-center">
                                       <span>
@@ -635,7 +759,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                                           {getRoleLabel(comm.role)}
                                         </Badge>
                                       </span>
-                                      
+
                                       <div className="flex items-center gap-2">
                                         <span className="text-[0.65rem] text-[hsl(var(--text-muted))]">{comm.date}</span>
                                         {canEditComment && editingCommentId !== comm.id && (
@@ -663,8 +787,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                                     </div>
 
                                     {editingCommentId === comm.id ? (
-                                      <form 
-                                        onSubmit={(e) => handleCommentUpdateSubmit(e, comm.id)} 
+                                      <form
+                                        onSubmit={(e) => handleCommentUpdateSubmit(e, comm.id)}
                                         className="flex gap-2 mt-1.5 w-full"
                                       >
                                         <Input
@@ -719,8 +843,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                               className="h-9 text-xs flex-1"
                               required
                             />
-                            <Button 
-                              type="submit" 
+                            <Button
+                              type="submit"
                               variant="primary"
                               className="w-9 h-9 p-0 rounded-sm shrink-0 flex items-center justify-center"
                             >
@@ -789,9 +913,9 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       <Modal isOpen={!!zoomImage} onClose={() => setZoomImage(null)} title="Ảnh hiện trường thực tế">
         <div className="flex justify-center items-center overflow-hidden">
           {zoomImage && (
-            <img 
-              src={zoomImage} 
-              alt="Zoomed" 
+            <img
+              src={zoomImage}
+              alt="Zoomed"
               className="max-w-full max-h-[75vh] object-contain rounded-md"
             />
           )}

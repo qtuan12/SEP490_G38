@@ -53,22 +53,29 @@ namespace BPG.Api.Controllers
                 return ApiBadRequest("Danh sách tệp tải lên rỗng.");
             }
 
-            var uploadResponses = new List<UploadFileResponse>();
+            async Task<UploadFileResponse> UploadAndMapAsync(IFormFile file)
+            {
+                var fileUrl = await _fileStorageService.UploadFileAsync(file, folder ?? "general");
+                return new UploadFileResponse
+                {
+                    FileName = file.FileName,
+                    FileUrl = fileUrl,
+                    ContentType = file.ContentType,
+                    FileSizeBytes = file.Length
+                };
+            }
 
+            var uploadTasks = new List<Task<UploadFileResponse>>();
             foreach (var file in files)
             {
                 if (file.Length > 0)
                 {
-                    var fileUrl = await _fileStorageService.UploadFileAsync(file, folder ?? "general");
-                    uploadResponses.Add(new UploadFileResponse
-                    {
-                        FileName = file.FileName,
-                        FileUrl = fileUrl,
-                        ContentType = file.ContentType,
-                        FileSizeBytes = file.Length
-                    });
+                    uploadTasks.Add(UploadAndMapAsync(file));
                 }
             }
+
+            var results = await Task.WhenAll(uploadTasks);
+            var uploadResponses = new List<UploadFileResponse>(results);
 
             return ApiOk(uploadResponses, "Tải lên các tệp thành công.");
         }
