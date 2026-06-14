@@ -24,6 +24,7 @@ interface DailyLogFormModalProps {
   taskId?: string;
   tasks?: WBSTask[];
   phases?: WBSPhase[];
+  selectedPhaseId?: string;
   editLog?: DailyLog;
   engineerId: string;
   engineerName: string;
@@ -38,6 +39,7 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
   taskId,
   tasks = [],
   phases = [],
+  selectedPhaseId = '',
   editLog,
   engineerId,
   engineerName,
@@ -56,17 +58,44 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
   // File dragging state
   const [dragging, setDragging] = useState(false);
   // Track selected task when in feed mode
-  const [selectedTaskId, setSelectedTaskId] = useState<string>(() => {
-    if (task) return task.id;
-    if (taskId && !taskId.startsWith('phase-')) return taskId;
-    
-    // Default to the first leaf task if no task is preselected
-    const parentTaskIds = new Set(
+  // Identify parent tasks to only show leaf tasks
+  const parentTaskIds = React.useMemo(() => {
+    return new Set(
       tasks
         .map(t => t.parentTaskId)
         .filter((id): id is string => !!id)
         .map(id => id.replace(/^t-/, ''))
     );
+  }, [tasks]);
+
+  // Track selected Phase inside the modal (only used when no task is preselected)
+  const [modalSelectedPhaseId, setModalSelectedPhaseId] = useState<string>(() => {
+    if (task) return task.phaseId;
+    if (taskId && !taskId.startsWith('phase-')) {
+      const found = tasks.find(t => String(t.id).replace(/^t-/, '') === String(taskId).replace(/^t-/, ''));
+      if (found) return found.phaseId;
+    }
+    if (selectedPhaseId) return selectedPhaseId;
+    if (phases && phases.length > 0) return phases[0].id;
+    return '';
+  });
+
+  // Track selected Task inside the modal
+  const [selectedTaskId, setSelectedTaskId] = useState<string>(() => {
+    if (task) return task.id;
+    if (taskId && !taskId.startsWith('phase-')) return taskId;
+    
+    // Default to the first leaf task of the current phase
+    const initialPhaseId = selectedPhaseId || (phases && phases.length > 0 ? phases[0].id : '');
+    if (initialPhaseId) {
+      const phaseLeafTasks = tasks.filter(t => 
+        (t.phaseId === initialPhaseId || t.phaseId.replace(/^p-/, '') === initialPhaseId.replace(/^p-/, '')) &&
+        !parentTaskIds.has(t.id.replace(/^t-/, ''))
+      );
+      if (phaseLeafTasks.length > 0) return phaseLeafTasks[0].id;
+    }
+
+    // Overall fallback
     const leafTasks = tasks.filter(t => !parentTaskIds.has(t.id.replace(/^t-/, '')));
     if (leafTasks.length > 0) return leafTasks[0].id;
     if (tasks && tasks.length > 0) return tasks[0].id;
@@ -88,54 +117,40 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
 
   const isTaskPreselected = !!task || (!!taskId && !taskId.startsWith('phase-'));
 
-  const modalTaskOptions = React.useMemo(() => {
-    const options: { label: string; value: string; disabled?: boolean }[] = [];
-
-    // 1. Identify parent tasks
-    const parentTaskIds = new Set(
-      tasks
-        .map(t => t.parentTaskId)
-        .filter((id): id is string => !!id)
-        .map(id => id.replace(/^t-/, ''))
-    );
-
-    // 2. Group leaf tasks by phase
-    if (phases && phases.length > 0) {
-      phases.forEach(phase => {
-        const phaseTasks = tasks.filter(t => 
-          (t.phaseId === phase.id || t.phaseId.replace(/^p-/, '') === phase.id.replace(/^p-/, '')) &&
+  // When user changes Phase in the modal, auto-select the first leaf task of that phase
+  useEffect(() => {
+    if (!isEditMode && !task && !taskId) {
+      if (modalSelectedPhaseId) {
+        const phaseLeafTasks = tasks.filter(t => 
+          (t.phaseId === modalSelectedPhaseId || t.phaseId.replace(/^p-/, '') === modalSelectedPhaseId.replace(/^p-/, '')) &&
           !parentTaskIds.has(t.id.replace(/^t-/, ''))
         );
-
-        if (phaseTasks.length > 0) {
-          // Add phase header as disabled option
-          options.push({
-            label: `📁 Giai đoạn: ${phase.name}`,
-            value: `phase-header-${phase.id}`,
-            disabled: true
-          });
-
-          phaseTasks.forEach(t => {
-            options.push({
-              label: `    ↳ ${t.name}`,
-              value: t.id
-            });
-          });
+        if (phaseLeafTasks.length > 0) {
+          setSelectedTaskId(phaseLeafTasks[0].id);
+        } else {
+          setSelectedTaskId('');
         }
-      });
-    } else {
-      // Fallback: list all leaf tasks directly
-      const leafTasks = tasks.filter(t => !parentTaskIds.has(t.id.replace(/^t-/, '')));
-      leafTasks.forEach(t => {
-        options.push({
-          label: t.name,
-          value: t.id
-        });
-      });
+      }
     }
+  }, [modalSelectedPhaseId, tasks, parentTaskIds, isEditMode, task, taskId]);
 
-    return options;
-  }, [tasks, phases]);
+  const modalPhaseOptions = React.useMemo(() => {
+    return phases.map(phase => ({
+      label: phase.name,
+      value: phase.id
+    }));
+  }, [phases]);
+
+  const modalTaskOptions = React.useMemo(() => {
+    const phaseTasks = tasks.filter(t => 
+      (t.phaseId === modalSelectedPhaseId || t.phaseId.replace(/^p-/, '') === modalSelectedPhaseId.replace(/^p-/, '')) &&
+      !parentTaskIds.has(t.id.replace(/^t-/, ''))
+    );
+    return phaseTasks.map(t => ({
+      label: t.name,
+      value: t.id
+    }));
+  }, [tasks, modalSelectedPhaseId, parentTaskIds]);
 
   const schema = React.useMemo(() => {
     const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
@@ -190,6 +205,18 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
         });
       } else {
         setExistingImages([]);
+        // Set the active phase on open
+        if (task) {
+          setModalSelectedPhaseId(task.phaseId);
+        } else if (taskId && !taskId.startsWith('phase-')) {
+          const found = tasks.find(t => String(t.id).replace(/^t-/, '') === String(taskId).replace(/^t-/, ''));
+          if (found) setModalSelectedPhaseId(found.phaseId);
+        } else if (selectedPhaseId) {
+          setModalSelectedPhaseId(selectedPhaseId);
+        } else if (phases && phases.length > 0) {
+          setModalSelectedPhaseId(phases[0].id);
+        }
+
         if (currentTask) {
           setSelectedTaskId(currentTask.id);
           reset({
@@ -379,16 +406,29 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
             <span>Báo cáo cho việc: <strong>{currentTask.name}</strong></span>
           </div>
         ) : !isTaskPreselected ? (
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-600">
-              Công việc thi công <span className="text-red-500">*</span>
-            </label>
-            <Select
-              value={selectedTaskId}
-              onChange={(e) => setSelectedTaskId(e.target.value)}
-              className="h-[38px] text-[0.85rem]"
-              options={modalTaskOptions}
-            />
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-slate-600">
+                Giai đoạn thi công <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={modalSelectedPhaseId}
+                onChange={(e) => setModalSelectedPhaseId(e.target.value)}
+                className="h-[38px] text-[0.85rem]"
+                options={modalPhaseOptions}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-slate-600">
+                Công việc thi công <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={selectedTaskId}
+                onChange={(e) => setSelectedTaskId(e.target.value)}
+                className="h-[38px] text-[0.85rem]"
+                options={modalTaskOptions}
+              />
+            </div>
           </div>
         ) : null}
 

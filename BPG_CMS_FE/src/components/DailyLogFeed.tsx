@@ -48,7 +48,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTaskId, setSelectedTaskId] = useState(taskId || '');
+  const [selectedPhaseId, setSelectedPhaseId] = useState('');
   const [selectedEngineerId, setSelectedEngineerId] = useState('');
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
@@ -336,31 +336,39 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     localStorage.setItem('bpg_acknowledged_comments', JSON.stringify(updated));
   };
 
-  // Find the currently selected task object for filters
-  const currentFilteredTask = React.useMemo(() => {
-    const targetId = taskId || selectedTaskId;
-    if (!targetId) return null;
-    return tasks.find(t => t.id === targetId || t.id.replace(/^t-/, '') === targetId.replace(/^t-/, ''));
-  }, [taskId, selectedTaskId, tasks]);
 
-  // Extract engineers assigned to the selected task
+
+  // Extract engineers assigned to the selected task or phase
   const assignedEngineers = React.useMemo(() => {
     const map = new Map<string, string>();
 
-    // 1. Gather from task assignments (exclude mock IDs starting with 'u-' if in real API mode)
-    if (currentFilteredTask) {
-      if (currentFilteredTask.assignedTo && currentFilteredTask.assignedName) {
-        const ids = currentFilteredTask.assignedTo.split(',').map(s => s.trim());
-        const names = currentFilteredTask.assignedName.split(',').map(s => s.trim());
+    // 1. Gather from task assignments
+    if (taskId) {
+      const targetTask = tasks.find(t => t.id === taskId || t.id.replace(/^t-/, '') === taskId.replace(/^t-/, ''));
+      if (targetTask && targetTask.assignedTo && targetTask.assignedName) {
+        const ids = targetTask.assignedTo.split(',').map(s => s.trim());
+        const names = targetTask.assignedName.split(',').map(s => s.trim());
         ids.forEach((id, idx) => {
           if (id && names[idx]) {
-            if (!USE_MOCK_API && id.startsWith('u-')) {
-              return;
-            }
+            if (!USE_MOCK_API && id.startsWith('u-')) return;
             map.set(id, names[idx]);
           }
         });
       }
+    } else if (selectedPhaseId) {
+      const phaseTasks = tasks.filter(t => t.phaseId === selectedPhaseId || t.phaseId.replace(/^p-/, '') === selectedPhaseId.replace(/^p-/, ''));
+      phaseTasks.forEach(t => {
+        if (t.assignedTo && t.assignedName) {
+          const ids = t.assignedTo.split(',').map(s => s.trim());
+          const names = t.assignedName.split(',').map(s => s.trim());
+          ids.forEach((id, idx) => {
+            if (id && names[idx]) {
+              if (!USE_MOCK_API && id.startsWith('u-')) return;
+              map.set(id, names[idx]);
+            }
+          });
+        }
+      });
     } else {
       tasks.forEach(t => {
         if (t.assignedTo && t.assignedName) {
@@ -368,9 +376,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           const names = t.assignedName.split(',').map(s => s.trim());
           ids.forEach((id, idx) => {
             if (id && names[idx]) {
-              if (!USE_MOCK_API && id.startsWith('u-')) {
-                return;
-              }
+              if (!USE_MOCK_API && id.startsWith('u-')) return;
               map.set(id, names[idx]);
             }
           });
@@ -378,59 +384,37 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       });
     }
 
-    // 2. Gather from actual authors of daily logs (crucial for real API mode where tasks have mock assignments)
+    // 2. Gather from actual authors of daily logs
     logs.forEach(log => {
-      const targetTaskId = taskId || selectedTaskId;
-      const matchesTask = !targetTaskId || log.taskId === targetTaskId || log.taskId.replace(/^t-/, '') === targetTaskId.replace(/^t-/, '');
-      if (matchesTask && log.engineerId && log.engineerName) {
+      let matchesTaskOrPhase = true;
+      if (taskId) {
+        matchesTaskOrPhase = log.taskId === taskId || log.taskId.replace(/^t-/, '') === taskId.replace(/^t-/, '');
+      } else if (selectedPhaseId) {
+        const logTask = tasks.find(t => t.id === log.taskId || t.id.replace(/^t-/, '') === log.taskId.replace(/^t-/, ''));
+        matchesTaskOrPhase = !!logTask && (logTask.phaseId === selectedPhaseId || logTask.phaseId.replace(/^p-/, '') === selectedPhaseId.replace(/^p-/, ''));
+      }
+      if (matchesTaskOrPhase && log.engineerId && log.engineerName) {
         map.set(log.engineerId, log.engineerName);
       }
     });
 
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [currentFilteredTask, tasks, logs, selectedTaskId, taskId]);
+  }, [tasks, logs, selectedPhaseId, taskId]);
 
-  const taskOptions = React.useMemo(() => {
+  const phaseOptions = React.useMemo(() => {
     const options: { label: string; value: string }[] = [
-      { label: 'Tất cả Công việc', value: '' }
+      { label: 'Tất cả Giai đoạn', value: '' }
     ];
-
-    // 1. Xác định các parentTask để lọc ra chỉ giữ các task con (leaf tasks)
-    const parentTaskIds = new Set(
-      tasks
-        .map(t => t.parentTaskId)
-        .filter((id): id is string => !!id)
-        .map(id => id.replace(/^t-/, ''))
-    );
-
-    // 2. Nhóm các task con theo từng Phase
     phases.forEach(phase => {
-      const phaseTasks = tasks.filter(t => 
-        (t.phaseId === phase.id || t.phaseId.replace(/^p-/, '') === phase.id.replace(/^p-/, '')) &&
-        !parentTaskIds.has(t.id.replace(/^t-/, ''))
-      );
-
-      if (phaseTasks.length > 0) {
-        // Thêm option tiêu đề Phase
-        options.push({
-          label: `📁 Giai đoạn: ${phase.name}`,
-          value: `phase-${phase.id}`
-        });
-
-        // Thêm các task con của phase đó thụt lề vào trong
-        phaseTasks.forEach(t => {
-          options.push({
-            label: `    ↳ ${t.name}`,
-            value: t.id
-          });
-        });
-      }
+      options.push({
+        label: phase.name,
+        value: phase.id
+      });
     });
-
     return options;
-  }, [tasks, phases]);
+  }, [phases]);
 
-  // Reset selected engineer if they are not in the assigned list of the newly selected task
+  // Reset selected engineer if they are not in the assigned list of the newly selected phase/task
   useEffect(() => {
     if (selectedEngineerId) {
       const isAssigned = assignedEngineers.some(e => e.id === selectedEngineerId);
@@ -438,7 +422,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
         setSelectedEngineerId('');
       }
     }
-  }, [selectedTaskId, taskId, assignedEngineers, selectedEngineerId]);
+  }, [selectedPhaseId, taskId, assignedEngineers, selectedEngineerId]);
 
   // Apply filters in memory
   const filteredLogs = React.useMemo(() => {
@@ -451,15 +435,12 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
         log.engineerName.toLowerCase().includes(q);
 
       // 2. Task / Phase filter
-      let matchesTask = true;
-      if (selectedTaskId) {
-        if (selectedTaskId.startsWith('phase-')) {
-          const targetPhaseId = selectedTaskId.replace(/^phase-/, '');
-          const logTask = tasks.find(t => t.id === log.taskId || t.id.replace(/^t-/, '') === log.taskId.replace(/^t-/, ''));
-          matchesTask = !!logTask && (logTask.phaseId === targetPhaseId || logTask.phaseId.replace(/^p-/, '') === targetPhaseId.replace(/^p-/, ''));
-        } else {
-          matchesTask = log.taskId === selectedTaskId || log.taskId.replace(/^t-/, '') === selectedTaskId.replace(/^t-/, '');
-        }
+      let matchesTaskOrPhase = true;
+      if (taskId) {
+        matchesTaskOrPhase = log.taskId === taskId || log.taskId.replace(/^t-/, '') === taskId.replace(/^t-/, '');
+      } else if (selectedPhaseId) {
+        const logTask = tasks.find(t => t.id === log.taskId || t.id.replace(/^t-/, '') === log.taskId.replace(/^t-/, ''));
+        matchesTaskOrPhase = !!logTask && (logTask.phaseId === selectedPhaseId || logTask.phaseId.replace(/^p-/, '') === selectedPhaseId.replace(/^p-/, ''));
       }
 
       // 3. Engineer filter
@@ -470,9 +451,9 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       const matchesStartDate = !startDateFilter || logDateOnly >= startDateFilter;
       const matchesEndDate = !endDateFilter || logDateOnly <= endDateFilter;
 
-      return matchesSearch && matchesTask && matchesEngineer && matchesStartDate && matchesEndDate;
+      return matchesSearch && matchesTaskOrPhase && matchesEngineer && matchesStartDate && matchesEndDate;
     });
-  }, [logs, searchQuery, selectedTaskId, selectedEngineerId, startDateFilter, endDateFilter, tasks]);
+  }, [logs, searchQuery, selectedPhaseId, selectedEngineerId, startDateFilter, endDateFilter, tasks, taskId]);
 
   // Group logs by date (YYYY-MM-DD)
   const groupedLogs = React.useMemo(() => {
@@ -573,14 +554,14 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
             />
           </div>
 
-          {/* Task Dropdown */}
+          {/* Phase Dropdown */}
           {!taskId && (
             <div className="flex-1 min-w-[150px]">
               <Select
-                value={selectedTaskId}
-                onChange={(e) => setSelectedTaskId(e.target.value)}
+                value={selectedPhaseId}
+                onChange={(e) => setSelectedPhaseId(e.target.value)}
                 className="h-[38px] text-[0.85rem]"
-                options={taskOptions}
+                options={phaseOptions}
               />
             </div>
           )}
@@ -978,7 +959,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           onClose={() => setIsModalOpen(false)}
           tasks={tasks}
           phases={phases}
-          taskId={taskId || selectedTaskId}
+          taskId={taskId}
+          selectedPhaseId={selectedPhaseId}
           editLog={editLog}
           engineerId={user.id}
           engineerName={user.name}
