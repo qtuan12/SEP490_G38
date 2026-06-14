@@ -202,3 +202,46 @@ export interface AcceptanceData {
   conclusion: string;
   acceptanceDate?: string;
 }
+
+export interface DashboardMetricsDto {
+  totalProjects: number;
+  activeProjects: number;
+  pausedProjects: number;
+  closedProjects: number;
+}
+
+export interface AttachmentDto {
+  attachmentId?: number;
+  attachmentType: string;
+  fileName: string;
+  fileUrl: string;
+  contentType?: string;
+  fileSizeBytes?: number;
+}
+
+export interface ProjectDto {
+  projectId: number;
+  name: string;
+  address?: string;
+  status: string;
+  plannedStart: string;
+  plannedEnd: string;
+  createdAt: string;
+}
+
+export interface ProjectMemberDto {
+  projectMemberId: number;
+  projectId: number;
+  userId: number;
+  fullName: string;
+  email: string;
+  role: string;
+  isLeader: boolean;
+  joinedAt: string;
+}
+
+export interface ProjectDetailDto extends ProjectDto {
+  members: ProjectMemberDto[];
+  attachments: AttachmentDto[];
+}
+

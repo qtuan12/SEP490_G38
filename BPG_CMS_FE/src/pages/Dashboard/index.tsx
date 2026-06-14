@@ -22,9 +22,19 @@ export const Dashboard: React.FC = () => {
   const [criticalAlerts, setCriticalAlerts] = useState<string[]>([]);
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
+  const [metrics, setMetrics] = useState<import('../../types/common').DashboardMetricsDto | null>(null);
 
   const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
   const isDirector = user?.role === 'director' || user?.role === 'admin';
+
+  const fetchMetrics = async () => {
+    try {
+      const data = await projectService.getDashboardMetrics();
+      setMetrics(data);
+    } catch (err) {
+      console.error('Error fetching metrics:', err);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -87,6 +97,7 @@ export const Dashboard: React.FC = () => {
     fetchUsers();
     fetchMaterialRequests();
     scanIncidents();
+    fetchMetrics();
   }, []);
 
   const handleVerifyRequestByAccountant = async (reqId: string) => {
@@ -144,9 +155,9 @@ export const Dashboard: React.FC = () => {
   const overBOQPendingCount = materialRequests.filter(r => r.isOverBOQ && (r.status === 'pending_accountant' || r.status === 'pending_director')).length;
 
   const stats = [
-    { title: 'Dự án đang chạy', value: '3', change: '+1 trong tháng', isPositive: true, icon: <Layers size={24} />, color: 'hsl(var(--primary))' },
+    { title: 'Dự án đang chạy', value: metrics ? metrics.activeProjects.toString() : '...', change: `Tổng số: ${metrics?.totalProjects || 0}`, isPositive: true, icon: <Layers size={24} />, color: 'hsl(var(--primary))' },
     { title: 'Yêu cầu Vật tư chờ duyệt', value: pendingRequestsCount.toString(), change: `${overBOQPendingCount} Vượt định mức`, isPositive: false, icon: <Boxes size={24} />, color: 'hsl(var(--danger))' },
-    { title: 'Nhật ký thi công hôm nay', value: '12', change: '100% đầy đủ ảnh', isPositive: true, icon: <ClipboardList size={24} />, color: 'hsl(var(--success))' },
+    { title: 'Dự án đã đóng / Tạm dừng', value: metrics ? (metrics.closedProjects + metrics.pausedProjects).toString() : '...', change: `${metrics?.closedProjects || 0} Đóng, ${metrics?.pausedProjects || 0} Tạm dừng`, isPositive: true, icon: <ClipboardList size={24} />, color: 'hsl(var(--success))' },
     { title: 'Tổng số nhân viên', value: userCount.toString(), change: 'Cập nhật thời gian thực', isPositive: true, icon: <Users size={24} />, color: 'hsl(var(--primary-hover))' },
   ];
 
