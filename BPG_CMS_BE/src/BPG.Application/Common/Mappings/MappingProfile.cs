@@ -61,6 +61,24 @@ namespace BPG.Application.Common.Mappings
 
             // Mapping cho Supplier
             CreateMap<Supplier, BPG.Application.DTOs.Suppliers.SupplierDto>().ReverseMap();
+
+            // Mapping cho Projects
+            CreateMap<Project, BPG.Application.Features.Projects.DTOs.ProjectDto>()
+                .ForMember(dest => dest.DrawingUrl, opt => opt.MapFrom(src => string.Empty))
+                .ForMember(dest => dest.Progress, opt => opt.MapFrom(src => 0));
+
+            CreateMap<Project, BPG.Application.Features.Projects.DTOs.ProjectDetailDto>()
+                .ForMember(dest => dest.DrawingUrl, opt => opt.MapFrom(src => string.Empty))
+                .ForMember(dest => dest.Progress, opt => opt.MapFrom(src => 0))
+                .ForMember(dest => dest.Members, opt => opt.MapFrom(src => src.Members));
+
+            CreateMap<ProjectMember, BPG.Application.Features.Projects.DTOs.ProjectMemberDto>()
+                .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.User != null ? src.User.FullName : string.Empty))
+                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.User != null ? src.User.Email : string.Empty))
+                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => 
+                    src.User != null && src.User.UserRoles != null && src.User.UserRoles.Any() && src.User.UserRoles.FirstOrDefault()!.Role != null
+                        ? src.User.UserRoles.FirstOrDefault()!.Role!.RoleName 
+                        : string.Empty));
         }
     }
 }

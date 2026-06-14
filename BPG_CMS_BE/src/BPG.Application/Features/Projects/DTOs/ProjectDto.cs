@@ -11,4 +11,6 @@ public class ProjectDto
     public string? PauseReason { get; set; }
     public DateTime? PausedAt { get; set; }
     public DateTime? ResumedAt { get; set; }
+    public string? DrawingUrl { get; set; }
+    public int Progress { get; set; }
 }
