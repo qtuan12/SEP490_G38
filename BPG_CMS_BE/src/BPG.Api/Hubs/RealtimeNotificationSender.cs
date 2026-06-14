@@ -25,5 +25,10 @@ namespace BPG.Api.Hubs
             // Gửi sự kiện ReceiveNotification đến tất cả clients đang kết nối
             await _hubContext.Clients.All.SendAsync("ReceiveNotification", notification, cancellationToken: ct);
         }
+
+        public async Task SendToGroupAsync(string groupName, string methodName, object arg, CancellationToken ct = default)
+        {
+            await _hubContext.Clients.Group(groupName).SendAsync(methodName, arg, cancellationToken: ct);
+        }
     }
 }

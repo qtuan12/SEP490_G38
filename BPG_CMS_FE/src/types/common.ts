@@ -178,6 +178,15 @@ export interface DailyLog {
   comments: DailyLogComment[];
 }
 
+export interface TaskProgressLog {
+  taskProgressLogId: number;
+  taskId: number;
+  oldProgress: number;
+  newProgress: number;
+  updateReason?: string;
+  updatedAt: string; // ISO datetime string
+}
+
 export interface AcceptanceData {
   representativeA: string;
   roleA: string;

@@ -13,6 +13,7 @@ interface NotificationContextType {
   fetchNotifications: (page?: number, size?: number) => Promise<void>;
   markAsRead: (notificationId: number) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  connection: HubConnection | null;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -23,8 +24,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [unreadCount, setUnreadCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [connection, setConnection] = useState<HubConnection | null>(null);
 
   const connectionRef = useRef<HubConnection | null>(null);
+  
+  // ... code cũ giữ nguyên (fetchNotifications, markAsRead, markAllAsRead)...
+
 
   // Lấy danh sách thông báo
   const fetchNotifications = useCallback(async (page: number = 1, size: number = 10) => {
@@ -114,6 +119,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       .then(() => {
         console.log('Đã kết nối SignalR Notification Hub thành công.');
         connectionRef.current = connection;
+        setConnection(connection);
       })
       .catch(err => {
         console.error('Lỗi kết nối SignalR Hub:', err);
@@ -122,6 +128,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => {
       connection.stop().then(() => {
         console.log('Đã ngắt kết nối SignalR Hub.');
+        setConnection(null);
       });
     };
   }, [isAuthenticated, token]);
@@ -136,6 +143,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         fetchNotifications,
         markAsRead,
         markAllAsRead,
+        connection,
       }}
     >
       {children}

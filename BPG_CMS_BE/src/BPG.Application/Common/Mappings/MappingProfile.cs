@@ -41,6 +41,23 @@ namespace BPG.Application.Common.Mappings
 
             // Mapping từ Notification entity sang NotificationDto
             CreateMap<Notification, BPG.Application.DTOs.Notifications.NotificationDto>();
+
+            // Mapping cho Daily Log và Comments
+            CreateMap<Comment, BPG.Application.DTOs.DailyLogs.CommentDto>()
+                .ForMember(dest => dest.AuthorName, opt => opt.MapFrom(src => src.Author != null ? src.Author.FullName : string.Empty))
+                .ForMember(dest => dest.AuthorRole, opt => opt.MapFrom(src =>
+                    src.Author != null && src.Author.UserRoles != null && src.Author.UserRoles.Any() && src.Author.UserRoles.FirstOrDefault()!.Role != null
+                        ? src.Author.UserRoles.FirstOrDefault()!.Role!.RoleName
+                        : string.Empty));
+
+            CreateMap<DailyLog, BPG.Application.DTOs.DailyLogs.DailyLogDto>()
+                .ForMember(dest => dest.TaskName, opt => opt.MapFrom(src => src.Task != null ? src.Task.Name : string.Empty))
+                .ForMember(dest => dest.CreatorName, opt => opt.MapFrom(src => src.Creator != null ? src.Creator.FullName : string.Empty))
+                .ForMember(dest => dest.Images, opt => opt.Ignore())
+                .ForMember(dest => dest.Comments, opt => opt.MapFrom(src => src.Comments));
+
+            // Mapping cho TaskProgressLog
+            CreateMap<TaskProgressLog, BPG.Application.DTOs.DailyLogs.TaskProgressLogDto>();
         }
     }
 }
