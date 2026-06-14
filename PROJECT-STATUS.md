@@ -1,6 +1,6 @@
 # 📊 BPG-CMS: PROJECT STATUS DASHBOARD
 
-**Cập nhật lần cuối:** 12-06-2026
+**Cập nhật lần cuối:** 14-06-2026
 **Quy ước:** ✅ Đã xong | 🚧 Đang code (Có khung nhưng chưa xong luồng) | ❌ Chưa làm | 📋 Mới tạo thư mục
 
 ## 1. Backend Modules (.NET 8)
@@ -9,6 +9,7 @@
 | **Core Base** | ✅ | ✅ | ✅ | BaseController, ExceptionMiddleware, Interceptor |
 | **Project & WBS** | ✅ | 🚧 | ❌ | Đang làm luồng Accept Phase |
 | **Material Catalog**| ✅ | ✅ | ✅ | |
+| **Supplier** | ✅ | ✅ | ✅ | CRUD Supplier (xóa mềm) theo đúng thiết kế |
 | **Procurement (MR, PO)** | ✅ | ❌ | ❌ | Luồng hold BOQ chưa làm |
 | **Inventory & GR** | ✅ | ❌ | ❌ | Bảng CurrentInventory và Ledger đã có |
 | **Surplus & Adjustment**| ✅ | ❌ | ❌ | |

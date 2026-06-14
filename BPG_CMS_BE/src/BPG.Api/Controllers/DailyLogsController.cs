@@ -98,20 +98,4 @@ namespace BPG.Api.Controllers
             return ApiOk(result, "Xóa bình luận thành công.");
         }
     }
-
-    public class AddCommentBody
-    {
-        public string Content { get; set; } = string.Empty;
-    }
-
-    public class UpdateCommentBody
-    {
-        public string Content { get; set; } = string.Empty;
-    }
-
-    public class UpdateDailyLogBody
-    {
-        public string Description { get; set; } = string.Empty;
-        public List<string> Images { get; set; } = new List<string>();
-    }
 }

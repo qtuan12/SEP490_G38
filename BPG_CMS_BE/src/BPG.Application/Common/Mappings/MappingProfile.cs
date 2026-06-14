@@ -58,6 +58,9 @@ namespace BPG.Application.Common.Mappings
 
             // Mapping cho TaskProgressLog
             CreateMap<TaskProgressLog, BPG.Application.DTOs.DailyLogs.TaskProgressLogDto>();
+
+            // Mapping cho Supplier
+            CreateMap<Supplier, BPG.Application.DTOs.Suppliers.SupplierDto>().ReverseMap();
         }
     }
 }
