@@ -1,7 +1,7 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/ui/Modal';
-import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Box, History, Package, FileText, ArrowLeft } from 'lucide-react';
+import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Box, History, Package, FileText, ArrowLeft, Smartphone } from 'lucide-react';
 import type {WBSTask, WBSPhase, Project, MaterialRequest} from '../../../types/common';
 
 interface TaskDetailModalProps {
@@ -243,9 +243,19 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </>
             )}
             {(user?.id === selectedTask.assignedTo || isTPKTOrPL) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete') && (
-              <button onClick={onLogOpen} className="btn btn-primary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }}>
-                <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
-              </button>
+              <>
+                <button onClick={onLogOpen} className="btn btn-primary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }}>
+                  <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
+                </button>
+                <button 
+                  onClick={() => { onClose(); navigate(`/tasks/${selectedTask.id}`); }} 
+                  className="btn btn-outline" 
+                  style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}
+                >
+                  <Smartphone size={15} />
+                  <span>Màn hình SE</span>
+                </button>
+              </>
             )}
           </div>
         ) : (
@@ -307,7 +317,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         </div>
 
         {/* History logs */}
-        <div onClick={() => navigate(`/projects/${project?.id}/logs`)} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', cursor: 'pointer' }} title="Nhấp để xem nhật ký thi công chi tiết">
+        <div onClick={() => navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`)} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', cursor: 'pointer' }} title="Nhấp để xem nhật ký thi công chi tiết">
           <h5 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
             <History size={13} />
             <span>Nhật ký thi công chi tiết (Click để xem) ({selectedTask.history?.length || 0})</span>

@@ -19,5 +19,10 @@ namespace BPG.Application.IServices
         /// <param name="notification">Đối tượng DTO thông báo</param>
         /// <param name="ct">CancellationToken</param>
         Task SendNotificationToAllAsync(object notification, CancellationToken ct = default);
+
+        /// <summary>
+        /// Gửi một sự kiện realtime kèm payload đến một nhóm SignalR cụ thể.
+        /// </summary>
+        Task SendToGroupAsync(string groupName, string methodName, object arg, CancellationToken ct = default);
     }
 }

@@ -1,9 +1,10 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import type {Project} from '../types/common';
 import { ProjectMembers } from '../components/ProjectMembers';
 import { WBSWorkspace } from './WBSWorkspace';
+import { DailyLogFeed } from '../components/DailyLogFeed';
 
 import { 
   ArrowLeft, 
@@ -15,7 +16,8 @@ import {
   AlertCircle,
   Play,
   Pause,
-  CheckCircle
+  CheckCircle,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -28,7 +30,7 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs'>('wbs');
+  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs'>('wbs');
   const [statusError, setStatusError] = useState<string | null>(null);
 
   const fetchProjectDetails = async () => {
@@ -230,28 +232,6 @@ export const ProjectLayoutHub: React.FC = () => {
         overflowX: 'auto'
       }}>
         <button
-          onClick={() => setActiveTab('members')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 18px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'members' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
-            color: activeTab === 'members' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-            fontWeight: activeTab === 'members' ? 600 : 500,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'all var(--transition-fast)'
-          }}
-        >
-          <Users size={18} />
-          <span>Thành viên dự án</span>
-        </button>
-
-        <button
           onClick={() => setActiveTab('wbs')}
           style={{
             display: 'flex',
@@ -273,6 +253,50 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Kế hoạch WBS</span>
         </button>
 
+        <button
+          onClick={() => setActiveTab('logs')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'logs' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'logs' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'logs' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <Clock size={18} />
+          <span>Nhật ký thi công</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('members')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'members' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'members' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'members' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <Users size={18} />
+          <span>Thành viên dự án</span>
+        </button>
+
       </div>
 
       {/* Tab Contents */}
@@ -282,6 +306,7 @@ export const ProjectLayoutHub: React.FC = () => {
       >
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
+        {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
       </div>
 
     </div>
