@@ -19,6 +19,14 @@ public class ProjectsController : BaseApiController
         return ApiOk(result);
     }
 
+    [HttpGet("dashboard/warnings")]
+    [Authorize(Roles = "Director, TechnicalManager")]
+    public async Task<IActionResult> GetDashboardWarnings()
+    {
+        var result = await Mediator.Send(new GetDashboardWarningsQuery());
+        return ApiOk(result);
+    }
+
     [HttpGet]
     [Authorize]
     public async Task<IActionResult> GetProjects([FromQuery] GetProjectsQuery query)
@@ -58,5 +66,55 @@ public class ProjectsController : BaseApiController
     {
         await Mediator.Send(new ActivateProjectCommand(id));
         return ApiOk("Kích hoạt dự án thành công.");
+    }
+
+    [HttpPut("{id}/pause")]
+    [Authorize(Roles = "TechnicalManager")]
+    public async Task<IActionResult> PauseProject(long id, [FromBody] PauseProjectCommand command)
+    {
+        if (id != command.ProjectId) return ApiBadRequest("Id trong URL và Body không khớp.");
+        await Mediator.Send(command);
+        return ApiOk("Tạm dừng dự án thành công.");
+    }
+
+    [HttpPut("{id}/resume")]
+    [Authorize(Roles = "TechnicalManager")]
+    public async Task<IActionResult> ResumeProject(long id)
+    {
+        await Mediator.Send(new ResumeProjectCommand { ProjectId = id });
+        return ApiOk("Tiếp tục dự án thành công.");
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "TechnicalManager")]
+    public async Task<IActionResult> DeleteProject(long id)
+    {
+        await Mediator.Send(new DeleteProjectCommand { ProjectId = id });
+        return ApiOk("Xóa dự án thành công.");
+    }
+
+    [HttpPost("{id}/members")]
+    [Authorize(Roles = "TechnicalManager")]
+    public async Task<IActionResult> AddProjectMember(long id, [FromBody] AddProjectMemberCommand command)
+    {
+        if (id != command.ProjectId) return ApiBadRequest("Id trong URL và Body không khớp.");
+        var result = await Mediator.Send(command);
+        return ApiOk(result, "Thêm thành viên thành công.");
+    }
+
+    [HttpDelete("{id}/members/{userId}")]
+    [Authorize(Roles = "TechnicalManager")]
+    public async Task<IActionResult> RemoveProjectMember(long id, long userId)
+    {
+        await Mediator.Send(new RemoveProjectMemberCommand { ProjectId = id, UserId = userId });
+        return ApiOk("Xóa thành viên thành công.");
+    }
+
+    [HttpPut("{id}/members/{userId}/leader")]
+    [Authorize(Roles = "TechnicalManager")]
+    public async Task<IActionResult> AssignProjectLeader(long id, long userId)
+    {
+        await Mediator.Send(new AssignProjectLeaderCommand { ProjectId = id, UserId = userId });
+        return ApiOk("Gán chức vụ Nhóm trưởng thành công.");
     }
 }

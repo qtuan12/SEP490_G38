@@ -32,6 +32,10 @@ export const ProjectList: React.FC = () => {
   // Form Drawer Modal state
   const [isOpen, setIsOpen] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
   const loadProjects = async () => {
     setLoading(true);
     setError(null);
@@ -49,6 +53,10 @@ export const ProjectList: React.FC = () => {
     loadProjects();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
   // Filter projects
   const filteredProjects = projects.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -56,6 +64,9 @@ export const ProjectList: React.FC = () => {
     const matchesStatus = statusFilter === '' || p.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+  const paginatedProjects = filteredProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getStatusLabel = (status: Project['status']) => {
     switch (status) {
@@ -152,7 +163,7 @@ export const ProjectList: React.FC = () => {
               <p className="text-sm mt-1.5">Vui lòng điều chỉnh bộ lọc hoặc tạo dự án mới.</p>
             </div>
           ) : (
-            filteredProjects.map((p) => (
+            paginatedProjects.map((p) => (
               <div 
                 key={p.id} 
                 className="card flex flex-col gap-4 cursor-pointer transition-all duration-200 animate-fade-in hover:-translate-y-1 hover:border-[hsl(var(--primary))] hover:shadow-lg"
@@ -205,6 +216,31 @@ export const ProjectList: React.FC = () => {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {!loading && totalPages > 1 && (
+        <div className="flex justify-center mt-6 gap-3">
+          <Button
+            variant="secondary"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            className="w-28 h-10"
+          >
+            Trang trước
+          </Button>
+          <div className="flex items-center px-4 font-semibold text-[hsl(var(--text-secondary))] bg-white rounded-md border border-[hsl(var(--border))]">
+            Trang {currentPage} / {totalPages}
+          </div>
+          <Button
+            variant="secondary"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            className="w-28 h-10"
+          >
+            Trang sau
+          </Button>
         </div>
       )}
 

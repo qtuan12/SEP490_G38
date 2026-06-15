@@ -76,16 +76,32 @@ export const projectService = {
   async getDashboardMetrics(): Promise<import('../types/common').DashboardMetricsDto> {
     if (!USE_MOCK_API) {
       const res = await apiClient.get<ApiResponse<import('../types/common').DashboardMetricsDto>>('/projects/metrics');
-      if (!res.success) throw new Error(res.message || 'Lỗi lấy metrics dự án');
-      return res.data;
+      if (res.success && res.data) return res.data;
     }
     const projects = await this.getProjects();
+    const activeProjects = projects.filter(p => p.status === 'active');
     return {
       totalProjects: projects.length,
-      activeProjects: projects.filter(p => p.status === 'active').length,
+      draftProjects: projects.filter(p => p.status === 'draft').length,
+      activeProjects: activeProjects.length,
       pausedProjects: projects.filter(p => p.status === 'paused').length,
-      closedProjects: projects.filter(p => p.status === 'done').length
+      completedProjects: projects.filter(p => p.status === 'done').length,
+      closedProjects: 0,
+      activeProjectsProgress: activeProjects.map(p => ({
+        projectId: parseInt(p.id.replace('p-', '')) || 0,
+        projectName: p.name,
+        address: p.address,
+        progress: p.progress
+      }))
     };
+  },
+
+  async getDashboardWarnings(): Promise<import('../types/common').DashboardWarningDto[]> {
+    if (!USE_MOCK_API) {
+      const res = await apiClient.get<ApiResponse<import('../types/common').DashboardWarningDto[]>>('/projects/dashboard/warnings');
+      if (res.success && res.data) return res.data;
+    }
+    return [];
   },
 
   async getProjects(): Promise<Project[]> {
@@ -262,12 +278,41 @@ export const projectService = {
 
   // MEMBERS MANAGEMENT
   async getMembers(projectId: string): Promise<ProjectMember[]> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.get<ApiResponse<import('../types/common').ProjectDetailDto>>(`/projects/${parsedId}`);
+      if (!res.success || !res.data) return [];
+      return (res.data.members || []).map(m => ({
+        projectId,
+        userId: m.userId.toString(),
+        userName: m.fullName || m.userName || '',
+        userEmail: m.email || m.userEmail || '',
+        userRole: m.role || '',
+        isLeader: m.isLeader
+      }));
+    }
     const normalizedProjectId = projectId.match(/^\d+$/) ? `p-${projectId}` : projectId;
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     return allMembers.filter(m => m.projectId === normalizedProjectId || m.projectId === projectId);
   },
 
   async addMember(projectId: string, user: { id: string; name: string; email: string; role: string }): Promise<ProjectMember> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.post<ApiResponse<any>>(`/projects/${parsedId}/members`, { 
+        projectId: parseInt(parsedId), 
+        userId: parseInt(user.id) 
+      });
+      if (!res.success) throw new Error(res.message || 'Thêm thành viên thất bại');
+      return {
+        projectId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        isLeader: false
+      };
+    }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
 
     if (allMembers.some(m => m.projectId === projectId && m.userId === user.id)) {
@@ -289,12 +334,24 @@ export const projectService = {
   },
 
   async removeMember(projectId: string, userId: string): Promise<void> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}`);
+      if (!res.success) throw new Error(res.message || 'Xóa thành viên thất bại');
+      return;
+    }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     const filtered = allMembers.filter(m => !(m.projectId === projectId && m.userId === userId));
     setStorage('bpg_project_members', filtered);
   },
 
   async toggleLeader(projectId: string, userId: string): Promise<ProjectMember[]> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}/leader`, {});
+      if (!res.success) throw new Error(res.message || 'Thay đổi quyền nhóm trưởng thất bại');
+      return this.getMembers(projectId);
+    }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     const updated = allMembers.map(m => {
       if (m.projectId === projectId && m.userId === userId) {

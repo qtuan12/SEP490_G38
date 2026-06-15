@@ -8,4 +8,5 @@ public class DashboardMetricsDto
     public int PausedProjects { get; set; }
     public int CompletedProjects { get; set; }
     public int ClosedProjects { get; set; }
+    public System.Collections.Generic.List<DashboardProjectProgressDto> ActiveProjectsProgress { get; set; } = new();
 }

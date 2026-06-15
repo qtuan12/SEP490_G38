@@ -79,6 +79,8 @@ namespace BPG.Application.Common.Mappings
                     src.User != null && src.User.UserRoles != null && src.User.UserRoles.Any() && src.User.UserRoles.FirstOrDefault()!.Role != null
                         ? src.User.UserRoles.FirstOrDefault()!.Role!.RoleName 
                         : string.Empty));
+
+            CreateMap<Attachment, BPG.Application.Features.Projects.DTOs.AttachmentDto>();
         }
     }
 }

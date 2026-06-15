@@ -203,11 +203,30 @@ export interface AcceptanceData {
   acceptanceDate?: string;
 }
 
+export interface DashboardProjectProgressDto {
+  projectId: number;
+  projectName: string;
+  address: string;
+  progress: number;
+}
+
 export interface DashboardMetricsDto {
   totalProjects: number;
+  draftProjects: number;
   activeProjects: number;
   pausedProjects: number;
+  completedProjects: number;
   closedProjects: number;
+  activeProjectsProgress: DashboardProjectProgressDto[];
+}
+
+export interface DashboardWarningDto {
+  projectId: number;
+  projectName: string;
+  taskId: number;
+  taskName: string;
+  warningType: 'Red' | 'Yellow' | 'Critical';
+  message: string;
 }
 
 export interface AttachmentDto {

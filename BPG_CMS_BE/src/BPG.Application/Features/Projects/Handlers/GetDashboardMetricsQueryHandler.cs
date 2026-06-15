@@ -25,6 +25,8 @@ public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetri
     {
         var projects = await _uow.Repository<Project>().Query()
             .AsNoTracking()
+            .Include(p => p.Phases)
+                .ThenInclude(ph => ph.Tasks)
             .ToListAsync(cancellationToken);
 
         var metrics = new DashboardMetricsDto
@@ -34,7 +36,20 @@ public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetri
             ActiveProjects = projects.Count(p => p.Status == ProjectStatus.Active),
             PausedProjects = projects.Count(p => p.Status == ProjectStatus.Paused),
             CompletedProjects = projects.Count(p => p.Status == ProjectStatus.Completed),
-            ClosedProjects = projects.Count(p => p.Status == ProjectStatus.Closed)
+            ClosedProjects = projects.Count(p => p.Status == ProjectStatus.Closed),
+            ActiveProjectsProgress = projects.Where(p => p.Status == ProjectStatus.Active)
+                .Select(p => 
+                {
+                    var allTasks = p.Phases?.SelectMany(ph => ph.Tasks).Where(t => t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList() ?? new List<BPG.Domain.Entities.ProjectTask>();
+                    int progress = allTasks.Any() ? (int)allTasks.Average(t => t.ProgressPercent) : 0;
+                    return new DashboardProjectProgressDto
+                    {
+                        ProjectId = p.ProjectId,
+                        ProjectName = p.Name,
+                        Address = p.Address ?? "",
+                        Progress = progress
+                    };
+                }).ToList()
         };
 
         return metrics;
