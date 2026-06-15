@@ -36,7 +36,8 @@ public class AddProjectMemberCommandHandler : IRequestHandler<AddProjectMemberCo
         if (user == null)
             throw new NotFoundException(nameof(User), request.UserId);
 
-        var existingMember = await _uow.Repository<ProjectMember>()
+        var existingMember = await _uow.Repository<ProjectMember>().Query()
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(m => m.ProjectId == request.ProjectId && m.UserId == request.UserId, cancellationToken);
 
         if (existingMember != null && !existingMember.IsDeleted)
