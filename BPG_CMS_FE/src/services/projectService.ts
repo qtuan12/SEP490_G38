@@ -10,66 +10,13 @@ interface ApiResponse<T> {
 export * from '../types/common';
 
 // Default initial data for simulation
-const DEFAULT_PROJECTS: Project[] = [
-  { id: 'p-1', name: 'Dự án Chung cư BPG - Biên Hòa', address: '12 Đường số 4, KCN Biên Hòa, Đồng Nai', startDate: '2026-05-01', endDate: '2026-12-30', status: 'active', drawingUrl: 'ban_ve_chung_cu_bpg_bien_hoa.pdf', progress: 45 },
-  { id: 'p-2', name: 'Dự án Cải tạo Văn phòng FPT', address: 'Lô E2a-7, Đường D1, KCNC, Quận 9, TP.HCM', startDate: '2026-05-10', endDate: '2026-08-15', status: 'active', drawingUrl: 'thiet_ke_cai_tao_fpt.png', progress: 20 },
-  { id: 'p-3', name: 'Dự án Biệt thự Nam Sài Gòn', address: 'Khu biệt thự Chateau, Phú Mỹ Hưng, Quận 7, TP.HCM', startDate: '2026-06-15', endDate: '2027-02-28', status: 'draft', drawingUrl: 'ban_ve_biet_thu_nam_sai_gon.pdf', progress: 0 },
-  { id: 'p-4', name: 'Dự án Cầu đường Nhơn Trạch', address: 'Huyện Nhơn Trạch, Tỉnh Đồng Nai', startDate: '2026-01-01', endDate: '2026-05-20', status: 'paused', drawingUrl: 'quy_hoach_cau_nhon_trach.jpg', progress: 90 },
-];
-
-const DEFAULT_MEMBERS: ProjectMember[] = [
-  { projectId: 'p-1', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userRole: 'siteengineer', isLeader: true },
-  { projectId: 'p-1', userId: 'u-6', userName: 'Nguyễn Văn Nam', userEmail: 'se1@bpg.com', userRole: 'siteengineer', isLeader: false },
-  { projectId: 'p-1', userId: 'u-7', userName: 'Phạm Minh Hải', userEmail: 'se2@bpg.com', userRole: 'siteengineer', isLeader: false },
-  { projectId: 'p-2', userId: 'u-3', userName: 'Trần Văn Công', userEmail: 'engineer@bpg.com', userRole: 'siteengineer', isLeader: false },
-];
-
-const DEFAULT_PHASES: WBSPhase[] = [
-  { id: 'ph-1', projectId: 'p-1', sortOrder: 1, name: 'Phase 1: Móng & Cột Trụ', status: 'frozen', acceptanceComment: 'Hoàn thành tốt, đạt yêu cầu kỹ thuật đổ bê tông móng cốt thép trục A-H.', acceptanceDate: '2026-05-28', deadline: '2026-05-30' },
-  { id: 'ph-2', projectId: 'p-1', sortOrder: 2, name: 'Phase 2: Thân chung cư (Tầng 1 - Tầng 5)', status: 'active', deadline: '2026-06-30' },
-  { id: 'ph-3', projectId: 'p-1', sortOrder: 3, name: 'Phase 3: Hoàn thiện & Điện nước', status: 'active', deadline: '2026-08-30' },
-  { id: 'ph-4', projectId: 'p-2', sortOrder: 1, name: 'Phase 1: Tháo dỡ & Đi dây cáp ngầm', status: 'active', deadline: '2026-06-20' },
-];
-
-const DEFAULT_TASKS: WBSTask[] = [
-  // Phase 1 (p-1) - all 100%
-  { id: 't-1', phaseId: 'ph-1', projectId: 'p-1', sortOrder: 1, name: 'Đào đất móng sâu 3m', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-05-15', progress: 100, history: [] },
-  { id: 't-2', phaseId: 'ph-1', projectId: 'p-1', sortOrder: 2, name: 'Gia công cốt thép móng vây', assignedTo: 'u-6', assignedName: 'Nguyễn Văn Nam', deadline: '2026-05-20', progress: 100, history: [] },
-  { id: 't-3', phaseId: 'ph-1', projectId: 'p-1', sortOrder: 3, name: 'Đổ bê tông lót móng M250', assignedTo: 'u-7', assignedName: 'Phạm Minh Hải', deadline: '2026-05-25', progress: 100, history: [] },
-  // Phase 2 (p-1)
-  { id: 't-4', phaseId: 'ph-2', projectId: 'p-1', sortOrder: 1, name: 'Lắp dựng cốp pha cột tầng 1', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-06-10', progress: 80, history: [] },
-  { id: 't-5', phaseId: 'ph-2', projectId: 'p-1', sortOrder: 2, name: 'Đổ bê tông cột tầng 1', assignedTo: 'u-6', assignedName: 'Nguyễn Văn Nam', deadline: '2026-06-15', progress: 40, history: [] },
-  { id: 't-6', phaseId: 'ph-2', projectId: 'p-1', sortOrder: 3, name: 'Lắp đặt cốt thép dầm sàn tầng 1', assignedTo: 'u-7', assignedName: 'Phạm Minh Hải', deadline: '2026-06-25', progress: 0, history: [] },
-  // Phase 3 (p-1)
-  { id: 't-7', phaseId: 'ph-3', projectId: 'p-1', sortOrder: 1, name: 'Xây tường bao quanh căn hộ', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-07-20', progress: 0, history: [] },
-  { id: 't-8', phaseId: 'ph-3', projectId: 'p-1', sortOrder: 2, name: 'Đi đường ống điện âm tường', assignedTo: 'u-6', assignedName: 'Nguyễn Văn Nam', deadline: '2026-07-30', progress: 0, history: [] },
-  // Phase 1 (p-2)
-  { id: 't-9', phaseId: 'ph-4', projectId: 'p-2', sortOrder: 1, name: 'Tháo dỡ vách thạch cao cũ', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-05-25', progress: 100, history: [] },
-  { id: 't-10', phaseId: 'ph-4', projectId: 'p-2', sortOrder: 2, name: 'Đi dây cáp mạng CAT6 âm trần', assignedTo: 'u-3', assignedName: 'Trần Văn Công', deadline: '2026-06-15', progress: 20, history: [] },
-];
-
+const DEFAULT_PROJECTS: Project[] = [];
+const DEFAULT_MEMBERS: ProjectMember[] = [];
+const DEFAULT_PHASES: WBSPhase[] = [];
+const DEFAULT_TASKS: WBSTask[] = [];
 const DEFAULT_LOGS: DailyLog[] = [];
-
 const DEFAULT_INCIDENTS: IncidentReport[] = [];
-
-const DEFAULT_MATERIAL_REQUESTS: MaterialRequest[] = [
-  {
-    id: 'mat-req-1',
-    projectId: 'p-1',
-    taskId: 't-rework-mock-1',
-    taskName: '[Rework] Khắc phục - Đổ bê tông cột tầng 1',
-    requesterName: 'Trần Văn Công',
-    items: [
-      { name: 'Xi măng Hải Vân M300', quantity: 20, unit: 'bao' },
-      { name: 'Thép Pomina Φ10', quantity: 5, unit: 'cây' }
-    ],
-    status: 'pending_accountant',
-    isOverBOQ: true,
-    type: 'normal',
-    reason: 'Bổ sung vật tư khắc phục sự cố sạt lở cột tầng 1.',
-    date: '2026-06-01 08:30'
-  }
-];
+const DEFAULT_MATERIAL_REQUESTS: MaterialRequest[] = [];
 
 // Helper functions for localStorage
 const getStorage = <T>(key: string, defaults: T[]): T[] => {
@@ -126,47 +73,149 @@ export const projectService = {
   },
 
   // PROJECTS CRUD
-  async getProjects(): Promise<Project[]> {
-    if (USE_MOCK_API) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
-      let changed = false;
-      // dynamically update progresses
-      for (const p of projects) {
-        const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === p.id && t.status !== 'obsolete');
-        if (tasks.length > 0) {
-          const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
-          const newProgress = Math.round(sum / tasks.length);
-          if (p.progress !== newProgress) {
-            p.progress = newProgress;
-            changed = true;
-          }
-        }
-
-        // backfill drawingUrl for default mock projects if not set
-        if (!p.drawingUrl) {
-          if (p.id === 'p-1') { p.drawingUrl = 'ban_ve_chung_cu_bpg_bien_hoa.pdf'; changed = true; }
-          else if (p.id === 'p-2') { p.drawingUrl = 'thiet_ke_cai_tao_fpt.png'; changed = true; }
-          else if (p.id === 'p-3') { p.drawingUrl = 'ban_ve_biet_thu_nam_sai_gon.pdf'; changed = true; }
-          else if (p.id === 'p-4') { p.drawingUrl = 'quy_hoach_cau_nhon_trach.jpg'; changed = true; }
-        }
-      }
-      if (changed) {
-        setStorage('bpg_projects', projects);
-      }
-      return projects;
+  async getDashboardMetrics(): Promise<import('../types/common').DashboardMetricsDto> {
+    if (!USE_MOCK_API) {
+      const res = await apiClient.get<ApiResponse<import('../types/common').DashboardMetricsDto>>('/projects/metrics');
+      if (res.success && res.data) return res.data;
     }
-    // real API call placeholder
+    const projects = await this.getProjects();
+    const activeProjects = projects.filter(p => p.status === 'active');
+    return {
+      totalProjects: projects.length,
+      draftProjects: projects.filter(p => p.status === 'draft').length,
+      activeProjects: activeProjects.length,
+      pausedProjects: projects.filter(p => p.status === 'paused').length,
+      completedProjects: projects.filter(p => p.status === 'done').length,
+      closedProjects: 0,
+      activeProjectsProgress: activeProjects.map(p => ({
+        projectId: parseInt(p.id.replace('p-', '')) || 0,
+        projectName: p.name,
+        address: p.address,
+        progress: p.progress
+      }))
+    };
+  },
+
+  async getDashboardWarnings(): Promise<import('../types/common').DashboardWarningDto[]> {
+    if (!USE_MOCK_API) {
+      const res = await apiClient.get<ApiResponse<import('../types/common').DashboardWarningDto[]>>('/projects/dashboard/warnings');
+      if (res.success && res.data) return res.data;
+    }
     return [];
   },
 
+  async getProjects(): Promise<Project[]> {
+    if (!USE_MOCK_API) {
+      const res = await apiClient.get<ApiResponse<{ items: import('../types/common').ProjectDto[], totalCount: number }>>('/projects?pageSize=100');
+      if (!res.success) throw new Error(res.message || 'Lỗi lấy danh sách dự án');
+      
+      const mapped = res.data.items.map(p => ({
+        id: p.projectId.toString(),
+        name: p.name,
+        address: p.address || '',
+        startDate: p.plannedStart,
+        endDate: p.plannedEnd,
+        status: p.status.toLowerCase() as any,
+        progress: 0
+      }));
+
+      for (const p of mapped) {
+        const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === p.id && t.status !== 'obsolete');
+        if (tasks.length > 0) {
+          const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
+          p.progress = Math.round(sum / tasks.length);
+        }
+      }
+      return mapped;
+    }
+    // MOCK API
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
+    let changed = false;
+    for (const p of projects) {
+      const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === p.id && t.status !== 'obsolete');
+      if (tasks.length > 0) {
+        const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
+        const newProgress = Math.round(sum / tasks.length);
+        if (p.progress !== newProgress) {
+          p.progress = newProgress;
+          changed = true;
+        }
+      }
+      if (!p.drawingUrl) {
+        if (p.id === 'p-1') { p.drawingUrl = 'ban_ve_chung_cu_bpg_bien_hoa.pdf'; changed = true; }
+        else if (p.id === 'p-2') { p.drawingUrl = 'thiet_ke_cai_tao_fpt.png'; changed = true; }
+        else if (p.id === 'p-3') { p.drawingUrl = 'ban_ve_biet_thu_nam_sai_gon.pdf'; changed = true; }
+        else if (p.id === 'p-4') { p.drawingUrl = 'quy_hoach_cau_nhon_trach.jpg'; changed = true; }
+      }
+    }
+    if (changed) setStorage('bpg_projects', projects);
+    return projects;
+  },
+
   async getProjectById(id: string): Promise<Project | null> {
+    if (!USE_MOCK_API) {
+      const parsedId = id.startsWith('p-') ? id.substring(2) : id;
+      try {
+        const res = await apiClient.get<ApiResponse<import('../types/common').ProjectDetailDto>>(`/projects/${parsedId}`);
+        if (!res.success) return null;
+        const p = res.data;
+        const drawingAttachment = p.attachments?.find(a => a.attachmentType === 'Design');
+        const project: Project = {
+          id: p.projectId.toString(),
+          name: p.name,
+          address: p.address || '',
+          startDate: p.plannedStart,
+          endDate: p.plannedEnd,
+          status: p.status.toLowerCase() as any,
+          drawingUrl: drawingAttachment?.fileName || '',
+          progress: 0
+        };
+        const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === project.id && t.status !== 'obsolete');
+        if (tasks.length > 0) {
+          const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
+          project.progress = Math.round(sum / tasks.length);
+        }
+        return project;
+      } catch (err) {
+        return null;
+      }
+    }
     const normalizedId = id.match(/^\d+$/) ? `p-${id}` : id;
     const projects = await this.getProjects();
     return projects.find(p => p.id === normalizedId || p.id === id) || null;
   },
 
   async createProject(project: Omit<Project, 'id' | 'progress'>): Promise<Project> {
+    if (!USE_MOCK_API) {
+      const payload = {
+        name: project.name,
+        address: project.address,
+        plannedStart: project.startDate,
+        plannedEnd: project.endDate,
+        attachments: project.drawingUrl ? [
+          {
+            attachmentType: 'Design',
+            fileName: project.drawingUrl,
+            fileUrl: '/mock/url',
+            contentType: 'application/pdf',
+            fileSizeBytes: 1024
+          }
+        ] : []
+      };
+      const res = await apiClient.post<ApiResponse<import('../types/common').ProjectDto>>('/projects', payload);
+      if (!res.success) throw new Error(res.message || 'Khởi tạo dự án thất bại');
+      return {
+        id: res.data.projectId.toString(),
+        name: res.data.name,
+        address: res.data.address || '',
+        startDate: res.data.plannedStart,
+        endDate: res.data.plannedEnd,
+        status: res.data.status.toLowerCase() as any,
+        drawingUrl: project.drawingUrl,
+        progress: 0
+      };
+    }
     const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
     const newProj: Project = {
       ...project,
@@ -179,6 +228,19 @@ export const projectService = {
   },
 
   async updateProject(id: string, updates: Partial<Project>): Promise<Project> {
+    if (!USE_MOCK_API) {
+      const parsedId = id.startsWith('p-') ? parseInt(id.substring(2)) : parseInt(id);
+      const payload = {
+        projectId: parsedId,
+        name: updates.name,
+        address: updates.address,
+        plannedStart: updates.startDate,
+        plannedEnd: updates.endDate
+      };
+      const res = await apiClient.put<ApiResponse<import('../types/common').ProjectDto>>(`/projects/${parsedId}`, payload);
+      if (!res.success) throw new Error(res.message || 'Cập nhật dự án thất bại');
+      return this.getProjectById(id) as unknown as Project;
+    }
     const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
     const idx = projects.findIndex(p => p.id === id);
     if (idx === -1) throw new Error('Không tìm thấy dự án.');
@@ -188,6 +250,12 @@ export const projectService = {
   },
 
   async activateProject(projectId: string): Promise<Project> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/activate`, {});
+      if (!res.success) throw new Error(res.message || 'Kích hoạt dự án thất bại');
+      return this.getProjectById(projectId) as unknown as Project;
+    }
     const project = await this.getProjectById(projectId);
     if (!project) throw new Error('Không tìm thấy dự án.');
     if (project.status !== 'draft') throw new Error('Dự án không ở trạng thái bản nháp.');
@@ -210,12 +278,41 @@ export const projectService = {
 
   // MEMBERS MANAGEMENT
   async getMembers(projectId: string): Promise<ProjectMember[]> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.get<ApiResponse<import('../types/common').ProjectDetailDto>>(`/projects/${parsedId}`);
+      if (!res.success || !res.data) return [];
+      return (res.data.members || []).map(m => ({
+        projectId,
+        userId: m.userId.toString(),
+        userName: m.fullName || m.userName || '',
+        userEmail: m.email || m.userEmail || '',
+        userRole: m.role || '',
+        isLeader: m.isLeader
+      }));
+    }
     const normalizedProjectId = projectId.match(/^\d+$/) ? `p-${projectId}` : projectId;
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     return allMembers.filter(m => m.projectId === normalizedProjectId || m.projectId === projectId);
   },
 
   async addMember(projectId: string, user: { id: string; name: string; email: string; role: string }): Promise<ProjectMember> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.post<ApiResponse<any>>(`/projects/${parsedId}/members`, { 
+        projectId: parseInt(parsedId), 
+        userId: parseInt(user.id) 
+      });
+      if (!res.success) throw new Error(res.message || 'Thêm thành viên thất bại');
+      return {
+        projectId,
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role,
+        isLeader: false
+      };
+    }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
 
     if (allMembers.some(m => m.projectId === projectId && m.userId === user.id)) {
@@ -237,12 +334,24 @@ export const projectService = {
   },
 
   async removeMember(projectId: string, userId: string): Promise<void> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}`);
+      if (!res.success) throw new Error(res.message || 'Xóa thành viên thất bại');
+      return;
+    }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     const filtered = allMembers.filter(m => !(m.projectId === projectId && m.userId === userId));
     setStorage('bpg_project_members', filtered);
   },
 
   async toggleLeader(projectId: string, userId: string): Promise<ProjectMember[]> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}/leader`, {});
+      if (!res.success) throw new Error(res.message || 'Thay đổi quyền nhóm trưởng thất bại');
+      return this.getMembers(projectId);
+    }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     const updated = allMembers.map(m => {
       if (m.projectId === projectId && m.userId === userId) {
