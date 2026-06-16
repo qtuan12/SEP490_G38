@@ -63,7 +63,12 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     }
   }, [isOpen, reset]);
 
-  const engineers = members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'Nhân viên kỹ thuật');
+  const engineers = members.filter(m => 
+    m.userRole === 'Site Engineer' || 
+    m.userRole === 'SiteEngineer' || 
+    m.userRole.toLowerCase() === 'siteengineer' || 
+    m.userRole === 'Nhân viên kỹ thuật'
+  );
 
   const mutation = useMutation({
     mutationFn: async (data: CreateTaskForm) => {
@@ -99,7 +104,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={parentTaskId ? "Thêm Công việc con (Sub-Task)" : "Thêm Công việc mới"}>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto p-1">
         <div>
           <label className="block text-sm font-medium mb-1.5 text-slate-600">
             Tên công việc <span className="text-red-500">*</span>
@@ -148,11 +153,13 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           <label className="block text-sm font-medium mb-1.5 text-slate-600">Giao cho Kỹ sư hiện trường (Tùy chọn)</label>
           <select 
             {...register('assignedTo')} 
-            className="w-full text-sm px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full text-sm px-3 py-2 rounded-md border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-blue-500"
           >
-            <option value="">-- Để trống nếu chưa giao --</option>
+            <option value="">-- Chưa phân công --</option>
             {engineers.map(e => (
-              <option key={e.userId} value={e.userId}>{e.userName}</option>
+              <option key={e.userId} value={e.userId}>
+                {e.userName} ({e.isLeader ? 'Trưởng dự án' : 'Nhân viên kỹ thuật'})
+              </option>
             ))}
           </select>
         </div>

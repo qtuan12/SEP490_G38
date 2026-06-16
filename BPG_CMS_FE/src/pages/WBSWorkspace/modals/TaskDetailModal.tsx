@@ -238,7 +238,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   <UserPlus size={16} /><span>Phân công</span>
                 </button>
                 <button onClick={onObsolete} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: 'hsl(var(--bg-main))', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
-                  <Trash2 size={16} /><span>Hủy việc</span>
+                  <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa công việc'}</span>
                 </button>
               </>
             )}

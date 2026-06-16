@@ -46,10 +46,25 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
     {
         var task = await _unitOfWork.Repository<ProjectTask>()
             .Query()
+            .Include(t => t.Phase)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
+
+        if (task.Phase != null)
+        {
+            if (task.Phase.StartDate.HasValue && request.StartDate < task.Phase.StartDate.Value)
+            {
+                throw new BusinessException("ERR_TASK_DATE_INVALID", 
+                    $"Ngày bắt đầu của công việc ({request.StartDate:dd/MM/yyyy}) không được trước ngày bắt đầu của giai đoạn ({task.Phase.StartDate.Value:dd/MM/yyyy}).");
+            }
+            if (task.Phase.EndDate.HasValue && request.EndDate > task.Phase.EndDate.Value)
+            {
+                throw new BusinessException("ERR_TASK_DATE_INVALID", 
+                    $"Ngày kết thúc của công việc ({request.EndDate:dd/MM/yyyy}) không được sau ngày kết thúc của giai đoạn ({task.Phase.EndDate.Value:dd/MM/yyyy}).");
+            }
+        }
 
         // Check date constraints with parent
         if (task.ParentTaskId.HasValue)
@@ -61,8 +76,8 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
             if (parentTask != null && (request.StartDate < parentTask.StartDate || request.EndDate > parentTask.EndDate))
             {
                 throw new BusinessException("ERR_TASK_DATE_INVALID", 
-                    $"Thời gian task con ({request.StartDate:dd/MM/yyyy} - {request.EndDate:dd/MM/yyyy}) " +
-                    $"phải nằm trong khoảng thời gian của task cha ({parentTask.StartDate:dd/MM/yyyy} - {parentTask.EndDate:dd/MM/yyyy}).");
+                    $"Thời gian công việc con ({request.StartDate:dd/MM/yyyy} - {request.EndDate:dd/MM/yyyy}) " +
+                    $"phải nằm trong khoảng thời gian của công việc cha ({parentTask.StartDate:dd/MM/yyyy} - {parentTask.EndDate:dd/MM/yyyy}).");
             }
         }
 
@@ -76,14 +91,14 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
         {
             if (string.IsNullOrWhiteSpace(request.UpdateReason))
             {
-                throw new BusinessException("ERR_TASK_UPDATE_REASON_REQUIRED", "Cần có lý do cập nhật khi sửa task đang thực hiện (> 0%).");
+                throw new BusinessException("ERR_TASK_UPDATE_REASON_REQUIRED", "Cần có lý do cập nhật khi sửa công việc đang thực hiện (> 0%).");
             }
 
             task.ProgressLogs.Add(new TaskProgressLog
             {
                 OldProgress = task.ProgressPercent,
                 NewProgress = task.ProgressPercent,
-                UpdateReason = $"Sửa thông tin task: {request.UpdateReason}",
+                UpdateReason = $"Sửa thông tin công việc: {request.UpdateReason}",
                 UpdatedAt = DateTime.UtcNow
             });
         }
@@ -97,6 +112,6 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
         _unitOfWork.Repository<ProjectTask>().Update(task);
         await _unitOfWork.SaveChangesAsync(ct);
 
-        return ApiResponse.SuccessResult("Cập nhật task thành công.");
+        return ApiResponse.SuccessResult("Cập nhật công việc thành công.");
     }
 }

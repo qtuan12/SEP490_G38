@@ -49,7 +49,7 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
             throw new NotFoundException("ProjectTask", request.TaskId);
 
         if (task.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
-            throw new BusinessException("ERR_TASK_OBSOLETE", "Không thể điều chỉnh tiến độ cho task đã báo lỗi thời.");
+            throw new BusinessException("ERR_TASK_OBSOLETE", "Không thể điều chỉnh tiến độ cho công việc đã báo lỗi thời.");
 
         var oldProgress = task.ProgressPercent;
         task.ProgressPercent = request.NewProgress;

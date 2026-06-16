@@ -13,6 +13,8 @@ public record WbsTaskDto
     public string Status { get; set; } = string.Empty;
     public byte ProgressPercent { get; set; }
     public bool IsLocked { get; set; }
+    public string AssignedTo { get; set; } = string.Empty;
+    public string AssignedName { get; set; } = string.Empty;
     
     public bool IsOverdue { get; set; }
     public bool IsAtRisk { get; set; }

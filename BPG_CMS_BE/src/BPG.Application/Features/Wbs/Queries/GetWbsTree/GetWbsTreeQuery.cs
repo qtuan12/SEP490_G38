@@ -35,6 +35,8 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
 
         var tasks = await _unitOfWork.Repository<ProjectTask>()
             .Query()
+            .Include(t => t.Assignees)
+                .ThenInclude(a => a.User)
             .Where(t => t.Phase.ProjectId == request.ProjectId)
             .OrderBy(t => t.OrderIndex)
             .ToListAsync(ct);
@@ -113,11 +115,13 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 EndDate = node.EndDate,
                 Status = node.Status,
                 ProgressPercent = node.ProgressPercent,
-                IsLocked = node.IsLocked
+                IsLocked = node.IsLocked,
+                AssignedTo = node.Assignees != null && node.Assignees.Any() ? string.Join(",", node.Assignees.Select(a => a.UserId)) : string.Empty,
+                AssignedName = node.Assignees != null && node.Assignees.Any() ? string.Join(", ", node.Assignees.Select(a => a.User?.FullName ?? "")) : string.Empty
             };
 
             var taskDeadline = node.EndDate.ToDateTime(new TimeOnly(23, 59, 59));
-            var projectStart = project.StartDate.ToDateTime(TimeOnly.MinValue);
+            var projectStart = project.PlannedStart.ToDateTime(TimeOnly.MinValue);
             var today = DateTime.Now;
 
             if (node.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
@@ -125,15 +129,6 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 if (today > taskDeadline && node.ProgressPercent < 100)
                 {
                     dto.IsOverdue = true;
-                }
-                
-                var totalMs = (taskDeadline - projectStart).TotalMilliseconds;
-                var passedMs = (today - projectStart).TotalMilliseconds;
-                double expected = totalMs > 0 ? Math.Min(100, Math.Max(0, (passedMs / totalMs) * 100)) : 0;
-
-                if (!dto.IsOverdue && node.ProgressPercent < 100 && node.ProgressPercent < expected - 1)
-                {
-                    dto.IsAtRisk = true;
                 }
 
                 if (node.ProgressPercent < 100)
@@ -146,6 +141,11 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                     else
                     {
                         dto.DaysLeft = (int)Math.Ceiling(daysLeft);
+                    }
+
+                    if (!dto.IsOverdue && dto.DaysLeft <= 1 && node.ProgressPercent < 90)
+                    {
+                        dto.IsAtRisk = true;
                     }
                 }
             }

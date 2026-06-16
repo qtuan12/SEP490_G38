@@ -29,7 +29,7 @@ export const WBSTree = () => {
     setSelectedTaskForEdit, setIsEditTaskOpen,
     setSelectedPhaseForMatReq, setCreateMatReqType, setIsPhaseMatReqOpen, setIsLeaderApprovalOpen,
     setSelectedPhaseForBOQ, setIsBOQOpen, setSelectedResubmitRequest, setIsResubmitOpen,
-    setSelectedTaskId, setIsDetailOpen,
+    setSelectedTaskId, setIsDetailOpen, setIsObsoleteOpen,
     handleCancelMatReq,
     isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase
   } = useWBS();
@@ -664,9 +664,17 @@ export const WBSTree = () => {
                                           style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
                                           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
                                           onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setTaskMenuId(null); handleDeleteTask(t.id, t.name); }}
+                                          onClick={() => { 
+                                            setTaskMenuId(null); 
+                                            if (t.progress > 0) {
+                                              setSelectedTaskId(t.id);
+                                              setIsObsoleteOpen(true);
+                                            } else {
+                                              handleDeleteTask(t.id, t.name);
+                                            }
+                                          }}
                                         >
-                                          <Trash2 size={12} /><span>Xóa hẳn Task</span>
+                                          <Trash2 size={12} /><span>{t.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa hẳn Task'}</span>
                                         </div>
                                       </div>
                                     )}

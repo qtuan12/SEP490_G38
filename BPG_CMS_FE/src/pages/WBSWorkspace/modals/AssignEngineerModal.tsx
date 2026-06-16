@@ -114,7 +114,7 @@ export const AssignEngineerModal: React.FC<AssignEngineerModalProps> = ({
             </div>
           ) : members.length > 0 ? (
             <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto border border-slate-200 rounded-md p-3 bg-slate-50/50">
-              {members.map((m) => {
+              {members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'SiteEngineer' || m.userRole.toLowerCase() === 'siteengineer' || m.userRole === 'Nhân viên kỹ thuật').length > 0 ? members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'SiteEngineer' || m.userRole.toLowerCase() === 'siteengineer' || m.userRole === 'Nhân viên kỹ thuật').map((m) => {
                 const isChecked = selectedUserIds.includes(m.userId);
                 return (
                   <label key={m.userId} className="flex items-center gap-2 cursor-pointer font-normal text-sm py-1 hover:bg-slate-100 rounded px-2">
@@ -124,10 +124,10 @@ export const AssignEngineerModal: React.FC<AssignEngineerModalProps> = ({
                       onChange={() => handleToggleUser(m.userId)}
                       className="w-4 h-4 cursor-pointer text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                     />
-                    <span>{m.userName} <span className="text-slate-500 text-xs">({m.userRole})</span></span>
+                    <span>{m.userName} <span className="text-slate-500 text-xs">({m.isLeader ? 'Trưởng dự án' : 'Nhân viên kỹ thuật'})</span></span>
                   </label>
                 );
-              })}
+              }) : <div className="text-sm text-slate-500 p-2">Không có kỹ sư nào trong dự án này.</div>}
             </div>
           ) : (
             <div className="p-3 bg-slate-100 rounded-md text-slate-500 text-sm">

@@ -29,9 +29,7 @@ public class DeleteTaskCommandHandler : IRequestHandler<DeleteTaskCommand, ApiRe
             throw new NotFoundException("ProjectTask", request.TaskId);
 
         if (task.ProgressPercent > 0)
-        {
-            throw new BusinessException("ERR_TASK_IN_PROGRESS", "Không thể xóa task đã có tiến độ thực hiện (> 0%).");
-        }
+            throw new BusinessException("ERR_TASK_IN_PROGRESS", "Không thể xóa công việc đã có tiến độ thực hiện (> 0%).");
 
         // Soft delete subtasks also recursively? The requirement doesn't specify deeply nested tasks, but let's delete subtasks
         foreach (var subTask in task.SubTasks)

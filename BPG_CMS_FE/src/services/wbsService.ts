@@ -47,7 +47,12 @@ export const wbsService = {
             history: [],
             status: taskDto.status?.toLowerCase() === 'obsolete' ? 'obsolete' : 'active',
             startDate: taskDto.startDate || undefined,
-            deadline: taskDto.endDate || undefined
+            deadline: taskDto.endDate || undefined,
+            isOverdue: taskDto.isOverdue,
+            isAtRisk: taskDto.isAtRisk,
+            daysLeft: taskDto.daysLeft,
+            assignedTo: (taskDto as any).assignedTo || undefined,
+            assignedName: (taskDto as any).assignedName || undefined
           });
 
           if (taskDto.subTasks && taskDto.subTasks.length > 0) {

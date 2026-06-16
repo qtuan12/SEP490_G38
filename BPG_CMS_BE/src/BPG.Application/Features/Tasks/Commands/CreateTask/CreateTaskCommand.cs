@@ -48,12 +48,23 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 
     public async Task<ApiResponse<long>> Handle(CreateTaskCommand request, CancellationToken ct)
     {
-        var phaseExists = await _unitOfWork.Repository<Phase>()
+        var phase = await _unitOfWork.Repository<Phase>()
             .Query()
-            .AnyAsync(p => p.PhaseId == request.PhaseId, ct);
+            .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct);
 
-        if (!phaseExists)
+        if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
+
+        if (phase.StartDate.HasValue && request.StartDate < phase.StartDate.Value)
+        {
+            throw new BusinessException("ERR_TASK_DATE_INVALID", 
+                $"Ngày bắt đầu của công việc ({request.StartDate:dd/MM/yyyy}) không được trước ngày bắt đầu của giai đoạn ({phase.StartDate.Value:dd/MM/yyyy}).");
+        }
+        if (phase.EndDate.HasValue && request.EndDate > phase.EndDate.Value)
+        {
+            throw new BusinessException("ERR_TASK_DATE_INVALID", 
+                $"Ngày kết thúc của công việc ({request.EndDate:dd/MM/yyyy}) không được sau ngày kết thúc của giai đoạn ({phase.EndDate.Value:dd/MM/yyyy}).");
+        }
 
         if (request.ParentTaskId.HasValue)
         {
@@ -67,8 +78,8 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
             if (request.StartDate < parentTask.StartDate || request.EndDate > parentTask.EndDate)
             {
                 throw new BusinessException("ERR_TASK_DATE_INVALID", 
-                    $"Thời gian task con ({request.StartDate:dd/MM/yyyy} - {request.EndDate:dd/MM/yyyy}) " +
-                    $"phải nằm trong khoảng thời gian của task cha ({parentTask.StartDate:dd/MM/yyyy} - {parentTask.EndDate:dd/MM/yyyy}).");
+                    $"Thời gian công việc con ({request.StartDate:dd/MM/yyyy} - {request.EndDate:dd/MM/yyyy}) " +
+                    $"phải nằm trong khoảng thời gian của công việc cha ({parentTask.StartDate:dd/MM/yyyy} - {parentTask.EndDate:dd/MM/yyyy}).");
             }
         }
 
@@ -102,7 +113,7 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
         {
             OldProgress = 0,
             NewProgress = 0,
-            UpdateReason = "Khởi tạo task",
+            UpdateReason = "Khởi tạo công việc",
             UpdatedAt = DateTime.UtcNow
         });
 
@@ -124,6 +135,6 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
             }
         }
 
-        return ApiResponse<long>.SuccessResult(task.TaskId, "Tạo task thành công.");
+        return ApiResponse<long>.SuccessResult(task.TaskId, "Tạo công việc thành công.");
     }
 }

@@ -545,6 +545,11 @@ export const projectService = {
   },
 
   async getTasks(projectId: string): Promise<WBSTask[]> {
+    if (!USE_MOCK_API) {
+      const { wbsService } = await import('./wbsService');
+      const data = await wbsService.getWbsDataFlattened(projectId);
+      return data.tasks;
+    }
     const normalizedProjectId = projectId.match(/^\d+$/) ? `p-${projectId}` : projectId;
     return getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS)
       .filter(t => t.projectId === normalizedProjectId || t.projectId === projectId)

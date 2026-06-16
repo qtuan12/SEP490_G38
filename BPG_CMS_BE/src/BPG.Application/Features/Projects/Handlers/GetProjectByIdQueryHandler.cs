@@ -31,6 +31,8 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
             .AsNoTracking()
             .Include(p => p.Members)
                 .ThenInclude(m => m.User)
+                    .ThenInclude(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
             .FirstOrDefaultAsync(p => p.ProjectId == request.Id, cancellationToken);
 
         if (project == null)

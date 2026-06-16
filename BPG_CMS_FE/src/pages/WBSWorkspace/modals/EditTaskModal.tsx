@@ -58,12 +58,17 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         description: task.description || '',
         startDate: task.startDate || '',
         deadline: task.deadline || '',
-        assignedTo: task.assignedTo || ''
+        assignedTo: task.assignedTo ? task.assignedTo.toString().split(',')[0] : ''
       });
     }
   }, [isOpen, task, reset]);
 
-  const engineers = members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'siteengineer' || m.userRole === 'Nhân viên kỹ thuật');
+  const engineers = members.filter(m => 
+    m.userRole === 'Site Engineer' || 
+    m.userRole === 'SiteEngineer' || 
+    m.userRole.toLowerCase() === 'siteengineer' || 
+    m.userRole === 'Nhân viên kỹ thuật'
+  );
 
   const mutation = useMutation({
     mutationFn: async (data: EditTaskForm) => {
@@ -72,7 +77,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
       }
 
       const tId = parseInt(task.id.replace('t-', ''));
-      return wbsService.updateTask(tId, {
+      await wbsService.updateTask(tId, {
         taskId: tId,
         name: data.name.trim(),
         description: data.description || null,
@@ -81,6 +86,13 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         endDate: data.deadline,
         assigneeIds: data.assignedTo ? [parseInt(data.assignedTo)] : []
       });
+
+      const assigneeIds = data.assignedTo ? [parseInt(data.assignedTo)] : [];
+      await wbsService.assignTask(tId, {
+        taskId: tId,
+        assigneeIds
+      });
+      return true;
     },
     onSuccess: (_, variables) => {
       const msg = `Đã cập nhật công việc: ${variables.name}`;
@@ -99,7 +111,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Chỉnh sửa Công việc">
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto p-1">
         <div>
           <label className="block text-sm font-medium mb-1.5 text-slate-600">
             Tên công việc <span className="text-red-500">*</span>
@@ -146,11 +158,13 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           <label className="block text-sm font-medium mb-1.5 text-slate-600">Người phụ trách (Kỹ sư)</label>
           <select 
             {...register('assignedTo')} 
-            className="w-full text-sm px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full text-sm px-3 py-2 rounded-md border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-blue-500"
           >
             <option value="">-- Chưa phân công --</option>
             {engineers.map(e => (
-              <option key={e.userId} value={e.userId}>{e.userName}</option>
+              <option key={e.userId} value={e.userId}>
+                {e.userName} ({e.isLeader ? 'Trưởng dự án' : 'Nhân viên kỹ thuật'})
+              </option>
             ))}
           </select>
           {engineers.length === 0 && <div className="text-xs text-amber-600 mt-1">* Không có kỹ sư nào trong dự án này.</div>}

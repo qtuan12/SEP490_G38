@@ -53,7 +53,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState<WBSTask | null>(null);
 
-
+  const [isObsoleteOpen, setIsObsoleteOpen] = useState(false);
 
   // State for task allocations estimation
   // State for task allocations estimation
@@ -258,10 +258,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     isCreatePhaseOpen, setIsCreatePhaseOpen,
     isResubmitOpen, setIsResubmitOpen,
     selectedResubmitRequest, setSelectedResubmitRequest,
-    isEditPhaseOpen, setIsEditPhaseOpen,
-    selectedPhaseForEdit, setSelectedPhaseForEdit,
-    isEditTaskOpen, setIsEditTaskOpen,
-    selectedTaskForEdit, setSelectedTaskForEdit,
+    isEditPhaseOpen, setIsEditPhaseOpen, selectedPhaseForEdit, setSelectedPhaseForEdit,
+    isEditTaskOpen, setIsEditTaskOpen, selectedTaskForEdit, setSelectedTaskForEdit,
+    isObsoleteOpen, setIsObsoleteOpen,
     isPhaseMatReqOpen, setIsPhaseMatReqOpen,
     isLeaderApprovalOpen, setIsLeaderApprovalOpen,
     selectedPhaseForMatReq, setSelectedPhaseForMatReq,

@@ -10,6 +10,10 @@ export interface WbsTask {
   status: string;
   progressPercent: number;
   isLocked: boolean;
+  isOverdue?: boolean;
+  isAtRisk?: boolean;
+  daysLeft?: number;
+  assignedTo?: string;
   subTasks: WbsTask[];
 }
 
