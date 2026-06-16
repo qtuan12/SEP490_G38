@@ -285,8 +285,8 @@ export const projectService = {
       return (res.data.members || []).map(m => ({
         projectId,
         userId: m.userId.toString(),
-        userName: m.fullName || m.userName || '',
-        userEmail: m.email || m.userEmail || '',
+        userName: m.fullName || '',
+        userEmail: m.email || '',
         userRole: m.role || '',
         isLeader: m.isLeader
       }));

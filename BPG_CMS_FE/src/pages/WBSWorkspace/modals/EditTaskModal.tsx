@@ -1,11 +1,11 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-import {projectService} from '../../../../src/services/projectService';
+import { wbsService } from '../../../../src/services/wbsService';
 import type {ProjectMember, WBSTask} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
@@ -71,19 +71,15 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         throw new Error(`Hạn chót không được vượt quá deadline của cấp cha (${parentDeadline}).`);
       }
 
-      let assignedName = '';
-      if (data.assignedTo) {
-        const eng = engineers.find(e => e.userId === data.assignedTo);
-        if (eng) assignedName = eng.userName;
-      }
-
-      return projectService.updateTask(task.id, {
-        name: data.name,
-        description: data.description || '',
+      const tId = parseInt(task.id.replace('t-', ''));
+      return wbsService.updateTask(tId, {
+        taskId: tId,
+        name: data.name.trim(),
+        description: data.description || null,
+        orderIndex: task.sortOrder,
         startDate: data.startDate,
-        deadline: data.deadline,
-        assignedTo: data.assignedTo || '',
-        assignedName
+        endDate: data.deadline,
+        assigneeIds: data.assignedTo ? [parseInt(data.assignedTo)] : []
       });
     },
     onSuccess: (_, variables) => {

@@ -135,7 +135,7 @@ export const ProjectLayoutHub: React.FC = () => {
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Calendar size={14} style={{ color: 'hsl(var(--text-muted))' }} />
-                Hạn: {project.startDate} ~ {project.endDate}
+                Hạn: {project.startDate?.split('-').reverse().join('-')} → {project.endDate?.split('-').reverse().join('-')}
               </span>
               {project.drawingUrl && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'hsl(var(--primary-hover))' }}>

@@ -19,7 +19,6 @@ import { DashboardStats } from '../Dashboard/components/DashboardStats';
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [userCount, setUserCount] = useState(0);
-  const [criticalAlerts, setCriticalAlerts] = useState<string[]>([]);
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [warnings, setWarnings] = useState<import('../../types/common').DashboardWarningDto[]>([]);

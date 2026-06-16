@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-import {projectService} from '../../../../src/services/projectService';
+import { wbsService } from '../../../../src/services/wbsService';
 import type {ProjectMember} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
@@ -29,6 +29,7 @@ interface CreateTaskModalProps {
   phaseId: string;
   parentTaskId?: string;
   parentDeadline?: string;
+  maxTaskOrder: number;
   members: ProjectMember[];
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
@@ -41,6 +42,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   phaseId,
   parentTaskId,
   parentDeadline,
+  maxTaskOrder,
   members,
   onSuccess
 }) => {
@@ -69,23 +71,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         throw new Error(`Hạn chót không được vượt quá deadline của cấp cha (${parentDeadline}).`);
       }
 
-      let assignedName = '';
-      if (data.assignedTo) {
-        const eng = engineers.find(e => e.userId === data.assignedTo);
-        if (eng) assignedName = eng.userName;
-      }
-
-      return projectService.createTask({
-        phaseId,
-        projectId,
-        parentTaskId,
-        name: data.name,
-        description: data.description || '',
+      return wbsService.createTask(parseInt(phaseId.replace('ph-', '')), {
+        phaseId: parseInt(phaseId.replace('ph-', '')),
+        parentTaskId: parentTaskId ? parseInt(parentTaskId.replace('t-', '')) : null,
+        name: data.name.trim(),
+        description: data.description || null,
+        orderIndex: maxTaskOrder,
         startDate: data.startDate,
-        deadline: data.deadline,
-        assignedTo: data.assignedTo || '',
-        assignedName,
-        sortOrder: 0
+        endDate: data.deadline,
+        assigneeIds: data.assignedTo ? [parseInt(data.assignedTo)] : []
       });
     },
     onSuccess: (_, variables) => {
