@@ -15,7 +15,8 @@ import {
   FileText,
   Loader2,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Trash2
 } from 'lucide-react';
 
 export const ProjectList: React.FC = () => {
@@ -46,6 +47,23 @@ export const ProjectList: React.FC = () => {
       setError(err.message || 'Không thể tải danh sách dự án.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteProject = async (e: React.MouseEvent, id: string, name: string) => {
+    e.stopPropagation();
+    if (window.confirm(`Bạn có chắc chắn muốn xóa dự án bản nháp "${name}" không? Hành động này không thể hoàn tác.`)) {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+      try {
+        await projectService.deleteProject(id);
+        setSuccess('Đã xóa dự án thành công.');
+        loadProjects();
+      } catch (err: any) {
+        setError(err.message || 'Lỗi khi xóa dự án.');
+        setLoading(false);
+      }
     }
   };
 
@@ -172,9 +190,20 @@ export const ProjectList: React.FC = () => {
                 {/* Upper info */}
                 <div className="flex justify-between items-start gap-2">
                   <h3 className="text-[1.1rem] font-bold leading-tight">{p.name}</h3>
-                  <Badge variant={getStatusBadgeVariant(p.status)} className="shrink-0">
-                    {getStatusLabel(p.status)}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {p.status === 'draft' && (
+                      <button 
+                        onClick={(e) => handleDeleteProject(e, p.id, p.name)}
+                        className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors"
+                        title="Xóa dự án"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                    <Badge variant={getStatusBadgeVariant(p.status)} className="shrink-0">
+                      {getStatusLabel(p.status)}
+                    </Badge>
+                  </div>
                 </div>
 
                 {/* Details */}

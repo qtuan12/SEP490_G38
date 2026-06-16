@@ -14,7 +14,7 @@ const schema = z.object({
   startDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến bắt đầu'),
   endDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến kết thúc'),
   status: z.enum(['draft', 'active', 'paused', 'done']).default('draft'),
-  drawingName: z.string().optional()
+  drawingNames: z.array(z.string()).max(5, 'Chỉ được chọn tối đa 5 file').default([])
 });
 
 type FormData = z.infer<typeof schema>;
@@ -27,16 +27,23 @@ interface CreateProjectModalProps {
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [dragging, setDragging] = useState(false);
+  const [filePreviews, setFilePreviews] = useState<{file: File, url: string | null}[]>([]);
   
   const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       status: 'draft',
-      drawingName: ''
+      drawingNames: []
     }
   });
 
-  const drawingName = watch('drawingName');
+  React.useEffect(() => {
+    return () => {
+      filePreviews.forEach(p => {
+        if (p.url) URL.revokeObjectURL(p.url);
+      });
+    };
+  }, [filePreviews]);
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -46,12 +53,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
         startDate: data.startDate,
         endDate: data.endDate,
         status: data.status,
-        drawingUrl: data.drawingName || undefined
+        drawingUrls: data.drawingNames
       });
     },
     onSuccess: () => {
       onSuccess();
       reset();
+      setFilePreviews([]);
       onClose();
     }
   });
@@ -73,13 +81,25 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
     e.preventDefault();
     setDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setValue('drawingName', e.dataTransfer.files[0].name);
+      const files = Array.from(e.dataTransfer.files).slice(0, 5);
+      const previews = files.map(f => ({
+          file: f,
+          url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null
+      }));
+      setFilePreviews(previews);
+      setValue('drawingNames', files.map(f => f.name), { shouldValidate: true });
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setValue('drawingName', e.target.files[0].name);
+      const files = Array.from(e.target.files).slice(0, 5);
+      const previews = files.map(f => ({
+          file: f,
+          url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null
+      }));
+      setFilePreviews(previews);
+      setValue('drawingNames', files.map(f => f.name), { shouldValidate: true });
     }
   };
 
@@ -120,7 +140,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
           </p>
         </div>
 
-        <FormItem label="Bản vẽ thiết kế tổng thể">
+        <FormItem label="Bản vẽ thiết kế tổng thể (Tối đa 5 file)" error={errors.drawingNames?.message}>
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -134,14 +154,32 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
               id="drawing-file-input"
               type="file"
               accept=".pdf,.png,.jpg,.jpeg"
+              multiple
               className="hidden"
               onChange={handleFileSelect}
             />
             <UploadCloud className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            {drawingName ? (
-              <div className="flex items-center justify-center gap-2 text-blue-600">
-                <FileText className="h-5 w-5" />
-                <strong className="text-sm">{drawingName}</strong>
+            
+            {filePreviews && filePreviews.length > 0 ? (
+              <div className="flex flex-wrap items-center justify-center gap-4 mt-4" onClick={(e) => e.stopPropagation()}>
+                {filePreviews.map((preview, idx) => (
+                  <div key={idx} className="flex flex-col items-center gap-1 group relative">
+                    {preview.url ? (
+                      <img 
+                        src={preview.url} 
+                        alt={preview.file.name} 
+                        className="w-16 h-16 object-cover rounded shadow-sm border border-gray-200" 
+                      />
+                    ) : (
+                      <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded shadow-sm border border-gray-200">
+                         <FileText className="h-8 w-8 text-blue-500" />
+                      </div>
+                    )}
+                    <span className="text-xs text-gray-600 truncate w-20 text-center" title={preview.file.name}>
+                      {preview.file.name}
+                    </span>
+                  </div>
+                ))}
               </div>
             ) : (
               <div>
@@ -149,7 +187,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                   Kéo thả file vào đây hoặc click để duyệt file
                 </p>
                 <span className="text-xs text-gray-500">
-                  Hỗ trợ PDF, PNG, JPG tối đa 20MB
+                  Hỗ trợ PDF, PNG, JPG tối đa 20MB (tối đa 5 file)
                 </span>
               </div>
             )}

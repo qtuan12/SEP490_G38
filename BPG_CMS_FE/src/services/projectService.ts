@@ -188,20 +188,34 @@ export const projectService = {
 
   async createProject(project: Omit<Project, 'id' | 'progress'>): Promise<Project> {
     if (!USE_MOCK_API) {
+      const attachments = [];
+      if (project.drawingUrl) {
+        attachments.push({
+          attachmentType: 'Design',
+          fileName: project.drawingUrl,
+          fileUrl: '/mock/url',
+          contentType: 'application/pdf',
+          fileSizeBytes: 1024
+        });
+      }
+      if (project.drawingUrls && project.drawingUrls.length > 0) {
+        project.drawingUrls.forEach(url => {
+          attachments.push({
+            attachmentType: 'Design',
+            fileName: url,
+            fileUrl: '/mock/url',
+            contentType: 'application/pdf',
+            fileSizeBytes: 1024
+          });
+        });
+      }
+
       const payload = {
         name: project.name,
         address: project.address,
         plannedStart: project.startDate,
         plannedEnd: project.endDate,
-        attachments: project.drawingUrl ? [
-          {
-            attachmentType: 'Design',
-            fileName: project.drawingUrl,
-            fileUrl: '/mock/url',
-            contentType: 'application/pdf',
-            fileSizeBytes: 1024
-          }
-        ] : []
+        attachments: attachments
       };
       const res = await apiClient.post<ApiResponse<import('../types/common').ProjectDto>>('/projects', payload);
       if (!res.success) throw new Error(res.message || 'Khởi tạo dự án thất bại');
@@ -212,7 +226,8 @@ export const projectService = {
         startDate: res.data.plannedStart,
         endDate: res.data.plannedEnd,
         status: res.data.status.toLowerCase() as any,
-        drawingUrl: project.drawingUrl,
+        drawingUrl: project.drawingUrl || (project.drawingUrls?.[0]),
+        drawingUrls: project.drawingUrls,
         progress: 0
       };
     }
@@ -220,11 +235,25 @@ export const projectService = {
     const newProj: Project = {
       ...project,
       id: `p-${Date.now()}`,
+      drawingUrl: project.drawingUrl || (project.drawingUrls?.[0]),
       progress: 0
     };
     projects.push(newProj);
     setStorage('bpg_projects', projects);
     return newProj;
+  },
+
+  async deleteProject(projectId: string): Promise<void> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}`);
+      if (!res.success) throw new Error(res.message || 'Xóa dự án thất bại');
+      return;
+    }
+    const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
+    const updated = projects.filter(p => p.id !== projectId);
+    if (updated.length === projects.length) throw new Error('Không tìm thấy dự án để xóa');
+    setStorage('bpg_projects', updated);
   },
 
   async updateProject(id: string, updates: Partial<Project>): Promise<Project> {
@@ -285,8 +314,8 @@ export const projectService = {
       return (res.data.members || []).map(m => ({
         projectId,
         userId: m.userId.toString(),
-        userName: m.fullName || m.userName || '',
-        userEmail: m.email || m.userEmail || '',
+        userName: m.fullName || (m as any).userName || '',
+        userEmail: m.email || (m as any).userEmail || '',
         userRole: m.role || '',
         isLeader: m.isLeader
       }));

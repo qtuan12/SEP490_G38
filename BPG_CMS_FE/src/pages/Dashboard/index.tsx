@@ -11,6 +11,7 @@ import {
 import { userService } from '../../services/userService';
 import { projectService } from '../../services/projectService';
 import type {MaterialRequest} from '../../types/common';
+import { useNavigate } from 'react-router-dom';
 import { MaterialCompensationTable } from '../Dashboard/components/MaterialCompensationTable';
 import { RecentActivities } from '../Dashboard/components/RecentActivities';
 import { QuickActionsPanel } from '../Dashboard/components/QuickActionsPanel';
@@ -19,11 +20,12 @@ import { DashboardStats } from '../Dashboard/components/DashboardStats';
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [userCount, setUserCount] = useState(0);
-  const [criticalAlerts, setCriticalAlerts] = useState<string[]>([]);
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [warnings, setWarnings] = useState<import('../../types/common').DashboardWarningDto[]>([]);
   const [metrics, setMetrics] = useState<import('../../types/common').DashboardMetricsDto | null>(null);
+
+  const navigate = useNavigate();
 
   const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
   const isDirector = user?.role === 'director' || user?.role === 'admin';
@@ -200,9 +202,13 @@ export const Dashboard: React.FC = () => {
             Hiện không có dự án nào đang chạy.
           </div>
         ) : (
-          <div className="max-h-[300px] overflow-y-auto pr-2 space-y-4">
-            {metrics.activeProjectsProgress.map((p) => (
-              <div key={p.projectId} className="flex flex-col gap-1.5 p-3 rounded-md border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] transition-colors bg-[hsl(var(--bg-main))]">
+          <div className="max-h-[280px] overflow-y-auto pr-2 space-y-4">
+            {[...metrics.activeProjectsProgress].sort((a, b) => b.projectId - a.projectId).map((p) => (
+              <div 
+                key={p.projectId} 
+                onClick={() => navigate(`/projects/${p.projectId}`)}
+                className="flex flex-col gap-1.5 p-3 rounded-md border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] transition-colors bg-[hsl(var(--bg-main))] cursor-pointer hover:shadow-md"
+              >
                 <div className="flex justify-between items-center text-sm">
                   <span className="font-bold">{p.projectName}</span>
                   <span className="font-semibold text-[hsl(var(--primary-hover))]">{p.progress}%</span>

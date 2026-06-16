@@ -5,7 +5,8 @@ export interface Project {
   startDate: string;
   endDate: string;
   status: 'draft' | 'active' | 'paused' | 'done';
-  drawingUrl?: string; // name or dummy data url of drawing design
+  drawingUrl?: string; // legacy single drawing
+  drawingUrls?: string[]; // multiple drawings support
   progress: number; // overall progress % (derived or stored)
 }
 
