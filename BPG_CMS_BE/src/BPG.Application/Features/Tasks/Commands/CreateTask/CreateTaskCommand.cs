@@ -6,7 +6,6 @@ using BPG.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using BPG.Application.IServices;
 
 namespace BPG.Application.Features.Tasks.Commands.CreateTask;
 
