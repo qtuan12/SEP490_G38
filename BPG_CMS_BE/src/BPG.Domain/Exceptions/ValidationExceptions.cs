@@ -8,7 +8,19 @@ namespace BPG.Domain.Exceptions;
 public class DuplicateEntryException : DomainException
 {
     public DuplicateEntryException(string fieldName, object value)
-        : base(ErrorCodes.DuplicateEntry, $"[{fieldName}] với giá trị [{value}] đã tồn tại trong hệ thống.") { }
+        : base(ErrorCodes.DuplicateEntry, $"{GetFriendlyFieldName(fieldName)} '{value}' đã tồn tại trong hệ thống.") { }
+
+    private static string GetFriendlyFieldName(string fieldName)
+    {
+        return fieldName.ToLower() switch
+        {
+            "suppliername" => "Tên nhà cung cấp",
+            "email" => "Địa chỉ email",
+            "username" => "Tên đăng nhập",
+            "fullname" => "Họ và tên",
+            _ => fieldName
+        };
+    }
 }
 
 /// <summary>
