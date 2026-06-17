@@ -6,7 +6,6 @@ using BPG.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using BPG.Application.IServices;
 
 namespace BPG.Application.Features.Tasks.Commands.CreateTask;
 
@@ -60,12 +59,12 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 
         if (phase.StartDate.HasValue && request.StartDate < phase.StartDate.Value)
         {
-            throw new BusinessException("ERR_TASK_DATE_INVALID", 
+            throw new BusinessException("ERR_TASK_DATE_INVALID",
                 $"Ngày bắt đầu của công việc ({request.StartDate:dd/MM/yyyy}) không được trước ngày bắt đầu của giai đoạn ({phase.StartDate.Value:dd/MM/yyyy}).");
         }
         if (phase.EndDate.HasValue && request.EndDate > phase.EndDate.Value)
         {
-            throw new BusinessException("ERR_TASK_DATE_INVALID", 
+            throw new BusinessException("ERR_TASK_DATE_INVALID",
                 $"Ngày kết thúc của công việc ({request.EndDate:dd/MM/yyyy}) không được sau ngày kết thúc của giai đoạn ({phase.EndDate.Value:dd/MM/yyyy}).");
         }
 
@@ -81,7 +80,7 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 
             if (request.StartDate < parentTask.StartDate || request.EndDate > parentTask.EndDate)
             {
-                throw new BusinessException("ERR_TASK_DATE_INVALID", 
+                throw new BusinessException("ERR_TASK_DATE_INVALID",
                     $"Thời gian công việc con ({request.StartDate:dd/MM/yyyy} - {request.EndDate:dd/MM/yyyy}) " +
                     $"phải nằm trong khoảng thời gian của công việc cha ({parentTask.StartDate:dd/MM/yyyy} - {parentTask.EndDate:dd/MM/yyyy}).");
             }
@@ -101,12 +100,12 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
                         UserId = leader.UserId,
                         AssignedAt = DateTime.UtcNow
                     });
-                    
+
                     if (parentTask.Status == BPG.Domain.Constants.TaskStatus.New)
                     {
                         parentTask.Status = BPG.Domain.Constants.TaskStatus.Assigned;
                     }
-                    
+
                     _unitOfWork.Repository<ProjectTask>().Update(parentTask);
                 }
             }
