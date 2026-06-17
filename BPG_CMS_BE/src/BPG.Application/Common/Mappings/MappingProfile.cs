@@ -61,6 +61,9 @@ namespace BPG.Application.Common.Mappings
 
             // Mapping cho Supplier
             CreateMap<Supplier, BPG.Application.DTOs.Suppliers.SupplierDto>().ReverseMap();
+
+            // Mapping cho MaterialCategory
+            CreateMap<MaterialCategory, BPG.Application.Features.MaterialCategories.DTOs.MaterialCategoryDto>().ReverseMap();
         }
     }
 }
