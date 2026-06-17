@@ -216,6 +216,7 @@ export interface DashboardProjectProgressDto {
   projectName: string;
   address: string;
   progress: number;
+  status: string;
 }
 
 export interface DashboardMetricsDto {

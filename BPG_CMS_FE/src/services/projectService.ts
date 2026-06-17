@@ -79,11 +79,11 @@ export const projectService = {
       if (res.success && res.data) return res.data;
     }
     const projects = await this.getProjects();
-    const activeProjects = projects.filter(p => p.status === 'active');
+    const activeProjects = projects.filter(p => p.status === 'inprogress' || p.status === 'paused');
     return {
       totalProjects: projects.length,
       draftProjects: projects.filter(p => p.status === 'draft').length,
-      activeProjects: activeProjects.length,
+      activeProjects: projects.filter(p => p.status === 'inprogress').length,
       pausedProjects: projects.filter(p => p.status === 'paused').length,
       completedProjects: projects.filter(p => p.status === 'done').length,
       closedProjects: 0,
@@ -91,7 +91,8 @@ export const projectService = {
         projectId: parseInt(p.id.replace('p-', '')) || 0,
         projectName: p.name,
         address: p.address,
-        progress: p.progress
+        progress: p.progress,
+        status: p.status
       }))
     };
   },
@@ -172,8 +173,8 @@ export const projectService = {
           startDate: p.plannedStart,
           endDate: p.plannedEnd,
           status: p.status.toLowerCase() as any,
-          drawingUrl: drawingAttachment?.fileUrl || drawingAttachment?.fileName || '',
-          drawingUrls: designAttachments.map(a => a.fileUrl || a.fileName),
+          drawingUrl: drawingAttachment?.fileUrl || '',
+          drawingUrls: designAttachments.map(a => a.fileUrl).filter(Boolean),
           attachments: p.attachments,
           progress: 0,
           pauseReason: p.pauseReason,
@@ -437,6 +438,11 @@ export const projectService = {
 
   // WBS PHASES & TASKS
   async getPhases(projectId: string): Promise<WBSPhase[]> {
+    if (!USE_MOCK_API) {
+      const { wbsService } = await import('./wbsService');
+      const data = await wbsService.getWbsDataFlattened(projectId);
+      return data.phases;
+    }
     const normalizedProjectId = projectId.match(/^\d+$/) ? `p-${projectId}` : projectId;
     const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     return allPhases

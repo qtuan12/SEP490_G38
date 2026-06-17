@@ -167,15 +167,15 @@ export const ProjectLayoutHub: React.FC = () => {
           {/* Project Status Actions for TPKT */}
           {isTPKT && (
             <div style={{ display: 'flex', gap: '8px' }}>
+              {project.status !== 'done' && (
+                <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Edit3 size={16} /> Sửa
+                </button>
+              )}
               {project.status === 'draft' && (
-                <>
-                  <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Edit3 size={16} /> Sửa
-                  </button>
-                  <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Play size={16} /> Kích hoạt Dự án
-                  </button>
-                </>
+                <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Play size={16} /> Kích hoạt Dự án
+                </button>
               )}
               {project.status === 'inprogress' && (
                 <>

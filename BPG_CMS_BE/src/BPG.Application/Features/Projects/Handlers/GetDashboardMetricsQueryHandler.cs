@@ -37,7 +37,7 @@ public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetri
             PausedProjects = projects.Count(p => p.Status == ProjectStatus.Paused),
             CompletedProjects = projects.Count(p => p.Status == ProjectStatus.Completed),
             ClosedProjects = projects.Count(p => p.Status == ProjectStatus.Closed),
-            ActiveProjectsProgress = projects.Where(p => p.Status == ProjectStatus.InProgress)
+            ActiveProjectsProgress = projects.Where(p => p.Status == ProjectStatus.InProgress || p.Status == ProjectStatus.Paused)
                 .Select(p => 
                 {
                     var allTasks = p.Phases?.SelectMany(ph => ph.Tasks).Where(t => t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList() ?? new List<BPG.Domain.Entities.ProjectTask>();
@@ -47,7 +47,8 @@ public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetri
                         ProjectId = p.ProjectId,
                         ProjectName = p.Name,
                         Address = p.Address ?? "",
-                        Progress = progress
+                        Progress = progress,
+                        Status = p.Status.ToString().ToLower()
                     };
                 }).ToList()
         };

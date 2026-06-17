@@ -8,7 +8,7 @@ import { Button, Input, FormItem } from '../../../components/ui';
 import { projectService } from '../../../services/projectService';
 import { apiClient } from '../../../services/api';
 import type { Project } from '../../../types/common';
-import { UploadCloud, FileText } from 'lucide-react';
+import { UploadCloud, FileText, X } from 'lucide-react';
 
 const schema = z.object({
   name: z.string().min(3, 'Tên dự án phải có ít nhất 3 ký tự'),
@@ -35,6 +35,8 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
     resolver: zodResolver(schema) as any,
     defaultValues: { drawingNames: [] }
   });
+
+  const isDraft = !project || project.status === 'draft';
 
   useEffect(() => {
     if (project && isOpen) {
@@ -78,11 +80,6 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
       const newFiles = filePreviews.filter(p => p.file);
       const existingPreviews = filePreviews.filter(p => !p.file);
 
-      // We need to keep old attachments that were not removed
-      // If we are replacing all, we should just upload new ones.
-      // But user can remove existing and add new.
-      // For simplicity, we just take the current filePreviews list.
-
       if (newFiles.length > 0) {
         const formData = new globalThis.FormData();
         newFiles.forEach(p => {
@@ -110,10 +107,10 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
       drawingUrls = finalAttachments.map(a => a.fileUrl);
 
       await projectService.updateProject(project.id, {
-        name: data.name,
-        address: data.address,
-        startDate: data.startDate,
-        endDate: data.endDate,
+        name: data.name || project.name,
+        address: data.address || project.address,
+        startDate: data.startDate || project.startDate,
+        endDate: data.endDate || project.endDate,
         drawingUrls: drawingUrls,
         attachments: finalAttachments
       });
@@ -141,28 +138,40 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
     e.preventDefault();
     setDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const files = Array.from(e.dataTransfer.files).slice(0, 5);
-      const previews = files.map(f => ({
-          file: f,
-          url: f.type.startsWith('image/') ? URL.createObjectURL(f) : f.name,
-          name: f.name
-      }));
-      setFilePreviews(previews);
-      setValue('drawingNames', files.map(f => f.name), { shouldValidate: true });
+      const files = Array.from(e.dataTransfer.files);
+      addFiles(files);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files).slice(0, 5);
-      const previews = files.map(f => ({
-          file: f,
-          url: f.type.startsWith('image/') ? URL.createObjectURL(f) : f.name,
-          name: f.name
-      }));
-      setFilePreviews(previews);
-      setValue('drawingNames', files.map(f => f.name), { shouldValidate: true });
+      const files = Array.from(e.target.files);
+      addFiles(files);
     }
+    // reset input so the same file can be selected again if removed
+    e.target.value = '';
+  };
+
+  const addFiles = (files: File[]) => {
+    const spaceLeft = 5 - filePreviews.length;
+    if (spaceLeft <= 0) return;
+    const filesToAdd = files.slice(0, spaceLeft);
+    const newPreviews = filesToAdd.map(f => ({
+      file: f,
+      url: f.type.startsWith('image/') ? URL.createObjectURL(f) : f.name,
+      name: f.name
+    }));
+    
+    const updated = [...filePreviews, ...newPreviews];
+    setFilePreviews(updated);
+    setValue('drawingNames', updated.map(f => f.name), { shouldValidate: true });
+  };
+
+  const handleRemoveFile = (e: React.MouseEvent, idxToRemove: number) => {
+    e.stopPropagation();
+    const updated = filePreviews.filter((_, idx) => idx !== idxToRemove);
+    setFilePreviews(updated);
+    setValue('drawingNames', updated.map(f => f.name), { shouldValidate: true });
   };
 
   const footer = (
@@ -180,23 +189,23 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
     <Modal isOpen={isOpen} onClose={onClose} title="Sửa thông tin Dự án" footer={footer} width="md">
       <form className="flex flex-col gap-4">
         <FormItem label="Tên dự án" required error={errors.name?.message}>
-          <Input placeholder="Nhập tên dự án công trình" {...register('name')} error={!!errors.name} />
+          <Input placeholder="Nhập tên dự án công trình" {...register('name')} error={!!errors.name} disabled={!isDraft} />
         </FormItem>
 
         <FormItem label="Địa chỉ công trường" required error={errors.address?.message}>
-          <Input placeholder="Số nhà, Tỉnh thành..." {...register('address')} error={!!errors.address} />
+          <Input placeholder="Số nhà, Tỉnh thành..." {...register('address')} error={!!errors.address} disabled={!isDraft} />
         </FormItem>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormItem label="Ngày dự kiến bắt đầu" required error={errors.startDate?.message}>
-            <Input type="date" {...register('startDate')} error={!!errors.startDate} />
+            <Input type="date" {...register('startDate')} error={!!errors.startDate} disabled={!isDraft} />
           </FormItem>
           <FormItem label="Ngày dự kiến kết thúc" required error={errors.endDate?.message}>
-            <Input type="date" {...register('endDate')} error={!!errors.endDate} />
+            <Input type="date" {...register('endDate')} error={!!errors.endDate} disabled={!isDraft} />
           </FormItem>
         </div>
         
-        <FormItem label="Bản vẽ thiết kế tổng thể (Tối đa 5 file, sẽ ghi đè file cũ)" error={errors.drawingNames?.message}>
+        <FormItem label="Bản vẽ thiết kế tổng thể (Tối đa 5 file)" error={errors.drawingNames?.message}>
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -204,7 +213,13 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
             className={`border-2 dashed rounded-md p-6 text-center cursor-pointer transition-all ${
               dragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
             }`}
-            onClick={() => document.getElementById('edit-drawing-file-input')?.click()}
+            onClick={() => {
+              if (filePreviews.length < 5) {
+                document.getElementById('edit-drawing-file-input')?.click();
+              } else {
+                alert('Chỉ được chọn tối đa 5 file. Hãy xóa bớt file hiện tại trước.');
+              }
+            }}
           >
             <input
               id="edit-drawing-file-input"
@@ -217,9 +232,17 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
             <UploadCloud className="h-8 w-8 text-gray-400 mx-auto mb-2" />
             
             {filePreviews && filePreviews.length > 0 ? (
-              <div className="flex flex-wrap items-center justify-center gap-4 mt-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex flex-wrap items-center justify-center gap-4 mt-4">
                 {filePreviews.map((preview, idx) => (
                   <div key={idx} className="flex flex-col items-center gap-1 group relative">
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemoveFile(e, idx)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      title="Xóa bản vẽ"
+                    >
+                      <X size={12} />
+                    </button>
                     {preview.url && (preview.url.startsWith('blob:') || preview.url.startsWith('http')) ? (
                       <img 
                         src={preview.url} 
@@ -247,6 +270,13 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
                 </span>
               </div>
             )}
+            {filePreviews.length > 0 && filePreviews.length < 5 && (
+              <div className="mt-4 text-xs text-blue-600 font-semibold" onClick={(e) => e.stopPropagation()}>
+                <span className="cursor-pointer hover:underline" onClick={() => document.getElementById('edit-drawing-file-input')?.click()}>
+                  + Thêm bản vẽ khác ({filePreviews.length}/5)
+                </span>
+              </div>
+            )}
           </div>
         </FormItem>
 
@@ -259,4 +289,5 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
     </Modal>
   );
 };
+
 

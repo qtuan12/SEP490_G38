@@ -31,7 +31,7 @@ export const ProjectDrawing: React.FC = () => {
   const [showSelectModal, setShowSelectModal] = useState(false);
 
   const isTPKTOrAdmin = user?.role === 'technicalmanager' || user?.role === 'admin';
-  const canEdit = isTPKTOrAdmin && project?.status !== 'paused' && project?.status !== 'done';
+  const canEdit = isTPKTOrAdmin && project?.status !== 'done';
 
   const loadProject = async () => {
     if (!projectId) return;
@@ -220,7 +220,7 @@ export const ProjectDrawing: React.FC = () => {
           position: 'relative'
         }}
       >
-        {currentViewUrl ? (
+        {currentViewUrl && (currentViewUrl.startsWith('http') || currentViewUrl.startsWith('blob:') || currentViewUrl.startsWith('data:')) ? (
           /* Large Interactive Blueprint Viewer */
           <div 
             style={{ 
@@ -247,6 +247,42 @@ export const ProjectDrawing: React.FC = () => {
                  alt="Bản vẽ thiết kế" 
                  style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }} 
                />
+            )}
+          </div>
+        ) : currentViewUrl ? (
+          /* Invalid URL state */
+          <div 
+            style={{
+              border: '2px dashed hsl(var(--danger) / 0.3)',
+              backgroundColor: 'hsl(var(--danger-glow))',
+              borderRadius: 'var(--radius-lg)',
+              padding: '60px 40px',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '16px',
+              width: '100%',
+              maxWidth: '600px',
+              boxShadow: 'var(--shadow-lg)'
+            }}
+          >
+            <AlertTriangle size={64} style={{ color: 'hsl(var(--danger))' }} />
+            <div>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 700, color: 'hsl(var(--danger))' }}>Lỗi hiển thị bản vẽ</h3>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', maxWidth: '440px', lineHeight: 1.5 }}>
+                File bản vẽ không khả dụng (đường dẫn bị lỗi hoặc chưa được đồng bộ lên Cloudinary). Vui lòng cập nhật lại file mới.
+              </p>
+            </div>
+            {canEdit && (
+              <button
+                onClick={() => setShowSelectModal(true)}
+                className="btn btn-secondary"
+                style={{ fontSize: '0.9rem', fontWeight: 600, padding: '10px 24px', marginTop: '12px' }}
+              >
+                Chọn bản vẽ khác
+              </button>
             )}
           </div>
         ) : (
