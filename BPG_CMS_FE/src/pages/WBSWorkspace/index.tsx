@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
+import { wbsService } from '../../services/wbsService';
 import type { WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
@@ -52,7 +53,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState<WBSTask | null>(null);
 
-
+  const [isObsoleteOpen, setIsObsoleteOpen] = useState(false);
 
   // State for task allocations estimation
   // State for task allocations estimation
@@ -99,20 +100,19 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const loadWBSData = async () => {
     setLoading(true);
     try {
-      const pList = await projectService.getPhases(projectId);
-      const tList = await projectService.getTasks(projectId);
+      const wbsData = await wbsService.getWbsDataFlattened(projectId);
       const allProjs = await projectService.getProjects();
       const memberList = await projectService.getMembers(projectId);
       const mr = await projectService.getAllMaterialRequests();
       setMaterialRequests(mr);
 
       setProject(allProjs.find(p => p.id === projectId) || null);
-      setPhases(pList);
-      setTasks(tList);
+      setPhases(wbsData.phases);
+      setTasks(wbsData.tasks);
       setMembers(memberList);
 
       const expands: Record<string, boolean> = {};
-      pList.forEach(p => { expands[p.id] = true; });
+      wbsData.phases.forEach(p => { expands[p.id] = true; });
       setExpandedPhases(expands);
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tải cơ cấu WBS.');
@@ -201,14 +201,14 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const handleDeletePhase = async (phaseId: string, phaseName: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId);
     if (phaseTasks.some(t => t.progress > 0)) {
-      handleError(`Không thể xóa Phase "${phaseName}" vì bên trong có Task đã ghi nhận tiến độ.`);
+      handleError(`Không thể xóa Giai đoạn "${phaseName}" vì bên trong có Công việc đã ghi nhận tiến độ.`);
       return;
     }
-    if (!window.confirm(`Xác nhận xóa Phase "${phaseName}" và toàn bộ Task chưa bắt đầu bên trong?`)) return;
+    if (!window.confirm(`Xác nhận xóa Giai đoạn "${phaseName}" và toàn bộ Công việc chưa bắt đầu bên trong?`)) return;
     try {
-      await projectService.deletePhase(phaseId);
+      await wbsService.deletePhase(parseInt(projectId.replace('p-', '')), parseInt(phaseId.replace('ph-', '')));
       if (selectedTask && tasks.find(t => t.id === selectedTaskId)?.phaseId === phaseId) setSelectedTaskId(null);
-      handleSuccess(`Đã xóa Phase "${phaseName}".`);
+      handleSuccess(`Đã xóa Giai đoạn "${phaseName}".`);
     } catch (err: any) { handleError(err.message || 'Lỗi khi xóa Phase.'); }
   };
 
@@ -218,9 +218,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const handleDeleteTask = async (taskId: string, taskName: string) => {
     if (!window.confirm(`Xác nhận xóa hẳn công việc "${taskName}"?`)) return;
     try {
-      await projectService.deleteTask(taskId);
+      await wbsService.deleteTask(parseInt(taskId.replace('t-', '')));
       if (selectedTaskId === taskId) setSelectedTaskId(null);
-      handleSuccess(`Đã xóa Task "${taskName}".`);
+      handleSuccess(`Đã xóa Công việc "${taskName}".`);
     } catch (err: any) { handleError(err.message || 'Lỗi khi xóa Task.'); }
   };
 
@@ -258,10 +258,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     isCreatePhaseOpen, setIsCreatePhaseOpen,
     isResubmitOpen, setIsResubmitOpen,
     selectedResubmitRequest, setSelectedResubmitRequest,
-    isEditPhaseOpen, setIsEditPhaseOpen,
-    selectedPhaseForEdit, setSelectedPhaseForEdit,
-    isEditTaskOpen, setIsEditTaskOpen,
-    selectedTaskForEdit, setSelectedTaskForEdit,
+    isEditPhaseOpen, setIsEditPhaseOpen, selectedPhaseForEdit, setSelectedPhaseForEdit,
+    isEditTaskOpen, setIsEditTaskOpen, selectedTaskForEdit, setSelectedTaskForEdit,
+    isObsoleteOpen, setIsObsoleteOpen,
     isPhaseMatReqOpen, setIsPhaseMatReqOpen,
     isLeaderApprovalOpen, setIsLeaderApprovalOpen,
     selectedPhaseForMatReq, setSelectedPhaseForMatReq,

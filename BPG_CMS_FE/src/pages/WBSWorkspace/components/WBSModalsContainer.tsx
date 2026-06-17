@@ -11,6 +11,7 @@ import { LeaderApprovalModal } from '../modals/LeaderApprovalModal';
 import { CreateMaterialRequestModal } from '../../MaterialRequests/modals/CreateMaterialRequestModal';
 import { ResubmitMaterialRequestModal } from '../../MaterialRequests/modals/ResubmitMaterialRequestModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
+import { ObsoleteTaskModal } from '../modals/ObsoleteTaskModal';
 import { DailyLogFormModal } from '../../Incidents/modals/DailyLogFormModal';
 
 export const WBSModalsContainer = () => {
@@ -27,6 +28,7 @@ export const WBSModalsContainer = () => {
     isBOQOpen, setIsBOQOpen, selectedPhaseForBOQ, setSelectedPhaseForBOQ,
     isCreateTaskOpen, setIsCreateTaskOpen, selectedPhaseForTask, parentTaskForNew, parentDeadlineForNew,
     isEditTaskOpen, setIsEditTaskOpen, selectedTaskForEdit, setSelectedTaskForEdit,
+    isObsoleteOpen, setIsObsoleteOpen,
     isAdjustDeadlineOpen, setIsAdjustDeadlineOpen, adjustingTask, setAdjustingTask,
     selectedTaskId, phases, handleSuccess, handleError
   } = useWBS();
@@ -52,7 +54,26 @@ export const WBSModalsContainer = () => {
           onAssignOpen={() => { setIsDetailOpen(false); setIsAssignOpen(true); }}
           onLogOpen={() => { setIsDetailOpen(false); setIsLogOpen(true); }}
           onCreateMatReqOpen={(type) => { setIsDetailOpen(false); setCreateMatReqType(type); setIsCreateMatReqOpen(true); }}
-          onObsolete={() => { setIsDetailOpen(false); handleDeleteTask && handleDeleteTask(selectedTask.id, selectedTask.name); }}
+          onObsolete={() => { 
+            setIsDetailOpen(false); 
+            if (selectedTask.progress > 0) {
+              setIsObsoleteOpen(true);
+            } else {
+              handleDeleteTask && handleDeleteTask(selectedTask.id, selectedTask.name);
+            }
+          }}
+        />
+      )}
+    
+      {isObsoleteOpen && selectedTask && (
+        <ObsoleteTaskModal
+          isOpen={isObsoleteOpen}
+          onClose={() => setIsObsoleteOpen(false)}
+          task={selectedTask}
+          onSuccess={(msg) => {
+            handleSuccess(msg);
+            // Refresh data might be needed, but WBSWorkspace should handle it if handleSuccess doesn't. We can reload by reloading page or context.
+          }}
         />
       )}
     
@@ -89,6 +110,7 @@ export const WBSModalsContainer = () => {
           isOpen={isCreatePhaseOpen}
           onClose={() => setIsCreatePhaseOpen(false)}
           projectId={projectId}
+          maxPhaseOrder={phases.length + 1}
           onSuccess={handleSuccess}
           onError={handleError}
         />
@@ -183,6 +205,7 @@ export const WBSModalsContainer = () => {
         phaseId={selectedPhaseForTask}
         parentTaskId={parentTaskForNew}
         parentDeadline={parentDeadlineForNew}
+        maxTaskOrder={tasks.filter(t => t.phaseId === selectedPhaseForTask && t.parentTaskId === parentTaskForNew).length + 1}
         members={members}
         onSuccess={handleSuccess}
         onError={handleError}

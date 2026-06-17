@@ -66,6 +66,9 @@ export interface WBSContextType {
   selectedTaskForEdit: WBSTask | null;
   setSelectedTaskForEdit: (task: WBSTask | null) => void;
   
+  isObsoleteOpen: boolean;
+  setIsObsoleteOpen: (open: boolean) => void;
+  
   isPhaseMatReqOpen: boolean;
   setIsPhaseMatReqOpen: (open: boolean) => void;
   

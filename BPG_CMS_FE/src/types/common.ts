@@ -47,6 +47,7 @@ export interface WBSPhase {
   id: string;
   projectId: string;
   name: string;
+  description?: string;
   sortOrder: number; // display order within project
   status: 'active' | 'frozen'; // frozen after acceptance
   acceptanceComment?: string;
@@ -150,6 +151,9 @@ export interface WBSTask {
   progress: number; // 0 - 100
   history: TaskHistory[];
   status?: 'active' | 'obsolete';
+  isOverdue?: boolean;
+  isAtRisk?: boolean;
+  daysLeft?: number;
   estimatedMaterials?: PhaseMaterialItem[];
   isRework?: boolean;
 }

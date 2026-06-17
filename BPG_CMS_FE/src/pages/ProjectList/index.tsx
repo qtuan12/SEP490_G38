@@ -214,7 +214,7 @@ export const ProjectList: React.FC = () => {
                   </div>
                   <div className="flex gap-2 items-center">
                     <Calendar size={16} className="text-[hsl(var(--text-muted))] shrink-0" />
-                    <span>Hạn: {p.startDate} ~ {p.endDate}</span>
+                    <span>Hạn: {p.startDate?.split('-').reverse().join('-')} → {p.endDate?.split('-').reverse().join('-')}</span>
                   </div>
                   {p.drawingUrl && (
                     <div className="flex gap-2 items-center text-[hsl(var(--primary-hover))]">

@@ -214,13 +214,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
               <Calendar size={14} />NGÀY BẮT ĐẦU
             </span>
-            <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.startDate || 'Chưa xác định'}</strong>
+            <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.startDate?.split('-').reverse().join('-') || 'Chưa xác định'}</strong>
           </div>
           <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
               <Calendar size={14} />HẠN HOÀN THÀNH
             </span>
-            <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.deadline}</strong>
+            <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.deadline?.split('-').reverse().join('-')}</strong>
           </div>
         </div>
 
@@ -238,7 +238,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   <UserPlus size={16} /><span>Phân công</span>
                 </button>
                 <button onClick={onObsolete} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: 'hsl(var(--bg-main))', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
-                  <Trash2 size={16} /><span>Hủy việc</span>
+                  <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa công việc'}</span>
                 </button>
               </>
             )}
