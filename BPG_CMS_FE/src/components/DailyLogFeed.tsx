@@ -119,7 +119,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     // Join Project group
     connection.invoke('JoinProjectGroup', numericProjectId)
       .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
-      .catch(err => console.error('Error joining Project Group:', err));
+      .catch((err: any) => console.error('Error joining Project Group:', err));
 
     // Map helpers
     const mapRawComment = (c: any): DailyLogComment => ({
@@ -247,7 +247,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       // Leave Project group
       connection.invoke('LeaveProjectGroup', numericProjectId)
         .then(() => console.log(`Left SignalR project group: Project_${numericProjectId}`))
-        .catch(err => console.error('Error leaving Project Group:', err));
+        .catch((err: any) => console.error('Error leaving Project Group:', err));
     };
   }, [connection, projectId, taskId]);
 
