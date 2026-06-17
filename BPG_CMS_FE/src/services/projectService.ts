@@ -116,16 +116,10 @@ export const projectService = {
         startDate: p.plannedStart,
         endDate: p.plannedEnd,
         status: p.status.toLowerCase() as any,
-        progress: 0
+        progress: p.progress || 0
       }));
 
-      for (const p of mapped) {
-        const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === p.id && t.status !== 'obsolete');
-        if (tasks.length > 0) {
-          const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
-          p.progress = Math.round(sum / tasks.length);
-        }
-      }
+      // Remove local storage logic for progress
       return mapped;
     }
     // MOCK API
@@ -169,13 +163,9 @@ export const projectService = {
           endDate: p.plannedEnd,
           status: p.status.toLowerCase() as any,
           drawingUrl: drawingAttachment?.fileName || '',
-          progress: 0
+          progress: p.progress || 0
         };
-        const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === project.id && t.status !== 'obsolete');
-        if (tasks.length > 0) {
-          const sum = tasks.reduce((acc, t) => acc + t.progress, 0);
-          project.progress = Math.round(sum / tasks.length);
-        }
+        // Removed local storage override
         return project;
       } catch (err) {
         return null;

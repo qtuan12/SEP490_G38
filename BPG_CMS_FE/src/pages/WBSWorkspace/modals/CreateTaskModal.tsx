@@ -25,7 +25,6 @@ type CreateTaskForm = z.infer<typeof createTaskSchema>;
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  projectId: string;
   phaseId: string;
   parentTaskId?: string;
   parentDeadline?: string;
@@ -38,7 +37,6 @@ interface CreateTaskModalProps {
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   isOpen,
   onClose,
-  projectId,
   phaseId,
   parentTaskId,
   parentDeadline,

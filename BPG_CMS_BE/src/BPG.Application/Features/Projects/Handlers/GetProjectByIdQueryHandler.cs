@@ -44,6 +44,33 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
             .ToListAsync(cancellationToken);
 
         var dto = _mapper.Map<ProjectDetailDto>(project);
+
+        var tasks = await _uow.Repository<ProjectTask>().Query()
+            .AsNoTracking()
+            .Where(t => t.Phase.ProjectId == request.Id && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+            .Select(t => new { t.TaskId, t.ParentTaskId, t.StartDate, t.EndDate, t.ProgressPercent })
+            .ToListAsync(cancellationToken);
+
+        int projectProgress = 0;
+        var leafTasks = tasks.Where(t => !tasks.Any(c => c.ParentTaskId == t.TaskId)).ToList();
+        if (leafTasks.Any())
+        {
+            double totalWeightedProgress = 0;
+            double totalWeight = 0;
+            foreach (var t in leafTasks)
+            {
+                var duration = (t.EndDate.ToDateTime(TimeOnly.MinValue) - t.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
+                double weight = duration > 0 ? duration : 1;
+                totalWeightedProgress += t.ProgressPercent * weight;
+                totalWeight += weight;
+            }
+            if (totalWeight > 0)
+            {
+                projectProgress = (int)Math.Round(totalWeightedProgress / totalWeight);
+            }
+        }
+
+        dto.Progress = projectProgress;
         
         dto.Attachments = _mapper.Map<System.Collections.Generic.List<AttachmentDto>>(attachments);
 

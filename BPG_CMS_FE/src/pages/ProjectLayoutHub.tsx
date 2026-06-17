@@ -23,12 +23,14 @@ import {
   Play
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   
   const { user } = useAuth();
+  const { connection } = useNotification();
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const [project, setProject] = useState<Project | null>(null);
@@ -53,6 +55,21 @@ export const ProjectLayoutHub: React.FC = () => {
   useEffect(() => {
     fetchProjectDetails();
   }, [projectId]);
+
+  useEffect(() => {
+    if (!connection || !projectId) return;
+
+    const handleWbsUpdated = () => {
+      console.log('ProjectLayoutHub received WbsTreeUpdated, reloading project details for progress...');
+      fetchProjectDetails();
+    };
+
+    connection.on('WbsTreeUpdated', handleWbsUpdated);
+
+    return () => {
+      connection.off('WbsTreeUpdated', handleWbsUpdated);
+    };
+  }, [connection, projectId]);
 
   // Handle reload when tabs perform updates
   // const handleTabUpdate = () => {

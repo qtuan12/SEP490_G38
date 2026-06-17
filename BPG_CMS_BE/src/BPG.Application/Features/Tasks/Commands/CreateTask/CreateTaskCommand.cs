@@ -6,6 +6,7 @@ using BPG.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.IServices;
 
 namespace BPG.Application.Features.Tasks.Commands.CreateTask;
 
@@ -39,11 +40,13 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public CreateTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService)
+    public CreateTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<ApiResponse<long>> Handle(CreateTaskCommand request, CancellationToken ct)
@@ -159,6 +162,11 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
                     referenceId: task.TaskId,
                     ct: ct);
             }
+        }
+
+        if (phase != null)
+        {
+            await _realtimeSender.SendToGroupAsync($"Project_{phase.ProjectId}", "WbsTreeUpdated", new { TaskId = task.TaskId }, ct);
         }
 
         return ApiResponse<long>.SuccessResult(task.TaskId, "Tạo công việc thành công.");

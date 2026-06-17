@@ -250,6 +250,7 @@ export interface ProjectDto {
   plannedStart: string;
   plannedEnd: string;
   createdAt: string;
+  progress?: number;
 }
 
 export interface ProjectMemberDto {

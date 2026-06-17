@@ -53,10 +53,7 @@ export const WBSModalsContainer = () => {
           materialRequests={materialRequests}
           isTPKTOrPL={isTPKTOrPL}
           isPL={isPL}
-          onAssignOpen={() => { setIsDetailOpen(false); setIsAssignOpen(true); }}
-          onLogOpen={() => { setIsDetailOpen(false); setIsLogOpen(true); }}
           onCreateMatReqOpen={(type) => { setIsDetailOpen(false); setCreateMatReqType(type); setIsCreateMatReqOpen(true); }}
-          onAdjustProgressOpen={() => { setIsDetailOpen(false); setIsAdjustProgressOpen(true); }}
           onObsolete={() => { 
             setIsDetailOpen(false); 
             if (selectedTask.progress > 0) {
@@ -65,6 +62,8 @@ export const WBSModalsContainer = () => {
               handleDeleteTask && handleDeleteTask(selectedTask.id, selectedTask.name);
             }
           }}
+          onSuccess={handleSuccess}
+          onError={handleError}
         />
       )}
     
@@ -204,7 +203,6 @@ export const WBSModalsContainer = () => {
       <CreateTaskModal
         isOpen={isCreateTaskOpen}
         onClose={() => setIsCreateTaskOpen(false)}
-        projectId={projectId}
         phaseId={selectedPhaseForTask}
         parentTaskId={parentTaskForNew}
         parentDeadline={parentDeadlineForNew}

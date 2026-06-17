@@ -3,27 +3,26 @@ import { Modal } from '../../../components/ui/Modal';
 import { projectService } from '../../../services/projectService';
 import type { WBSTask } from '../../../types/common';
 
-interface AdjustProgressModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface AdjustProgressFormProps {
   task: WBSTask;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
+  onCancel: () => void;
 }
 
-export const AdjustProgressModal: React.FC<AdjustProgressModalProps> = ({
-  isOpen, onClose, task, onSuccess, onError
+export const AdjustProgressForm: React.FC<AdjustProgressFormProps> = ({
+  task, onSuccess, onError, onCancel
 }) => {
   const [adjustProgress, setAdjustProgress] = useState<number | ''>(0);
   const [adjustReason, setAdjustReason] = useState<string>('');
   const [isAdjusting, setIsAdjusting] = useState(false);
 
   useEffect(() => {
-    if (isOpen && task) {
+    if (task) {
       setAdjustProgress(task.progress);
       setAdjustReason('');
     }
-  }, [isOpen, task]);
+  }, [task]);
 
   const handleSubmit = async () => {
     if (typeof adjustProgress !== 'number' || adjustProgress < 0 || adjustProgress > 100) {
@@ -38,7 +37,7 @@ export const AdjustProgressModal: React.FC<AdjustProgressModalProps> = ({
       setIsAdjusting(true);
       await projectService.adjustTaskProgressDirectly(task.id, adjustProgress, adjustReason);
       onSuccess('Cập nhật tiến độ thành công');
-      onClose();
+      onCancel();
     } catch (e: any) {
       onError(e.message || 'Lỗi khi cập nhật tiến độ');
     } finally {
@@ -70,20 +69,12 @@ export const AdjustProgressModal: React.FC<AdjustProgressModalProps> = ({
     setAdjustProgress(next > 100 ? 100 : next);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Điều chỉnh tiến độ (Chỉ dành cho TPKT)"
-    >
-      <div className="flex flex-col gap-4">
-        <div className="p-3 bg-[hsl(var(--bg-main))] rounded-md text-[0.85rem]">
-          <div className="text-[hsl(var(--text-muted))] mb-1">Công việc:</div>
-          <strong className="text-[1rem]">{task.name}</strong>
-        </div>
-        
+    <div className="bg-[hsl(var(--bg-card))] rounded-md border border-[hsl(var(--border))] overflow-hidden animate-fade-in shadow-sm mt-4">
+      <div className="p-3 bg-[hsl(var(--primary-glow))] border-b border-[hsl(var(--border))]">
+        <h4 className="m-0 text-[0.95rem] font-semibold text-[hsl(var(--primary))]">Điều chỉnh tiến độ (Chỉ dành cho TPKT)</h4>
+      </div>
+      <div className="p-4 flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-[0.8rem] font-semibold text-[hsl(var(--text-secondary))]">
             Tiến độ mới (%):
@@ -123,23 +114,42 @@ export const AdjustProgressModal: React.FC<AdjustProgressModalProps> = ({
           />
         </div>
 
-        <div className="flex justify-end gap-3 mt-4">
+        <div className="flex justify-end gap-3 mt-2">
           <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-md border border-[hsl(var(--border))] text-[0.85rem] font-medium bg-transparent hover:bg-[hsl(var(--bg-main))] transition-colors"
+            onClick={onCancel}
+            className="px-4 py-1.5 rounded-md border border-[hsl(var(--border))] text-[0.85rem] font-medium bg-transparent hover:bg-[hsl(var(--bg-main))] transition-colors"
             disabled={isAdjusting}
           >
             Hủy
           </button>
           <button
             onClick={handleSubmit}
-            className="px-4 py-2 rounded-md border-none text-white text-[0.85rem] font-medium bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-hover))] transition-colors cursor-pointer"
+            className="px-4 py-1.5 rounded-md border-none text-white text-[0.85rem] font-medium bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-hover))] transition-colors cursor-pointer"
             disabled={isAdjusting}
           >
             {isAdjusting ? 'Đang cập nhật...' : 'Cập nhật tiến độ'}
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+interface AdjustProgressModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  task: WBSTask;
+  onSuccess: (msg: string) => void;
+  onError: (msg: string) => void;
+}
+
+export const AdjustProgressModal: React.FC<AdjustProgressModalProps> = ({
+  isOpen, onClose, task, onSuccess, onError
+}) => {
+  if (!isOpen) return null;
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Điều chỉnh tiến độ (Chỉ dành cho TPKT)">
+      <AdjustProgressForm task={task} onSuccess={onSuccess} onError={onError} onCancel={onClose} />
     </Modal>
   );
 };

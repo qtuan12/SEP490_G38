@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/ui/Modal';
 import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Box, History, Package, FileText, ArrowLeft, Smartphone } from 'lucide-react';
+import { AssignEngineerForm } from './AssignEngineerModal';
+import { AdjustProgressForm } from './AdjustProgressModal';
+import { ObsoleteTaskForm } from './ObsoleteTaskModal';
+import { DailyLogForm } from '../../Incidents/modals/DailyLogFormModal';
 import type {WBSTask, WBSPhase, Project, MaterialRequest} from '../../../types/common';
 
 interface TaskDetailModalProps {
@@ -15,11 +19,10 @@ interface TaskDetailModalProps {
   materialRequests: MaterialRequest[];
   isTPKTOrPL: boolean;
   isPL: boolean;
-  onAssignOpen: () => void;
-  onLogOpen: () => void;
   onCreateMatReqOpen: (type: 'normal' | 'emergency') => void;
   onObsolete: () => void;
-  onAdjustProgressOpen: () => void;
+  onSuccess?: (msg: string) => void;
+  onError?: (msg: string) => void;
 }
 
 const getInitials = (name: string) => {
@@ -37,10 +40,21 @@ const getAvatarColor = (userId: string) => {
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, materialRequests, isTPKTOrPL,
-  onAssignOpen, onLogOpen, onCreateMatReqOpen, onObsolete, onAdjustProgressOpen
+  onCreateMatReqOpen, onObsolete,
+  onSuccess, onError
 }) => {
   const navigate = useNavigate();
   const [viewingRequest, setViewingRequest] = useState<MaterialRequest | null>(null);
+  const [activeForm, setActiveForm] = useState<'assign' | 'adjust' | 'obsolete' | 'log' | null>(null);
+
+  const handleFormSuccess = (msg: string) => {
+    setActiveForm(null);
+    onSuccess && onSuccess(msg);
+  };
+
+  const handleFormError = (msg: string) => {
+    onError && onError(msg);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -134,8 +148,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const isParentTask = tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Công việc đang chọn" maxWidth="700px">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Công việc đang chọn" maxWidth={activeForm ? "1100px" : "700px"}>
+      <div className="flex flex-col md:flex-row gap-6 items-start transition-all duration-300">
+        <div className="flex flex-col gap-5 w-full" style={{ flex: activeForm ? '1 1 60%' : '1 1 100%' }}>
         <div>
           <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{selectedTask.name}</h3>
           <p style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', marginTop: '2px' }}>
@@ -238,23 +253,29 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             {isTPKTOrPL && (
               <>
                 {!isParentTask && (
-                  <button onClick={onAssignOpen} className="btn btn-secondary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px' }}>
+                  <button onClick={() => setActiveForm(activeForm === 'assign' ? null : 'assign')} className={`btn ${activeForm === 'assign' ? 'btn-primary' : 'btn-secondary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px' }}>
                     <UserPlus size={16} /><span>Phân công</span>
                   </button>
                 )}
                 {(user?.role === 'technicalmanager' || user?.role === 'admin') && !isParentTask && (
-                  <button onClick={onAdjustProgressOpen} className="btn btn-secondary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))' }}>
+                  <button onClick={() => setActiveForm(activeForm === 'adjust' ? null : 'adjust')} className={`btn ${activeForm === 'adjust' ? 'btn-primary' : 'btn-secondary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', borderColor: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))', color: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))' }}>
                     <TrendingUp size={16} /><span>Điều chỉnh tiến độ trực tiếp</span>
                   </button>
                 )}
-                <button onClick={onObsolete} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: 'hsl(var(--bg-main))', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
+                <button onClick={() => {
+                  if (selectedTask.progress > 0) {
+                    setActiveForm(activeForm === 'obsolete' ? null : 'obsolete');
+                  } else {
+                    onObsolete();
+                  }
+                }} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: activeForm === 'obsolete' ? 'hsl(var(--danger))' : 'hsl(var(--bg-main))', color: activeForm === 'obsolete' ? '#fff' : 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
                   <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa công việc'}</span>
                 </button>
               </>
             )}
             {(user?.id === selectedTask.assignedTo || isTPKTOrPL) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete') && (
               <>
-                <button onClick={onLogOpen} className="btn btn-primary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }}>
+                <button onClick={() => setActiveForm(activeForm === 'log' ? null : 'log')} className={`btn ${activeForm === 'log' ? 'btn-secondary' : 'btn-primary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }}>
                   <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
                 </button>
                 <button 
@@ -349,6 +370,25 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Right Column: Inline Forms Container */}
+      {activeForm && (
+        <div className="w-full animate-fade-in sticky top-0" style={{ flex: '1 1 40%' }}>
+          {activeForm === 'assign' && (
+            <AssignEngineerForm taskId={selectedTask.id} taskName={selectedTask.name} projectId={project?.id || ''} onSuccess={handleFormSuccess} onCancel={() => setActiveForm(null)} />
+          )}
+          {activeForm === 'adjust' && (
+            <AdjustProgressForm task={selectedTask} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
+          )}
+          {activeForm === 'obsolete' && (
+            <ObsoleteTaskForm task={selectedTask} onSuccess={handleFormSuccess} onCancel={() => setActiveForm(null)} />
+          )}
+          {activeForm === 'log' && (
+            <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
+          )}
+        </div>
+      )}
       </div>
     </Modal>
   );

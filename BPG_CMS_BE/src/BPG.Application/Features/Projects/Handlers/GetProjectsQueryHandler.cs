@@ -43,8 +43,42 @@ public class GetProjectsQueryHandler : IRequestHandler<GetProjectsQuery, PagedLi
 
         query = query.OrderByDescending(p => p.CreatedAt);
 
-        return await query
+        var pagedList = await query
             .ProjectTo<ProjectDto>(_mapper.ConfigurationProvider)
             .ToPagedListAsync(request.PageNumber, request.PageSize, cancellationToken);
+
+        if (pagedList.Items.Any())
+        {
+            var projectIds = pagedList.Items.Select(p => p.ProjectId).ToList();
+            var tasks = await _uow.Repository<ProjectTask>().Query()
+                .AsNoTracking()
+                .Where(t => projectIds.Contains(t.Phase.ProjectId) && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+                .Select(t => new { t.TaskId, t.ParentTaskId, t.Phase.ProjectId, t.StartDate, t.EndDate, t.ProgressPercent })
+                .ToListAsync(cancellationToken);
+
+            foreach (var p in pagedList.Items)
+            {
+                var pTasks = tasks.Where(t => t.ProjectId == p.ProjectId).ToList();
+                var leafTasks = pTasks.Where(t => !pTasks.Any(c => c.ParentTaskId == t.TaskId)).ToList();
+                if (leafTasks.Any())
+                {
+                    double totalWeightedProgress = 0;
+                    double totalWeight = 0;
+                    foreach (var t in leafTasks)
+                    {
+                        var duration = (t.EndDate.ToDateTime(TimeOnly.MinValue) - t.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
+                        double weight = duration > 0 ? duration : 1;
+                        totalWeightedProgress += t.ProgressPercent * weight;
+                        totalWeight += weight;
+                    }
+                    if (totalWeight > 0)
+                    {
+                        p.Progress = (int)Math.Round(totalWeightedProgress / totalWeight);
+                    }
+                }
+            }
+        }
+
+        return pagedList;
     }
 }
