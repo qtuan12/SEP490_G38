@@ -64,6 +64,11 @@ namespace BPG.Application.Common.Mappings
 
             // Mapping cho MaterialCategory
             CreateMap<MaterialCategory, BPG.Application.Features.MaterialCategories.DTOs.MaterialCategoryDto>().ReverseMap();
+
+            // Mapping cho MaterialCatalog
+            CreateMap<MaterialCatalog, BPG.Application.Features.MaterialCatalogs.DTOs.MaterialCatalogDto>()
+                .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.CategoryName : string.Empty))
+                .ForMember(dest => dest.BaseUnitName, opt => opt.MapFrom(src => src.BaseUnit != null ? src.BaseUnit.UnitName : string.Empty));
         }
     }
 }
