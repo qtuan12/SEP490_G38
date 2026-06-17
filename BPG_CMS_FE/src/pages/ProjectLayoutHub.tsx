@@ -59,12 +59,20 @@ export const ProjectLayoutHub: React.FC = () => {
   //   fetchProjectDetails();
   // };
 
-  const handleStatusChange = async (newStatus: 'active' | 'paused' | 'done') => {
+  const handleStatusChange = async (newStatus: 'inprogress' | 'paused' | 'done') => {
     if (!project) return;
     setStatusError(null);
     try {
-      if (newStatus === 'active') {
-        await projectService.activateProject(project.id);
+      if (newStatus === 'inprogress') {
+        if (project.status === 'paused') {
+          await projectService.resumeProject(project.id);
+        } else {
+          await projectService.activateProject(project.id);
+        }
+      } else if (newStatus === 'paused') {
+        const reason = window.prompt("Nhập lý do tạm dừng dự án:", "");
+        if (reason === null) return; // user cancelled
+        await projectService.pauseProject(project.id, reason || "Tạm dừng dự án");
       } else {
         await projectService.updateProject(project.id, { status: newStatus });
       }
@@ -123,7 +131,7 @@ export const ProjectLayoutHub: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{project.name}</h1>
               {project.status === 'draft' && <span className="badge" style={{ backgroundColor: 'hsl(var(--text-muted))', color: 'white' }}>Bản nháp (Draft)</span>}
-              {project.status === 'active' && <span className="badge badge-primary">Đang triển khai (Active)</span>}
+              {project.status === 'inprogress' && <span className="badge badge-primary">Đang triển khai (Inprogress)</span>}
               {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng (Paused)</span>}
               {project.status === 'done' && <span className="badge badge-success">Hoàn thành (Done)</span>}
             </div>
@@ -144,6 +152,16 @@ export const ProjectLayoutHub: React.FC = () => {
                 </span>
               )}
             </div>
+            
+            {project.status === 'paused' && project.pauseReason && (
+              <div style={{ marginTop: '12px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', borderLeft: '4px solid hsl(var(--warning))', color: 'hsl(var(--warning))', fontSize: '0.9rem', borderRadius: '4px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
+                <div>
+                  <strong>Lý do tạm dừng:</strong> {project.pauseReason}
+                  {project.pausedAt && <span style={{ marginLeft: '8px', fontSize: '0.85em', opacity: 0.8 }}>(Thời gian: {new Date(project.pausedAt).toLocaleString('vi-VN')})</span>}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Project Status Actions for TPKT */}
@@ -154,12 +172,12 @@ export const ProjectLayoutHub: React.FC = () => {
                   <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Edit3 size={16} /> Sửa
                   </button>
-                  <button onClick={() => handleStatusChange('active')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Play size={16} /> Kích hoạt Dự án
                   </button>
                 </>
               )}
-              {project.status === 'active' && (
+              {project.status === 'inprogress' && (
                 <>
                   <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
                     <Pause size={16} /> Tạm dừng
@@ -170,7 +188,7 @@ export const ProjectLayoutHub: React.FC = () => {
                 </>
               )}
               {project.status === 'paused' && (
-                <button onClick={() => handleStatusChange('active')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Play size={16} /> Tiếp tục Dự án
                 </button>
               )}

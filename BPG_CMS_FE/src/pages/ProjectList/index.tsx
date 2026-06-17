@@ -89,7 +89,7 @@ export const ProjectList: React.FC = () => {
   const getStatusLabel = (status: Project['status']) => {
     switch (status) {
       case 'draft': return 'Bản nháp';
-      case 'active': return 'Đang chạy';
+      case 'inprogress': return 'Đang chạy';
       case 'paused': return 'Tạm dừng';
       case 'done': return 'Hoàn thành';
       default: return status;
@@ -99,7 +99,7 @@ export const ProjectList: React.FC = () => {
   const getStatusBadgeVariant = (status: Project['status']): BadgeVariant => {
     switch (status) {
       case 'draft': return 'default';
-      case 'active': return 'success';
+      case 'inprogress': return 'success';
       case 'paused': return 'warning';
       case 'done': return 'default'; // primary is not standard BadgeVariant, using default
       default: return 'default';
@@ -145,7 +145,7 @@ export const ProjectList: React.FC = () => {
             options={[
               { label: 'Tất cả Trạng thái', value: '' },
               { label: 'Bản nháp (Draft)', value: 'draft' },
-              { label: 'Đang hoạt động (Active)', value: 'active' },
+              { label: 'Đang hoạt động (Inprogress)', value: 'inprogress' },
               { label: 'Tạm dừng (Paused)', value: 'paused' },
               { label: 'Hoàn thành (Done)', value: 'done' },
             ]}

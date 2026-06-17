@@ -8,6 +8,7 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -37,6 +38,30 @@ public class UpdateProjectCommandHandler : IRequestHandler<UpdateProjectCommand,
         project.PlannedEnd = request.PlannedEnd;
 
         _uow.Repository<Project>().Update(project);
+
+        if (request.Attachments != null && request.Attachments.Any())
+        {
+            // Remove old design attachments
+            var oldAttachments = await _uow.Repository<Attachment>().FindAsync(a => a.EntityId == project.ProjectId && a.EntityType == EntityType.Project && a.AttachmentType == AttachmentType.Design);
+            if (oldAttachments.Any())
+            {
+                _uow.Repository<Attachment>().RemoveRange(oldAttachments);
+            }
+
+            // Add new design attachments
+            var attachments = request.Attachments.Select(a => new Attachment
+            {
+                EntityType = EntityType.Project,
+                EntityId = project.ProjectId,
+                AttachmentType = AttachmentType.Design,
+                FileName = a.FileName,
+                FileUrl = a.FileUrl,
+                ContentType = a.ContentType,
+                FileSizeBytes = a.FileSizeBytes
+            });
+            await _uow.Repository<Attachment>().AddRangeAsync(attachments);
+        }
+
         await _uow.SaveChangesAsync(cancellationToken);
 
         return _mapper.Map<ProjectDto>(project);

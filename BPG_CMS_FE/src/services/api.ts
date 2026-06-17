@@ -71,6 +71,14 @@ export const apiClient = {
     });
   },
 
+  postFormData<T>(endpoint: string, formData: FormData, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
+    return apiClient.request<T>(endpoint, {
+      ...options,
+      method: 'POST',
+      body: formData,
+    });
+  },
+
   put<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
     return apiClient.request<T>(endpoint, {
       ...options,

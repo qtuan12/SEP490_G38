@@ -6,6 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { Button, Input, FormItem } from '../../../components/ui';
 import { projectService } from '../../../services/projectService';
+import { apiClient } from '../../../services/api';
 import { UploadCloud, FileText } from 'lucide-react';
 
 const schema = z.object({
@@ -13,7 +14,7 @@ const schema = z.object({
   address: z.string().min(5, 'Địa chỉ công trường phải có ít nhất 5 ký tự'),
   startDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến bắt đầu'),
   endDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến kết thúc'),
-  status: z.enum(['draft', 'active', 'paused', 'done']).default('draft'),
+  status: z.enum(['draft', 'inprogress', 'paused', 'done']).default('draft'),
   drawingNames: z.array(z.string()).max(5, 'Chỉ được chọn tối đa 5 file').default([])
 });
 
@@ -29,7 +30,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
   const [dragging, setDragging] = useState(false);
   const [filePreviews, setFilePreviews] = useState<{file: File, url: string | null}[]>([]);
   
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, reset } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       status: 'draft',
@@ -47,13 +48,36 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
+      let attachments: any[] = [];
+      let drawingUrls: string[] = data.drawingNames;
+
+      if (filePreviews.length > 0) {
+        const formData = new globalThis.FormData();
+        filePreviews.forEach(p => {
+          formData.append('files', p.file);
+        });
+        formData.append('folder', 'projects/design');
+        
+        try {
+          const uploadRes = await apiClient.postFormData<any>('/files/upload-multiple', formData);
+          if (uploadRes.success && uploadRes.data) {
+            attachments = uploadRes.data;
+            drawingUrls = uploadRes.data.map((f: any) => f.fileUrl);
+          }
+        } catch (error) {
+          console.error("Lỗi upload file:", error);
+          throw new Error("Lỗi upload file thiết kế");
+        }
+      }
+
       await projectService.createProject({
         name: data.name,
         address: data.address,
         startDate: data.startDate,
         endDate: data.endDate,
         status: data.status,
-        drawingUrls: data.drawingNames
+        drawingUrls: drawingUrls,
+        attachments: attachments
       });
     },
     onSuccess: () => {

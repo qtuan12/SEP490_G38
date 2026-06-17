@@ -4,10 +4,13 @@ export interface Project {
   address: string;
   startDate: string;
   endDate: string;
-  status: 'draft' | 'active' | 'paused' | 'done';
+  status: 'draft' | 'inprogress' | 'paused' | 'done';
   drawingUrl?: string; // legacy single drawing
   drawingUrls?: string[]; // multiple drawings support
+  attachments?: AttachmentDto[]; // real attachments metadata
   progress: number; // overall progress % (derived or stored)
+  pauseReason?: string;
+  pausedAt?: string;
 }
 
 export interface ProjectMember {
@@ -251,6 +254,8 @@ export interface ProjectDto {
   plannedStart: string;
   plannedEnd: string;
   createdAt: string;
+  pauseReason?: string;
+  pausedAt?: string;
 }
 
 export interface ProjectMemberDto {

@@ -37,7 +37,7 @@ public class ActivateProjectCommandHandler : IRequestHandler<ActivateProjectComm
         if (!hasAnyTask)
             throw new BusinessException("ERR_PROJECT_NO_TASKS", "Không thể kích hoạt dự án vì WBS chưa có task nào.");
 
-        project.Status = ProjectStatus.Active;
+        project.Status = ProjectStatus.InProgress;
         _uow.Repository<Project>().Update(project);
         await _uow.SaveChangesAsync(cancellationToken);
 

@@ -116,7 +116,9 @@ export const projectService = {
         startDate: p.plannedStart,
         endDate: p.plannedEnd,
         status: p.status.toLowerCase() as any,
-        progress: 0
+        progress: 0,
+        pauseReason: p.pauseReason,
+        pausedAt: p.pausedAt
       }));
 
       for (const p of mapped) {
@@ -160,7 +162,9 @@ export const projectService = {
         const res = await apiClient.get<ApiResponse<import('../types/common').ProjectDetailDto>>(`/projects/${parsedId}`);
         if (!res.success) return null;
         const p = res.data;
-        const drawingAttachment = p.attachments?.find(a => a.attachmentType === 'Design');
+        const designAttachments = p.attachments?.filter(a => a.attachmentType === 'Design') || [];
+        const drawingAttachment = designAttachments.length > 0 ? designAttachments[0] : null;
+        
         const project: Project = {
           id: p.projectId.toString(),
           name: p.name,
@@ -168,8 +172,12 @@ export const projectService = {
           startDate: p.plannedStart,
           endDate: p.plannedEnd,
           status: p.status.toLowerCase() as any,
-          drawingUrl: drawingAttachment?.fileName || '',
-          progress: 0
+          drawingUrl: drawingAttachment?.fileUrl || drawingAttachment?.fileName || '',
+          drawingUrls: designAttachments.map(a => a.fileUrl || a.fileName),
+          attachments: p.attachments,
+          progress: 0,
+          pauseReason: p.pauseReason,
+          pausedAt: p.pausedAt
         };
         const tasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS).filter(t => t.projectId === project.id && t.status !== 'obsolete');
         if (tasks.length > 0) {
@@ -188,26 +196,37 @@ export const projectService = {
 
   async createProject(project: Omit<Project, 'id' | 'progress'>): Promise<Project> {
     if (!USE_MOCK_API) {
-      const attachments = [];
-      if (project.drawingUrl) {
-        attachments.push({
-          attachmentType: 'Design',
-          fileName: project.drawingUrl,
-          fileUrl: '/mock/url',
-          contentType: 'application/pdf',
-          fileSizeBytes: 1024
-        });
-      }
-      if (project.drawingUrls && project.drawingUrls.length > 0) {
-        project.drawingUrls.forEach(url => {
+      let attachments = [];
+      
+      if (project.attachments && project.attachments.length > 0) {
+        attachments = project.attachments.map(a => ({
+            attachmentType: 'Design',
+            fileName: a.fileName,
+            fileUrl: a.fileUrl,
+            contentType: a.contentType || 'application/pdf',
+            fileSizeBytes: a.fileSizeBytes || 1024
+        })) as any[];
+      } else {
+        if (project.drawingUrl) {
           attachments.push({
             attachmentType: 'Design',
-            fileName: url,
+            fileName: project.drawingUrl,
             fileUrl: '/mock/url',
             contentType: 'application/pdf',
             fileSizeBytes: 1024
           });
-        });
+        }
+        if (project.drawingUrls && project.drawingUrls.length > 0) {
+          project.drawingUrls.forEach(url => {
+            attachments.push({
+              attachmentType: 'Design',
+              fileName: url,
+              fileUrl: '/mock/url',
+              contentType: 'application/pdf',
+              fileSizeBytes: 1024
+            });
+          });
+        }
       }
 
       const payload = {
@@ -264,7 +283,8 @@ export const projectService = {
         name: updates.name,
         address: updates.address,
         plannedStart: updates.startDate,
-        plannedEnd: updates.endDate
+        plannedEnd: updates.endDate,
+        attachments: updates.attachments
       };
       const res = await apiClient.put<ApiResponse<import('../types/common').ProjectDto>>(`/projects/${parsedId}`, payload);
       if (!res.success) throw new Error(res.message || 'Cập nhật dự án thất bại');
@@ -302,6 +322,29 @@ export const projectService = {
       throw new Error(`Có ${invalidTasks.length} công việc có Hạn chót nhỏ hơn Ngày bắt đầu dự án (${project.startDate}). Vui lòng điều chỉnh lại kế hoạch WBS.`);
     }
 
+    return this.updateProject(projectId, { status: 'active' });
+  },
+
+  async pauseProject(projectId: string, reason: string): Promise<Project> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/pause`, {
+        projectId: parsedId,
+        pauseReason: reason
+      });
+      if (!res.success) throw new Error(res.message || 'Tạm dừng dự án thất bại');
+      return this.getProjectById(projectId) as unknown as Project;
+    }
+    return this.updateProject(projectId, { status: 'paused' });
+  },
+
+  async resumeProject(projectId: string): Promise<Project> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/resume`, {});
+      if (!res.success) throw new Error(res.message || 'Tiếp tục dự án thất bại');
+      return this.getProjectById(projectId) as unknown as Project;
+    }
     return this.updateProject(projectId, { status: 'active' });
   },
 

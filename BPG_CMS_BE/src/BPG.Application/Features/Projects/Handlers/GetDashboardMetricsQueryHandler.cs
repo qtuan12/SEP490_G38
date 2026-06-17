@@ -33,11 +33,11 @@ public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetri
         {
             TotalProjects = projects.Count,
             DraftProjects = projects.Count(p => p.Status == ProjectStatus.Draft),
-            ActiveProjects = projects.Count(p => p.Status == ProjectStatus.Active),
+            ActiveProjects = projects.Count(p => p.Status == ProjectStatus.InProgress),
             PausedProjects = projects.Count(p => p.Status == ProjectStatus.Paused),
             CompletedProjects = projects.Count(p => p.Status == ProjectStatus.Completed),
             ClosedProjects = projects.Count(p => p.Status == ProjectStatus.Closed),
-            ActiveProjectsProgress = projects.Where(p => p.Status == ProjectStatus.Active)
+            ActiveProjectsProgress = projects.Where(p => p.Status == ProjectStatus.InProgress)
                 .Select(p => 
                 {
                     var allTasks = p.Phases?.SelectMany(ph => ph.Tasks).Where(t => t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList() ?? new List<BPG.Domain.Entities.ProjectTask>();
