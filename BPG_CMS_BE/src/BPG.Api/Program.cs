@@ -75,7 +75,11 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireTechnicalManager, policy =>
+        policy.RequireRole(BPG.Domain.Constants.UserRole.TechnicalManager));
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

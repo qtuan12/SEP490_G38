@@ -73,7 +73,7 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         // Cuộn tiến độ
         if (task.ParentTaskId.HasValue)
         {
-            await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, ct);
+            await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, task.TaskId, ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 

@@ -644,6 +644,53 @@ export const projectService = {
     return allTasks[idx];
   },
 
+  async adjustTaskProgressDirectly(taskId: string, newProgress: number, reason: string): Promise<WBSTask> {
+    if (!USE_MOCK_API) {
+      const parsedTaskId = taskId.startsWith('t-') ? parseInt(taskId.substring(2)) : parseInt(taskId);
+      const payload = {
+        taskId: parsedTaskId,
+        newProgress: newProgress,
+        updateReason: reason
+      };
+      const res = await apiClient.put<ApiResponse<any>>(`/tasks/${parsedTaskId}/progress`, payload);
+      if (!res.success) throw new Error(res.message || 'Cập nhật tiến độ thất bại.');
+      
+      return {} as WBSTask;
+    }
+
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const idx = allTasks.findIndex(t => t.id === taskId);
+    if (idx === -1) throw new Error('Không tìm thấy công việc.');
+
+    const task = allTasks[idx];
+    
+    if (task.status === 'obsolete') {
+      throw new Error('Không thể điều chỉnh tiến độ cho công việc đã báo lỗi thời.');
+    }
+
+    const historyEntry: TaskHistory = {
+      date: new Date().toISOString(),
+      oldProgress: task.progress,
+      newProgress: newProgress,
+      reason: `TPKT điều chỉnh tiến độ: ${reason}`,
+      type: newProgress > task.progress ? 'progress_increase' : 'progress_decrease',
+      adjustedBy: 'Technical Manager'
+    };
+
+    allTasks[idx] = {
+      ...task,
+      progress: newProgress,
+      history: [historyEntry, ...task.history]
+    };
+
+    setStorage('bpg_wbs_tasks', allTasks);
+    await this.syncProjectProgress(task.projectId);
+    if (task.parentTaskId) {
+      await this.syncParentTaskProgress(task.parentTaskId);
+    }
+    return allTasks[idx];
+  },
+
   async shiftDeadline(id: string, newDeadline: string, reason: string): Promise<WBSTask> {
     const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
     const idx = allTasks.findIndex(t => t.id === id);

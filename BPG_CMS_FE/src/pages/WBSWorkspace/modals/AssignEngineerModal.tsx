@@ -66,10 +66,6 @@ export const AssignEngineerModal: React.FC<AssignEngineerModalProps> = ({
         throw new Error('Vui lòng chọn ít nhất một kỹ sư.');
       }
       
-      const selectedMembers = members.filter(m => selectedUserIds.includes(m.userId));
-      const assignedToVal = selectedUserIds.join(',');
-      const assignedNameVal = selectedMembers.map(m => m.userName).join(', ');
-
       return wbsService.assignTask(parseInt(taskId.replace('t-', '')), {
         taskId: parseInt(taskId.replace('t-', '')),
         assigneeIds: selectedUserIds.map(id => parseInt(id))

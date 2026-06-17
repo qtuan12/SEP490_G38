@@ -58,7 +58,7 @@ public class MarkTaskObsoleteCommandHandler : IRequestHandler<MarkTaskObsoleteCo
         // Cuộn tiến độ (sẽ bỏ qua task này vì đã obsolete)
         if (task.ParentTaskId.HasValue)
         {
-            await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, ct);
+            await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, task.TaskId, ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 

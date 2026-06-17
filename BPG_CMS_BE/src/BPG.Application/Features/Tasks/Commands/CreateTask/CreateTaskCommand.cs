@@ -70,6 +70,7 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
         {
             var parentTask = await _unitOfWork.Repository<ProjectTask>()
                 .Query()
+                .Include(t => t.Assignees)
                 .FirstOrDefaultAsync(t => t.TaskId == request.ParentTaskId.Value, ct);
 
             if (parentTask == null)
@@ -80,6 +81,31 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
                 throw new BusinessException("ERR_TASK_DATE_INVALID", 
                     $"Thời gian công việc con ({request.StartDate:dd/MM/yyyy} - {request.EndDate:dd/MM/yyyy}) " +
                     $"phải nằm trong khoảng thời gian của công việc cha ({parentTask.StartDate:dd/MM/yyyy} - {parentTask.EndDate:dd/MM/yyyy}).");
+            }
+
+            // Tự động phân công Task Cha cho Project Leader
+            var leader = await _unitOfWork.Repository<ProjectMember>()
+                .Query()
+                .FirstOrDefaultAsync(pm => pm.ProjectId == phase.ProjectId && pm.IsLeader, ct);
+
+            if (leader != null)
+            {
+                var isLeaderAssigned = parentTask.Assignees.Any(a => a.UserId == leader.UserId);
+                if (!isLeaderAssigned)
+                {
+                    parentTask.Assignees.Add(new TaskAssignee
+                    {
+                        UserId = leader.UserId,
+                        AssignedAt = DateTime.UtcNow
+                    });
+                    
+                    if (parentTask.Status == BPG.Domain.Constants.TaskStatus.New)
+                    {
+                        parentTask.Status = BPG.Domain.Constants.TaskStatus.Assigned;
+                    }
+                    
+                    _unitOfWork.Repository<ProjectTask>().Update(parentTask);
+                }
             }
         }
 

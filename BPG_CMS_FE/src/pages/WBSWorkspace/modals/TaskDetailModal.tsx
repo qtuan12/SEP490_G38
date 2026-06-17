@@ -19,6 +19,7 @@ interface TaskDetailModalProps {
   onLogOpen: () => void;
   onCreateMatReqOpen: (type: 'normal' | 'emergency') => void;
   onObsolete: () => void;
+  onAdjustProgressOpen: () => void;
 }
 
 const getInitials = (name: string) => {
@@ -36,7 +37,7 @@ const getAvatarColor = (userId: string) => {
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, materialRequests, isTPKTOrPL,
-  onAssignOpen, onLogOpen, onCreateMatReqOpen, onObsolete
+  onAssignOpen, onLogOpen, onCreateMatReqOpen, onObsolete, onAdjustProgressOpen
 }) => {
   const navigate = useNavigate();
   const [viewingRequest, setViewingRequest] = useState<MaterialRequest | null>(null);
@@ -129,6 +130,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       </Modal>
     );
   }
+
+  const isParentTask = tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Công việc đang chọn" maxWidth="700px">
@@ -234,9 +237,16 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {isTPKTOrPL && (
               <>
-                <button onClick={onAssignOpen} className="btn btn-secondary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px' }}>
-                  <UserPlus size={16} /><span>Phân công</span>
-                </button>
+                {!isParentTask && (
+                  <button onClick={onAssignOpen} className="btn btn-secondary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px' }}>
+                    <UserPlus size={16} /><span>Phân công</span>
+                  </button>
+                )}
+                {(user?.role === 'technicalmanager' || user?.role === 'admin') && !isParentTask && (
+                  <button onClick={onAdjustProgressOpen} className="btn btn-secondary" style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))' }}>
+                    <TrendingUp size={16} /><span>Điều chỉnh tiến độ trực tiếp</span>
+                  </button>
+                )}
                 <button onClick={onObsolete} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: 'hsl(var(--bg-main))', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
                   <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa công việc'}</span>
                 </button>

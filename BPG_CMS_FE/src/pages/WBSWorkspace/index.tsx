@@ -75,6 +75,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const [isAdjustDeadlineOpen, setIsAdjustDeadlineOpen] = useState(false);
   const [adjustingTask, setAdjustingTask] = useState<WBSTask | null>(null);
 
+  // ── ADJUST Progress modal state ───────────────────────────
+  const [isAdjustProgressOpen, setIsAdjustProgressOpen] = useState(false);
+
 
 
   // ── Hover state ──────────────────────────────────────
@@ -272,10 +275,11 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     parentDeadlineForNew, setParentDeadlineForNew,
     isAdjustDeadlineOpen, setIsAdjustDeadlineOpen,
     adjustingTask, setAdjustingTask,
+    isAdjustProgressOpen, setIsAdjustProgressOpen,
 
     handleApproveByLeader, handleApproveByTPKT,
     handleRejectMatReq, handleCancelMatReq, handleConfirmReceived,
-    isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask, handleDeleteTask, handleDeletePhase, navigate
+    isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask, handleDeleteTask, handleDeletePhase, navigate, loadWBSData
   };
 
   return (
@@ -283,16 +287,18 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     <div className="flex flex-col gap-5">
 
       {/* Alerts */}
-      {success && (
-        <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
-          {error}
-        </div>
-      )}
+      <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+        {success && (
+          <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem] shadow-lg pointer-events-auto">
+            {success}
+          </div>
+        )}
+        {error && (
+          <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem] shadow-lg pointer-events-auto">
+            {error}
+          </div>
+        )}
+      </div>
 
       {/* Draft Status Banner */}
       {project?.status === 'draft' && (
