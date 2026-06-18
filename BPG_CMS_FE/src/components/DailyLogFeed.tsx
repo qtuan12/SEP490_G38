@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 const PAGE_SIZE = 2;
-import { Modal, Input, Select, Badge, Button } from './ui';
+import { Modal, Input, Select, Badge, Button, ConfirmDialog } from './ui';
 import type { BadgeVariant } from './ui';
 import { DailyLogFormModal } from '../pages/Incidents/modals/DailyLogFormModal';
 
@@ -54,6 +54,10 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const [selectedSubtaskId, setSelectedSubtaskId] = useState('');
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
+
+  // States for comment deletion dialog
+  const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [isDeletingComment, setIsDeletingComment] = useState(false);
 
   // Acknowledged Comments State (Simulated on client-side via localStorage for simplicity)
   const [acknowledgedComments, setAcknowledgedComments] = useState<string[]>(() => {
@@ -346,16 +350,24 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     }
   };
 
-  const handleCommentDelete = async (commentId: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này không?')) return;
+  const handleCommentDelete = (commentId: string) => {
+    setDeleteCommentId(commentId);
+  };
+
+  const handleCommentDeleteConfirm = async () => {
+    if (!deleteCommentId) return;
+    setIsDeletingComment(true);
     try {
-      const success = await projectService.deleteLogComment(commentId);
+      const success = await projectService.deleteLogComment(deleteCommentId);
       if (success) {
         // Reload comments
         await reloadLogs();
       }
+      setDeleteCommentId(null);
     } catch (err: any) {
       alert(err.message || 'Không thể xóa bình luận.');
+    } finally {
+      setIsDeletingComment(false);
     }
   };
 
@@ -855,7 +867,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                                 commentClass += " comment-acknowledged";
                               }
 
-                              const canEditComment = comm.userId === user?.id || user?.role === 'technicalmanager' || user?.role === 'admin';
+                              const canEditComment = comm.userId === user?.id;
 
                               return (
                                 <div
@@ -1059,6 +1071,18 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           }}
         />
       )}
+
+      {/* Soft Delete Comment Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={!!deleteCommentId}
+        onClose={() => setDeleteCommentId(null)}
+        onConfirm={handleCommentDeleteConfirm}
+        title="Xóa bình luận"
+        message="Bạn có chắc chắn muốn xóa bình luận này không? Thao tác này không thể hoàn tác."
+        confirmText="Xác nhận xóa"
+        isDanger={true}
+        isLoading={isDeletingComment}
+      />
 
     </div>
   );
