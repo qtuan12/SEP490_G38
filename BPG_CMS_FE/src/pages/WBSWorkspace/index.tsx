@@ -9,7 +9,7 @@ import type { WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest } from 
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
-import { AlertTriangle, FileText, BarChart2 } from 'lucide-react';
+import { AlertTriangle, FileText, BarChart2, History } from 'lucide-react';
 import { Button } from '../../components/ui';
 
 
@@ -372,6 +372,13 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
             >
               <BarChart2 size={15} />
               <span>Xem Gantt Chart</span>
+            </button>
+            <button
+              onClick={() => navigate(`/projects/${projectId}/logs`)}
+              className="flex items-center gap-2 py-2 px-4 shrink-0 border border-[hsl(var(--primary)/0.4)] rounded-sm bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] cursor-pointer text-[0.85rem] font-semibold transition-all duration-150 hover:bg-[hsl(var(--primary))] hover:text-white"
+            >
+              <History size={15} />
+              <span>Xem Nhật ký thi công</span>
             </button>
           </div>
         </div>

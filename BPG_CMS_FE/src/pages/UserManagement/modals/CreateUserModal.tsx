@@ -75,7 +75,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
               { label: 'Admin', value: 'admin' },
               { label: 'Giám Đốc', value: 'director' },
               { label: 'TP Kỹ Thuật (TechnicalManager)', value: 'technicalmanager' },
-              { label: 'Kỹ Sư Hiện Trường (SiteEngineer)', value: 'siteengineer' },
+              { label: 'Nhân viên kỹ thuật (SiteEngineer)', value: 'siteengineer' },
               { label: 'Kế Toán (Accountant)', value: 'accountant' },
             ]}
           />

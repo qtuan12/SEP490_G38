@@ -7,6 +7,7 @@ import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';
 import { DailyLogForm } from '../../Incidents/modals/DailyLogFormModal';
 import type {WBSTask, WBSPhase, Project, MaterialRequest} from '../../../types/common';
+import { TaskProgressHistoryPanel } from '../../../components/TaskProgressHistoryPanel';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -39,7 +40,7 @@ const getAvatarColor = (userId: string) => {
 };
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
-  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, materialRequests, isTPKTOrPL,
+  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, materialRequests, isTPKTOrPL, isPL,
   onCreateMatReqOpen, onObsolete,
   onSuccess, onError
 }) => {
@@ -198,7 +199,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
                 {selectedTask.assignedTo.split(',').map((id, index) => {
                   const names = selectedTask.assignedName ? selectedTask.assignedName.split(', ') : [];
-                  const name = names[index] || 'siteengineer';
+                  const name = names[index] || 'Kỹ sư';
                   const initials = getInitials(name);
                   const bgColor = getAvatarColor(id);
                   return (
@@ -244,9 +245,19 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
         {/* Actions */}
         {project?.status === 'paused' || project?.status === 'done' ? (
-          <div style={{ display: 'flex', gap: '8px', backgroundColor: 'hsl(var(--danger-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--danger))' }}>
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
-            <span>Dự án đang tạm dừng hoặc đã hoàn thành. Không thể thao tác.</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '8px', backgroundColor: 'hsl(var(--danger-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--danger))' }}>
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              <span>Dự án đang tạm dừng hoặc đã hoàn thành. Không thể thao tác.</span>
+            </div>
+            <button 
+              onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
+              className="btn btn-outline" 
+              style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))' }}
+            >
+              <FileText size={15} />
+              <span>Xem Nhật ký thi công</span>
+            </button>
           </div>
         ) : selectedTaskPhase?.status !== 'frozen' && selectedTask.status !== 'obsolete' ? (
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -273,7 +284,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </button>
               </>
             )}
-            {(user?.id === selectedTask.assignedTo || isTPKTOrPL) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete') && (
+            {(() => {
+              const assignedIds = selectedTask.assignedTo ? selectedTask.assignedTo.split(',').map(s => s.trim()) : [];
+              const isAssigned = user?.id && assignedIds.includes(user.id.toString());
+              return (isPL || isAssigned) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
+            })() && (
               <>
                 <button onClick={() => setActiveForm(activeForm === 'log' ? null : 'log')} className={`btn ${activeForm === 'log' ? 'btn-secondary' : 'btn-primary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }}>
                   <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
@@ -288,88 +303,97 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </button>
               </>
             )}
+            <button 
+              onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
+              className="btn btn-outline" 
+              style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))' }}
+            >
+              <FileText size={15} />
+              <span>Xem Nhật ký thi công</span>
+            </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: 'hsl(var(--success-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--success) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--success))' }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <CheckCircle size={16} style={{ flexShrink: 0 }} />
-              <span>{selectedTask.status === 'obsolete' ? 'Công việc đã bị hủy bỏ.' : 'Phase này đã được nghiệm thu và khóa tiến độ.'}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: 'hsl(var(--success-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--success) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--success))' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <CheckCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{selectedTask.status === 'obsolete' ? 'Công việc đã bị hủy bỏ.' : 'Phase này đã được nghiệm thu và khóa tiến độ.'}</span>
+              </div>
+              {selectedTask.status !== 'obsolete' && (
+                <button onClick={() => navigate(`/projects/${project?.id}/phases/${selectedTask.phaseId}/acceptance`)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'fit-content', marginTop: '4px', borderColor: 'hsl(var(--success))', color: 'hsl(var(--success))', backgroundColor: 'transparent' }}>
+                  Xem chi tiết & Hủy nghiệm thu
+                </button>
+              )}
             </div>
-            {selectedTask.status !== 'obsolete' && (
-              <button onClick={() => navigate(`/projects/${project?.id}/phases/${selectedTask.phaseId}/acceptance`)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'fit-content', marginTop: '4px', borderColor: 'hsl(var(--success))', color: 'hsl(var(--success))', backgroundColor: 'transparent' }}>
-                Xem chi tiết & Hủy nghiệm thu
-              </button>
-            )}
+            <button 
+              onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
+              className="btn btn-outline" 
+              style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))' }}
+            >
+              <FileText size={15} />
+              <span>Xem Nhật ký thi công</span>
+            </button>
           </div>
         )}
 
         {/* SE Đề xuất vật tư cho Leader */}
-        <div style={{ backgroundColor: 'hsl(var(--primary-glow) / 0.3)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'hsl(var(--text-primary))', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-              <Box size={16} style={{ color: 'hsl(var(--primary))' }} />
-              Đề xuất vật tư cho công việc
-            </h4>
-            {selectedTaskPhase?.status !== 'frozen' && selectedTask.status !== 'obsolete' && project?.status !== 'done' && (
-              <button
-                onClick={() => onCreateMatReqOpen('normal')}
-                className="btn btn-primary"
-                style={{ fontSize: '0.8rem', padding: '6px 12px' }}
-              >
-                + Đề xuất Vật tư
-              </button>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {materialRequests.filter(r => r.taskId === selectedTask.id && !r.taskName?.includes('[Rework]')).length > 0 ? (
-              materialRequests.filter(r => r.taskId === selectedTask.id && !r.taskName?.includes('[Rework]')).map(r => (
-                <div 
-                  key={r.id} 
-                  onClick={() => setViewingRequest(r)}
-                  className="hover-card"
-                  style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', transition: 'all 0.2s' }}
+        {isPL && (
+          <div style={{ backgroundColor: 'hsl(var(--primary-glow) / 0.3)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'hsl(var(--text-primary))', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                <Box size={16} style={{ color: 'hsl(var(--primary))' }} />
+                Đề xuất vật tư cho công việc
+              </h4>
+              {selectedTaskPhase?.status !== 'frozen' && selectedTask.status !== 'obsolete' && project?.status !== 'done' && (
+                <button
+                  onClick={() => onCreateMatReqOpen('normal')}
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.8rem', padding: '6px 12px' }}
                 >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontWeight: 600 }}>{r.items.length} loại vật tư</span>
-                    <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>{r.date} - {r.requesterName}</span>
+                  + Đề xuất Vật tư
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {materialRequests.filter(r => r.taskId === selectedTask.id && !r.taskName?.includes('[Rework]')).length > 0 ? (
+                materialRequests.filter(r => r.taskId === selectedTask.id && !r.taskName?.includes('[Rework]')).map(r => (
+                  <div 
+                    key={r.id} 
+                    onClick={() => setViewingRequest(r)}
+                    className="hover-card"
+                    style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', transition: 'all 0.2s' }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontWeight: 600 }}>{r.items.length} loại vật tư</span>
+                      <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>{r.date} - {r.requesterName}</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                      {getStatusBadge(r.status)}
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                    {getStatusBadge(r.status)}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', padding: '12px', display: 'block', textAlign: 'center', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)' }}>
-                Chưa có đề xuất vật tư nào cho công việc này.
-              </span>
-            )}
+                ))
+              ) : (
+                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', padding: '12px', display: 'block', textAlign: 'center', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)' }}>
+                  Chưa có đề xuất vật tư nào cho công việc này.
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* History logs */}
-        <div onClick={() => navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`)} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', cursor: 'pointer' }} title="Nhấp để xem nhật ký thi công chi tiết">
-          <h5 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
-            <History size={13} />
-            <span>Nhật ký thi công chi tiết (Click để xem) ({selectedTask.history?.length || 0})</span>
-          </h5>
-          <div style={{ maxHeight: '160px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', pointerEvents: 'none' }}>
-            {!selectedTask.history || selectedTask.history.length === 0 ? (
-              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', padding: '12px', display: 'block', textAlign: 'center' }}>Chưa có lịch sử thay đổi nào.</span>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {selectedTask.history.map((h, i) => (
-                  <div key={i} style={{ fontSize: '0.75rem', borderBottom: '1px solid hsl(var(--border) / 0.5)', paddingBottom: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'hsl(var(--text-muted))' }}>
-                      <span>{h.date}</span><strong>{h.oldProgress}% → {h.newProgress}%</strong>
-                    </div>
-                    <p style={{ color: 'hsl(var(--text-primary))', marginTop: '2px', fontWeight: 500 }}>{h.reason}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+        {isPL && (
+          <div onClick={() => navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`)} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', cursor: 'pointer' }} title="Nhấp để xem nhật ký thi công chi tiết">
+            <h5 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
+              <History size={13} />
+              <span>Nhật ký thi công chi tiết (Click để xem)</span>
+            </h5>
+            <div style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', pointerEvents: 'none' }}>
+              <TaskProgressHistoryPanel taskId={selectedTask.id} limit={5} compact={true} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Right Column: Inline Forms Container */}
@@ -385,7 +409,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <ObsoleteTaskForm task={selectedTask} onSuccess={handleFormSuccess} onCancel={() => setActiveForm(null)} />
           )}
           {activeForm === 'log' && (
-            <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
+            <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} isPL={isPL} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
           )}
         </div>
       )}

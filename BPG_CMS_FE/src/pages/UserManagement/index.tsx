@@ -114,10 +114,12 @@ export const UserManagement: React.FC = () => {
   };
 
   const getRoleLabel = (role: string) => {
-    switch (role) {
+    if (!role) return '';
+    const norm = role.toLowerCase().replace(/[\s_-]/g, '');
+    switch (norm) {
       case 'admin': return 'Admin';
       case 'technicalmanager': return 'TP Kỹ Thuật';
-      case 'siteengineer': return 'Kỹ Sư Hiện Trường';
+      case 'siteengineer': return 'Nhân viên kỹ thuật';
       case 'accountant': return 'Kế Toán';
       case 'director': return 'Giám Đốc';
       default: return role;
@@ -125,7 +127,9 @@ export const UserManagement: React.FC = () => {
   };
 
   const getRoleVariant = (role: string): BadgeVariant => {
-    switch (role) {
+    if (!role) return 'default';
+    const norm = role.toLowerCase().replace(/[\s_-]/g, '');
+    switch (norm) {
       case 'admin': return 'danger';
       case 'director': return 'warning';
       case 'siteengineer': return 'success';
@@ -247,7 +251,7 @@ export const UserManagement: React.FC = () => {
               { label: 'Tất cả Vai trò', value: '' },
               { label: 'Admin', value: 'admin' },
               { label: 'TP Kỹ Thuật', value: 'technicalmanager' },
-              { label: 'Kỹ Sư Hiện Trường', value: 'siteengineer' },
+              { label: 'Nhân viên kỹ thuật', value: 'siteengineer' },
               { label: 'Kế Toán', value: 'accountant' },
               { label: 'Giám Đốc', value: 'director' },
             ]}

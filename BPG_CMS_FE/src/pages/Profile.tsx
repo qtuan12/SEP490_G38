@@ -8,7 +8,7 @@ const ROLE_LABELS: Record<string, string> = {
   admin: 'Quản trị viên',
   technicalmanager: 'Trưởng phòng Kỹ thuật',
   projectleader: 'Trưởng dự án',
-  siteengineer: 'Kỹ sư hiện trường',
+  siteengineer: 'Nhân viên kỹ thuật',
   accountant: 'Kế toán',
   director: 'Giám đốc',
 };

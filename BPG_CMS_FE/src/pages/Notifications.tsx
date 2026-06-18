@@ -5,8 +5,17 @@ import { Button, Pagination } from '../components/ui';
 
 const PAGE_SIZE = 10;
 
+const parseDateSafe = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  if (!dateStr.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(dateStr)) {
+    const formatted = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+    return new Date(formatted + 'Z');
+  }
+  return new Date(dateStr);
+};
+
 const formatDate = (dateString: string) =>
-  new Date(dateString).toLocaleString('vi-VN', {
+  parseDateSafe(dateString).toLocaleString('vi-VN', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });

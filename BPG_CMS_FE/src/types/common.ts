@@ -259,6 +259,7 @@ export interface ProjectDto {
   createdAt: string;
   pauseReason?: string;
   pausedAt?: string;
+  progress?: number;
 }
 
 export interface ProjectMemberDto {

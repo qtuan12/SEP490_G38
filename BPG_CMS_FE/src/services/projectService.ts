@@ -857,8 +857,25 @@ export const projectService = {
     }
 
     // Mock fallback: slice the local storage array to simulate pagination
+    const allTasks = getStorage<WBSTask>('bpg_wbs_tasks', DEFAULT_TASKS);
+    const taskIdsToFilter = new Set<string>();
+    if (taskId) {
+      taskIdsToFilter.add(taskId);
+      const queue = [taskId];
+      while (queue.length > 0) {
+        const parentId = queue.shift();
+        const children = allTasks.filter(t => t.parentTaskId === parentId && t.status !== 'obsolete');
+        for (const child of children) {
+          if (!taskIdsToFilter.has(child.id)) {
+            taskIdsToFilter.add(child.id);
+            queue.push(child.id);
+          }
+        }
+      }
+    }
+
     const allLogs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS)
-      .filter(l => l.projectId === projectId && (!taskId || l.taskId === taskId))
+      .filter(l => l.projectId === projectId && (!taskId || taskIdsToFilter.has(l.taskId)))
       .sort((a, b) => b.date.localeCompare(a.date));
 
     const start = (page - 1) * pageSize;
@@ -1563,7 +1580,7 @@ export const projectService = {
       items: finalItems,
       status: isOverBOQ ? 'pending_director' : 'pending_accountant',
       isOverBOQ,
-      reason: reason || `Tổng hợp từ ${selectedReqs.length} yêu cầu của Kỹ sư hiện trường.`,
+      reason: reason || `Tổng hợp từ ${selectedReqs.length} yêu cầu của Nhân viên kỹ thuật.`,
       type: 'normal',
       date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
     };
