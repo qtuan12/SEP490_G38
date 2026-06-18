@@ -47,13 +47,47 @@ const unwrap = <T>(res: ApiResponse<T>): T => {
   return res.data;
 };
 
+export interface PaginatedUsers {
+  items: UserProfile[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface GetUsersParams {
+  pageNumber?: number;
+  pageSize?: number;
+  search?: string;
+  role?: string;
+}
+
 export const userService = {
-  async getUsers(): Promise<UserProfile[]> {
+  async getUsers(params: GetUsersParams = {}): Promise<PaginatedUsers> {
     if (USE_MOCK_API) {
       await new Promise(resolve => setTimeout(resolve, 300));
-      return getLocalUsers();
+      let users = getLocalUsers();
+      if (params.search) {
+        const kw = params.search.toLowerCase();
+        users = users.filter(u => u.name.toLowerCase().includes(kw) || u.email.toLowerCase().includes(kw));
+      }
+      if (params.role) users = users.filter(u => u.role === params.role);
+      const pageNumber = params.pageNumber ?? 1;
+      const pageSize = params.pageSize ?? 20;
+      const totalCount = users.length;
+      const totalPages = Math.ceil(totalCount / pageSize);
+      const items = users.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
+      return { items, totalCount, pageNumber, pageSize, totalPages, hasPreviousPage: pageNumber > 1, hasNextPage: pageNumber < totalPages };
     }
-    return unwrap(await apiClient.get<ApiResponse<UserProfile[]>>('/users'));
+    const queryParams: Record<string, string> = {
+      pageNumber: String(params.pageNumber ?? 1),
+      pageSize: String(params.pageSize ?? 20),
+    };
+    if (params.search) queryParams.search = params.search;
+    if (params.role) queryParams.role = params.role;
+    return unwrap(await apiClient.get<ApiResponse<PaginatedUsers>>('/users', { params: queryParams }));
   },
 
   async createUser(userData: Omit<UserProfile, 'id' | 'status'>): Promise<UserProfile> {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -8,77 +8,110 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   width?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
-  maxWidth?: string; // For backwards compatibility
+  maxWidth?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  title, 
-  children, 
-  footer,
-  width = 'md',
-  maxWidth 
+const WIDTH_MAP: Record<string, string> = {
+  sm:   '420px',
+  md:   '560px',
+  lg:   '720px',
+  xl:   '900px',
+  full: '95vw',
+};
+
+export const Modal: React.FC<ModalProps> = ({
+  isOpen, onClose, title, children, footer, width = 'md', maxWidth,
 }) => {
+  // Khoá scroll body khi modal mở
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const widthClasses = {
-    sm: 'sm:max-w-sm',
-    md: 'sm:max-w-md',
-    lg: 'sm:max-w-lg',
-    xl: 'sm:max-w-xl',
-    full: 'sm:max-w-full sm:m-4',
-  };
+  const maxW = maxWidth ?? WIDTH_MAP[width] ?? WIDTH_MAP.md;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-      {/* Background overlay */}
-      <div 
-        className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm" 
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '16px',
+      }}
+      role="dialog"
+      aria-modal="true"
+    >
+      {/* Overlay — màu theme + blur */}
+      <div
         onClick={onClose}
+        style={{
+          position: 'absolute', inset: 0,
+          backgroundColor: 'hsl(224 71% 4% / 0.55)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+        }}
         aria-hidden="true"
-      ></div>
+      />
 
-      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-        {/* Modal panel */}
-        <div 
-          className={`relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full ${widthClasses[width]}`}
-          style={maxWidth ? { maxWidth } : undefined}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          {title && (
-            <div className="bg-white px-4 py-4 sm:px-6 border-b border-gray-200 flex justify-between items-center">
-              {typeof title === 'string' ? (
-                <h3 className="text-lg font-semibold leading-6 text-gray-900" id="modal-title">
-                  {title}
-                </h3>
-              ) : (
-                title
-              )}
-              <button
-                type="button"
-                className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                onClick={onClose}
-              >
-                <span className="sr-only">Đóng</span>
-                <X className="h-6 w-6" aria-hidden="true" />
-              </button>
-            </div>
-          )}
-
-          {/* Body */}
-          <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-            {children}
+      {/* Panel */}
+      <div
+        onClick={e => e.stopPropagation()}
+        className="animate-slide-up"
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: maxW,
+          backgroundColor: 'hsl(var(--bg-card))',
+          border: '1px solid hsl(var(--border))',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: '0 24px 48px hsl(224 71% 4% / 0.4), 0 0 0 1px hsl(var(--border))',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: 'calc(100vh - 48px)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        {title && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '16px 20px',
+            borderBottom: '1px solid hsl(var(--border))',
+            flexShrink: 0,
+          }}>
+            {typeof title === 'string'
+              ? <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>{title}</h3>
+              : title}
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: '4px',
+                color: 'hsl(var(--text-muted))', borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center',
+              }}
+            >
+              <X size={18} />
+            </button>
           </div>
+        )}
 
-          {/* Footer */}
-          {footer && (
-            <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-gray-200">
-              {footer}
-            </div>
-          )}
+        {/* Body */}
+        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
+          {children}
         </div>
+
+        {/* Footer */}
+        {footer && (
+          <div style={{
+            padding: '12px 20px',
+            borderTop: '1px solid hsl(var(--border))',
+            flexShrink: 0,
+          }}>
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

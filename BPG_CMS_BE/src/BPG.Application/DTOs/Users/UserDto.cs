@@ -18,9 +18,15 @@ namespace BPG.Application.DTOs.Users
                 Id = user.UserId.ToString(),
                 Name = user.FullName,
                 Email = user.Email,
-                Role = user.UserRoles?.FirstOrDefault()?.Role?.RoleName ?? string.Empty,
-                Status = user.IsActive ? "Active" : "Inactive"
+                Role = (user.UserRoles?.FirstOrDefault()?.Role?.RoleName ?? string.Empty).ToLower(),
+                Status = GetStatus(user)
             };
+        }
+        public static string GetStatus(User user)
+        {
+            if (!user.IsActive) return "locked";
+            if (user.LockedUntil.HasValue && user.LockedUntil > DateTime.UtcNow) return "locked";
+            return "active";
         }
     }
 }

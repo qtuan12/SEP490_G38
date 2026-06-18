@@ -12,6 +12,9 @@ public interface IUnitOfWork : IDisposable
     /// <summary>Lưu tất cả thay đổi vào DB trong 1 transaction.</summary>
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 
+    /// <summary>Thực thi raw SQL trực tiếp, bypass hoàn toàn change tracker.</summary>
+    Task ExecuteSqlAsync(FormattableString sql, CancellationToken ct = default);
+
     /// <summary>Bắt đầu explicit transaction (dùng khi cần multi-step atomic operation).</summary>
     Task BeginTransactionAsync(CancellationToken ct = default);
 

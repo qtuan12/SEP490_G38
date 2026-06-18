@@ -7,7 +7,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<UserProfile>;
   logout: () => void;
 }
 
@@ -47,13 +47,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
-  const login = async (credentials: LoginCredentials) => {
+  const login = async (credentials: LoginCredentials): Promise<UserProfile> => {
     try {
       const response = await authService.login(credentials);
       setToken(response.token);
       setUser(response.user);
       localStorage.setItem('bpg_token', response.token);
       localStorage.setItem('bpg_user', JSON.stringify(response.user));
+      return response.user;
     } catch (error) {
       localStorage.removeItem('bpg_token');
       localStorage.removeItem('bpg_user');
