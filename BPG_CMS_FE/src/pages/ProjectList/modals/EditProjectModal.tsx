@@ -121,8 +121,8 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
     }
   });
 
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+  const onSubmit = async (data: FormData) => {
+    await mutation.mutateAsync(data);
   };
 
   const handleDragOver = (e: React.DragEvent) => {

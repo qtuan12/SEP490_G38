@@ -15,16 +15,26 @@ using System.Threading.Tasks;
 public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetricsQuery, DashboardMetricsDto>
 {
     private readonly IUnitOfWork _uow;
+    private readonly BPG.Application.IServices.ICurrentUserService _currentUserService;
 
-    public GetDashboardMetricsQueryHandler(IUnitOfWork uow)
+    public GetDashboardMetricsQueryHandler(IUnitOfWork uow, BPG.Application.IServices.ICurrentUserService currentUserService)
     {
         _uow = uow;
+        _currentUserService = currentUserService;
     }
 
     public async Task<DashboardMetricsDto> Handle(GetDashboardMetricsQuery request, CancellationToken cancellationToken)
     {
-        var projects = await _uow.Repository<Project>().Query()
-            .AsNoTracking()
+        var query = _uow.Repository<Project>().Query()
+            .AsNoTracking();
+
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            query = query.Where(p => p.Members.Any(m => m.UserId == currentUserId));
+        }
+
+        var projects = await query
             .Include(p => p.Phases)
                 .ThenInclude(ph => ph.Tasks)
             .ToListAsync(cancellationToken);

@@ -12,10 +12,23 @@ import { UploadCloud, FileText } from 'lucide-react';
 const schema = z.object({
   name: z.string().min(3, 'Tên dự án phải có ít nhất 3 ký tự'),
   address: z.string().min(5, 'Địa chỉ công trường phải có ít nhất 5 ký tự'),
-  startDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến bắt đầu'),
+  startDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến bắt đầu').refine(dateStr => {
+    const start = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return start >= today;
+  }, { message: 'Ngày bắt đầu không được trong quá khứ' }),
   endDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến kết thúc'),
   status: z.enum(['draft', 'inprogress', 'paused', 'done']).default('draft'),
   drawingNames: z.array(z.string()).max(5, 'Chỉ được chọn tối đa 5 file').default([])
+}).refine(data => {
+  if (!data.startDate || !data.endDate) return true;
+  const start = new Date(data.startDate);
+  const end = new Date(data.endDate);
+  return end >= start;
+}, {
+  message: "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu",
+  path: ["endDate"]
 });
 
 type FormData = z.infer<typeof schema>;
@@ -88,8 +101,8 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
     }
   });
 
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+  const onSubmit = async (data: FormData) => {
+    await mutation.mutateAsync(data);
   };
 
   const handleDragOver = (e: React.DragEvent) => {

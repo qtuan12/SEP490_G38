@@ -17,11 +17,13 @@ public class GetProjectsQueryHandler : IRequestHandler<GetProjectsQuery, PagedLi
 {
     private readonly IUnitOfWork _uow;
     private readonly IMapper _mapper;
+    private readonly BPG.Application.IServices.ICurrentUserService _currentUserService;
 
-    public GetProjectsQueryHandler(IUnitOfWork uow, IMapper mapper)
+    public GetProjectsQueryHandler(IUnitOfWork uow, IMapper mapper, BPG.Application.IServices.ICurrentUserService currentUserService)
     {
         _uow = uow;
         _mapper = mapper;
+        _currentUserService = currentUserService;
     }
 
     public async Task<PagedList<ProjectDto>> Handle(GetProjectsQuery request, CancellationToken cancellationToken)
@@ -39,6 +41,13 @@ public class GetProjectsQueryHandler : IRequestHandler<GetProjectsQuery, PagedLi
             var search = request.Search.ToLower();
             query = query.Where(p => p.Name.ToLower().Contains(search) || 
                                      (p.Address != null && p.Address.ToLower().Contains(search)));
+        }
+
+        // Restrict projects for Site Engineers to only those they are assigned to
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            query = query.Where(p => p.Members.Any(m => m.UserId == currentUserId));
         }
 
         query = query.OrderByDescending(p => p.CreatedAt);

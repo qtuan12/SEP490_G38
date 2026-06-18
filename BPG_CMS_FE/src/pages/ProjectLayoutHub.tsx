@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
-import type {Project} from '../types/common';
+import type { Project } from '../types/common';
 import { ProjectMembers } from '../components/ProjectMembers';
 import { WBSWorkspace } from './WBSWorkspace';
 import { DailyLogFeed } from '../components/DailyLogFeed';
 import { EditProjectModal } from './ProjectList/modals/EditProjectModal';
 
-import { 
-  ArrowLeft, 
-  Users, 
-  FolderGit2, 
-  MapPin, 
+import {
+  ArrowLeft,
+  Users,
+  FolderGit2,
+  MapPin,
   Calendar,
   Loader2,
   Pause,
@@ -28,7 +28,7 @@ import { useNotification } from '../context/NotificationContext';
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  
+
   const { user } = useAuth();
   const { connection } = useNotification();
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
@@ -121,18 +121,18 @@ export const ProjectLayoutHub: React.FC = () => {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-      
+
       {/* Back button and Info header */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <button 
-          onClick={() => navigate('/projects')} 
-          style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '6px', 
-            background: 'none', 
-            border: 'none', 
-            color: 'hsl(var(--text-secondary))', 
+        <button
+          onClick={() => navigate('/projects')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'none',
+            border: 'none',
+            color: 'hsl(var(--text-secondary))',
             cursor: 'pointer',
             fontSize: '0.9rem',
             fontWeight: 500,
@@ -152,7 +152,7 @@ export const ProjectLayoutHub: React.FC = () => {
               {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng (Paused)</span>}
               {project.status === 'done' && <span className="badge badge-success">Hoàn thành (Done)</span>}
             </div>
-            
+
             <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <MapPin size={14} style={{ color: 'hsl(var(--text-muted))' }} />
@@ -162,14 +162,9 @@ export const ProjectLayoutHub: React.FC = () => {
                 <Calendar size={14} style={{ color: 'hsl(var(--text-muted))' }} />
                 Hạn: {project.startDate?.split('-').reverse().join('-')} → {project.endDate?.split('-').reverse().join('-')}
               </span>
-              {project.drawingUrl && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'hsl(var(--primary-hover))' }}>
-                  <FileText size={14} />
-                  Bản vẽ thiết kế: {project.drawingUrl}
-                </span>
-              )}
+
             </div>
-            
+
             {project.status === 'paused' && project.pauseReason && (
               <div style={{ marginTop: '12px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', borderLeft: '4px solid hsl(var(--warning))', color: 'hsl(var(--warning))', fontSize: '0.9rem', borderRadius: '4px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                 <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
@@ -245,16 +240,16 @@ export const ProjectLayoutHub: React.FC = () => {
         </div>
 
         {/* Large Progress bar */}
-        <div style={{ 
-          height: '20px', 
-          backgroundColor: 'hsl(var(--border))', 
-          borderRadius: 'var(--radius-full)', 
+        <div style={{
+          height: '20px',
+          backgroundColor: 'hsl(var(--border))',
+          borderRadius: 'var(--radius-full)',
           overflow: 'hidden',
           boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06)'
         }}>
-          <div style={{ 
-            width: `${project.progress}%`, 
-            height: '100%', 
+          <div style={{
+            width: `${project.progress}%`,
+            height: '100%',
             background: 'linear-gradient(90deg, hsl(var(--primary-hover)) 0%, hsl(var(--primary)) 100%)',
             boxShadow: '0 0 10px hsl(var(--primary) / 0.5)',
             transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -263,9 +258,9 @@ export const ProjectLayoutHub: React.FC = () => {
       </div>
 
       {/* Navigation Tabs Header */}
-      <div style={{ 
-        display: 'flex', 
-        borderBottom: '1px solid hsl(var(--border))', 
+      <div style={{
+        display: 'flex',
+        borderBottom: '1px solid hsl(var(--border))',
         gap: '8px',
         overflowX: 'auto'
       }}>
@@ -338,8 +333,8 @@ export const ProjectLayoutHub: React.FC = () => {
       </div>
 
       {/* Tab Contents */}
-      <div 
-        className="animate-fade-in" 
+      <div
+        className="animate-fade-in"
         style={{ marginTop: '10px' }}
       >
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}

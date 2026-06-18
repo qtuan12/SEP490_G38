@@ -17,10 +17,12 @@ namespace BPG.Application.Features.Projects.Handlers;
 public class GetDashboardWarningsQueryHandler : IRequestHandler<GetDashboardWarningsQuery, List<DashboardWarningDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
 
-    public GetDashboardWarningsQueryHandler(IUnitOfWork unitOfWork)
+    public GetDashboardWarningsQueryHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
     }
 
     public async Task<List<DashboardWarningDto>> Handle(GetDashboardWarningsQuery request, CancellationToken cancellationToken)
@@ -29,8 +31,16 @@ public class GetDashboardWarningsQueryHandler : IRequestHandler<GetDashboardWarn
         var now = DateTime.Now;
 
         // Retrieve active projects with their phases, tasks
-        var activeProjects = await _unitOfWork.Repository<Project>().Query()
-            .Where(p => p.Status == ProjectStatus.InProgress)
+        var query = _unitOfWork.Repository<Project>().Query()
+            .Where(p => p.Status == ProjectStatus.InProgress);
+
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            query = query.Where(p => p.Members.Any(m => m.UserId == currentUserId));
+        }
+
+        var activeProjects = await query
             .Include(p => p.Phases)
                 .ThenInclude(ph => ph.Tasks)
             .ToListAsync(cancellationToken);

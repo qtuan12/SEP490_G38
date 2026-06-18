@@ -37,6 +37,7 @@ namespace BPG.Infrastructure.Services
             using var stream = file.OpenReadStream();
             var extension = Path.GetExtension(file.FileName).ToLower();
             var isImage = extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".gif" || extension == ".webp" || extension == ".bmp";
+            var isPdf = extension == ".pdf";
 
             UploadResult uploadResult;
 
