@@ -20,7 +20,7 @@ import {
   CheckCircle,
   Clock,
   Edit3,
-  FileText,
+
   AlertCircle,
   Play
 } from 'lucide-react';
