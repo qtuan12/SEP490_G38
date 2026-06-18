@@ -14,7 +14,6 @@ import type {MaterialRequest} from '../../types/common';
 import { useNavigate } from 'react-router-dom';
 import { MaterialCompensationTable } from '../Dashboard/components/MaterialCompensationTable';
 import { RecentActivities } from '../Dashboard/components/RecentActivities';
-import { QuickActionsPanel } from '../Dashboard/components/QuickActionsPanel';
 import { DashboardStats } from '../Dashboard/components/DashboardStats';
 
 export const Dashboard: React.FC = () => {
@@ -236,21 +235,18 @@ export const Dashboard: React.FC = () => {
         {/* Recent Activities / site diary */}
         <RecentActivities activities={recentActivities} />
 
-        {/* Quick Actions Panel */}
-        <QuickActionsPanel userRole={user?.role} />
+        {/* Step 5: Material Compensation & Over BOQ verification workspace */}
+        <MaterialCompensationTable
+          materialRequests={materialRequests}
+          loadingRequests={loadingRequests}
+          isAccountant={isAccountant}
+          isDirector={isDirector}
+          handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
+          handleDisburseRequestByAccountant={handleDisburseRequestByAccountant}
+          handleApproveRequestByDirector={handleApproveRequestByDirector}
+          handleRejectRequest={handleRejectRequest}
+        />
       </div>
-
-      {/* Step 5: Material Compensation & Over BOQ verification workspace */}
-      <MaterialCompensationTable
-        materialRequests={materialRequests}
-        loadingRequests={loadingRequests}
-        isAccountant={isAccountant}
-        isDirector={isDirector}
-        handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
-        handleDisburseRequestByAccountant={handleDisburseRequestByAccountant}
-        handleApproveRequestByDirector={handleApproveRequestByDirector}
-        handleRejectRequest={handleRejectRequest}
-      />
     </div>
   );
 };
