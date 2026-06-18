@@ -49,7 +49,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       case 'admin': return 'Admin';
       case 'technicalmanager': return 'TP Kỹ Thuật';
       case 'projectleader': return 'Trưởng Dự án';
-      case 'siteengineer': return 'Kỹ Sư Hiện Trường';
+      case 'siteengineer': return 'Nhân viên kỹ thuật';
       case 'accountant': return 'accountant';
       case 'director': return 'director';
       default: return role;

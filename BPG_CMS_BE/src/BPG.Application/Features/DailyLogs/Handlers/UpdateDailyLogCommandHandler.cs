@@ -56,17 +56,40 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = log.Task.Phase.Project;
 
-            // 2. Kiểm tra quyền sở hữu (chỉ người tạo hoặc Admin/TM mới được sửa nhật ký)
+            // 2. Kiểm tra quyền chỉnh sửa (Chỉ Admin, TM, Project Leader hoặc Kỹ sư được gán vào công việc mới được sửa nhật ký)
             bool isAdminOrTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (log.CreatedBy != currentUserId && !isAdminOrTM)
+            if (!isAdminOrTM)
             {
-                throw new ForbiddenException("Bạn không có quyền chỉnh sửa nhật ký thi công này.");
+                // Kiểm tra xem User có phải là Project Leader của dự án này không
+                var isLeader = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
+
+                // Kiểm tra xem User có được gán vào công việc này không
+                var isAssignee = await _uow.Repository<TaskAssignee>().Query()
+                    .AnyAsync(ta => ta.TaskId == log.TaskId && ta.UserId == currentUserId, cancellationToken);
+
+                if (!isLeader && !isAssignee)
+                {
+                    throw new ForbiddenException("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép chỉnh sửa nhật ký thi công.");
+                }
             }
 
             // 3. Kiểm tra trạng thái dự án
             if (project.Status != ProjectStatus.InProgress)
             {
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
+            }
+
+            // Kiểm tra xem công việc có bị khóa (đã nghiệm thu) không
+            if (log.Task.IsLocked)
+            {
+                throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã được nghiệm thu và khóa tiến độ, không thể chỉnh sửa nhật ký thi công.");
+            }
+
+            // Kiểm tra số lượng hình ảnh
+            if (request.Images != null && request.Images.Count > 5)
+            {
+                throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh hiện trường thi công.");
             }
 
             // Bắt đầu một transaction để lưu trữ đồng bộ

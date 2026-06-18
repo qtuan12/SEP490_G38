@@ -52,9 +52,8 @@ namespace BPG.Application.Features.Comments.Handlers
                 throw new NotFoundException(nameof(Comment), request.CommentId);
             }
 
-            // 2. Kiểm tra quyền sở hữu (chỉ tác giả hoặc TM/Admin được sửa)
-            bool isAdminOrTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (comment.AuthorId != currentUserId && !isAdminOrTM)
+            // 2. Kiểm tra quyền sở hữu (chỉ tác giả được sửa)
+            if (comment.AuthorId != currentUserId)
             {
                 throw new ForbiddenException("Bạn không có quyền chỉnh sửa bình luận này.");
             }

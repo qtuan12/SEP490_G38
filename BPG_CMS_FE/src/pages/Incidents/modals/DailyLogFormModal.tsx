@@ -27,6 +27,7 @@ interface DailyLogFormProps {
   editLog?: DailyLog;
   engineerId: string;
   engineerName: string;
+  isPL?: boolean;
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
 }
@@ -41,6 +42,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   editLog,
   engineerId,
   engineerName,
+  isPL = false,
   onSuccess
 }) => {
   const { user } = useAuth();
@@ -115,6 +117,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
   const isTaskPreselected = !!task || (!!taskId && !taskId.startsWith('phase-'));
 
+  const isCurrentTaskParent = React.useMemo(() => {
+    if (!currentTask) return false;
+    return parentTaskIds.has(currentTask.id.replace(/^t-/, ''));
+  }, [currentTask, parentTaskIds]);
+
   // When user changes Phase in the modal, auto-select the first leaf task of that phase
   useEffect(() => {
     if (!isEditMode && !task && !taskId) {
@@ -133,22 +140,44 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   }, [modalSelectedPhaseId, tasks, parentTaskIds, isEditMode, task, taskId]);
 
   const modalPhaseOptions = React.useMemo(() => {
-    return phases.map(phase => ({
+    const isPLOrAdminOrTM = isPL || user?.role === 'admin' || user?.role === 'technicalmanager';
+    
+    return phases.filter(phase => {
+      if (isPLOrAdminOrTM) return true;
+      
+      // Check xem phase này có task nào mà user được gán không
+      return tasks.some(t => {
+        const isCorrectPhase = t.phaseId === phase.id || t.phaseId.replace(/^p-/, '') === phase.id.replace(/^p-/, '');
+        const isLeaf = !parentTaskIds.has(t.id.replace(/^t-/, ''));
+        if (!isCorrectPhase || !isLeaf) return false;
+        
+        const assignedIds = t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : [];
+        return user?.id && assignedIds.includes(user.id.toString());
+      });
+    }).map(phase => ({
       label: phase.name,
       value: phase.id
     }));
-  }, [phases]);
+  }, [phases, tasks, parentTaskIds, isPL, user]);
 
   const modalTaskOptions = React.useMemo(() => {
-    const phaseTasks = tasks.filter(t => 
-      (t.phaseId === modalSelectedPhaseId || t.phaseId.replace(/^p-/, '') === modalSelectedPhaseId.replace(/^p-/, '')) &&
-      !parentTaskIds.has(t.id.replace(/^t-/, ''))
-    );
+    const isPLOrAdminOrTM = isPL || user?.role === 'admin' || user?.role === 'technicalmanager';
+    const phaseTasks = tasks.filter(t => {
+      const isCorrectPhase = t.phaseId === modalSelectedPhaseId || t.phaseId.replace(/^p-/, '') === modalSelectedPhaseId.replace(/^p-/, '');
+      const isLeaf = !parentTaskIds.has(t.id.replace(/^t-/, ''));
+      if (!isCorrectPhase || !isLeaf) return false;
+      
+      if (isPLOrAdminOrTM) return true;
+      
+      // Nếu không phải leader/TM/admin thì chỉ được chọn task mình được gán
+      const assignedIds = t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : [];
+      return user?.id && assignedIds.includes(user.id.toString());
+    });
     return phaseTasks.map(t => ({
       label: t.name,
       value: t.id
     }));
-  }, [tasks, modalSelectedPhaseId, parentTaskIds]);
+  }, [tasks, modalSelectedPhaseId, parentTaskIds, isPL, user]);
 
   const schema = React.useMemo(() => {
     const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
@@ -157,22 +186,22 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       progress: z.number()
         .min(minVal, `Tiến độ không được nhỏ hơn tiến độ hiện tại (${minVal}%).`)
         .max(100),
-      content: z.string()
+      content: z.string().trim()
     }).refine(data => {
-      if (data.progress < minProgress && (!data.content || data.content.trim().length === 0)) {
-        return false;
+      if (data.progress < minProgress) {
+        return data.content.length >= 5;
       }
       return true;
     }, {
-      message: 'Vui lòng nhập lý do giảm tiến độ công việc.',
+      message: 'Vui lòng nhập lý do giảm tiến độ công việc (tối thiểu 5 ký tự).',
       path: ['content']
     }).refine(data => {
-      if (data.progress >= minProgress && (!data.content || data.content.trim().length === 0)) {
-        return false;
+      if (data.progress >= minProgress) {
+        return data.content.length >= 5;
       }
       return true;
     }, {
-      message: 'Vui lòng nhập chi tiết diễn biến thi công.',
+      message: 'Vui lòng nhập chi tiết diễn biến thi công (tối thiểu 5 ký tự).',
       path: ['content']
     });
   }, [minProgress, user?.role]);
@@ -266,6 +295,14 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       return;
     }
 
+    // Kiểm tra dung lượng hình ảnh (tối đa 10MB mỗi file)
+    const MAX_SIZE = 10 * 1024 * 1024;
+    const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
+    if (oversizedFiles.length > 0) {
+      toast.error('Hình ảnh không được vượt quá 10MB.');
+      return;
+    }
+
     const validFiles = files.filter(f => f.type.startsWith('image/')).slice(0, remainingCount);
     if (validFiles.length === 0) return;
 
@@ -355,6 +392,12 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       </div>
       <div className="p-4">
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          {isCurrentTaskParent && (
+            <div className="flex items-center gap-2 bg-red-50 text-red-700 p-3 rounded-md border border-red-100 text-sm">
+              <AlertCircle size={18} />
+              <span>Công việc này có chứa công việc con. Tiến độ sẽ tự động tính từ các công việc con, bạn không thể báo cáo nhật ký trực tiếp cho công việc này.</span>
+            </div>
+          )}
           
           {/* Progress Slider (Only for Create Mode) */}
           {!isEditMode && (
@@ -541,6 +584,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
               type="submit" 
               variant="primary" 
               isLoading={mutation.isPending}
+              disabled={isCurrentTaskParent}
             >
               {isEditMode ? 'Cập nhật' : 'Gửi báo cáo'}
             </Button>
@@ -554,15 +598,16 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 interface DailyLogFormModalProps extends Omit<DailyLogFormProps, 'onCancel'> {
   isOpen: boolean;
   onClose: () => void;
+  isPL?: boolean;
 }
 
 export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
-  isOpen, onClose, ...rest
+  isOpen, onClose, isPL, ...rest
 }) => {
   if (!isOpen) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={rest.editLog ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"}>
-      <DailyLogForm {...rest} onCancel={onClose} />
+      <DailyLogForm {...rest} isPL={isPL} onCancel={onClose} />
     </Modal>
   );
 };
