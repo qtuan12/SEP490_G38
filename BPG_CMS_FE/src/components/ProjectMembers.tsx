@@ -34,7 +34,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       setMembers(projMembers);
 
       // Load all system users
-      const allUsers = await userService.getUsers();
+      const usersResponse = await userService.getUsers({ pageSize: 1000 });
+      const allUsers = usersResponse.items;
       // Filter out those who are not engineers or are already members of this project
       const engineers = allUsers.filter(u =>
         u.role?.toLowerCase() === 'siteengineer' && !projMembers.some(m => m.userId === u.id)
@@ -62,7 +63,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     if (selectedUserIds.length === 0) return;
 
     try {
-      const allUsers = await userService.getUsers();
+      const usersResponse = await userService.getUsers({ pageSize: 1000 });
+      const allUsers = usersResponse.items;
       
       await Promise.all(selectedUserIds.map(id => {
         const targetUser = allUsers.find(u => u.id === id);

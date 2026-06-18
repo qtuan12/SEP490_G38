@@ -28,7 +28,7 @@ public class ResumeProjectCommandHandler : IRequestHandler<ResumeProjectCommand,
         if (project.Status != ProjectStatus.Paused)
             throw new BusinessException("ERR_PROJECT_RESUME", $"Chỉ có thể tiếp tục dự án khi đang ở trạng thái Paused. Trạng thái hiện tại: {project.Status}");
 
-        project.Status = ProjectStatus.Active;
+        project.Status = ProjectStatus.InProgress;
         project.ResumedAt = System.DateTime.UtcNow;
 
         _uow.Repository<Project>().Update(project);

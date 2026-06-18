@@ -6,4 +6,5 @@ public class DashboardProjectProgressDto
     public string ProjectName { get; set; }
     public string Address { get; set; }
     public int Progress { get; set; }
+    public string Status { get; set; }
 }

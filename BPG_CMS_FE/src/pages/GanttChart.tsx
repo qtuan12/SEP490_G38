@@ -100,19 +100,23 @@ export const GanttChart: React.FC = () => {
         .filter(t => t.phaseId === ph.id)
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
-      // Estimate phase start = earliest task deadline (or project start)
-      const earliestDeadline = phaseTasks.length
+      // Estimate phase start = earliest task start/deadline
+      const earliestStart = phaseTasks.length
         ? phaseTasks.reduce(
-            (min, t) => (t.deadline < min ? t.deadline : min),
-            phaseTasks[0].deadline
+            (min, t) => {
+              const start = t.startDate || addDays(t.deadline, -7);
+              return start < min ? start : min;
+            },
+            phaseTasks[0].startDate || addDays(phaseTasks[0].deadline, -7)
           )
         : (project?.startDate ?? new Date().toISOString().slice(0, 10));
+
       const latestDeadline = phaseTasks.length
         ? phaseTasks.reduce(
             (max, t) => (t.deadline > max ? t.deadline : max),
             phaseTasks[0].deadline
           )
-        : (project?.endDate ?? addDays(earliestDeadline, 30));
+        : (project?.endDate ?? addDays(earliestStart, 30));
 
       const phaseProgress = phaseTasks.length
         ? Math.round(
@@ -127,7 +131,7 @@ export const GanttChart: React.FC = () => {
       result.push({
         id: ph.id,
         name: `📁 ${ph.name}`,
-        start: addDays(earliestDeadline, -1),
+        start: earliestStart,
         end: latestDeadline,
         progress: phaseProgress,
         custom_class: ph.status === 'frozen' ? 'gantt-phase-frozen' : 'gantt-phase',
@@ -135,9 +139,9 @@ export const GanttChart: React.FC = () => {
 
       // Task rows
       phaseTasks.forEach((t, idx) => {
-        const start = project?.startDate && project.startDate < t.deadline
+        const start = t.startDate || (project?.startDate && project.startDate < t.deadline
           ? addDays(t.deadline, -Math.max(7, Math.round((t.progress / 100) * 30)))
-          : addDays(t.deadline, -7);
+          : addDays(t.deadline, -7));
 
         let customClass = 'gantt-task';
         if (t.status === 'obsolete') customClass = 'gantt-task-obsolete';
@@ -150,7 +154,7 @@ export const GanttChart: React.FC = () => {
           start,
           end: t.deadline,
           progress: t.progress,
-          dependencies: idx === 0 ? ph.id : phaseTasks[idx - 1].id,
+          dependencies: '', // Remove fake waterfall dependencies
           custom_class: customClass,
         });
       });
@@ -184,7 +188,8 @@ export const GanttChart: React.FC = () => {
             <div style="padding:12px 14px;min-width:220px;font-family:inherit">
               <strong style="font-size:0.9rem;color:#1e293b">${originalPhase.name}</strong>
               <div style="margin-top:8px;font-size:0.78rem;color:#64748b">
-                <div>📋 ${phaseTasks.length} công việc</div>
+                <div>📅 Từ: <strong>${formatDate(task.start)}</strong> đến <strong>${formatDate(task.end)}</strong></div>
+                <div style="margin-top:3px">📋 ${phaseTasks.length} công việc</div>
                 <div style="margin-top:4px">Tiến độ: <strong style="color:#3b82f6">${task.progress}%</strong></div>
                 ${originalPhase.status === 'frozen' ? '<div style="margin-top:4px;color:#16a34a;font-weight:600">✅ Đã nghiệm thu</div>' : ''}
               </div>
@@ -200,7 +205,7 @@ export const GanttChart: React.FC = () => {
               <strong style="font-size:0.85rem;color:#1e293b">${originalTask.name}</strong>
               <div style="margin-top:8px;font-size:0.78rem;color:#64748b">
                 <div>👤 ${originalTask.assignedName ?? 'Chưa phân công'}</div>
-                <div style="margin-top:3px">📅 Hạn: <strong>${formatDate(originalTask.deadline)}</strong></div>
+                <div style="margin-top:3px">📅 Từ: <strong>${formatDate(task.start)}</strong> đến <strong>${formatDate(task.end)}</strong></div>
                 <div style="margin-top:3px">Tiến độ: <strong style="color:${originalTask.progress === 100 ? '#16a34a' : '#3b82f6'}">${originalTask.progress}%</strong></div>
                 ${originalTask.status === 'obsolete' ? '<div style="margin-top:4px;color:#dc2626;font-weight:600">⛔ Đã hủy</div>' : ''}
               </div>

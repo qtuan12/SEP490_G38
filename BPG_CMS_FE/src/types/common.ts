@@ -4,9 +4,13 @@ export interface Project {
   address: string;
   startDate: string;
   endDate: string;
-  status: 'draft' | 'active' | 'paused' | 'done';
-  drawingUrl?: string; // name or dummy data url of drawing design
+  status: 'draft' | 'inprogress' | 'paused' | 'done';
+  drawingUrl?: string; // legacy single drawing
+  drawingUrls?: string[]; // multiple drawings support
+  attachments?: AttachmentDto[]; // real attachments metadata
   progress: number; // overall progress % (derived or stored)
+  pauseReason?: string;
+  pausedAt?: string;
 }
 
 export interface ProjectMember {
@@ -212,6 +216,7 @@ export interface DashboardProjectProgressDto {
   projectName: string;
   address: string;
   progress: number;
+  status: string;
 }
 
 export interface DashboardMetricsDto {
@@ -250,7 +255,8 @@ export interface ProjectDto {
   plannedStart: string;
   plannedEnd: string;
   createdAt: string;
-  progress?: number;
+  pauseReason?: string;
+  pausedAt?: string;
 }
 
 export interface ProjectMemberDto {

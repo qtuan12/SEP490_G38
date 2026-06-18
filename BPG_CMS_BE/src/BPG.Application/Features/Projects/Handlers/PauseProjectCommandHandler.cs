@@ -25,7 +25,7 @@ public class PauseProjectCommandHandler : IRequestHandler<PauseProjectCommand, b
         if (project == null)
             throw new NotFoundException(nameof(Project), request.ProjectId);
 
-        if (project.Status != ProjectStatus.Active)
+        if (project.Status != ProjectStatus.InProgress)
             throw new BusinessException("ERR_PROJECT_PAUSE", $"Chỉ có thể tạm dừng dự án khi đang ở trạng thái Active. Trạng thái hiện tại: {project.Status}");
 
         project.Status = ProjectStatus.Paused;

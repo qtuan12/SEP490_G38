@@ -79,11 +79,11 @@ export const projectService = {
       if (res.success && res.data) return res.data;
     }
     const projects = await this.getProjects();
-    const activeProjects = projects.filter(p => p.status === 'active');
+    const activeProjects = projects.filter(p => p.status === 'inprogress' || p.status === 'paused');
     return {
       totalProjects: projects.length,
       draftProjects: projects.filter(p => p.status === 'draft').length,
-      activeProjects: activeProjects.length,
+      activeProjects: projects.filter(p => p.status === 'inprogress').length,
       pausedProjects: projects.filter(p => p.status === 'paused').length,
       completedProjects: projects.filter(p => p.status === 'done').length,
       closedProjects: 0,
@@ -91,7 +91,8 @@ export const projectService = {
         projectId: parseInt(p.id.replace('p-', '')) || 0,
         projectName: p.name,
         address: p.address,
-        progress: p.progress
+        progress: p.progress,
+        status: p.status
       }))
     };
   },
@@ -116,7 +117,9 @@ export const projectService = {
         startDate: p.plannedStart,
         endDate: p.plannedEnd,
         status: p.status.toLowerCase() as any,
-        progress: p.progress || 0
+        progress: 0,
+        pauseReason: p.pauseReason,
+        pausedAt: p.pausedAt
       }));
 
       // Remove local storage logic for progress
@@ -154,7 +157,9 @@ export const projectService = {
         const res = await apiClient.get<ApiResponse<import('../types/common').ProjectDetailDto>>(`/projects/${parsedId}`);
         if (!res.success) return null;
         const p = res.data;
-        const drawingAttachment = p.attachments?.find(a => a.attachmentType === 'Design');
+        const designAttachments = p.attachments?.filter(a => a.attachmentType === 'Design') || [];
+        const drawingAttachment = designAttachments.length > 0 ? designAttachments[0] : null;
+        
         const project: Project = {
           id: p.projectId.toString(),
           name: p.name,
@@ -162,8 +167,12 @@ export const projectService = {
           startDate: p.plannedStart,
           endDate: p.plannedEnd,
           status: p.status.toLowerCase() as any,
-          drawingUrl: drawingAttachment?.fileName || '',
-          progress: p.progress || 0
+          drawingUrl: drawingAttachment?.fileUrl || '',
+          drawingUrls: designAttachments.map(a => a.fileUrl).filter(Boolean),
+          attachments: p.attachments,
+          progress: 0,
+          pauseReason: p.pauseReason,
+          pausedAt: p.pausedAt
         };
         // Removed local storage override
         return project;
@@ -178,20 +187,45 @@ export const projectService = {
 
   async createProject(project: Omit<Project, 'id' | 'progress'>): Promise<Project> {
     if (!USE_MOCK_API) {
-      const payload = {
-        name: project.name,
-        address: project.address,
-        plannedStart: project.startDate,
-        plannedEnd: project.endDate,
-        attachments: project.drawingUrl ? [
-          {
+      let attachments = [];
+      
+      if (project.attachments && project.attachments.length > 0) {
+        attachments = project.attachments.map(a => ({
+            attachmentType: 'Design',
+            fileName: a.fileName,
+            fileUrl: a.fileUrl,
+            contentType: a.contentType || 'application/pdf',
+            fileSizeBytes: a.fileSizeBytes || 1024
+        })) as any[];
+      } else {
+        if (project.drawingUrl) {
+          attachments.push({
             attachmentType: 'Design',
             fileName: project.drawingUrl,
             fileUrl: '/mock/url',
             contentType: 'application/pdf',
             fileSizeBytes: 1024
-          }
-        ] : []
+          });
+        }
+        if (project.drawingUrls && project.drawingUrls.length > 0) {
+          project.drawingUrls.forEach(url => {
+            attachments.push({
+              attachmentType: 'Design',
+              fileName: url,
+              fileUrl: '/mock/url',
+              contentType: 'application/pdf',
+              fileSizeBytes: 1024
+            });
+          });
+        }
+      }
+
+      const payload = {
+        name: project.name,
+        address: project.address,
+        plannedStart: project.startDate,
+        plannedEnd: project.endDate,
+        attachments: attachments
       };
       const res = await apiClient.post<ApiResponse<import('../types/common').ProjectDto>>('/projects', payload);
       if (!res.success) throw new Error(res.message || 'Khởi tạo dự án thất bại');
@@ -202,7 +236,8 @@ export const projectService = {
         startDate: res.data.plannedStart,
         endDate: res.data.plannedEnd,
         status: res.data.status.toLowerCase() as any,
-        drawingUrl: project.drawingUrl,
+        drawingUrl: project.drawingUrl || (project.drawingUrls?.[0]),
+        drawingUrls: project.drawingUrls,
         progress: 0
       };
     }
@@ -210,11 +245,25 @@ export const projectService = {
     const newProj: Project = {
       ...project,
       id: `p-${Date.now()}`,
+      drawingUrl: project.drawingUrl || (project.drawingUrls?.[0]),
       progress: 0
     };
     projects.push(newProj);
     setStorage('bpg_projects', projects);
     return newProj;
+  },
+
+  async deleteProject(projectId: string): Promise<void> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}`);
+      if (!res.success) throw new Error(res.message || 'Xóa dự án thất bại');
+      return;
+    }
+    const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
+    const updated = projects.filter(p => p.id !== projectId);
+    if (updated.length === projects.length) throw new Error('Không tìm thấy dự án để xóa');
+    setStorage('bpg_projects', updated);
   },
 
   async updateProject(id: string, updates: Partial<Project>): Promise<Project> {
@@ -225,7 +274,8 @@ export const projectService = {
         name: updates.name,
         address: updates.address,
         plannedStart: updates.startDate,
-        plannedEnd: updates.endDate
+        plannedEnd: updates.endDate,
+        attachments: updates.attachments
       };
       const res = await apiClient.put<ApiResponse<import('../types/common').ProjectDto>>(`/projects/${parsedId}`, payload);
       if (!res.success) throw new Error(res.message || 'Cập nhật dự án thất bại');
@@ -263,7 +313,30 @@ export const projectService = {
       throw new Error(`Có ${invalidTasks.length} công việc có Hạn chót nhỏ hơn Ngày bắt đầu dự án (${project.startDate}). Vui lòng điều chỉnh lại kế hoạch WBS.`);
     }
 
-    return this.updateProject(projectId, { status: 'active' });
+    return this.updateProject(projectId, { status: 'inprogress' });
+  },
+
+  async pauseProject(projectId: string, reason: string): Promise<Project> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/pause`, {
+        projectId: parsedId,
+        pauseReason: reason
+      });
+      if (!res.success) throw new Error(res.message || 'Tạm dừng dự án thất bại');
+      return this.getProjectById(projectId) as unknown as Project;
+    }
+    return this.updateProject(projectId, { status: 'paused' });
+  },
+
+  async resumeProject(projectId: string): Promise<Project> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/resume`, {});
+      if (!res.success) throw new Error(res.message || 'Tiếp tục dự án thất bại');
+      return this.getProjectById(projectId) as unknown as Project;
+    }
+    return this.updateProject(projectId, { status: 'inprogress' });
   },
 
   // MEMBERS MANAGEMENT
@@ -275,8 +348,8 @@ export const projectService = {
       return (res.data.members || []).map(m => ({
         projectId,
         userId: m.userId.toString(),
-        userName: m.fullName || '',
-        userEmail: m.email || '',
+        userName: m.fullName || (m as any).userName || '',
+        userEmail: m.email || (m as any).userEmail || '',
         userRole: m.role || '',
         isLeader: m.isLeader
       }));
@@ -355,6 +428,11 @@ export const projectService = {
 
   // WBS PHASES & TASKS
   async getPhases(projectId: string): Promise<WBSPhase[]> {
+    if (!USE_MOCK_API) {
+      const { wbsService } = await import('./wbsService');
+      const data = await wbsService.getWbsDataFlattened(projectId);
+      return data.phases;
+    }
     const normalizedProjectId = projectId.match(/^\d+$/) ? `p-${projectId}` : projectId;
     const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     return allPhases

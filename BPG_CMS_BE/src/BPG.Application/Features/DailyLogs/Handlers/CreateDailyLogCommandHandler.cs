@@ -72,7 +72,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             }
 
             // 3. Kiểm tra trạng thái dự án
-            if (project.Status != ProjectStatus.Active)
+            if (project.Status != ProjectStatus.InProgress)
             {
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }

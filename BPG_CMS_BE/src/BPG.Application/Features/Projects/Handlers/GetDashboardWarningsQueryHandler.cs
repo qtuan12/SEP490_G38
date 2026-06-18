@@ -30,7 +30,7 @@ public class GetDashboardWarningsQueryHandler : IRequestHandler<GetDashboardWarn
 
         // Retrieve active projects with their phases, tasks
         var activeProjects = await _unitOfWork.Repository<Project>().Query()
-            .Where(p => p.Status == ProjectStatus.Active)
+            .Where(p => p.Status == ProjectStatus.InProgress)
             .Include(p => p.Phases)
                 .ThenInclude(ph => ph.Tasks)
             .ToListAsync(cancellationToken);

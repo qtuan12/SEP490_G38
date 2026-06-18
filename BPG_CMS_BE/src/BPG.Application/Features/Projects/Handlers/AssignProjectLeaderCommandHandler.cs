@@ -27,12 +27,17 @@ public class AssignProjectLeaderCommandHandler : IRequestHandler<AssignProjectLe
         if (newLeader == null)
             throw new NotFoundException("Thành viên không tồn tại trong dự án này.", request.UserId);
 
+        bool wasLeader = newLeader.IsLeader;
+
         foreach (var member in members)
         {
             member.IsLeader = false;
         }
 
-        newLeader.IsLeader = true;
+        if (!wasLeader)
+        {
+            newLeader.IsLeader = true;
+        }
 
         _uow.Repository<ProjectMember>().UpdateRange(members);
         await _uow.SaveChangesAsync(cancellationToken);

@@ -11,4 +11,5 @@ public class UpdateProjectCommand : IRequest<ProjectDto>
     public string? Address { get; set; }
     public DateOnly PlannedStart { get; set; }
     public DateOnly PlannedEnd { get; set; }
+    public System.Collections.Generic.List<AttachmentDto> Attachments { get; set; } = new();
 }
