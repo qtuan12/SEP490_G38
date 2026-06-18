@@ -117,7 +117,7 @@ export const projectService = {
         startDate: p.plannedStart,
         endDate: p.plannedEnd,
         status: p.status.toLowerCase() as any,
-        progress: 0,
+        progress: p.progress || 0,
         pauseReason: p.pauseReason,
         pausedAt: p.pausedAt
       }));
@@ -170,7 +170,7 @@ export const projectService = {
           drawingUrl: drawingAttachment?.fileUrl || '',
           drawingUrls: designAttachments.map(a => a.fileUrl).filter(Boolean),
           attachments: p.attachments,
-          progress: 0,
+          progress: p.progress || 0,
           pauseReason: p.pauseReason,
           pausedAt: p.pausedAt
         };

@@ -578,7 +578,7 @@ export const WBSTree = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', marginRight: '8px', flexShrink: 0 }}>
                                   {t.assignedTo.split(',').map((id: string, index: number) => {
                                     const names = t.assignedName ? t.assignedName.split(', ') : [];
-                                    const name = names[index] || 'siteengineer';
+                                    const name = names[index] || 'Kỹ sư';
                                     const initials = getInitials(name);
                                     const bgColor = getAvatarColor(id);
                                     return (

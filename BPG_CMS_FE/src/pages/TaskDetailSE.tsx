@@ -253,7 +253,7 @@ export const TaskDetailSE: React.FC = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '2px' }}>
                   {task.assignedTo.split(',').map((id, index) => {
                     const names = task.assignedName ? task.assignedName.split(', ') : [];
-                    const name = names[index] || 'siteengineer';
+                    const name = names[index] || 'Kỹ sư';
                     const initials = getInitials(name);
                     const bgColor = getAvatarColor(id);
                     return (

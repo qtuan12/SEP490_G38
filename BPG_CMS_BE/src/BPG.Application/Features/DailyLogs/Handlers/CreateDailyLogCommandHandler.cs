@@ -57,17 +57,21 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = task.Phase.Project;
 
-            // 2. Kiểm tra quyền của User
+            // 2. Kiểm tra quyền của User (Chỉ Admin, TM, Project Leader hoặc Assigned Engineer mới được tạo daily log)
             bool isAdminOrTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
             if (!isAdminOrTM)
             {
-                // Kiểm tra xem User có phải là thành viên trong dự án này không
-                var isMember = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId, cancellationToken);
+                // Kiểm tra xem User có phải là Project Leader của dự án này không
+                var isLeader = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
 
-                if (!isMember)
+                // Kiểm tra xem User có được gán vào công việc này không
+                var isAssignee = await _uow.Repository<TaskAssignee>().Query()
+                    .AnyAsync(ta => ta.TaskId == task.TaskId && ta.UserId == currentUserId, cancellationToken);
+
+                if (!isLeader && !isAssignee)
                 {
-                    throw new ForbiddenException("Bạn không phải thành viên của dự án này.");
+                    throw new ForbiddenException("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
                 }
             }
 
@@ -75,6 +79,18 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             if (project.Status != ProjectStatus.InProgress)
             {
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
+            }
+
+            // Kiểm tra xem công việc có bị khóa (đã nghiệm thu) không
+            if (task.IsLocked)
+            {
+                throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã được nghiệm thu và khóa tiến độ, không thể cập nhật thêm nhật ký thi công.");
+            }
+
+            // Kiểm tra số lượng hình ảnh
+            if (request.Images != null && request.Images.Count > 5)
+            {
+                throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh hiện trường thi công.");
             }
 
             // 4. Kiểm tra xem Task có phải là Task cha (có subtasks) không

@@ -40,7 +40,7 @@ const getAvatarColor = (userId: string) => {
 };
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
-  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, materialRequests, isTPKTOrPL,
+  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, materialRequests, isTPKTOrPL, isPL,
   onCreateMatReqOpen, onObsolete,
   onSuccess, onError
 }) => {
@@ -199,7 +199,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
                 {selectedTask.assignedTo.split(',').map((id, index) => {
                   const names = selectedTask.assignedName ? selectedTask.assignedName.split(', ') : [];
-                  const name = names[index] || 'siteengineer';
+                  const name = names[index] || 'Kỹ sư';
                   const initials = getInitials(name);
                   const bgColor = getAvatarColor(id);
                   return (
@@ -274,7 +274,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </button>
               </>
             )}
-            {(user?.id === selectedTask.assignedTo || isTPKTOrPL) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete') && (
+            {(() => {
+              const assignedIds = selectedTask.assignedTo ? selectedTask.assignedTo.split(',').map(s => s.trim()) : [];
+              const isAssigned = user?.id && assignedIds.includes(user.id.toString());
+              return (isPL || isAssigned) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
+            })() && (
               <>
                 <button onClick={() => setActiveForm(activeForm === 'log' ? null : 'log')} className={`btn ${activeForm === 'log' ? 'btn-secondary' : 'btn-primary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }}>
                   <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
@@ -349,15 +353,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         </div>
 
         {/* History logs */}
-        <div onClick={() => navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`)} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', cursor: 'pointer' }} title="Nhấp để xem nhật ký thi công chi tiết">
-          <h5 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
-            <History size={13} />
-            <span>Nhật ký thi công chi tiết (Click để xem)</span>
-          </h5>
-          <div style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', pointerEvents: 'none' }}>
-            <TaskProgressHistoryPanel taskId={selectedTask.id} limit={5} compact={true} />
+        {isPL && (
+          <div onClick={() => navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`)} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', cursor: 'pointer' }} title="Nhấp để xem nhật ký thi công chi tiết">
+            <h5 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
+              <History size={13} />
+              <span>Nhật ký thi công chi tiết (Click để xem)</span>
+            </h5>
+            <div style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', pointerEvents: 'none' }}>
+              <TaskProgressHistoryPanel taskId={selectedTask.id} limit={5} compact={true} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Right Column: Inline Forms Container */}
@@ -373,7 +379,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <ObsoleteTaskForm task={selectedTask} onSuccess={handleFormSuccess} onCancel={() => setActiveForm(null)} />
           )}
           {activeForm === 'log' && (
-            <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
+            <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} isPL={isPL} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
           )}
         </div>
       )}
