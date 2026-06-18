@@ -526,7 +526,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const canReport = isPL || hasAnyAssignedTask;
 
   return (
-    <div className="flex flex-col gap-6 max-w-[800px] mx-auto pb-10">
+    <div className="flex flex-col gap-6 w-full mx-auto pb-10">
 
       {/* Title & Header */}
       <div className="border-b border-[hsl(var(--border))] pb-3 flex justify-between items-center flex-wrap gap-3">
@@ -588,7 +588,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
               onChange={(e) => setSelectedEngineerId(e.target.value)}
               className="h-[38px] text-[0.85rem]"
               options={[
-                { label: 'Tất cả Kỹ sư', value: '' },
+                { label: 'Tất cả Nhân viên kỹ thuật', value: '' },
                 ...assignedEngineers.map(e => ({ label: e.name, value: e.id }))
               ]}
             />
