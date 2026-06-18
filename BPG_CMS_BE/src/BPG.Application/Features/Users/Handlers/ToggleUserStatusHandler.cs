@@ -29,6 +29,12 @@ namespace BPG.Application.Features.Users.Handlers
 
             user.IsActive = !user.IsActive;
 
+            if (user.IsActive)
+            {
+                user.LockedUntil = null;
+                user.FailedLoginCount = 0;
+            }
+
             _uow.Repository<User>().Update(user);
             await _uow.SaveChangesAsync(cancellationToken);
 

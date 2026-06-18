@@ -1,254 +1,364 @@
-﻿import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { User, KeyRound, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { authService } from '../services/authService';
+import type { UserDetailProfile } from '../services/authService';
+import { Modal } from '../components/ui/Modal';
+import { User, Mail, Phone, BadgeCheck, Clock, ShieldAlert, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil } from 'lucide-react';
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Quản trị viên',
+  technicalmanager: 'Trưởng phòng Kỹ thuật',
+  projectleader: 'Trưởng dự án',
+  siteengineer: 'Kỹ sư hiện trường',
+  accountant: 'Kế toán',
+  director: 'Giám đốc',
+};
+
+const formatDateTime = (iso: string | null): string => {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('vi-VN', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+};
 
 export const Profile: React.FC = () => {
-  const { user } = useAuth();
-  const [oldPassword, setOldPassword] = useState('');
+  const [profile, setProfile] = useState<UserDetailProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  // Edit profile state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const [showModal, setShowModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Quản trị viên (Admin)';
-      case 'technicalmanager': return 'Trưởng phòng Kỹ Thuật';
-      case 'projectleader': return 'Trưởng Dự án';
-      case 'siteengineer': return 'Kỹ Sư Hiện Trường';
-      case 'accountant': return 'accountant';
-      case 'director': return 'director';
-      default: return role;
-    }
+  useEffect(() => {
+    authService.getMe()
+      .then(setProfile)
+      .catch((err: Error) => setProfileError(err.message))
+      .finally(() => setLoadingProfile(false));
+  }, []);
+
+  const openEditModal = () => {
+    setEditFullName(profile?.fullName ?? '');
+    setEditPhone(profile?.phoneNumber ?? '');
+    setEditError(null);
+    setShowEditModal(true);
   };
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!user) return;
+    setEditError(null);
+    if (!editFullName.trim()) { setEditError('Họ tên không được để trống.'); return; }
 
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      setError('Vui lòng điền đầy đủ các ô nhập.');
-      return;
+    setEditLoading(true);
+    try {
+      const updated = await authService.updateProfile(editFullName.trim(), editPhone.trim() || null);
+      setProfile(updated);
+      setShowEditModal(false);
+    } catch (err: any) {
+      setEditError(err.message || 'Cập nhật thất bại.');
+    } finally {
+      setEditLoading(false);
     }
-
-    if (newPassword.length < 6) {
-      setError('Mật khẩu mới phải từ 6 ký tự trở lên.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError('Mật khẩu xác nhận mới không trùng khớp.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    // Simulate password change
-    setTimeout(() => {
-      // Find current password in database
-      const defaultPasswords: Record<string, string> = {
-        'admin@bpg.com': 'admin123',
-        'tpkt@bpg.com': 'tpkt123',
-        'engineer@bpg.com': 'eng123',
-        'giamdoc@bpg.com': 'gd123',
-        'ketoan@bpg.com': 'kt123'
-      };
-
-      const customPasswordsStr = localStorage.getItem('bpg_custom_passwords');
-      const customPasswords = customPasswordsStr ? JSON.parse(customPasswordsStr) : {};
-      
-      const emailKey = user.email.toLowerCase();
-      const currentPassword = customPasswords[emailKey] || defaultPasswords[emailKey] || '123456';
-
-      if (oldPassword !== currentPassword) {
-        setError('Mật khẩu cũ không chính xác.');
-        setLoading(false);
-        return;
-      }
-
-      // Update password
-      customPasswords[emailKey] = newPassword;
-      localStorage.setItem('bpg_custom_passwords', JSON.stringify(customPasswords));
-
-      setSuccess('Đổi mật khẩu thành công! Hệ thống sẽ ghi nhận mật khẩu mới.');
-      setOldPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setLoading(false);
-    }, 1000);
   };
 
-  if (!user) {
-    return <div>Vui lòng đăng nhập để xem hồ sơ.</div>;
+  const openModal = () => {
+    setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+    setShowCurrent(false); setShowNew(false); setShowConfirm(false);
+    setPwError(null); setPwSuccess(false);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    if (pwLoading) return;
+    setShowModal(false);
+    // Reload profile để cập nhật "Đổi mật khẩu lần cuối"
+    if (pwSuccess) {
+      authService.getMe().then(setProfile).catch(() => {});
+    }
+  };
+
+  const handleChangePassword = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    setPwError(null);
+
+    if (newPassword !== confirmPassword) { setPwError('Mật khẩu xác nhận không trùng khớp.'); return; }
+    if (newPassword.length < 6) { setPwError('Mật khẩu mới phải có ít nhất 6 ký tự.'); return; }
+    if (currentPassword === newPassword) { setPwError('Mật khẩu mới phải khác mật khẩu hiện tại.'); return; }
+
+    setPwLoading(true);
+    try {
+      await authService.changePassword(currentPassword, newPassword);
+      setPwSuccess(true);
+    } catch (err: any) {
+      setPwError(err.message || 'Đổi mật khẩu thất bại.');
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
+  if (loadingProfile) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', gap: '10px' }}>
+        <Loader2 className="animate-spin" size={22} style={{ color: 'hsl(var(--primary))' }} />
+        <span>Đang tải thông tin...</span>
+      </div>
+    );
   }
 
+  if (profileError || !profile) {
+    return (
+      <div style={{ padding: '20px', color: 'hsl(var(--danger))', textAlign: 'center' }}>
+        {profileError || 'Không thể tải thông tin cá nhân.'}
+      </div>
+    );
+  }
+
+  const roleLabel = ROLE_LABELS[profile.role.toLowerCase()] ?? profile.role;
+  const initials = profile.fullName.trim().split(' ').map(w => w[0]).slice(-2).join('').toUpperCase();
+
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '800px', margin: '0 auto' }}>
-      
-      {/* Messages */}
-      {success && (
-        <div className="animate-fade-in" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          backgroundColor: 'hsl(var(--success-glow))',
-          border: '1px solid hsl(var(--success) / 0.3)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '12px 18px',
-          color: 'hsl(142 70% 30%)',
-          fontSize: '0.9rem',
-          fontWeight: 500
-        }}>
-          <CheckCircle2 size={18} style={{ color: 'hsl(var(--success))' }} />
-          <span>{success}</span>
-        </div>
-      )}
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '720px', margin: '0 auto' }}>
 
-      {error && (
-        <div className="animate-fade-in" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          backgroundColor: 'hsl(var(--danger-glow))',
-          border: '1px solid hsl(var(--danger) / 0.3)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '12px 18px',
-          color: 'hsl(346 84% 35%)',
-          fontSize: '0.9rem',
-          fontWeight: 500
-        }}>
-          <AlertTriangle size={18} style={{ color: 'hsl(var(--danger))' }} />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        
-        {/* Read-Only Info Card */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))', paddingBottom: '12px' }}>
-            Thông tin nhân sự
-          </h3>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '10px 0' }}>
-            <div style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              backgroundColor: 'hsl(var(--primary-glow))',
-              color: 'hsl(var(--primary))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid hsl(var(--primary) / 0.2)'
-            }}>
-              <User size={40} />
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <h4 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{user.name}</h4>
-              <span className="badge badge-primary" style={{ marginTop: '6px' }}>{getRoleLabel(user.role)}</span>
-            </div>
+      {/* Profile Card */}
+      <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
+        <div style={{ height: '88px', background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(220 70% 60%) 100%)' }} />
+        <div style={{ padding: '0 28px 24px', position: 'relative' }}>
+          <div style={{
+            width: '76px', height: '76px', borderRadius: '50%',
+            border: '4px solid hsl(var(--bg-card))',
+            background: 'hsl(var(--primary-glow))', color: 'hsl(var(--primary))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1.5rem', fontWeight: 700, marginTop: '-38px', boxShadow: 'var(--shadow-md)',
+          }}>
+            {initials || <User size={30} />}
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.925rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid hsl(var(--border) / 0.5)' }}>
-              <span style={{ color: 'hsl(var(--text-secondary))' }}>Email công vụ:</span>
-              <strong style={{ color: 'hsl(var(--text-primary))' }}>{user.email}</strong>
+          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '6px' }}>{profile.fullName}</h2>
+              <span className="badge badge-primary">{roleLabel}</span>
+              {!profile.isActive && <span className="badge badge-danger" style={{ marginLeft: '8px' }}>Bị khóa</span>}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid hsl(var(--border) / 0.5)' }}>
-              <span style={{ color: 'hsl(var(--text-secondary))' }}>Mã nhân viên:</span>
-              <strong style={{ color: 'hsl(var(--text-primary))' }}>{user.id}</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0' }}>
-              <span style={{ color: 'hsl(var(--text-secondary))' }}>Trạng thái tài khoản:</span>
-              <span className="badge badge-success">Đang hoạt động</span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn btn-secondary" onClick={openEditModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem' }}>
+                <Pencil size={15} />
+                Chỉnh sửa
+              </button>
+              <button className="btn btn-secondary" onClick={openModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem' }}>
+                <KeyRound size={15} />
+                Đổi mật khẩu
+              </button>
             </div>
           </div>
         </div>
-
-        {/* Change Password Card */}
-        <div className="card">
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))', paddingBottom: '12px', marginBottom: '20px' }}>
-            Đổi mật khẩu
-          </h3>
-          
-          <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <label htmlFor="old-pass">Mật khẩu hiện tại</label>
-              <div style={{ position: 'relative' }}>
-                <KeyRound size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
-                <input
-                  id="old-pass"
-                  type="password"
-                  placeholder="Nhập mật khẩu hiện tại"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  style={{ paddingLeft: '38px' }}
-                  disabled={loading}
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="new-pass">Mật khẩu mới</label>
-              <div style={{ position: 'relative' }}>
-                <KeyRound size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
-                <input
-                  id="new-pass"
-                  type="password"
-                  placeholder="Từ 6 ký tự trở lên"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  style={{ paddingLeft: '38px' }}
-                  disabled={loading}
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="confirm-pass">Xác nhận mật khẩu mới</label>
-              <div style={{ position: 'relative' }}>
-                <KeyRound size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
-                <input
-                  id="confirm-pass"
-                  type="password"
-                  placeholder="Nhập lại mật khẩu mới"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  style={{ paddingLeft: '38px' }}
-                  disabled={loading}
-                  required
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ width: '100%', marginTop: '8px', height: '42px', fontWeight: 600 }}
-              disabled={loading}
-            >
-              {loading ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
-            </button>
-          </form>
-        </div>
-
       </div>
 
-      {/* Safety Notice */}
-      <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: 'hsl(var(--warning-glow))', border: '1px solid hsl(var(--warning) / 0.2)' }}>
-        <ShieldAlert size={20} style={{ color: 'hsl(var(--warning))', flexShrink: 0 }} />
-        <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', lineHeight: 1.4 }}>
-          <strong>Lưu ý bảo mật:</strong> Mật khẩu của bạn được sử dụng để phê duyệt các hồ sơ nghiệm thu kỹ thuật và lập báo cáo vật tư. Tránh chia sẻ tài khoản hoặc sử dụng mật khẩu dễ đoán.
+      {/* Info Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid hsl(var(--border))', fontWeight: 600, fontSize: '0.95rem' }}>
+            Thông tin liên hệ
+          </div>
+          <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <InfoRow icon={<Mail size={15} />} label="Email công vụ" value={profile.email} />
+            <InfoRow
+              icon={<Phone size={15} />} label="Số điện thoại"
+              value={profile.phoneNumber ?? <em style={{ color: 'hsl(var(--text-muted))', fontStyle: 'normal' }}>Chưa cập nhật</em>}
+            />
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid hsl(var(--border))', fontWeight: 600, fontSize: '0.95rem' }}>
+            Thông tin tài khoản
+          </div>
+          <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <InfoRow
+              icon={<BadgeCheck size={15} />} label="Trạng thái"
+              value={<span className={`badge ${profile.isActive ? 'badge-success' : 'badge-danger'}`}>{profile.isActive ? 'Đang hoạt động' : 'Bị khóa'}</span>}
+            />
+            <InfoRow icon={<Clock size={15} />} label="Đăng nhập gần nhất" value={formatDateTime(profile.lastLoginAt)} />
+            <InfoRow icon={<Clock size={15} />} label="Đổi mật khẩu lần cuối" value={formatDateTime(profile.passwordChangedAt)} />
+          </div>
+        </div>
+      </div>
+
+      {/* Security notice */}
+      <div className="glass-panel" style={{
+        padding: '12px 18px', display: 'flex', gap: '10px', alignItems: 'center',
+        backgroundColor: 'hsl(var(--warning-glow))', border: '1px solid hsl(var(--warning) / 0.2)',
+      }}>
+        <ShieldAlert size={17} style={{ color: 'hsl(var(--warning))', flexShrink: 0 }} />
+        <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', lineHeight: 1.5, margin: 0 }}>
+          <strong>Lưu ý bảo mật:</strong> Tránh chia sẻ tài khoản hoặc dùng mật khẩu dễ đoán. Mật khẩu nên có ít nhất 6 ký tự.
         </p>
       </div>
+
+      {/* Edit Profile Modal */}
+      <Modal isOpen={showEditModal} onClose={() => !editLoading && setShowEditModal(false)} title="Chỉnh sửa thông tin" width="sm">
+        <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {editError && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              backgroundColor: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.3)',
+              borderRadius: 'var(--radius-sm)', padding: '10px 14px',
+              color: 'hsl(346 84% 35%)', fontSize: '0.875rem',
+            }}>
+              <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+              {editError}
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="edit-name" style={{ display: 'block', fontSize: '0.82rem', marginBottom: '5px', color: 'hsl(var(--text-secondary))' }}>
+              Họ và tên <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+            </label>
+            <input
+              id="edit-name" type="text" value={editFullName}
+              onChange={e => setEditFullName(e.target.value)}
+              placeholder="Nhập họ và tên" disabled={editLoading} required
+              style={{ height: '38px', width: '100%' }}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="edit-phone" style={{ display: 'block', fontSize: '0.82rem', marginBottom: '5px', color: 'hsl(var(--text-secondary))' }}>
+              Số điện thoại
+            </label>
+            <input
+              id="edit-phone" type="tel" value={editPhone}
+              onChange={e => setEditPhone(e.target.value)}
+              placeholder="Ví dụ: 0912 345 678" disabled={editLoading}
+              style={{ height: '38px', width: '100%' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+            <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowEditModal(false)} disabled={editLoading}>
+              Hủy
+            </button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={editLoading || !editFullName.trim()}>
+              {editLoading
+                ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Loader2 size={15} className="animate-spin" /> Đang lưu...</span>
+                : 'Lưu thay đổi'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Change Password Modal */}
+      <Modal isOpen={showModal} onClose={closeModal} title="Đổi mật khẩu" width="sm">
+        {pwSuccess ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '10px 0 6px' }}>
+            <CheckCircle2 size={48} style={{ color: 'hsl(var(--success))' }} />
+            <p style={{ fontWeight: 600, fontSize: '1rem', textAlign: 'center' }}>Đổi mật khẩu thành công!</p>
+            <p style={{ fontSize: '0.875rem', color: 'hsl(var(--text-muted))', textAlign: 'center' }}>
+              Mật khẩu mới của bạn đã được cập nhật.
+            </p>
+            <button className="btn btn-primary" style={{ width: '100%' }} onClick={closeModal}>
+              Đóng
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {pwError && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                backgroundColor: 'hsl(var(--danger-glow))',
+                border: '1px solid hsl(var(--danger) / 0.3)',
+                borderRadius: 'var(--radius-sm)', padding: '10px 14px',
+                color: 'hsl(346 84% 35%)', fontSize: '0.875rem',
+              }}>
+                <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+                {pwError}
+              </div>
+            )}
+
+            <PasswordField
+              id="current-pw" label="Mật khẩu hiện tại"
+              value={currentPassword} onChange={setCurrentPassword}
+              show={showCurrent} onToggle={() => setShowCurrent(v => !v)}
+              disabled={pwLoading} placeholder="Nhập mật khẩu hiện tại"
+            />
+            <PasswordField
+              id="new-pw" label="Mật khẩu mới"
+              value={newPassword} onChange={setNewPassword}
+              show={showNew} onToggle={() => setShowNew(v => !v)}
+              disabled={pwLoading} placeholder="Ít nhất 6 ký tự"
+            />
+            <PasswordField
+              id="confirm-pw" label="Xác nhận mật khẩu mới"
+              value={confirmPassword} onChange={setConfirmPassword}
+              show={showConfirm} onToggle={() => setShowConfirm(v => !v)}
+              disabled={pwLoading} placeholder="Nhập lại mật khẩu mới"
+            />
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+              <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={closeModal} disabled={pwLoading}>
+                Hủy
+              </button>
+              <button
+                type="submit" className="btn btn-primary" style={{ flex: 1 }}
+                disabled={pwLoading || !currentPassword || !newPassword || !confirmPassword}
+              >
+                {pwLoading
+                  ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Loader2 size={15} className="animate-spin" /> Đang lưu...</span>
+                  : 'Xác nhận'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
     </div>
   );
 };
 
+const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
+  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+    <div style={{ color: 'hsl(var(--text-muted))', marginTop: '2px', flexShrink: 0 }}>{icon}</div>
+    <div style={{ flex: 1 }}>
+      <div style={{ fontSize: '0.76rem', color: 'hsl(var(--text-muted))', marginBottom: '2px' }}>{label}</div>
+      <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{value}</div>
+    </div>
+  </div>
+);
+
+const PasswordField: React.FC<{
+  id: string; label: string; value: string;
+  onChange: (v: string) => void; show: boolean;
+  onToggle: () => void; disabled: boolean; placeholder: string;
+}> = ({ id, label, value, onChange, show, onToggle, disabled, placeholder }) => (
+  <div>
+    <label htmlFor={id} style={{ display: 'block', fontSize: '0.82rem', marginBottom: '5px', color: 'hsl(var(--text-secondary))' }}>{label}</label>
+    <div style={{ position: 'relative' }}>
+      <KeyRound size={15} style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
+      <input
+        id={id} type={show ? 'text' : 'password'} value={value}
+        onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        disabled={disabled} required
+        style={{ paddingLeft: '34px', paddingRight: '36px', height: '38px', width: '100%' }}
+      />
+      <button type="button" onClick={onToggle} tabIndex={-1} style={{
+        position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+        background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'hsl(var(--text-muted))',
+      }}>
+        {show ? <EyeOff size={15} /> : <Eye size={15} />}
+      </button>
+    </div>
+  </div>
+);

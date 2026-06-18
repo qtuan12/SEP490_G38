@@ -14,11 +14,11 @@ namespace BPG.Application.Common.Mappings
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.UserId.ToString()))
                 .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.FullName))
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email))
-                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => 
+                .ForMember(dest => dest.Role, opt => opt.MapFrom(src =>
                     src.UserRoles != null && src.UserRoles.Any() && src.UserRoles.FirstOrDefault()!.Role != null
-                        ? src.UserRoles.FirstOrDefault()!.Role!.RoleName 
+                        ? src.UserRoles.FirstOrDefault()!.Role!.RoleName.ToLower()
                         : string.Empty))
-                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.IsActive ? "Active" : "Inactive"));
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => UserDto.GetStatus(src)));
 
             // Mapping từ User entity sang LoginResponse
             CreateMap<User, BPG.Application.DTOs.Auth.LoginResponse>()
