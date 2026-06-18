@@ -54,6 +54,33 @@ export const Modal: React.FC<ModalProps> = ({
         aria-hidden="true"
       />
 
+      <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+        {/* Modal panel */}
+        <div 
+          className={`relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full ${widthClasses[width]}`}
+          style={maxWidth ? { maxWidth } : undefined}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          {title && (
+            <div className="bg-white px-4 py-4 sm:px-6 border-b border-gray-200 flex justify-between items-center">
+              {typeof title === 'string' ? (
+                <h3 className="text-lg font-semibold leading-6 text-gray-900" id="modal-title">
+                  {title}
+                </h3>
+              ) : (
+                title
+              )}
+              <button
+                type="button"
+                className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                onClick={onClose}
+              >
+                <span className="sr-only">Đóng</span>
+                <X className="h-6 w-6" aria-hidden="true" />
+              </button>
+            </div>
+          )}
       {/* Panel */}
       <div
         onClick={e => e.stopPropagation()}

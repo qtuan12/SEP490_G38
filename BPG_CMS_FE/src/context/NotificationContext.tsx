@@ -121,7 +121,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         connectionRef.current = connection;
         setConnection(connection);
       })
-      .catch(err => {
+      .catch((err: any) => {
         console.error('Lỗi kết nối SignalR Hub:', err);
       });
 

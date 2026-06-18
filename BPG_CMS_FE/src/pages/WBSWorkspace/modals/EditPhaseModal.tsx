@@ -5,12 +5,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-import {projectService} from '../../../../src/services/projectService';
+import { wbsService } from '../../../../src/services/wbsService';
 import type {WBSPhase} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
 const editPhaseSchema = z.object({
   name: z.string().min(1, 'Vui lòng nhập tên Phase.'),
+  description: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional()
 }).refine(data => {
@@ -43,6 +44,7 @@ export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
     resolver: zodResolver(editPhaseSchema),
     defaultValues: {
       name: phase.name || '',
+      description: phase.description || '',
       startDate: phase.startDate || '',
       endDate: phase.deadline || phase.endDate || ''
     }
@@ -52,6 +54,7 @@ export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
     if (isOpen) {
       reset({
         name: phase.name || '',
+        description: phase.description || '',
         startDate: phase.startDate || '',
         endDate: phase.deadline || phase.endDate || ''
       });
@@ -59,13 +62,18 @@ export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
   }, [isOpen, phase, reset]);
 
   const mutation = useMutation({
-    mutationFn: (data: EditPhaseForm) => 
-      projectService.updatePhase(phase.id, {
+    mutationFn: (data: EditPhaseForm) => {
+      const pId = parseInt(phase.projectId.replace('p-', ''));
+      const phId = parseInt(phase.id.replace('ph-', ''));
+      return wbsService.updatePhase(pId, phId, {
+        phaseId: phId,
         name: data.name.trim(),
-        startDate: data.startDate || undefined,
-        deadline: data.endDate || undefined,
-        endDate: data.endDate || undefined
-      }),
+        description: data.description || null,
+        orderIndex: phase.sortOrder,
+        startDate: data.startDate || null,
+        endDate: data.endDate || null
+      });
+    },
     onSuccess: (_, variables) => {
       const msg = `Đã cập nhật Phase: ${variables.name.trim()}`;
       toast.success(msg);
@@ -94,6 +102,18 @@ export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
             className={`w-full text-sm px-3 py-2 rounded-md border ${errors.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
           />
           {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1.5 text-slate-600">
+            Mô tả Phase
+          </label>
+          <textarea
+            placeholder="Mô tả các yêu cầu chung cho Giai đoạn này..."
+            {...register('description')}
+            rows={3}
+            className="w-full text-sm px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

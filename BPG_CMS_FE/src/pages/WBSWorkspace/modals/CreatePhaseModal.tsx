@@ -5,11 +5,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-import { projectService } from '../../../../src/services/projectService';
+import { wbsService } from '../../../../src/services/wbsService';
 import { Modal } from '../../../../src/components/ui/Modal';
 
 const createPhaseSchema = z.object({
   name: z.string().min(1, 'Vui lòng nhập tên Phase.'),
+  description: z.string().optional(),
   startDate: z.string().min(1, 'Vui lòng chọn ngày bắt đầu.'),
   endDate: z.string().min(1, 'Vui lòng chọn ngày kết thúc.')
 }).refine(data => new Date(data.startDate) <= new Date(data.endDate), {
@@ -23,6 +24,7 @@ interface CreatePhaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
+  maxPhaseOrder: number;
   onSuccess: (message: string) => void;
   onError?: (message: string) => void; // Keeping it for compatibility if needed
 }
@@ -31,6 +33,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
   isOpen,
   onClose,
   projectId,
+  maxPhaseOrder,
   onSuccess
 }) => {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CreatePhaseForm>({
@@ -44,8 +47,17 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
   }, [isOpen, reset]);
 
   const mutation = useMutation({
-    mutationFn: (data: CreatePhaseForm) => 
-      projectService.createPhase(projectId, data.name.trim(), data.startDate, data.endDate, []),
+    mutationFn: (data: CreatePhaseForm) => {
+      const pId = projectId.replace('p-', '');
+      return wbsService.createPhase(parseInt(pId), {
+        projectId: parseInt(pId),
+        name: data.name.trim(),
+        description: data.description || null,
+        orderIndex: maxPhaseOrder,
+        startDate: data.startDate,
+        endDate: data.endDate
+      });
+    },
     onSuccess: (_, variables) => {
       const msg = `Đã tạo thành công Phase mới: ${variables.name.trim()}`;
       toast.success(msg);
@@ -77,6 +89,19 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
             className={`w-full text-sm px-3 py-2 rounded-md border ${errors.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
           />
           {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="phase-description" className="block text-sm font-medium mb-1.5 text-slate-600">
+            Mô tả Phase
+          </label>
+          <textarea
+            id="phase-description"
+            placeholder="Mô tả các yêu cầu chung cho Giai đoạn này..."
+            {...register('description')}
+            rows={3}
+            className="w-full text-sm px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
