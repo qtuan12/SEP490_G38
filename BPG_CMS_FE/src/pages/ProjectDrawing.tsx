@@ -26,8 +26,10 @@ export const ProjectDrawing: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string>('');
   const [zoomLevel, setZoomLevel] = useState(1);
   const [currentViewUrl, setCurrentViewUrl] = useState<string>('');
+  const [blobUrl, setBlobUrl] = useState<string>('');
   const [showSelectModal, setShowSelectModal] = useState(false);
 
   const isTPKTOrAdmin = user?.role === 'technicalmanager' || user?.role === 'admin';
@@ -55,6 +57,44 @@ export const ProjectDrawing: React.FC = () => {
       setCurrentViewUrl(project.drawingUrl);
     }
   }, [project, currentViewUrl]);
+
+  useEffect(() => {
+    let active = true;
+    if (currentViewUrl && currentViewUrl.toLowerCase().includes('.pdf')) {
+      setPdfError('');
+      fetch(currentViewUrl)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP Error ${res.status}: ${res.statusText}`);
+          return res.blob();
+        })
+        .then(blob => {
+          if (active) {
+            const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+            const url = URL.createObjectURL(pdfBlob);
+            setBlobUrl(url);
+          }
+        })
+        .catch(err => {
+          console.error("Lỗi khi tải PDF blob:", err);
+          if (active) setPdfError(`Không thể tải PDF: ${err.message}. Gợi ý: File cũ có thể bị Cloudinary chặn. Hãy xóa đi và upload lại file mới.`);
+        });
+    } else {
+      setBlobUrl('');
+      setPdfError('');
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [currentViewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [blobUrl]);
 
 
 
@@ -236,11 +276,23 @@ export const ProjectDrawing: React.FC = () => {
             }}
           >
             {currentViewUrl.toLowerCase().includes('.pdf') ? (
-               <iframe 
-                 src={currentViewUrl} 
-                 style={{ width: '100%', height: '800px', border: 'none' }} 
-                 title="Bản vẽ PDF"
-               />
+               pdfError ? (
+                 <div style={{ padding: '40px', textAlign: 'center', color: 'hsl(var(--danger))' }}>
+                   <AlertTriangle size={48} style={{ margin: '0 auto 16px' }} />
+                   <h4>{pdfError}</h4>
+                 </div>
+               ) : blobUrl ? (
+                 <iframe 
+                   src={blobUrl}
+                   style={{ width: '100%', height: '800px', border: 'none' }} 
+                   title="Bản vẽ PDF"
+                 />
+               ) : (
+                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '800px', gap: '12px', color: 'hsl(var(--text-muted))' }}>
+                   <Loader2 size={24} className="animate-spin" />
+                   <span>Đang xử lý PDF...</span>
+                 </div>
+               )
             ) : (
                <img 
                  src={currentViewUrl} 

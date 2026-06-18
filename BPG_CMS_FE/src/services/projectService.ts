@@ -350,6 +350,7 @@ export const projectService = {
         userId: m.userId.toString(),
         userName: m.fullName || (m as any).userName || '',
         userEmail: m.email || (m as any).userEmail || '',
+        userPhone: m.phoneNumber || (m as any).userPhone || '',
         userRole: m.role || '',
         isLeader: m.isLeader
       }));

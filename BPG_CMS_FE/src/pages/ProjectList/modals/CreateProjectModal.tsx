@@ -12,10 +12,28 @@ import { UploadCloud, FileText } from 'lucide-react';
 const schema = z.object({
   name: z.string().min(3, 'Tên dự án phải có ít nhất 3 ký tự'),
   address: z.string().min(5, 'Địa chỉ công trường phải có ít nhất 5 ký tự'),
-  startDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến bắt đầu'),
-  endDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến kết thúc'),
+  startDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến bắt đầu').refine(dateStr => {
+    const start = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return start >= today;
+  }, { message: 'Ngày bắt đầu không được trong quá khứ' }),
+  endDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến kết thúc').refine(dateStr => {
+    const end = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return end >= today;
+  }, { message: 'Ngày kết thúc không được trong quá khứ' }),
   status: z.enum(['draft', 'inprogress', 'paused', 'done']).default('draft'),
   drawingNames: z.array(z.string()).max(5, 'Chỉ được chọn tối đa 5 file').default([])
+}).refine(data => {
+  if (!data.startDate || !data.endDate) return true;
+  const start = new Date(data.startDate);
+  const end = new Date(data.endDate);
+  return end > start;
+}, {
+  message: "Ngày kết thúc phải lớn hơn ngày bắt đầu",
+  path: ["endDate"]
 });
 
 type FormData = z.infer<typeof schema>;
@@ -29,14 +47,28 @@ interface CreateProjectModalProps {
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [dragging, setDragging] = useState(false);
   const [filePreviews, setFilePreviews] = useState<{file: File, url: string | null}[]>([]);
+  const todayStr = new Date().toISOString().split('T')[0];
   
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, reset } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, reset, watch } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       status: 'draft',
       drawingNames: []
     }
   });
+
+  const selectedStartDate = watch('startDate');
+
+  const minEndDate = React.useMemo(() => {
+    if (selectedStartDate) {
+      const start = new Date(selectedStartDate);
+      if (!isNaN(start.getTime())) {
+        start.setDate(start.getDate() + 1);
+        return start.toISOString().split('T')[0];
+      }
+    }
+    return todayStr;
+  }, [selectedStartDate, todayStr]);
 
   React.useEffect(() => {
     return () => {
@@ -88,8 +120,8 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
     }
   });
 
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+  const onSubmit = async (data: FormData) => {
+    await mutation.mutateAsync(data);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -151,10 +183,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormItem label="Ngày dự kiến bắt đầu" required error={errors.startDate?.message}>
-            <Input type="date" {...register('startDate')} error={!!errors.startDate} />
+            <Input type="date" min={todayStr} {...register('startDate')} error={!!errors.startDate} />
           </FormItem>
           <FormItem label="Ngày dự kiến kết thúc" required error={errors.endDate?.message}>
-            <Input type="date" {...register('endDate')} error={!!errors.endDate} />
+            <Input type="date" min={minEndDate} {...register('endDate')} error={!!errors.endDate} />
           </FormItem>
         </div>
 

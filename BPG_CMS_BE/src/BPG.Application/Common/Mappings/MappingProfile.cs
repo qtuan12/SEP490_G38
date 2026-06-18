@@ -82,6 +82,7 @@ namespace BPG.Application.Common.Mappings
             CreateMap<ProjectMember, BPG.Application.Features.Projects.DTOs.ProjectMemberDto>()
                 .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.User != null ? src.User.FullName : string.Empty))
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.User != null ? src.User.Email : string.Empty))
+                .ForMember(dest => dest.PhoneNumber, opt => opt.MapFrom(src => src.User != null ? src.User.PhoneNumber : string.Empty))
                 .ForMember(dest => dest.Role, opt => opt.MapFrom(src => 
                     src.User != null && src.User.UserRoles != null && src.User.UserRoles.Any() && src.User.UserRoles.FirstOrDefault()!.Role != null
                         ? src.User.UserRoles.FirstOrDefault()!.Role!.RoleName 
