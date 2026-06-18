@@ -1,7 +1,7 @@
 import { useWBS } from './WBSContext';
 import { useNavigate } from 'react-router-dom';
 import type { WBSTask } from '../../../types/common';
-import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info } from 'lucide-react';
+import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History } from 'lucide-react';
 
 
 const getInitials = (name: string) => {
@@ -645,9 +645,19 @@ export const WBSTree = () => {
                                         <div
                                           style={menuItemStyle}
                                           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
                                           onClick={() => { setTaskMenuId(null); navigate(`/projects/${ph.projectId}/tasks/${t.id}/incidents`); }}
                                         >
                                           <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
+                                        </div>
+
+                                        <div
+                                          style={menuItemStyle}
+                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                          onClick={() => { setTaskMenuId(null); navigate(`/projects/${ph.projectId}/tasks/${t.id}/logs`); }}
+                                        >
+                                          <History size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Xem nhật ký thi công</span>
                                         </div>
 
                                         <div

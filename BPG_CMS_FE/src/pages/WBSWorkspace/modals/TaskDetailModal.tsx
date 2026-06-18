@@ -7,6 +7,7 @@ import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';
 import { DailyLogForm } from '../../Incidents/modals/DailyLogFormModal';
 import type {WBSTask, WBSPhase, Project, MaterialRequest} from '../../../types/common';
+import { TaskProgressHistoryPanel } from '../../../components/TaskProgressHistoryPanel';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -351,23 +352,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         <div onClick={() => navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`)} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', cursor: 'pointer' }} title="Nhấp để xem nhật ký thi công chi tiết">
           <h5 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
             <History size={13} />
-            <span>Nhật ký thi công chi tiết (Click để xem) ({selectedTask.history?.length || 0})</span>
+            <span>Nhật ký thi công chi tiết (Click để xem)</span>
           </h5>
-          <div style={{ maxHeight: '160px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', pointerEvents: 'none' }}>
-            {!selectedTask.history || selectedTask.history.length === 0 ? (
-              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', padding: '12px', display: 'block', textAlign: 'center' }}>Chưa có lịch sử thay đổi nào.</span>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {selectedTask.history.map((h, i) => (
-                  <div key={i} style={{ fontSize: '0.75rem', borderBottom: '1px solid hsl(var(--border) / 0.5)', paddingBottom: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'hsl(var(--text-muted))' }}>
-                      <span>{h.date}</span><strong>{h.oldProgress}% → {h.newProgress}%</strong>
-                    </div>
-                    <p style={{ color: 'hsl(var(--text-primary))', marginTop: '2px', fontWeight: 500 }}>{h.reason}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', pointerEvents: 'none' }}>
+            <TaskProgressHistoryPanel taskId={selectedTask.id} limit={5} compact={true} />
           </div>
         </div>
       </div>
