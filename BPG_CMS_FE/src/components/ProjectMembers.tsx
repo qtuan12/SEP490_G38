@@ -33,14 +33,16 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       const projMembers = await projectService.getMembers(projectId);
       setMembers(projMembers);
 
-      // Load all system users
-      const usersResponse = await userService.getUsers({ pageSize: 1000 });
-      const allUsers = usersResponse.items;
-      // Filter out those who are not engineers or are already members of this project
-      const engineers = allUsers.filter(u =>
-        u.role?.toLowerCase() === 'siteengineer' && !projMembers.some(m => m.userId === u.id)
-      );
-      setAvailableEngineers(engineers);
+      // Only TPKT/Admin needs to load all users to add them
+      if (isTPKT) {
+        const usersResponse = await userService.getUsers({ pageSize: 1000 });
+        const allUsers = usersResponse.items;
+        // Filter out those who are not engineers or are already members of this project
+        const engineers = allUsers.filter(u =>
+          u.role?.toLowerCase() === 'siteengineer' && !projMembers.some(m => m.userId === u.id)
+        );
+        setAvailableEngineers(engineers);
+      }
     } catch (err: any) {
       setError(err.message || 'Không thể tải thành viên dự án.');
     } finally {
