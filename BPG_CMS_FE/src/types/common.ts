@@ -95,7 +95,7 @@ export interface IncidentReport {
   estimatedDelayDays?: number;
   proposedAction?: string;
   reworkTaskId?: string;
-  
+
   // Custom fields for frontend
   date: string;
   images: string[];
@@ -259,7 +259,7 @@ export interface ProjectDto {
   createdAt: string;
   pauseReason?: string;
   pausedAt?: string;
-  progress?: number;
+
 }
 
 export interface ProjectMemberDto {
