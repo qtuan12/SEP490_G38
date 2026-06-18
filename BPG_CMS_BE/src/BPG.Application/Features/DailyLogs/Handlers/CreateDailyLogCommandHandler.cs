@@ -274,17 +274,19 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             var project = task.Phase.Project;
             var currentUserId = _currentUserService.GetRequiredUserId();
 
-            // Lấy Project Leader của dự án
-            var leader = await _uow.Repository<ProjectMember>().Query()
-                .FirstOrDefaultAsync(m => m.ProjectId == project.ProjectId && m.IsLeader, cancellationToken);
+            // 1. Lấy danh sách tất cả Project Leaders của dự án (loại trừ người tạo)
+            var leaders = await _uow.Repository<ProjectMember>().Query()
+                .Where(m => m.ProjectId == project.ProjectId && m.IsLeader && m.UserId != currentUserId)
+                .Select(m => m.UserId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
 
-            // Gửi thông báo đến Project Leader
-            if (leader != null && leader.UserId != currentUserId)
+            foreach (var leaderId in leaders)
             {
                 await _notificationService.SendNotificationAsync(
-                    leader.UserId,
+                    leaderId,
                     "Cập nhật nhật ký tiến độ",
-                    $"Kỹ sư [{creatorName}] đã cập nhật nhật ký cho công việc [{task.Name}] với tiến độ mới là {newProgress}%.",
+                    $"Thành viên [{creatorName}] đã cập nhật nhật ký cho công việc [{task.Name}] với tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
                     NotificationReferenceType.Task,
                     task.TaskId,
@@ -292,7 +294,30 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 );
             }
 
-            // Gửi thông báo cho Technical Manager
+            // 2. Lấy danh sách tất cả các thành viên khác được gán cùng vào Task này (loại trừ người tạo)
+            var otherAssignees = await _uow.Repository<TaskAssignee>().Query()
+                .Where(ta => ta.TaskId == task.TaskId && ta.UserId != currentUserId)
+                .Select(ta => ta.UserId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            foreach (var assigneeId in otherAssignees)
+            {
+                // Tránh gửi trùng lặp nếu leader cũng đồng thời được gán vào Task này
+                if (leaders.Contains(assigneeId)) continue;
+
+                await _notificationService.SendNotificationAsync(
+                    assigneeId,
+                    "Đồng nghiệp cập nhật tiến độ",
+                    $"Thành viên [{creatorName}] cùng thực hiện công việc [{task.Name}] đã cập nhật nhật ký tiến độ mới là {newProgress}%.",
+                    NotificationType.Progress,
+                    NotificationReferenceType.Task,
+                    task.TaskId,
+                    cancellationToken
+                );
+            }
+
+            // 3. Gửi thông báo cho Technical Manager
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.TechnicalManager,
                 "Cập nhật nhật ký tiến độ",
