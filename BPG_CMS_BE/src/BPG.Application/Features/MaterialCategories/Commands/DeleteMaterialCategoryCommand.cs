@@ -35,6 +35,12 @@ public class DeleteMaterialCategoryCommandHandler : IRequestHandler<DeleteMateri
             throw new NotFoundException(nameof(MaterialCategory), request.CategoryId);
         }
 
+        var isUsed = await _unitOfWork.Repository<MaterialCatalog>().AnyAsync(x => x.CategoryId == request.CategoryId && !x.IsDeleted, cancellationToken);
+        if (isUsed)
+        {
+            throw new BusinessException("ERR_CATEGORY_USED", "Không thể xóa loại vật tư này vì đang có vật tư phụ thuộc.");
+        }
+
         // Soft delete
         entity.IsDeleted = true;
 
