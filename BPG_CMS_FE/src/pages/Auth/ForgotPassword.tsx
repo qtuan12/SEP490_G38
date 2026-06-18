@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, ArrowLeft, CheckCircle2, AlertTriangle, KeyRound } from 'lucide-react';
+import { Mail, ArrowLeft, AlertTriangle, KeyRound } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
 import { authService } from '../../services/authService';
 

@@ -313,7 +313,7 @@ export const projectService = {
       throw new Error(`Có ${invalidTasks.length} công việc có Hạn chót nhỏ hơn Ngày bắt đầu dự án (${project.startDate}). Vui lòng điều chỉnh lại kế hoạch WBS.`);
     }
 
-    return this.updateProject(projectId, { status: 'active' });
+    return this.updateProject(projectId, { status: 'inprogress' });
   },
 
   async pauseProject(projectId: string, reason: string): Promise<Project> {
@@ -336,7 +336,7 @@ export const projectService = {
       if (!res.success) throw new Error(res.message || 'Tiếp tục dự án thất bại');
       return this.getProjectById(projectId) as unknown as Project;
     }
-    return this.updateProject(projectId, { status: 'active' });
+    return this.updateProject(projectId, { status: 'inprogress' });
   },
 
   // MEMBERS MANAGEMENT

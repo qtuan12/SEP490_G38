@@ -354,7 +354,7 @@ export const ProjectDrawing: React.FC = () => {
                       {attachmentInfo ? attachmentInfo.fileName : url.split('/').pop()}
                     </p>
                     {attachmentInfo && (
-                       <p className="text-xs text-gray-500 mt-1">{(attachmentInfo.fileSizeBytes / 1024).toFixed(0)} KB</p>
+                       <p className="text-xs text-gray-500 mt-1">{((attachmentInfo.fileSizeBytes || 0) / 1024).toFixed(0)} KB</p>
                     )}
                   </div>
                   {isSelected && (
