@@ -1,4 +1,3 @@
-using AutoMapper;
 using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Commands;
 using BPG.Application.IRepositories;
@@ -12,22 +11,22 @@ namespace BPG.Application.Features.Users.Handlers;
 public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserDto>
 {
     private readonly IUnitOfWork _uow;
-    private readonly IMapper _mapper;
 
-    public UpdateUserHandler(IUnitOfWork uow, IMapper mapper)
+    public UpdateUserHandler(IUnitOfWork uow)
     {
         _uow = uow;
-        _mapper = mapper;
     }
 
     public async Task<UserDto> Handle(UpdateUserCommand cmd, CancellationToken ct)
     {
         var user = await _uow.Repository<User>().Query()
-            .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+            .AsNoTracking()
             .FirstOrDefaultAsync(u => u.UserId == cmd.Id && !u.IsDeleted, ct)
             ?? throw new NotFoundException(nameof(User), cmd.Id);
 
-        // Cập nhật email nếu có
+        var newFullName = user.FullName;
+        var newEmail = user.Email;
+
         if (!string.IsNullOrWhiteSpace(cmd.Email) &&
             !cmd.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase))
         {
@@ -35,30 +34,51 @@ public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserDto>
                 u => u.Email.ToLower() == cmd.Email.ToLower() && u.UserId != cmd.Id, ct);
             if (emailTaken)
                 throw new DuplicateEntryException("Email", cmd.Email);
-            user.Email = cmd.Email;
+            newEmail = cmd.Email;
         }
 
         if (!string.IsNullOrWhiteSpace(cmd.Name))
-            user.FullName = cmd.Name;
+            newFullName = cmd.Name;
 
-        // Cập nhật role nếu có
+        await _uow.ExecuteSqlAsync(
+            $"UPDATE Users SET FullName = {newFullName}, Email = {newEmail}, UpdatedAt = {DateTime.UtcNow} WHERE UserId = {cmd.Id}",
+            ct);
+
+        string roleName = string.Empty;
+
         if (!string.IsNullOrWhiteSpace(cmd.Role))
         {
-            var role = await _uow.Repository<Role>().FirstOrDefaultAsync(
-                r => r.RoleName == cmd.Role, ct)
+            var role = await _uow.Repository<Role>().Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.RoleName.ToLower() == cmd.Role.ToLower(), ct)
                 ?? throw new NotFoundException($"Role '{cmd.Role}' không tồn tại.");
 
-            // Xóa role cũ, gán role mới
-            var existingRoles = await _uow.Repository<UserRole>().FindAsync(
-                ur => ur.UserId == cmd.Id, ct);
-            _uow.Repository<UserRole>().RemoveRange(existingRoles);
-            await _uow.Repository<UserRole>().AddAsync(
-                new UserRole { UserId = cmd.Id, RoleId = role.RoleId }, ct);
+            await _uow.ExecuteSqlAsync(
+                $"DELETE FROM UserRoles WHERE UserId = {cmd.Id}", ct);
+
+            await _uow.ExecuteSqlAsync(
+                $"INSERT INTO UserRoles (UserId, RoleId, CreatedAt, IsDeleted) VALUES ({cmd.Id}, {role.RoleId}, {DateTime.UtcNow}, 0)",
+                ct);
+
+            roleName = role.RoleName;
+        }
+        else
+        {
+            var currentRole = await _uow.Repository<UserRole>().Query()
+                .AsNoTracking()
+                .Include(ur => ur.Role)
+                .Where(ur => ur.UserId == cmd.Id)
+                .FirstOrDefaultAsync(ct);
+            roleName = currentRole?.Role?.RoleName ?? string.Empty;
         }
 
-        _uow.Repository<User>().Update(user);
-        await _uow.SaveChangesAsync(ct);
-
-        return _mapper.Map<UserDto>(user);
+        return new UserDto
+        {
+            Id = user.UserId.ToString(),
+            Name = newFullName,
+            Email = newEmail,
+            Role = roleName.ToLower(),
+            Status = UserDto.GetStatus(user)
+        };
     }
 }

@@ -4,6 +4,16 @@ import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, Mail, AlertTriangle } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
 
+const getRoleDashboard = (role: string): string => {
+  switch (role) {
+    case 'technicalmanager':
+    case 'siteengineer':
+      return '/projects';
+    default:
+      return '/dashboard';
+  }
+};
+
 export const Login: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -81,10 +91,10 @@ export const Login: React.FC = () => {
     const attemptsKey = `bpg_failed_attempts_${emailKey}`;
 
     try {
-      await login({ email, password });
+      const loggedInUser = await login({ email, password });
       localStorage.removeItem(attemptsKey);
       localStorage.removeItem(`bpg_lock_time_${emailKey}`);
-      navigate('/dashboard');
+      navigate(getRoleDashboard(loggedInUser.role), { replace: true });
     } catch (err: any) {
       if (err.message && err.message.includes('bị khóa')) {
         setError(err.message);

@@ -8,6 +8,17 @@ export interface UserProfile {
   status: 'active' | 'locked';
 }
 
+export interface UserDetailProfile {
+  userId: number;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  role: string;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  passwordChangedAt: string | null;
+}
+
 export interface LoginResponse {
   token: string;
   user: UserProfile;
@@ -118,9 +129,96 @@ export const authService = {
     };
   },
 
+  async updateProfile(fullName: string, phoneNumber: string | null): Promise<UserDetailProfile> {
+    if (USE_MOCK_API) {
+      await new Promise(r => setTimeout(r, 400));
+      const storedUser = localStorage.getItem('bpg_user');
+      if (!storedUser) throw new Error('Chưa đăng nhập.');
+      const u: UserProfile = JSON.parse(storedUser);
+      const updated = { ...u, name: fullName };
+      localStorage.setItem('bpg_user', JSON.stringify(updated));
+      return { userId: Number(u.id), fullName, email: u.email, phoneNumber, role: u.role, isActive: u.status === 'active', lastLoginAt: null, passwordChangedAt: null };
+    }
+
+    interface BackendResponse { success: boolean; message: string; data: UserDetailProfile; }
+    const response = await apiClient.patch<BackendResponse>('/auth/me', { fullName, phoneNumber });
+    if (!response.success || !response.data) throw new Error(response.message || 'Cập nhật thất bại.');
+    return response.data;
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    if (USE_MOCK_API) {
+      await new Promise(r => setTimeout(r, 400));
+      const storedUser = localStorage.getItem('bpg_user');
+      if (!storedUser) throw new Error('Chưa đăng nhập.');
+      const u = JSON.parse(storedUser);
+      const customPasswords = JSON.parse(localStorage.getItem('bpg_custom_passwords') || '{}');
+      const current = customPasswords[u.email] ?? '123456';
+      if (currentPassword !== current) throw new Error('Mật khẩu hiện tại không chính xác.');
+      if (newPassword.length < 6) throw new Error('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      customPasswords[u.email] = newPassword;
+      localStorage.setItem('bpg_custom_passwords', JSON.stringify(customPasswords));
+      return;
+    }
+
+    interface BackendResponse { success: boolean; message: string; }
+    const response = await apiClient.post<BackendResponse>('/auth/change-password', { currentPassword, newPassword });
+    if (!response.success) throw new Error(response.message || 'Đổi mật khẩu thất bại.');
+  },
+
+  async getMe(): Promise<UserDetailProfile> {
+    if (USE_MOCK_API) {
+      await new Promise(r => setTimeout(r, 300));
+      const storedUser = localStorage.getItem('bpg_user');
+      if (!storedUser) throw new Error('Chưa đăng nhập.');
+      const u: UserProfile = JSON.parse(storedUser);
+      return { userId: Number(u.id), fullName: u.name, email: u.email, phoneNumber: null, role: u.role, isActive: u.status === 'active', lastLoginAt: null, passwordChangedAt: null };
+    }
+
+    interface BackendResponse {
+      success: boolean;
+      message: string;
+      data: UserDetailProfile;
+    }
+    const response = await apiClient.get<BackendResponse>('/auth/me');
+    if (!response.success || !response.data) throw new Error(response.message || 'Không thể tải thông tin.');
+    return response.data;
+  },
+
+  async forgotPassword(email: string): Promise<void> {
+    if (USE_MOCK_API) {
+      await new Promise(r => setTimeout(r, 600));
+      return;
+    }
+    interface BackendResponse { success: boolean; message: string; }
+    const response = await apiClient.post<BackendResponse>('/auth/forgot-password', { email });
+    if (!response.success) throw new Error(response.message || 'Gửi OTP thất bại.');
+  },
+
+  async verifyOtp(email: string, otp: string): Promise<string> {
+    if (USE_MOCK_API) {
+      await new Promise(r => setTimeout(r, 600));
+      if (otp !== '123456') throw new Error('Mã OTP không đúng. Còn 4 lần thử.');
+      return 'mock-reset-token-' + Date.now();
+    }
+    interface BackendResponse { success: boolean; message: string; data: { resetToken: string }; }
+    const response = await apiClient.post<BackendResponse>('/auth/verify-otp', { email, otp });
+    if (!response.success || !response.data) throw new Error(response.message || 'Xác thực OTP thất bại.');
+    return response.data.resetToken;
+  },
+
+  async resetPassword(resetToken: string, newPassword: string): Promise<void> {
+    if (USE_MOCK_API) {
+      await new Promise(r => setTimeout(r, 600));
+      return;
+    }
+    interface BackendResponse { success: boolean; message: string; }
+    const response = await apiClient.post<BackendResponse>('/auth/reset-password', { resetToken, newPassword });
+    if (!response.success) throw new Error(response.message || 'Đặt lại mật khẩu thất bại.');
+  },
+
   logout(): void {
     if (!USE_MOCK_API) {
-      // If there's an endpoint to invalidate tokens, call it here
       apiClient.post('/auth/logout', {}).catch(() => {});
     }
   }

@@ -35,7 +35,12 @@ export const apiClient = {
       const response = await fetch(url, config);
 
       if (response.status === 401) {
-        // Clear auth and redirect
+        const errorData = await response.json().catch(() => ({}));
+        // Nếu đang gọi login thì không redirect — chỉ throw message từ backend
+        if (endpoint === '/auth/login') {
+          throw new Error(errorData.message || 'Email hoặc mật khẩu không chính xác.');
+        }
+        // Các endpoint khác: session hết hạn → clear và redirect
         localStorage.removeItem('bpg_token');
         localStorage.removeItem('bpg_user');
         window.location.href = '/login';
@@ -85,6 +90,10 @@ export const apiClient = {
       method: 'PUT',
       body: JSON.stringify(body),
     });
+  },
+
+  patch<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
+    return apiClient.request<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) });
   },
 
   delete<T>(endpoint: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {

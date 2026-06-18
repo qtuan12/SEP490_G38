@@ -1,7 +1,10 @@
+using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Users;
 using MediatR;
 
-namespace BPG.Application.Features.Users.Queries
+namespace BPG.Application.Features.Users.Queries;
+
+public class GetUsersQuery : PaginationRequest, IRequest<PagedList<UserDto>>
 {
-    public record GetUsersQuery() : IRequest<List<UserDto>>;
+    public string? Role { get; set; }
 }

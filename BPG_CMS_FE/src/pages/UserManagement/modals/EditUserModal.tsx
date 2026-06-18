@@ -11,7 +11,7 @@ import type { UserProfile } from '../../../services/authService';
 const schema = z.object({
   name: z.string().min(2, 'Họ và Tên phải có ít nhất 2 ký tự'),
   email: z.string().email('Địa chỉ email không hợp lệ'),
-  role: z.enum(['admin', 'director', 'technicalmanager', 'projectleader', 'siteengineer', 'accountant']),
+  role: z.enum(['admin', 'director', 'technicalmanager', 'siteengineer', 'accountant']),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -84,7 +84,6 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, o
               { label: 'Admin', value: 'admin' },
               { label: 'Giám Đốc', value: 'director' },
               { label: 'TP Kỹ Thuật (TechnicalManager)', value: 'technicalmanager' },
-              { label: 'Trưởng Dự án (ProjectLeader)', value: 'projectleader' },
               { label: 'Kỹ Sư Hiện Trường (SiteEngineer)', value: 'siteengineer' },
               { label: 'Kế Toán (Accountant)', value: 'accountant' },
             ]}

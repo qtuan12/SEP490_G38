@@ -40,8 +40,8 @@ export const Dashboard: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const list = await userService.getUsers();
-      setUserCount(list.length);
+      const result = await userService.getUsers();
+      setUserCount(result.totalCount);
     } catch (err) {
       console.error('Error fetching users for stats:', err);
     }
