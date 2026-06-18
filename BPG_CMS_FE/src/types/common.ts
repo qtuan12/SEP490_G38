@@ -18,6 +18,7 @@ export interface ProjectMember {
   userId: string;
   userName: string;
   userEmail: string;
+  userPhone?: string;
   userRole: string;
   isLeader: boolean; // crown icon 👑 if true
 }
@@ -265,6 +266,7 @@ export interface ProjectMemberDto {
   userId: number;
   fullName: string;
   email: string;
+  phoneNumber?: string;
   role: string;
   isLeader: boolean;
   joinedAt: string;

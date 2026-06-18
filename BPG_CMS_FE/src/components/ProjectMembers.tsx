@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
-import type {ProjectMember} from '../types/common';
+import type { ProjectMember } from '../types/common';
 import { userService } from '../services/userService';
 import type { UserProfile } from '../services/authService';
 import { Modal } from './ui/Modal';
-import { Crown, UserPlus, UserX, Loader2, UserCheck } from 'lucide-react';
+import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
 
 interface ProjectMembersProps {
   projectId: string;
@@ -67,7 +67,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     try {
       const usersResponse = await userService.getUsers({ pageSize: 1000 });
       const allUsers = usersResponse.items;
-      
+
       await Promise.all(selectedUserIds.map(id => {
         const targetUser = allUsers.find(u => u.id === id);
         if (targetUser) {
@@ -106,7 +106,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     try {
       const updatedList = await projectService.toggleLeader(projectId, userId);
       setMembers(updatedList);
-      
+
       const target = updatedList.find(m => m.userId === userId);
       setSuccess(`Đã ${target?.isLeader ? 'gán' : 'hủy'} vai trò Project Leader cho ${name}.`);
       setTimeout(() => setSuccess(null), 3000);
@@ -126,7 +126,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      
+
       {/* Notifications */}
       {success && (
         <div className="animate-fade-in" style={{
@@ -173,12 +173,12 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       {/* Member Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
         {members.map((m) => (
-          <div 
-            key={m.userId} 
-            className="card" 
-            style={{ 
-              padding: '20px', 
-              position: 'relative', 
+          <div
+            key={m.userId}
+            className="card"
+            style={{
+              padding: '20px',
+              position: 'relative',
               border: m.isLeader ? '1px solid hsl(var(--primary) / 0.3)' : '1px solid hsl(var(--border))',
               backgroundColor: m.isLeader ? 'hsl(var(--primary-glow) / 0.1)' : 'hsl(var(--bg-card))',
               display: 'flex',
@@ -205,7 +205,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
               }}>
                 <Crown size={12} fill="gold" />
-                <span>CHỦ HUY TRƯỞNG</span>
+                <span>TRƯỞNG NHÓM</span>
               </div>
             )}
 
@@ -232,15 +232,21 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                 <p style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {m.userEmail}
                 </p>
+                {m.userPhone && (
+                  <p style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                    <Phone size={10} />
+                    {m.userPhone}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Actions for TPKT */}
             {isTPKT && (
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
                 borderTop: '1px solid hsl(var(--border) / 0.5)',
                 paddingTop: '12px',
                 marginTop: '4px'
@@ -249,8 +255,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                 <button
                   onClick={() => handleToggleLeader(m.userId, m.userName)}
                   className={`btn ${m.isLeader ? 'btn-secondary' : 'btn-secondary'}`}
-                  style={{ 
-                    padding: '4px 8px', 
+                  style={{
+                    padding: '4px 8px',
                     fontSize: '0.75rem',
                     color: m.isLeader ? 'hsl(var(--text-secondary))' : 'goldenrod',
                     display: 'inline-flex',
@@ -267,9 +273,9 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                 <button
                   onClick={() => handleRemoveMember(m.userId, m.userName)}
                   className="btn btn-secondary"
-                  style={{ 
-                    padding: '4px 8px', 
-                    fontSize: '0.75rem', 
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: '0.75rem',
                     color: 'hsl(var(--danger))',
                     borderColor: 'hsl(var(--danger) / 0.2)',
                     display: 'inline-flex',
@@ -282,7 +288,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                 </button>
               </div>
             )}
-            
+
             {/* Informational Read-only icons for other users */}
             {!isTPKT && (
               <div style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -311,56 +317,56 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                 </span>
               )}
             </div>
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm tên hoặc email..." 
+            <input
+              type="text"
+              placeholder="Tìm kiếm tên hoặc email..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="input w-full mb-2 p-2 sm:p-2.5 text-sm sm:text-base rounded-[var(--radius-sm)] border border-[hsl(var(--border))]"
             />
             <div className="max-h-[45vh] sm:max-h-[300px] overflow-y-auto border border-[hsl(var(--border))] rounded-[var(--radius-sm)] bg-[hsl(var(--bg-card))]">
-            {availableEngineers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
-              availableEngineers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).map((eng) => (
-                <label 
-                  key={eng.id} 
-                  className="flex items-center gap-3 p-3 border-b border-[hsl(var(--border)/0.5)] cursor-pointer transition-colors hover:bg-[hsl(var(--primary-glow)/0.05)]"
-                  style={{ backgroundColor: selectedUserIds.includes(eng.id) ? 'hsl(var(--primary-glow) / 0.1)' : 'transparent' }}
-                >
-                  <input 
-                    type="checkbox" 
-                    checked={selectedUserIds.includes(eng.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedUserIds([...selectedUserIds, eng.id]);
-                      } else {
-                        setSelectedUserIds(selectedUserIds.filter(id => id !== eng.id));
-                      }
-                    }}
-                    className="w-4 h-4 sm:w-[18px] sm:h-[18px] cursor-pointer accent-[hsl(var(--primary))]"
-                  />
-                  <div className="flex items-center gap-2 sm:gap-3 flex-1 overflow-hidden">
-                    <div className="w-8 h-8 rounded-full bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))] flex items-center justify-center font-semibold text-xs sm:text-sm shrink-0">
-                      {eng.name.charAt(0)}
+              {availableEngineers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
+                availableEngineers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).map((eng) => (
+                  <label
+                    key={eng.id}
+                    className="flex items-center gap-3 p-3 border-b border-[hsl(var(--border)/0.5)] cursor-pointer transition-colors hover:bg-[hsl(var(--primary-glow)/0.05)]"
+                    style={{ backgroundColor: selectedUserIds.includes(eng.id) ? 'hsl(var(--primary-glow) / 0.1)' : 'transparent' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedUserIds.includes(eng.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedUserIds([...selectedUserIds, eng.id]);
+                        } else {
+                          setSelectedUserIds(selectedUserIds.filter(id => id !== eng.id));
+                        }
+                      }}
+                      className="w-4 h-4 sm:w-[18px] sm:h-[18px] cursor-pointer accent-[hsl(var(--primary))]"
+                    />
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 overflow-hidden">
+                      <div className="w-8 h-8 rounded-full bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))] flex items-center justify-center font-semibold text-xs sm:text-sm shrink-0">
+                        {eng.name.charAt(0)}
+                      </div>
+                      <div className="overflow-hidden">
+                        <div className="font-semibold text-sm sm:text-[0.9rem] truncate" style={{ color: selectedUserIds.includes(eng.id) ? 'hsl(var(--primary))' : 'inherit' }}>{eng.name}</div>
+                        <div className="text-xs sm:text-[0.75rem] text-[hsl(var(--text-muted))] truncate">{eng.email}</div>
+                      </div>
                     </div>
-                    <div className="overflow-hidden">
-                      <div className="font-semibold text-sm sm:text-[0.9rem] truncate" style={{ color: selectedUserIds.includes(eng.id) ? 'hsl(var(--primary))' : 'inherit' }}>{eng.name}</div>
-                      <div className="text-xs sm:text-[0.75rem] text-[hsl(var(--text-muted))] truncate">{eng.email}</div>
-                    </div>
-                  </div>
-                </label>
-              ))
-            ) : (
-              <div style={{ padding: '20px', color: 'hsl(var(--text-muted))', fontSize: '0.85rem', textAlign: 'center' }}>
-                Không tìm thấy kỹ sư nào phù hợp.
-              </div>
-            )}
+                  </label>
+                ))
+              ) : (
+                <div style={{ padding: '20px', color: 'hsl(var(--text-muted))', fontSize: '0.85rem', textAlign: 'center' }}>
+                  Không tìm thấy kỹ sư nào phù hợp.
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex justify-end gap-2 sm:gap-3 mt-1 sm:mt-2">
             <button type="button" className="btn btn-secondary px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base flex-1 sm:flex-none" onClick={() => setIsAddOpen(false)}>Hủy</button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="btn btn-primary px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base flex-[2] sm:flex-none"
               disabled={selectedUserIds.length === 0}
             >

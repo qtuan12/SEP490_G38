@@ -6,6 +6,8 @@ import { ProjectMembers } from '../components/ProjectMembers';
 import { WBSWorkspace } from './WBSWorkspace';
 import { DailyLogFeed } from '../components/DailyLogFeed';
 import { EditProjectModal } from './ProjectList/modals/EditProjectModal';
+import { Modal } from '../components/ui/Modal';
+import { Button, Input, FormItem } from '../components/ui';
 
 import {
   ArrowLeft,
@@ -38,6 +40,9 @@ export const ProjectLayoutHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs'>('wbs');
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
+  const [pauseReason, setPauseReason] = useState("");
+  const [isPausing, setIsPausing] = useState(false);
 
   const fetchProjectDetails = async () => {
     if (!projectId) return;
@@ -86,16 +91,31 @@ export const ProjectLayoutHub: React.FC = () => {
         } else {
           await projectService.activateProject(project.id);
         }
+        fetchProjectDetails(); // reload
       } else if (newStatus === 'paused') {
-        const reason = window.prompt("Nhập lý do tạm dừng dự án:", "");
-        if (reason === null) return; // user cancelled
-        await projectService.pauseProject(project.id, reason || "Tạm dừng dự án");
+        setPauseReason("");
+        setIsPauseModalOpen(true);
       } else {
         await projectService.updateProject(project.id, { status: newStatus });
+        fetchProjectDetails(); // reload
       }
-      fetchProjectDetails(); // reload
     } catch (err: any) {
       setStatusError(err.message || 'Có lỗi xảy ra khi đổi trạng thái');
+    }
+  };
+
+  const handleConfirmPause = async () => {
+    if (!project) return;
+    setIsPausing(true);
+    setStatusError(null);
+    try {
+      await projectService.pauseProject(project.id, pauseReason || "Tạm dừng dự án");
+      await fetchProjectDetails();
+      setIsPauseModalOpen(false);
+    } catch (err: any) {
+      setStatusError(err.message || 'Có lỗi xảy ra khi tạm dừng dự án');
+    } finally {
+      setIsPausing(false);
     }
   };
 
@@ -147,10 +167,10 @@ export const ProjectLayoutHub: React.FC = () => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{project.name}</h1>
-              {project.status === 'draft' && <span className="badge" style={{ backgroundColor: 'hsl(var(--text-muted))', color: 'white' }}>Bản nháp (Draft)</span>}
-              {project.status === 'inprogress' && <span className="badge badge-primary">Đang triển khai (Inprogress)</span>}
-              {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng (Paused)</span>}
-              {project.status === 'done' && <span className="badge badge-success">Hoàn thành (Done)</span>}
+              {project.status === 'draft' && <span className="badge" style={{ backgroundColor: 'hsl(var(--text-muted))', color: 'white' }}>Bản nháp </span>}
+              {project.status === 'inprogress' && <span className="badge badge-primary">Đang triển khai</span>}
+              {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng </span>}
+              {project.status === 'done' && <span className="badge badge-success">Hoàn thành </span>}
             </div>
 
             <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', flexWrap: 'wrap' }}>
@@ -342,13 +362,48 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
       </div>
 
-      <EditProjectModal
-        isOpen={isEditOpen}
-        onClose={() => setIsEditOpen(false)}
-        project={project}
-        onSuccess={fetchProjectDetails}
-      />
+      {isEditOpen && project && (
+        <EditProjectModal
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          onSuccess={fetchProjectDetails}
+          project={project}
+        />
+      )}
+
+      {isPauseModalOpen && project && (
+        <Modal
+          isOpen={isPauseModalOpen}
+          onClose={() => !isPausing && setIsPauseModalOpen(false)}
+          title="Tạm dừng dự án"
+          width="md"
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setIsPauseModalOpen(false)} disabled={isPausing} className="mr-3">
+                Hủy bỏ
+              </Button>
+              <Button variant="danger" onClick={handleConfirmPause} isLoading={isPausing}>
+                Xác nhận Tạm dừng
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-gray-600">
+              Bạn đang yêu cầu tạm dừng dự án <strong>{project.name}</strong>. Vui lòng cung cấp lý do tạm dừng (không bắt buộc nhưng khuyến nghị).
+            </p>
+            <FormItem label="Lý do tạm dừng">
+              <Input
+                placeholder="Nhập lý do tạm dừng dự án..."
+                value={pauseReason}
+                onChange={(e) => setPauseReason(e.target.value)}
+                disabled={isPausing}
+                autoFocus
+              />
+            </FormItem>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
-

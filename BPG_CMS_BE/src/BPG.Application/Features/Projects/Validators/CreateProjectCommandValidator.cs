@@ -14,10 +14,10 @@ public class CreateProjectCommandValidator : AbstractValidator<CreateProjectComm
 
         RuleFor(x => x.PlannedStart)
             .NotEmpty().WithMessage("Ngày bắt đầu không được để trống.")
-            .GreaterThanOrEqualTo(DateOnly.FromDateTime(DateTime.Today)).WithMessage("Ngày bắt đầu không được trong quá khứ.");
+            .Must(date => date >= DateOnly.FromDateTime(DateTime.Today)).WithMessage("Ngày bắt đầu không được trong quá khứ.");
 
         RuleFor(x => x.PlannedEnd)
             .NotEmpty().WithMessage("Ngày kết thúc không được để trống.")
-            .GreaterThanOrEqualTo(x => x.PlannedStart).WithMessage("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.");
+            .Must((cmd, end) => end > cmd.PlannedStart).WithMessage("Ngày kết thúc phải lớn hơn ngày bắt đầu.");
     }
 }
