@@ -1562,7 +1562,7 @@ export const projectService = {
       items: finalItems,
       status: isOverBOQ ? 'pending_director' : 'pending_accountant',
       isOverBOQ,
-      reason: reason || `Tổng hợp từ ${selectedReqs.length} yêu cầu của Kỹ sư hiện trường.`,
+      reason: reason || `Tổng hợp từ ${selectedReqs.length} yêu cầu của Nhân viên kỹ thuật.`,
       type: 'normal',
       date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
     };
