@@ -255,6 +255,7 @@ export interface ProjectDto {
   status: string;
   plannedStart: string;
   plannedEnd: string;
+  progress: number;
   createdAt: string;
   pauseReason?: string;
   pausedAt?: string;
