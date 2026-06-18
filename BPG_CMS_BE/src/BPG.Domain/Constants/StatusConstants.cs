@@ -3,7 +3,7 @@ namespace BPG.Domain.Constants;
 public static class ProjectStatus
 {
     public const string Draft = "Draft";
-    public const string InProgress = "InProgress";
+    public const string Active = "Active";
     public const string Paused = "Paused";
     public const string Completed = "Completed";
     public const string Closed = "Closed";

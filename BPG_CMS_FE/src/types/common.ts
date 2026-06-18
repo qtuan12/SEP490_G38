@@ -46,6 +46,7 @@ export interface WBSPhase {
   id: string;
   projectId: string;
   name: string;
+  description?: string;
   sortOrder: number; // display order within project
   status: 'active' | 'frozen'; // frozen after acceptance
   acceptanceComment?: string;
@@ -149,6 +150,9 @@ export interface WBSTask {
   progress: number; // 0 - 100
   history: TaskHistory[];
   status?: 'active' | 'obsolete';
+  isOverdue?: boolean;
+  isAtRisk?: boolean;
+  daysLeft?: number;
   estimatedMaterials?: PhaseMaterialItem[];
   isRework?: boolean;
 }
@@ -202,3 +206,66 @@ export interface AcceptanceData {
   conclusion: string;
   acceptanceDate?: string;
 }
+
+export interface DashboardProjectProgressDto {
+  projectId: number;
+  projectName: string;
+  address: string;
+  progress: number;
+}
+
+export interface DashboardMetricsDto {
+  totalProjects: number;
+  draftProjects: number;
+  activeProjects: number;
+  pausedProjects: number;
+  completedProjects: number;
+  closedProjects: number;
+  activeProjectsProgress: DashboardProjectProgressDto[];
+}
+
+export interface DashboardWarningDto {
+  projectId: number;
+  projectName: string;
+  taskId: number;
+  taskName: string;
+  warningType: 'Red' | 'Yellow' | 'Critical';
+  message: string;
+}
+
+export interface AttachmentDto {
+  attachmentId?: number;
+  attachmentType: string;
+  fileName: string;
+  fileUrl: string;
+  contentType?: string;
+  fileSizeBytes?: number;
+}
+
+export interface ProjectDto {
+  projectId: number;
+  name: string;
+  address?: string;
+  status: string;
+  plannedStart: string;
+  plannedEnd: string;
+  createdAt: string;
+  progress?: number;
+}
+
+export interface ProjectMemberDto {
+  projectMemberId: number;
+  projectId: number;
+  userId: number;
+  fullName: string;
+  email: string;
+  role: string;
+  isLeader: boolean;
+  joinedAt: string;
+}
+
+export interface ProjectDetailDto extends ProjectDto {
+  members: ProjectMemberDto[];
+  attachments: AttachmentDto[];
+}
+

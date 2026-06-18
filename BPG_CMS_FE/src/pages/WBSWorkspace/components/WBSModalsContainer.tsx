@@ -11,7 +11,9 @@ import { LeaderApprovalModal } from '../modals/LeaderApprovalModal';
 import { CreateMaterialRequestModal } from '../../MaterialRequests/modals/CreateMaterialRequestModal';
 import { ResubmitMaterialRequestModal } from '../../MaterialRequests/modals/ResubmitMaterialRequestModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
+import { ObsoleteTaskModal } from '../modals/ObsoleteTaskModal';
 import { DailyLogFormModal } from '../../Incidents/modals/DailyLogFormModal';
+import { AdjustProgressModal } from '../modals/AdjustProgressModal';
 
 export const WBSModalsContainer = () => {
   const {
@@ -27,8 +29,10 @@ export const WBSModalsContainer = () => {
     isBOQOpen, setIsBOQOpen, selectedPhaseForBOQ, setSelectedPhaseForBOQ,
     isCreateTaskOpen, setIsCreateTaskOpen, selectedPhaseForTask, parentTaskForNew, parentDeadlineForNew,
     isEditTaskOpen, setIsEditTaskOpen, selectedTaskForEdit, setSelectedTaskForEdit,
+    isObsoleteOpen, setIsObsoleteOpen,
     isAdjustDeadlineOpen, setIsAdjustDeadlineOpen, adjustingTask, setAdjustingTask,
-    selectedTaskId, phases, handleSuccess, handleError
+    isAdjustProgressOpen, setIsAdjustProgressOpen,
+    selectedTaskId, phases, handleSuccess, handleError, loadWBSData
   } = useWBS();
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
@@ -49,10 +53,29 @@ export const WBSModalsContainer = () => {
           materialRequests={materialRequests}
           isTPKTOrPL={isTPKTOrPL}
           isPL={isPL}
-          onAssignOpen={() => { setIsDetailOpen(false); setIsAssignOpen(true); }}
-          onLogOpen={() => { setIsDetailOpen(false); setIsLogOpen(true); }}
           onCreateMatReqOpen={(type) => { setIsDetailOpen(false); setCreateMatReqType(type); setIsCreateMatReqOpen(true); }}
-          onObsolete={() => { setIsDetailOpen(false); handleDeleteTask && handleDeleteTask(selectedTask.id, selectedTask.name); }}
+          onObsolete={() => { 
+            setIsDetailOpen(false); 
+            if (selectedTask.progress > 0) {
+              setIsObsoleteOpen(true);
+            } else {
+              handleDeleteTask && handleDeleteTask(selectedTask.id, selectedTask.name);
+            }
+          }}
+          onSuccess={handleSuccess}
+          onError={handleError}
+        />
+      )}
+    
+      {isObsoleteOpen && selectedTask && (
+        <ObsoleteTaskModal
+          isOpen={isObsoleteOpen}
+          onClose={() => setIsObsoleteOpen(false)}
+          task={selectedTask}
+          onSuccess={(msg) => {
+            handleSuccess(msg);
+            // Refresh data might be needed, but WBSWorkspace should handle it if handleSuccess doesn't. We can reload by reloading page or context.
+          }}
         />
       )}
     
@@ -89,6 +112,7 @@ export const WBSModalsContainer = () => {
           isOpen={isCreatePhaseOpen}
           onClose={() => setIsCreatePhaseOpen(false)}
           projectId={projectId}
+          maxPhaseOrder={phases.length + 1}
           onSuccess={handleSuccess}
           onError={handleError}
         />
@@ -179,10 +203,10 @@ export const WBSModalsContainer = () => {
       <CreateTaskModal
         isOpen={isCreateTaskOpen}
         onClose={() => setIsCreateTaskOpen(false)}
-        projectId={projectId}
         phaseId={selectedPhaseForTask}
         parentTaskId={parentTaskForNew}
         parentDeadline={parentDeadlineForNew}
+        maxTaskOrder={tasks.filter(t => t.phaseId === selectedPhaseForTask && t.parentTaskId === parentTaskForNew).length + 1}
         members={members}
         onSuccess={handleSuccess}
         onError={handleError}
@@ -214,6 +238,21 @@ export const WBSModalsContainer = () => {
           currentDeadline={adjustingTask.deadline}
           user={user?.name || 'User'}
           onSuccess={handleSuccess}
+          onError={handleError}
+        />
+      )}
+
+      {/* Adjust Progress Modal */}
+      {selectedTask && (
+        <AdjustProgressModal
+          isOpen={isAdjustProgressOpen}
+          onClose={() => setIsAdjustProgressOpen(false)}
+          task={selectedTask}
+          onSuccess={(msg) => {
+            handleSuccess(msg);
+            loadWBSData();
+            setIsDetailOpen(true);
+          }}
           onError={handleError}
         />
       )}
