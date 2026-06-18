@@ -102,6 +102,9 @@ export interface WBSContextType {
   adjustingTask: WBSTask | null;
   setAdjustingTask: (task: WBSTask | null) => void;
 
+  isAdjustProgressOpen: boolean;
+  setIsAdjustProgressOpen: (open: boolean) => void;
+
   handleApproveByLeader: (id: string) => void;
   handleApproveByTPKT: (id: string) => void;
   handleRejectMatReq: (id: string) => void;
@@ -116,6 +119,7 @@ export interface WBSContextType {
   handleReorderTask: (phaseId: string, taskId: string, direction: 'up' | 'down') => void;
   handleDeleteTask: (taskId: string, taskName: string) => void;
   handleDeletePhase: (phaseId: string, phaseName: string) => void;
+  loadWBSData: () => void;
 }
 
 export const WBSContext = createContext<WBSContextType | null>(null);

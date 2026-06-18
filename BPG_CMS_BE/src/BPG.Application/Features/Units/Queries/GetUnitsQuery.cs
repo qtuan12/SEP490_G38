@@ -1,0 +1,14 @@
+using BPG.Application.Common.Models;
+using BPG.Application.Features.Units.DTOs;
+using MediatR;
+
+namespace BPG.Application.Features.Units.Queries;
+
+public class GetUnitsQuery : IRequest<PagedList<UnitDto>>
+{
+    public int PageNumber { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+    public string? Search { get; set; }
+    public string? SortBy { get; set; }
+    public bool SortDescending { get; set; }
+}

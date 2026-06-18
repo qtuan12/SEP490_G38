@@ -39,11 +39,13 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public CreateTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService)
+    public CreateTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<ApiResponse<long>> Handle(CreateTaskCommand request, CancellationToken ct)
@@ -57,12 +59,12 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 
         if (phase.StartDate.HasValue && request.StartDate < phase.StartDate.Value)
         {
-            throw new BusinessException("ERR_TASK_DATE_INVALID", 
+            throw new BusinessException("ERR_TASK_DATE_INVALID",
                 $"Ngày bắt đầu của công việc ({request.StartDate:dd/MM/yyyy}) không được trước ngày bắt đầu của giai đoạn ({phase.StartDate.Value:dd/MM/yyyy}).");
         }
         if (phase.EndDate.HasValue && request.EndDate > phase.EndDate.Value)
         {
-            throw new BusinessException("ERR_TASK_DATE_INVALID", 
+            throw new BusinessException("ERR_TASK_DATE_INVALID",
                 $"Ngày kết thúc của công việc ({request.EndDate:dd/MM/yyyy}) không được sau ngày kết thúc của giai đoạn ({phase.EndDate.Value:dd/MM/yyyy}).");
         }
 
@@ -70,6 +72,7 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
         {
             var parentTask = await _unitOfWork.Repository<ProjectTask>()
                 .Query()
+                .Include(t => t.Assignees)
                 .FirstOrDefaultAsync(t => t.TaskId == request.ParentTaskId.Value, ct);
 
             if (parentTask == null)
@@ -77,9 +80,34 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 
             if (request.StartDate < parentTask.StartDate || request.EndDate > parentTask.EndDate)
             {
-                throw new BusinessException("ERR_TASK_DATE_INVALID", 
+                throw new BusinessException("ERR_TASK_DATE_INVALID",
                     $"Thời gian công việc con ({request.StartDate:dd/MM/yyyy} - {request.EndDate:dd/MM/yyyy}) " +
                     $"phải nằm trong khoảng thời gian của công việc cha ({parentTask.StartDate:dd/MM/yyyy} - {parentTask.EndDate:dd/MM/yyyy}).");
+            }
+
+            // Tự động phân công Task Cha cho Project Leader
+            var leader = await _unitOfWork.Repository<ProjectMember>()
+                .Query()
+                .FirstOrDefaultAsync(pm => pm.ProjectId == phase.ProjectId && pm.IsLeader, ct);
+
+            if (leader != null)
+            {
+                var isLeaderAssigned = parentTask.Assignees.Any(a => a.UserId == leader.UserId);
+                if (!isLeaderAssigned)
+                {
+                    parentTask.Assignees.Add(new TaskAssignee
+                    {
+                        UserId = leader.UserId,
+                        AssignedAt = DateTime.UtcNow
+                    });
+
+                    if (parentTask.Status == BPG.Domain.Constants.TaskStatus.New)
+                    {
+                        parentTask.Status = BPG.Domain.Constants.TaskStatus.Assigned;
+                    }
+
+                    _unitOfWork.Repository<ProjectTask>().Update(parentTask);
+                }
             }
         }
 
@@ -133,6 +161,11 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
                     referenceId: task.TaskId,
                     ct: ct);
             }
+        }
+
+        if (phase != null)
+        {
+            await _realtimeSender.SendToGroupAsync($"Project_{phase.ProjectId}", "WbsTreeUpdated", new { TaskId = task.TaskId }, ct);
         }
 
         return ApiResponse<long>.SuccessResult(task.TaskId, "Tạo công việc thành công.");

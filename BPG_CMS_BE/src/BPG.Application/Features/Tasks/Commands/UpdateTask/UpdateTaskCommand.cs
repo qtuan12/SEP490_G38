@@ -5,6 +5,7 @@ using BPG.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.IServices;
 
 namespace BPG.Application.Features.Tasks.Commands.UpdateTask;
 
@@ -36,10 +37,12 @@ public class UpdateTaskCommandValidator : AbstractValidator<UpdateTaskCommand>
 public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiResponse>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public UpdateTaskCommandHandler(IUnitOfWork unitOfWork)
+    public UpdateTaskCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender)
     {
         _unitOfWork = unitOfWork;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<ApiResponse> Handle(UpdateTaskCommand request, CancellationToken ct)
@@ -111,6 +114,11 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
 
         _unitOfWork.Repository<ProjectTask>().Update(task);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        if (task.Phase != null)
+        {
+            await _realtimeSender.SendToGroupAsync($"Project_{task.Phase.ProjectId}", "WbsTreeUpdated", new { TaskId = task.TaskId }, ct);
+        }
 
         return ApiResponse.SuccessResult("Cập nhật công việc thành công.");
     }

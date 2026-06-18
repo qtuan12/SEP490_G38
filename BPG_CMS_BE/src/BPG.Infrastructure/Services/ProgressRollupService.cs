@@ -15,7 +15,7 @@ public class ProgressRollupService : IProgressRollupService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task RecalculateParentTaskProgressAsync(long parentTaskId, CancellationToken ct = default)
+    public async Task RecalculateParentTaskProgressAsync(long parentTaskId, long? triggeringChildTaskId = null, CancellationToken ct = default)
     {
         var parentTask = await _unitOfWork.Repository<ProjectTask>()
             .Query()
@@ -60,11 +60,47 @@ public class ProgressRollupService : IProgressRollupService
         if (totalWeight > 0)
         {
             var newProgress = (byte)Math.Round(totalWeightedProgress / totalWeight);
-            parentTask.ProgressPercent = newProgress;
             
-            if (parentTask.ParentTaskId.HasValue)
+            if (newProgress != parentTask.ProgressPercent)
             {
-                await RecalculateParentTaskProgressAsync(parentTask.ParentTaskId.Value, ct);
+                string? reason = null;
+                if (triggeringChildTaskId.HasValue)
+                {
+                    var triggerTask = allTasks.FirstOrDefault(t => t.TaskId == triggeringChildTaskId.Value);
+                    if (triggerTask != null)
+                    {
+                        reason = $"Cập nhật tự động do công việc con '{triggerTask.Name}' thay đổi tiến độ";
+                    }
+                }
+
+                var log = new TaskProgressLog
+                {
+                    TaskId = parentTask.TaskId,
+                    OldProgress = parentTask.ProgressPercent,
+                    NewProgress = newProgress,
+                    UpdateReason = reason ?? "Cập nhật tự động do công việc con thay đổi",
+                    UpdatedAt = DateTime.UtcNow
+                };
+                
+                await _unitOfWork.Repository<TaskProgressLog>().AddAsync(log, ct);
+                
+                parentTask.ProgressPercent = newProgress;
+                
+                if (newProgress > 0 && newProgress < 100 && parentTask.Status == BPG.Domain.Constants.TaskStatus.Assigned)
+                {
+                    parentTask.Status = BPG.Domain.Constants.TaskStatus.InProgress;
+                }
+                else if (newProgress == 100 && parentTask.Status == BPG.Domain.Constants.TaskStatus.InProgress)
+                {
+                    parentTask.Status = BPG.Domain.Constants.TaskStatus.Completed;
+                }
+                
+                _unitOfWork.Repository<ProjectTask>().Update(parentTask);
+                
+                if (parentTask.ParentTaskId.HasValue)
+                {
+                    await RecalculateParentTaskProgressAsync(parentTask.ParentTaskId.Value, triggeringChildTaskId, ct);
+                }
             }
         }
     }

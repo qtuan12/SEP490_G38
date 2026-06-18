@@ -27,7 +27,14 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception: [{Type}] {Message}", ex.GetType().Name, ex.Message);
+            if (ex is DomainException || ex is FluentValidation.ValidationException)
+            {
+                _logger.LogWarning("Business validation warning: [{Type}] {Message}", ex.GetType().Name, ex.Message);
+            }
+            else
+            {
+                _logger.LogError(ex, "Unhandled exception: [{Type}] {Message}", ex.GetType().Name, ex.Message);
+            }
             await HandleExceptionAsync(context, ex);
         }
     }

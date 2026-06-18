@@ -30,12 +30,14 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
     private readonly IUnitOfWork _unitOfWork;
     private readonly IProgressRollupService _rollupService;
     private readonly INotificationService _notificationService;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public AdjustTaskProgressCommandHandler(IUnitOfWork unitOfWork, IProgressRollupService rollupService, INotificationService notificationService)
+    public AdjustTaskProgressCommandHandler(IUnitOfWork unitOfWork, IProgressRollupService rollupService, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
     {
         _unitOfWork = unitOfWork;
         _rollupService = rollupService;
         _notificationService = notificationService;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<ApiResponse> Handle(AdjustTaskProgressCommand request, CancellationToken ct)
@@ -43,6 +45,7 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         var task = await _unitOfWork.Repository<ProjectTask>()
             .Query()
             .Include(t => t.Assignees)
+            .Include(t => t.Phase)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)
@@ -73,7 +76,7 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         // Cuộn tiến độ
         if (task.ParentTaskId.HasValue)
         {
-            await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, ct);
+            await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, task.TaskId, ct);
             await _unitOfWork.SaveChangesAsync(ct);
         }
 
@@ -88,6 +91,12 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
                 referenceType: BPG.Domain.Constants.NotificationReferenceType.Task,
                 referenceId: task.TaskId,
                 ct: ct);
+        }
+
+        // Trigger realtime WBS Tree update
+        if (task.Phase != null)
+        {
+            await _realtimeSender.SendToGroupAsync($"Project_{task.Phase.ProjectId}", "WbsTreeUpdated", new { TaskId = task.TaskId }, ct);
         }
 
         return ApiResponse.SuccessResult("Điều chỉnh tiến độ task thành công.");

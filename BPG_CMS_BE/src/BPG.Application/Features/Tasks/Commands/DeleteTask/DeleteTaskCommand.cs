@@ -4,6 +4,7 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.IServices;
 
 namespace BPG.Application.Features.Tasks.Commands.DeleteTask;
 
@@ -12,16 +13,19 @@ public record DeleteTaskCommand(long TaskId) : IRequest<ApiResponse>;
 public class DeleteTaskCommandHandler : IRequestHandler<DeleteTaskCommand, ApiResponse>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public DeleteTaskCommandHandler(IUnitOfWork unitOfWork)
+    public DeleteTaskCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender)
     {
         _unitOfWork = unitOfWork;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<ApiResponse> Handle(DeleteTaskCommand request, CancellationToken ct)
     {
         var task = await _unitOfWork.Repository<ProjectTask>()
             .Query()
+            .Include(t => t.Phase)
             .Include(t => t.SubTasks)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
@@ -42,6 +46,11 @@ public class DeleteTaskCommandHandler : IRequestHandler<DeleteTaskCommand, ApiRe
 
         _unitOfWork.Repository<ProjectTask>().Remove(task);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        if (task.Phase != null)
+        {
+            await _realtimeSender.SendToGroupAsync($"Project_{task.Phase.ProjectId}", "WbsTreeUpdated", new { TaskId = task.TaskId }, ct);
+        }
 
         return ApiResponse.SuccessResult("Xóa task thành công.");
     }

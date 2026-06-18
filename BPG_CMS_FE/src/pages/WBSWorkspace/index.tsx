@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { wbsService } from '../../services/wbsService';
+import { useNotification } from '../../context/NotificationContext';
 import type { WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
@@ -19,6 +20,7 @@ interface WBSWorkspaceProps {
 export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { connection } = useNotification();
 
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
@@ -75,6 +77,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const [isAdjustDeadlineOpen, setIsAdjustDeadlineOpen] = useState(false);
   const [adjustingTask, setAdjustingTask] = useState<WBSTask | null>(null);
 
+  // ── ADJUST Progress modal state ───────────────────────────
+  const [isAdjustProgressOpen, setIsAdjustProgressOpen] = useState(false);
+
 
 
   // ── Hover state ──────────────────────────────────────
@@ -120,6 +125,30 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   };
 
   useEffect(() => { loadWBSData(); }, [projectId]);
+
+  useEffect(() => {
+    if (!connection) return;
+
+    const numericProjectId = Number(projectId);
+    connection.invoke('JoinProjectGroup', numericProjectId)
+      .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
+      .catch(err => console.error('SignalR JoinProjectGroup error:', err));
+
+    const handleWbsUpdated = (payload: any) => {
+      console.log('SignalR: WbsTreeUpdated', payload);
+      // Giữ nguyên trạng thái mở của Tree (expandedPhases) sau khi load lại
+      loadWBSData();
+    };
+
+    connection.on('WbsTreeUpdated', handleWbsUpdated);
+
+    return () => {
+      connection.off('WbsTreeUpdated', handleWbsUpdated);
+      connection.invoke('LeaveProjectGroup', numericProjectId)
+        .then(() => console.log(`Left SignalR project group: Project_${numericProjectId}`))
+        .catch(err => console.error('SignalR LeaveProjectGroup error:', err));
+    };
+  }, [connection, projectId]);
 
   const togglePhase = (phaseId: string) =>
     setExpandedPhases(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
@@ -272,10 +301,11 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     parentDeadlineForNew, setParentDeadlineForNew,
     isAdjustDeadlineOpen, setIsAdjustDeadlineOpen,
     adjustingTask, setAdjustingTask,
+    isAdjustProgressOpen, setIsAdjustProgressOpen,
 
     handleApproveByLeader, handleApproveByTPKT,
     handleRejectMatReq, handleCancelMatReq, handleConfirmReceived,
-    isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask, handleDeleteTask, handleDeletePhase, navigate
+    isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask, handleDeleteTask, handleDeletePhase, navigate, loadWBSData
   };
 
   return (
