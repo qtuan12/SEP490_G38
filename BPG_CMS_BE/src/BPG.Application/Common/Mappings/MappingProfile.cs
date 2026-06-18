@@ -1,6 +1,7 @@
 using AutoMapper;
 using BPG.Application.DTOs.Users;
 using BPG.Domain.Entities;
+using BPG.Application.Features.PhaseAcceptances.DTOs;
 using System.Linq;
 
 namespace BPG.Application.Common.Mappings
@@ -41,6 +42,13 @@ namespace BPG.Application.Common.Mappings
 
             // Mapping từ Notification entity sang NotificationDto
             CreateMap<Notification, BPG.Application.DTOs.Notifications.NotificationDto>();
+
+            // Phase Acceptance
+            CreateMap<PhaseAcceptance, PhaseAcceptanceDto>()
+                .ForMember(dest => dest.PhaseName, opt => opt.MapFrom(src => src.Phase != null ? src.Phase.Name : string.Empty))
+                .ForMember(dest => dest.ProjectName, opt => opt.MapFrom(src => src.Phase != null && src.Phase.Project != null ? src.Phase.Project.Name : string.Empty))
+                .ForMember(dest => dest.AcceptedByName, opt => opt.MapFrom(src => src.Acceptor != null ? src.Acceptor.FullName : string.Empty))
+                .ForMember(dest => dest.CancelledByName, opt => opt.Ignore());
 
             // Mapping cho Daily Log và Comments
             CreateMap<Comment, BPG.Application.DTOs.DailyLogs.CommentDto>()

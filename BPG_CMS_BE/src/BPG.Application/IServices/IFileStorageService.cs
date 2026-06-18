@@ -13,6 +13,11 @@ namespace BPG.Application.IServices
         Task<string> UploadFileAsync(IFormFile file, string folder, CancellationToken ct = default);
 
         /// <summary>
+        /// Uploads a file from byte array to Cloudinary and returns the secure URL.
+        /// </summary>
+        Task<string> UploadFileAsync(byte[] fileBytes, string fileName, string folder, CancellationToken ct = default);
+
+        /// <summary>
         /// Deletes a file from Cloudinary using its URL.
         /// </summary>
         Task<bool> DeleteFileAsync(string fileUrl, CancellationToken ct = default);

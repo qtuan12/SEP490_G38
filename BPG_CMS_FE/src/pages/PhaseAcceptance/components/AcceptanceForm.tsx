@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { projectService } from '../../../services/projectService';
+import { phaseAcceptanceService } from '../../../services/phaseAcceptanceService';
 import type {WBSPhase} from '../../../types/common';
 import { Lock } from 'lucide-react';
 
@@ -79,20 +79,16 @@ export const AcceptanceForm: React.FC<AcceptanceFormProps> = ({
 
   const acceptMutation = useMutation({
     mutationFn: async (data: AcceptanceFormData) => {
-      const mainComment = `${data.conclusion} Nhận xét chất lượng: ${data.quality}`;
-      await projectService.acceptPhase(phase.id, mainComment, {
-        representativeA: data.representativeA,
-        roleA: data.roleA,
-        representativeB: data.representativeB,
-        roleB: data.roleB,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        drawings: data.drawings,
-        standards: data.standards,
-        results: data.results,
-        quality: data.quality,
-        opinions: data.opinions || '',
-        conclusion: data.conclusion
+      const mainComment = `${data.conclusion}\nNhận xét chất lượng: ${data.quality}\nKết quả: ${data.results}`;
+      // Lưu file JSON báo cáo hoặc string chi tiết vào reportContent
+      const reportContent = JSON.stringify({
+        ...data,
+        mainComment
+      });
+
+      await phaseAcceptanceService.acceptPhase({
+        phaseId: Number(phase.id),
+        reportContent: reportContent
       });
       return data;
     },

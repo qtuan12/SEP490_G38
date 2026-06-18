@@ -9,7 +9,8 @@ import {
   Boxes, 
   Menu, 
   FileText,
-  Truck
+  Truck,
+  CheckCircle
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
 import type { BadgeVariant } from '../ui';
@@ -32,6 +33,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, roles: ['admin'] },
     { name: 'Dự án (WBS)', path: '/projects', icon: <Hammer size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director'] },
+    { name: 'Biên bản nghiệm thu', path: '/phase-acceptances', icon: <CheckCircle size={20} />, roles: ['admin', 'technicalmanager', 'director'] },
     { name: 'Kiểm soát Vật tư', path: '#materials', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'], disabled: true },
     { name: 'Báo cáo', path: '#reports', icon: <FileText size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'], disabled: true },
   ];

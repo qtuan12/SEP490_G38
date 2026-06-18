@@ -16,6 +16,37 @@ public class PhaseAcceptancesController : BaseApiController
     }
 
     /// <summary>
+    /// [TPKT] Lấy danh sách các biên bản nghiệm thu (phân trang, lọc theo Phase/Project)
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetPhaseAcceptances([FromQuery] BPG.Application.Features.PhaseAcceptances.Queries.GetPhaseAcceptances.GetPhaseAcceptancesQuery request, CancellationToken ct)
+    {
+        var result = await Mediator.Send(request, ct);
+        return ApiPagedOk(result);
+    }
+
+    /// <summary>
+    /// [TPKT] Nghiệm thu Phase (Kiểm tra 100% Task, tạo PDF, khóa Phase)
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> AcceptPhase([FromBody] BPG.Application.Features.PhaseAcceptances.Commands.AcceptPhase.AcceptPhaseCommand command, CancellationToken ct)
+    {
+        var acceptanceId = await Mediator.Send(command, ct);
+        return ApiOk(new { AcceptanceId = acceptanceId });
+    }
+
+    /// <summary>
+    /// [TPKT] Hủy nghiệm thu (Trong vòng 7 ngày, bắt buộc lý do)
+    /// </summary>
+    [HttpPut("{id}/cancel")]
+    public async Task<IActionResult> CancelAcceptance(long id, [FromBody] BPG.Application.Features.PhaseAcceptances.DTOs.CancelAcceptanceRequest request, CancellationToken ct)
+    {
+        var command = new BPG.Application.Features.PhaseAcceptances.Commands.CancelAcceptance.CancelAcceptanceCommand(id, request.CancellationReason);
+        await Mediator.Send(command, ct);
+        return ApiOk("Đã hủy nghiệm thu thành công.");
+    }
+
+    /// <summary>
     /// [TEST ENDPOINT] Sinh thử file PDF báo cáo nghiệm thu mẫu.
     /// </summary>
     [HttpGet("test-pdf")]
