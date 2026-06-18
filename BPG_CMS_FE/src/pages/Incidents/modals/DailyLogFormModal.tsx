@@ -117,6 +117,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
   const isTaskPreselected = !!task || (!!taskId && !taskId.startsWith('phase-'));
 
+  const isCurrentTaskParent = React.useMemo(() => {
+    if (!currentTask) return false;
+    return parentTaskIds.has(currentTask.id.replace(/^t-/, ''));
+  }, [currentTask, parentTaskIds]);
+
   // When user changes Phase in the modal, auto-select the first leaf task of that phase
   useEffect(() => {
     if (!isEditMode && !task && !taskId) {
@@ -387,6 +392,12 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       </div>
       <div className="p-4">
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          {isCurrentTaskParent && (
+            <div className="flex items-center gap-2 bg-red-50 text-red-700 p-3 rounded-md border border-red-100 text-sm">
+              <AlertCircle size={18} />
+              <span>Công việc này có chứa công việc con. Tiến độ sẽ tự động tính từ các công việc con, bạn không thể báo cáo nhật ký trực tiếp cho công việc này.</span>
+            </div>
+          )}
           
           {/* Progress Slider (Only for Create Mode) */}
           {!isEditMode && (
@@ -573,6 +584,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
               type="submit" 
               variant="primary" 
               isLoading={mutation.isPending}
+              disabled={isCurrentTaskParent}
             >
               {isEditMode ? 'Cập nhật' : 'Gửi báo cáo'}
             </Button>

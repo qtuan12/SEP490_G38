@@ -51,6 +51,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPhaseId, setSelectedPhaseId] = useState('');
   const [selectedEngineerId, setSelectedEngineerId] = useState('');
+  const [selectedSubtaskId, setSelectedSubtaskId] = useState('');
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
 
@@ -68,6 +69,31 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
   // Image Zoom Modal State
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  const currentTask = React.useMemo(() => {
+    if (!taskId || !tasks || tasks.length === 0) return null;
+    return tasks.find(t => String(t.id).replace(/^t-/, '') === String(taskId).replace(/^t-/, '')) || null;
+  }, [taskId, tasks]);
+
+  const currentTaskHasSubtasks = React.useMemo(() => {
+    if (!currentTask) return false;
+    return tasks.some(t => t.parentTaskId === currentTask.id && t.status !== 'obsolete');
+  }, [currentTask, tasks]);
+
+  const descendantTasks = React.useMemo(() => {
+    if (!taskId || !currentTask || !currentTaskHasSubtasks) return [];
+    const list: WBSTask[] = [];
+    const queue = [currentTask.id];
+    while (queue.length > 0) {
+      const parentId = queue.shift();
+      const children = tasks.filter(t => t.parentTaskId === parentId && t.status !== 'obsolete');
+      for (const child of children) {
+        list.push(child);
+        queue.push(child.id);
+      }
+    }
+    return list;
+  }, [taskId, currentTask, currentTaskHasSubtasks, tasks]);
 
   const loadData = async () => {
     setLoading(true);
@@ -440,7 +466,11 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       // 2. Task / Phase filter
       let matchesTaskOrPhase = true;
       if (taskId) {
-        matchesTaskOrPhase = log.taskId === taskId || log.taskId.replace(/^t-/, '') === taskId.replace(/^t-/, '');
+        if (selectedSubtaskId) {
+          matchesTaskOrPhase = log.taskId === selectedSubtaskId || log.taskId.replace(/^t-/, '') === selectedSubtaskId.replace(/^t-/, '');
+        } else {
+          matchesTaskOrPhase = true;
+        }
       } else if (selectedPhaseId) {
         const logTask = tasks.find(t => t.id === log.taskId || t.id.replace(/^t-/, '') === log.taskId.replace(/^t-/, ''));
         matchesTaskOrPhase = !!logTask && (logTask.phaseId === selectedPhaseId || logTask.phaseId.replace(/^p-/, '') === selectedPhaseId.replace(/^p-/, ''));
@@ -456,7 +486,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
       return matchesSearch && matchesTaskOrPhase && matchesEngineer && matchesStartDate && matchesEndDate;
     });
-  }, [logs, searchQuery, selectedPhaseId, selectedEngineerId, startDateFilter, endDateFilter, tasks, taskId]);
+  }, [logs, searchQuery, selectedPhaseId, selectedEngineerId, selectedSubtaskId, startDateFilter, endDateFilter, tasks, taskId]);
 
   // Group logs by date (YYYY-MM-DD)
   const groupedLogs = React.useMemo(() => {
@@ -523,7 +553,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     const assignedIds = t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : [];
     return user?.id && assignedIds.includes(user.id.toString());
   });
-  const canReport = isPL || hasAnyAssignedTask;
+  const canReport = (isPL || hasAnyAssignedTask) && !currentTaskHasSubtasks;
 
   return (
     <div className="flex flex-col gap-6 w-full mx-auto pb-10">
@@ -577,6 +607,21 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                 onChange={(e) => setSelectedPhaseId(e.target.value)}
                 className="h-[38px] text-[0.85rem]"
                 options={phaseOptions}
+              />
+            </div>
+          )}
+
+          {/* Subtask Dropdown (Only when task has subtasks) */}
+          {taskId && currentTaskHasSubtasks && descendantTasks.length > 0 && (
+            <div className="flex-1 min-w-[150px]">
+              <Select
+                value={selectedSubtaskId}
+                onChange={(e) => setSelectedSubtaskId(e.target.value)}
+                className="h-[38px] text-[0.85rem]"
+                options={[
+                  { label: 'Tất cả công việc con', value: '' },
+                  ...descendantTasks.map(t => ({ label: t.name, value: t.id }))
+                ]}
               />
             </div>
           )}
