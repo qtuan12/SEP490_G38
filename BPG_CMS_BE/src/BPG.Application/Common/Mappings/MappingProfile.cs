@@ -45,6 +45,7 @@ namespace BPG.Application.Common.Mappings
 
             // Phase Acceptance
             CreateMap<PhaseAcceptance, PhaseAcceptanceDto>()
+                .ForMember(dest => dest.ProjectId, opt => opt.MapFrom(src => src.Phase != null ? src.Phase.ProjectId : 0))
                 .ForMember(dest => dest.PhaseName, opt => opt.MapFrom(src => src.Phase != null ? src.Phase.Name : string.Empty))
                 .ForMember(dest => dest.ProjectName, opt => opt.MapFrom(src => src.Phase != null && src.Phase.Project != null ? src.Phase.Project.Name : string.Empty))
                 .ForMember(dest => dest.AcceptedByName, opt => opt.MapFrom(src => src.Acceptor != null ? src.Acceptor.FullName : string.Empty))

@@ -3,6 +3,7 @@
 export interface PhaseAcceptance {
   acceptanceId: number;
   phaseId: number;
+  projectId: number;
   phaseName: string;
   projectName: string;
   acceptedBy: number;

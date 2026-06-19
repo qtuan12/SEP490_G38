@@ -58,7 +58,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         if (phase == null)
             throw new NotFoundException(nameof(Phase), request.PhaseId);
 
-        if (phase.Status == PhaseStatus.Completed)
+        if (phase.Status == PhaseStatus.Approved)
             throw new BusinessException("INVALID_STATUS", "Phase này đã được nghiệm thu và hoàn thành trước đó.");
 
         // 2. Validate all Tasks 100%
@@ -100,7 +100,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         string fileName = $"BienBanNghiemThu_Phase_{phase.PhaseId}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
         string pdfUrl = await _fileStorageService.UploadFileAsync(pdfBytes, fileName, StorageFolders.AcceptanceDocs, ct);
 
-        // 5. Save Acceptance
+        // 5. Save Acceptance (Always insert a new one to keep history)
         var acceptance = new PhaseAcceptance
         {
             PhaseId = phase.PhaseId,
@@ -114,7 +114,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         await acceptanceRepo.AddAsync(acceptance, ct);
 
         // 6. Update Phase Status
-        phase.Status = PhaseStatus.Completed;
+        phase.Status = PhaseStatus.Approved;
         phaseRepo.Update(phase);
 
         await _unitOfWork.SaveChangesAsync(ct);

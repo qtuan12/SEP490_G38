@@ -4,6 +4,7 @@ public class PhaseAcceptanceDto
 {
     public long AcceptanceId { get; set; }
     public long PhaseId { get; set; }
+    public long ProjectId { get; set; }
     public string PhaseName { get; set; } = string.Empty;
     public string ProjectName { get; set; } = string.Empty;
     public long AcceptedBy { get; set; }

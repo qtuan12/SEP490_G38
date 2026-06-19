@@ -431,17 +431,6 @@ export const WBSTree = () => {
                                   <span>Danh sách Nghiệm thu</span>
                                 </div>
 
-                                {!isFrozen && readyForAcceptance && isTPKTOrPL && (
-                                  <div
-                                    style={menuItemStyle}
-                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--success-glow))'}
-                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setPhaseMenuId(null); navigate(`/projects/${ph.projectId}/phases/${ph.id}/acceptance`); }}
-                                  >
-                                    <FileSignature size={13} style={{ color: 'hsl(var(--success))' }} />
-                                    <span style={{ color: 'hsl(var(--success))' }}>Tiến hành Nghiệm thu</span>
-                                  </div>
-                                )}
 
                                 {!isFrozen && (
                                   <div

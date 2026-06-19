@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Download, Ban } from 'lucide-react';
+import { Eye, ArrowLeft } from 'lucide-react';
 import { Button, Input, DataTable, Badge } from '../../components/ui';
 import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
-import { CancelAcceptanceModal } from './CancelAcceptanceModal';
 
 export const PhaseAcceptances: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [searchProjectId, setSearchProjectId] = useState(searchParams.get('projectId') || '');
@@ -18,10 +18,8 @@ export const PhaseAcceptances: React.FC = () => {
     if (searchParams.get('projectId')) setSearchProjectId(searchParams.get('projectId')!);
     if (searchParams.get('phaseId')) setSearchPhaseId(searchParams.get('phaseId')!);
   }, [searchParams]);
-  
-  const [selectedCancelId, setSelectedCancelId] = useState<number | null>(null);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['phaseAcceptances', page, pageSize, searchProjectId, searchPhaseId],
     queryFn: () => phaseAcceptanceService.getPhaseAcceptances({
       pageIndex: page,
@@ -31,14 +29,8 @@ export const PhaseAcceptances: React.FC = () => {
     })
   });
 
-  const handleCancelClick = (id: number) => {
-    setSelectedCancelId(id);
-  };
-
-  const handleCancelSuccess = () => {
-    setSelectedCancelId(null);
-    refetch();
-  };
+  const hasActiveAcceptance = data?.items?.some((item: any) => !item.isCancelled);
+  const canCreate = searchProjectId && searchPhaseId && !hasActiveAcceptance;
 
   const columns = [
     { key: 'acceptanceId', header: 'ID' },
@@ -83,26 +75,14 @@ export const PhaseAcceptances: React.FC = () => {
       header: 'Hành động',
       render: (row: any) => (
         <div className="flex gap-2">
-          {row.pdfUrl && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => window.open(row.pdfUrl, '_blank')}
-              title="Tải/Xem PDF"
-            >
-              <Download size={16} />
-            </Button>
-          )}
-          {!row.isCancelled && (
-            <Button 
-              variant="danger" 
-              size="sm" 
-              onClick={() => handleCancelClick(row.acceptanceId)}
-              title="Hủy nghiệm thu"
-            >
-              <Ban size={16} />
-            </Button>
-          )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate(`/projects/${row.projectId || searchProjectId}/phases/${row.phaseId}/acceptance?historyId=${row.acceptanceId}`)}
+            title="Xem chi tiết"
+          >
+            <Eye size={16} />
+          </Button>
         </div>
       )
     }
@@ -110,11 +90,28 @@ export const PhaseAcceptances: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
+      {searchProjectId && (
+        <button 
+          onClick={() => navigate(`/projects/${searchProjectId}`)} 
+          className="inline-flex items-center gap-1.5 bg-transparent border-none text-[hsl(var(--text-secondary))] cursor-pointer text-[0.9rem] font-medium w-fit hover:text-[hsl(var(--primary))] transition-colors p-0 mb-2"
+        >
+          <ArrowLeft size={16} />
+          <span>Quay lại Không gian dự án</span>
+        </button>
+      )}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-[hsl(var(--text-primary))]">Danh sách Nghiệm thu Giai đoạn</h1>
           <p className="text-[hsl(var(--text-secondary))] mt-1">Quản lý các biên bản nghiệm thu đã lập</p>
         </div>
+        <Button 
+          variant="primary" 
+          disabled={!canCreate}
+          onClick={() => navigate(`/projects/${searchProjectId}/phases/${searchPhaseId}/acceptance`)}
+          title={!searchProjectId || !searchPhaseId ? 'Vui lòng nhập ID Dự án và ID Giai đoạn để lọc' : hasActiveAcceptance ? 'Phải hủy biên bản hiện hành mới được tạo mới' : ''}
+        >
+          Tạo biên bản nghiệm thu
+        </Button>
       </div>
 
       <div className="bg-[hsl(var(--bg-surface))] p-4 rounded-xl border border-[hsl(var(--border-light))] shadow-sm flex gap-4 items-end">
@@ -176,15 +173,6 @@ export const PhaseAcceptances: React.FC = () => {
           </div>
         )}
       </div>
-
-      {selectedCancelId && (
-        <CancelAcceptanceModal 
-          acceptanceId={selectedCancelId}
-          isOpen={true}
-          onClose={() => setSelectedCancelId(null)}
-          onSuccess={handleCancelSuccess}
-        />
-      )}
     </div>
   );
 };

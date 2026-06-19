@@ -355,6 +355,11 @@ export const projectService = {
 
   // WBS PHASES & TASKS
   async getPhases(projectId: string): Promise<WBSPhase[]> {
+    if (!USE_MOCK_API) {
+      const { wbsService } = await import('./wbsService');
+      const data = await wbsService.getWbsDataFlattened(projectId);
+      return data.phases;
+    }
     const normalizedProjectId = projectId.match(/^\d+$/) ? `p-${projectId}` : projectId;
     const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     return allPhases

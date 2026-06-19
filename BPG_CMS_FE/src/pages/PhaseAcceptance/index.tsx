@@ -1,22 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type {WBSPhase, WBSTask, Project} from '../../types/common';
 import { 
-  ArrowLeft, 
-  AlertTriangle, 
-  Download
+  ArrowLeft,
+  Download,
+  AlertTriangle
 } from 'lucide-react';
-import type {AcceptanceRecord} from '../../types/common';
 import { AcceptanceDocument } from '../PhaseAcceptance/components/AcceptanceDocument';
-import type { AcceptanceData } from '../../types/common';
 import { AcceptanceForm } from '../PhaseAcceptance/components/AcceptanceForm';
-import { AcceptanceHistoryModal } from '../PhaseAcceptance/components/AcceptanceHistoryModal';
 import { AcceptanceTasksChecklist } from '../PhaseAcceptance/components/AcceptanceTasksChecklist';
-import { AcceptanceHistoryList } from '../PhaseAcceptance/components/AcceptanceHistoryList';
-import { exportAcceptancePDF } from '../../utils/exportAcceptancePDF';
 import { Button } from '../../components/ui';
+import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -32,25 +28,18 @@ export const PhaseAcceptance: React.FC = () => {
 
   const [isRevoking, setIsRevoking] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');
-  const [selectedHistory, setSelectedHistory] = useState<AcceptanceRecord | null>(null);
 
+  const [searchParams] = useSearchParams();
+  const historyId = searchParams.get('historyId');
+  const [historicalAcceptance, setHistoricalAcceptance] = useState<any>(null);
+  const [historicalDocData, setHistoricalDocData] = useState<string | null>(null);
+
+  const isViewingHistory = !!historicalDocData;
   const isSubmitted = phase?.status === 'frozen';
 
-  const documentData: AcceptanceData | null = phase && phase.status === 'frozen' ? {
-    representativeA: phase.acceptanceRepresentativeA || '',
-    roleA: phase.acceptanceRoleA || '',
-    representativeB: phase.acceptanceRepresentativeB || '',
-    roleB: phase.acceptanceRoleB || '',
-    startTime: phase.acceptanceStartTime || '',
-    endTime: phase.acceptanceEndTime || '',
-    drawings: phase.acceptanceDrawings || '',
-    standards: phase.acceptanceStandards || '',
-    results: phase.acceptanceResults || '',
-    quality: phase.acceptanceQuality || '',
-    opinions: phase.acceptanceOpinions || '',
-    conclusion: phase.acceptanceConclusion || '',
-    acceptanceDate: phase.acceptanceDate || ''
-  } : null;
+  const [activeReportContent, setActiveReportContent] = useState<string>('');
+  const [activeAcceptanceDate, setActiveAcceptanceDate] = useState<string>('');
+  const [activeCreatorName, setActiveCreatorName] = useState<string>('');
 
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
@@ -71,7 +60,22 @@ export const PhaseAcceptance: React.FC = () => {
       setTasks(phaseTasks);
 
       if (targetPhase?.status === 'frozen') {
-        // Data is now derived from targetPhase directly in documentData
+        const res = await phaseAcceptanceService.getPhaseAcceptances({ pageIndex: 1, pageSize: 10, phaseId: Number(phaseId) });
+        const activeAcc = res.items.find((x: any) => !x.isCancelled);
+        if (activeAcc) {
+          setActiveReportContent(activeAcc.reportContent || '');
+          setActiveAcceptanceDate(new Date(activeAcc.acceptanceDate).toLocaleDateString('vi-VN'));
+          setActiveCreatorName(activeAcc.acceptedByName || '');
+        }
+      }
+
+      if (historyId) {
+        const res = await phaseAcceptanceService.getPhaseAcceptances({ pageIndex: 1, pageSize: 10, phaseId: Number(phaseId) });
+        const targetAcc = res.items.find((x: any) => x.acceptanceId === Number(historyId));
+        if (targetAcc) {
+          setHistoricalAcceptance(targetAcc);
+          setHistoricalDocData(targetAcc.reportContent);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tải thông tin nghiệm thu.');
@@ -130,9 +134,9 @@ export const PhaseAcceptance: React.FC = () => {
     }
   };
 
-  const handleDownloadPDF = () => {
-    if (!project || !phase || !documentData) return;
-    exportAcceptancePDF(project, phase, documentData);
+  const handleDownloadPDF = async () => {
+    // Kích hoạt tính năng In của trình duyệt (Mẫu in đã được CSS ẩn các phần không cần thiết)
+    window.print();
   };
 
   if (loading) {
@@ -162,11 +166,11 @@ export const PhaseAcceptance: React.FC = () => {
       {/* Navigation and Title */}
       <div className="flex flex-col gap-3">
         <button 
-          onClick={() => navigate(`/projects/${projectId}`)} 
+          onClick={() => historyId ? navigate(`/phase-acceptances?projectId=${projectId}&phaseId=${phaseId}`) : navigate(`/projects/${projectId}`)} 
           className="inline-flex items-center gap-1.5 bg-transparent border-none text-[hsl(var(--text-secondary))] cursor-pointer text-[0.9rem] font-medium w-fit hover:text-[hsl(var(--primary))] transition-colors p-0"
         >
           <ArrowLeft size={16} />
-          <span>Quay lại Không gian dự án</span>
+          <span>{historyId ? 'Quay lại Danh sách Nghiệm thu' : 'Quay lại Không gian dự án'}</span>
         </button>
         <h1 className="text-[1.75rem] font-extrabold m-0">Nghiệm thu Giai đoạn</h1>
         <p className="text-[0.875rem] text-[hsl(var(--text-secondary))] m-0">
@@ -190,19 +194,36 @@ export const PhaseAcceptance: React.FC = () => {
       {/* Checklist Tasks Block */}
       <AcceptanceTasksChecklist tasks={tasks} allCompleted={allCompleted} />
 
-      {/* Acceptance History */}
-      <AcceptanceHistoryList history={phase.acceptanceHistory} onSelect={setSelectedHistory} />
-
-      {/* Evaluation Form */}
-      {isTPKT ? (
+      {/* Evaluation Form or History Detail */}
+      {(isTPKT || isViewingHistory) ? (
         <div className="card flex flex-col gap-5 bg-[hsl(var(--bg-card))]">
           
-          {isSubmitted && documentData ? (
-            <AcceptanceDocument project={project} phase={phase} data={documentData} />
+          {isViewingHistory && historicalAcceptance && (
+            <div className={`p-4 rounded-xl border ${historicalAcceptance.isCancelled ? 'bg-[hsl(var(--danger-glow))] border-[hsl(var(--danger)/0.2)]' : 'bg-[hsl(var(--success-glow))] border-[hsl(var(--success)/0.2)]'}`}>
+              <h3 className={`text-md font-semibold mb-2 flex items-center gap-2 ${historicalAcceptance.isCancelled ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
+                {historicalAcceptance.isCancelled ? 'Biên bản nghiệm thu này đã bị hủy' : 'Biên bản nghiệm thu hợp lệ'}
+              </h3>
+              <div className={`space-y-1 text-sm ${historicalAcceptance.isCancelled ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
+                <p><span className="font-medium">Người lập:</span> {historicalAcceptance.acceptedByName}</p>
+                <p><span className="font-medium">Ngày lập:</span> {new Date(historicalAcceptance.acceptanceDate).toLocaleString('vi-VN')}</p>
+                {historicalAcceptance.isCancelled && (
+                  <>
+                    <p><span className="font-medium">Người hủy:</span> {historicalAcceptance.cancelledByName}</p>
+                    <p><span className="font-medium">Ngày hủy:</span> {new Date(historicalAcceptance.cancelledAt).toLocaleString('vi-VN')}</p>
+                    <p><span className="font-medium">Lý do hủy:</span> {historicalAcceptance.cancellationReason}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {isViewingHistory && historicalDocData !== null ? (
+            <AcceptanceDocument project={project} phase={phase} reportContent={historicalDocData} creatorName={historicalAcceptance?.acceptedByName} acceptanceDate={new Date(historicalAcceptance.acceptanceDate).toLocaleDateString('vi-VN')} />
+          ) : isSubmitted ? (
+            <AcceptanceDocument project={project} phase={phase} reportContent={activeReportContent || ''} creatorName={activeCreatorName} acceptanceDate={activeAcceptanceDate || new Date().toLocaleDateString('vi-VN')} />
           ) : (
             <AcceptanceForm 
               phase={phase!} 
-              user={user ? { name: user.name, role: user.role, id: user.id } : null} 
               allCompleted={allCompleted} 
               onSuccess={(msg) => { setSuccess(msg); setTimeout(() => setSuccess(null), 4000); }} 
               onError={(msg) => setError(msg)} 
@@ -212,7 +233,7 @@ export const PhaseAcceptance: React.FC = () => {
 
           {/* Action buttons & Revocation */}
           <div className="flex gap-3 justify-end mt-2.5">
-            {isSubmitted && (
+            {(isSubmitted || isViewingHistory) && (
               <div className="flex flex-col items-end gap-3 w-full">
                 <Button
                   type="button"
@@ -224,7 +245,7 @@ export const PhaseAcceptance: React.FC = () => {
                   <span>Tải File Báo Cáo Nghiệm Thu</span>
                 </Button>
 
-                {!isRevoking ? (
+                {!isViewingHistory && !isRevoking ? (
                   <button 
                     type="button" 
                     onClick={() => setIsRevoking(true)}
@@ -233,7 +254,7 @@ export const PhaseAcceptance: React.FC = () => {
                     <AlertTriangle size={15} />
                     Yêu cầu Hủy Nghiệm Thu
                   </button>
-                ) : (
+                ) : !isViewingHistory && isRevoking ? (
                   <div className="w-full mt-3 p-4 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm">
                     <label htmlFor="revoke-reason" className="text-[hsl(var(--danger))] font-semibold block mb-2">
                       Lý do hủy nghiệm thu (Tối thiểu 20 ký tự) <span className="text-[hsl(var(--danger))]">*</span>
@@ -262,7 +283,7 @@ export const PhaseAcceptance: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </div>
@@ -272,11 +293,6 @@ export const PhaseAcceptance: React.FC = () => {
           Bạn cần đăng nhập với vai trò <strong className="font-semibold text-[hsl(var(--text-primary))]">Trưởng phòng Kỹ Thuật (TPKT)</strong> để tiến hành nghiệm thu giai đoạn này.
         </div>
       )}
-
-      <AcceptanceHistoryModal 
-        selectedHistory={selectedHistory} 
-        onClose={() => setSelectedHistory(null)} 
-      />
 
     </div>
   );
