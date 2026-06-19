@@ -30,6 +30,7 @@ interface DailyLogFormProps {
   isPL?: boolean;
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
+  hideHeader?: boolean;
 }
 
 export const DailyLogForm: React.FC<DailyLogFormProps> = ({
@@ -43,7 +44,8 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   engineerId,
   engineerName,
   isPL = false,
-  onSuccess
+  onSuccess,
+  hideHeader = false
 }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -386,11 +388,13 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const totalImagesCount = existingImages.length + selectedFiles.length;
 
   return (
-    <div className="bg-[hsl(var(--bg-card))] rounded-md border border-[hsl(var(--border))] overflow-hidden animate-fade-in shadow-sm mt-4">
-      <div className="p-3 bg-blue-50/50 border-b border-[hsl(var(--border))]">
-        <h4 className="m-0 text-[0.95rem] font-semibold text-blue-700">{isEditMode ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"}</h4>
-      </div>
-      <div className="p-4">
+    <div className={`bg-[hsl(var(--bg-card))] rounded-md ${hideHeader ? '' : 'border border-[hsl(var(--border))] shadow-sm mt-4'} overflow-hidden animate-fade-in`}>
+      {!hideHeader && (
+        <div className="p-3 bg-blue-50/50 border-b border-[hsl(var(--border))]">
+          <h4 className="m-0 text-[0.95rem] font-semibold text-blue-700">{isEditMode ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"}</h4>
+        </div>
+      )}
+      <div className={hideHeader ? '' : 'p-4'}>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           {isCurrentTaskParent && (
             <div className="flex items-center gap-2 bg-red-50 text-red-700 p-3 rounded-md border border-red-100 text-sm">
@@ -400,7 +404,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
           )}
           
           {/* Progress Slider (Only for Create Mode) */}
-          {!isEditMode && (
+          {!isEditMode ? (
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-sm font-medium text-slate-700">Tiến độ hoàn thành (%)</label>
@@ -434,6 +438,18 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
               </span>
               {errors.progress && <p className="text-red-500 text-xs mt-1">{errors.progress.message}</p>}
             </div>
+          ) : (
+            editLog && (
+              <div>
+                <label className="block text-sm font-medium mb-1 text-slate-600">Tiến độ đã ghi nhận (Đóng băng)</label>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-sm text-slate-700 font-semibold w-full">
+                  {editLog.progressTo}%
+                </div>
+                <span className="text-xs text-slate-500 block mt-1">
+                  * Tiến độ của nhật ký đã ghi nhận được đóng băng ở chế độ chỉnh sửa.
+                </span>
+              </div>
+            )
           )}
 
           {/* Task Selection / Display */}
@@ -477,7 +493,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
           {/* Detailed Description */}
           <div>
             <label className="block text-sm font-medium mb-1.5 text-slate-600">
-              {progress < minProgress ? 'Lý do giảm tiến độ' : 'Diễn biến công việc chi tiết'} <span className="text-red-500">*</span>
+              {isEditMode 
+                ? 'Mô tả công việc' 
+                : progress < minProgress 
+                ? 'Lý do giảm tiến độ' 
+                : 'Diễn biến công việc chi tiết'} <span className="text-red-500">*</span>
             </label>
             <Textarea
               placeholder={progress < minProgress ? "Vui lòng nhập lý do cụ thể vì sao tiến độ công việc bị giảm..." : "Mô tả công việc đã làm được hôm nay, số lượng nhân công huy động, các khó khăn gặp phải nếu có..."}
@@ -534,6 +554,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 {existingImages.map((imgUrl, idx) => (
                   <div key={`existing-${idx}`} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200 group">
                     <img src={imgUrl} alt="existing preview" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-0 left-0 right-0 bg-slate-500 text-white text-[9px] text-center py-0.5 font-bold">Đã lưu</span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -551,8 +572,8 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 {/* New Selected Images */}
                 {previews.map((imgUrl, idx) => (
                   <div key={`new-${idx}`} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200 group">
-                    <img src={imgUrl} alt="new preview" className="w-full h-full object-cover border-2 border-blue-400" />
-                    <span className="absolute bottom-0 left-0 right-0 bg-blue-500 text-white text-[9px] text-center py-0.5 font-bold">Mới</span>
+                    <img src={imgUrl} alt="new preview" className="w-full h-full object-cover border-2 border-green-400" />
+                    <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[9px] text-center py-0.5 font-bold">Mới</span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -607,7 +628,7 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
   if (!isOpen) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={rest.editLog ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"}>
-      <DailyLogForm {...rest} isPL={isPL} onCancel={onClose} />
+      <DailyLogForm {...rest} isPL={isPL} onCancel={onClose} hideHeader={true} />
     </Modal>
   );
 };
