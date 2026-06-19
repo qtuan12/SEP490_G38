@@ -3,27 +3,11 @@ using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Entities;
-using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.Features.Tasks.Commands;
 
-namespace BPG.Application.Features.Tasks.Commands.AdjustTaskProgress;
-
-public record AdjustTaskProgressCommand(
-    long TaskId,
-    byte NewProgress,
-    string UpdateReason
-) : IRequest<ApiResponse>;
-
-public class AdjustTaskProgressCommandValidator : AbstractValidator<AdjustTaskProgressCommand>
-{
-    public AdjustTaskProgressCommandValidator()
-    {
-        RuleFor(x => x.TaskId).GreaterThan(0);
-        RuleFor(x => x.NewProgress).InclusiveBetween((byte)0, (byte)100);
-        RuleFor(x => x.UpdateReason).NotEmpty().MaximumLength(1000);
-    }
-}
+namespace BPG.Application.Features.Tasks.Handlers;
 
 public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgressCommand, ApiResponse>
 {

@@ -59,6 +59,12 @@ namespace BPG.Application.Common.Mappings
             // Mapping cho TaskProgressLog
             CreateMap<TaskProgressLog, BPG.Application.DTOs.DailyLogs.TaskProgressLogDto>();
 
+            // Mapping cho WBS Tasks
+            CreateMap<BPG.Application.Features.Tasks.Commands.CreateTaskCommand, ProjectTask>()
+                .ForMember(dest => dest.Assignees, opt => opt.Ignore());
+
+            CreateMap<BPG.Application.Features.Tasks.Commands.UpdateTaskCommand, ProjectTask>();
+
             // Mapping cho Supplier
             CreateMap<Supplier, BPG.Application.DTOs.Suppliers.SupplierDto>().ReverseMap();
             // Mapping cho MaterialCategory

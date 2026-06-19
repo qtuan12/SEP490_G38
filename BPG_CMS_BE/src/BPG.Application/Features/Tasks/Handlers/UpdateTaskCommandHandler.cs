@@ -2,47 +2,24 @@ using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
-using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BPG.Application.IServices;
+using BPG.Application.Features.Tasks.Commands;
 
-namespace BPG.Application.Features.Tasks.Commands.UpdateTask;
-
-public record UpdateTaskCommand(
-    long TaskId,
-    string Name,
-    string? Description,
-    int OrderIndex,
-    DateOnly StartDate,
-    DateOnly EndDate,
-    string? UpdateReason
-) : IRequest<ApiResponse>;
-
-public class UpdateTaskCommandValidator : AbstractValidator<UpdateTaskCommand>
-{
-    public UpdateTaskCommandValidator()
-    {
-        RuleFor(x => x.TaskId).GreaterThan(0);
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.OrderIndex).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.StartDate).NotEmpty();
-        RuleFor(x => x.EndDate)
-            .NotEmpty()
-            .GreaterThanOrEqualTo(x => x.StartDate)
-            .WithMessage("Ngày kết thúc không được nhỏ hơn ngày bắt đầu.");
-    }
-}
+namespace BPG.Application.Features.Tasks.Handlers;
 
 public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiResponse>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly AutoMapper.IMapper _mapper;
 
-    public UpdateTaskCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender)
+    public UpdateTaskCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender, AutoMapper.IMapper mapper)
     {
         _unitOfWork = unitOfWork;
         _realtimeSender = realtimeSender;
+        _mapper = mapper;
     }
 
     public async Task<ApiResponse> Handle(UpdateTaskCommand request, CancellationToken ct)
@@ -106,11 +83,7 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
             });
         }
 
-        task.Name = request.Name;
-        task.Description = request.Description;
-        task.OrderIndex = request.OrderIndex;
-        task.StartDate = request.StartDate;
-        task.EndDate = request.EndDate;
+        _mapper.Map(request, task);
 
         _unitOfWork.Repository<ProjectTask>().Update(task);
         await _unitOfWork.SaveChangesAsync(ct);

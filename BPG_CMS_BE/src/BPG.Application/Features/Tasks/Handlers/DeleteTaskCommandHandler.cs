@@ -5,10 +5,9 @@ using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BPG.Application.IServices;
+using BPG.Application.Features.Tasks.Commands;
 
-namespace BPG.Application.Features.Tasks.Commands.DeleteTask;
-
-public record DeleteTaskCommand(long TaskId) : IRequest<ApiResponse>;
+namespace BPG.Application.Features.Tasks.Handlers;
 
 public class DeleteTaskCommandHandler : IRequestHandler<DeleteTaskCommand, ApiResponse>
 {

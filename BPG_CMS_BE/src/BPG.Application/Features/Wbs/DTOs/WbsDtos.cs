@@ -1,4 +1,4 @@
-namespace BPG.Application.Features.Wbs.Queries.GetWbsTree;
+namespace BPG.Application.Features.Wbs.DTOs;
 
 public record WbsTaskDto
 {

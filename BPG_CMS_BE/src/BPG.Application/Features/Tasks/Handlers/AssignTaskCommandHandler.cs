@@ -5,10 +5,9 @@ using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.Features.Tasks.Commands;
 
-namespace BPG.Application.Features.Tasks.Commands.AssignTask;
-
-public record AssignTaskCommand(long TaskId, List<long> AssigneeIds) : IRequest<ApiResponse>;
+namespace BPG.Application.Features.Tasks.Handlers;
 
 public class AssignTaskCommandHandler : IRequestHandler<AssignTaskCommand, ApiResponse>
 {

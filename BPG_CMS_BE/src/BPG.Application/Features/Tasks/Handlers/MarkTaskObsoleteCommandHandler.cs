@@ -3,25 +3,11 @@ using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Entities;
-using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.Features.Tasks.Commands;
 
-namespace BPG.Application.Features.Tasks.Commands.MarkTaskObsolete;
-
-public record MarkTaskObsoleteCommand(
-    long TaskId,
-    string ObsoleteReason
-) : IRequest<ApiResponse>;
-
-public class MarkTaskObsoleteCommandValidator : AbstractValidator<MarkTaskObsoleteCommand>
-{
-    public MarkTaskObsoleteCommandValidator()
-    {
-        RuleFor(x => x.TaskId).GreaterThan(0);
-        RuleFor(x => x.ObsoleteReason).NotEmpty().MaximumLength(1000);
-    }
-}
+namespace BPG.Application.Features.Tasks.Handlers;
 
 public class MarkTaskObsoleteCommandHandler : IRequestHandler<MarkTaskObsoleteCommand, ApiResponse>
 {

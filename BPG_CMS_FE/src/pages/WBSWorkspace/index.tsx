@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { wbsService } from '../../services/wbsService';
 import { useNotification } from '../../context/NotificationContext';
-import type { WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest } from '../../types/common';
+import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
@@ -22,14 +23,40 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const navigate = useNavigate();
   const { connection } = useNotification();
 
-  const [phases, setPhases] = useState<WBSPhase[]>([]);
-  const [tasks, setTasks] = useState<WBSTask[]>([]);
-  const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: wbsDataAll, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['wbsDataAll', projectId],
+    queryFn: async () => {
+      const [wbsData, allProjs, memberList, mr] = await Promise.all([
+        wbsService.getWbsDataFlattened(projectId),
+        projectService.getProjects(),
+        projectService.getMembers(projectId),
+        projectService.getAllMaterialRequests()
+      ]);
+      return {
+        wbsData,
+        project: allProjs.find(p => p.id === projectId) || null,
+        memberList,
+        materialRequests: mr
+      };
+    }
+  });
+
+  const phases = wbsDataAll?.wbsData.phases || [];
+  const tasks = wbsDataAll?.wbsData.tasks || [];
+  const project = wbsDataAll?.project || null;
+  const members = wbsDataAll?.memberList || [];
+  const materialRequests = wbsDataAll?.materialRequests || [];
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [members, setMembers] = useState<ProjectMember[]>([]);
-  const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
+
+  // When queryError changes, update the error state
+  useEffect(() => {
+    if (queryError) {
+      setError((queryError as any).message || 'Lỗi khi tải cơ cấu WBS.');
+    }
+  }, [queryError]);
 
   // Tree collapse state
   const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({});
@@ -102,29 +129,18 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const isTPKTOrPL = user?.role === 'technicalmanager' || user?.role === 'admin';
 
 
-  const loadWBSData = async () => {
-    setLoading(true);
-    try {
-      const wbsData = await wbsService.getWbsDataFlattened(projectId);
-      const allProjs = await projectService.getProjects();
-      const memberList = await projectService.getMembers(projectId);
-      const mr = await projectService.getAllMaterialRequests();
-      setMaterialRequests(mr);
-
-      setProject(allProjs.find(p => p.id === projectId) || null);
-      setPhases(wbsData.phases);
-      setTasks(wbsData.tasks);
-      setMembers(memberList);
-
-      const expands: Record<string, boolean> = {};
-      wbsData.phases.forEach(p => { expands[p.id] = true; });
-      setExpandedPhases(expands);
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi tải cơ cấu WBS.');
-    } finally { setLoading(false); }
-  };
-
-  useEffect(() => { loadWBSData(); }, [projectId]);
+  useEffect(() => {
+    if (wbsDataAll?.wbsData.phases) {
+      setExpandedPhases(prev => {
+        if (Object.keys(prev).length === 0) {
+          const expands: Record<string, boolean> = {};
+          wbsDataAll.wbsData.phases.forEach(p => { expands[p.id] = true; });
+          return expands;
+        }
+        return prev;
+      });
+    }
+  }, [wbsDataAll?.wbsData.phases]);
 
   useEffect(() => {
     if (!connection) return;
@@ -134,13 +150,12 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
       .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
       .catch(err => console.error('SignalR JoinProjectGroup error:', err));
 
-    const handleWbsUpdated = (payload: any) => {
-      console.log('SignalR: WbsTreeUpdated', payload);
-      // Giữ nguyên trạng thái mở của Tree (expandedPhases) sau khi load lại
-      loadWBSData();
-    };
+  const handleWbsUpdated = (payload: any) => {
+    console.log('SignalR: WbsTreeUpdated', payload);
+    queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+  };
 
-    connection.on('WbsTreeUpdated', handleWbsUpdated);
+  connection.on('WbsTreeUpdated', handleWbsUpdated);
 
     return () => {
       connection.off('WbsTreeUpdated', handleWbsUpdated);
@@ -150,13 +165,17 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     };
   }, [connection, projectId]);
 
+  const loadWBSData = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+  };
+
   const togglePhase = (phaseId: string) =>
     setExpandedPhases(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
 
   const handleSuccess = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(null), 3000);
-    loadWBSData();
+    queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
   };
   const handleError = (msg: string) => {
     setError(msg);
