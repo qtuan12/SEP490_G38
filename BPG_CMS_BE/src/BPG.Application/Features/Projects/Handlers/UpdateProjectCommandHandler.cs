@@ -8,6 +8,7 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -28,8 +29,6 @@ public class UpdateProjectCommandHandler : IRequestHandler<UpdateProjectCommand,
         if (project == null)
             throw new NotFoundException(nameof(Project), request.ProjectId);
 
-        if (project.Status != ProjectStatus.Draft)
-            throw new BusinessException("ERR_PROJECT_NOT_DRAFT", "Chỉ có thể sửa dự án khi đang ở trạng thái Draft.");
 
         project.Name = request.Name;
         project.Address = request.Address;
@@ -37,6 +36,33 @@ public class UpdateProjectCommandHandler : IRequestHandler<UpdateProjectCommand,
         project.PlannedEnd = request.PlannedEnd;
 
         _uow.Repository<Project>().Update(project);
+
+        if (request.Attachments != null)
+        {
+            // Remove old design attachments
+            var oldAttachments = await _uow.Repository<Attachment>().FindAsync(a => a.EntityId == project.ProjectId && a.EntityType == EntityType.Project && a.AttachmentType == AttachmentType.Design);
+            if (oldAttachments.Any())
+            {
+                _uow.Repository<Attachment>().RemoveRange(oldAttachments);
+            }
+
+            if (request.Attachments.Any())
+            {
+                // Add new design attachments
+                var attachments = request.Attachments.Select(a => new Attachment
+                {
+                    EntityType = EntityType.Project,
+                    EntityId = project.ProjectId,
+                    AttachmentType = AttachmentType.Design,
+                    FileName = a.FileName,
+                    FileUrl = a.FileUrl,
+                    ContentType = a.ContentType,
+                    FileSizeBytes = a.FileSizeBytes
+                });
+                await _uow.Repository<Attachment>().AddRangeAsync(attachments);
+            }
+        }
+
         await _uow.SaveChangesAsync(cancellationToken);
 
         return _mapper.Map<ProjectDto>(project);

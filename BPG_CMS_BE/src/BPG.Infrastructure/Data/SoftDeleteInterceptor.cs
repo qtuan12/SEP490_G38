@@ -27,13 +27,16 @@ public class SoftDeleteInterceptor : SaveChangesInterceptor
     {
         if (context == null) return;
 
-        foreach (var entry in context.ChangeTracker.Entries<BaseEntity>())
+        // ToList() trước khi loop — tránh conflict khi state change trigger relationship fixup
+        var deletedEntries = context.ChangeTracker
+            .Entries<BaseEntity>()
+            .Where(e => e.State == EntityState.Deleted)
+            .ToList();
+
+        foreach (var entry in deletedEntries)
         {
-            if (entry.State == EntityState.Deleted)
-            {
-                entry.State = EntityState.Modified;
-                entry.Entity.IsDeleted = true;
-            }
+            entry.State = EntityState.Modified;
+            entry.Entity.IsDeleted = true;
         }
     }
 }

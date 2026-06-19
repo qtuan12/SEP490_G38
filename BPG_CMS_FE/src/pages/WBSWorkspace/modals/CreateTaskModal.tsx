@@ -148,7 +148,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1.5 text-slate-600">Giao cho Kỹ sư hiện trường (Tùy chọn)</label>
+          <label className="block text-sm font-medium mb-1.5 text-slate-600">Giao cho Nhân viên kỹ thuật (Tùy chọn)</label>
           <select 
             {...register('assignedTo')} 
             className="w-full text-sm px-3 py-2 rounded-md border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-blue-500"

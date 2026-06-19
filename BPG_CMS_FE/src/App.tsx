@@ -16,6 +16,9 @@ import { ProjectList } from './pages/ProjectList';
 import { ProjectLayoutHub } from './pages/ProjectLayoutHub';
 import { TaskDetailSE } from './pages/TaskDetailSE';
 import { PhaseAcceptance } from './pages/PhaseAcceptance';
+import { UnitManagement } from './pages/MasterData/Units';
+import { CategoryManagement } from './pages/MasterData/Categories';
+import { MaterialManagement } from './pages/MasterData/Materials';
 import { GanttChart } from './pages/GanttChart';
 import { ProjectDrawing } from './pages/ProjectDrawing';
 import { ProjectDailyLogs } from './pages/ProjectDailyLogs';
@@ -160,6 +163,33 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <SupplierManagement />
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
+                path="/units" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager']}>
+                    <UnitManagement />
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
+                path="/categories" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager']}>
+                    <CategoryManagement />
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
+                path="/materials" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
+                    <MaterialManagement />
                   </ProtectedRoute>
                 } 
               />

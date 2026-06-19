@@ -14,7 +14,8 @@ import {
   Smartphone,
   CheckCircle,
   TrendingUp,
-  History
+  History,
+  AlertCircle
 } from 'lucide-react';
 
 const getInitials = (name: string) => {
@@ -44,6 +45,7 @@ export const TaskDetailSE: React.FC = () => {
   const { user } = useAuth();
 
   const [task, setTask] = useState<WBSTask | null>(null);
+  const [hasSubtasks, setHasSubtasks] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -65,6 +67,8 @@ export const TaskDetailSE: React.FC = () => {
         const t = pTasks.find(item => item.id === taskId || item.id.replace(/^t-/, '') === taskId.replace(/^t-/, ''));
         if (t) {
           foundTask = t;
+          const parentCheck = pTasks.some(item => item.parentTaskId === t.id && item.status !== 'obsolete');
+          setHasSubtasks(parentCheck);
           break;
         }
       }
@@ -253,7 +257,7 @@ export const TaskDetailSE: React.FC = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '2px' }}>
                   {task.assignedTo.split(',').map((id, index) => {
                     const names = task.assignedName ? task.assignedName.split(', ') : [];
-                    const name = names[index] || 'siteengineer';
+                    const name = names[index] || 'Kỹ sư';
                     const initials = getInitials(name);
                     const bgColor = getAvatarColor(id);
                     return (
@@ -288,7 +292,25 @@ export const TaskDetailSE: React.FC = () => {
 
         {/* Big Update Button (Locked if task completed or not assigned to user) */}
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {task.progress === 100 ? (
+          {hasSubtasks ? (
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              backgroundColor: 'hsl(var(--primary-glow))',
+              padding: '16px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid hsl(var(--primary) / 0.2)',
+              fontSize: '0.9rem',
+              color: 'hsl(var(--primary))',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 600,
+              textAlign: 'center'
+            }}>
+              <AlertCircle size={20} />
+              <span>CÔNG VIỆC CHA (TIẾN ĐỘ TỰ ĐỘNG TÍNH TỪ CON)</span>
+            </div>
+          ) : task.progress === 100 ? (
             <div style={{
               display: 'flex',
               gap: '8px',

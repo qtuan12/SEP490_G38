@@ -57,24 +57,40 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = task.Phase.Project;
 
-            // 2. Kiểm tra quyền của User
+            // 2. Kiểm tra quyền của User (Chỉ Admin, TM, Project Leader hoặc Assigned Engineer mới được tạo daily log)
             bool isAdminOrTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
             if (!isAdminOrTM)
             {
-                // Kiểm tra xem User có phải là thành viên trong dự án này không
-                var isMember = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId, cancellationToken);
+                // Kiểm tra xem User có phải là Project Leader của dự án này không
+                var isLeader = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
 
-                if (!isMember)
+                // Kiểm tra xem User có được gán vào công việc này không
+                var isAssignee = await _uow.Repository<TaskAssignee>().Query()
+                    .AnyAsync(ta => ta.TaskId == task.TaskId && ta.UserId == currentUserId, cancellationToken);
+
+                if (!isLeader && !isAssignee)
                 {
-                    throw new ForbiddenException("Bạn không phải thành viên của dự án này.");
+                    throw new ForbiddenException("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
                 }
             }
 
             // 3. Kiểm tra trạng thái dự án
-            if (project.Status != ProjectStatus.Active)
+            if (project.Status != ProjectStatus.InProgress)
             {
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
+            }
+
+            // Kiểm tra xem công việc có bị khóa (đã nghiệm thu) không
+            if (task.IsLocked)
+            {
+                throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã được nghiệm thu và khóa tiến độ, không thể cập nhật thêm nhật ký thi công.");
+            }
+
+            // Kiểm tra số lượng hình ảnh
+            if (request.Images != null && request.Images.Count > 5)
+            {
+                throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh hiện trường thi công.");
             }
 
             // 4. Kiểm tra xem Task có phải là Task cha (có subtasks) không
@@ -258,17 +274,19 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             var project = task.Phase.Project;
             var currentUserId = _currentUserService.GetRequiredUserId();
 
-            // Lấy Project Leader của dự án
-            var leader = await _uow.Repository<ProjectMember>().Query()
-                .FirstOrDefaultAsync(m => m.ProjectId == project.ProjectId && m.IsLeader, cancellationToken);
+            // 1. Lấy danh sách tất cả Project Leaders của dự án (loại trừ người tạo)
+            var leaders = await _uow.Repository<ProjectMember>().Query()
+                .Where(m => m.ProjectId == project.ProjectId && m.IsLeader && m.UserId != currentUserId)
+                .Select(m => m.UserId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
 
-            // Gửi thông báo đến Project Leader
-            if (leader != null && leader.UserId != currentUserId)
+            foreach (var leaderId in leaders)
             {
                 await _notificationService.SendNotificationAsync(
-                    leader.UserId,
+                    leaderId,
                     "Cập nhật nhật ký tiến độ",
-                    $"Kỹ sư [{creatorName}] đã cập nhật nhật ký cho công việc [{task.Name}] với tiến độ mới là {newProgress}%.",
+                    $"Thành viên [{creatorName}] đã cập nhật nhật ký cho công việc [{task.Name}] với tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
                     NotificationReferenceType.Task,
                     task.TaskId,
@@ -276,7 +294,30 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 );
             }
 
-            // Gửi thông báo cho Technical Manager
+            // 2. Lấy danh sách tất cả các thành viên khác được gán cùng vào Task này (loại trừ người tạo)
+            var otherAssignees = await _uow.Repository<TaskAssignee>().Query()
+                .Where(ta => ta.TaskId == task.TaskId && ta.UserId != currentUserId)
+                .Select(ta => ta.UserId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            foreach (var assigneeId in otherAssignees)
+            {
+                // Tránh gửi trùng lặp nếu leader cũng đồng thời được gán vào Task này
+                if (leaders.Contains(assigneeId)) continue;
+
+                await _notificationService.SendNotificationAsync(
+                    assigneeId,
+                    "Đồng nghiệp cập nhật tiến độ",
+                    $"Thành viên [{creatorName}] cùng thực hiện công việc [{task.Name}] đã cập nhật nhật ký tiến độ mới là {newProgress}%.",
+                    NotificationType.Progress,
+                    NotificationReferenceType.Task,
+                    task.TaskId,
+                    cancellationToken
+                );
+            }
+
+            // 3. Gửi thông báo cho Technical Manager
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.TechnicalManager,
                 "Cập nhật nhật ký tiến độ",

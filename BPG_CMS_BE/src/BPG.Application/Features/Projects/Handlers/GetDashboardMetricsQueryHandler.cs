@@ -15,16 +15,26 @@ using System.Threading.Tasks;
 public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetricsQuery, DashboardMetricsDto>
 {
     private readonly IUnitOfWork _uow;
+    private readonly BPG.Application.IServices.ICurrentUserService _currentUserService;
 
-    public GetDashboardMetricsQueryHandler(IUnitOfWork uow)
+    public GetDashboardMetricsQueryHandler(IUnitOfWork uow, BPG.Application.IServices.ICurrentUserService currentUserService)
     {
         _uow = uow;
+        _currentUserService = currentUserService;
     }
 
     public async Task<DashboardMetricsDto> Handle(GetDashboardMetricsQuery request, CancellationToken cancellationToken)
     {
-        var projects = await _uow.Repository<Project>().Query()
-            .AsNoTracking()
+        var query = _uow.Repository<Project>().Query()
+            .AsNoTracking();
+
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            query = query.Where(p => p.Members.Any(m => m.UserId == currentUserId));
+        }
+
+        var projects = await query
             .Include(p => p.Phases)
                 .ThenInclude(ph => ph.Tasks)
             .ToListAsync(cancellationToken);
@@ -33,11 +43,11 @@ public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetri
         {
             TotalProjects = projects.Count,
             DraftProjects = projects.Count(p => p.Status == ProjectStatus.Draft),
-            ActiveProjects = projects.Count(p => p.Status == ProjectStatus.Active),
+            ActiveProjects = projects.Count(p => p.Status == ProjectStatus.InProgress),
             PausedProjects = projects.Count(p => p.Status == ProjectStatus.Paused),
             CompletedProjects = projects.Count(p => p.Status == ProjectStatus.Completed),
             ClosedProjects = projects.Count(p => p.Status == ProjectStatus.Closed),
-            ActiveProjectsProgress = projects.Where(p => p.Status == ProjectStatus.Active)
+            ActiveProjectsProgress = projects.Where(p => p.Status == ProjectStatus.InProgress || p.Status == ProjectStatus.Paused)
                 .Select(p => 
                 {
                     var allTasks = p.Phases?.SelectMany(ph => ph.Tasks).Where(t => t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList() ?? new List<BPG.Domain.Entities.ProjectTask>();
@@ -47,7 +57,8 @@ public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetri
                         ProjectId = p.ProjectId,
                         ProjectName = p.Name,
                         Address = p.Address ?? "",
-                        Progress = progress
+                        Progress = progress,
+                        Status = p.Status.ToString().ToLower()
                     };
                 }).ToList()
         };

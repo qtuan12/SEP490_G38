@@ -11,9 +11,9 @@ import {
 import { userService } from '../../services/userService';
 import { projectService } from '../../services/projectService';
 import type {MaterialRequest} from '../../types/common';
+import { useNavigate } from 'react-router-dom';
 import { MaterialCompensationTable } from '../Dashboard/components/MaterialCompensationTable';
 import { RecentActivities } from '../Dashboard/components/RecentActivities';
-import { QuickActionsPanel } from '../Dashboard/components/QuickActionsPanel';
 import { DashboardStats } from '../Dashboard/components/DashboardStats';
 
 export const Dashboard: React.FC = () => {
@@ -23,6 +23,8 @@ export const Dashboard: React.FC = () => {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [warnings, setWarnings] = useState<import('../../types/common').DashboardWarningDto[]>([]);
   const [metrics, setMetrics] = useState<import('../../types/common').DashboardMetricsDto | null>(null);
+
+  const navigate = useNavigate();
 
   const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
   const isDirector = user?.role === 'director' || user?.role === 'admin';
@@ -38,8 +40,8 @@ export const Dashboard: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const list = await userService.getUsers();
-      setUserCount(list.length);
+      const result = await userService.getUsers();
+      setUserCount(result.totalCount);
     } catch (err) {
       console.error('Error fetching users for stats:', err);
     }
@@ -192,26 +194,33 @@ export const Dashboard: React.FC = () => {
       {/* Active Projects Progress Widget */}
       <div className="glass-panel p-6 animate-fade-in">
         <h3 className="text-[1.1rem] font-bold mb-4 flex items-center gap-2">
-          <Layers className="text-[hsl(var(--primary))]" /> Tiến độ dự án đang triển khai
+          <Layers className="text-[hsl(var(--primary))]" /> Tiến độ dự án (Đang chạy & Tạm dừng)
         </h3>
         {(!metrics?.activeProjectsProgress || metrics.activeProjectsProgress.length === 0) ? (
           <div className="text-[hsl(var(--text-muted))] text-center py-6 border border-dashed border-[hsl(var(--border))] rounded-md">
-            Hiện không có dự án nào đang chạy.
+            Hiện không có dự án nào đang chạy hoặc tạm dừng.
           </div>
         ) : (
-          <div className="max-h-[300px] overflow-y-auto pr-2 space-y-4">
-            {metrics.activeProjectsProgress.map((p) => (
-              <div key={p.projectId} className="flex flex-col gap-1.5 p-3 rounded-md border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] transition-colors bg-[hsl(var(--bg-main))]">
+          <div className="max-h-[280px] overflow-y-auto pr-2 space-y-4">
+            {[...metrics.activeProjectsProgress].sort((a, b) => b.projectId - a.projectId).map((p) => (
+              <div 
+                key={p.projectId} 
+                onClick={() => navigate(`/projects/${p.projectId}`)}
+                className={`flex flex-col gap-1.5 p-3 rounded-md border ${p.status === 'paused' ? 'border-yellow-200 hover:border-yellow-400 bg-yellow-50/30' : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))]'} transition-colors cursor-pointer hover:shadow-md`}
+              >
                 <div className="flex justify-between items-center text-sm">
-                  <span className="font-bold">{p.projectName}</span>
-                  <span className="font-semibold text-[hsl(var(--primary-hover))]">{p.progress}%</span>
+                  <span className="font-bold flex items-center gap-2">
+                    {p.projectName}
+                    {p.status === 'paused' && <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[0.7rem] rounded font-semibold uppercase tracking-wider">Tạm dừng</span>}
+                  </span>
+                  <span className={`font-semibold ${p.status === 'paused' ? 'text-yellow-600' : 'text-[hsl(var(--primary-hover))]'}`}>{p.progress}%</span>
                 </div>
                 <div className="text-xs text-[hsl(var(--text-muted))] flex items-center gap-1 mb-1">
                   <span className="truncate">{p.address}</span>
                 </div>
                 <div className="h-2 w-full bg-[hsl(var(--border))] rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-to-r from-[hsl(var(--primary-hover))] to-[hsl(var(--primary))] transition-all duration-500 ease-out" 
+                    className={`h-full transition-all duration-500 ease-out ${p.status === 'paused' ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' : 'bg-gradient-to-r from-[hsl(var(--primary-hover))] to-[hsl(var(--primary))]'}`} 
                     style={{ width: `${p.progress}%` }} 
                   />
                 </div>
@@ -226,21 +235,18 @@ export const Dashboard: React.FC = () => {
         {/* Recent Activities / site diary */}
         <RecentActivities activities={recentActivities} />
 
-        {/* Quick Actions Panel */}
-        <QuickActionsPanel userRole={user?.role} />
+        {/* Step 5: Material Compensation & Over BOQ verification workspace */}
+        <MaterialCompensationTable
+          materialRequests={materialRequests}
+          loadingRequests={loadingRequests}
+          isAccountant={isAccountant}
+          isDirector={isDirector}
+          handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
+          handleDisburseRequestByAccountant={handleDisburseRequestByAccountant}
+          handleApproveRequestByDirector={handleApproveRequestByDirector}
+          handleRejectRequest={handleRejectRequest}
+        />
       </div>
-
-      {/* Step 5: Material Compensation & Over BOQ verification workspace */}
-      <MaterialCompensationTable
-        materialRequests={materialRequests}
-        loadingRequests={loadingRequests}
-        isAccountant={isAccountant}
-        isDirector={isDirector}
-        handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
-        handleDisburseRequestByAccountant={handleDisburseRequestByAccountant}
-        handleApproveRequestByDirector={handleApproveRequestByDirector}
-        handleRejectRequest={handleRejectRequest}
-      />
     </div>
   );
 };

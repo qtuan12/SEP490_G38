@@ -6,15 +6,34 @@ import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { Button, Input, FormItem } from '../../../components/ui';
 import { projectService } from '../../../services/projectService';
+import { apiClient } from '../../../services/api';
 import { UploadCloud, FileText } from 'lucide-react';
 
 const schema = z.object({
   name: z.string().min(3, 'Tên dự án phải có ít nhất 3 ký tự'),
   address: z.string().min(5, 'Địa chỉ công trường phải có ít nhất 5 ký tự'),
-  startDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến bắt đầu'),
-  endDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến kết thúc'),
-  status: z.enum(['draft', 'active', 'paused', 'done']).default('draft'),
-  drawingName: z.string().optional()
+  startDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến bắt đầu').refine(dateStr => {
+    const start = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return start >= today;
+  }, { message: 'Ngày bắt đầu không được trong quá khứ' }),
+  endDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến kết thúc').refine(dateStr => {
+    const end = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return end >= today;
+  }, { message: 'Ngày kết thúc không được trong quá khứ' }),
+  status: z.enum(['draft', 'inprogress', 'paused', 'done']).default('draft'),
+  drawingNames: z.array(z.string()).max(5, 'Chỉ được chọn tối đa 5 file').default([])
+}).refine(data => {
+  if (!data.startDate || !data.endDate) return true;
+  const start = new Date(data.startDate);
+  const end = new Date(data.endDate);
+  return end > start;
+}, {
+  message: "Ngày kết thúc phải lớn hơn ngày bắt đầu",
+  path: ["endDate"]
 });
 
 type FormData = z.infer<typeof schema>;
@@ -27,37 +46,82 @@ interface CreateProjectModalProps {
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [dragging, setDragging] = useState(false);
+  const [filePreviews, setFilePreviews] = useState<{file: File, url: string | null}[]>([]);
+  const todayStr = new Date().toISOString().split('T')[0];
   
-  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, watch, reset } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, reset, watch } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       status: 'draft',
-      drawingName: ''
+      drawingNames: []
     }
   });
 
-  const drawingName = watch('drawingName');
+  const selectedStartDate = watch('startDate');
+
+  const minEndDate = React.useMemo(() => {
+    if (selectedStartDate) {
+      const start = new Date(selectedStartDate);
+      if (!isNaN(start.getTime())) {
+        start.setDate(start.getDate() + 1);
+        return start.toISOString().split('T')[0];
+      }
+    }
+    return todayStr;
+  }, [selectedStartDate, todayStr]);
+
+  React.useEffect(() => {
+    return () => {
+      filePreviews.forEach(p => {
+        if (p.url) URL.revokeObjectURL(p.url);
+      });
+    };
+  }, [filePreviews]);
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
+      let attachments: any[] = [];
+      let drawingUrls: string[] = data.drawingNames;
+
+      if (filePreviews.length > 0) {
+        const formData = new globalThis.FormData();
+        filePreviews.forEach(p => {
+          formData.append('files', p.file);
+        });
+        formData.append('folder', 'projects/design');
+        
+        try {
+          const uploadRes = await apiClient.postFormData<any>('/files/upload-multiple', formData);
+          if (uploadRes.success && uploadRes.data) {
+            attachments = uploadRes.data;
+            drawingUrls = uploadRes.data.map((f: any) => f.fileUrl);
+          }
+        } catch (error) {
+          console.error("Lỗi upload file:", error);
+          throw new Error("Lỗi upload file thiết kế");
+        }
+      }
+
       await projectService.createProject({
         name: data.name,
         address: data.address,
         startDate: data.startDate,
         endDate: data.endDate,
         status: data.status,
-        drawingUrl: data.drawingName || undefined
+        drawingUrls: drawingUrls,
+        attachments: attachments
       });
     },
     onSuccess: () => {
       onSuccess();
       reset();
+      setFilePreviews([]);
       onClose();
     }
   });
 
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+  const onSubmit = async (data: FormData) => {
+    await mutation.mutateAsync(data);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -73,13 +137,25 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
     e.preventDefault();
     setDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setValue('drawingName', e.dataTransfer.files[0].name);
+      const files = Array.from(e.dataTransfer.files).slice(0, 5);
+      const previews = files.map(f => ({
+          file: f,
+          url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null
+      }));
+      setFilePreviews(previews);
+      setValue('drawingNames', files.map(f => f.name), { shouldValidate: true });
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setValue('drawingName', e.target.files[0].name);
+      const files = Array.from(e.target.files).slice(0, 5);
+      const previews = files.map(f => ({
+          file: f,
+          url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null
+      }));
+      setFilePreviews(previews);
+      setValue('drawingNames', files.map(f => f.name), { shouldValidate: true });
     }
   };
 
@@ -107,10 +183,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormItem label="Ngày dự kiến bắt đầu" required error={errors.startDate?.message}>
-            <Input type="date" {...register('startDate')} error={!!errors.startDate} />
+            <Input type="date" min={todayStr} {...register('startDate')} error={!!errors.startDate} />
           </FormItem>
           <FormItem label="Ngày dự kiến kết thúc" required error={errors.endDate?.message}>
-            <Input type="date" {...register('endDate')} error={!!errors.endDate} />
+            <Input type="date" min={minEndDate} {...register('endDate')} error={!!errors.endDate} />
           </FormItem>
         </div>
 
@@ -120,7 +196,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
           </p>
         </div>
 
-        <FormItem label="Bản vẽ thiết kế tổng thể">
+        <FormItem label="Bản vẽ thiết kế tổng thể (Tối đa 5 file)" error={errors.drawingNames?.message}>
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -134,14 +210,32 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
               id="drawing-file-input"
               type="file"
               accept=".pdf,.png,.jpg,.jpeg"
+              multiple
               className="hidden"
               onChange={handleFileSelect}
             />
             <UploadCloud className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            {drawingName ? (
-              <div className="flex items-center justify-center gap-2 text-blue-600">
-                <FileText className="h-5 w-5" />
-                <strong className="text-sm">{drawingName}</strong>
+            
+            {filePreviews && filePreviews.length > 0 ? (
+              <div className="flex flex-wrap items-center justify-center gap-4 mt-4" onClick={(e) => e.stopPropagation()}>
+                {filePreviews.map((preview, idx) => (
+                  <div key={idx} className="flex flex-col items-center gap-1 group relative">
+                    {preview.url ? (
+                      <img 
+                        src={preview.url} 
+                        alt={preview.file.name} 
+                        className="w-16 h-16 object-cover rounded shadow-sm border border-gray-200" 
+                      />
+                    ) : (
+                      <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded shadow-sm border border-gray-200">
+                         <FileText className="h-8 w-8 text-blue-500" />
+                      </div>
+                    )}
+                    <span className="text-xs text-gray-600 truncate w-20 text-center" title={preview.file.name}>
+                      {preview.file.name}
+                    </span>
+                  </div>
+                ))}
               </div>
             ) : (
               <div>
@@ -149,7 +243,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                   Kéo thả file vào đây hoặc click để duyệt file
                 </p>
                 <span className="text-xs text-gray-500">
-                  Hỗ trợ PDF, PNG, JPG tối đa 20MB
+                  Hỗ trợ PDF, PNG, JPG tối đa 20MB (tối đa 5 file)
                 </span>
               </div>
             )}

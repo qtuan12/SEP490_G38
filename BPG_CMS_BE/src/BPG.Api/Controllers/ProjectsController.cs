@@ -69,7 +69,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}/pause")]
-    [Authorize(Roles = "TechnicalManager")]
+    [Authorize(Roles = "TechnicalManager, Director")]
     public async Task<IActionResult> PauseProject(long id, [FromBody] PauseProjectCommand command)
     {
         if (id != command.ProjectId) return ApiBadRequest("Id trong URL và Body không khớp.");
@@ -78,7 +78,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}/resume")]
-    [Authorize(Roles = "TechnicalManager")]
+    [Authorize(Roles = "TechnicalManager, Director")]
     public async Task<IActionResult> ResumeProject(long id)
     {
         await Mediator.Send(new ResumeProjectCommand { ProjectId = id });

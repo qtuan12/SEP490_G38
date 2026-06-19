@@ -330,21 +330,21 @@ tr:hover td {
 
 .timeline-node {
   position: absolute;
-  left: -32px;
-  top: 18px;
+  left: -26px;
+  top: 32px;
   width: 14px;
   height: 14px;
   border-radius: 50%;
   background-color: hsl(var(--border));
   border: 3px solid hsl(var(--bg-card));
   z-index: 1;
-  transform: translateX(-40%);
   box-shadow: var(--shadow-sm);
   transition: transform var(--transition-fast);
+  transform-origin: center;
 }
 
 .timeline-item:hover .timeline-node {
-  transform: translateX(-40%) scale(1.2);
+  transform: scale(1.2);
 }
 
 .timeline-node-success {
@@ -363,6 +363,8 @@ tr:hover td {
 }
 
 .timeline-date-header {
+  position: relative;
+  z-index: 10;
   font-size: 0.9rem;
   font-weight: 700;
   color: hsl(var(--text-secondary));

@@ -11,9 +11,13 @@ export interface Project {
   address: string;
   startDate: string;
   endDate: string;
-  status: 'draft' | 'active' | 'paused' | 'done';
-  drawingUrl?: string; // name or dummy data url of drawing design
+  status: 'draft' | 'inprogress' | 'paused' | 'done';
+  drawingUrl?: string; // legacy single drawing
+  drawingUrls?: string[]; // multiple drawings support
+  attachments?: AttachmentDto[]; // real attachments metadata
   progress: number; // overall progress % (derived or stored)
+  pauseReason?: string;
+  pausedAt?: string;
 }
 
 export interface ProjectMember {
@@ -21,6 +25,7 @@ export interface ProjectMember {
   userId: string;
   userName: string;
   userEmail: string;
+  userPhone?: string;
   userRole: string;
   isLeader: boolean; // crown icon 👑 if true
 }
@@ -97,7 +102,7 @@ export interface IncidentReport {
   estimatedDelayDays?: number;
   proposedAction?: string;
   reworkTaskId?: string;
-  
+
   // Custom fields for frontend
   date: string;
   images: string[];
@@ -219,6 +224,7 @@ export interface DashboardProjectProgressDto {
   projectName: string;
   address: string;
   progress: number;
+  status: string;
 }
 
 export interface DashboardMetricsDto {
@@ -256,8 +262,11 @@ export interface ProjectDto {
   status: string;
   plannedStart: string;
   plannedEnd: string;
+  progress: number;
   createdAt: string;
-  progress?: number;
+  pauseReason?: string;
+  pausedAt?: string;
+
 }
 
 export interface ProjectMemberDto {
@@ -266,6 +275,7 @@ export interface ProjectMemberDto {
   userId: number;
   fullName: string;
   email: string;
+  phoneNumber?: string;
   role: string;
   isLeader: boolean;
   joinedAt: string;
