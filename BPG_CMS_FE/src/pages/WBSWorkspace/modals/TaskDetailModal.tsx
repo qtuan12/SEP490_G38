@@ -389,7 +389,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <History size={13} />
               <span>Nhật ký thi công chi tiết (Click để xem)</span>
             </h5>
-            <div style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', pointerEvents: 'none' }}>
+            <div 
+              onClick={(e) => e.stopPropagation()} 
+              style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', cursor: 'default' }}
+            >
               <TaskProgressHistoryPanel taskId={selectedTask.id} limit={5} compact={true} />
             </div>
           </div>
