@@ -68,22 +68,26 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 
             if (leader != null)
             {
-                var isLeaderAssigned = parentTask.Assignees.Any(a => a.UserId == leader.UserId);
-                if (!isLeaderAssigned)
+                var originalAssignees = parentTask.Assignees.ToList();
+                if (originalAssignees.Any())
                 {
-                    parentTask.Assignees.Add(new TaskAssignee
-                    {
-                        UserId = leader.UserId,
-                        AssignedAt = DateTime.UtcNow
-                    });
-
-                    if (parentTask.Status == BPG.Domain.Constants.TaskStatus.New)
-                    {
-                        parentTask.Status = BPG.Domain.Constants.TaskStatus.Assigned;
-                    }
-
-                    _unitOfWork.Repository<ProjectTask>().Update(parentTask);
+                    _unitOfWork.Repository<TaskAssignee>().RemoveRange(originalAssignees);
+                    parentTask.Assignees.Clear();
                 }
+
+                parentTask.Assignees.Add(new TaskAssignee
+                {
+                    TaskId = parentTask.TaskId,
+                    UserId = leader.UserId,
+                    AssignedAt = DateTime.UtcNow
+                });
+
+                if (parentTask.Status == BPG.Domain.Constants.TaskStatus.New)
+                {
+                    parentTask.Status = BPG.Domain.Constants.TaskStatus.Assigned;
+                }
+
+                _unitOfWork.Repository<ProjectTask>().Update(parentTask);
             }
         }
 
