@@ -45,7 +45,7 @@ export const PhaseAcceptance: React.FC = () => {
 
   const canRevoke = isViewingHistory ? !historicalAcceptance?.isCancelled : isSubmitted;
 
-  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const isTPKT = user?.role === 'technicalmanager';
 
   const loadData = async () => {
     if (!projectId || !phaseId) return;
@@ -220,7 +220,7 @@ export const PhaseAcceptance: React.FC = () => {
       <AcceptanceTasksChecklist tasks={tasks} allCompleted={allCompleted} />
 
       {/* Evaluation Form or History Detail */}
-      {(isTPKT || isViewingHistory) ? (
+      {(isTPKT || isViewingHistory || isSubmitted) ? (
         <div className="card flex flex-col gap-5 bg-[hsl(var(--bg-card))]">
           
           {isViewingHistory && historicalAcceptance && (
@@ -270,7 +270,7 @@ export const PhaseAcceptance: React.FC = () => {
                   <span>Tải File Báo Cáo Nghiệm Thu</span>
                 </Button>
 
-                {canRevoke && !isRevoking ? (
+                {canRevoke && !isRevoking && isTPKT ? (
                   <button 
                     type="button" 
                     onClick={() => setIsRevoking(true)}
@@ -279,7 +279,7 @@ export const PhaseAcceptance: React.FC = () => {
                     <AlertTriangle size={15} />
                     Yêu cầu Hủy Nghiệm Thu
                   </button>
-                ) : canRevoke && isRevoking ? (
+                ) : canRevoke && isRevoking && isTPKT ? (
                   <div className="w-full mt-3 p-4 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm">
                     <label htmlFor="revoke-reason" className="text-[hsl(var(--danger))] font-semibold block mb-2">
                       Lý do hủy nghiệm thu (Tối thiểu 20 ký tự) <span className="text-[hsl(var(--danger))]">*</span>

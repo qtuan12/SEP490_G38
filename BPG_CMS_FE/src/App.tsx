@@ -170,7 +170,7 @@ function App() {
               <Route 
                 path="/units" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager']}>
+                  <ProtectedRoute allowedRoles={['admin']}>
                     <UnitManagement />
                   </ProtectedRoute>
                 } 
@@ -179,7 +179,7 @@ function App() {
               <Route 
                 path="/categories" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager']}>
+                  <ProtectedRoute allowedRoles={['admin']}>
                     <CategoryManagement />
                   </ProtectedRoute>
                 } 
@@ -188,7 +188,7 @@ function App() {
               <Route 
                 path="/materials" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin']}>
                     <MaterialManagement />
                   </ProtectedRoute>
                 } 

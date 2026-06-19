@@ -200,13 +200,11 @@ export const CategoryManagement: React.FC = () => {
           />
 
           {data && data.totalCount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-              <Pagination
-                currentPage={page}
-                totalPages={data.totalPages}
-                onPageChange={(p) => setPage(p)}
-              />
-            </div>
+            <Pagination
+              currentPage={page}
+              totalPages={data.totalPages}
+              onPageChange={(p) => setPage(p)}
+            />
           )}
         </div>
       )}

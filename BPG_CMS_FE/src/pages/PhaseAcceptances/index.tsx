@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Eye, ArrowLeft } from 'lucide-react';
 import { Button, Input, DataTable, Badge } from '../../components/ui';
 import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
+import { useAuth } from '../../context/AuthContext';
 
 export const PhaseAcceptances: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -29,8 +30,10 @@ export const PhaseAcceptances: React.FC = () => {
     })
   });
 
+  const { user } = useAuth();
+
   const hasActiveAcceptance = data?.items?.some((item: any) => !item.isCancelled);
-  const canCreate = searchProjectId && searchPhaseId && !hasActiveAcceptance;
+  const canCreate = searchProjectId && searchPhaseId && !hasActiveAcceptance && user?.role === 'technicalmanager';
 
   const columns = [
     { key: 'acceptanceId', header: 'ID' },
@@ -104,14 +107,16 @@ export const PhaseAcceptances: React.FC = () => {
           <h1 className="text-2xl font-bold text-[hsl(var(--text-primary))]">Danh sách Nghiệm thu Giai đoạn</h1>
           <p className="text-[hsl(var(--text-secondary))] mt-1">Quản lý các biên bản nghiệm thu đã lập</p>
         </div>
-        <Button 
-          variant="primary" 
-          disabled={!canCreate}
-          onClick={() => navigate(`/projects/${searchProjectId}/phases/${searchPhaseId}/acceptance`)}
-          title={!searchProjectId || !searchPhaseId ? 'Vui lòng nhập ID Dự án và ID Giai đoạn để lọc' : hasActiveAcceptance ? 'Phải hủy biên bản hiện hành mới được tạo mới' : ''}
-        >
-          Tạo biên bản nghiệm thu
-        </Button>
+        {user?.role === 'technicalmanager' && (
+          <Button 
+            variant="primary" 
+            disabled={!canCreate}
+            onClick={() => navigate(`/projects/${searchProjectId}/phases/${searchPhaseId}/acceptance`)}
+            title={!searchProjectId || !searchPhaseId ? 'Vui lòng nhập ID Dự án và ID Giai đoạn để lọc' : hasActiveAcceptance ? 'Phải hủy biên bản hiện hành mới được tạo mới' : ''}
+          >
+            Tạo biên bản nghiệm thu
+          </Button>
+        )}
       </div>
 
       <div className="bg-[hsl(var(--bg-surface))] p-4 rounded-xl border border-[hsl(var(--border-light))] shadow-sm flex gap-4 items-end">
