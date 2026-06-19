@@ -5,6 +5,7 @@ import type {Project} from '../types/common';
 import { ProjectMembers } from '../components/ProjectMembers';
 import { WBSWorkspace } from './WBSWorkspace';
 import { DailyLogFeed } from '../components/DailyLogFeed';
+import { EditProjectModal } from './ProjectList/modals/EditProjectModal';
 
 import { 
   ArrowLeft, 
@@ -13,25 +14,30 @@ import {
   MapPin, 
   Calendar,
   Loader2,
-  AlertCircle,
-  Play,
   Pause,
   CheckCircle,
-  Clock
+  Clock,
+  Edit3,
+  FileText,
+  AlertCircle,
+  Play
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   
   const { user } = useAuth();
+  const { connection } = useNotification();
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs'>('wbs');
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const fetchProjectDetails = async () => {
     if (!projectId) return;
@@ -50,35 +56,46 @@ export const ProjectLayoutHub: React.FC = () => {
     fetchProjectDetails();
   }, [projectId]);
 
+  useEffect(() => {
+    if (!connection || !projectId) return;
+
+    const handleWbsUpdated = () => {
+      console.log('ProjectLayoutHub received WbsTreeUpdated, reloading project details for progress...');
+      fetchProjectDetails();
+    };
+
+    connection.on('WbsTreeUpdated', handleWbsUpdated);
+
+    return () => {
+      connection.off('WbsTreeUpdated', handleWbsUpdated);
+    };
+  }, [connection, projectId]);
+
   // Handle reload when tabs perform updates
   // const handleTabUpdate = () => {
   //   fetchProjectDetails();
   // };
 
-  const handleStatusChange = async (newStatus: 'active' | 'paused' | 'done') => {
+  const handleStatusChange = async (newStatus: 'inprogress' | 'paused' | 'done') => {
     if (!project) return;
     setStatusError(null);
     try {
-      if (newStatus === 'active') {
-        const tasks = await projectService.getTasks(project.id);
-        const validTasks = tasks.filter(t => t.status !== 'obsolete');
-        if (validTasks.length === 0) {
-          throw new Error('Dự án phải có ít nhất 1 công việc (task) hợp lệ để Kích hoạt.');
+      if (newStatus === 'inprogress') {
+        if (project.status === 'paused') {
+          await projectService.resumeProject(project.id);
+        } else {
+          await projectService.activateProject(project.id);
         }
-        
-        // deadline task >= project startDate
-        const projStartDate = new Date(project.startDate);
-        for (const t of validTasks) {
-          if (new Date(t.deadline) < projStartDate) {
-             throw new Error(`Công việc "${t.name}" có hạn hoàn thành (${t.deadline}) trước ngày bắt đầu dự án (${project.startDate}). Vui lòng điều chỉnh.`);
-          }
-        }
+      } else if (newStatus === 'paused') {
+        const reason = window.prompt("Nhập lý do tạm dừng dự án:", "");
+        if (reason === null) return; // user cancelled
+        await projectService.pauseProject(project.id, reason || "Tạm dừng dự án");
+      } else {
+        await projectService.updateProject(project.id, { status: newStatus });
       }
-
-      await projectService.updateProject(project.id, { status: newStatus });
       fetchProjectDetails(); // reload
     } catch (err: any) {
-      setStatusError(err.message);
+      setStatusError(err.message || 'Có lỗi xảy ra khi đổi trạng thái');
     }
   };
 
@@ -131,7 +148,7 @@ export const ProjectLayoutHub: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{project.name}</h1>
               {project.status === 'draft' && <span className="badge" style={{ backgroundColor: 'hsl(var(--text-muted))', color: 'white' }}>Bản nháp (Draft)</span>}
-              {project.status === 'active' && <span className="badge badge-primary">Đang triển khai (Active)</span>}
+              {project.status === 'inprogress' && <span className="badge badge-primary">Đang triển khai (Inprogress)</span>}
               {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng (Paused)</span>}
               {project.status === 'done' && <span className="badge badge-success">Hoàn thành (Done)</span>}
             </div>
@@ -143,20 +160,41 @@ export const ProjectLayoutHub: React.FC = () => {
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Calendar size={14} style={{ color: 'hsl(var(--text-muted))' }} />
-                Hạn: {project.startDate} ~ {project.endDate}
+                Hạn: {project.startDate?.split('-').reverse().join('-')} → {project.endDate?.split('-').reverse().join('-')}
               </span>
+              {project.drawingUrl && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'hsl(var(--primary-hover))' }}>
+                  <FileText size={14} />
+                  Bản vẽ thiết kế: {project.drawingUrl}
+                </span>
+              )}
             </div>
+            
+            {project.status === 'paused' && project.pauseReason && (
+              <div style={{ marginTop: '12px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', borderLeft: '4px solid hsl(var(--warning))', color: 'hsl(var(--warning))', fontSize: '0.9rem', borderRadius: '4px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
+                <div>
+                  <strong>Lý do tạm dừng:</strong> {project.pauseReason}
+                  {project.pausedAt && <span style={{ marginLeft: '8px', fontSize: '0.85em', opacity: 0.8 }}>(Thời gian: {new Date(project.pausedAt).toLocaleString('vi-VN')})</span>}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Project Status Actions for TPKT */}
           {isTPKT && (
             <div style={{ display: 'flex', gap: '8px' }}>
+              {project.status !== 'done' && (
+                <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Edit3 size={16} /> Sửa
+                </button>
+              )}
               {project.status === 'draft' && (
-                <button onClick={() => handleStatusChange('active')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Play size={16} /> Kích hoạt Dự án
                 </button>
               )}
-              {project.status === 'active' && (
+              {project.status === 'inprogress' && (
                 <>
                   <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
                     <Pause size={16} /> Tạm dừng
@@ -167,7 +205,7 @@ export const ProjectLayoutHub: React.FC = () => {
                 </>
               )}
               {project.status === 'paused' && (
-                <button onClick={() => handleStatusChange('active')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Play size={16} /> Tiếp tục Dự án
                 </button>
               )}
@@ -309,6 +347,12 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
       </div>
 
+      <EditProjectModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        project={project}
+        onSuccess={fetchProjectDetails}
+      />
     </div>
   );
 };

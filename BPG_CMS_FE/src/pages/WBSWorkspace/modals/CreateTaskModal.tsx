@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-import {projectService} from '../../../../src/services/projectService';
+import { wbsService } from '../../../../src/services/wbsService';
 import type {ProjectMember} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
@@ -25,10 +25,10 @@ type CreateTaskForm = z.infer<typeof createTaskSchema>;
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  projectId: string;
   phaseId: string;
   parentTaskId?: string;
   parentDeadline?: string;
+  maxTaskOrder: number;
   members: ProjectMember[];
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
@@ -37,10 +37,10 @@ interface CreateTaskModalProps {
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   isOpen,
   onClose,
-  projectId,
   phaseId,
   parentTaskId,
   parentDeadline,
+  maxTaskOrder,
   members,
   onSuccess
 }) => {
@@ -61,7 +61,12 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     }
   }, [isOpen, reset]);
 
-  const engineers = members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'Nhân viên kỹ thuật');
+  const engineers = members.filter(m => 
+    m.userRole === 'Site Engineer' || 
+    m.userRole === 'SiteEngineer' || 
+    m.userRole.toLowerCase() === 'siteengineer' || 
+    m.userRole === 'Nhân viên kỹ thuật'
+  );
 
   const mutation = useMutation({
     mutationFn: async (data: CreateTaskForm) => {
@@ -69,23 +74,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         throw new Error(`Hạn chót không được vượt quá deadline của cấp cha (${parentDeadline}).`);
       }
 
-      let assignedName = '';
-      if (data.assignedTo) {
-        const eng = engineers.find(e => e.userId === data.assignedTo);
-        if (eng) assignedName = eng.userName;
-      }
-
-      return projectService.createTask({
-        phaseId,
-        projectId,
-        parentTaskId,
-        name: data.name,
-        description: data.description || '',
+      return wbsService.createTask(parseInt(phaseId.replace('ph-', '')), {
+        phaseId: parseInt(phaseId.replace('ph-', '')),
+        parentTaskId: parentTaskId ? parseInt(parentTaskId.replace('t-', '')) : null,
+        name: data.name.trim(),
+        description: data.description || null,
+        orderIndex: maxTaskOrder,
         startDate: data.startDate,
-        deadline: data.deadline,
-        assignedTo: data.assignedTo || '',
-        assignedName,
-        sortOrder: 0
+        endDate: data.deadline,
+        assigneeIds: data.assignedTo ? [parseInt(data.assignedTo)] : []
       });
     },
     onSuccess: (_, variables) => {
@@ -105,7 +102,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={parentTaskId ? "Thêm Công việc con (Sub-Task)" : "Thêm Công việc mới"}>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto p-1">
         <div>
           <label className="block text-sm font-medium mb-1.5 text-slate-600">
             Tên công việc <span className="text-red-500">*</span>
@@ -151,14 +148,16 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1.5 text-slate-600">Giao cho Kỹ sư hiện trường (Tùy chọn)</label>
+          <label className="block text-sm font-medium mb-1.5 text-slate-600">Giao cho Nhân viên kỹ thuật (Tùy chọn)</label>
           <select 
             {...register('assignedTo')} 
-            className="w-full text-sm px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            className="w-full text-sm px-3 py-2 rounded-md border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-blue-500"
           >
-            <option value="">-- Để trống nếu chưa giao --</option>
+            <option value="">-- Chưa phân công --</option>
             {engineers.map(e => (
-              <option key={e.userId} value={e.userId}>{e.userName}</option>
+              <option key={e.userId} value={e.userId}>
+                {e.userName} ({e.isLeader ? 'Trưởng dự án' : 'Nhân viên kỹ thuật'})
+              </option>
             ))}
           </select>
         </div>

@@ -8,7 +8,11 @@ import {
   Hammer, 
   Boxes, 
   Menu, 
-  FileText
+  FileText,
+  Truck,
+  Ruler,
+  Tags,
+  Package
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
 import type { BadgeVariant } from '../ui';
@@ -29,7 +33,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
+    { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, roles: ['admin'] },
     { name: 'Dự án (WBS)', path: '/projects', icon: <Hammer size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director'] },
+    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin', 'technicalmanager'] },
+    { name: 'Danh mục Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin', 'technicalmanager'] },
+    { name: 'Kho Vật tư (Catalog)', path: '/materials', icon: <Package size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Kiểm soát Vật tư', path: '#materials', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'], disabled: true },
     { name: 'Báo cáo', path: '#reports', icon: <FileText size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'], disabled: true },
   ];
@@ -41,7 +49,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       case 'admin': return 'Admin';
       case 'technicalmanager': return 'TP Kỹ Thuật';
       case 'projectleader': return 'Trưởng Dự án';
-      case 'siteengineer': return 'Kỹ Sư Hiện Trường';
+      case 'siteengineer': return 'Nhân viên kỹ thuật';
       case 'accountant': return 'accountant';
       case 'director': return 'director';
       default: return role;
@@ -171,6 +179,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               <h2 className="text-xl font-semibold">
                 {location.pathname === '/dashboard' ? 'Bảng điều khiển' : 
                  location.pathname === '/users' ? 'Quản lý Thành viên' : 
+                 location.pathname === '/suppliers' ? 'Quản lý Nhà cung cấp' : 
+                 location.pathname === '/units' ? 'Quản lý Đơn vị tính' : 
+                 location.pathname === '/categories' ? 'Danh mục Vật tư' : 
+                 location.pathname === '/materials' ? 'Kho Vật tư (Catalog)' : 
                  location.pathname === '/projects' ? 'Danh sách Dự án WBS' : 
                  location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
                  location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}

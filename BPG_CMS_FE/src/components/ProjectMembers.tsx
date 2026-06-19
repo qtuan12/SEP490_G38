@@ -21,7 +21,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
 
   // Modal State
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
@@ -33,17 +34,13 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       setMembers(projMembers);
 
       // Load all system users
-      const allUsers = await userService.getUsers();
+      const usersResponse = await userService.getUsers({ pageSize: 1000 });
+      const allUsers = usersResponse.items;
       // Filter out those who are not engineers or are already members of this project
       const engineers = allUsers.filter(u =>
-        u.role === 'siteengineer' && !projMembers.some(m => m.userId === u.id)
+        u.role?.toLowerCase() === 'siteengineer' && !projMembers.some(m => m.userId === u.id)
       );
       setAvailableEngineers(engineers);
-      if (engineers.length > 0) {
-        setSelectedUserId(engineers[0].id);
-      } else {
-        setSelectedUserId('');
-      }
     } catch (err: any) {
       setError(err.message || 'Không thể tải thành viên dự án.');
     } finally {
@@ -55,28 +52,38 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     loadData();
   }, [projectId]);
 
+  const openAddModal = () => {
+    setSelectedUserIds([]);
+    setSearchQuery('');
+    setIsAddOpen(true);
+  };
+
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUserId) return;
+    if (selectedUserIds.length === 0) return;
 
     try {
-      const allUsers = await userService.getUsers();
-      const targetUser = allUsers.find(u => u.id === selectedUserId);
-      if (!targetUser) throw new Error('Không tìm thấy người dùng.');
+      const usersResponse = await userService.getUsers({ pageSize: 1000 });
+      const allUsers = usersResponse.items;
+      
+      await Promise.all(selectedUserIds.map(id => {
+        const targetUser = allUsers.find(u => u.id === id);
+        if (targetUser) {
+          return projectService.addMember(projectId, {
+            id: targetUser.id,
+            name: targetUser.name,
+            email: targetUser.email,
+            role: targetUser.role
+          });
+        }
+      }));
 
-      await projectService.addMember(projectId, {
-        id: targetUser.id,
-        name: targetUser.name,
-        email: targetUser.email,
-        role: targetUser.role
-      });
-
-      setSuccess(`Đã thêm kỹ sư ${targetUser.name} vào dự án.`);
+      setSuccess(`Đã thêm ${selectedUserIds.length} kỹ sư vào dự án.`);
       setIsAddOpen(false);
       setTimeout(() => setSuccess(null), 3000);
       loadData();
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi gán thành viên.');
+      setError(err.message || 'Lỗi khi gán thành viên. Có thể một số thành viên đã tồn tại.');
     }
   };
 
@@ -154,7 +161,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
           </p>
         </div>
         {isTPKT && (
-          <button onClick={() => setIsAddOpen(true)} className="btn btn-primary" style={{ padding: '8px 12px', fontSize: '0.85rem' }}>
+          <button onClick={openAddModal} className="btn btn-primary" style={{ padding: '8px 12px', fontSize: '0.85rem' }}>
             <UserPlus size={16} />
             <span>Thêm kỹ sư</span>
           </button>
@@ -291,39 +298,72 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         )}
       </div>
 
-      {/* ADD MEMBER MODAL */}
       <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Thêm Kỹ sư vào Dự án">
-        <form onSubmit={handleAddMember} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleAddMember} className="flex flex-col gap-3 sm:gap-4">
           <div>
-            <label htmlFor="select-engineer">Chọn Kỹ sư từ Hệ thống</label>
-            {availableEngineers.length > 0 ? (
-              <select
-                id="select-engineer"
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                style={{ height: '40px' }}
-              >
-                {availableEngineers.map((eng) => (
-                  <option key={eng.id} value={eng.id}>
-                    {eng.name} ({eng.email})
-                  </option>
-                ))}
-              </select>
+            <div className="flex justify-between items-center mb-2">
+              <label className="font-medium text-sm sm:text-base">Chọn Kỹ sư từ Hệ thống</label>
+              {selectedUserIds.length > 0 && (
+                <span className="text-xs sm:text-sm font-semibold text-[hsl(var(--primary))]">
+                  Đã chọn {selectedUserIds.length}
+                </span>
+              )}
+            </div>
+            <input 
+              type="text" 
+              placeholder="Tìm kiếm tên hoặc email..." 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="input w-full mb-2 p-2 sm:p-2.5 text-sm sm:text-base rounded-[var(--radius-sm)] border border-[hsl(var(--border))]"
+            />
+            <div className="max-h-[45vh] sm:max-h-[300px] overflow-y-auto border border-[hsl(var(--border))] rounded-[var(--radius-sm)] bg-[hsl(var(--bg-card))]">
+            {availableEngineers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
+              availableEngineers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).map((eng) => (
+                <label 
+                  key={eng.id} 
+                  className="flex items-center gap-3 p-3 border-b border-[hsl(var(--border)/0.5)] cursor-pointer transition-colors hover:bg-[hsl(var(--primary-glow)/0.05)]"
+                  style={{ backgroundColor: selectedUserIds.includes(eng.id) ? 'hsl(var(--primary-glow) / 0.1)' : 'transparent' }}
+                >
+                  <input 
+                    type="checkbox" 
+                    checked={selectedUserIds.includes(eng.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedUserIds([...selectedUserIds, eng.id]);
+                      } else {
+                        setSelectedUserIds(selectedUserIds.filter(id => id !== eng.id));
+                      }
+                    }}
+                    className="w-4 h-4 sm:w-[18px] sm:h-[18px] cursor-pointer accent-[hsl(var(--primary))]"
+                  />
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 overflow-hidden">
+                    <div className="w-8 h-8 rounded-full bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))] flex items-center justify-center font-semibold text-xs sm:text-sm shrink-0">
+                      {eng.name.charAt(0)}
+                    </div>
+                    <div className="overflow-hidden">
+                      <div className="font-semibold text-sm sm:text-[0.9rem] truncate" style={{ color: selectedUserIds.includes(eng.id) ? 'hsl(var(--primary))' : 'inherit' }}>{eng.name}</div>
+                      <div className="text-xs sm:text-[0.75rem] text-[hsl(var(--text-muted))] truncate">{eng.email}</div>
+                    </div>
+                  </div>
+                </label>
+              ))
             ) : (
-              <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', color: 'hsl(var(--text-muted))', fontSize: '0.85rem' }}>
-                Không còn kỹ sư trống nào trong hệ thống để gán.
+              <div style={{ padding: '20px', color: 'hsl(var(--text-muted))', fontSize: '0.85rem', textAlign: 'center' }}>
+                Không tìm thấy kỹ sư nào phù hợp.
               </div>
             )}
+            </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
-            <button type="button" className="btn btn-secondary" onClick={() => setIsAddOpen(false)}>Hủy</button>
+          <div className="flex justify-end gap-2 sm:gap-3 mt-1 sm:mt-2">
+            <button type="button" className="btn btn-secondary px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base flex-1 sm:flex-none" onClick={() => setIsAddOpen(false)}>Hủy</button>
             <button 
               type="submit" 
-              className="btn btn-primary"
-              disabled={availableEngineers.length === 0}
+              className="btn btn-primary px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base flex-[2] sm:flex-none"
+              disabled={selectedUserIds.length === 0}
             >
-              Gán vào dự án
+              <UserPlus size={16} className="mr-1.5 sm:mr-2" />
+              Gán ({selectedUserIds.length})
             </button>
           </div>
         </form>

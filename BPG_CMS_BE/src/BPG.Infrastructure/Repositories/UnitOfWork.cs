@@ -1,5 +1,6 @@
 using BPG.Application.IRepositories;
 using BPG.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace BPG.Infrastructure.Repositories;
@@ -26,6 +27,9 @@ public class UnitOfWork : IUnitOfWork
 
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
         => await _context.SaveChangesAsync(ct);
+
+    public async Task ExecuteSqlAsync(FormattableString sql, CancellationToken ct = default)
+        => await _context.Database.ExecuteSqlAsync(sql, ct);
 
     public async Task BeginTransactionAsync(CancellationToken ct = default)
         => _transaction = await _context.Database.BeginTransactionAsync(ct);

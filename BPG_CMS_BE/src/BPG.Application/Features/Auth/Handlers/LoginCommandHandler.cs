@@ -1,4 +1,3 @@
-using AutoMapper;
 using BPG.Application.DTOs.Auth;
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
@@ -12,20 +11,19 @@ namespace BPG.Application.Features.Auth.Handlers
 {
     public class LoginCommandHandler : IRequestHandler<LoginCommand, LoginResponse>
     {
+        private const int MaxFailedAttempts = 5;
+        private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
         private readonly IUnitOfWork _uow;
         private readonly IJwtService _jwtService;
-        private readonly IMapper _mapper;
 
-        public LoginCommandHandler(IUnitOfWork uow, IJwtService jwtService, IMapper mapper)
+        public LoginCommandHandler(IUnitOfWork uow, IJwtService jwtService)
         {
             _uow = uow;
             _jwtService = jwtService;
-            _mapper = mapper;
         }
 
-        public async Task<LoginResponse> Handle(
-            LoginCommand request,
-            CancellationToken cancellationToken)
+        public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
         {
             var user = await _uow.Repository<User>().Query()
                 .Include(u => u.UserRoles)
@@ -33,19 +31,47 @@ namespace BPG.Application.Features.Auth.Handlers
                 .FirstOrDefaultAsync(x => x.Email == request.Email && !x.IsDeleted, cancellationToken);
 
             if (user == null || !user.IsActive)
-            {
                 throw new UnauthorizedException("Email hoặc mật khẩu không chính xác.");
+
+            if (user.LockedUntil.HasValue && user.LockedUntil > DateTime.UtcNow)
+            {
+                var remaining = user.LockedUntil.Value - DateTime.UtcNow;
+                var mins = (int)remaining.TotalMinutes;
+                var secs = remaining.Seconds;
+                throw new UnauthorizedException($"Tài khoản đang bị khóa. Vui lòng thử lại sau {mins} phút {secs} giây.");
             }
 
-            var isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
-            if (!isPasswordValid)
+            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
-                throw new UnauthorizedException("Email hoặc mật khẩu không chính xác.");
+                user.FailedLoginCount++;
+
+                if (user.FailedLoginCount >= MaxFailedAttempts)
+                {
+                    user.LockedUntil = DateTime.UtcNow.Add(LockoutDuration);
+                    user.FailedLoginCount = 0;
+                    await _uow.SaveChangesAsync(cancellationToken);
+                    throw new UnauthorizedException($"Tài khoản đã bị khóa {(int)LockoutDuration.TotalMinutes} phút do nhập sai mật khẩu quá {MaxFailedAttempts} lần.");
+                }
+
+                await _uow.SaveChangesAsync(cancellationToken);
+                var attemptsLeft = MaxFailedAttempts - user.FailedLoginCount;
+                throw new UnauthorizedException($"Email hoặc mật khẩu không chính xác. (Còn {attemptsLeft} lần thử)");
             }
 
-            var response = _mapper.Map<LoginResponse>(user);
-            response.AccessToken = _jwtService.GenerateToken(user);
-            return response;
+            user.FailedLoginCount = 0;
+            user.LockedUntil = null;
+            user.LastLoginAt = DateTime.UtcNow;
+            await _uow.SaveChangesAsync(cancellationToken);
+
+            var role = user.UserRoles.FirstOrDefault()?.Role;
+            return new LoginResponse
+            {
+                UserId = user.UserId,
+                FullName = user.FullName,
+                Email = user.Email,
+                Role = role?.RoleName ?? string.Empty,
+                AccessToken = _jwtService.GenerateToken(user)
+            };
         }
     }
 }

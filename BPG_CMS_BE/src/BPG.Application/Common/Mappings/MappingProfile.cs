@@ -14,11 +14,11 @@ namespace BPG.Application.Common.Mappings
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.UserId.ToString()))
                 .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.FullName))
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email))
-                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => 
+                .ForMember(dest => dest.Role, opt => opt.MapFrom(src =>
                     src.UserRoles != null && src.UserRoles.Any() && src.UserRoles.FirstOrDefault()!.Role != null
-                        ? src.UserRoles.FirstOrDefault()!.Role!.RoleName 
+                        ? src.UserRoles.FirstOrDefault()!.Role!.RoleName.ToLower()
                         : string.Empty))
-                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.IsActive ? "Active" : "Inactive"));
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => UserDto.GetStatus(src)));
 
             // Mapping từ User entity sang LoginResponse
             CreateMap<User, BPG.Application.DTOs.Auth.LoginResponse>()
@@ -58,6 +58,36 @@ namespace BPG.Application.Common.Mappings
 
             // Mapping cho TaskProgressLog
             CreateMap<TaskProgressLog, BPG.Application.DTOs.DailyLogs.TaskProgressLogDto>();
+
+            // Mapping cho Supplier
+            CreateMap<Supplier, BPG.Application.DTOs.Suppliers.SupplierDto>().ReverseMap();
+            // Mapping cho MaterialCategory
+            CreateMap<MaterialCategory, BPG.Application.Features.MaterialCategories.DTOs.MaterialCategoryDto>().ReverseMap();
+
+            // Mapping cho MaterialCatalog
+            CreateMap<MaterialCatalog, BPG.Application.Features.MaterialCatalogs.DTOs.MaterialCatalogDto>()
+                .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.CategoryName : string.Empty))
+                .ForMember(dest => dest.BaseUnitName, opt => opt.MapFrom(src => src.BaseUnit != null ? src.BaseUnit.UnitName : string.Empty));
+
+            // Mapping cho Projects
+            CreateMap<Project, BPG.Application.Features.Projects.DTOs.ProjectDto>()
+                .ForMember(dest => dest.DrawingUrl, opt => opt.MapFrom(src => string.Empty))
+                .ForMember(dest => dest.Progress, opt => opt.MapFrom(src => 0));
+
+            CreateMap<Project, BPG.Application.Features.Projects.DTOs.ProjectDetailDto>()
+                .ForMember(dest => dest.DrawingUrl, opt => opt.MapFrom(src => string.Empty))
+                .ForMember(dest => dest.Progress, opt => opt.MapFrom(src => 0))
+                .ForMember(dest => dest.Members, opt => opt.MapFrom(src => src.Members));
+
+            CreateMap<ProjectMember, BPG.Application.Features.Projects.DTOs.ProjectMemberDto>()
+                .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.User != null ? src.User.FullName : string.Empty))
+                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.User != null ? src.User.Email : string.Empty))
+                .ForMember(dest => dest.Role, opt => opt.MapFrom(src => 
+                    src.User != null && src.User.UserRoles != null && src.User.UserRoles.Any() && src.User.UserRoles.FirstOrDefault()!.Role != null
+                        ? src.User.UserRoles.FirstOrDefault()!.Role!.RoleName 
+                        : string.Empty));
+
+            CreateMap<Attachment, BPG.Application.Features.Projects.DTOs.AttachmentDto>();
         }
     }
 }

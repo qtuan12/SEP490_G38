@@ -15,7 +15,8 @@ import {
   FileText,
   Loader2,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Trash2
 } from 'lucide-react';
 
 export const ProjectList: React.FC = () => {
@@ -32,6 +33,10 @@ export const ProjectList: React.FC = () => {
   // Form Drawer Modal state
   const [isOpen, setIsOpen] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
   const loadProjects = async () => {
     setLoading(true);
     setError(null);
@@ -45,9 +50,30 @@ export const ProjectList: React.FC = () => {
     }
   };
 
+  const handleDeleteProject = async (e: React.MouseEvent, id: string, name: string) => {
+    e.stopPropagation();
+    if (window.confirm(`Bạn có chắc chắn muốn xóa dự án bản nháp "${name}" không? Hành động này không thể hoàn tác.`)) {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+      try {
+        await projectService.deleteProject(id);
+        setSuccess('Đã xóa dự án thành công.');
+        loadProjects();
+      } catch (err: any) {
+        setError(err.message || 'Lỗi khi xóa dự án.');
+        setLoading(false);
+      }
+    }
+  };
+
   useEffect(() => {
     loadProjects();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   // Filter projects
   const filteredProjects = projects.filter(p => {
@@ -57,10 +83,13 @@ export const ProjectList: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+  const paginatedProjects = filteredProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const getStatusLabel = (status: Project['status']) => {
     switch (status) {
       case 'draft': return 'Bản nháp';
-      case 'active': return 'Đang chạy';
+      case 'inprogress': return 'Đang chạy';
       case 'paused': return 'Tạm dừng';
       case 'done': return 'Hoàn thành';
       default: return status;
@@ -70,7 +99,7 @@ export const ProjectList: React.FC = () => {
   const getStatusBadgeVariant = (status: Project['status']): BadgeVariant => {
     switch (status) {
       case 'draft': return 'default';
-      case 'active': return 'success';
+      case 'inprogress': return 'success';
       case 'paused': return 'warning';
       case 'done': return 'default'; // primary is not standard BadgeVariant, using default
       default: return 'default';
@@ -116,7 +145,7 @@ export const ProjectList: React.FC = () => {
             options={[
               { label: 'Tất cả Trạng thái', value: '' },
               { label: 'Bản nháp (Draft)', value: 'draft' },
-              { label: 'Đang hoạt động (Active)', value: 'active' },
+              { label: 'Đang hoạt động (Inprogress)', value: 'inprogress' },
               { label: 'Tạm dừng (Paused)', value: 'paused' },
               { label: 'Hoàn thành (Done)', value: 'done' },
             ]}
@@ -152,7 +181,7 @@ export const ProjectList: React.FC = () => {
               <p className="text-sm mt-1.5">Vui lòng điều chỉnh bộ lọc hoặc tạo dự án mới.</p>
             </div>
           ) : (
-            filteredProjects.map((p) => (
+            paginatedProjects.map((p) => (
               <div 
                 key={p.id} 
                 className="card flex flex-col gap-4 cursor-pointer transition-all duration-200 animate-fade-in hover:-translate-y-1 hover:border-[hsl(var(--primary))] hover:shadow-lg"
@@ -161,9 +190,20 @@ export const ProjectList: React.FC = () => {
                 {/* Upper info */}
                 <div className="flex justify-between items-start gap-2">
                   <h3 className="text-[1.1rem] font-bold leading-tight">{p.name}</h3>
-                  <Badge variant={getStatusBadgeVariant(p.status)} className="shrink-0">
-                    {getStatusLabel(p.status)}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {p.status === 'draft' && (
+                      <button 
+                        onClick={(e) => handleDeleteProject(e, p.id, p.name)}
+                        className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors"
+                        title="Xóa dự án"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                    <Badge variant={getStatusBadgeVariant(p.status)} className="shrink-0">
+                      {getStatusLabel(p.status)}
+                    </Badge>
+                  </div>
                 </div>
 
                 {/* Details */}
@@ -174,7 +214,7 @@ export const ProjectList: React.FC = () => {
                   </div>
                   <div className="flex gap-2 items-center">
                     <Calendar size={16} className="text-[hsl(var(--text-muted))] shrink-0" />
-                    <span>Hạn: {p.startDate} ~ {p.endDate}</span>
+                    <span>Hạn: {p.startDate?.split('-').reverse().join('-')} → {p.endDate?.split('-').reverse().join('-')}</span>
                   </div>
                   {p.drawingUrl && (
                     <div className="flex gap-2 items-center text-[hsl(var(--primary-hover))]">
@@ -205,6 +245,31 @@ export const ProjectList: React.FC = () => {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {!loading && totalPages > 1 && (
+        <div className="flex justify-center mt-6 gap-3">
+          <Button
+            variant="secondary"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            className="w-28 h-10"
+          >
+            Trang trước
+          </Button>
+          <div className="flex items-center px-4 font-semibold text-[hsl(var(--text-secondary))] bg-white rounded-md border border-[hsl(var(--border))]">
+            Trang {currentPage} / {totalPages}
+          </div>
+          <Button
+            variant="secondary"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            className="w-28 h-10"
+          >
+            Trang sau
+          </Button>
         </div>
       )}
 

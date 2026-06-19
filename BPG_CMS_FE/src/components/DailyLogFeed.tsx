@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 const PAGE_SIZE = 2;
-import { Modal, Input, Select, Badge, Button } from './ui';
+import { Modal, Input, Select, Badge, Button, ConfirmDialog } from './ui';
 import type { BadgeVariant } from './ui';
 import { DailyLogFormModal } from '../pages/Incidents/modals/DailyLogFormModal';
 
@@ -33,6 +33,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -50,8 +51,13 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPhaseId, setSelectedPhaseId] = useState('');
   const [selectedEngineerId, setSelectedEngineerId] = useState('');
+  const [selectedSubtaskId, setSelectedSubtaskId] = useState('');
   const [startDateFilter, setStartDateFilter] = useState('');
   const [endDateFilter, setEndDateFilter] = useState('');
+
+  // States for comment deletion dialog
+  const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [isDeletingComment, setIsDeletingComment] = useState(false);
 
   // Acknowledged Comments State (Simulated on client-side via localStorage for simplicity)
   const [acknowledgedComments, setAcknowledgedComments] = useState<string[]>(() => {
@@ -68,19 +74,46 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   // Image Zoom Modal State
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
+  const currentTask = React.useMemo(() => {
+    if (!taskId || !tasks || tasks.length === 0) return null;
+    return tasks.find(t => String(t.id).replace(/^t-/, '') === String(taskId).replace(/^t-/, '')) || null;
+  }, [taskId, tasks]);
+
+  const currentTaskHasSubtasks = React.useMemo(() => {
+    if (!currentTask) return false;
+    return tasks.some(t => t.parentTaskId === currentTask.id && t.status !== 'obsolete');
+  }, [currentTask, tasks]);
+
+  const descendantTasks = React.useMemo(() => {
+    if (!taskId || !currentTask || !currentTaskHasSubtasks) return [];
+    const list: WBSTask[] = [];
+    const queue = [currentTask.id];
+    while (queue.length > 0) {
+      const parentId = queue.shift();
+      const children = tasks.filter(t => t.parentTaskId === parentId && t.status !== 'obsolete');
+      for (const child of children) {
+        list.push(child);
+        queue.push(child.id);
+      }
+    }
+    return list;
+  }, [taskId, currentTask, currentTaskHasSubtasks, tasks]);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const [logsResult, tasksData, phasesData] = await Promise.all([
+      const [logsResult, tasksData, phasesData, membersData] = await Promise.all([
         projectService.getDailyLogsPage(projectId, 1, PAGE_SIZE, taskId),
         projectService.getTasks(projectId),
-        projectService.getPhases(projectId)
+        projectService.getPhases(projectId),
+        projectService.getMembers(projectId)
       ]);
       setLogs(logsResult.items);
       setHasNextPage(logsResult.hasNextPage);
       setCurrentPage(1);
       setTasks(tasksData.filter(t => t.status !== 'obsolete'));
       setPhases(phasesData);
+      setMembers(membersData || []);
     } catch (err: any) {
       console.error('Error loading daily logs data:', err);
     } finally {
@@ -119,7 +152,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     // Join Project group
     connection.invoke('JoinProjectGroup', numericProjectId)
       .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
-      .catch(err => console.error('Error joining Project Group:', err));
+      .catch((err: any) => console.error('Error joining Project Group:', err));
 
     // Map helpers
     const mapRawComment = (c: any): DailyLogComment => ({
@@ -247,7 +280,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       // Leave Project group
       connection.invoke('LeaveProjectGroup', numericProjectId)
         .then(() => console.log(`Left SignalR project group: Project_${numericProjectId}`))
-        .catch(err => console.error('Error leaving Project Group:', err));
+        .catch((err: any) => console.error('Error leaving Project Group:', err));
     };
   }, [connection, projectId, taskId]);
 
@@ -317,16 +350,24 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     }
   };
 
-  const handleCommentDelete = async (commentId: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa bình luận này không?')) return;
+  const handleCommentDelete = (commentId: string) => {
+    setDeleteCommentId(commentId);
+  };
+
+  const handleCommentDeleteConfirm = async () => {
+    if (!deleteCommentId) return;
+    setIsDeletingComment(true);
     try {
-      const success = await projectService.deleteLogComment(commentId);
+      const success = await projectService.deleteLogComment(deleteCommentId);
       if (success) {
         // Reload comments
         await reloadLogs();
       }
+      setDeleteCommentId(null);
     } catch (err: any) {
       alert(err.message || 'Không thể xóa bình luận.');
+    } finally {
+      setIsDeletingComment(false);
     }
   };
 
@@ -437,7 +478,11 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       // 2. Task / Phase filter
       let matchesTaskOrPhase = true;
       if (taskId) {
-        matchesTaskOrPhase = log.taskId === taskId || log.taskId.replace(/^t-/, '') === taskId.replace(/^t-/, '');
+        if (selectedSubtaskId) {
+          matchesTaskOrPhase = log.taskId === selectedSubtaskId || log.taskId.replace(/^t-/, '') === selectedSubtaskId.replace(/^t-/, '');
+        } else {
+          matchesTaskOrPhase = true;
+        }
       } else if (selectedPhaseId) {
         const logTask = tasks.find(t => t.id === log.taskId || t.id.replace(/^t-/, '') === log.taskId.replace(/^t-/, ''));
         matchesTaskOrPhase = !!logTask && (logTask.phaseId === selectedPhaseId || logTask.phaseId.replace(/^p-/, '') === selectedPhaseId.replace(/^p-/, ''));
@@ -453,7 +498,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
       return matchesSearch && matchesTaskOrPhase && matchesEngineer && matchesStartDate && matchesEndDate;
     });
-  }, [logs, searchQuery, selectedPhaseId, selectedEngineerId, startDateFilter, endDateFilter, tasks, taskId]);
+  }, [logs, searchQuery, selectedPhaseId, selectedEngineerId, selectedSubtaskId, startDateFilter, endDateFilter, tasks, taskId]);
 
   // Group logs by date (YYYY-MM-DD)
   const groupedLogs = React.useMemo(() => {
@@ -473,10 +518,12 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   }, [filteredLogs]);
 
   const getRoleLabel = (role: string) => {
-    switch (role) {
+    if (!role) return '';
+    const norm = role.toLowerCase().replace(/[\s_-]/g, '');
+    switch (norm) {
       case 'admin': return 'Admin';
       case 'technicalmanager': return 'TP Kỹ Thuật';
-      case 'siteengineer': return 'Kỹ Sư Hiện Trường';
+      case 'siteengineer': return 'Nhân viên kỹ thuật';
       case 'projectleader': return 'Trưởng Dự Án';
       case 'director': return 'Giám Đốc';
       case 'accountant': return 'Kế Toán';
@@ -485,7 +532,9 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   };
 
   const getRoleBadgeVariant = (role: string): BadgeVariant => {
-    switch (role) {
+    if (!role) return 'default';
+    const norm = role.toLowerCase().replace(/[\s_-]/g, '');
+    switch (norm) {
       case 'admin': return 'danger';
       case 'technicalmanager': return 'default';
       case 'siteengineer': return 'success';
@@ -508,10 +557,18 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     return dateStr;
   };
 
-  const canReport = user?.role === 'siteengineer' || user?.role === 'projectleader' || user?.role === 'technicalmanager' || user?.role === 'admin';
+  const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin';
+  const hasAnyAssignedTask = tasks.some(t => {
+    if (taskId && String(t.id).replace(/^t-/, '') !== String(taskId).replace(/^t-/, '')) {
+      return false;
+    }
+    const assignedIds = t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : [];
+    return user?.id && assignedIds.includes(user.id.toString());
+  });
+  const canReport = (isPL || hasAnyAssignedTask) && !currentTaskHasSubtasks;
 
   return (
-    <div className="flex flex-col gap-6 max-w-[800px] mx-auto pb-10">
+    <div className="flex flex-col gap-6 w-full mx-auto pb-10">
 
       {/* Title & Header */}
       <div className="border-b border-[hsl(var(--border))] pb-3 flex justify-between items-center flex-wrap gap-3">
@@ -566,6 +623,21 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
             </div>
           )}
 
+          {/* Subtask Dropdown (Only when task has subtasks) */}
+          {taskId && currentTaskHasSubtasks && descendantTasks.length > 0 && (
+            <div className="flex-1 min-w-[150px]">
+              <Select
+                value={selectedSubtaskId}
+                onChange={(e) => setSelectedSubtaskId(e.target.value)}
+                className="h-[38px] text-[0.85rem]"
+                options={[
+                  { label: 'Tất cả công việc con', value: '' },
+                  ...descendantTasks.map(t => ({ label: t.name, value: t.id }))
+                ]}
+              />
+            </div>
+          )}
+
           {/* Engineer Dropdown */}
           <div className="flex-1 min-w-[150px]">
             <Select
@@ -573,7 +645,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
               onChange={(e) => setSelectedEngineerId(e.target.value)}
               className="h-[38px] text-[0.85rem]"
               options={[
-                { label: 'Tất cả Kỹ sư', value: '' },
+                { label: 'Tất cả Nhân viên kỹ thuật', value: '' },
                 ...assignedEngineers.map(e => ({ label: e.name, value: e.id }))
               ]}
             />
@@ -657,7 +729,11 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                   nodeClass = "timeline-node-success";
                 }
 
-                const canEditLog = log.engineerId === user?.id || user?.role === 'technicalmanager' || user?.role === 'admin';
+                const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin';
+                const logTask = tasks.find(t => String(t.id).replace(/^t-/, '') === String(log.taskId).replace(/^t-/, ''));
+                const assignedIds = logTask?.assignedTo ? logTask.assignedTo.split(',').map(s => s.trim()) : [];
+                const isAssigned = user?.id && assignedIds.includes(user.id.toString());
+                const canEditLog = isPL || isAssigned;
 
                 return (
                   <div key={log.id} className="timeline-item animate-fade-in">
@@ -683,7 +759,28 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                           <div>
                             <div className="flex items-center gap-2">
                               <strong className="text-[0.9rem]">{log.engineerName}</strong>
-                              <Badge variant="success" className="text-[0.6rem] normal-case py-0.5 px-1.5 h-auto">Kỹ sư hiện trường</Badge>
+                              {(() => {
+                                const mInfo = members.find(m => String(m.userId) === String(log.engineerId));
+                                let cRole = mInfo ? mInfo.role : '';
+                                if (!cRole) {
+                                  if (String(user?.id) === String(log.engineerId)) {
+                                    cRole = user?.role || '';
+                                  } else {
+                                    if (log.engineerName.toLowerCase().includes('tuan') || log.engineerName.toLowerCase().includes('tpkt')) {
+                                      cRole = 'technicalmanager';
+                                    } else if (log.engineerName.toLowerCase().includes('admin')) {
+                                      cRole = 'admin';
+                                    } else {
+                                      cRole = 'siteengineer';
+                                    }
+                                  }
+                                }
+                                return (
+                                  <Badge variant={getRoleBadgeVariant(cRole)} className="text-[0.6rem] normal-case py-0.5 px-1.5 h-auto">
+                                    {getRoleLabel(cRole)}
+                                  </Badge>
+                                );
+                              })()}
                               {canEditLog && (
                                 <button
                                   onClick={() => {
@@ -770,7 +867,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                                 commentClass += " comment-acknowledged";
                               }
 
-                              const canEditComment = comm.userId === user?.id || user?.role === 'technicalmanager' || user?.role === 'admin';
+                              const canEditComment = comm.userId === user?.id;
 
                               return (
                                 <div
@@ -838,7 +935,11 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                                       </p>
                                     )}
 
-                                    {isManager && !isAcknowledged && user?.role === 'siteengineer' && (
+                                    {isManager && !isAcknowledged && (() => {
+                                      const logTask = tasks.find(t => String(t.id).replace(/^t-/, '') === String(log.taskId).replace(/^t-/, ''));
+                                      const assignedIds = logTask?.assignedTo ? logTask.assignedTo.split(',').map(s => s.trim()) : [];
+                                      return user?.id && assignedIds.includes(user.id.toString());
+                                    })() && (
                                       <Button
                                         variant="secondary"
                                         size="sm"
@@ -863,7 +964,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                           </div>
                         )}
 
-                        {user && (
+                        {user && (members.some(m => m.userId === user?.id) || user?.role === 'technicalmanager' || user?.role === 'admin') && (
                           <form onSubmit={(e) => handleCommentSubmit(e, log.id)} className="flex gap-2">
                             <Input
                               type="text"
@@ -964,11 +1065,24 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           editLog={editLog}
           engineerId={user.id}
           engineerName={user.name}
+          isPL={members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin'}
           onSuccess={() => {
             loadData();
           }}
         />
       )}
+
+      {/* Soft Delete Comment Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={!!deleteCommentId}
+        onClose={() => setDeleteCommentId(null)}
+        onConfirm={handleCommentDeleteConfirm}
+        title="Xóa bình luận"
+        message="Bạn có chắc chắn muốn xóa bình luận này không? Thao tác này không thể hoàn tác."
+        confirmText="Xác nhận xóa"
+        isDanger={true}
+        isLoading={isDeletingComment}
+      />
 
     </div>
   );

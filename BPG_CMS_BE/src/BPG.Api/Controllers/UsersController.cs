@@ -7,14 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BPG.Api.Controllers;
 
-[Authorize]
+[Authorize(Roles = "Admin")]
 public class UsersController : BaseApiController
 {
     [HttpGet]
-    public async Task<IActionResult> GetUsers()
+    public async Task<IActionResult> GetUsers([FromQuery] GetUsersQuery query)
     {
-        var result = await Mediator.Send(new GetUsersQuery());
-        return ApiOk(result, "Lấy danh sách người dùng thành công");
+        var result = await Mediator.Send(query);
+        return ApiPagedOk(result, "Lấy danh sách người dùng thành công");
     }
 
     [HttpPost]

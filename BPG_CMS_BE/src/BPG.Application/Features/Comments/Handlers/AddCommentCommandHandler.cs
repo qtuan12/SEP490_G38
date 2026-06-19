@@ -101,6 +101,26 @@ namespace BPG.Application.Features.Comments.Handlers
                 );
             }
 
+            // 6. Gửi thông báo đến các thành viên khác từng bình luận ở bài viết này
+            var otherCommenterIds = await _uow.Repository<Comment>().Query()
+                .Where(c => c.LogId == request.LogId && c.AuthorId != currentUserId && c.AuthorId != dailyLog.CreatedBy && !c.IsDeleted)
+                .Select(c => c.AuthorId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            foreach (var commenterId in otherCommenterIds)
+            {
+                await _notificationService.SendNotificationAsync(
+                    commenterId,
+                    "Hoạt động bình luận mới",
+                    $"[{author?.FullName ?? "Ai đó"}] cũng đã bình luận về nhật ký thi công cho công việc [{dailyLog.Task.Name}] mà bạn quan tâm.",
+                    NotificationType.Progress,
+                    NotificationReferenceType.Task,
+                    dailyLog.TaskId,
+                    cancellationToken
+                );
+            }
+
             var dto = _mapper.Map<CommentDto>(comment);
 
             // Gửi realtime cho client thuộc dự án

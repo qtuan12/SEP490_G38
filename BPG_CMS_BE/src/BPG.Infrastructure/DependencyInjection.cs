@@ -36,6 +36,8 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IFileStorageService, CloudinaryService>();
+        services.AddScoped<IProgressRollupService, ProgressRollupService>();
+        services.AddScoped<IEmailService, EmailService>();
 
         return services;
     }

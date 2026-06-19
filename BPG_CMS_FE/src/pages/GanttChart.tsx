@@ -11,6 +11,8 @@ import {
   TrendingUp,
   LayoutGrid,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Modal } from '../components/ui/Modal';
 
 // ── Frappe Gantt task shape ────────────────────────────────────────────────
 interface FrappeTask {
@@ -56,6 +58,13 @@ export const GanttChart: React.FC = () => {
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const ganttInstanceRef = useRef<Gantt | null>(null);
+  const { user } = useAuth();
+
+  const [isAdjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [selectedTaskToAdjust, setSelectedTaskToAdjust] = useState<WBSTask | null>(null);
+  const [adjustProgress, setAdjustProgress] = useState<number>(0);
+  const [adjustReason, setAdjustReason] = useState<string>('');
+  const [isAdjusting, setIsAdjusting] = useState(false);
 
   // ── load data ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -91,19 +100,23 @@ export const GanttChart: React.FC = () => {
         .filter(t => t.phaseId === ph.id)
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
-      // Estimate phase start = earliest task deadline (or project start)
-      const earliestDeadline = phaseTasks.length
+      // Estimate phase start = earliest task start/deadline
+      const earliestStart = phaseTasks.length
         ? phaseTasks.reduce(
-            (min, t) => (t.deadline < min ? t.deadline : min),
-            phaseTasks[0].deadline
+            (min, t) => {
+              const start = t.startDate || addDays(t.deadline, -7);
+              return start < min ? start : min;
+            },
+            phaseTasks[0].startDate || addDays(phaseTasks[0].deadline, -7)
           )
         : (project?.startDate ?? new Date().toISOString().slice(0, 10));
+
       const latestDeadline = phaseTasks.length
         ? phaseTasks.reduce(
             (max, t) => (t.deadline > max ? t.deadline : max),
             phaseTasks[0].deadline
           )
-        : (project?.endDate ?? addDays(earliestDeadline, 30));
+        : (project?.endDate ?? addDays(earliestStart, 30));
 
       const phaseProgress = phaseTasks.length
         ? Math.round(
@@ -118,7 +131,7 @@ export const GanttChart: React.FC = () => {
       result.push({
         id: ph.id,
         name: `📁 ${ph.name}`,
-        start: addDays(earliestDeadline, -1),
+        start: earliestStart,
         end: latestDeadline,
         progress: phaseProgress,
         custom_class: ph.status === 'frozen' ? 'gantt-phase-frozen' : 'gantt-phase',
@@ -126,9 +139,9 @@ export const GanttChart: React.FC = () => {
 
       // Task rows
       phaseTasks.forEach((t, idx) => {
-        const start = project?.startDate && project.startDate < t.deadline
+        const start = t.startDate || (project?.startDate && project.startDate < t.deadline
           ? addDays(t.deadline, -Math.max(7, Math.round((t.progress / 100) * 30)))
-          : addDays(t.deadline, -7);
+          : addDays(t.deadline, -7));
 
         let customClass = 'gantt-task';
         if (t.status === 'obsolete') customClass = 'gantt-task-obsolete';
@@ -141,7 +154,7 @@ export const GanttChart: React.FC = () => {
           start,
           end: t.deadline,
           progress: t.progress,
-          dependencies: idx === 0 ? ph.id : phaseTasks[idx - 1].id,
+          dependencies: '', // Remove fake waterfall dependencies
           custom_class: customClass,
         });
       });
@@ -175,7 +188,8 @@ export const GanttChart: React.FC = () => {
             <div style="padding:12px 14px;min-width:220px;font-family:inherit">
               <strong style="font-size:0.9rem;color:#1e293b">${originalPhase.name}</strong>
               <div style="margin-top:8px;font-size:0.78rem;color:#64748b">
-                <div>📋 ${phaseTasks.length} công việc</div>
+                <div>📅 Từ: <strong>${formatDate(task.start)}</strong> đến <strong>${formatDate(task.end)}</strong></div>
+                <div style="margin-top:3px">📋 ${phaseTasks.length} công việc</div>
                 <div style="margin-top:4px">Tiến độ: <strong style="color:#3b82f6">${task.progress}%</strong></div>
                 ${originalPhase.status === 'frozen' ? '<div style="margin-top:4px;color:#16a34a;font-weight:600">✅ Đã nghiệm thu</div>' : ''}
               </div>
@@ -191,7 +205,7 @@ export const GanttChart: React.FC = () => {
               <strong style="font-size:0.85rem;color:#1e293b">${originalTask.name}</strong>
               <div style="margin-top:8px;font-size:0.78rem;color:#64748b">
                 <div>👤 ${originalTask.assignedName ?? 'Chưa phân công'}</div>
-                <div style="margin-top:3px">📅 Hạn: <strong>${formatDate(originalTask.deadline)}</strong></div>
+                <div style="margin-top:3px">📅 Từ: <strong>${formatDate(task.start)}</strong> đến <strong>${formatDate(task.end)}</strong></div>
                 <div style="margin-top:3px">Tiến độ: <strong style="color:${originalTask.progress === 100 ? '#16a34a' : '#3b82f6'}">${originalTask.progress}%</strong></div>
                 ${originalTask.status === 'obsolete' ? '<div style="margin-top:4px;color:#dc2626;font-weight:600">⛔ Đã hủy</div>' : ''}
               </div>
@@ -202,8 +216,18 @@ export const GanttChart: React.FC = () => {
         }
         return `<div style="padding:10px">${task.name}</div>`;
       },
+      on_click: (task: FrappeTask) => {
+        // Find if it is a task
+        const wbsTask = tasks.find(t => t.id === task.id);
+        if (wbsTask && (user?.role === 'technicalmanager' || user?.role === 'admin') && wbsTask.status !== 'obsolete') {
+          setSelectedTaskToAdjust(wbsTask);
+          setAdjustProgress(wbsTask.progress);
+          setAdjustReason('');
+          setAdjustModalOpen(true);
+        }
+      }
     } as any);
-  }, [loading, phases, tasks, viewMode, buildFrappeTasks]);
+  }, [loading, phases, tasks, viewMode, buildFrappeTasks, user]);
 
   // ── change view mode ──────────────────────────────────────────────────
   const handleViewMode = (mode: ViewMode) => {
@@ -319,6 +343,93 @@ export const GanttChart: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ── Adjust Progress Modal ─────────────────────────────────────── */}
+      {selectedTaskToAdjust && (
+        <Modal
+          isOpen={isAdjustModalOpen}
+          onClose={() => setAdjustModalOpen(false)}
+          title="Điều chỉnh tiến độ (Chỉ dành cho TPKT)"
+        >
+          <div className="flex flex-col gap-4">
+            <div className="p-3 bg-[hsl(var(--bg-main))] rounded-md text-[0.85rem]">
+              <div className="text-[hsl(var(--text-muted))] mb-1">Công việc:</div>
+              <strong className="text-[1rem]">{selectedTaskToAdjust.name}</strong>
+            </div>
+            
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[0.8rem] font-semibold text-[hsl(var(--text-secondary))]">
+                Tiến độ mới (%):
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={adjustProgress}
+                onChange={(e) => setAdjustProgress(Number(e.target.value))}
+                className="p-2 bg-[hsl(var(--bg-main))] border border-[hsl(var(--border))] rounded-md text-[0.85rem] focus:outline-none focus:border-[hsl(var(--primary))]"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[0.8rem] font-semibold text-[hsl(var(--text-secondary))]">
+                Lý do điều chỉnh:
+              </label>
+              <textarea
+                value={adjustReason}
+                onChange={(e) => setAdjustReason(e.target.value)}
+                placeholder="Nhập lý do điều chỉnh tiến độ..."
+                rows={3}
+                className="p-2 bg-[hsl(var(--bg-main))] border border-[hsl(var(--border))] rounded-md text-[0.85rem] focus:outline-none focus:border-[hsl(var(--primary))]"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setAdjustModalOpen(false)}
+                className="px-4 py-2 rounded-md border border-[hsl(var(--border))] text-[0.85rem] font-medium bg-transparent hover:bg-[hsl(var(--bg-main))] transition-colors"
+                disabled={isAdjusting}
+              >
+                Hủy
+              </button>
+              <button
+                onClick={async () => {
+                  if (!adjustReason.trim()) {
+                    alert('Vui lòng nhập lý do điều chỉnh');
+                    return;
+                  }
+                  try {
+                    setIsAdjusting(true);
+                    await projectService.adjustTaskProgressDirectly(selectedTaskToAdjust.id, adjustProgress, adjustReason);
+                    // Refresh data
+                    const [projs, pList, tList] = await Promise.all([
+                      projectService.getProjects(),
+                      projectService.getPhases(projectId!),
+                      projectService.getTasks(projectId!),
+                    ]);
+                    setProject(projs.find(p => p.id === projectId) ?? null);
+                    setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
+                    setTasks(
+                      tList
+                        .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
+                        .sort((a, b) => a.sortOrder - b.sortOrder)
+                    );
+                    setAdjustModalOpen(false);
+                  } catch (e: any) {
+                    alert(e.message || 'Lỗi khi cập nhật tiến độ');
+                  } finally {
+                    setIsAdjusting(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-md border-none text-white text-[0.85rem] font-medium bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-hover))] transition-colors cursor-pointer"
+                disabled={isAdjusting}
+              >
+                {isAdjusting ? 'Đang cập nhật...' : 'Cập nhật tiến độ'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* ── Custom CSS overrides for light/dark theme ─────────────────── */}
       <style>{`

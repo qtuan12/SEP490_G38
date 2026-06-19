@@ -4,9 +4,13 @@ export interface Project {
   address: string;
   startDate: string;
   endDate: string;
-  status: 'draft' | 'active' | 'paused' | 'done';
-  drawingUrl?: string; // name or dummy data url of drawing design
+  status: 'draft' | 'inprogress' | 'paused' | 'done';
+  drawingUrl?: string; // legacy single drawing
+  drawingUrls?: string[]; // multiple drawings support
+  attachments?: AttachmentDto[]; // real attachments metadata
   progress: number; // overall progress % (derived or stored)
+  pauseReason?: string;
+  pausedAt?: string;
 }
 
 export interface ProjectMember {
@@ -46,6 +50,7 @@ export interface WBSPhase {
   id: string;
   projectId: string;
   name: string;
+  description?: string;
   sortOrder: number; // display order within project
   status: 'active' | 'frozen'; // frozen after acceptance
   acceptanceComment?: string;
@@ -149,6 +154,9 @@ export interface WBSTask {
   progress: number; // 0 - 100
   history: TaskHistory[];
   status?: 'active' | 'obsolete';
+  isOverdue?: boolean;
+  isAtRisk?: boolean;
+  daysLeft?: number;
   estimatedMaterials?: PhaseMaterialItem[];
   isRework?: boolean;
 }
@@ -202,3 +210,69 @@ export interface AcceptanceData {
   conclusion: string;
   acceptanceDate?: string;
 }
+
+export interface DashboardProjectProgressDto {
+  projectId: number;
+  projectName: string;
+  address: string;
+  progress: number;
+  status: string;
+}
+
+export interface DashboardMetricsDto {
+  totalProjects: number;
+  draftProjects: number;
+  activeProjects: number;
+  pausedProjects: number;
+  completedProjects: number;
+  closedProjects: number;
+  activeProjectsProgress: DashboardProjectProgressDto[];
+}
+
+export interface DashboardWarningDto {
+  projectId: number;
+  projectName: string;
+  taskId: number;
+  taskName: string;
+  warningType: 'Red' | 'Yellow' | 'Critical';
+  message: string;
+}
+
+export interface AttachmentDto {
+  attachmentId?: number;
+  attachmentType: string;
+  fileName: string;
+  fileUrl: string;
+  contentType?: string;
+  fileSizeBytes?: number;
+}
+
+export interface ProjectDto {
+  projectId: number;
+  name: string;
+  address?: string;
+  status: string;
+  plannedStart: string;
+  plannedEnd: string;
+  createdAt: string;
+  pauseReason?: string;
+  pausedAt?: string;
+  progress?: number;
+}
+
+export interface ProjectMemberDto {
+  projectMemberId: number;
+  projectId: number;
+  userId: number;
+  fullName: string;
+  email: string;
+  role: string;
+  isLeader: boolean;
+  joinedAt: string;
+}
+
+export interface ProjectDetailDto extends ProjectDto {
+  members: ProjectMemberDto[];
+  attachments: AttachmentDto[];
+}
+

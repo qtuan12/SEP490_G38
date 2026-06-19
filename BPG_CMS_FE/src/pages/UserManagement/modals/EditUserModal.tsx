@@ -84,8 +84,8 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, o
               { label: 'Admin', value: 'admin' },
               { label: 'Giám Đốc', value: 'director' },
               { label: 'TP Kỹ Thuật (TechnicalManager)', value: 'technicalmanager' },
-              { label: 'Trưởng Dự án (ProjectLeader)', value: 'projectleader' },
-              { label: 'Kỹ Sư Hiện Trường (SiteEngineer)', value: 'siteengineer' },
+              { label: 'Nhân viên kỹ thuật (SiteEngineer)', value: 'siteengineer' },
+              { label: 'Chỉ Huy Trưởng (ProjectLeader)', value: 'projectleader' },
               { label: 'Kế Toán (Accountant)', value: 'accountant' },
             ]}
           />

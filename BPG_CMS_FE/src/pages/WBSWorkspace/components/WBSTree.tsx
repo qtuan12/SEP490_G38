@@ -1,7 +1,7 @@
 import { useWBS } from './WBSContext';
 import { useNavigate } from 'react-router-dom';
 import type { WBSTask } from '../../../types/common';
-import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight } from 'lucide-react';
+import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History } from 'lucide-react';
 
 
 const getInitials = (name: string) => {
@@ -20,7 +20,7 @@ const getAvatarColor = (userId: string) => {
 export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => {};
   const {
-    projectId, project, phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests,
+    phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests,
     expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -29,7 +29,7 @@ export const WBSTree = () => {
     setSelectedTaskForEdit, setIsEditTaskOpen,
     setSelectedPhaseForMatReq, setCreateMatReqType, setIsPhaseMatReqOpen, setIsLeaderApprovalOpen,
     setSelectedPhaseForBOQ, setIsBOQOpen, setSelectedResubmitRequest, setIsResubmitOpen,
-    setSelectedTaskId, setIsDetailOpen,
+    setSelectedTaskId, setIsDetailOpen, setIsObsoleteOpen,
     handleCancelMatReq,
     isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase
   } = useWBS();
@@ -52,7 +52,7 @@ export const WBSTree = () => {
       {/* ─── Left: WBS Tree ─────────────────────────────── */}
       <div className="card" style={{ padding: '20px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
           <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: '14px', borderBottom: '1px solid hsl(var(--border))', paddingBottom: '8px' }}>
-            Sơ đồ hình cây Phase → Task
+            Sơ đồ hình cây Giai đoạn → Công việc
           </h4>
 
           {loading ? (
@@ -62,7 +62,7 @@ export const WBSTree = () => {
 
               {phases.length === 0 && !isCreatePhaseOpen && (
                 <div style={{ textAlign: 'center', margin: 'auto', color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>
-                  Chưa có dữ liệu WBS. Nhấn "+ Thêm Phase" để bắt đầu.
+                  Chưa có dữ liệu WBS. Nhấn "+ Thêm Giai đoạn" để bắt đầu.
                 </div>
               )}
 
@@ -152,13 +152,15 @@ export const WBSTree = () => {
                       <Folder size={15} style={{ color: isFrozen ? 'hsl(var(--success))' : 'hsl(var(--primary))', flexShrink: 0 }} />
 
                       {/* Name */}
-                      <span
-                        style={{ flex: 1, minWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isExpanded ? 'normal' : 'nowrap', color: isFrozen ? 'hsl(var(--text-muted))' : 'hsl(var(--text-primary))', textDecoration: isFrozen ? 'line-through' : 'none' }}
+                      <div
+                        style={{ flex: 1, minWidth: '100px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
                         title={canEdit && !isFrozen && phaseProgress === 0 ? "Double-click để chỉnh sửa" : ""}
                         onDoubleClick={(e) => { e.stopPropagation(); if (canEdit && !isFrozen && phaseProgress === 0) { setSelectedPhaseForEdit(ph); setIsEditPhaseOpen(true); setPhaseMenuId(null); } }}
                       >
-                        {ph.name}
-                      </span>
+                        <span style={{ textOverflow: 'ellipsis', whiteSpace: isExpanded ? 'normal' : 'nowrap', color: isFrozen ? 'hsl(var(--text-muted))' : 'hsl(var(--text-primary))', textDecoration: isFrozen ? 'line-through' : 'none' }}>
+                          {ph.name}
+                        </span>
+                      </div>
 
                         {ph.startDate && ph.endDate && (
                           <span
@@ -174,7 +176,7 @@ export const WBSTree = () => {
                               whiteSpace: 'nowrap'
                             }}
                           >
-                            📅 {ph.startDate} - {ph.endDate}
+                            📅 {ph.startDate.split('-').reverse().join('-')} → {ph.endDate.split('-').reverse().join('-')}
                           </span>
                         )}
 
@@ -294,7 +296,7 @@ export const WBSTree = () => {
                       {/* Badge */}
                       {isFrozen ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                          <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>Đã nghiệm thu</span>
+                          <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate(`/projects/${ph.projectId}/phases/${ph.id}/acceptance`); }}>Đã nghiệm thu</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--success))', minWidth: '28px', textAlign: 'right' }}>100%</span>
                             <div style={{ width: '50px', height: '6px', backgroundColor: 'hsl(var(--border))', borderRadius: '3px', overflow: 'hidden' }}>
@@ -305,7 +307,7 @@ export const WBSTree = () => {
                       ) : readyForAcceptance ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                           <span className="badge badge-warning animate-fade-in" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
-                            onClick={(e) => { e.stopPropagation(); if (isTPKTOrPL) navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>
+                            onClick={(e) => { e.stopPropagation(); if (isTPKTOrPL) navigate(`/projects/${ph.projectId}/phases/${ph.id}/acceptance`); }}>
                             <FileSignature size={9} /><span>Chờ nghiệm thu</span>
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -365,7 +367,7 @@ export const WBSTree = () => {
                                     onClick={() => { setSelectedPhaseForEdit(ph); setIsEditPhaseOpen(true); setPhaseMenuId(null); }}
                                   >
                                     <Pencil size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                    <span>Chỉnh sửa Phase</span>
+                                    <span>Chỉnh sửa Giai đoạn</span>
                                   </div>
                                 )}
                                 {!isFrozen && (
@@ -373,10 +375,10 @@ export const WBSTree = () => {
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
                                     onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/material-requests`); }}
+                                    onClick={() => { setPhaseMenuId(null); navigate(`/projects/${ph.projectId}/phases/${ph.id}/material-requests`); }}
                                   >
                                     <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                    <span>Yêu cầu vật tư Phase</span>
+                                    <span>Yêu cầu vật tư Giai đoạn</span>
                                   </div>
                                 )}
                                 {!isFrozen && isPL && (
@@ -387,7 +389,7 @@ export const WBSTree = () => {
                                     onClick={() => { setPhaseMenuId(null); setSelectedPhaseForMatReq(ph); setCreateMatReqType('emergency'); setIsPhaseMatReqOpen(true); }}
                                   >
                                     <AlertTriangle size={13} style={{ color: 'hsl(var(--warning))' }} />
-                                    <span style={{ color: 'hsl(var(--warning-hover))' }}>Mua ngoài khẩn cấp Phase</span>
+                                    <span style={{ color: 'hsl(var(--warning-hover))' }}>Mua ngoài khẩn cấp Giai đoạn</span>
                                   </div>
                                 )}
                                 {!isFrozen && (
@@ -427,12 +429,12 @@ export const WBSTree = () => {
                                     onClick={() => { setPhaseMenuId(null); handleDeletePhase(ph.id, ph.name); }}
                                   >
                                     <Trash2 size={13} />
-                                    <span>Xóa Phase</span>
+                                    <span>Xóa Giai đoạn</span>
                                   </div>
                                 )}
                                 {isFrozen && (
                                   <div style={{ ...menuItemStyle, cursor: 'default', opacity: 0.5, fontSize: '0.78rem' }}>
-                                    Phase đã nghiệm thu (khóa)
+                                    Giai đoạn đã nghiệm thu (khóa)
                                   </div>
                                 )}
                               </div>
@@ -445,6 +447,27 @@ export const WBSTree = () => {
                     {/* Task children */}
                     {isExpanded && (
                       <div style={{ paddingLeft: '22px', display: 'flex', flexDirection: 'column', gap: '2px', borderLeft: '1px dashed hsl(var(--border-light))', marginLeft: '18px', marginTop: '2px' }}>
+                        {ph.description && (
+                          <div style={{
+                            padding: '8px 12px',
+                            margin: '4px 0 8px 0',
+                            backgroundColor: 'hsl(var(--bg-main) / 0.5)',
+                            border: '1px solid hsl(var(--border-light))',
+                            borderLeft: '3px solid hsl(var(--primary) / 0.6)',
+                            borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
+                            color: 'hsl(var(--text-secondary))',
+                            fontSize: '0.82rem',
+                            lineHeight: 1.5,
+                            display: 'flex',
+                            gap: '8px',
+                            alignItems: 'flex-start'
+                          }}>
+                            <Info size={14} style={{ color: 'hsl(var(--primary))', marginTop: '2px', flexShrink: 0 }} />
+                            <div style={{ flex: 1, whiteSpace: 'pre-wrap' }}>
+                              {ph.description}
+                            </div>
+                          </div>
+                        )}
                         {phaseTasks.map((t, taskIndex) => {
                           const isSelected = selectedTaskId === t.id;
                           const isHoveredTask = hoveredTaskId === t.id;
@@ -513,38 +536,49 @@ export const WBSTree = () => {
                               )}
 
                               {/* Name */}
-                              <span
-                                style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSelected ? 600 : 500, color: t.status === 'obsolete' ? 'hsl(var(--text-muted))' : isSelected ? 'hsl(var(--primary-hover))' : 'hsl(var(--text-secondary))', textDecoration: (isFrozen || t.status === 'obsolete') ? 'line-through' : 'none', cursor: canEdit && !isFrozen && t.status !== 'obsolete' && !isWorkedOn ? 'pointer' : 'default' }}
+                              <div
+                                style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
                                 title={isWorkedOn && t.status !== 'obsolete' ? 'Task đã có tiến độ — không thể chỉnh sửa. Dùng "Hủy việc" và tạo lại.' : canEdit && !isFrozen && t.status !== 'obsolete' ? 'Double-click để chỉnh sửa' : ''}
                                 onDoubleClick={e => { e.stopPropagation(); if (canEdit && !isFrozen && t.status !== 'obsolete' && !isWorkedOn) { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); } }}
                               >
-                                {t.name}
-                              </span>
+                                <span style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', fontWeight: isSelected ? 600 : 500, color: t.status === 'obsolete' ? 'hsl(var(--text-muted))' : isSelected ? 'hsl(var(--primary-hover))' : 'hsl(var(--text-secondary))', textDecoration: (isFrozen || t.status === 'obsolete') ? 'line-through' : 'none', cursor: canEdit && !isFrozen && t.status !== 'obsolete' && !isWorkedOn ? 'pointer' : 'default' }}>
+                                  {t.name}
+                                </span>
+                                {t.description && (
+                                  <span style={{ 
+                                    fontSize: '0.72rem', 
+                                    color: 'hsl(var(--text-secondary))', 
+                                    whiteSpace: 'normal', 
+                                    marginTop: '4px', 
+                                    lineHeight: 1.4,
+                                    paddingLeft: '6px',
+                                    borderLeft: '2px solid hsl(var(--border-light))',
+                                    fontStyle: 'italic'
+                                  }}>
+                                    {t.description}
+                                  </span>
+                                )}
+                              </div>
 
-                              {t.status !== 'obsolete' && t.progress < 100 && (() => {
-                                const currentDate = new Date().toISOString().split('T')[0];
-                                const taskDeadline = t.deadline ? new Date(t.deadline).toISOString().split('T')[0] : '9999-12-31';
-                                const start = new Date(project?.startDate || Date.now());
-                                const end = new Date(t.deadline || project?.endDate || Date.now());
-                                const today = new Date();
-
-                                const totalMs = end.getTime() - start.getTime();
-                                const passedMs = today.getTime() - start.getTime();
-                                const expected = totalMs > 0 ? Math.min(100, Math.max(0, (passedMs / totalMs) * 100)) : 0;
-
-                                if (currentDate > taskDeadline) {
-                                  return <span style={{ marginLeft: '8px', padding: '2px 6px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: 'hsl(var(--danger) / 0.15)', color: 'hsl(var(--danger))', borderRadius: '4px', border: '1px solid hsl(var(--danger) / 0.3)', whiteSpace: 'nowrap' }} title={`Đã trễ hạn so với ${taskDeadline}`}>🚨 Trễ hạn</span>;
-                                } else if (t.progress < expected - 1) {
-                                  return <span style={{ marginLeft: '8px', padding: '2px 6px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: 'hsl(var(--warning) / 0.15)', color: 'hsl(var(--warning))', borderRadius: '4px', border: '1px solid hsl(var(--warning) / 0.3)', whiteSpace: 'nowrap' }} title={`Kỳ vọng: ${Math.round(expected)}% - Hiện tại: ${t.progress}%`}>⚠️ Nguy cơ</span>;
-                                }
-                                return null;
-                              })()}
+                              {t.status !== 'obsolete' && t.progress < 100 && (
+                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginLeft: '8px' }}>
+                                  {t.isOverdue && (
+                                    <span style={{ padding: '2px 6px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: 'hsl(var(--danger) / 0.15)', color: 'hsl(var(--danger))', borderRadius: '4px', border: '1px solid hsl(var(--danger) / 0.3)', whiteSpace: 'nowrap' }} title={`Đã trễ hạn!`}>🚨 Trễ hạn</span>
+                                  )}
+                                  {t.isAtRisk && (
+                                    <span style={{ padding: '2px 6px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: 'hsl(var(--warning) / 0.15)', color: 'hsl(var(--warning))', borderRadius: '4px', border: '1px solid hsl(var(--warning) / 0.3)', whiteSpace: 'nowrap' }} title={`Tiến độ thực tế đang chậm hơn tiến độ kỳ vọng`}>⚠️ Nguy cơ</span>
+                                  )}
+                                  {t.daysLeft !== undefined && !t.isOverdue && (
+                                    <span style={{ padding: '2px 6px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary))', borderRadius: '4px', border: '1px solid hsl(var(--primary) / 0.2)', whiteSpace: 'nowrap' }} title={`Thời gian còn lại`}>⏳ Còn {t.daysLeft} ngày</span>
+                                  )}
+                                </div>
+                              )}
 
                               {t.assignedTo && t.assignedName && (
                                 <div style={{ display: 'flex', alignItems: 'center', marginRight: '8px', flexShrink: 0 }}>
                                   {t.assignedTo.split(',').map((id: string, index: number) => {
                                     const names = t.assignedName ? t.assignedName.split(', ') : [];
-                                    const name = names[index] || 'siteengineer';
+                                    const name = names[index] || 'Kỹ sư';
                                     const initials = getInitials(name);
                                     const bgColor = getAvatarColor(id);
                                     return (
@@ -605,16 +639,25 @@ export const WBSTree = () => {
                                           onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
                                           onClick={() => { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); }}
                                         >
-                                          <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Chỉnh sửa Task</span>
+                                          <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Chỉnh sửa Công việc</span>
                                         </div>
 
                                         <div
                                           style={menuItemStyle}
                                           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
                                           onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setTaskMenuId(null); navigate(`/projects/${projectId}/tasks/${t.id}/incidents`); }}
+                                          onClick={() => { setTaskMenuId(null); navigate(`/projects/${ph.projectId}/tasks/${t.id}/incidents`); }}
                                         >
                                           <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
+                                        </div>
+
+                                        <div
+                                          style={menuItemStyle}
+                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                          onClick={() => { setTaskMenuId(null); navigate(`/projects/${ph.projectId}/tasks/${t.id}/logs`); }}
+                                        >
+                                          <History size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Xem nhật ký thi công</span>
                                         </div>
 
                                         <div
@@ -630,9 +673,17 @@ export const WBSTree = () => {
                                           style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
                                           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
                                           onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setTaskMenuId(null); handleDeleteTask(t.id, t.name); }}
+                                          onClick={() => { 
+                                            setTaskMenuId(null); 
+                                            if (t.progress > 0) {
+                                              setSelectedTaskId(t.id);
+                                              setIsObsoleteOpen(true);
+                                            } else {
+                                              handleDeleteTask(t.id, t.name);
+                                            }
+                                          }}
                                         >
-                                          <Trash2 size={12} /><span>Xóa hẳn Task</span>
+                                          <Trash2 size={12} /><span>{t.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa hẳn Task'}</span>
                                         </div>
                                       </div>
                                     )}
@@ -643,7 +694,7 @@ export const WBSTree = () => {
                         })}
 
                         {phaseTasks.length === 0 && (
-                          <div style={{ padding: '4px 10px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontStyle: 'italic' }}>Chưa có task nào.</div>
+                          <div style={{ padding: '4px 10px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontStyle: 'italic' }}>Chưa có công việc nào.</div>
                         )}
                       </div>
                     )}
@@ -660,7 +711,7 @@ export const WBSTree = () => {
                     onMouseEnter={e => { const b = e.currentTarget; b.style.borderColor = 'hsl(var(--primary))'; b.style.color = 'hsl(var(--primary))'; b.style.background = 'hsl(var(--primary-glow))'; }}
                     onMouseLeave={e => { const b = e.currentTarget; b.style.borderColor = 'hsl(var(--border-light))'; b.style.color = 'hsl(var(--text-muted))'; b.style.background = 'transparent'; }}
                   >
-                    <FolderPlus size={14} /><span>+ Thêm Phase mới</span>
+                    <FolderPlus size={14} /><span>+ Thêm Giai đoạn mới</span>
                   </button>
                 </div>
               )}

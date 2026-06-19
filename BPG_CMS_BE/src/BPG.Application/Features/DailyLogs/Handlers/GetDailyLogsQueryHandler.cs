@@ -40,7 +40,34 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             if (request.TaskId.HasValue)
             {
-                query = query.Where(d => d.TaskId == request.TaskId.Value);
+                // Lấy cấu trúc cây task của toàn dự án để BFS tìm con/cháu
+                // Không filter status/isDeleted vì chỉ cần quan hệ ParentTaskId
+                var allTasks = await _uow.Repository<ProjectTask>().Query()
+                    .AsNoTracking()
+                    .Where(t => t.Phase.ProjectId == request.ProjectId)
+                    .Select(t => new { t.TaskId, t.ParentTaskId })
+                    .ToListAsync(cancellationToken);
+
+                var taskIdsToFilter = new List<long> { request.TaskId.Value };
+                
+                // Thuật toán tìm tất cả các task con cháu đệ quy (BFS)
+                var queue = new Queue<long>();
+                queue.Enqueue(request.TaskId.Value);
+                while (queue.Count > 0)
+                {
+                    var currentId = queue.Dequeue();
+                    var children = allTasks.Where(t => t.ParentTaskId == currentId).Select(t => t.TaskId).ToList();
+                    foreach (var childId in children)
+                    {
+                        if (!taskIdsToFilter.Contains(childId))
+                        {
+                            taskIdsToFilter.Add(childId);
+                            queue.Enqueue(childId);
+                        }
+                    }
+                }
+
+                query = query.Where(d => taskIdsToFilter.Contains(d.TaskId));
             }
 
             if (request.CreatedBy.HasValue)
