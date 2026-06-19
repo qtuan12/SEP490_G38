@@ -13,6 +13,7 @@ import { AcceptanceForm } from '../PhaseAcceptance/components/AcceptanceForm';
 import { AcceptanceTasksChecklist } from '../PhaseAcceptance/components/AcceptanceTasksChecklist';
 import { Button } from '../../components/ui';
 import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
+import html2pdf from 'html2pdf.js';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -40,6 +41,9 @@ export const PhaseAcceptance: React.FC = () => {
   const [activeReportContent, setActiveReportContent] = useState<string>('');
   const [activeAcceptanceDate, setActiveAcceptanceDate] = useState<string>('');
   const [activeCreatorName, setActiveCreatorName] = useState<string>('');
+  const [activeAcceptanceId, setActiveAcceptanceId] = useState<number | null>(null);
+
+  const canRevoke = isViewingHistory ? !historicalAcceptance?.isCancelled : isSubmitted;
 
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
@@ -66,6 +70,7 @@ export const PhaseAcceptance: React.FC = () => {
           setActiveReportContent(activeAcc.reportContent || '');
           setActiveAcceptanceDate(new Date(activeAcc.acceptanceDate).toLocaleDateString('vi-VN'));
           setActiveCreatorName(activeAcc.acceptedByName || '');
+          setActiveAcceptanceId(activeAcc.acceptanceId);
         }
       }
 
@@ -86,7 +91,7 @@ export const PhaseAcceptance: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [projectId, phaseId]);
+  }, [projectId, phaseId, historyId]);
 
   const handleRevoke = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,21 +127,41 @@ export const PhaseAcceptance: React.FC = () => {
       }
     }
 
+    const targetId = isViewingHistory ? historicalAcceptance?.acceptanceId : activeAcceptanceId;
+    if (!targetId) {
+      setError('Không tìm thấy biên bản nghiệm thu cần hủy.');
+      return;
+    }
+
     try {
-      await projectService.revokePhase(phaseId, revokeReason);
+      await phaseAcceptanceService.cancelAcceptance(targetId, { cancellationReason: revokeReason });
       setIsRevoking(false);
       setRevokeReason('');
       setSuccess('Đã hủy nghiệm thu giai đoạn thành công!');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => setSuccess(null), 3000);
-      loadData();
+      
+      // Navigate to the history view of the revoked acceptance
+      navigate(`/projects/${projectId}/phases/${phaseId}/acceptance?historyId=${targetId}`, { replace: true });
     } catch (err: any) {
       setError(err.message || 'Có lỗi xảy ra khi hủy nghiệm thu.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handleDownloadPDF = async () => {
-    // Kích hoạt tính năng In của trình duyệt (Mẫu in đã được CSS ẩn các phần không cần thiết)
-    window.print();
+    const element = document.getElementById('printable-acceptance-doc');
+    if (!element) return;
+    
+    const opt = {
+      margin:       10, // top, left, bottom, right
+      filename:     `Bien_Ban_Nghiem_Thu_${phase?.name || 'Giai_Doan'}.pdf`,
+      image:        { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+    };
+
+    html2pdf().set(opt).from(element).save();
   };
 
   if (loading) {
@@ -245,7 +270,7 @@ export const PhaseAcceptance: React.FC = () => {
                   <span>Tải File Báo Cáo Nghiệm Thu</span>
                 </Button>
 
-                {!isViewingHistory && !isRevoking ? (
+                {canRevoke && !isRevoking ? (
                   <button 
                     type="button" 
                     onClick={() => setIsRevoking(true)}
@@ -254,7 +279,7 @@ export const PhaseAcceptance: React.FC = () => {
                     <AlertTriangle size={15} />
                     Yêu cầu Hủy Nghiệm Thu
                   </button>
-                ) : !isViewingHistory && isRevoking ? (
+                ) : canRevoke && isRevoking ? (
                   <div className="w-full mt-3 p-4 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm">
                     <label htmlFor="revoke-reason" className="text-[hsl(var(--danger))] font-semibold block mb-2">
                       Lý do hủy nghiệm thu (Tối thiểu 20 ký tự) <span className="text-[hsl(var(--danger))]">*</span>

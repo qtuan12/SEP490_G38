@@ -148,27 +148,27 @@ export const PhaseAcceptances: React.FC = () => {
         
         {/* Simple Pagination */}
         {data && data.totalCount > 0 && (
-          <div className="p-4 border-t border-[hsl(var(--border-light))] flex justify-between items-center bg-[hsl(var(--bg-surface))]">
-            <span className="text-sm text-[hsl(var(--text-secondary))]">
-              Hiển thị {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, data.totalCount)} trong {data.totalCount}
-            </span>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
+          <div className="p-4 border-t border-[hsl(var(--border-light))] flex justify-center items-center bg-[hsl(var(--bg-surface))]">
+            <div className="flex items-center gap-2">
+              <button 
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-hover))] disabled:opacity-50 disabled:cursor-not-allowed border-none transition-colors cursor-pointer"
                 disabled={page === 1}
                 onClick={() => setPage(p => p - 1)}
               >
-                Trước
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
+                Trang trước
+              </button>
+              
+              <div className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-[hsl(var(--border-light))] text-[hsl(var(--primary))] shadow-sm">
+                Trang {page} / {Math.max(1, Math.ceil(data.totalCount / pageSize))}
+              </div>
+
+              <button 
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-hover))] disabled:opacity-50 disabled:cursor-not-allowed border-none transition-colors cursor-pointer"
                 disabled={page * pageSize >= data.totalCount}
                 onClick={() => setPage(p => p + 1)}
               >
-                Sau
-              </Button>
+                Trang sau
+              </button>
             </div>
           </div>
         )}

@@ -30,7 +30,7 @@ export const AcceptanceForm: React.FC<AcceptanceFormProps> = ({
   onError,
   onPhaseUpdated
 }) => {
-  const { control, handleSubmit, formState: { errors, isSubmitting } } = useForm<AcceptanceFormData>({
+  const { control, handleSubmit, formState: { errors } } = useForm<AcceptanceFormData>({
     resolver: zodResolver(acceptanceSchema),
     defaultValues: {
       reportContent: ''
@@ -62,11 +62,9 @@ export const AcceptanceForm: React.FC<AcceptanceFormProps> = ({
     <form onSubmit={handleSubmit(onSubmitForm)} className="flex flex-col gap-5">
       <div>
         <h3 className="text-lg font-bold border-b border-[hsl(var(--border))] pb-2 m-0 text-[hsl(var(--text-primary))]">
-          Soạn thảo Nội dung Báo cáo Nghiệm thu
+          Nội dung Báo cáo Nghiệm thu
         </h3>
-        <p className="text-sm text-[hsl(var(--text-secondary))] mt-1">
-          Nội dung này sẽ được chèn trực tiếp vào bản in PDF mẫu chuẩn. Các thông tin về thời gian, dự án, giai đoạn, và người lập sẽ được hệ thống tự động sinh. Hỗ trợ Markdown cơ bản.
-        </p>
+
       </div>
 
       <div className="bg-white rounded-md border border-[hsl(var(--border))]" data-color-mode="light">
@@ -96,11 +94,11 @@ export const AcceptanceForm: React.FC<AcceptanceFormProps> = ({
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={!allCompleted || isSubmitting}
+          disabled={!allCompleted || acceptMutation.isPending}
           style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
           <Lock size={16} />
-          <span>{isSubmitting ? 'Đang xử lý...' : 'Xác nhận & Đóng băng Phase'}</span>
+          <span>{acceptMutation.isPending ? 'Đang xử lý...' : 'Xác nhận & Đóng băng Phase'}</span>
         </button>
       </div>
     </form>

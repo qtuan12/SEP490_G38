@@ -51,6 +51,22 @@ public class GetPhaseAcceptancesQueryHandler : IRequestHandler<GetPhaseAcceptanc
         
         var dtoList = _mapper.Map<List<PhaseAcceptanceDto>>(pagedEntities.Items);
 
+        // Map CancelledByName manually to avoid EF Core schema changes
+        var cancelledUserIds = pagedEntities.Items.Where(x => x.CancelledBy.HasValue).Select(x => x.CancelledBy!.Value).Distinct().ToList();
+        if (cancelledUserIds.Any())
+        {
+            var userRepo = _unitOfWork.Repository<User>();
+            var cancelUsers = await userRepo.Query().Where(u => cancelledUserIds.Contains(u.UserId)).ToDictionaryAsync(u => u.UserId, u => u.FullName, ct);
+            foreach(var dto in dtoList)
+            {
+                var entity = pagedEntities.Items.FirstOrDefault(x => x.AcceptanceId == dto.AcceptanceId);
+                if (entity?.CancelledBy != null && cancelUsers.ContainsKey(entity.CancelledBy.Value))
+                {
+                    dto.CancelledByName = cancelUsers[entity.CancelledBy.Value];
+                }
+            }
+        }
+
         return new PagedList<PhaseAcceptanceDto>(dtoList, pagedEntities.TotalCount, pagedEntities.PageNumber, pagedEntities.PageSize);
     }
 }
