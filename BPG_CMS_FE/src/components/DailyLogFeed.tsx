@@ -10,14 +10,13 @@ import {
   MessageSquare,
   Eye,
   Search,
-  CheckCircle,
   Plus,
   Edit2,
   Trash2,
   ChevronDown
 } from 'lucide-react';
 
-const PAGE_SIZE = 2;
+const PAGE_SIZE = 4;
 import { Modal, Input, Select, Badge, Button, ConfirmDialog } from './ui';
 import type { BadgeVariant } from './ui';
 import { DailyLogFormModal } from '../pages/Incidents/modals/DailyLogFormModal';
@@ -58,15 +57,6 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   // States for comment deletion dialog
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
   const [isDeletingComment, setIsDeletingComment] = useState(false);
-
-  // Acknowledged Comments State (Simulated on client-side via localStorage for simplicity)
-  const [acknowledgedComments, setAcknowledgedComments] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('bpg_acknowledged_comments') || '[]');
-    } catch {
-      return [];
-    }
-  });
 
   // Comment inputs
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
@@ -371,14 +361,6 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     }
   };
 
-  const handleAcknowledgeComment = (commentId: string) => {
-    const updated = [...acknowledgedComments, commentId];
-    setAcknowledgedComments(updated);
-    localStorage.setItem('bpg_acknowledged_comments', JSON.stringify(updated));
-  };
-
-
-
   // Extract engineers assigned to the selected task or phase
   const assignedEngineers = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -565,7 +547,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     const assignedIds = t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : [];
     return user?.id && assignedIds.includes(user.id.toString());
   });
-  const canReport = (isPL || hasAnyAssignedTask) && !currentTaskHasSubtasks;
+  const canReport = !!taskId && (isPL || hasAnyAssignedTask) && !currentTaskHasSubtasks;
 
   return (
     <div className="flex flex-col gap-6 w-full mx-auto pb-10">
@@ -857,14 +839,10 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                           <div className="flex flex-col gap-2 mb-3">
                             {log.comments?.map((comm) => {
                               const isManager = comm.role === 'technicalmanager' || comm.role === 'director';
-                              const isAcknowledged = acknowledgedComments.includes(comm.id);
 
                               let commentClass = "";
                               if (isManager) {
                                 commentClass = "comment-highlight-manager";
-                              }
-                              if (isAcknowledged) {
-                                commentClass += " comment-acknowledged";
                               }
 
                               const canEditComment = comm.userId === user?.id;
@@ -933,29 +911,6 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                                       <p className="text-[hsl(var(--text-primary))] mt-0.5 leading-snug">
                                         {comm.content}
                                       </p>
-                                    )}
-
-                                    {isManager && !isAcknowledged && (() => {
-                                      const logTask = tasks.find(t => String(t.id).replace(/^t-/, '') === String(log.taskId).replace(/^t-/, ''));
-                                      const assignedIds = logTask?.assignedTo ? logTask.assignedTo.split(',').map(s => s.trim()) : [];
-                                      return user?.id && assignedIds.includes(user.id.toString());
-                                    })() && (
-                                      <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={() => handleAcknowledgeComment(comm.id)}
-                                        className="self-start py-0.5 px-1.5 text-[0.65rem] mt-1.5 h-auto flex items-center gap-1 border-[hsl(var(--success)/0.4)] text-[hsl(var(--success))]"
-                                      >
-                                        <CheckCircle size={10} />
-                                        <span>Xác nhận đã đọc chỉ đạo</span>
-                                      </Button>
-                                    )}
-
-                                    {isManager && isAcknowledged && (
-                                      <span className="inline-flex items-center gap-1 text-[0.65rem] text-[hsl(var(--success))] font-semibold mt-1">
-                                        <CheckCircle size={10} />
-                                        <span>Đã ghi nhận chỉ đạo</span>
-                                      </span>
                                     )}
                                   </div>
                                 </div>

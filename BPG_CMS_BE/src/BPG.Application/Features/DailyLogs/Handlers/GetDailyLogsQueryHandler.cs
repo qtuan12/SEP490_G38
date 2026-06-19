@@ -40,10 +40,11 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             if (request.TaskId.HasValue)
             {
-                // Lấy danh sách tất cả các Task của Project để tìm con/cháu
+                // Lấy cấu trúc cây task của toàn dự án để BFS tìm con/cháu
+                // Không filter status/isDeleted vì chỉ cần quan hệ ParentTaskId
                 var allTasks = await _uow.Repository<ProjectTask>().Query()
                     .AsNoTracking()
-                    .Where(t => t.Phase.ProjectId == request.ProjectId && t.Status != "obsolete")
+                    .Where(t => t.Phase.ProjectId == request.ProjectId)
                     .Select(t => new { t.TaskId, t.ParentTaskId })
                     .ToListAsync(cancellationToken);
 

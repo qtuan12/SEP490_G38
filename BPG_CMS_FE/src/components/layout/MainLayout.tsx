@@ -50,8 +50,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       case 'technicalmanager': return 'TP Kỹ Thuật';
       case 'projectleader': return 'Trưởng Dự án';
       case 'siteengineer': return 'Nhân viên kỹ thuật';
-      case 'accountant': return 'accountant';
-      case 'director': return 'director';
+      case 'accountant': return 'Kế toán';
+      case 'director': return 'Giám đốc';
       default: return role;
     }
   };
@@ -63,7 +63,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       case 'siteengineer': return 'success';
       case 'technicalmanager':
       case 'projectleader':
-      case 'accountant': return 'default'; // Note: mapping badge-primary to default since Badge doesn't have primary
+      case 'accountant': return 'default';
       default: return 'default';
     }
   };
