@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import { UploadCloud, X, AlertCircle } from 'lucide-react';
 import { projectService } from '../../../services/projectService';
 import type { WBSTask, DailyLog, WBSPhase } from '../../../types/common';
-import { Modal, Button, Textarea, Select } from '../../../components/ui';
+import { Modal, Button, Textarea } from '../../../components/ui';
 import { useAuth } from '../../../context/AuthContext';
 
 const dailyLogSchema = z.object({
@@ -30,6 +30,7 @@ interface DailyLogFormProps {
   isPL?: boolean;
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
+  hideHeader?: boolean;
 }
 
 export const DailyLogForm: React.FC<DailyLogFormProps> = ({
@@ -37,13 +38,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   task,
   taskId,
   tasks = [],
-  phases = [],
-  selectedPhaseId = '',
   editLog,
   engineerId,
   engineerName,
-  isPL = false,
-  onSuccess
+  onSuccess,
+  hideHeader = false
 }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -57,127 +56,18 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const [existingImages, setExistingImages] = useState<string[]>([]);
   // File dragging state
   const [dragging, setDragging] = useState(false);
-  // Track selected task when in feed mode
-  // Identify parent tasks to only show leaf tasks
-  const parentTaskIds = React.useMemo(() => {
-    return new Set(
-      tasks
-        .map(t => t.parentTaskId)
-        .filter((id): id is string => !!id)
-        .map(id => id.replace(/^t-/, ''))
-    );
-  }, [tasks]);
-
-  // Track selected Phase inside the modal (only used when no task is preselected)
-  const [modalSelectedPhaseId, setModalSelectedPhaseId] = useState<string>(() => {
-    if (task) return task.phaseId;
-    if (taskId && !taskId.startsWith('phase-')) {
-      const found = tasks.find(t => String(t.id).replace(/^t-/, '') === String(taskId).replace(/^t-/, ''));
-      if (found) return found.phaseId;
-    }
-    if (selectedPhaseId) return selectedPhaseId;
-    if (phases && phases.length > 0) return phases[0].id;
-    return '';
-  });
-
-  // Track selected Task inside the modal
-  const [selectedTaskId, setSelectedTaskId] = useState<string>(() => {
-    if (task) return task.id;
-    if (taskId && !taskId.startsWith('phase-')) return taskId;
-    
-    // Default to the first leaf task of the current phase
-    const initialPhaseId = selectedPhaseId || (phases && phases.length > 0 ? phases[0].id : '');
-    if (initialPhaseId) {
-      const phaseLeafTasks = tasks.filter(t => 
-        (t.phaseId === initialPhaseId || t.phaseId.replace(/^p-/, '') === initialPhaseId.replace(/^p-/, '')) &&
-        !parentTaskIds.has(t.id.replace(/^t-/, ''))
-      );
-      if (phaseLeafTasks.length > 0) return phaseLeafTasks[0].id;
-    }
-
-    // Overall fallback
-    const leafTasks = tasks.filter(t => !parentTaskIds.has(t.id.replace(/^t-/, '')));
-    if (leafTasks.length > 0) return leafTasks[0].id;
-    if (tasks && tasks.length > 0) return tasks[0].id;
-    return '';
-  });
-
   // Find the selected task object
   const currentTask = React.useMemo(() => {
     if (task) return task;
     if (editLog) return undefined; // Task is not changeable in edit mode
     if (!tasks || tasks.length === 0) return undefined;
-    const activeId = selectedTaskId;
+    const activeId = taskId;
     if (!activeId) return undefined;
     return tasks.find(t => String(t.id).replace(/^t-/, '') === String(activeId).replace(/^t-/, ''));
-  }, [task, selectedTaskId, tasks, editLog]);
+  }, [task, taskId, tasks, editLog]);
 
   const minProgress = currentTask ? currentTask.progress : 0;
   const isProgressDisabled = !currentTask || currentTask.progress === 100;
-
-  const isTaskPreselected = !!task || (!!taskId && !taskId.startsWith('phase-'));
-
-  const isCurrentTaskParent = React.useMemo(() => {
-    if (!currentTask) return false;
-    return parentTaskIds.has(currentTask.id.replace(/^t-/, ''));
-  }, [currentTask, parentTaskIds]);
-
-  // When user changes Phase in the modal, auto-select the first leaf task of that phase
-  useEffect(() => {
-    if (!isEditMode && !task && !taskId) {
-      if (modalSelectedPhaseId) {
-        const phaseLeafTasks = tasks.filter(t => 
-          (t.phaseId === modalSelectedPhaseId || t.phaseId.replace(/^p-/, '') === modalSelectedPhaseId.replace(/^p-/, '')) &&
-          !parentTaskIds.has(t.id.replace(/^t-/, ''))
-        );
-        if (phaseLeafTasks.length > 0) {
-          setSelectedTaskId(phaseLeafTasks[0].id);
-        } else {
-          setSelectedTaskId('');
-        }
-      }
-    }
-  }, [modalSelectedPhaseId, tasks, parentTaskIds, isEditMode, task, taskId]);
-
-  const modalPhaseOptions = React.useMemo(() => {
-    const isPLOrAdminOrTM = isPL || user?.role === 'admin' || user?.role === 'technicalmanager';
-    
-    return phases.filter(phase => {
-      if (isPLOrAdminOrTM) return true;
-      
-      // Check xem phase này có task nào mà user được gán không
-      return tasks.some(t => {
-        const isCorrectPhase = t.phaseId === phase.id || t.phaseId.replace(/^p-/, '') === phase.id.replace(/^p-/, '');
-        const isLeaf = !parentTaskIds.has(t.id.replace(/^t-/, ''));
-        if (!isCorrectPhase || !isLeaf) return false;
-        
-        const assignedIds = t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : [];
-        return user?.id && assignedIds.includes(user.id.toString());
-      });
-    }).map(phase => ({
-      label: phase.name,
-      value: phase.id
-    }));
-  }, [phases, tasks, parentTaskIds, isPL, user]);
-
-  const modalTaskOptions = React.useMemo(() => {
-    const isPLOrAdminOrTM = isPL || user?.role === 'admin' || user?.role === 'technicalmanager';
-    const phaseTasks = tasks.filter(t => {
-      const isCorrectPhase = t.phaseId === modalSelectedPhaseId || t.phaseId.replace(/^p-/, '') === modalSelectedPhaseId.replace(/^p-/, '');
-      const isLeaf = !parentTaskIds.has(t.id.replace(/^t-/, ''));
-      if (!isCorrectPhase || !isLeaf) return false;
-      
-      if (isPLOrAdminOrTM) return true;
-      
-      // Nếu không phải leader/TM/admin thì chỉ được chọn task mình được gán
-      const assignedIds = t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : [];
-      return user?.id && assignedIds.includes(user.id.toString());
-    });
-    return phaseTasks.map(t => ({
-      label: t.name,
-      value: t.id
-    }));
-  }, [tasks, modalSelectedPhaseId, parentTaskIds, isPL, user]);
 
   const schema = React.useMemo(() => {
     const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
@@ -216,8 +106,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
   const progress = watch('progress');
 
-
-
   useEffect(() => {
     setSelectedFiles([]);
     setPreviews([]);
@@ -230,20 +118,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       });
     } else {
       setExistingImages([]);
-      // Set the active phase on open
-      if (task) {
-        setModalSelectedPhaseId(task.phaseId);
-      } else if (taskId && !taskId.startsWith('phase-')) {
-        const found = tasks.find(t => String(t.id).replace(/^t-/, '') === String(taskId).replace(/^t-/, ''));
-        if (found) setModalSelectedPhaseId(found.phaseId);
-      } else if (selectedPhaseId) {
-        setModalSelectedPhaseId(selectedPhaseId);
-      } else if (phases && phases.length > 0) {
-        setModalSelectedPhaseId(phases[0].id);
-      }
-
       if (currentTask) {
-        setSelectedTaskId(currentTask.id);
         reset({
           progress: currentTask.progress,
           content: ''
@@ -252,17 +127,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTask?.id, editLog]);
-
-  // Update progress value when selected task changes (CHỈ tự động fill lại % khi người dùng thực sự chọn task khác trong Dropdown)
-  useEffect(() => {
-    if (!isEditMode && selectedTaskId && tasks && tasks.length > 0) {
-      const selected = tasks.find(t => String(t.id).replace(/^t-/, '') === String(selectedTaskId).replace(/^t-/, ''));
-      if (selected) {
-        setValue('progress', selected.progress);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTaskId, isEditMode]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -386,21 +250,16 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const totalImagesCount = existingImages.length + selectedFiles.length;
 
   return (
-    <div className="bg-[hsl(var(--bg-card))] rounded-md border border-[hsl(var(--border))] overflow-hidden animate-fade-in shadow-sm mt-4">
-      <div className="p-3 bg-blue-50/50 border-b border-[hsl(var(--border))]">
-        <h4 className="m-0 text-[0.95rem] font-semibold text-blue-700">{isEditMode ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"}</h4>
-      </div>
-      <div className="p-4">
+    <div className={`bg-[hsl(var(--bg-card))] rounded-md ${hideHeader ? '' : 'border border-[hsl(var(--border))] shadow-sm mt-4'} overflow-hidden animate-fade-in`}>
+      {!hideHeader && (
+        <div className="p-3 bg-blue-50/50 border-b border-[hsl(var(--border))]">
+          <h4 className="m-0 text-[0.95rem] font-semibold text-blue-700">{isEditMode ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"}</h4>
+        </div>
+      )}
+      <div className={hideHeader ? '' : 'p-4'}>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          {isCurrentTaskParent && (
-            <div className="flex items-center gap-2 bg-red-50 text-red-700 p-3 rounded-md border border-red-100 text-sm">
-              <AlertCircle size={18} />
-              <span>Công việc này có chứa công việc con. Tiến độ sẽ tự động tính từ các công việc con, bạn không thể báo cáo nhật ký trực tiếp cho công việc này.</span>
-            </div>
-          )}
-          
           {/* Progress Slider (Only for Create Mode) */}
-          {!isEditMode && (
+          {!isEditMode ? (
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-sm font-medium text-slate-700">Tiến độ hoàn thành (%)</label>
@@ -434,6 +293,18 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
               </span>
               {errors.progress && <p className="text-red-500 text-xs mt-1">{errors.progress.message}</p>}
             </div>
+          ) : (
+            editLog && (
+              <div>
+                <label className="block text-sm font-medium mb-1 text-slate-600">Tiến độ đã ghi nhận (Đóng băng)</label>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-sm text-slate-700 font-semibold w-full">
+                  {editLog.progressTo}%
+                </div>
+                <span className="text-xs text-slate-500 block mt-1">
+                  * Tiến độ của nhật ký đã ghi nhận được đóng băng ở chế độ chỉnh sửa.
+                </span>
+              </div>
+            )
           )}
 
           {/* Task Selection / Display */}
@@ -442,42 +313,21 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
               <AlertCircle size={18} />
               <span>Đang sửa nhật ký cho việc: <strong>{editLog.taskName}</strong></span>
             </div>
-          ) : isTaskPreselected && currentTask ? (
+          ) : currentTask ? (
             <div className="flex items-center gap-2 bg-blue-50 text-blue-700 p-3 rounded-md border border-blue-100 text-sm">
               <AlertCircle size={18} />
               <span>Báo cáo cho việc: <strong>{currentTask.name}</strong></span>
-            </div>
-          ) : !isTaskPreselected ? (
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="block text-sm font-medium mb-1.5 text-slate-600">
-                  Giai đoạn thi công <span className="text-red-500">*</span>
-                </label>
-                <Select
-                  value={modalSelectedPhaseId}
-                  onChange={(e) => setModalSelectedPhaseId(e.target.value)}
-                  className="h-[38px] text-[0.85rem]"
-                  options={modalPhaseOptions}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5 text-slate-600">
-                  Công việc thi công <span className="text-red-500">*</span>
-                </label>
-                <Select
-                  value={selectedTaskId}
-                  onChange={(e) => setSelectedTaskId(e.target.value)}
-                  className="h-[38px] text-[0.85rem]"
-                  options={modalTaskOptions}
-                />
-              </div>
             </div>
           ) : null}
 
           {/* Detailed Description */}
           <div>
             <label className="block text-sm font-medium mb-1.5 text-slate-600">
-              {progress < minProgress ? 'Lý do giảm tiến độ' : 'Diễn biến công việc chi tiết'} <span className="text-red-500">*</span>
+              {isEditMode 
+                ? 'Mô tả công việc' 
+                : progress < minProgress 
+                ? 'Lý do giảm tiến độ' 
+                : 'Diễn biến công việc chi tiết'} <span className="text-red-500">*</span>
             </label>
             <Textarea
               placeholder={progress < minProgress ? "Vui lòng nhập lý do cụ thể vì sao tiến độ công việc bị giảm..." : "Mô tả công việc đã làm được hôm nay, số lượng nhân công huy động, các khó khăn gặp phải nếu có..."}
@@ -534,6 +384,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 {existingImages.map((imgUrl, idx) => (
                   <div key={`existing-${idx}`} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200 group">
                     <img src={imgUrl} alt="existing preview" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-0 left-0 right-0 bg-slate-500 text-white text-[9px] text-center py-0.5 font-bold">Đã lưu</span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -551,8 +402,8 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 {/* New Selected Images */}
                 {previews.map((imgUrl, idx) => (
                   <div key={`new-${idx}`} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200 group">
-                    <img src={imgUrl} alt="new preview" className="w-full h-full object-cover border-2 border-blue-400" />
-                    <span className="absolute bottom-0 left-0 right-0 bg-blue-500 text-white text-[9px] text-center py-0.5 font-bold">Mới</span>
+                    <img src={imgUrl} alt="new preview" className="w-full h-full object-cover border-2 border-green-400" />
+                    <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[9px] text-center py-0.5 font-bold">Mới</span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -584,7 +435,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
               type="submit" 
               variant="primary" 
               isLoading={mutation.isPending}
-              disabled={isCurrentTaskParent}
             >
               {isEditMode ? 'Cập nhật' : 'Gửi báo cáo'}
             </Button>
@@ -607,7 +457,7 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
   if (!isOpen) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={rest.editLog ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"}>
-      <DailyLogForm {...rest} isPL={isPL} onCancel={onClose} />
+      <DailyLogForm {...rest} isPL={isPL} onCancel={onClose} hideHeader={true} />
     </Modal>
   );
 };

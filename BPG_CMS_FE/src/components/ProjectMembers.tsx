@@ -23,6 +23,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<{id: string, name: string} | null>(null);
 
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
@@ -89,16 +91,24 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     }
   };
 
-  const handleRemoveMember = async (userId: string, name: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa kỹ sư ${name} khỏi dự án này?`)) return;
+  const handleRemoveMember = (userId: string, name: string) => {
+    setMemberToDelete({ id: userId, name });
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!memberToDelete) return;
 
     try {
-      await projectService.removeMember(projectId, userId);
-      setSuccess(`Đã xóa kỹ sư ${name} khỏi dự án.`);
+      await projectService.removeMember(projectId, memberToDelete.id);
+      setSuccess(`Đã xóa kỹ sư ${memberToDelete.name} khỏi dự án.`);
       setTimeout(() => setSuccess(null), 3000);
       loadData();
     } catch (err: any) {
       setError(err.message || 'Lỗi khi xóa thành viên.');
+    } finally {
+      setDeleteConfirmOpen(false);
+      setMemberToDelete(null);
     }
   };
 
@@ -375,6 +385,16 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title="Xác nhận xóa thành viên">
+        <div className="flex flex-col gap-4">
+          <p>Bạn có chắc chắn muốn xóa kỹ sư <strong>{memberToDelete?.name}</strong> khỏi dự án này?</p>
+          <div className="flex justify-end gap-3 mt-4">
+            <button type="button" className="btn btn-secondary px-4 py-2" onClick={() => setDeleteConfirmOpen(false)}>Hủy</button>
+            <button type="button" className="btn btn-primary px-4 py-2" style={{ backgroundColor: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))', color: 'white' }} onClick={confirmRemoveMember}>Xóa</button>
+          </div>
+        </div>
       </Modal>
 
     </div>

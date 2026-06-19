@@ -421,6 +421,19 @@ export const WBSTree = () => {
                                   </div>
                                 )}
 
+                                {isPL && (
+                                  <div
+                                    style={menuItemStyle}
+                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                    onClick={() => { setPhaseMenuId(null); navigate(`/phase-acceptances?projectId=${ph.projectId}&phaseId=${ph.id}`); }}
+                                  >
+                                    <CheckCircle size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                    <span>Danh sách Nghiệm thu</span>
+                                  </div>
+                                )}
+
+
                                 {!isFrozen && (
                                   <div
                                     style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
