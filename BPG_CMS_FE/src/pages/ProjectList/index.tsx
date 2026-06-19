@@ -4,6 +4,7 @@ import { projectService } from '../../services/projectService';
 import type {Project} from '../../types/common';
 import { CreateProjectModal } from './modals/CreateProjectModal';
 import { Button, Input, Select, Badge } from '../../components/ui';
+import { Modal } from '../../components/ui/Modal';
 import type { BadgeVariant } from '../../components/ui';
 import { 
   Search, 
@@ -32,6 +33,8 @@ export const ProjectList: React.FC = () => {
 
   // Form Drawer Modal state
   const [isOpen, setIsOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<{id: string, name: string} | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,20 +53,28 @@ export const ProjectList: React.FC = () => {
     }
   };
 
-  const handleDeleteProject = async (e: React.MouseEvent, id: string, name: string) => {
+  const openDeleteConfirm = (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
-    if (window.confirm(`Bạn có chắc chắn muốn xóa dự án bản nháp "${name}" không? Hành động này không thể hoàn tác.`)) {
-      setLoading(true);
-      setError(null);
-      setSuccess(null);
-      try {
-        await projectService.deleteProject(id);
-        setSuccess('Đã xóa dự án thành công.');
-        loadProjects();
-      } catch (err: any) {
-        setError(err.message || 'Lỗi khi xóa dự án.');
-        setLoading(false);
-      }
+    setProjectToDelete({ id, name });
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
+    setDeleteConfirmOpen(false);
+    
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await projectService.deleteProject(projectToDelete.id);
+      setSuccess('Đã xóa dự án thành công.');
+      loadProjects();
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi xóa dự án.');
+      setLoading(false);
+    } finally {
+      setProjectToDelete(null);
     }
   };
 
@@ -193,7 +204,7 @@ export const ProjectList: React.FC = () => {
                   <div className="flex items-center gap-2">
                     {p.status === 'draft' && (
                       <button 
-                        onClick={(e) => handleDeleteProject(e, p.id, p.name)}
+                        onClick={(e) => openDeleteConfirm(e, p.id, p.name)}
                         className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors"
                         title="Xóa dự án"
                       >
@@ -281,6 +292,16 @@ export const ProjectList: React.FC = () => {
           loadProjects();
         }}
       />
+
+      <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title="Xác nhận xóa dự án">
+        <div className="flex flex-col gap-4">
+          <p>Bạn có chắc chắn muốn xóa dự án bản nháp <strong>{projectToDelete?.name}</strong> không? Hành động này không thể hoàn tác.</p>
+          <div className="flex justify-end gap-3 mt-4">
+            <button type="button" className="btn btn-secondary px-4 py-2" onClick={() => setDeleteConfirmOpen(false)}>Hủy</button>
+            <button type="button" className="btn btn-primary px-4 py-2" style={{ backgroundColor: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))', color: 'white' }} onClick={confirmDeleteProject}>Xóa dự án</button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
