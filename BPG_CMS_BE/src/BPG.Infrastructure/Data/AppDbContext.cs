@@ -263,8 +263,7 @@ public class AppDbContext : DbContext
 
         // PhaseAcceptance
         modelBuilder.Entity<PhaseAcceptance>()
-            .HasIndex(p => p.PhaseId)
-            .IsUnique();
+            .HasIndex(p => p.PhaseId);
 
         modelBuilder.Entity<PhaseAcceptance>()
             .HasOne(p => p.Acceptor)

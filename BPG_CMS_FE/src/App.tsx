@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Layout } from './components/layout/MainLayout';
 import { Login } from './pages/Auth/Login';
+import { PhaseAcceptances } from './pages/PhaseAcceptances';
 import { Dashboard } from './pages/Dashboard';
 import { UserManagement } from './pages/UserManagement';
 import { SupplierManagement } from './pages/SupplierManagement';
@@ -169,7 +170,7 @@ function App() {
               <Route 
                 path="/units" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager']}>
+                  <ProtectedRoute allowedRoles={['admin']}>
                     <UnitManagement />
                   </ProtectedRoute>
                 } 
@@ -178,7 +179,7 @@ function App() {
               <Route 
                 path="/categories" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager']}>
+                  <ProtectedRoute allowedRoles={['admin']}>
                     <CategoryManagement />
                   </ProtectedRoute>
                 } 
@@ -187,7 +188,7 @@ function App() {
               <Route 
                 path="/materials" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin']}>
                     <MaterialManagement />
                   </ProtectedRoute>
                 } 
@@ -279,6 +280,16 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer']}>
                     <TaskDetailSE />
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Phase Acceptances List */}
+              <Route 
+                path="/phase-acceptances" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'director']}>
+                    <PhaseAcceptances />
                   </ProtectedRoute>
                 } 
               />

@@ -35,10 +35,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, roles: ['admin'] },
     { name: 'Dự án (WBS)', path: '/projects', icon: <Hammer size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director'] },
-    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin', 'technicalmanager'] },
-    { name: 'Danh mục Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin', 'technicalmanager'] },
-    { name: 'Kho Vật tư (Catalog)', path: '/materials', icon: <Package size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'director', 'accountant'] },
-    { name: 'Kiểm soát Vật tư', path: '#materials', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'director', 'accountant'], disabled: true },
+    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin'] },
+    { name: 'Danh mục Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin'] },
+    { name: 'Kho Vật tư (Catalog)', path: '/materials', icon: <Package size={20} />, roles: ['admin'] },
+    { name: 'Kiểm soát Vật tư', path: '#materials', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'], disabled: true },
     { name: 'Báo cáo', path: '#reports', icon: <FileText size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'], disabled: true },
   ];
 

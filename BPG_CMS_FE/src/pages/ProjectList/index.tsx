@@ -261,26 +261,26 @@ export const ProjectList: React.FC = () => {
 
       {/* Pagination Controls */}
       {!loading && totalPages > 1 && (
-        <div className="flex justify-center mt-6 gap-3">
-          <Button
-            variant="secondary"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            className="w-28 h-10"
-          >
-            Trang trước
-          </Button>
-          <div className="flex items-center px-4 font-semibold text-[hsl(var(--text-secondary))] bg-white rounded-md border border-[hsl(var(--border))]">
-            Trang {currentPage} / {totalPages}
+        <div className="flex justify-center mt-6">
+          <div className="flex items-center gap-2">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-hover))] disabled:opacity-50 disabled:cursor-not-allowed border-none transition-colors cursor-pointer"
+            >
+              Trang trước
+            </button>
+            <div className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-[hsl(var(--border-light))] text-[hsl(var(--primary))] shadow-sm">
+              Trang {currentPage} / {totalPages}
+            </div>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-hover))] disabled:opacity-50 disabled:cursor-not-allowed border-none transition-colors cursor-pointer"
+            >
+              Trang sau
+            </button>
           </div>
-          <Button
-            variant="secondary"
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            className="w-28 h-10"
-          >
-            Trang sau
-          </Button>
         </div>
       )}
 
