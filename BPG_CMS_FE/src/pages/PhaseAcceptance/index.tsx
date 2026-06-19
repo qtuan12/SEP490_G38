@@ -271,14 +271,18 @@ export const PhaseAcceptance: React.FC = () => {
                 </Button>
 
                 {canRevoke && !isRevoking && isTPKT ? (
-                  <button 
+                  <Button 
                     type="button" 
                     onClick={() => setIsRevoking(true)}
-                    className="flex items-center gap-1.5 py-2 px-4 rounded-sm font-semibold transition-all duration-200 cursor-pointer text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--danger))] border border-[hsl(var(--danger)/0.3)] hover:bg-[hsl(var(--danger-glow))] hover:border-[hsl(var(--danger))]"
+                    variant="outline"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px',
+                      color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger)/0.3)', backgroundColor: 'hsl(var(--bg-main))'
+                    }}
                   >
                     <AlertTriangle size={15} />
                     Yêu cầu Hủy Nghiệm Thu
-                  </button>
+                  </Button>
                 ) : canRevoke && isRevoking && isTPKT ? (
                   <div className="w-full mt-3 p-4 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm">
                     <label htmlFor="revoke-reason" className="text-[hsl(var(--danger))] font-semibold block mb-2">
@@ -297,15 +301,26 @@ export const PhaseAcceptance: React.FC = () => {
                       <span className="font-semibold">{revokeReason.trim().length} / 20</span>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <Button type="button" variant="secondary" onClick={() => setIsRevoking(false)}>Hủy</Button>
-                      <button 
+                      <Button
+                        type="button"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          padding: '6px 16px', borderRadius: '4px',
+                          backgroundColor: 'hsl(var(--bg-main))', color: 'hsl(var(--text-secondary))',
+                          border: '1px solid hsl(var(--border))'
+                        }}
+                        onClick={() => { setIsRevoking(false); setRevokeReason(''); }}
+                      >
+                        Hủy bỏ
+                      </Button>
+                      <Button 
                         type="button" 
-                        className="py-2 px-4 rounded-sm font-semibold transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-[hsl(var(--danger))] text-white border-none hover:bg-[#b91c1c]" 
+                        variant="danger"
                         onClick={handleRevoke} 
                         disabled={revokeReason.trim().length < 20}
                       >
                         Xác nhận Hủy Nghiệm Thu
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ) : null}
