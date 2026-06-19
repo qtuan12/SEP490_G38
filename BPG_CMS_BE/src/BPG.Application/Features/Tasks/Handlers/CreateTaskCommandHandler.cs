@@ -3,49 +3,25 @@ using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Entities;
-using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.Features.Tasks.Commands;
 
-namespace BPG.Application.Features.Tasks.Commands.CreateTask;
-
-public record CreateTaskCommand(
-    long PhaseId,
-    long? ParentTaskId,
-    string Name,
-    string? Description,
-    int OrderIndex,
-    DateOnly StartDate,
-    DateOnly EndDate,
-    List<long>? AssigneeIds
-) : IRequest<ApiResponse<long>>;
-
-public class CreateTaskCommandValidator : AbstractValidator<CreateTaskCommand>
-{
-    public CreateTaskCommandValidator()
-    {
-        RuleFor(x => x.PhaseId).GreaterThan(0);
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.OrderIndex).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.StartDate).NotEmpty();
-        RuleFor(x => x.EndDate)
-            .NotEmpty()
-            .GreaterThanOrEqualTo(x => x.StartDate)
-            .WithMessage("Ngày kết thúc không được nhỏ hơn ngày bắt đầu.");
-    }
-}
+namespace BPG.Application.Features.Tasks.Handlers;
 
 public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiResponse<long>>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
     private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly AutoMapper.IMapper _mapper;
 
-    public CreateTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
+    public CreateTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService, IRealtimeNotificationSender realtimeSender, AutoMapper.IMapper mapper)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
         _realtimeSender = realtimeSender;
+        _mapper = mapper;
     }
 
     public async Task<ApiResponse<long>> Handle(CreateTaskCommand request, CancellationToken ct)
@@ -92,37 +68,32 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 
             if (leader != null)
             {
-                var isLeaderAssigned = parentTask.Assignees.Any(a => a.UserId == leader.UserId);
-                if (!isLeaderAssigned)
+                var originalAssignees = parentTask.Assignees.ToList();
+                if (originalAssignees.Any())
                 {
-                    parentTask.Assignees.Add(new TaskAssignee
-                    {
-                        UserId = leader.UserId,
-                        AssignedAt = DateTime.UtcNow
-                    });
-
-                    if (parentTask.Status == BPG.Domain.Constants.TaskStatus.New)
-                    {
-                        parentTask.Status = BPG.Domain.Constants.TaskStatus.Assigned;
-                    }
-
-                    _unitOfWork.Repository<ProjectTask>().Update(parentTask);
+                    _unitOfWork.Repository<TaskAssignee>().RemoveRange(originalAssignees);
+                    parentTask.Assignees.Clear();
                 }
+
+                parentTask.Assignees.Add(new TaskAssignee
+                {
+                    TaskId = parentTask.TaskId,
+                    UserId = leader.UserId,
+                    AssignedAt = DateTime.UtcNow
+                });
+
+                if (parentTask.Status == BPG.Domain.Constants.TaskStatus.New)
+                {
+                    parentTask.Status = BPG.Domain.Constants.TaskStatus.Assigned;
+                }
+
+                _unitOfWork.Repository<ProjectTask>().Update(parentTask);
             }
         }
 
-        var task = new ProjectTask
-        {
-            PhaseId = request.PhaseId,
-            ParentTaskId = request.ParentTaskId,
-            Name = request.Name,
-            Description = request.Description,
-            OrderIndex = request.OrderIndex,
-            StartDate = request.StartDate,
-            EndDate = request.EndDate,
-            Status = BPG.Domain.Constants.TaskStatus.New,
-            ProgressPercent = 0
-        };
+        var task = _mapper.Map<ProjectTask>(request);
+        task.Status = BPG.Domain.Constants.TaskStatus.New;
+        task.ProgressPercent = 0;
 
         if (request.AssigneeIds != null && request.AssigneeIds.Any())
         {

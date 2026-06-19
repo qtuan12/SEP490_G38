@@ -150,8 +150,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Công việc đang chọn" maxWidth={activeForm ? "1100px" : "700px"}>
-      <div className="flex flex-col md:flex-row gap-6 items-start transition-all duration-300">
-        <div className="flex flex-col gap-5 w-full" style={{ flex: activeForm ? '1 1 60%' : '1 1 100%' }}>
+      <div style={{ display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', gap: '24px', alignItems: 'flex-start', transition: 'all 0.3s' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', flex: activeForm ? '1 1 60%' : '1 1 100%' }}>
         <div>
           <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{selectedTask.name}</h3>
           <p style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', marginTop: '2px' }}>
