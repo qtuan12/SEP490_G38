@@ -49,9 +49,29 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
 
             if (incompletePredecessors.Any())
             {
-                var names = string.Join(", ", incompletePredecessors.Select(td => td.Predecessor.Name));
-                throw new BusinessException("ERR_TASK_DEPENDENCY_BLOCKED",
-                    $"Không thể điều chỉnh tiến độ. Các công việc tiên quyết chưa hoàn thành: {names}");
+                // Tìm tất cả các ancestor IDs để loại trừ khỏi danh sách chặn
+                var ancestorIds = new System.Collections.Generic.HashSet<long>();
+                long? currentParentId = task.ParentTaskId;
+                while (currentParentId.HasValue)
+                {
+                    ancestorIds.Add(currentParentId.Value);
+                    var parent = await _unitOfWork.Repository<ProjectTask>()
+                        .Query()
+                        .Select(t => new { t.TaskId, t.ParentTaskId })
+                        .FirstOrDefaultAsync(t => t.TaskId == currentParentId.Value, ct);
+                    currentParentId = parent?.ParentTaskId;
+                }
+
+                var blockedPredecessors = incompletePredecessors
+                    .Where(td => !ancestorIds.Contains(td.PredecessorTaskId))
+                    .ToList();
+
+                if (blockedPredecessors.Any())
+                {
+                    var names = string.Join(", ", blockedPredecessors.Select(td => td.Predecessor.Name));
+                    throw new BusinessException("ERR_TASK_DEPENDENCY_BLOCKED",
+                        $"Không thể điều chỉnh tiến độ. Các công việc tiên quyết chưa hoàn thành: {names}");
+                }
             }
         }
 

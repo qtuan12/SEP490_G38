@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,7 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
-import type {ProjectMember} from '../../../types/common';
+import type {ProjectMember, WBSTask} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
 const createTaskSchema = z.object({
@@ -31,6 +31,7 @@ interface CreateTaskModalProps {
   parentDeadline?: string;
   maxTaskOrder: number;
   members: ProjectMember[];
+  tasks: WBSTask[];
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
 }
@@ -43,8 +44,12 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   parentDeadline,
   maxTaskOrder,
   members,
+  tasks,
   onSuccess
 }) => {
+  const [selectedPredecessorIds, setSelectedPredecessorIds] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateTaskForm>({
     resolver: zodResolver(createTaskSchema),
     defaultValues: {
@@ -60,6 +65,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       reset();
+      setSelectedPredecessorIds([]);
+      setSearchTerm('');
     }
   }, [isOpen, reset]);
 
@@ -68,6 +75,28 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     m.userRole === 'SiteEngineer' || 
     m.userRole.toLowerCase() === 'siteengineer' || 
     m.userRole === 'Nhân viên kỹ thuật'
+  );
+
+  // Tìm tất cả tổ tiên (ancestor) của parentTaskId để tránh vòng lặp khóa tiến độ
+  const getAncestors = (startId: string | undefined): Set<string> => {
+    const ancestors = new Set<string>();
+    let currentId = startId;
+    while (currentId) {
+      ancestors.add(currentId);
+      const parentTask = tasks.find(t => t.id === currentId);
+      currentId = parentTask?.parentTaskId;
+    }
+    return ancestors;
+  };
+
+  const parentAncestors = getAncestors(parentTaskId);
+  const potentialPredecessors = tasks.filter(t => 
+    t.status !== 'obsolete' && 
+    !parentAncestors.has(t.id)
+  );
+
+  const filteredPredecessors = potentialPredecessors.filter(t =>
+    t.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const mutation = useMutation({
@@ -88,7 +117,17 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         weight: (data.weight !== undefined && data.weight !== '' && data.weight !== null) ? Number(data.weight) : null
       });
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (newTaskId, variables) => {
+      if (selectedPredecessorIds.length > 0) {
+        for (const predIdStr of selectedPredecessorIds) {
+          try {
+            const predId = parseInt(predIdStr.replace('t-', ''));
+            await wbsService.addTaskDependency(newTaskId, predId);
+          } catch (err: any) {
+            toast.error(err.message || `Lỗi khi liên kết công việc đi trước: ${predIdStr}`);
+          }
+        }
+      }
       const msg = `Đã tạo thành công Công việc: ${variables.name}`;
       toast.success(msg);
       onSuccess(msg);
@@ -176,6 +215,45 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1.5 text-slate-600">Công việc đi trước (Tùy chọn - Finish-to-Start)</label>
+          {potentialPredecessors.length > 0 && (
+            <input 
+              type="text"
+              placeholder="Tìm kiếm công việc đi trước..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full text-xs px-3 py-1.5 mb-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            />
+          )}
+          <div className="border border-slate-200 rounded-md p-2 max-h-40 overflow-y-auto bg-white flex flex-col gap-1.5">
+            {filteredPredecessors.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-2">
+                {searchTerm ? 'Không tìm thấy công việc nào phù hợp' : 'Không có công việc nào khả dụng'}
+              </p>
+            ) : (
+              filteredPredecessors.map(t => (
+                <label key={t.id} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 p-1.5 rounded cursor-pointer select-none">
+                  <input 
+                    type="checkbox"
+                    value={t.id}
+                    checked={selectedPredecessorIds.includes(t.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedPredecessorIds([...selectedPredecessorIds, t.id]);
+                      } else {
+                        setSelectedPredecessorIds(selectedPredecessorIds.filter(id => id !== t.id));
+                      }
+                    }}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>{t.name} ({t.progress}%)</span>
+                </label>
+              ))
+            )}
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-2">

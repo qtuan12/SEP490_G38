@@ -45,6 +45,36 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
         if (request.TaskId == request.PredecessorTaskId)
             throw new BusinessException("ERR_DEPENDENCY_SELF", "Một công việc không thể phụ thuộc vào chính nó.");
 
+        // Kiểm tra xem predecessor có phải là tổ tiên (ancestor) của task hiện tại không
+        var currentParentId = task.ParentTaskId;
+        while (currentParentId.HasValue)
+        {
+            if (currentParentId.Value == request.PredecessorTaskId)
+            {
+                throw new BusinessException("ERR_DEPENDENCY_PARENT", "Một công việc con không thể phụ thuộc vào công việc cha/tổ tiên của nó để tránh vòng lặp khóa tiến độ.");
+            }
+            var parent = await _unitOfWork.Repository<ProjectTask>()
+                .Query()
+                .Select(t => new { t.TaskId, t.ParentTaskId })
+                .FirstOrDefaultAsync(t => t.TaskId == currentParentId.Value, ct);
+            currentParentId = parent?.ParentTaskId;
+        }
+
+        // Kiểm tra xem predecessor có phải là con cháu (descendant) của task hiện tại không
+        var currentChildParentId = predecessor.ParentTaskId;
+        while (currentChildParentId.HasValue)
+        {
+            if (currentChildParentId.Value == request.TaskId)
+            {
+                throw new BusinessException("ERR_DEPENDENCY_CHILD", "Một công việc cha không thể phụ thuộc vào công việc con/cháu của nó để tránh vòng lặp khóa tiến độ.");
+            }
+            var parent = await _unitOfWork.Repository<ProjectTask>()
+                .Query()
+                .Select(t => new { t.TaskId, t.ParentTaskId })
+                .FirstOrDefaultAsync(t => t.TaskId == currentChildParentId.Value, ct);
+            currentChildParentId = parent?.ParentTaskId;
+        }
+
         if (task.Phase.ProjectId != predecessor.Phase.ProjectId)
             throw new BusinessException("ERR_DEPENDENCY_DIFFERENT_PROJECTS", "Hai công việc phải thuộc cùng một dự án.");
 

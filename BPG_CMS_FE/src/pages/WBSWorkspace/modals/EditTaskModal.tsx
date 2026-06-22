@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,6 +29,7 @@ interface EditTaskModalProps {
   task: WBSTask;
   parentDeadline?: string;
   members: ProjectMember[];
+  tasks: WBSTask[];
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
 }
@@ -39,8 +40,12 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   task,
   parentDeadline,
   members,
+  tasks,
   onSuccess
 }) => {
+  const [selectedPredecessorIds, setSelectedPredecessorIds] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<EditTaskForm>({
     resolver: zodResolver(editTaskSchema),
     defaultValues: {
@@ -63,6 +68,11 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         assignedTo: task.assignedTo ? task.assignedTo.toString().split(',')[0] : '',
         weight: task.weight !== undefined ? task.weight : undefined
       });
+      const initialIds = task.predecessorTaskIds 
+        ? task.predecessorTaskIds.map(id => `t-${id}`)
+        : [];
+      setSelectedPredecessorIds(initialIds);
+      setSearchTerm('');
     }
   }, [isOpen, task, reset]);
 
@@ -71,6 +81,49 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     m.userRole === 'SiteEngineer' || 
     m.userRole.toLowerCase() === 'siteengineer' || 
     m.userRole === 'Nhân viên kỹ thuật'
+  );
+
+  // Tìm tất cả con cháu (descendant) để tránh vòng lặp khóa tiến độ
+  const getDescendants = (startId: string): Set<string> => {
+    const descendants = new Set<string>();
+    const queue = [startId];
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      const children = tasks.filter(t => t.parentTaskId === currentId);
+      children.forEach(c => {
+        if (!descendants.has(c.id)) {
+          descendants.add(c.id);
+          queue.push(c.id);
+        }
+      });
+    }
+    return descendants;
+  };
+
+  // Tìm tất cả tổ tiên (ancestor) để tránh vòng lặp khóa tiến độ
+  const getAncestors = (startId: string | undefined): Set<string> => {
+    const ancestors = new Set<string>();
+    let currentId = startId;
+    while (currentId) {
+      ancestors.add(currentId);
+      const parentTask = tasks.find(t => t.id === currentId);
+      currentId = parentTask?.parentTaskId;
+    }
+    return ancestors;
+  };
+
+  const descendants = getDescendants(task.id);
+  const ancestors = getAncestors(task.parentTaskId);
+
+  const potentialPredecessors = tasks.filter(t => 
+    t.id !== task.id && 
+    t.status !== 'obsolete' &&
+    !descendants.has(t.id) &&
+    !ancestors.has(t.id)
+  );
+
+  const filteredPredecessors = potentialPredecessors.filter(t =>
+    t.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const mutation = useMutation({
@@ -90,6 +143,31 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         assigneeIds: data.assignedTo ? [parseInt(data.assignedTo)] : [],
         weight: (data.weight !== undefined && data.weight !== '' && data.weight !== null) ? Number(data.weight) : null
       });
+
+      // Cập nhật các công việc đi trước (predecessors)
+      const oldPredIds = task.predecessorTaskIds || [];
+      const newPredIds = selectedPredecessorIds.map(id => parseInt(id.replace('t-', '')));
+
+      // Xóa các dependency cũ không còn được chọn
+      const toRemove = oldPredIds.filter(id => !newPredIds.includes(id));
+      for (const predId of toRemove) {
+        try {
+          await wbsService.removeTaskDependency(tId, predId);
+        } catch (e) {
+          console.error("Lỗi khi xóa dependency cũ:", e);
+        }
+      }
+
+      // Thêm các dependency mới
+      const toAdd = newPredIds.filter(id => !oldPredIds.includes(id));
+      for (const predId of toAdd) {
+        try {
+          await wbsService.addTaskDependency(tId, predId);
+        } catch (e) {
+          console.error("Lỗi khi thêm dependency mới:", e);
+          throw new Error("Lỗi khi thêm liên kết công việc đi trước.");
+        }
+      }
 
       const assigneeIds = data.assignedTo ? [parseInt(data.assignedTo)] : [];
       await wbsService.assignTask(tId, {
@@ -185,6 +263,45 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
             ))}
           </select>
           {engineers.length === 0 && <div className="text-xs text-amber-600 mt-1">* Không có kỹ sư nào trong dự án này.</div>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1.5 text-slate-600">Công việc đi trước (Tùy chọn - Finish-to-Start)</label>
+          {potentialPredecessors.length > 0 && (
+            <input 
+              type="text"
+              placeholder="Tìm kiếm công việc đi trước..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full text-xs px-3 py-1.5 mb-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+            />
+          )}
+          <div className="border border-slate-200 rounded-md p-2 max-h-40 overflow-y-auto bg-white flex flex-col gap-1.5">
+            {filteredPredecessors.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-2">
+                {searchTerm ? 'Không tìm thấy công việc nào phù hợp' : 'Không có công việc nào khả dụng'}
+              </p>
+            ) : (
+              filteredPredecessors.map(t => (
+                <label key={t.id} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 p-1.5 rounded cursor-pointer select-none">
+                  <input 
+                    type="checkbox"
+                    value={t.id}
+                    checked={selectedPredecessorIds.includes(t.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedPredecessorIds([...selectedPredecessorIds, t.id]);
+                      } else {
+                        setSelectedPredecessorIds(selectedPredecessorIds.filter(id => id !== t.id));
+                      }
+                    }}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>{t.name} ({t.progress}%)</span>
+                </label>
+              ))
+            )}
+          </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-2">

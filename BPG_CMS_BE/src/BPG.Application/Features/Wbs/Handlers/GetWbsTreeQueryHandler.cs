@@ -1,5 +1,6 @@
 using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
+using BPG.Application.Common.Extensions;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;

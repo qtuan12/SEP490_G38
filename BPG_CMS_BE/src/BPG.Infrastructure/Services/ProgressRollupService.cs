@@ -1,5 +1,6 @@
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.Common.Extensions;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
