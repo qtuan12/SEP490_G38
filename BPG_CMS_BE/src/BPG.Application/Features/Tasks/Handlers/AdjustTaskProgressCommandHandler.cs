@@ -38,6 +38,23 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         if (task.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
             throw new BusinessException("ERR_TASK_OBSOLETE", "Không thể điều chỉnh tiến độ cho công việc đã báo lỗi thời.");
 
+        // Kiểm tra điều kiện phụ thuộc (Finish-to-Start)
+        if (request.NewProgress > 0)
+        {
+            var incompletePredecessors = await _unitOfWork.Repository<TaskDependency>()
+                .Query()
+                .Include(td => td.Predecessor)
+                .Where(td => td.TaskId == task.TaskId && td.Predecessor.ProgressPercent < 100)
+                .ToListAsync(ct);
+
+            if (incompletePredecessors.Any())
+            {
+                var names = string.Join(", ", incompletePredecessors.Select(td => td.Predecessor.Name));
+                throw new BusinessException("ERR_TASK_DEPENDENCY_BLOCKED",
+                    $"Không thể điều chỉnh tiến độ. Các công việc tiên quyết chưa hoàn thành: {names}");
+            }
+        }
+
         var oldProgress = task.ProgressPercent;
         task.ProgressPercent = request.NewProgress;
         

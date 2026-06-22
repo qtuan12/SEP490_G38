@@ -15,6 +15,8 @@ public record WbsTaskDto
     public bool IsLocked { get; set; }
     public string AssignedTo { get; set; } = string.Empty;
     public string AssignedName { get; set; } = string.Empty;
+    public decimal? Weight { get; set; }
+    public List<long> PredecessorTaskIds { get; set; } = new();
     
     public bool IsOverdue { get; set; }
     public bool IsAtRisk { get; set; }

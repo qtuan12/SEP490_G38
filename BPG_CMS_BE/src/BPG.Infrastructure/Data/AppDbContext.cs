@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<DailyLog> DailyLogs => Set<DailyLog>();
     public DbSet<TaskProgressLog> TaskProgressLogs => Set<TaskProgressLog>();
     public DbSet<PhaseAcceptance> PhaseAcceptances => Set<PhaseAcceptance>();
+    public DbSet<TaskDependency> TaskDependencies => Set<TaskDependency>();
 
     // Incidents
     public DbSet<Incident> Incidents => Set<Incident>();
@@ -115,6 +116,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<DailyLog>().HasKey(x => x.LogId);
         modelBuilder.Entity<TaskProgressLog>().HasKey(x => x.TaskProgressLogId);
         modelBuilder.Entity<PhaseAcceptance>().HasKey(x => x.AcceptanceId);
+        modelBuilder.Entity<TaskDependency>().HasKey(x => x.TaskDependencyId);
         modelBuilder.Entity<Incident>().HasKey(x => x.IncidentId);
         modelBuilder.Entity<Comment>().HasKey(x => x.CommentId);
         modelBuilder.Entity<MaterialCategory>().HasKey(x => x.CategoryId);
@@ -214,6 +216,19 @@ public class AppDbContext : DbContext
             .HasOne(t => t.ParentTask)
             .WithMany(t => t.SubTasks)
             .HasForeignKey(t => t.ParentTaskId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Task Dependencies
+        modelBuilder.Entity<TaskDependency>()
+            .HasOne(td => td.Task)
+            .WithMany(t => t.Dependencies)
+            .HasForeignKey(td => td.TaskId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TaskDependency>()
+            .HasOne(td => td.Predecessor)
+            .WithMany(t => t.Dependents)
+            .HasForeignKey(td => td.PredecessorTaskId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Incident - ReworkTask self-ref

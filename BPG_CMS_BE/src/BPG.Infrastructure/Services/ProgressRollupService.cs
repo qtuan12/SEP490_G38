@@ -35,6 +35,10 @@ public class ProgressRollupService : IProgressRollupService
             {
                 return children.Sum(CalculateWeight);
             }
+            if (task.Weight.HasValue && task.Weight.Value > 0)
+            {
+                return (double)task.Weight.Value;
+            }
             var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
             return duration > 0 ? duration : 1;
         }

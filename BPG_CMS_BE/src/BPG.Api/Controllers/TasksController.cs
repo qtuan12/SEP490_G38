@@ -64,4 +64,18 @@ public class TasksController : BaseApiController
         var result = await Mediator.Send(finalCommand, ct);
         return ApiOk(result);
     }
+
+    [HttpPost("{taskId}/dependencies/{predecessorTaskId}")]
+    public async Task<IActionResult> AddDependency([FromRoute] long taskId, [FromRoute] long predecessorTaskId, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new AddTaskDependencyCommand(taskId, predecessorTaskId), ct);
+        return ApiOk(result);
+    }
+
+    [HttpDelete("{taskId}/dependencies/{predecessorTaskId}")]
+    public async Task<IActionResult> RemoveDependency([FromRoute] long taskId, [FromRoute] long predecessorTaskId, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new RemoveTaskDependencyCommand(taskId, predecessorTaskId), ct);
+        return ApiOk(result);
+    }
 }
