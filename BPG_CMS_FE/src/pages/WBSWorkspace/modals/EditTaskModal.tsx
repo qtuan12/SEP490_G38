@@ -153,8 +153,9 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
       for (const predId of toRemove) {
         try {
           await wbsService.removeTaskDependency(tId, predId);
-        } catch (e) {
+        } catch (e: any) {
           console.error("Lỗi khi xóa dependency cũ:", e);
+          throw new Error(e.message || "Lỗi khi xóa liên kết công việc đi trước.");
         }
       }
 
@@ -163,9 +164,9 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
       for (const predId of toAdd) {
         try {
           await wbsService.addTaskDependency(tId, predId);
-        } catch (e) {
+        } catch (e: any) {
           console.error("Lỗi khi thêm dependency mới:", e);
-          throw new Error("Lỗi khi thêm liên kết công việc đi trước.");
+          throw new Error(e.message || "Lỗi khi thêm liên kết công việc đi trước.");
         }
       }
 

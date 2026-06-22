@@ -49,7 +49,21 @@ export const apiClient = {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+        let errMsg = '';
+        if (errorData.message) {
+          errMsg = errorData.message;
+        } else if (errorData.errors) {
+          if (Array.isArray(errorData.errors)) {
+            errMsg = errorData.errors.join(' ');
+          } else if (typeof errorData.errors === 'object') {
+            errMsg = Object.values(errorData.errors)
+              .flatMap((messages: any) => messages)
+              .join(' ');
+          }
+        } else if (errorData.title) {
+          errMsg = errorData.title;
+        }
+        throw new Error(errMsg || `HTTP error! Status: ${response.status}`);
       }
 
       // If response is empty (e.g. 204 No Content)
