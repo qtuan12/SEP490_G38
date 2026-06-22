@@ -44,7 +44,9 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
             var incompletePredecessors = await _unitOfWork.Repository<TaskDependency>()
                 .Query()
                 .Include(td => td.Predecessor)
-                .Where(td => td.TaskId == task.TaskId && td.Predecessor.ProgressPercent < 100)
+                .Where(td => td.TaskId == task.TaskId 
+                    && td.Predecessor.ProgressPercent < 100
+                    && td.Predecessor.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
                 .ToListAsync(ct);
 
             if (incompletePredecessors.Any())

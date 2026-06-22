@@ -106,7 +106,9 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 var incompletePredecessors = await _uow.Repository<TaskDependency>()
                     .Query()
                     .Include(td => td.Predecessor)
-                    .Where(td => td.TaskId == task.TaskId && td.Predecessor.ProgressPercent < 100)
+                    .Where(td => td.TaskId == task.TaskId 
+                        && td.Predecessor.ProgressPercent < 100
+                        && td.Predecessor.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
                     .ToListAsync(cancellationToken);
 
                 if (incompletePredecessors.Any())

@@ -68,11 +68,13 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
             .Where(x => x.PhaseId == request.PhaseId)
             .ToListAsync(ct);
 
-        if (tasks.Count == 0)
-            throw new BusinessException("INVALID_OPERATION", "Không thể nghiệm thu Phase chưa có công việc nào.");
+        var nonObsoleteTasks = tasks.Where(t => t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList();
 
-        if (tasks.Any(t => t.ProgressPercent < 100))
-            throw new BusinessException("INVALID_OPERATION", "Không thể nghiệm thu Phase khi chưa hoàn thành 100% tất cả các công việc.");
+        if (nonObsoleteTasks.Count == 0)
+            throw new BusinessException("INVALID_OPERATION", "Không thể nghiệm thu Phase chưa có công việc hoạt động nào.");
+
+        if (nonObsoleteTasks.Any(t => t.ProgressPercent < 100))
+            throw new BusinessException("INVALID_OPERATION", "Không thể nghiệm thu Phase khi chưa hoàn thành 100% tất cả các công việc hoạt động.");
 
         var userId = _currentUserService.GetRequiredUserId();
         var user = await userRepo.GetByIdAsync(userId, ct);
@@ -86,7 +88,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
             AcceptedByFullName = currentUserFullName,
             AcceptanceDate = DateTime.Now,
             ReportContent = request.ReportContent,
-            Tasks = tasks.Select(t => new PhaseAcceptanceTaskDto
+            Tasks = nonObsoleteTasks.Select(t => new PhaseAcceptanceTaskDto
             {
                 TaskName = t.Name,
                 AssigneeName = t.Assignees.FirstOrDefault()?.User?.FullName ?? "Chưa phân công",
