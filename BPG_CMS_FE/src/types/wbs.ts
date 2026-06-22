@@ -14,6 +14,8 @@ export interface WbsTask {
   isAtRisk?: boolean;
   daysLeft?: number;
   assignedTo?: string;
+  weight?: number;
+  predecessorTaskIds?: number[];
   subTasks: WbsTask[];
 }
 

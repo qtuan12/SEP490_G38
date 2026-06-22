@@ -45,6 +45,7 @@ export const TaskDetailSE: React.FC = () => {
   const { user } = useAuth();
 
   const [task, setTask] = useState<WBSTask | null>(null);
+  const [projectTasks, setProjectTasks] = useState<WBSTask[]>([]);
   const [hasSubtasks, setHasSubtasks] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export const TaskDetailSE: React.FC = () => {
         const t = pTasks.find(item => item.id === taskId || item.id.replace(/^t-/, '') === taskId.replace(/^t-/, ''));
         if (t) {
           foundTask = t;
+          setProjectTasks(pTasks);
           const parentCheck = pTasks.some(item => item.parentTaskId === t.id && item.status !== 'obsolete');
           setHasSubtasks(parentCheck);
           break;
@@ -199,6 +201,46 @@ export const TaskDetailSE: React.FC = () => {
           </h1>
         </div>
 
+        {/* Predecessor tasks warnings */}
+        {(() => {
+          const predIds = task.predecessorTaskIds;
+          if (predIds && predIds.length > 0) {
+            const preds = predIds.map(id => projectTasks.find(t => t.id === id.toString())).filter(Boolean);
+            const isBlocked = preds.some(p => p!.progress < 100);
+            return (
+              <div style={{
+                padding: '12px',
+                backgroundColor: isBlocked ? 'hsl(var(--danger-glow) / 0.08)' : 'hsl(var(--success-glow) / 0.08)',
+                border: isBlocked ? '1px solid hsl(var(--danger) / 0.2)' : '1px solid hsl(var(--success) / 0.2)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.82rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: isBlocked ? 'hsl(var(--danger))' : 'hsl(var(--success))' }}>
+                  <AlertCircle size={16} /> 
+                  {isBlocked ? 'CHƯA ĐỦ ĐIỀU KIỆN THI CÔNG' : 'ĐỦ ĐIỀU KIỆN THI CÔNG'}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>
+                  Yêu cầu hoàn thành 100% các công việc đi trước:
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '8px' }}>
+                  {preds.map(p => (
+                    <div key={p!.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                      <span style={{ color: 'hsl(var(--text-secondary))' }}>• {p!.name}</span>
+                      <strong style={{ color: p!.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--danger))' }}>
+                        {p!.progress}%
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* Circular Progress Gauge */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px 0' }}>
           <div style={{ position: 'relative', width: `${radius * 2}px`, height: `${radius * 2}px` }}>
@@ -246,6 +288,16 @@ export const TaskDetailSE: React.FC = () => {
             <div>
               <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'block' }}>HẠN HOÀN THÀNH</span>
               <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{task.deadline}</strong>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderTop: '1px solid hsl(var(--border) / 0.6)', paddingTop: '10px' }}>
+            <TrendingUp size={18} style={{ color: 'hsl(var(--text-muted))' }} />
+            <div>
+              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'block' }}>TRỌNG SỐ (WBS)</span>
+              <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
+                {task.weight !== undefined && task.weight !== null ? task.weight : 'Tự động'}
+              </strong>
             </div>
           </div>
 

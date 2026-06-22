@@ -14,7 +14,8 @@ const createTaskSchema = z.object({
   description: z.string().optional(),
   startDate: z.string().min(1, 'Vui lòng chọn ngày bắt đầu.'),
   deadline: z.string().min(1, 'Vui lòng chọn hạn chót (Deadline).'),
-  assignedTo: z.string().optional()
+  assignedTo: z.string().optional(),
+  weight: z.any().optional()
 }).refine(data => new Date(data.startDate) <= new Date(data.deadline), {
   message: 'Ngày bắt đầu không được lớn hơn hạn chót.',
   path: ['startDate']
@@ -51,7 +52,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       description: '',
       startDate: '',
       deadline: '',
-      assignedTo: ''
+      assignedTo: '',
+      weight: undefined
     }
   });
 
@@ -82,7 +84,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         orderIndex: maxTaskOrder,
         startDate: data.startDate,
         endDate: data.deadline,
-        assigneeIds: data.assignedTo ? [parseInt(data.assignedTo)] : []
+        assigneeIds: data.assignedTo ? [parseInt(data.assignedTo)] : [],
+        weight: (data.weight !== undefined && data.weight !== '' && data.weight !== null) ? Number(data.weight) : null
       });
     },
     onSuccess: (_, variables) => {
@@ -145,6 +148,19 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             />
             {errors.deadline && <p className="text-red-500 text-xs mt-1">{errors.deadline.message}</p>}
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1.5 text-slate-600">Trọng số (Tùy chọn)</label>
+          <input 
+            type="number" 
+            step="any"
+            placeholder="Ví dụ: 10, 100, 1000..." 
+            {...register('weight')}
+            className={`w-full text-sm px-3 py-2 rounded-md border ${errors.weight ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+          />
+          <p className="text-[11px] text-slate-400 mt-1">Gợi ý: Nhập ngân sách dự toán, hoặc số giờ công. Nếu để trống, hệ thống tự động tính theo số ngày thi công.</p>
+          {errors.weight && <p className="text-red-500 text-xs mt-1">{errors.weight.message?.toString()}</p>}
         </div>
 
         <div>

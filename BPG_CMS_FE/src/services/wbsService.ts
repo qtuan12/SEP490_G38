@@ -52,7 +52,9 @@ export const wbsService = {
             isAtRisk: taskDto.isAtRisk,
             daysLeft: taskDto.daysLeft,
             assignedTo: (taskDto as any).assignedTo || undefined,
-            assignedName: (taskDto as any).assignedName || undefined
+            assignedName: (taskDto as any).assignedName || undefined,
+            weight: taskDto.weight !== undefined ? taskDto.weight : undefined,
+            predecessorTaskIds: taskDto.predecessorTaskIds || undefined
           });
 
           if (taskDto.subTasks && taskDto.subTasks.length > 0) {
@@ -104,5 +106,11 @@ export const wbsService = {
   },
   markTaskObsolete: async (taskId: number, data: { taskId: number, obsoleteReason: string }): Promise<void> => {
     await apiClient.put(`/tasks/${taskId}/obsolete`, data);
+  },
+  addTaskDependency: async (taskId: number, predecessorTaskId: number): Promise<void> => {
+    await apiClient.post(`/tasks/${taskId}/dependencies/${predecessorTaskId}`, {});
+  },
+  removeTaskDependency: async (taskId: number, predecessorTaskId: number): Promise<void> => {
+    await apiClient.delete(`/tasks/${taskId}/dependencies/${predecessorTaskId}`);
   }
 };
