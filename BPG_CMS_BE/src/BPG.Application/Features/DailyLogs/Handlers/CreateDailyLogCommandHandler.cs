@@ -100,6 +100,45 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     "Không thể cập nhật tiến độ thủ công cho công việc cha có chứa các công việc con.");
             }
 
+            // 4.5. Kiểm tra điều kiện phụ thuộc (Finish-to-Start)
+            if (request.NewProgressPercent > 0)
+            {
+                var incompletePredecessors = await _uow.Repository<TaskDependency>()
+                    .Query()
+                    .Include(td => td.Predecessor)
+                    .Where(td => td.TaskId == task.TaskId 
+                        && td.Predecessor.ProgressPercent < 100
+                        && td.Predecessor.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+                    .ToListAsync(cancellationToken);
+
+                if (incompletePredecessors.Any())
+                {
+                    // Tìm tất cả các ancestor IDs để loại trừ khỏi danh sách chặn
+                    var ancestorIds = new System.Collections.Generic.HashSet<long>();
+                    long? currentParentId = task.ParentTaskId;
+                    while (currentParentId.HasValue)
+                    {
+                        ancestorIds.Add(currentParentId.Value);
+                        var parent = await _uow.Repository<ProjectTask>()
+                            .Query()
+                            .Select(t => new { t.TaskId, t.ParentTaskId })
+                            .FirstOrDefaultAsync(t => t.TaskId == currentParentId.Value, cancellationToken);
+                        currentParentId = parent?.ParentTaskId;
+                    }
+
+                    var blockedPredecessors = incompletePredecessors
+                        .Where(td => !ancestorIds.Contains(td.PredecessorTaskId))
+                        .ToList();
+
+                    if (blockedPredecessors.Any())
+                    {
+                        var names = string.Join(", ", blockedPredecessors.Select(td => td.Predecessor.Name));
+                        throw new BusinessException("ERR_TASK_DEPENDENCY_BLOCKED",
+                            $"Không thể cập nhật tiến độ. Các công việc tiên quyết chưa hoàn thành: {names}");
+                    }
+                }
+            }
+
             // 5. Kiểm tra lùi tiến độ (chỉ Admin/TM được phép lùi tiến độ)
             byte oldProgress = task.ProgressPercent;
             if (request.NewProgressPercent < oldProgress)

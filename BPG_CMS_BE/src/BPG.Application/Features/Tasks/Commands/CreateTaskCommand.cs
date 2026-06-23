@@ -13,5 +13,6 @@ public record CreateTaskCommand(
     int OrderIndex,
     DateOnly StartDate,
     DateOnly EndDate,
-    List<long>? AssigneeIds
+    List<long>? AssigneeIds,
+    decimal? Weight
 ) : IRequest<ApiResponse<long>>;

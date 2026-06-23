@@ -178,6 +178,35 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           return null;
         })()}
 
+        {/* Check predecessor tasks */}
+        {(() => {
+          const predIds = selectedTask.predecessorTaskIds;
+          if (predIds && predIds.length > 0) {
+            const preds = predIds.map(id => tasks.find(t => t.id === id.toString())).filter(Boolean);
+            return (
+              <div style={{ padding: '10px 14px', backgroundColor: 'hsl(var(--warning-glow) / 0.08)', border: '1px solid hsl(var(--warning) / 0.2)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem' }}>
+                <strong style={{ color: 'hsl(var(--warning-text))', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <AlertCircle size={15} /> Công việc đi trước (Finish-to-Start)
+                </strong>
+                <p style={{ margin: 0, color: 'hsl(var(--text-secondary))' }}>
+                  Cần hoàn thành 100% các công việc sau để có thể bắt đầu công việc này:
+                </p>
+                <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px', color: 'hsl(var(--text-primary))', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {preds.map(p => (
+                    <li key={p!.id} style={{ listStyleType: 'disc' }}>
+                      <span style={{ fontWeight: 500 }}>{p!.name}</span>: {' '}
+                      <span style={{ fontWeight: 600, color: p!.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--warning-text))' }}>
+                        {p!.progress === 100 ? 'Đã xong (100%)' : `Chưa xong (${p!.progress}%)`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* Progress */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 600 }}>
@@ -189,8 +218,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Assignee + Start Date + Deadline */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '16px' }}>
+        {/* Assignee + Start Date + Deadline + Weight */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '16px' }}>
           <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
               <User size={14} />KỸ SƯ PHỤ TRÁCH
@@ -240,6 +269,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <Calendar size={14} />HẠN HOÀN THÀNH
             </span>
             <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.deadline?.split('-').reverse().join('-')}</strong>
+          </div>
+          <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
+              <TrendingUp size={14} />TRỌNG SỐ (WBS)
+            </span>
+            <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>
+              {selectedTask.weight !== undefined && selectedTask.weight !== null ? selectedTask.weight : 'Tự động'}
+            </strong>
           </div>
         </div>
 

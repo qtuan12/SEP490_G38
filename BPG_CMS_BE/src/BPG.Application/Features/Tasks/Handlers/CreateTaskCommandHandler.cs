@@ -15,13 +15,15 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
     private readonly INotificationService _notificationService;
     private readonly IRealtimeNotificationSender _realtimeSender;
     private readonly AutoMapper.IMapper _mapper;
+    private readonly IProgressRollupService _rollupService;
 
-    public CreateTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService, IRealtimeNotificationSender realtimeSender, AutoMapper.IMapper mapper)
+    public CreateTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService, IRealtimeNotificationSender realtimeSender, AutoMapper.IMapper mapper, IProgressRollupService rollupService)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
         _realtimeSender = realtimeSender;
         _mapper = mapper;
+        _rollupService = rollupService;
     }
 
     public async Task<ApiResponse<long>> Handle(CreateTaskCommand request, CancellationToken ct)
@@ -118,6 +120,13 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 
         await _unitOfWork.Repository<ProjectTask>().AddAsync(task);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        // Cuộn tiến độ khi thêm subtask mới
+        if (request.ParentTaskId.HasValue)
+        {
+            await _rollupService.RecalculateParentTaskProgressAsync(request.ParentTaskId.Value, task.TaskId, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
 
         if (request.AssigneeIds != null && request.AssigneeIds.Any())
         {

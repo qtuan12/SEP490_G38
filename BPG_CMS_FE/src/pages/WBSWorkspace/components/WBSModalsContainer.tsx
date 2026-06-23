@@ -208,6 +208,7 @@ export const WBSModalsContainer = () => {
         parentDeadline={parentDeadlineForNew}
         maxTaskOrder={tasks.filter(t => t.phaseId === selectedPhaseForTask && t.parentTaskId === parentTaskForNew).length + 1}
         members={members}
+        tasks={tasks}
         onSuccess={handleSuccess}
         onError={handleError}
       />
@@ -223,6 +224,7 @@ export const WBSModalsContainer = () => {
           task={selectedTaskForEdit}
           parentDeadline={selectedTaskForEdit.parentTaskId ? tasks.find(t => t.id === selectedTaskForEdit.parentTaskId)?.deadline : undefined}
           members={members}
+          tasks={tasks}
           onSuccess={handleSuccess}
           onError={handleError}
         />

@@ -11,5 +11,6 @@ public record UpdateTaskCommand(
     int OrderIndex,
     DateOnly StartDate,
     DateOnly EndDate,
-    string? UpdateReason
+    string? UpdateReason,
+    decimal? Weight
 ) : IRequest<ApiResponse>;

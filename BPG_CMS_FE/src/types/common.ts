@@ -167,6 +167,8 @@ export interface WBSTask {
   daysLeft?: number;
   estimatedMaterials?: PhaseMaterialItem[];
   isRework?: boolean;
+  weight?: number;
+  predecessorTaskIds?: number[];
 }
 
 export interface DailyLogComment {

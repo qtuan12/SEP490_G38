@@ -1,5 +1,6 @@
 using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
+using BPG.Application.Common.Extensions;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;
@@ -37,6 +38,7 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
             .Query()
             .Include(t => t.Assignees)
                 .ThenInclude(a => a.User)
+            .Include(t => t.Dependencies)
             .Where(t => t.Phase.ProjectId == request.ProjectId)
             .OrderBy(t => t.OrderIndex)
             .ToListAsync(ct);
@@ -94,6 +96,10 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
         {
             return children.Sum(c => CalculateWeight(c, allTasks));
         }
+        if (task.Weight.HasValue && task.Weight.Value > 0)
+        {
+            return (double)task.Weight.Value;
+        }
         var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
         return duration > 0 ? duration : 1;
     }
@@ -117,7 +123,9 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 ProgressPercent = node.ProgressPercent,
                 IsLocked = node.IsLocked,
                 AssignedTo = node.Assignees != null && node.Assignees.Any() ? string.Join(",", node.Assignees.Select(a => a.UserId)) : string.Empty,
-                AssignedName = node.Assignees != null && node.Assignees.Any() ? string.Join(", ", node.Assignees.Select(a => a.User?.FullName ?? "")) : string.Empty
+                AssignedName = node.Assignees != null && node.Assignees.Any() ? string.Join(", ", node.Assignees.Select(a => a.User?.FullName ?? "")) : string.Empty,
+                Weight = node.Weight,
+                PredecessorTaskIds = node.Dependencies != null ? node.Dependencies.Select(d => d.PredecessorTaskId).ToList() : new()
             };
 
             var taskDeadline = node.EndDate.ToDateTime(new TimeOnly(23, 59, 59));
