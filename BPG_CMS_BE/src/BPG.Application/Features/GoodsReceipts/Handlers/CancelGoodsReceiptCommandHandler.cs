@@ -144,13 +144,16 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     inv.LastUpdated = DateTime.UtcNow;
                     _uow.Repository<CurrentInventory>().Update(inv);
 
-                    // Thêm bản ghi Thẻ kho âm
+                    // Thêm bản ghi Thẻ kho đảo chiều (bút toán hoàn kho)
+                    // Dùng TransactionType.Adjustment (type=6) thay vì GoodsReceipt để sổ kho rõ ràng
+                    // ReferenceType = GoodsReceiptReversal giúp phân biệt nguồn gốc chứng từ ngay trên sổ kho
                     var tx = new InventoryTransaction
                     {
                         ProjectId = project.ProjectId,
                         MaterialId = item.MaterialId,
-                        TransactionType = InventoryTransactionType.GoodsReceipt,
+                        TransactionType = InventoryTransactionType.Adjustment, // 6 = Điều chỉnh/Đảo chiều
                         ReferenceId = receipt.ReceiptId,
+                        ReferenceType = EntityType.GoodsReceiptReversal, // Phân biệt rõ: đây là bút toán hủy GR
                         QuantityChange = -baseQty, // Số lượng âm biểu thị sự hoàn kho (hủy phiếu)
                         BalanceAfter = inv.Quantity,
                         CreatedBy = currentUserId,

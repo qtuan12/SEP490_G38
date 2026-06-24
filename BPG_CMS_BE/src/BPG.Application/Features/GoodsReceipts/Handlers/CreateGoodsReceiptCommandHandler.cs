@@ -112,8 +112,10 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
             await _uow.BeginTransactionAsync(cancellationToken);
             try
             {
-                // Tạo số phiếu nhập kho unique
-                var receiptNo = $"GR-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}";
+                // Sinh mã phiếu nhập kho chuẩn nghiệp vụ, ví dụ: GR-20240624-A3F8B2
+                // Dùng UTC+7 (đúng giờ Việt Nam) + Guid để đảm bảo không trùng trong môi trường concurrent
+                var vnNow = DateTime.UtcNow.AddHours(7);
+                var receiptNo = $"GR-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
                 var goodsReceipt = new GoodsReceipt
                 {
@@ -190,6 +192,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                         MaterialId = tuple.Inv.MaterialId,
                         TransactionType = InventoryTransactionType.GoodsReceipt,
                         ReferenceId = goodsReceipt.ReceiptId,
+                        ReferenceType = EntityType.GoodsReceipt, // Loại chứng từ rõ ràng
                         QuantityChange = tuple.BaseQty,
                         BalanceAfter = tuple.Inv.Quantity,
                         CreatedBy = currentUserId,

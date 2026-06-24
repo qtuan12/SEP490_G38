@@ -6,7 +6,10 @@ import type {
   GoodsReceipt,
   GoodsReceiptDetail,
   CreateGoodsReceiptCommand,
-  PatchGoodsReceiptMetadataCommand
+  PatchGoodsReceiptMetadataCommand,
+  MaterialIssuance,
+  MaterialIssuanceDetail,
+  CreateMaterialIssuanceCommand
 } from '../types/inventory';
 
 // Type for PO list dropdown
@@ -128,6 +131,39 @@ export const inventoryService = {
     };
     return unwrap(
       await apiClient.get<ApiResponse<PurchaseOrderDto[]>>('/purchaseorders', { params })
+    );
+  },
+
+  // Material Issuance List
+  getMaterialIssuances: async (
+    projectId: number,
+    pageNumber: number = 1,
+    pageSize: number = 10,
+    search?: string
+  ): Promise<PagedList<MaterialIssuance>> => {
+    const params: Record<string, string> = {
+      projectId: projectId.toString(),
+      pageNumber: pageNumber.toString(),
+      pageSize: pageSize.toString()
+    };
+    if (search) params.search = search;
+
+    return unwrap(
+      await apiClient.get<ApiResponse<PagedList<MaterialIssuance>>>('/materialissuances', { params })
+    );
+  },
+
+  // Material Issuance Detail
+  getMaterialIssuanceDetail: async (issuanceId: number): Promise<MaterialIssuanceDetail> => {
+    return unwrap(
+      await apiClient.get<ApiResponse<MaterialIssuanceDetail>>(`/materialissuances/${issuanceId}`)
+    );
+  },
+
+  // Create Material Issuance
+  createMaterialIssuance: async (command: CreateMaterialIssuanceCommand): Promise<number> => {
+    return unwrap(
+      await apiClient.post<ApiResponse<number>>('/materialissuances', command)
     );
   }
 };

@@ -4,10 +4,13 @@ import { inventoryService } from '../../services/inventoryService';
 import type {
   CurrentInventory,
   InventoryTransaction,
-  GoodsReceipt
+  GoodsReceipt,
+  MaterialIssuance
 } from '../../types/inventory';
 import { CreateReceiptModal } from './modals/CreateReceiptModal';
 import { ReceiptDetailModal } from './modals/ReceiptDetailModal';
+import { CreateIssuanceModal } from './modals/CreateIssuanceModal';
+import { IssuanceDetailModal } from './modals/IssuanceDetailModal';
 import {
   Package,
   ArrowDownToLine,
@@ -32,6 +35,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   // Data states
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
   const [receiptsList, setReceiptsList] = useState<GoodsReceipt[]>([]);
+  const [issuancesList, setIssuancesList] = useState<MaterialIssuance[]>([]);
   const [transactionsList, setTransactionsList] = useState<InventoryTransaction[]>([]);
 
   // Search/Filter states
@@ -42,12 +46,16 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   // Pagination states
   const [receiptsPage, setReceiptsPage] = useState(1);
   const [receiptsTotalPages, setReceiptsTotalPages] = useState(1);
+  const [issuancesPage, setIssuancesPage] = useState(1);
+  const [issuancesTotalPages, setIssuancesTotalPages] = useState(1);
   const [ledgerPage, setLedgerPage] = useState(1);
   const [ledgerTotalPages, setLedgerTotalPages] = useState(1);
 
   // Modals state
   const [isCreateReceiptOpen, setIsCreateReceiptOpen] = useState(false);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
+  const [isCreateIssuanceOpen, setIsCreateIssuanceOpen] = useState(false);
+  const [selectedIssuanceId, setSelectedIssuanceId] = useState<number | null>(null);
 
   // Unified data loader with batching & debounce
   useEffect(() => {
@@ -56,7 +64,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     }, 150);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [projectId, activeSubTab, receiptsPage, ledgerPage, filterMaterialId, filterTxType, searchTerm]);
+  }, [projectId, activeSubTab, receiptsPage, issuancesPage, ledgerPage, filterMaterialId, filterTxType, searchTerm]);
 
   const loadData = async () => {
     setLoading(true);
@@ -74,6 +82,15 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
         );
         setReceiptsList(pagedData.items);
         setReceiptsTotalPages(pagedData.totalPages);
+      } else if (activeSubTab === 'issuances') {
+        const pagedData = await inventoryService.getMaterialIssuances(
+          projectId,
+          issuancesPage,
+          10,
+          searchTerm
+        );
+        setIssuancesList(pagedData.items);
+        setIssuancesTotalPages(pagedData.totalPages);
       } else if (activeSubTab === 'ledger') {
         const pagedData = await inventoryService.getInventoryTransactions(projectId, {
           materialId: filterMaterialId ? parseInt(filterMaterialId) : undefined,
@@ -96,6 +113,12 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const handleCreateReceiptSuccess = () => {
     // Reset pages to 1 and reload
     setReceiptsPage(1);
+    setLedgerPage(1);
+    loadData();
+  };
+
+  const handleCreateIssuanceSuccess = () => {
+    setIssuancesPage(1);
     setLedgerPage(1);
     loadData();
   };
@@ -254,14 +277,25 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             <span>Làm mới</span>
           </Button>
 
-          <Button
-            variant="primary"
-            onClick={() => setIsCreateReceiptOpen(true)}
-            className="flex items-center gap-1.5"
-          >
-            <Plus size={16} />
-            <span>Nhập kho PO</span>
-          </Button>
+          {activeSubTab === 'issuances' ? (
+            <Button
+              variant="primary"
+              onClick={() => setIsCreateIssuanceOpen(true)}
+              className="flex items-center gap-1.5"
+            >
+              <Plus size={16} />
+              <span>Xuất kho thi công</span>
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={() => setIsCreateReceiptOpen(true)}
+              className="flex items-center gap-1.5"
+            >
+              <Plus size={16} />
+              <span>Nhập kho PO</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -470,13 +504,92 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
           {/* Sub-tab 3: Material Issuances */}
           {activeSubTab === 'issuances' && (
-            <div className="py-12 text-center flex flex-col items-center gap-3">
-              <ArrowUpFromLine size={48} className="text-slate-300" />
-              <h4 className="text-base font-bold text-slate-800">Phiếu Xuất Kho Thi Công</h4>
-              <p className="text-slate-500 text-sm max-w-md">
-                Chức năng quản lý phiếu xuất kho thi công, định mức công việc WBS sẽ được triển khai đầy đủ ở nhánh tiếp theo (`feature/duc/material-issuance`).
-              </p>
-            </div>
+            <>
+              {/* Search Box */}
+              <div className="flex gap-4 items-center">
+                <div className="relative max-w-sm flex-grow">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm theo công việc, mục đích..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
+                    <tr>
+                      <th className="px-4 py-3">Mã phiếu</th>
+                      <th className="px-4 py-3">Công việc thi công</th>
+                      <th className="px-4 py-3">Mục đích xuất</th>
+                      <th className="px-4 py-3 text-center">Số loại vật tư</th>
+                      <th className="px-4 py-3">Ngày xuất</th>
+                      <th className="px-4 py-3">Người lập phiếu</th>
+                      <th className="px-4 py-3 text-center">Trạng thái</th>
+                      <th className="px-4 py-3 text-center">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 bg-white">
+                    {issuancesList.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                          Không tìm thấy phiếu xuất kho nào.
+                        </td>
+                      </tr>
+                    ) : (
+                      issuancesList.map(i => (
+                        <tr key={i.materialIssuanceId} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3.5 font-semibold text-blue-600 font-mono text-xs">
+                            {i.issuanceNo || `PXK-${String(i.materialIssuanceId).padStart(5, '0')}`}
+                          </td>
+                          <td className="px-4 py-3.5 font-semibold text-slate-800">
+                            {i.taskName}
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-600">
+                            {i.purpose}
+                          </td>
+                          <td className="px-4 py-3.5 text-center font-medium text-slate-900">
+                            {i.totalItems}
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-600">
+                            {new Date(i.createdAt).toLocaleDateString('vi-VN')}
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-700">
+                            {i.createdByName}
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                              Đã xuất dùng
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <button
+                              onClick={() => setSelectedIssuanceId(i.materialIssuanceId)}
+                              className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 mx-auto"
+                            >
+                              <Eye size={14} />
+                              <span>Xem</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              <Pagination
+                currentPage={issuancesPage}
+                totalPages={issuancesTotalPages}
+                onPageChange={setIssuancesPage}
+              />
+            </>
           )}
 
           {/* Sub-tab 4: Ledger History */}
@@ -620,6 +733,23 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           onClose={() => setSelectedReceiptId(null)}
           receiptId={selectedReceiptId}
           onSuccess={handleCreateReceiptSuccess}
+        />
+      )}
+
+      {isCreateIssuanceOpen && (
+        <CreateIssuanceModal
+          isOpen={isCreateIssuanceOpen}
+          onClose={() => setIsCreateIssuanceOpen(false)}
+          onSuccess={handleCreateIssuanceSuccess}
+          projectId={projectId}
+        />
+      )}
+
+      {selectedIssuanceId && (
+        <IssuanceDetailModal
+          isOpen={selectedIssuanceId !== null}
+          onClose={() => setSelectedIssuanceId(null)}
+          issuanceId={selectedIssuanceId}
         />
       )}
 

@@ -87,3 +87,50 @@ export interface PatchGoodsReceiptMetadataCommand {
   deliveryDocNo?: string | null;
   images?: string[] | null;
 }
+
+export interface MaterialIssuance {
+  materialIssuanceId: number;
+  issuanceNo: string; // Mã phiếu xuất kho nghiệp vụ, ví dụ: PXK-20240624-A3F8B2
+  taskId: number;
+  taskName: string;
+  purpose: string;
+  totalItems: number;
+  createdAt: string;
+  createdByName: string;
+}
+
+export interface MaterialIssuanceItemDetail {
+  issuanceItemId: number;
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  unitId: number;
+  unitName: string;
+  quantity: number;
+  conversionRate: number;
+}
+
+export interface MaterialIssuanceDetail {
+  materialIssuanceId: number;
+  issuanceNo: string; // Mã phiếu xuất kho nghiệp vụ, ví dụ: PXK-20240624-A3F8B2
+  taskId: number;
+  taskName: string;
+  purpose: string;
+  createdAt: string;
+  createdByName: string;
+  items: MaterialIssuanceItemDetail[];
+}
+
+export interface CreateMaterialIssuanceItemDto {
+  materialId: number;
+  unitId: number;
+  quantity: number;
+  conversionRate?: number;
+}
+
+export interface CreateMaterialIssuanceCommand {
+  taskId: number;
+  purpose: string;
+  items: CreateMaterialIssuanceItemDto[];
+}
+
