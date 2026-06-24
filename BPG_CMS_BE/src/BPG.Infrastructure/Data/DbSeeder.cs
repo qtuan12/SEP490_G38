@@ -11,6 +11,16 @@ public static class DbSeeder
 {
     public static async Task SeedAsync(AppDbContext context)
     {
+        try
+        {
+            Console.WriteLine("Attempting to delete existing database to re-seed...");
+            await context.Database.EnsureDeletedAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not delete database ({ex.Message}).");
+        }
+
         await context.Database.MigrateAsync();
         if (await context.Units.AnyAsync() && await context.Projects.AnyAsync()) return;
 
@@ -643,6 +653,175 @@ public static class DbSeeder
             else
             {
                 inv.Quantity   += qty;
+                inv.LastUpdated = DateTime.UtcNow;
+            }
+        }
+        await context.SaveChangesAsync();
+
+        // Seed an additional PO with status 'Sent' (waiting for receipt) to test receiving goods
+        var mr2 = new MaterialRequest
+        {
+            PhaseId        = phase.PhaseId,
+            Reason         = "Xin cấp vật tư bổ sung phục vụ đổ bê tông dầm sàn",
+            Status         = "Approved",
+            BOQCheckStatus = "WithinBOQ",
+            CheckedBy      = ketoan.UserId,
+            ApprovedBy     = gd.UserId,
+            AccountantNote = "Hợp lệ, tạo PO bổ sung",
+            CreatedAt      = DateTime.UtcNow.AddDays(-5),
+            CreatedBy      = leader.UserId
+        };
+        context.MaterialRequests.Add(mr2);
+        await context.SaveChangesAsync();
+
+        var po2 = new PurchaseOrder
+        {
+            RequestId            = mr2.RequestId,
+            SupplierId           = suppliers.Skip(1).FirstOrDefault()?.SupplierId ?? suppliers.First().SupplierId,
+            PONumber             = $"PO-WAIT-{rnd.Next(1000, 9999)}",
+            OrderDate            = DateTime.UtcNow.AddDays(-4),
+            ExpectedDeliveryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(5)),
+            Status               = "Sent",   // Đang chờ giao!
+            TotalAmount          = 3_500_000,
+            CreatedAt            = DateTime.UtcNow.AddDays(-4),
+            CreatedBy            = ketoan.UserId
+        };
+        context.PurchaseOrders.Add(po2);
+        await context.SaveChangesAsync();
+
+        foreach (var mat in catalogs.Take(3))
+        {
+            decimal qty = mat.Name.Contains("Thép") ? 2000 : 100;
+            context.MaterialRequestItems.Add(new MaterialRequestItem
+            {
+                RequestId      = mr2.RequestId,
+                MaterialId     = mat.MaterialId,
+                UnitId         = mat.BaseUnitId,
+                Quantity       = qty,
+                ConversionRate = 1,
+                IsOverBOQ      = false
+            });
+            context.PurchaseOrderItems.Add(new PurchaseOrderItem
+            {
+                POId           = po2.POId,
+                MaterialId     = mat.MaterialId,
+                UnitId         = mat.BaseUnitId,
+                Quantity       = qty,
+                UnitPrice      = 10_000,
+                LineTotal      = qty * 10_000,
+                ConversionRate = 1
+            });
+        }
+        await context.SaveChangesAsync();
+
+        // Seed another PO with status 'PartiallyReceived' (partially received) to test remaining receipt validation
+        var mr3 = new MaterialRequest
+        {
+            PhaseId        = phase.PhaseId,
+            Reason         = "Xin cấp vật tư đợt 3 xây thô",
+            Status         = "Approved",
+            BOQCheckStatus = "WithinBOQ",
+            CheckedBy      = ketoan.UserId,
+            ApprovedBy     = gd.UserId,
+            AccountantNote = "Hợp lệ, duyệt mua đợt 3",
+            CreatedAt      = DateTime.UtcNow.AddDays(-10),
+            CreatedBy      = leader.UserId
+        };
+        context.MaterialRequests.Add(mr3);
+        await context.SaveChangesAsync();
+
+        var po3 = new PurchaseOrder
+        {
+            RequestId            = mr3.RequestId,
+            SupplierId           = suppliers.Skip(2).FirstOrDefault()?.SupplierId ?? suppliers.First().SupplierId,
+            PONumber             = $"PO-PARTIAL-{rnd.Next(1000, 9999)}",
+            OrderDate            = DateTime.UtcNow.AddDays(-9),
+            ExpectedDeliveryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2)),
+            Status               = "PartiallyReceived",   // Nhận một phần!
+            TotalAmount          = 8_000_000,
+            CreatedAt            = DateTime.UtcNow.AddDays(-9),
+            CreatedBy            = ketoan.UserId
+        };
+        context.PurchaseOrders.Add(po3);
+        await context.SaveChangesAsync();
+
+        // Create PO items
+        var materialsForPO3 = catalogs.Take(2).ToList();
+        var po3Items = new List<PurchaseOrderItem>();
+        foreach (var mat in materialsForPO3)
+        {
+            decimal qty = mat.Name.Contains("Xi măng") ? 100 : 200;
+            var poItem = new PurchaseOrderItem
+            {
+                POId           = po3.POId,
+                MaterialId     = mat.MaterialId,
+                UnitId         = mat.BaseUnitId,
+                Quantity       = qty,
+                UnitPrice      = 15_000,
+                LineTotal      = qty * 15_000,
+                ConversionRate = 1
+            };
+            po3Items.Add(poItem);
+            context.MaterialRequestItems.Add(new MaterialRequestItem
+            {
+                RequestId      = mr3.RequestId,
+                MaterialId     = mat.MaterialId,
+                UnitId         = mat.BaseUnitId,
+                Quantity       = qty,
+                ConversionRate = 1,
+                IsOverBOQ      = false
+            });
+            context.PurchaseOrderItems.Add(poItem);
+        }
+        await context.SaveChangesAsync();
+
+        // Create a Goods Receipt for PO 3 where some quantities are already received
+        var gr3 = new GoodsReceipt
+        {
+            POId          = po3.POId,
+            ReceiptNo     = $"GR-PARTIAL-{rnd.Next(1000, 9999)}",
+            DelivererInfo = "Tài xế NCC Giao Đợt 1",
+            DeliveryDocNo = $"DOC-PART-{rnd.Next(100, 999)}",
+            Status        = "Approved",
+            CreatedAt     = DateTime.UtcNow.AddDays(-5),
+            CreatedBy     = leader.UserId
+        };
+        context.GoodsReceipts.Add(gr3);
+        await context.SaveChangesAsync();
+
+        foreach (var poItem in po3Items)
+        {
+            decimal receivedQty = poItem.Material.Name.Contains("Xi măng") ? 40 : 120;
+            context.GoodsReceiptItems.Add(new GoodsReceiptItem
+            {
+                ReceiptId      = gr3.ReceiptId,
+                MaterialId     = poItem.MaterialId,
+                UnitId         = poItem.UnitId,
+                Quantity       = receivedQty,
+                ConversionRate = poItem.ConversionRate
+            });
+
+            // Update Current Inventory for project
+            var inv = await context.CurrentInventories.FirstOrDefaultAsync(
+                ci => ci.ProjectId == project.ProjectId && ci.MaterialId == poItem.MaterialId);
+            
+            decimal baseQty = receivedQty / (poItem.ConversionRate > 0 ? poItem.ConversionRate : 1);
+            if (inv == null)
+            {
+                inv = new CurrentInventory
+                {
+                    ProjectId        = project.ProjectId,
+                    MaterialId       = poItem.MaterialId,
+                    UnitId           = poItem.Material.BaseUnitId,
+                    Quantity         = baseQty,
+                    ReservedQuantity = 0,
+                    LastUpdated      = DateTime.UtcNow
+                };
+                context.CurrentInventories.Add(inv);
+            }
+            else
+            {
+                inv.Quantity   += baseQty;
                 inv.LastUpdated = DateTime.UtcNow;
             }
         }
