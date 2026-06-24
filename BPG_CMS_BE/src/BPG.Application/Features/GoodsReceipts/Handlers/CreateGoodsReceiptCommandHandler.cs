@@ -20,11 +20,16 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IInventoryService _inventoryService;
 
-        public CreateGoodsReceiptCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public CreateGoodsReceiptCommandHandler(
+            IUnitOfWork uow, 
+            ICurrentUserService currentUserService,
+            IInventoryService inventoryService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _inventoryService = inventoryService;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateGoodsReceiptCommand request, CancellationToken cancellationToken)
@@ -132,7 +137,6 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 await _uow.SaveChangesAsync(cancellationToken); // để lấy GoodsReceiptId
 
                 var goodsReceiptItems = new List<GoodsReceiptItem>();
-                var balanceList = new List<(CurrentInventory Inv, decimal BaseQty)>();
 
                 // Xử lý từng vật tư nhận
                 foreach (var item in request.Items)
@@ -153,53 +157,20 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     decimal conversionRate = poItem.ConversionRate > 0 ? poItem.ConversionRate : 1;
                     decimal baseQty = item.Quantity / conversionRate;
 
-                    // Cập nhật tồn kho ảo (CurrentInventory) của dự án
-                    var inv = await _uow.Repository<CurrentInventory>().Query()
-                        .FirstOrDefaultAsync(ci => ci.ProjectId == project.ProjectId && ci.MaterialId == item.MaterialId, cancellationToken);
-
-                    if (inv == null)
-                    {
-                        inv = new CurrentInventory
-                        {
-                            ProjectId = project.ProjectId,
-                            MaterialId = item.MaterialId,
-                            UnitId = poItem.Material.BaseUnitId,
-                            Quantity = baseQty,
-                            ReservedQuantity = 0,
-                            LastUpdated = DateTime.UtcNow
-                        };
-                        await _uow.Repository<CurrentInventory>().AddAsync(inv, cancellationToken);
-                    }
-                    else
-                    {
-                        inv.Quantity += baseQty;
-                        inv.LastUpdated = DateTime.UtcNow;
-                        _uow.Repository<CurrentInventory>().Update(inv);
-                    }
-
-                    balanceList.Add((inv, baseQty));
+                    // Gọi InventoryService để cập nhật tồn kho ảo và ghi nhận Thẻ kho đồng thời
+                    await _inventoryService.UpdateStockAsync(
+                        project.ProjectId,
+                        item.MaterialId,
+                        baseQty,
+                        InventoryTransactionType.GoodsReceipt,
+                        goodsReceipt.ReceiptId,
+                        EntityType.GoodsReceipt,
+                        currentUserId,
+                        cancellationToken);
                 }
 
                 await _uow.Repository<GoodsReceiptItem>().AddRangeAsync(goodsReceiptItems, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
-
-                // Ghi nhận biến động kho (InventoryTransaction - thẻ kho)
-                foreach (var tuple in balanceList)
-                {
-                    var transaction = new InventoryTransaction
-                    {
-                        ProjectId = project.ProjectId,
-                        MaterialId = tuple.Inv.MaterialId,
-                        TransactionType = InventoryTransactionType.GoodsReceipt,
-                        ReferenceId = goodsReceipt.ReceiptId,
-                        ReferenceType = EntityType.GoodsReceipt, // Loại chứng từ rõ ràng
-                        QuantityChange = tuple.BaseQty,
-                        BalanceAfter = tuple.Inv.Quantity,
-                        CreatedBy = currentUserId,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    await _uow.Repository<InventoryTransaction>().AddAsync(transaction, cancellationToken);
-                }
 
                 // Lưu ảnh đính kèm (nếu có)
                 if (request.Images != null && request.Images.Any())

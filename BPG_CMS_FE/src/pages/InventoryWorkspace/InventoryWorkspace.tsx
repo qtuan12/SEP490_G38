@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Button, LoadingSpinner, FormItem, Select, Pagination } from '../../components/ui';
+import { Button, LoadingSpinner } from '../../components/ui';
 import { inventoryService } from '../../services/inventoryService';
-import type {
-  CurrentInventory,
-  InventoryTransaction,
-  GoodsReceipt,
-  MaterialIssuance
-} from '../../types/inventory';
+import type { CurrentInventory } from '../../types/inventory';
+
+// Import các sub-components được bóc tách
+import { InventoryOverviewCards } from './components/InventoryOverviewCards';
+import { CurrentStockTab } from './components/CurrentStockTab';
+import { GoodsReceiptsTab } from './components/GoodsReceiptsTab';
+import { MaterialIssuancesTab } from './components/MaterialIssuancesTab';
+import { LedgerHistoryTab } from './components/LedgerHistoryTab';
+
 import { CreateReceiptModal } from './modals/CreateReceiptModal';
 import { ReceiptDetailModal } from './modals/ReceiptDetailModal';
 import { CreateIssuanceModal } from './modals/CreateIssuanceModal';
@@ -17,9 +20,7 @@ import {
   ArrowUpFromLine,
   History,
   AlertTriangle,
-  Search,
   Plus,
-  Eye,
   RefreshCw
 } from 'lucide-react';
 
@@ -32,182 +33,79 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  // Data states
+  // Danh sách vật tư hiện có (để phục vụ card thống kê và bộ lọc thẻ kho)
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
-  const [receiptsList, setReceiptsList] = useState<GoodsReceipt[]>([]);
-  const [issuancesList, setIssuancesList] = useState<MaterialIssuance[]>([]);
-  const [transactionsList, setTransactionsList] = useState<InventoryTransaction[]>([]);
 
-  // Search/Filter states
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterMaterialId, setFilterMaterialId] = useState<string>('');
-  const [filterTxType, setFilterTxType] = useState<string>('');
+  // Key để bắt các sub-components gọi lại API khi có thay đổi dữ liệu (tạo mới/hủy)
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Pagination states
-  const [receiptsPage, setReceiptsPage] = useState(1);
-  const [receiptsTotalPages, setReceiptsTotalPages] = useState(1);
-  const [issuancesPage, setIssuancesPage] = useState(1);
-  const [issuancesTotalPages, setIssuancesTotalPages] = useState(1);
-  const [ledgerPage, setLedgerPage] = useState(1);
-  const [ledgerTotalPages, setLedgerTotalPages] = useState(1);
-
-  // Modals state
+  // Quản lý trạng thái đóng/mở Modals
   const [isCreateReceiptOpen, setIsCreateReceiptOpen] = useState(false);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
   const [isCreateIssuanceOpen, setIsCreateIssuanceOpen] = useState(false);
   const [selectedIssuanceId, setSelectedIssuanceId] = useState<number | null>(null);
 
-  // Unified data loader with batching & debounce
+  // Tải thông tin kho hiện tại để làm dữ liệu thống kê
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      loadData();
-    }, 150);
+    loadInventorySummary();
+  }, [projectId, refreshKey]);
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [projectId, activeSubTab, receiptsPage, issuancesPage, ledgerPage, filterMaterialId, filterTxType, searchTerm]);
-
-  const loadData = async () => {
+  const loadInventorySummary = async () => {
     setLoading(true);
     setGeneralError(null);
     try {
-      if (activeSubTab === 'current') {
-        const data = await inventoryService.getCurrentInventory(projectId);
-        setInventoryList(data);
-      } else if (activeSubTab === 'receipts') {
-        const pagedData = await inventoryService.getGoodsReceipts(
-          projectId,
-          receiptsPage,
-          10,
-          searchTerm
-        );
-        setReceiptsList(pagedData.items);
-        setReceiptsTotalPages(pagedData.totalPages);
-      } else if (activeSubTab === 'issuances') {
-        const pagedData = await inventoryService.getMaterialIssuances(
-          projectId,
-          issuancesPage,
-          10,
-          searchTerm
-        );
-        setIssuancesList(pagedData.items);
-        setIssuancesTotalPages(pagedData.totalPages);
-      } else if (activeSubTab === 'ledger') {
-        const pagedData = await inventoryService.getInventoryTransactions(projectId, {
-          materialId: filterMaterialId ? parseInt(filterMaterialId) : undefined,
-          transactionType: filterTxType ? parseInt(filterTxType) : undefined,
-          pageNumber: ledgerPage,
-          pageSize: 10,
-          search: searchTerm
-        });
-        setTransactionsList(pagedData.items);
-        setLedgerTotalPages(pagedData.totalPages);
-      }
+      const data = await inventoryService.getCurrentInventory(projectId);
+      setInventoryList(data);
     } catch (err: any) {
-      console.error('Error loading inventory data:', err);
+      console.error('Error loading inventory summary:', err);
       setGeneralError(err.message || 'Không thể tải dữ liệu kho.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleRefreshAll = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
   const handleCreateReceiptSuccess = () => {
-    // Reset pages to 1 and reload
-    setReceiptsPage(1);
-    setLedgerPage(1);
-    loadData();
+    setIsCreateReceiptOpen(false);
+    handleRefreshAll();
   };
 
   const handleCreateIssuanceSuccess = () => {
-    setIssuancesPage(1);
-    setLedgerPage(1);
-    loadData();
+    setIsCreateIssuanceOpen(false);
+    handleRefreshAll();
   };
 
-  // Helper formatting values
-  const getTransactionTypeName = (type: number) => {
-    switch (type) {
-      case 1:
-        return { name: 'Nhập kho PO', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-      case 2:
-        return { name: 'Xuất thi công', color: 'bg-blue-50 text-blue-700 border-blue-200' };
-      case 3:
-        return { name: 'Chuyển kho đến', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
-      case 4:
-        return { name: 'Chuyển kho đi', color: 'bg-violet-50 text-violet-700 border-violet-200' };
-      case 5:
-        return { name: 'Trả hàng NCC', color: 'bg-rose-50 text-rose-700 border-rose-200' };
-      case 6:
-        return { name: 'Điều chỉnh', color: 'bg-amber-50 text-amber-700 border-amber-200' };
-      default:
-        return { name: 'Giao dịch khác', color: 'bg-slate-50 text-slate-700 border-slate-200' };
-    }
-  };
+  // Tính toán trước các chỉ số thống kê
+  const totalMaterials = inventoryList.length;
+  const lowStockCount = inventoryList.filter(item => item.quantity - item.reservedQuantity < item.safetyThreshold).length;
+  const inStockCount = inventoryList.reduce((acc, curr) => acc + (curr.quantity > 0 ? 1 : 0), 0);
 
-  // Filter current stock on client side (for responsiveness)
-  const filteredInventory = inventoryList.filter(
-    item =>
-      item.materialName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.materialCode.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Extract unique materials from project stock list for dropdown filter
+  // Danh sách vật tư phục vụ bộ lọc dropdown bên Lịch sử Thẻ Kho
   const uniqueMaterials = inventoryList.map(item => ({
     id: item.materialId,
     name: item.materialName
   }));
 
-  // Safety items count
-  const lowStockItemsCount = inventoryList.filter(item => item.quantity - item.reservedQuantity < item.safetyThreshold).length;
-
   return (
     <div className="flex flex-col gap-6 text-left">
       
-      {/* Overview Cards / Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="glass-panel p-4 flex items-center justify-between border border-slate-100 bg-white shadow-sm rounded-xl">
-          <div className="flex flex-col">
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Tổng số loại vật tư</span>
-            <strong className="text-2xl font-extrabold text-slate-900 mt-1">{inventoryList.length}</strong>
-          </div>
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-            <Package size={22} />
-          </div>
-        </div>
+      {/* 1. Các thẻ Widget Thống kê */}
+      <InventoryOverviewCards
+        totalMaterials={totalMaterials}
+        lowStockCount={lowStockCount}
+        inStockCount={inStockCount}
+      />
 
-        <div className="glass-panel p-4 flex items-center justify-between border border-slate-100 bg-white shadow-sm rounded-xl">
-          <div className="flex flex-col">
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Vật tư sắp hết kho</span>
-            <strong className={`text-2xl font-extrabold mt-1 ${lowStockItemsCount > 0 ? 'text-amber-600 animate-pulse' : 'text-slate-900'}`}>
-              {lowStockItemsCount}
-            </strong>
-          </div>
-          <div className={`p-3 rounded-xl ${lowStockItemsCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
-            <AlertTriangle size={22} />
-          </div>
-        </div>
-
-        <div className="glass-panel p-4 flex items-center justify-between border border-slate-100 bg-white shadow-sm rounded-xl">
-          <div className="flex flex-col">
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Mặt hàng tồn kho</span>
-            <strong className="text-2xl font-extrabold text-slate-900 mt-1">
-              {inventoryList.reduce((acc, curr) => acc + (curr.quantity > 0 ? 1 : 0), 0)}
-            </strong>
-          </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-            <ArrowDownToLine size={22} />
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs Header & Actions */}
+      {/* 2. Thanh Tabs Điều Hướng & Các Nút Hành Động */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-3 gap-4">
-        {/* Navigation buttons */}
+        
+        {/* Nút bấm chuyển Tab */}
         <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
           <button
-            onClick={() => {
-              setActiveSubTab('current');
-              setSearchTerm('');
-            }}
+            onClick={() => setActiveSubTab('current')}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeSubTab === 'current'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -218,11 +116,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             <span>Tồn kho hiện tại</span>
           </button>
           <button
-            onClick={() => {
-              setActiveSubTab('receipts');
-              setSearchTerm('');
-              setReceiptsPage(1);
-            }}
+            onClick={() => setActiveSubTab('receipts')}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeSubTab === 'receipts'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -233,10 +127,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             <span>Phiếu Nhập Kho</span>
           </button>
           <button
-            onClick={() => {
-              setActiveSubTab('issuances');
-              setSearchTerm('');
-            }}
+            onClick={() => setActiveSubTab('issuances')}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeSubTab === 'issuances'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -247,13 +138,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             <span>Phiếu Xuất Kho</span>
           </button>
           <button
-            onClick={() => {
-              setActiveSubTab('ledger');
-              setSearchTerm('');
-              setLedgerPage(1);
-              setFilterMaterialId('');
-              setFilterTxType('');
-            }}
+            onClick={() => setActiveSubTab('ledger')}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeSubTab === 'ledger'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -265,11 +150,11 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           </button>
         </div>
 
-        {/* Action buttons */}
+        {/* Nút hành động */}
         <div className="flex gap-2.5">
           <Button
             variant="outline"
-            onClick={loadData}
+            onClick={handleRefreshAll}
             disabled={loading}
             className="flex items-center gap-1.5"
           >
@@ -299,7 +184,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* 3. Hiển thị thông báo lỗi chung nếu có */}
       {generalError && (
         <div className="p-4 bg-red-50 text-red-700 text-sm border border-red-200 rounded-xl flex gap-2">
           <AlertTriangle size={18} className="flex-shrink-0" />
@@ -307,417 +192,46 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
         </div>
       )}
 
-      {loading ? (
+      {/* 4. Phần Nội dung chính của Tab đang chọn */}
+      {loading && inventoryList.length === 0 ? (
         <div className="flex justify-center items-center py-20 gap-3 bg-white border border-slate-100 rounded-2xl shadow-sm">
           <LoadingSpinner />
-          <span className="text-slate-500 text-sm">Đang tải thông tin...</span>
+          <span className="text-slate-500 text-sm">Đang tải thông tin kho...</span>
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-5 flex flex-col gap-4">
           
-          {/* Sub-tab 1: Current stock */}
           {activeSubTab === 'current' && (
-            <>
-              {/* Search bar */}
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm vật tư theo tên hoặc mã..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Table */}
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
-                    <tr>
-                      <th className="px-4 py-3">Mã vật tư</th>
-                      <th className="px-4 py-3">Tên vật tư</th>
-                      <th className="px-4 py-3">Quy cách</th>
-                      <th className="px-4 py-3 text-right">Tồn thực tế</th>
-                      <th className="px-4 py-3 text-right">Đang đóng băng</th>
-                      <th className="px-4 py-3 text-right">Khả dụng</th>
-                      <th className="px-4 py-3 text-center">Trạng thái kho</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white">
-                    {filteredInventory.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
-                          Không tìm thấy vật tư nào trong kho dự án.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredInventory.map(item => {
-                        const isUnderThreshold = item.availableQuantity < item.safetyThreshold;
-                        return (
-                          <tr
-                            key={item.inventoryId}
-                            className={`hover:bg-slate-50 transition-colors ${
-                              isUnderThreshold ? 'bg-amber-50/40 hover:bg-amber-50/70' : ''
-                            }`}
-                          >
-                            <td className="px-4 py-3.5 font-mono text-xs text-slate-500">
-                              {item.materialCode}
-                            </td>
-                            <td className="px-4 py-3.5 font-semibold text-slate-800">
-                              {item.materialName}
-                            </td>
-                            <td className="px-4 py-3.5 text-slate-500">
-                              {item.specification || 'N/A'}
-                            </td>
-                            <td className="px-4 py-3.5 text-right font-medium text-slate-900">
-                              {item.quantity} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
-                            </td>
-                            <td className="px-4 py-3.5 text-right text-slate-500">
-                              {item.reservedQuantity > 0 ? (
-                                <span className="text-rose-600 font-medium">-{item.reservedQuantity}</span>
-                              ) : (
-                                '0'
-                              )}{' '}
-                              <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
-                            </td>
-                            <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
-                              {item.availableQuantity} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
-                            </td>
-                            <td className="px-4 py-3.5 text-center">
-                              {isUnderThreshold ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                  <AlertTriangle size={12} />
-                                  <span>Dưới hạn an toàn ({item.safetyThreshold})</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                  An toàn
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </>
+            <CurrentStockTab inventoryList={inventoryList} />
           )}
 
-          {/* Sub-tab 2: Goods Receipts */}
           {activeSubTab === 'receipts' && (
-            <>
-              {/* Search and Filters */}
-              <div className="flex gap-4 items-center">
-                <div className="relative max-w-sm flex-grow">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm theo mã receipt, mã PO, deliverer..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Table */}
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
-                    <tr>
-                      <th className="px-4 py-3">Mã phiếu</th>
-                      <th className="px-4 py-3">Mã đơn PO</th>
-                      <th className="px-4 py-3">Người giao</th>
-                      <th className="px-4 py-3">Số phiếu giao</th>
-                      <th className="px-4 py-3">Ngày nhận</th>
-                      <th className="px-4 py-3">Người tiếp nhận</th>
-                      <th className="px-4 py-3 text-center">Trạng thái</th>
-                      <th className="px-4 py-3 text-center">Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white">
-                    {receiptsList.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
-                          Không tìm thấy phiếu nhập kho nào.
-                        </td>
-                      </tr>
-                    ) : (
-                      receiptsList.map(r => (
-                        <tr key={r.receiptId} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3.5 font-semibold text-blue-600 font-mono text-xs">
-                            {r.receiptNo}
-                          </td>
-                          <td className="px-4 py-3.5 font-medium text-slate-900 font-mono text-xs">
-                            {r.poNumber}
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-700">
-                            {r.delivererInfo || 'N/A'}
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-500 font-mono text-xs">
-                            {r.deliveryDocNo || 'N/A'}
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-600">
-                            {new Date(r.createdAt).toLocaleDateString('vi-VN')}
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-700">
-                            {r.createdByName}
-                          </td>
-                          <td className="px-4 py-3.5 text-center">
-                            {r.status === 'Cancelled' ? (
-                              <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-                                Đã hủy
-                              </span>
-                            ) : (
-                              <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                Đã nhập kho
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3.5 text-center">
-                            <button
-                              onClick={() => setSelectedReceiptId(r.receiptId)}
-                              className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 mx-auto"
-                            >
-                              <Eye size={14} />
-                              <span>Xem</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination component */}
-              <Pagination
-                currentPage={receiptsPage}
-                totalPages={receiptsTotalPages}
-                onPageChange={setReceiptsPage}
-              />
-            </>
+            <GoodsReceiptsTab
+              projectId={projectId}
+              onViewReceipt={setSelectedReceiptId}
+              refreshKey={refreshKey}
+            />
           )}
 
-          {/* Sub-tab 3: Material Issuances */}
           {activeSubTab === 'issuances' && (
-            <>
-              {/* Search Box */}
-              <div className="flex gap-4 items-center">
-                <div className="relative max-w-sm flex-grow">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm theo công việc, mục đích..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Table */}
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
-                    <tr>
-                      <th className="px-4 py-3">Mã phiếu</th>
-                      <th className="px-4 py-3">Công việc thi công</th>
-                      <th className="px-4 py-3">Mục đích xuất</th>
-                      <th className="px-4 py-3 text-center">Số loại vật tư</th>
-                      <th className="px-4 py-3">Ngày xuất</th>
-                      <th className="px-4 py-3">Người lập phiếu</th>
-                      <th className="px-4 py-3 text-center">Trạng thái</th>
-                      <th className="px-4 py-3 text-center">Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white">
-                    {issuancesList.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
-                          Không tìm thấy phiếu xuất kho nào.
-                        </td>
-                      </tr>
-                    ) : (
-                      issuancesList.map(i => (
-                        <tr key={i.materialIssuanceId} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3.5 font-semibold text-blue-600 font-mono text-xs">
-                            {i.issuanceNo || `PXK-${String(i.materialIssuanceId).padStart(5, '0')}`}
-                          </td>
-                          <td className="px-4 py-3.5 font-semibold text-slate-800">
-                            {i.taskName}
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-600">
-                            {i.purpose}
-                          </td>
-                          <td className="px-4 py-3.5 text-center font-medium text-slate-900">
-                            {i.totalItems}
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-600">
-                            {new Date(i.createdAt).toLocaleDateString('vi-VN')}
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-700">
-                            {i.createdByName}
-                          </td>
-                          <td className="px-4 py-3.5 text-center">
-                            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                              Đã xuất dùng
-                            </span>
-                          </td>
-                          <td className="px-4 py-3.5 text-center">
-                            <button
-                              onClick={() => setSelectedIssuanceId(i.materialIssuanceId)}
-                              className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 mx-auto"
-                            >
-                              <Eye size={14} />
-                              <span>Xem</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              <Pagination
-                currentPage={issuancesPage}
-                totalPages={issuancesTotalPages}
-                onPageChange={setIssuancesPage}
-              />
-            </>
+            <MaterialIssuancesTab
+              projectId={projectId}
+              onViewIssuance={setSelectedIssuanceId}
+              refreshKey={refreshKey}
+            />
           )}
 
-          {/* Sub-tab 4: Ledger History */}
           {activeSubTab === 'ledger' && (
-            <>
-              {/* Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                <div className="relative col-span-1 md:col-span-2">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm theo vật tư..."
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <FormItem label="" className="mb-0">
-                  <Select
-                    options={[
-                      { label: '-- Lọc theo vật tư --', value: '' },
-                      ...uniqueMaterials.map(m => ({
-                        label: m.name,
-                        value: m.id.toString()
-                      }))
-                    ]}
-                    value={filterMaterialId}
-                    onChange={(e: any) => {
-                      setFilterMaterialId(e.target.value);
-                      setLedgerPage(1);
-                    }}
-                    className="py-1.5 text-sm"
-                  />
-                </FormItem>
-
-                <FormItem label="" className="mb-0">
-                  <Select
-                    options={[
-                      { label: '-- Loại biến động --', value: '' },
-                      { label: 'Nhập kho PO', value: '1' },
-                      { label: 'Xuất thi công', value: '2' },
-                      { label: 'Điều chỉnh', value: '6' }
-                    ]}
-                    value={filterTxType}
-                    onChange={(e: any) => {
-                      setFilterTxType(e.target.value);
-                      setLedgerPage(1);
-                    }}
-                    className="py-1.5 text-sm"
-                  />
-                </FormItem>
-              </div>
-
-              {/* Ledger Table */}
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
-                    <tr>
-                      <th className="px-4 py-3">Ngày giờ</th>
-                      <th className="px-4 py-3">Mã vật tư</th>
-                      <th className="px-4 py-3">Vật tư</th>
-                      <th className="px-4 py-3 text-center">Loại giao dịch</th>
-                      <th className="px-4 py-3 text-right">Lượng thay đổi</th>
-                      <th className="px-4 py-3 text-right">Tồn sau GD</th>
-                      <th className="px-4 py-3">Người thực hiện</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white">
-                    {transactionsList.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
-                          Không tìm thấy biến động kho nào.
-                        </td>
-                      </tr>
-                    ) : (
-                      transactionsList.map(t => {
-                        const typeInfo = getTransactionTypeName(t.transactionType);
-                        return (
-                          <tr key={t.transactionId} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3.5 text-slate-600">
-                              {new Date(t.createdAt).toLocaleString('vi-VN')}
-                            </td>
-                            <td className="px-4 py-3.5 font-mono text-xs text-slate-500">
-                              {t.materialCode}
-                            </td>
-                            <td className="px-4 py-3.5 font-medium text-slate-800">
-                              {t.materialName}
-                            </td>
-                            <td className="px-4 py-3.5 text-center">
-                              <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${typeInfo.color}`}>
-                                {typeInfo.name}
-                              </span>
-                            </td>
-                            <td className={`px-4 py-3.5 text-right font-bold ${
-                              t.quantityChange > 0 ? 'text-emerald-600' : 'text-rose-600'
-                            }`}>
-                              {t.quantityChange > 0 ? `+${t.quantityChange}` : t.quantityChange}{' '}
-                              <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
-                            </td>
-                            <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
-                              {t.balanceAfter}{' '}
-                              <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
-                            </td>
-                            <td className="px-4 py-3.5 text-slate-700">
-                              {t.createdByName}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination component */}
-              <Pagination
-                currentPage={ledgerPage}
-                totalPages={ledgerTotalPages}
-                onPageChange={setLedgerPage}
-              />
-            </>
+            <LedgerHistoryTab
+              projectId={projectId}
+              uniqueMaterials={uniqueMaterials}
+              refreshKey={refreshKey}
+            />
           )}
-
         </div>
       )}
 
-      {/* Modals */}
+      {/* 5. Khai báo các Popup Modals */}
       {isCreateReceiptOpen && (
         <CreateReceiptModal
           isOpen={isCreateReceiptOpen}
@@ -727,12 +241,12 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
         />
       )}
 
-      {selectedReceiptId && (
+      {selectedReceiptId !== null && (
         <ReceiptDetailModal
           isOpen={selectedReceiptId !== null}
           onClose={() => setSelectedReceiptId(null)}
           receiptId={selectedReceiptId}
-          onSuccess={handleCreateReceiptSuccess}
+          onSuccess={handleRefreshAll}
         />
       )}
 
@@ -745,7 +259,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
         />
       )}
 
-      {selectedIssuanceId && (
+      {selectedIssuanceId !== null && (
         <IssuanceDetailModal
           isOpen={selectedIssuanceId !== null}
           onClose={() => setSelectedIssuanceId(null)}
