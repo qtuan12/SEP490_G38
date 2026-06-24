@@ -4,7 +4,7 @@ import type { PaginatedUsers } from '../../services/userService';
 import type { UserProfile } from '../../services/authService';
 import { CreateUserModal } from './modals/CreateUserModal';
 import { EditUserModal } from './modals/EditUserModal';
-import { ConfirmDialog, Button, Input, Select, Badge, DataTable } from '../../components/ui';
+import { ConfirmDialog, Button, Input, Select, Badge, DataTable, Pagination } from '../../components/ui';
 import type { BadgeVariant } from '../../components/ui';
 import {
   Search,
@@ -16,8 +16,6 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react';
 
 const PAGE_SIZE = 20;
@@ -288,56 +286,21 @@ export const UserManagement: React.FC = () => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-1">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-1 mt-4">
               <span className="text-sm text-[hsl(var(--text-secondary))]">
-                Tổng {totalCount} thành viên &bull; Trang {pageNumber}/{totalPages}
+                Tổng {totalCount} thành viên
               </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  className="p-2 h-auto"
-                  disabled={pageNumber <= 1}
-                  onClick={() => setPageNumber(p => p - 1)}
-                >
-                  <ChevronLeft size={16} />
-                </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === totalPages || Math.abs(p - pageNumber) <= 1)
-                  .reduce<(number | '...')[]>((acc, p, idx, arr) => {
-                    if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
-                      acc.push('...');
-                    }
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((p, idx) =>
-                    p === '...' ? (
-                      <span key={`ellipsis-${idx}`} className="px-1 text-[hsl(var(--text-muted))]">…</span>
-                    ) : (
-                      <Button
-                        key={p}
-                        variant={p === pageNumber ? 'primary' : 'secondary'}
-                        className="w-9 h-9 p-0 text-sm"
-                        onClick={() => setPageNumber(p as number)}
-                      >
-                        {p}
-                      </Button>
-                    )
-                  )}
-                <Button
-                  variant="secondary"
-                  className="p-2 h-auto"
-                  disabled={pageNumber >= totalPages}
-                  onClick={() => setPageNumber(p => p + 1)}
-                >
-                  <ChevronRight size={16} />
-                </Button>
-              </div>
+              <Pagination
+                currentPage={pageNumber}
+                totalPages={totalPages}
+                onPageChange={setPageNumber}
+                className="mt-0"
+              />
             </div>
           )}
 
           {totalPages <= 1 && totalCount > 0 && (
-            <p className="text-sm text-[hsl(var(--text-muted))] px-1">Tổng {totalCount} thành viên</p>
+            <p className="text-sm text-[hsl(var(--text-muted))] px-1 mt-4">Tổng {totalCount} thành viên</p>
           )}
         </div>
       )}

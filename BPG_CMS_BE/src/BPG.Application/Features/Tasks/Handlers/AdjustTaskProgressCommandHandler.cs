@@ -38,6 +38,45 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         if (task.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
             throw new BusinessException("ERR_TASK_OBSOLETE", "Không thể điều chỉnh tiến độ cho công việc đã báo lỗi thời.");
 
+        // Kiểm tra điều kiện phụ thuộc (Finish-to-Start)
+        if (request.NewProgress > 0)
+        {
+            var incompletePredecessors = await _unitOfWork.Repository<TaskDependency>()
+                .Query()
+                .Include(td => td.Predecessor)
+                .Where(td => td.TaskId == task.TaskId 
+                    && td.Predecessor.ProgressPercent < 100
+                    && td.Predecessor.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+                .ToListAsync(ct);
+
+            if (incompletePredecessors.Any())
+            {
+                // Tìm tất cả các ancestor IDs để loại trừ khỏi danh sách chặn
+                var ancestorIds = new System.Collections.Generic.HashSet<long>();
+                long? currentParentId = task.ParentTaskId;
+                while (currentParentId.HasValue)
+                {
+                    ancestorIds.Add(currentParentId.Value);
+                    var parent = await _unitOfWork.Repository<ProjectTask>()
+                        .Query()
+                        .Select(t => new { t.TaskId, t.ParentTaskId })
+                        .FirstOrDefaultAsync(t => t.TaskId == currentParentId.Value, ct);
+                    currentParentId = parent?.ParentTaskId;
+                }
+
+                var blockedPredecessors = incompletePredecessors
+                    .Where(td => !ancestorIds.Contains(td.PredecessorTaskId))
+                    .ToList();
+
+                if (blockedPredecessors.Any())
+                {
+                    var names = string.Join(", ", blockedPredecessors.Select(td => td.Predecessor.Name));
+                    throw new BusinessException("ERR_TASK_DEPENDENCY_BLOCKED",
+                        $"Không thể điều chỉnh tiến độ. Các công việc tiên quyết chưa hoàn thành: {names}");
+                }
+            }
+        }
+
         var oldProgress = task.ProgressPercent;
         task.ProgressPercent = request.NewProgress;
         

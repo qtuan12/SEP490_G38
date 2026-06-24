@@ -14,12 +14,14 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotificationSender _realtimeSender;
     private readonly AutoMapper.IMapper _mapper;
+    private readonly IProgressRollupService _rollupService;
 
-    public UpdateTaskCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender, AutoMapper.IMapper mapper)
+    public UpdateTaskCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender, AutoMapper.IMapper mapper, IProgressRollupService rollupService)
     {
         _unitOfWork = unitOfWork;
         _realtimeSender = realtimeSender;
         _mapper = mapper;
+        _rollupService = rollupService;
     }
 
     public async Task<ApiResponse> Handle(UpdateTaskCommand request, CancellationToken ct)
@@ -65,7 +67,8 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
         bool isContentOrDateChanged = task.Name != request.Name 
                                       || task.Description != request.Description 
                                       || task.StartDate != request.StartDate 
-                                      || task.EndDate != request.EndDate;
+                                      || task.EndDate != request.EndDate
+                                      || task.Weight != request.Weight;
 
         if (task.ProgressPercent > 0 && isContentOrDateChanged)
         {
@@ -87,6 +90,13 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
 
         _unitOfWork.Repository<ProjectTask>().Update(task);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        // Cuộn tiến độ nếu thay đổi ảnh hưởng đến trọng số/thời gian
+        if (task.ParentTaskId.HasValue)
+        {
+            await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, task.TaskId, ct);
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
 
         if (task.Phase != null)
         {

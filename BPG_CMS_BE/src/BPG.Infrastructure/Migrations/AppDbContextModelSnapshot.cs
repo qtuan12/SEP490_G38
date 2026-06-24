@@ -677,6 +677,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<long>("ReferenceId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("ReferenceType")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<byte>("TransactionType")
                         .HasColumnType("tinyint");
 
@@ -826,6 +829,10 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<string>("IssuanceNo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Purpose")
                         .IsRequired()
@@ -1181,8 +1188,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("AcceptedBy");
 
-                    b.HasIndex("PhaseId")
-                        .IsUnique();
+                    b.HasIndex("PhaseId");
 
                     b.ToTable("PhaseAcceptances");
                 });
@@ -1346,6 +1352,10 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<long?>("UpdatedBy")
                         .HasColumnType("bigint");
+
+                    b.Property<decimal?>("Weight")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.HasKey("TaskId");
 
@@ -1942,6 +1952,29 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("TaskAssignees");
+                });
+
+            modelBuilder.Entity("BPG.Domain.Entities.TaskDependency", b =>
+                {
+                    b.Property<long>("TaskDependencyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("TaskDependencyId"));
+
+                    b.Property<long>("PredecessorTaskId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TaskId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TaskDependencyId");
+
+                    b.HasIndex("PredecessorTaskId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskDependencies");
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.TaskProgressLog", b =>
@@ -2824,6 +2857,25 @@ namespace BPG.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("BPG.Domain.Entities.TaskDependency", b =>
+                {
+                    b.HasOne("BPG.Domain.Entities.ProjectTask", "Predecessor")
+                        .WithMany("Dependents")
+                        .HasForeignKey("PredecessorTaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BPG.Domain.Entities.ProjectTask", "Task")
+                        .WithMany("Dependencies")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Predecessor");
+
+                    b.Navigation("Task");
+                });
+
             modelBuilder.Entity("BPG.Domain.Entities.TaskProgressLog", b =>
                 {
                     b.HasOne("BPG.Domain.Entities.ProjectTask", "Task")
@@ -2919,6 +2971,10 @@ namespace BPG.Infrastructure.Migrations
                     b.Navigation("Assignees");
 
                     b.Navigation("DailyLogs");
+
+                    b.Navigation("Dependencies");
+
+                    b.Navigation("Dependents");
 
                     b.Navigation("ProgressLogs");
 

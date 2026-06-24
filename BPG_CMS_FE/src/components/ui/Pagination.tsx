@@ -17,17 +17,17 @@ export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages,
         <button
           disabled={currentPage === 1}
           onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
-          className="px-4 py-2 text-sm font-medium rounded-[30px] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-hover))] disabled:opacity-50 disabled:cursor-not-allowed border-none transition-colors cursor-pointer"
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-hover))] disabled:opacity-50 disabled:cursor-not-allowed border-none transition-colors cursor-pointer"
         >
           Trang trước
         </button>
-        <div className="px-4 py-2 text-sm font-semibold rounded-[30px] bg-white border border-[hsl(var(--border-light))] text-[hsl(var(--primary))] shadow-sm">
+        <div className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-[hsl(var(--border-light))] text-[hsl(var(--primary))] shadow-sm">
           Trang {currentPage} / {totalPages}
         </div>
         <button
           disabled={currentPage === totalPages}
           onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
-          className="px-4 py-2 text-sm font-medium rounded-[30px] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-hover))] disabled:opacity-50 disabled:cursor-not-allowed border-none transition-colors cursor-pointer"
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-hover))] disabled:opacity-50 disabled:cursor-not-allowed border-none transition-colors cursor-pointer"
         >
           Trang sau
         </button>

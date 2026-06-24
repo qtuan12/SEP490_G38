@@ -15,5 +15,9 @@ public class UpdateTaskCommandValidator : AbstractValidator<UpdateTaskCommand>
             .NotEmpty()
             .GreaterThanOrEqualTo(x => x.StartDate)
             .WithMessage("Ngày kết thúc không được nhỏ hơn ngày bắt đầu.");
+        RuleFor(x => x.Weight)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.Weight.HasValue)
+            .WithMessage("Trọng số không được âm.");
     }
 }

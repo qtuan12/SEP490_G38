@@ -8,7 +8,8 @@ export interface ApiResponse<T = any> {
 
 export interface PagedList<T> {
   items: T[];
-  pageIndex: number;
+  pageIndex?: number;
+  pageNumber?: number;
   pageSize: number;
   totalCount: number;
   totalPages: number;
