@@ -22,7 +22,11 @@ export const HeaderNotification: React.FC = () => {
   const handleItemClick = async (noti: any) => {
     if (!noti.isRead) await markAsRead(noti.notificationId);
     setIsOpen(false);
-    navigate('/notifications');
+    if (noti.referenceType === 'Task' && noti.referenceId) {
+      navigate(`/tasks/${noti.referenceId}`);
+    } else {
+      navigate('/notifications');
+    }
   };
 
   const visible = notifications.slice(0, 5);
