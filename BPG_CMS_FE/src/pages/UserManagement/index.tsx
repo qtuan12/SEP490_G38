@@ -5,7 +5,6 @@ import type { UserProfile } from '../../services/authService';
 import { CreateUserModal } from './modals/CreateUserModal';
 import { EditUserModal } from './modals/EditUserModal';
 import { ConfirmDialog, Button, Input, Select, Badge, DataTable, Pagination } from '../../components/ui';
-import type { BadgeVariant } from '../../components/ui';
 import {
   Search,
   UserPlus,
@@ -17,6 +16,7 @@ import {
   Loader2,
   CheckCircle2,
 } from 'lucide-react';
+import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
 
 const PAGE_SIZE = 20;
 
@@ -111,29 +111,7 @@ export const UserManagement: React.FC = () => {
     setIsDeleteOpen(true);
   };
 
-  const getRoleLabel = (role: string) => {
-    if (!role) return '';
-    const norm = role.toLowerCase().replace(/[\s_-]/g, '');
-    switch (norm) {
-      case 'admin': return 'Admin';
-      case 'technicalmanager': return 'TP Kỹ Thuật';
-      case 'siteengineer': return 'Nhân viên kỹ thuật';
-      case 'accountant': return 'Kế Toán';
-      case 'director': return 'Giám Đốc';
-      default: return role;
-    }
-  };
 
-  const getRoleVariant = (role: string): BadgeVariant => {
-    if (!role) return 'default';
-    const norm = role.toLowerCase().replace(/[\s_-]/g, '');
-    switch (norm) {
-      case 'admin': return 'danger';
-      case 'director': return 'warning';
-      case 'siteengineer': return 'success';
-      default: return 'default';
-    }
-  };
 
   const columns = [
     {

@@ -19,11 +19,16 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IInventoryService _inventoryService;
 
-        public CreateMaterialIssuanceCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public CreateMaterialIssuanceCommandHandler(
+            IUnitOfWork uow, 
+            ICurrentUserService currentUserService,
+            IInventoryService inventoryService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _inventoryService = inventoryService;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateMaterialIssuanceCommand request, CancellationToken cancellationToken)
@@ -119,7 +124,6 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 await _uow.SaveChangesAsync(cancellationToken); // lấy MaterialIssuanceId
 
                 var issuanceItems = new List<MaterialIssuanceItem>();
-                var balanceLogs = new List<(CurrentInventory Inv, decimal BaseQty)>();
 
                 foreach (var item in request.Items)
                 {
@@ -137,35 +141,19 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                     };
                     issuanceItems.Add(issuanceItem);
 
-                    // Trừ tồn kho trong CurrentInventory
-                    inv.Quantity -= baseQty;
-                    inv.LastUpdated = DateTime.UtcNow;
-                    _uow.Repository<CurrentInventory>().Update(inv);
-
-                    balanceLogs.Add((inv, baseQty));
+                    // Trừ tồn kho và ghi nhận thẻ kho thông qua InventoryService
+                    await _inventoryService.UpdateStockAsync(
+                        project.ProjectId,
+                        item.MaterialId,
+                        -baseQty,
+                        InventoryTransactionType.Issuance,
+                        issuance.MaterialIssuanceId,
+                        EntityType.MaterialIssuance,
+                        currentUserId,
+                        cancellationToken);
                 }
 
                 await _uow.Repository<MaterialIssuanceItem>().AddRangeAsync(issuanceItems, cancellationToken);
-                await _uow.SaveChangesAsync(cancellationToken);
-
-                // Ghi nhận biến động kho (InventoryTransaction)
-                foreach (var log in balanceLogs)
-                {
-                    var transaction = new InventoryTransaction
-                    {
-                        ProjectId = project.ProjectId,
-                        MaterialId = log.Inv.MaterialId,
-                        TransactionType = InventoryTransactionType.Issuance, // 2 = Xuất kho
-                        ReferenceId = issuance.MaterialIssuanceId,
-                        ReferenceType = EntityType.MaterialIssuance, // Loại chứng từ nguồn rõ ràng
-                        QuantityChange = -log.BaseQty, // xuất kho ghi nhận số âm
-                        BalanceAfter = log.Inv.Quantity,
-                        CreatedBy = currentUserId,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    await _uow.Repository<InventoryTransaction>().AddAsync(transaction, cancellationToken);
-                }
-
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
 

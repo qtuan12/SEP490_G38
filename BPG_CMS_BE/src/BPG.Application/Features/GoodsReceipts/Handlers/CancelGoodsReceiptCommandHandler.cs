@@ -18,11 +18,16 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IInventoryService _inventoryService;
 
-        public CancelGoodsReceiptCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public CancelGoodsReceiptCommandHandler(
+            IUnitOfWork uow, 
+            ICurrentUserService currentUserService,
+            IInventoryService inventoryService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _inventoryService = inventoryService;
         }
 
         public async Task<ApiResponse<bool>> Handle(CancelGoodsReceiptCommand request, CancellationToken cancellationToken)
@@ -131,38 +136,22 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 receipt.UpdatedBy = currentUserId;
                 _uow.Repository<GoodsReceipt>().Update(receipt);
 
-                // Khấu trừ tồn kho thực tế và ghi nhận Thẻ kho (ledger) đảo ngược
+                // Khấu trừ tồn kho thực tế và ghi nhận Thẻ kho (ledger) đảo ngược qua InventoryService
                 foreach (var item in receipt.Items)
                 {
                     decimal conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1;
                     decimal baseQty = item.Quantity / conversionRate;
 
-                    var inv = await _uow.Repository<CurrentInventory>().Query()
-                        .FirstAsync(ci => ci.ProjectId == project.ProjectId && ci.MaterialId == item.MaterialId, cancellationToken);
-
-                    inv.Quantity -= baseQty;
-                    inv.LastUpdated = DateTime.UtcNow;
-                    _uow.Repository<CurrentInventory>().Update(inv);
-
-                    // Thêm bản ghi Thẻ kho đảo chiều (bút toán hoàn kho)
-                    // Dùng TransactionType.Adjustment (type=6) thay vì GoodsReceipt để sổ kho rõ ràng
-                    // ReferenceType = GoodsReceiptReversal giúp phân biệt nguồn gốc chứng từ ngay trên sổ kho
-                    var tx = new InventoryTransaction
-                    {
-                        ProjectId = project.ProjectId,
-                        MaterialId = item.MaterialId,
-                        TransactionType = InventoryTransactionType.Adjustment, // 6 = Điều chỉnh/Đảo chiều
-                        ReferenceId = receipt.ReceiptId,
-                        ReferenceType = EntityType.GoodsReceiptReversal, // Phân biệt rõ: đây là bút toán hủy GR
-                        QuantityChange = -baseQty, // Số lượng âm biểu thị sự hoàn kho (hủy phiếu)
-                        BalanceAfter = inv.Quantity,
-                        CreatedBy = currentUserId,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    await _uow.Repository<InventoryTransaction>().AddAsync(tx, cancellationToken);
+                    await _inventoryService.UpdateStockAsync(
+                        project.ProjectId,
+                        item.MaterialId,
+                        -baseQty,
+                        InventoryTransactionType.Adjustment,
+                        receipt.ReceiptId,
+                        EntityType.GoodsReceiptReversal,
+                        currentUserId,
+                        cancellationToken);
                 }
-
-                await _uow.SaveChangesAsync(cancellationToken);
 
                 // 6. Tính toán và cập nhật lại trạng thái đơn hàng PO
                 // Lấy tổng số lượng đã nhận thực tế từ tất cả các phiếu nhập kho KHÁC của PO này (mà đang ở trạng thái Approved)

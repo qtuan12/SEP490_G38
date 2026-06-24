@@ -5,7 +5,7 @@ import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle,
 import { AssignEngineerForm } from './AssignEngineerModal';
 import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';
-import { DailyLogForm } from '../../Incidents/modals/DailyLogFormModal';
+import { DailyLogForm } from '../../ProjectDailyLogs/modals/DailyLogFormModal';
 import type {WBSTask, WBSPhase, Project, MaterialRequest} from '../../../types/common';
 import { TaskProgressHistoryPanel } from '../../../components/TaskProgressHistoryPanel';
 
