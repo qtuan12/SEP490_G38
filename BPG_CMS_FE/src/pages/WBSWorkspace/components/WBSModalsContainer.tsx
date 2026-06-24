@@ -12,7 +12,7 @@ import { CreateMaterialRequestModal } from '../../MaterialRequests/modals/Create
 import { ResubmitMaterialRequestModal } from '../../MaterialRequests/modals/ResubmitMaterialRequestModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
 import { ObsoleteTaskModal } from '../modals/ObsoleteTaskModal';
-import { DailyLogFormModal } from '../../Incidents/modals/DailyLogFormModal';
+import { DailyLogFormModal } from '../../ProjectDailyLogs/modals/DailyLogFormModal';
 import { AdjustProgressModal } from '../modals/AdjustProgressModal';
 
 export const WBSModalsContainer = () => {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Inbox } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import { Badge } from '../ui';
+import { formatRelativeTime } from '../../utils/dateHelpers';
 
 export const HeaderNotification: React.FC = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotification();
@@ -17,24 +18,6 @@ export const HeaderNotification: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const parseDateSafe = (dateStr: string) => {
-    if (!dateStr) return new Date();
-    if (!dateStr.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(dateStr)) {
-      const formatted = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
-      return new Date(formatted + 'Z');
-    }
-    return new Date(dateStr);
-  };
-
-  const formatRelativeTime = (dateString: string) => {
-    const diffMins = Math.floor((Date.now() - parseDateSafe(dateString).getTime()) / 60000);
-    if (diffMins < 1) return 'Vừa xong';
-    if (diffMins < 60) return `${diffMins} phút trước`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} giờ trước`;
-    return parseDateSafe(dateString).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-  };
 
   const handleItemClick = async (noti: any) => {
     if (!noti.isRead) await markAsRead(noti.notificationId);

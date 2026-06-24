@@ -2,23 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNotification } from '../context/NotificationContext';
 import { CheckCheck, Inbox, Bell } from 'lucide-react';
 import { Button, Pagination } from '../components/ui';
+import { formatDate } from '../utils/dateHelpers';
 
 const PAGE_SIZE = 10;
-
-const parseDateSafe = (dateStr: string) => {
-  if (!dateStr) return new Date();
-  if (!dateStr.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(dateStr)) {
-    const formatted = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
-    return new Date(formatted + 'Z');
-  }
-  return new Date(dateStr);
-};
-
-const formatDate = (dateString: string) =>
-  parseDateSafe(dateString).toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
 
 export const NotificationsList: React.FC = () => {
   const { notifications, unreadCount, totalCount, markAsRead, markAllAsRead, isLoading, fetchNotifications } = useNotification();

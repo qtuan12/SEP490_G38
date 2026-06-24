@@ -4,7 +4,7 @@ import { projectService } from '../services/projectService';
 import type { Project } from '../types/common';
 import { ProjectMembers } from '../components/ProjectMembers';
 import { WBSWorkspace } from './WBSWorkspace';
-import { DailyLogFeed } from '../components/DailyLogFeed';
+import { DailyLogFeed } from './ProjectDailyLogs/components/DailyLogFeed';
 import { EditProjectModal } from './ProjectList/modals/EditProjectModal';
 import { Modal } from '../components/ui/Modal';
 import { Button, Input, FormItem } from '../components/ui';

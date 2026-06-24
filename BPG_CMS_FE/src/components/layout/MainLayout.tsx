@@ -15,8 +15,9 @@ import {
   Package
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
-import type { BadgeVariant } from '../ui';
+import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
 import { HeaderNotification } from './HeaderNotification';
+
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
@@ -44,29 +45,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   const filteredNavItems = navItems.filter(item => user && item.roles.includes(user.role));
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Admin';
-      case 'technicalmanager': return 'TP Kỹ Thuật';
-      case 'projectleader': return 'Trưởng Dự án';
-      case 'siteengineer': return 'Nhân viên kỹ thuật';
-      case 'accountant': return 'Kế toán';
-      case 'director': return 'Giám đốc';
-      default: return role;
-    }
-  };
 
-  const getRoleVariant = (role: string): BadgeVariant => {
-    switch (role) {
-      case 'admin': return 'danger';
-      case 'director': return 'warning';
-      case 'siteengineer': return 'success';
-      case 'technicalmanager':
-      case 'projectleader':
-      case 'accountant': return 'default';
-      default: return 'default';
-    }
-  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-[hsl(var(--bg-main))]">
