@@ -11,7 +11,7 @@ import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
 import { AlertTriangle, FileText, BarChart2, History } from 'lucide-react';
-import { Button } from '../../components/ui';
+import { Button, ConfirmDialog } from '../../components/ui';
 
 
 interface WBSWorkspaceProps {
@@ -50,6 +50,19 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const materialRequests = wbsDataAll?.materialRequests || [];
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    isDanger: false,
+  });
 
   // When queryError changes, update the error state
   useEffect(() => {
@@ -252,24 +265,40 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
       handleError(`Không thể xóa Giai đoạn "${phaseName}" vì bên trong có Công việc đã ghi nhận tiến độ.`);
       return;
     }
-    if (!window.confirm(`Xác nhận xóa Giai đoạn "${phaseName}" và toàn bộ Công việc chưa bắt đầu bên trong?`)) return;
-    try {
-      await wbsService.deletePhase(parseInt(projectId.replace('p-', '')), parseInt(phaseId.replace('ph-', '')));
-      if (selectedTask && tasks.find(t => t.id === selectedTaskId)?.phaseId === phaseId) setSelectedTaskId(null);
-      handleSuccess(`Đã xóa Giai đoạn "${phaseName}".`);
-    } catch (err: any) { handleError(err.message || 'Lỗi khi xóa Phase.'); }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Xóa Giai đoạn',
+      message: `Xác nhận xóa Giai đoạn "${phaseName}" và toàn bộ Công việc chưa bắt đầu bên trong?`,
+      isDanger: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await wbsService.deletePhase(parseInt(projectId.replace('p-', '')), parseInt(phaseId.replace('ph-', '')));
+          if (selectedTask && tasks.find(t => t.id === selectedTaskId)?.phaseId === phaseId) setSelectedTaskId(null);
+          handleSuccess(`Đã xóa Giai đoạn "${phaseName}".`);
+        } catch (err: any) { handleError(err.message || 'Lỗi khi xóa Phase.'); }
+      }
+    });
   };
 
 
 
 
   const handleDeleteTask = async (taskId: string, taskName: string) => {
-    if (!window.confirm(`Xác nhận xóa hẳn công việc "${taskName}"?`)) return;
-    try {
-      await wbsService.deleteTask(parseInt(taskId.replace('t-', '')));
-      if (selectedTaskId === taskId) setSelectedTaskId(null);
-      handleSuccess(`Đã xóa Công việc "${taskName}".`);
-    } catch (err: any) { handleError(err.message || 'Lỗi khi xóa Task.'); }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Xóa Công việc',
+      message: `Xác nhận xóa hẳn công việc "${taskName}"?`,
+      isDanger: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await wbsService.deleteTask(parseInt(taskId.replace('t-', '')));
+          if (selectedTaskId === taskId) setSelectedTaskId(null);
+          handleSuccess(`Đã xóa Công việc "${taskName}".`);
+        } catch (err: any) { handleError(err.message || 'Lỗi khi xóa Task.'); }
+      }
+    });
   };
 
   const handleReorderTask = async (phaseId: string, taskId: string, direction: 'up' | 'down') => {
@@ -281,11 +310,19 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const handleActivateProject = async () => {
-    if (!window.confirm('Kích hoạt dự án sẽ đưa vào vận hành thực tế. Bạn có chắc chắn WBS đã hoàn thiện chưa?')) return;
-    try {
-      await projectService.activateProject(projectId);
-      handleSuccess('Dự án đã được Kích hoạt thành công!');
-    } catch (err: any) { handleError(err.message); }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Kích hoạt Dự án',
+      message: 'Kích hoạt dự án sẽ đưa vào vận hành thực tế. Bạn có chắc chắn WBS đã hoàn thiện chưa?',
+      isDanger: false,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await projectService.activateProject(projectId);
+          handleSuccess('Dự án đã được Kích hoạt thành công!');
+        } catch (err: any) { handleError(err.message); }
+      }
+    });
   };
 
 
@@ -409,6 +446,15 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
         <WBSModalsContainer />
+
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmDialog.onConfirm}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          isDanger={confirmDialog.isDanger}
+        />
       </div>
     </WBSContext.Provider>
   );

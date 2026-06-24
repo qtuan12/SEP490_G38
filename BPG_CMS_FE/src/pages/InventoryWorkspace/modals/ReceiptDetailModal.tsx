@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, Input, FormItem } from '../../../components/ui';
+import { Modal, Button, Input, FormItem, ConfirmDialog } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
 import type { GoodsReceiptDetail, GoodsReceiptItemDetail } from '../../../types/inventory';
@@ -50,6 +50,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isConfirmCancelOpen, setIsConfirmCancelOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen && receiptId) {
@@ -58,6 +59,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
       setError(null);
       setActionError(null);
       setIsEditing(false);
+      setIsConfirmCancelOpen(false);
     }
   }, [isOpen, receiptId]);
 
@@ -83,17 +85,12 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
 
   const handleCancelReceipt = async () => {
     if (!receiptId || !detail) return;
-    
-    const confirmCancel = window.confirm(
-      `Bạn có chắc chắn muốn HỦY phiếu nhập kho ${detail.receiptNo}?\n\n` +
-      `Lưu ý: Hệ thống sẽ tự động trừ số lượng vật tư này khỏi kho thực tế dự án và cập nhật lại số lượng nhận trên PO. Hành động này không thể hoàn tác.`
-    );
-    if (!confirmCancel) return;
 
     setCancelling(true);
     setActionError(null);
     try {
       await inventoryService.cancelGoodsReceipt(receiptId);
+      setIsConfirmCancelOpen(false);
       await fetchDetail();
       if (onSuccess) onSuccess();
     } catch (err: any) {
@@ -158,10 +155,11 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
   const canCancel = isManagerOrAdmin && detail?.status !== 'Cancelled';
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={() => !saving && !cancelling && onClose()}
-      title={`Chi tiết Phiếu Nhập Kho: ${detail?.receiptNo || ''}`}
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={() => !saving && !cancelling && onClose()}
+        title={`Chi tiết Phiếu Nhập Kho: ${detail?.receiptNo || ''}`}
       width="lg"
       footer={
         <div className="flex justify-between items-center w-full">
@@ -169,7 +167,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
             {!isEditing && canCancel && (
               <Button
                 variant="danger"
-                onClick={handleCancelReceipt}
+                onClick={() => setIsConfirmCancelOpen(true)}
                 isLoading={cancelling}
                 disabled={loading}
                 className="flex items-center gap-1.5"
@@ -491,5 +489,18 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
         </div>
       ) : null}
     </Modal>
+    
+    <ConfirmDialog
+      isOpen={isConfirmCancelOpen}
+      onClose={() => setIsConfirmCancelOpen(false)}
+      onConfirm={handleCancelReceipt}
+      title="Hủy Phiếu Nhập Kho"
+      message={`Bạn có chắc chắn muốn HỦY phiếu nhập kho ${detail?.receiptNo || ''}? Hệ thống sẽ tự động trừ số lượng vật tư này khỏi kho thực tế dự án và cập nhật lại số lượng nhận trên đơn hàng PO. Hành động này không thể hoàn tác.`}
+      confirmText="Xác nhận hủy"
+      cancelText="Đóng"
+      isDanger={true}
+      isLoading={cancelling}
+    />
+    </>
   );
 };

@@ -24,8 +24,9 @@ namespace BPG.Api.Controllers
         /// Lấy lịch sử biến động kho (thẻ kho) của một dự án, có phân trang.
         /// </summary>
         [HttpGet("transactions")]
-        public async Task<IActionResult> GetInventoryTransactions([FromQuery] GetInventoryTransactionsQuery query)
+        public async Task<IActionResult> GetInventoryTransactions(long projectId, [FromQuery] GetInventoryTransactionsQuery query)
         {
+            query.ProjectId = projectId;
             var result = await Mediator.Send(query);
             return ApiPagedOk(result, "Lấy lịch sử biến động kho thành công");
         }

@@ -574,10 +574,12 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
                             <td className={`px-4 py-3.5 text-right font-bold ${
                               t.quantityChange > 0 ? 'text-emerald-600' : 'text-rose-600'
                             }`}>
-                              {t.quantityChange > 0 ? `+${t.quantityChange}` : t.quantityChange}
+                              {t.quantityChange > 0 ? `+${t.quantityChange}` : t.quantityChange}{' '}
+                              <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
                             </td>
                             <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
-                              {t.balanceAfter}
+                              {t.balanceAfter}{' '}
+                              <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
                             </td>
                             <td className="px-4 py-3.5 text-slate-700">
                               {t.createdByName}

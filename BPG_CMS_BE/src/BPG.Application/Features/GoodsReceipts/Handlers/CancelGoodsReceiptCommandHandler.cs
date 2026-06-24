@@ -88,7 +88,19 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 throw new BusinessException("ERR_PO_CLOSED", "Đơn mua hàng PO liên kết đã đóng, không thể hủy phiếu nhập kho.");
             }
 
-            // 4. KIỂM TRA TỒN KHO: Đảm bảo hàng chưa bị xuất dùng (không làm âm kho)
+            // 3.6 Kiểm tra hạn hủy phiếu từ SystemConfig
+            var config = await _uow.Repository<SystemConfig>().Query()
+                .FirstOrDefaultAsync(x => x.ConfigKey == "HanHuyPhieuNgay", cancellationToken);
+            int limitDays = config != null && int.TryParse(config.ConfigValue, out var parsedDays) ? parsedDays : 7;
+
+            if (DateTime.UtcNow - receipt.CreatedAt > TimeSpan.FromDays(limitDays))
+            {
+                throw new BusinessException("ERR_CANCEL_TIME_EXCEEDED",
+                    $"Phiếu nhập kho đã được tạo quá {limitDays} ngày (hạn hủy tối đa theo cấu hình hệ thống), không thể thực hiện hủy. " +
+                    "Vui lòng lập Phiếu Điều Chỉnh Kho để hiệu chỉnh số liệu.");
+            }
+
+            // 4. KIỂM TRA TỒN KHO KHẢ DỤNG: Đảm bảo hàng chưa bị xuất dùng hoặc đóng băng cho công việc khác
             foreach (var item in receipt.Items)
             {
                 decimal conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1;
@@ -97,13 +109,15 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 var inv = await _uow.Repository<CurrentInventory>().Query()
                     .FirstOrDefaultAsync(ci => ci.ProjectId == project.ProjectId && ci.MaterialId == item.MaterialId, cancellationToken);
 
-                if (inv == null || inv.Quantity < baseQty)
+                // Check tồn kho khả dụng (Available = Quantity - ReservedQuantity)
+                if (inv == null || (inv.Quantity - inv.ReservedQuantity) < baseQty)
                 {
                     var poItem = po.Items.FirstOrDefault(pi => pi.MaterialId == item.MaterialId);
                     string matName = poItem?.Material?.Name ?? $"ID {item.MaterialId}";
+                    decimal availableQty = inv != null ? (inv.Quantity - inv.ReservedQuantity) : 0;
                     throw new BusinessException("ERR_INSUFFICIENT_INVENTORY",
-                        $"Không thể hủy phiếu nhập kho. Vật tư [{matName}] đã được xuất dùng đi thi công " +
-                        $"(tồn kho hiện tại còn {inv?.Quantity ?? 0}, yêu cầu hoàn trả {baseQty}). Vui lòng lập Phiếu Điều Chỉnh Kho.");
+                        $"Không thể hủy phiếu nhập kho. Vật tư [{matName}] đã được xuất dùng hoặc đóng băng cho kế hoạch thi công " +
+                        $"(tồn kho khả dụng hiện tại chỉ còn {availableQty}, yêu cầu hoàn trả {baseQty}). Vui lòng lập Phiếu Điều Chỉnh Kho.");
                 }
             }
 

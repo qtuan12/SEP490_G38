@@ -658,6 +658,27 @@ public static class DbSeeder
         }
         await context.SaveChangesAsync();
 
+        // Ghi thẻ kho (InventoryTransaction) cho phiếu nhập kho đầu tiên
+        foreach (var mat in catalogs.Take(4))
+        {
+            decimal qty = mat.Name.Contains("Thép") ? 5000 : 100;
+            var inv = await context.CurrentInventories.FirstAsync(
+                ci => ci.ProjectId == project.ProjectId && ci.MaterialId == mat.MaterialId);
+            
+            context.InventoryTransactions.Add(new InventoryTransaction
+            {
+                ProjectId = project.ProjectId,
+                MaterialId = mat.MaterialId,
+                TransactionType = 1, // GoodsReceipt
+                ReferenceId = gr.ReceiptId,
+                QuantityChange = qty,
+                BalanceAfter = inv.Quantity,
+                CreatedBy = leader.UserId,
+                CreatedAt = DateTime.UtcNow.AddDays(-15)
+            });
+        }
+        await context.SaveChangesAsync();
+
         // Seed an additional PO with status 'Sent' (waiting for receipt) to test receiving goods
         var mr2 = new MaterialRequest
         {
@@ -827,6 +848,27 @@ public static class DbSeeder
         }
         await context.SaveChangesAsync();
 
+        // Ghi thẻ kho (InventoryTransaction) cho phiếu nhập kho thứ hai (nhập một phần)
+        foreach (var poItem in po3Items)
+        {
+            decimal receivedQty = poItem.Material.Name.Contains("Xi măng") ? 40 : 120;
+            var inv = await context.CurrentInventories.FirstAsync(
+                ci => ci.ProjectId == project.ProjectId && ci.MaterialId == poItem.MaterialId);
+            
+            context.InventoryTransactions.Add(new InventoryTransaction
+            {
+                ProjectId = project.ProjectId,
+                MaterialId = poItem.MaterialId,
+                TransactionType = 1, // GoodsReceipt
+                ReferenceId = gr3.ReceiptId,
+                QuantityChange = receivedQty,
+                BalanceAfter = inv.Quantity,
+                CreatedBy = leader.UserId,
+                CreatedAt = DateTime.UtcNow.AddDays(-5)
+            });
+        }
+        await context.SaveChangesAsync();
+
         return (po, gr);
     }
 
@@ -876,6 +918,30 @@ public static class DbSeeder
             {
                 inv.Quantity   -= issueQty;
                 inv.LastUpdated = DateTime.UtcNow;
+            }
+        }
+        await context.SaveChangesAsync();
+
+        // Ghi thẻ kho (InventoryTransaction) cho việc xuất kho thi công
+        foreach (var mat in matsToIssue)
+        {
+            decimal issueQty = mat.Name.Contains("Thép") ? 500 : 20;
+            var inv = await context.CurrentInventories.FirstOrDefaultAsync(
+                ci => ci.ProjectId == project.ProjectId && ci.MaterialId == mat.MaterialId);
+            
+            if (inv != null)
+            {
+                context.InventoryTransactions.Add(new InventoryTransaction
+                {
+                    ProjectId = project.ProjectId,
+                    MaterialId = mat.MaterialId,
+                    TransactionType = 2, // Issuance (Xuất kho)
+                    ReferenceId = issuance.MaterialIssuanceId,
+                    QuantityChange = -issueQty,
+                    BalanceAfter = inv.Quantity,
+                    CreatedBy = task.CreatedBy,
+                    CreatedAt = DateTime.UtcNow.AddDays(-14)
+                });
             }
         }
         await context.SaveChangesAsync();

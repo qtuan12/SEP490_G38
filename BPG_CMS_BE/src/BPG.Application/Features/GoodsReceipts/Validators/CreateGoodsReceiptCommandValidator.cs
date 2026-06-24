@@ -20,7 +20,9 @@ namespace BPG.Application.Features.GoodsReceipts.Validators
                 .NotEmpty().WithMessage("Bắt buộc đính kèm ít nhất 1 ảnh hóa đơn/chứng từ thực tế.");
 
             RuleFor(x => x.Items)
-                .NotEmpty().WithMessage("Danh sách vật tư nhập kho không được để trống.");
+                .NotEmpty().WithMessage("Danh sách vật tư nhập kho không được để trống.")
+                .Must(items => items == null || items.Select(i => i.MaterialId).Distinct().Count() == items.Count)
+                .WithMessage("Danh sách vật tư nhập kho không được chứa vật tư trùng lặp.");
 
             RuleForEach(x => x.Items).ChildRules(item =>
             {

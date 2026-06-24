@@ -26,6 +26,7 @@ namespace BPG.Application.Features.Inventory.Handlers
         {
             var query = _uow.Repository<InventoryTransaction>().Query()
                 .Include(t => t.Material)
+                    .ThenInclude(m => m.BaseUnit)
                 .Where(t => t.ProjectId == request.ProjectId);
 
             if (request.MaterialId.HasValue)
@@ -70,6 +71,7 @@ namespace BPG.Application.Features.Inventory.Handlers
                 ReferenceId = t.ReferenceId,
                 QuantityChange = t.QuantityChange,
                 BalanceAfter = t.BalanceAfter,
+                UnitName = t.Material.BaseUnit?.UnitName ?? string.Empty,
                 CreatedBy = t.CreatedBy,
                 CreatedByName = t.CreatedBy.HasValue && userMap.TryGetValue(t.CreatedBy.Value, out var name) ? name : "N/A",
                 CreatedAt = t.CreatedAt

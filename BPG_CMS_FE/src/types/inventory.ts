@@ -23,6 +23,7 @@ export interface InventoryTransaction {
   referenceId: number;
   quantityChange: number;
   balanceAfter: number;
+  unitName: string;
   createdBy: number | null;
   createdByName: string;
   createdAt: string;
