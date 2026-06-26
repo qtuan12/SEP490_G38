@@ -104,6 +104,18 @@ namespace BPG.Application.Common.Mappings
                         : string.Empty));
 
             CreateMap<Attachment, BPG.Application.Features.Projects.DTOs.AttachmentDto>();
+
+            // Inventory Adjustment Mappings
+            CreateMap<Domain.Entities.InventoryAdjustment, BPG.Application.DTOs.Inventory.InventoryAdjustmentDto>()
+                .ForMember(dest => dest.CreatorName, opt => opt.Ignore()) // Would need User info, or use audit
+                .ForMember(dest => dest.ApproverName, opt => opt.MapFrom(src => src.Approver != null ? src.Approver.FullName : string.Empty))
+                .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Items));
+
+            CreateMap<Domain.Entities.AdjustmentItem, BPG.Application.DTOs.Inventory.AdjustmentItemDto>()
+                .ForMember(dest => dest.MaterialCode, opt => opt.MapFrom(src => src.Material != null ? src.Material.Code : string.Empty))
+                .ForMember(dest => dest.MaterialName, opt => opt.MapFrom(src => src.Material != null ? src.Material.Name : string.Empty))
+                .ForMember(dest => dest.Specification, opt => opt.MapFrom(src => src.Material != null ? src.Material.Specification : string.Empty))
+                .ForMember(dest => dest.UnitName, opt => opt.MapFrom(src => src.Unit != null ? src.Unit.UnitName : string.Empty));
         }
     }
 }

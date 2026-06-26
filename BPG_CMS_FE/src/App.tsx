@@ -26,6 +26,7 @@ import { TaskIncidents } from './pages/TaskIncidents';
 import { PhaseMaterialRequests } from './pages/MaterialRequests';
 import { NotificationProvider } from './context/NotificationContext';
 import { NotificationsList } from './pages/Notifications';
+import { InventoryAdjustmentsPage } from './pages/InventoryAdjustments';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -290,6 +291,16 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'director']}>
                     <PhaseAcceptances />
+                  </ProtectedRoute>
+                } 
+              />
+
+              {/* Inventory Adjustments */}
+              <Route 
+                path="/inventory-adjustments" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                    <InventoryAdjustmentsPage />
                   </ProtectedRoute>
                 } 
               />
