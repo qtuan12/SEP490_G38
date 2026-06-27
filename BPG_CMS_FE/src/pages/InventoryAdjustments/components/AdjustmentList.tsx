@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
+import { projectService } from '../../../services/projectService';
 import { Button, Badge, Pagination } from '../../../components/ui';
 import { Plus, Minus, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { CreateIncreaseAdjustmentModal } from './CreateIncreaseAdjustmentModal';
@@ -22,6 +23,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
 
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [isProjectLeader, setIsProjectLeader] = useState(false);
 
   // Modals state
   const [isIncreaseOpen, setIsIncreaseOpen] = useState(false);
@@ -50,6 +52,28 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     loadData();
   }, [projectId, page, pageSize, typeFilter, statusFilter]);
 
+  useEffect(() => {
+    const checkLeader = async () => {
+      if (!user) return;
+      if (user.role === 'admin') {
+        setIsProjectLeader(true);
+        return;
+      }
+      try {
+        const members = await projectService.getMembers(projectId.toString());
+        const me = members.find(m => m.userId === user.id?.toString() || m.userId === user.id);
+        if (me && me.isLeader) {
+          setIsProjectLeader(true);
+        } else {
+          setIsProjectLeader(false);
+        }
+      } catch (err) {
+        console.error('Failed to check leader role:', err);
+      }
+    };
+    checkLeader();
+  }, [projectId, user]);
+
   const handleSuccess = () => {
     setIsIncreaseOpen(false);
     setIsDecreaseOpen(false);
@@ -72,7 +96,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     return <span>{type}</span>;
   };
 
-  const canCreateIncrease = user?.role === 'projectleader' || user?.role === 'admin';
+  const canCreateIncrease = isProjectLeader || user?.role === 'admin';
   const canCreateDecrease = user?.role === 'accountant' || user?.role === 'admin';
 
   return (
