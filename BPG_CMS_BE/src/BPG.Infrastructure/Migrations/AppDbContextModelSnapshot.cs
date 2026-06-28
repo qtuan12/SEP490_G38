@@ -677,6 +677,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<long>("ReferenceId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("ReferenceType")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<byte>("TransactionType")
                         .HasColumnType("tinyint");
 
@@ -826,6 +829,10 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<string>("IssuanceNo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Purpose")
                         .IsRequired()

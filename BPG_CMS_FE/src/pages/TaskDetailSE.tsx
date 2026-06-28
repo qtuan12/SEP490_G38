@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 import type {WBSTask} from '../types/common';
-import { DailyLogFormModal } from './Incidents/modals/DailyLogFormModal';
+import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 import { Modal } from '../components/ui/Modal';
-import { DailyLogFeed } from '../components/DailyLogFeed';
+import { DailyLogFeed } from './ProjectDailyLogs/components/DailyLogFeed';
 import { TaskProgressHistoryPanel } from '../components/TaskProgressHistoryPanel';
 import { 
   ArrowLeft, 

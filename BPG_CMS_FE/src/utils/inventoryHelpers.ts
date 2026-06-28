@@ -1,0 +1,45 @@
+/**
+ * Trả về tên hiển thị và class màu sắc (Tailwind) cho từng loại giao dịch kho (Ledger Transaction Type)
+ */
+export const getTransactionTypeDetails = (type: number) => {
+  switch (type) {
+    case 1:
+      return { name: 'Nhập kho PO', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    case 2:
+      return { name: 'Xuất thi công', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+    case 3:
+      return { name: 'Chuyển kho đến', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+    case 4:
+      return { name: 'Chuyển kho đi', color: 'bg-violet-50 text-violet-700 border-violet-200' };
+    case 5:
+      return { name: 'Trả hàng NCC', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+    case 6:
+      return { name: 'Điều chỉnh/Hủy', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+    default:
+      return { name: 'Giao dịch khác', color: 'bg-slate-50 text-slate-700 border-slate-200' };
+  }
+};
+
+/**
+ * Trả về thông tin nhãn hiển thị và class màu sắc cho trạng thái phiếu nhập kho (Goods Receipt Status)
+ */
+export const getGoodsReceiptStatusDetails = (status: string) => {
+  if (status === 'Cancelled') {
+    return { name: 'Đã hủy', color: 'bg-red-50 text-red-700 border-red-200' };
+  }
+  return { name: 'Đã nhập kho', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+};
+
+/**
+ * Định dạng ngày giờ hiển thị theo chuẩn Việt Nam (hh:mm:ss dd/mm/yyyy)
+ */
+export const formatDateTimeVN = (dateString: string): string => {
+  return new Date(dateString).toLocaleString('vi-VN');
+};
+
+/**
+ * Định dạng ngày hiển thị theo chuẩn Việt Nam (dd/mm/yyyy)
+ */
+export const formatDateVN = (dateString: string): string => {
+  return new Date(dateString).toLocaleDateString('vi-VN');
+};

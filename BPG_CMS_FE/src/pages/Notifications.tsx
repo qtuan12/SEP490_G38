@@ -1,29 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../context/NotificationContext';
 import { CheckCheck, Inbox, Bell } from 'lucide-react';
 import { Button, Pagination } from '../components/ui';
+import { formatDate } from '../utils/dateHelpers';
 
 const PAGE_SIZE = 10;
-
-const parseDateSafe = (dateStr: string) => {
-  if (!dateStr) return new Date();
-  if (!dateStr.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(dateStr)) {
-    const formatted = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
-    return new Date(formatted + 'Z');
-  }
-  return new Date(dateStr);
-};
-
-const formatDate = (dateString: string) =>
-  parseDateSafe(dateString).toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
 
 export const NotificationsList: React.FC = () => {
   const { notifications, unreadCount, totalCount, markAsRead, markAllAsRead, isLoading, fetchNotifications } = useNotification();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [page, setPage] = useState(1);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchNotifications(page, PAGE_SIZE);
@@ -31,6 +19,15 @@ export const NotificationsList: React.FC = () => {
 
   const filtered = filter === 'unread' ? notifications.filter(n => !n.isRead) : notifications;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const handleItemClick = async (noti: any) => {
+    if (!noti.isRead) {
+      await markAsRead(noti.notificationId);
+    }
+    if (noti.referenceType === 'Task' && noti.referenceId) {
+      navigate(`/tasks/${noti.referenceId}`);
+    }
+  };
 
   const tabs: { key: 'all' | 'unread'; label: string }[] = [
     { key: 'all', label: 'Tất cả' },
@@ -92,11 +89,13 @@ export const NotificationsList: React.FC = () => {
             {filtered.map(noti => (
               <div
                 key={noti.notificationId}
+                onClick={() => handleItemClick(noti)}
                 style={{
                   display: 'flex', alignItems: 'flex-start', gap: '16px', padding: '16px 20px',
                   borderBottom: '1px solid hsl(var(--border))',
                   borderLeft: `3px solid ${noti.isRead ? 'transparent' : 'hsl(var(--primary))'}`,
                   background: noti.isRead ? 'transparent' : 'hsl(var(--primary-glow))',
+                  cursor: noti.referenceType === 'Task' ? 'pointer' : 'default',
                 }}
               >
                 {/* Icon */}
@@ -120,7 +119,10 @@ export const NotificationsList: React.FC = () => {
                 {/* Action */}
                 {!noti.isRead && (
                   <Button
-                    onClick={() => markAsRead(noti.notificationId)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markAsRead(noti.notificationId);
+                    }}
                     variant="secondary"
                     size="sm"
                     style={{ flexShrink: 0, fontSize: '12px' }}

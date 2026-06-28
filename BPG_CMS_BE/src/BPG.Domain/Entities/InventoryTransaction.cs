@@ -7,6 +7,11 @@ public class InventoryTransaction
     public long MaterialId { get; set; }
     public byte TransactionType { get; set; }
     public long ReferenceId { get; set; }
+    /// <summary>
+    /// Loại tài liệu tham chiếu: "GoodsReceipt" | "MaterialIssuance" | "Adjustment" | "GoodsReceiptReversal" | ...
+    /// Cùng với ReferenceId, xác định chính xác nguồn gốc giao dịch.
+    /// </summary>
+    public string? ReferenceType { get; set; }
     public decimal QuantityChange { get; set; }
     public decimal BalanceAfter { get; set; }
     public long? CreatedBy { get; set; }

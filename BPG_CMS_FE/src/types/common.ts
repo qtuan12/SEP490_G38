@@ -164,6 +164,7 @@ export interface WBSTask {
   status?: 'active' | 'obsolete';
   isOverdue?: boolean;
   isAtRisk?: boolean;
+  isLocked?: boolean;
   daysLeft?: number;
   estimatedMaterials?: PhaseMaterialItem[];
   isRework?: boolean;

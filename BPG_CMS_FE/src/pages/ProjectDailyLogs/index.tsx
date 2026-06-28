@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { DailyLogFeed } from '../components/DailyLogFeed';
-import { TaskProgressHistoryPanel } from '../components/TaskProgressHistoryPanel';
-import { Drawer } from '../components/ui';
+import { DailyLogFeed } from './components/DailyLogFeed';
+import { TaskProgressHistoryPanel } from '../../components/TaskProgressHistoryPanel';
+import { Drawer } from '../../components/ui';
 import { ArrowLeft, BarChart2 } from 'lucide-react';
-import { projectService } from '../services/projectService';
-import type { Project } from '../types/common';
+import { projectService } from '../../services/projectService';
+import type { Project } from '../../types/common';
 
 export const ProjectDailyLogs: React.FC = () => {
   const { projectId, taskId } = useParams<{ projectId: string; taskId?: string }>();

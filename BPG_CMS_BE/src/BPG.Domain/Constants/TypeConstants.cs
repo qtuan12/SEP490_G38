@@ -90,6 +90,8 @@ public static class EntityType
     public const string MaterialRequest = "MaterialRequest";
     public const string PurchaseOrder = "PurchaseOrder";
     public const string GoodsReceipt = "GoodsReceipt";
+    public const string GoodsReceiptReversal = "GoodsReceiptReversal"; // Bút toán đảo chiều khi hủy phiếu nhập kho
+    public const string MaterialIssuance = "MaterialIssuance";         // Phiếu xuất kho
     public const string DirectPurchaseRequest = "DirectPurchaseRequest";
     public const string SurplusRequest = "SurplusRequest";
     public const string InventoryAdjustment = "InventoryAdjustment";

@@ -50,6 +50,7 @@ export const wbsService = {
             deadline: taskDto.endDate || undefined,
             isOverdue: taskDto.isOverdue,
             isAtRisk: taskDto.isAtRisk,
+            isLocked: taskDto.isLocked,
             daysLeft: taskDto.daysLeft,
             assignedTo: (taskDto as any).assignedTo || undefined,
             assignedName: (taskDto as any).assignedName || undefined,

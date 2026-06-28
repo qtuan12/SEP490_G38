@@ -4,7 +4,7 @@ import { projectService } from '../services/projectService';
 import type { Project } from '../types/common';
 import { ProjectMembers } from '../components/ProjectMembers';
 import { WBSWorkspace } from './WBSWorkspace';
-import { DailyLogFeed } from '../components/DailyLogFeed';
+import { DailyLogFeed } from './ProjectDailyLogs/components/DailyLogFeed';
 import { EditProjectModal } from './ProjectList/modals/EditProjectModal';
 import { Modal } from '../components/ui/Modal';
 import { Button, Input, FormItem } from '../components/ui';
@@ -22,8 +22,10 @@ import {
   Edit3,
 
   AlertCircle,
-  Play
+  Play,
+  Package
 } from 'lucide-react';
+import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 
@@ -37,7 +39,7 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs'>('wbs');
+  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory'>('wbs');
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
@@ -350,6 +352,28 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Thành viên dự án</span>
         </button>
 
+        <button
+          onClick={() => setActiveTab('inventory')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'inventory' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'inventory' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'inventory' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <Package size={18} />
+          <span>Kiểm soát Vật tư</span>
+        </button>
+
       </div>
 
       {/* Tab Contents */}
@@ -360,6 +384,7 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
+        {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
       </div>
 
       {isEditOpen && project && (
