@@ -99,7 +99,9 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireFieldStaff, policy =>
         policy.RequireRole(
             BPG.Domain.Constants.UserRole.SiteEngineer,
-            BPG.Domain.Constants.UserRole.TechnicalManager));
+            BPG.Domain.Constants.UserRole.TechnicalManager,
+            BPG.Domain.Constants.UserRole.Admin,
+            BPG.Domain.Constants.UserRole.Director));
 
     options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireProcurement, policy =>
         policy.RequireRole(

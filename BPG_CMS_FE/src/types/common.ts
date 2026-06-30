@@ -150,6 +150,7 @@ export interface TaskHistory {
 export interface WBSTask {
   id: string;
   phaseId: string;
+  phaseName?: string;
   projectId: string;
   parentTaskId?: string;
   name: string;
