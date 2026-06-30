@@ -1,3 +1,10 @@
+export interface MaterialPhaseUsage {
+  phaseId: number;
+  phaseName: string;
+  boqQuantity: number;
+  usedQuantity: number;
+}
+
 export interface CurrentInventory {
   inventoryId: number;
   projectId: number;
@@ -11,6 +18,9 @@ export interface CurrentInventory {
   reservedQuantity: number;
   availableQuantity: number;
   safetyThreshold: number;
+  boqQuantity?: number;
+  usedQuantity?: number;
+  phaseUsages?: MaterialPhaseUsage[];
 }
 
 export interface InventoryTransaction {
