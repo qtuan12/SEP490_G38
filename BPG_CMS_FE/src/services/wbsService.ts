@@ -38,6 +38,7 @@ export const wbsService = {
           tasks.push({
             id: taskDto.taskId.toString(),
             phaseId: taskDto.phaseId.toString(),
+            phaseName: phaseDto.name,
             projectId: projectId,
             parentTaskId: taskDto.parentTaskId ? taskDto.parentTaskId.toString() : undefined,
             name: taskDto.name,

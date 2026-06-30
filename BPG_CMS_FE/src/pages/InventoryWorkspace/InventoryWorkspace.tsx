@@ -20,8 +20,7 @@ import {
   ArrowUpFromLine,
   History,
   AlertTriangle,
-  Plus,
-  RefreshCw
+  Plus
 } from 'lucide-react';
 
 interface InventoryWorkspaceProps {
@@ -80,8 +79,28 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
   // Tính toán trước các chỉ số thống kê
   const totalMaterials = inventoryList.length;
-  const lowStockCount = inventoryList.filter(item => item.quantity - item.reservedQuantity < item.safetyThreshold).length;
+
+  const getItemStatus = (item: CurrentInventory): 'over_boq' | 'approaching' | 'low_stock' | 'stable' => {
+    const available = item.availableQuantity;
+    const safety = item.safetyThreshold;
+    const boq = item.boqQuantity || 0;
+    const used = item.usedQuantity || 0;
+
+    if ((boq > 0 && used >= boq) || (boq === 0 && used > 0)) {
+      return 'over_boq';
+    }
+    if (boq > 0 && used >= 0.8 * boq && used < boq) {
+      return 'approaching';
+    }
+    if (available <= safety) {
+      return 'low_stock';
+    }
+    return 'stable';
+  };
+
+  const lowStockCount = inventoryList.filter(item => getItemStatus(item) === 'low_stock').length;
   const inStockCount = inventoryList.reduce((acc, curr) => acc + (curr.quantity > 0 ? 1 : 0), 0);
+  const overBOQCount = inventoryList.filter(item => getItemStatus(item) === 'over_boq').length;
 
   // Danh sách vật tư phục vụ bộ lọc dropdown bên Lịch sử Thẻ Kho
   const uniqueMaterials = inventoryList.map(item => ({
@@ -97,6 +116,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
         totalMaterials={totalMaterials}
         lowStockCount={lowStockCount}
         inStockCount={inStockCount}
+        overBOQCount={overBOQCount}
       />
 
       {/* 2. Thanh Tabs Điều Hướng & Các Nút Hành Động */}

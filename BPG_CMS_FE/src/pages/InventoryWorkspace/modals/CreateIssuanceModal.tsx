@@ -158,7 +158,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
 
       if (unitId !== item.baseUnitId) {
         const conv = (conversionsMap[item.materialId] || []).find(c => c.alternativeUnitId === unitId);
-        if (conv) {
+        if (conv && conv.conversionRate > 0) {
           rate = conv.conversionRate;
           unitName = conv.alternativeUnitName || `Đơn vị ${unitId}`;
         }
@@ -193,8 +193,10 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
         err = 'Vui lòng nhập số lượng.';
       } else if (isNaN(num) || num <= 0) {
         err = 'Số lượng xuất phải lớn hơn 0.';
+      } else if (num < 0.001) {
+        err = 'Số lượng xuất tối thiểu là 0.001.';
       } else if (num > item.maxQty) {
-        err = `Không vượt quá tồn khả dụng (${item.maxQty.toFixed(2)} ${item.unitName}).`;
+        err = `Không vượt quá tồn khả dụng (${item.maxQty.toFixed(3)} ${item.unitName}).`;
       }
 
       copy[index] = {
@@ -289,17 +291,29 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormItem label="Công việc thi công liên quan (Task)" required>
-              <Select
-                options={[
-                  { label: '-- Chọn công việc --', value: '' },
-                  ...tasks.map(t => ({
-                    label: t.name,
-                    value: t.id
-                  }))
-                ]}
+              <select
                 value={selectedTaskId}
                 onChange={e => setSelectedTaskId(e.target.value)}
-              />
+                className="block w-full rounded-md shadow-sm sm:text-sm transition-colors pl-3 pr-10 py-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">-- Chọn công việc --</option>
+                {Object.entries(
+                  tasks.reduce<Record<string, WBSTask[]>>((acc, t) => {
+                    const phase = t.phaseName || 'Chưa phân nhóm';
+                    if (!acc[phase]) acc[phase] = [];
+                    acc[phase].push(t);
+                    return acc;
+                  }, {})
+                ).map(([phaseName, phaseTasks]) => (
+                  <optgroup key={phaseName} label={phaseName}>
+                    {phaseTasks.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
             </FormItem>
 
             <FormItem label="Mục đích xuất kho" required>
@@ -360,7 +374,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                           <div className="w-24 bg-white border border-slate-300 rounded-lg px-2 py-1 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
                             <input
                               type="number"
-                              step="any"
+                              step="0.001"
                               placeholder="0.00"
                               value={item.quantity}
                               onChange={e => handleQuantityChange(idx, e.target.value)}
@@ -394,12 +408,23 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                         </button>
                       </div>
 
-                      {item.error && (
-                        <span className="text-red-600 text-xs pl-1 flex items-center gap-1">
-                          <AlertCircle size={12} />
-                          {item.error}
-                        </span>
-                      )}
+                      {/* Dòng hiển thị thông tin tồn kho còn lại & lỗi validate */}
+                      <div className="flex justify-between items-center px-1 text-xs min-h-[16px]">
+                        {item.quantity && !isNaN(parseFloat(item.quantity)) && parseFloat(item.quantity) > 0 && parseFloat(item.quantity) <= item.maxQty ? (
+                          <span className="text-emerald-600 font-medium">
+                            Còn lại sau xuất: {(item.maxQty - parseFloat(item.quantity)).toFixed(3)} {item.unitName}
+                          </span>
+                        ) : (
+                          <span></span>
+                        )}
+
+                        {item.error && (
+                          <span className="text-red-600 ml-auto flex items-center gap-1 font-medium">
+                            <AlertCircle size={12} />
+                            {item.error}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
