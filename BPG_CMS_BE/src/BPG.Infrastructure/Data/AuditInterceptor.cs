@@ -42,16 +42,27 @@ public class AuditInterceptor : SaveChangesInterceptor
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.CreatedAt = now;
-                entry.Entity.CreatedBy = userId;
-                entry.Entity.UpdatedAt = now;
-                entry.Entity.UpdatedBy = userId;
+                if (entry.Entity.CreatedAt == default)
+                    entry.Entity.CreatedAt = now;
+
+                if (entry.Entity.CreatedBy == null)
+                    entry.Entity.CreatedBy = userId;
+
+                if (entry.Entity.UpdatedAt == null || entry.Entity.UpdatedAt == default)
+                    entry.Entity.UpdatedAt = now;
+
+                if (entry.Entity.UpdatedBy == null)
+                    entry.Entity.UpdatedBy = userId;
+
                 entry.Entity.IsDeleted = false;
             }
             else if (entry.State == EntityState.Modified)
             {
                 entry.Entity.UpdatedAt = now;
-                entry.Entity.UpdatedBy = userId;
+                if (userId.HasValue)
+                {
+                    entry.Entity.UpdatedBy = userId;
+                }
             }
         }
     }

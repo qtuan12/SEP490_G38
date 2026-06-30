@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Button, Input, FormItem, Select } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
+import { materialService } from '../../../services/materialService';
 import type { CurrentInventory } from '../../../types/inventory';
 import type { WBSTask } from '../../../types/common';
+import type { MaterialConversion } from '../../../types/material';
 import { Trash2, Plus, AlertCircle, Loader2 } from 'lucide-react';
 
 interface CreateIssuanceModalProps {
@@ -18,8 +20,11 @@ interface IssuanceItemInput {
   materialName: string;
   unitId: number;
   unitName: string;
+  baseUnitId: number;
+  baseUnitName: string;
   quantity: string;
-  maxQty: number; // Tồn khả dụng hiện có
+  maxQty: number; // Tồn khả dụng hiện có theo đơn vị được chọn
+  conversionRate: number; // Tỉ lệ quy đổi về đơn vị cơ bản
   error?: string;
 }
 
@@ -33,6 +38,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
+  const [conversionsMap, setConversionsMap] = useState<Record<number, MaterialConversion[]>>({});
 
   // Form states
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
@@ -65,6 +71,20 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
       // Lọc các vật tư có tồn khả dụng (availableQuantity > 0)
       const availableInv = inv.filter(i => i.availableQuantity > 0);
       setInventoryList(availableInv);
+
+      // 3. Tải trước bảng quy đổi đơn vị của các vật tư có trong kho
+      const convsMap: Record<number, MaterialConversion[]> = {};
+      await Promise.all(
+        availableInv.map(async item => {
+          try {
+            const convs = await materialService.getConversions(item.materialId);
+            convsMap[item.materialId] = convs;
+          } catch (e) {
+            console.error('Error preloading conversions for material', item.materialId, e);
+          }
+        })
+      );
+      setConversionsMap(convsMap);
     } catch (err: any) {
       console.error('Error loading data for issuance:', err);
       setGeneralError('Không thể tải danh sách công việc hoặc vật tư tồn kho.');
@@ -91,8 +111,11 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
         materialName: unselected.materialName,
         unitId: unselected.unitId,
         unitName: unselected.unitName,
+        baseUnitId: unselected.unitId,
+        baseUnitName: unselected.unitName,
         quantity: '',
-        maxQty: unselected.availableQuantity
+        maxQty: unselected.availableQuantity,
+        conversionRate: 1
       }
     ]);
     setGeneralError(null);
@@ -110,13 +133,49 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
     setSelectedItems(prev => {
       const copy = [...prev];
       copy[index] = {
-        ...copy[index],
         materialId: inv.materialId,
         materialName: inv.materialName,
         unitId: inv.unitId,
         unitName: inv.unitName,
+        baseUnitId: inv.unitId,
+        baseUnitName: inv.unitName,
         quantity: '',
         maxQty: inv.availableQuantity,
+        conversionRate: 1,
+        error: undefined
+      };
+      return copy;
+    });
+  };
+
+  const handleUnitChange = (index: number, unitId: number) => {
+    setSelectedItems(prev => {
+      const copy = [...prev];
+      const item = copy[index];
+
+      let rate = 1;
+      let unitName = item.baseUnitName;
+
+      if (unitId !== item.baseUnitId) {
+        const conv = (conversionsMap[item.materialId] || []).find(c => c.alternativeUnitId === unitId);
+        if (conv) {
+          rate = conv.conversionRate;
+          unitName = conv.alternativeUnitName || `Đơn vị ${unitId}`;
+        }
+      }
+
+      // Tính lại tồn khả dụng tối đa theo đơn vị mới: Tồn cơ bản * Tỷ lệ quy đổi
+      const inv = inventoryList.find(i => i.materialId === item.materialId);
+      const baseAvailable = inv ? inv.availableQuantity : 0;
+      const newMaxQty = baseAvailable * rate;
+
+      copy[index] = {
+        ...item,
+        unitId,
+        unitName,
+        conversionRate: rate,
+        maxQty: newMaxQty,
+        quantity: '', // reset quantity để bắt nhập lại theo đơn vị mới
         error: undefined
       };
       return copy;
@@ -135,7 +194,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
       } else if (isNaN(num) || num <= 0) {
         err = 'Số lượng xuất phải lớn hơn 0.';
       } else if (num > item.maxQty) {
-        err = `Không vượt quá tồn khả dụng (${item.maxQty} ${item.unitName}).`;
+        err = `Không vượt quá tồn khả dụng (${item.maxQty.toFixed(2)} ${item.unitName}).`;
       }
 
       copy[index] = {
@@ -173,7 +232,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
     setGeneralError(null);
 
     try {
-      // Chuẩn hóaTaskId (bỏ tiền tố 't-' nếu có)
+      // Chuẩn hóa TaskId (bỏ tiền tố 't-' nếu có)
       const numericTaskId = parseInt(selectedTaskId.replace('t-', ''));
 
       await inventoryService.createMaterialIssuance({
@@ -183,7 +242,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
           materialId: i.materialId,
           unitId: i.unitId,
           quantity: parseFloat(i.quantity),
-          conversionRate: 1 // default rate 1 for base unit issuance
+          conversionRate: i.conversionRate
         }))
       });
 
@@ -295,16 +354,35 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                           />
                         </div>
 
-                        <div className="w-32 flex items-center gap-1.5 bg-white border border-slate-300 rounded-lg px-2 py-1">
-                          <input
-                            type="number"
-                            step="any"
-                            placeholder="Số lượng"
-                            value={item.quantity}
-                            onChange={e => handleQuantityChange(idx, e.target.value)}
-                            className="w-full border-none outline-none focus:ring-0 text-right text-xs"
-                          />
-                          <span className="text-xs text-slate-500 font-medium shrink-0">{item.unitName}</span>
+                        {/* Nhập số lượng & Chọn đơn vị side-by-side */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Ô nhập số lượng */}
+                          <div className="w-24 bg-white border border-slate-300 rounded-lg px-2 py-1 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                            <input
+                              type="number"
+                              step="any"
+                              placeholder="0.00"
+                              value={item.quantity}
+                              onChange={e => handleQuantityChange(idx, e.target.value)}
+                              className="w-full bg-transparent border-none outline-none focus:ring-0 p-0 text-right text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </div>
+                          
+                          {/* Ô chọn đơn vị */}
+                          <div className="w-22 bg-white border border-slate-300 rounded-lg px-1.5 py-1 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                            <select
+                              value={item.unitId.toString()}
+                              onChange={e => handleUnitChange(idx, parseInt(e.target.value))}
+                              className="w-full text-xs text-slate-600 font-semibold bg-transparent border-none outline-none focus:ring-0 p-0 cursor-pointer hover:text-slate-800"
+                            >
+                              <option value={item.baseUnitId.toString()}>{item.baseUnitName}</option>
+                              {(conversionsMap[item.materialId] || []).map(conv => (
+                                <option key={conv.alternativeUnitId} value={conv.alternativeUnitId.toString()}>
+                                  {conv.alternativeUnitName || `Đơn vị ${conv.alternativeUnitId}`}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
 
                         <button

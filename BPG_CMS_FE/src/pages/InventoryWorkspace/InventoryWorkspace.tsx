@@ -146,32 +146,13 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             }`}
           >
             <History size={16} />
-            <span>Lịch sử Thẻ Kho</span>
+            <span>Nhật ký Nhập - Xuất Kho</span>
           </button>
         </div>
 
         {/* Nút hành động */}
         <div className="flex gap-2.5">
-          <Button
-            variant="outline"
-            onClick={handleRefreshAll}
-            disabled={loading}
-            className="flex items-center gap-1.5"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            <span>Làm mới</span>
-          </Button>
-
-          {activeSubTab === 'issuances' ? (
-            <Button
-              variant="primary"
-              onClick={() => setIsCreateIssuanceOpen(true)}
-              className="flex items-center gap-1.5"
-            >
-              <Plus size={16} />
-              <span>Xuất kho thi công</span>
-            </Button>
-          ) : (
+          {activeSubTab === 'receipts' && (
             <Button
               variant="primary"
               onClick={() => setIsCreateReceiptOpen(true)}
@@ -179,6 +160,17 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             >
               <Plus size={16} />
               <span>Nhập kho PO</span>
+            </Button>
+          )}
+
+          {activeSubTab === 'issuances' && (
+            <Button
+              variant="primary"
+              onClick={() => setIsCreateIssuanceOpen(true)}
+              className="flex items-center gap-1.5"
+            >
+              <Plus size={16} />
+              <span>Xuất kho thi công</span>
             </Button>
           )}
         </div>
