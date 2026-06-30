@@ -56,7 +56,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("AdjustmentId", "MaterialId")
                         .IsUnique();
 
-                    b.ToTable("AdjustmentItems");
+                    b.ToTable("AdjustmentItems", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Attachment", b =>
@@ -109,7 +109,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasKey("AttachmentId");
 
-                    b.ToTable("Attachments");
+                    b.ToTable("Attachments", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.BOQItem", b =>
@@ -161,7 +161,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("PhaseId", "MaterialId")
                         .IsUnique();
 
-                    b.ToTable("BOQItems");
+                    b.ToTable("BOQItems", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Comment", b =>
@@ -203,7 +203,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("LogId");
 
-                    b.ToTable("Comments");
+                    b.ToTable("Comments", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.CurrentInventory", b =>
@@ -249,7 +249,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("ProjectId", "MaterialId", "UnitId")
                         .IsUnique();
 
-                    b.ToTable("CurrentInventories");
+                    b.ToTable("CurrentInventories", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.DailyLog", b =>
@@ -285,7 +285,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("DailyLogs");
+                    b.ToTable("DailyLogs", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.DirectPurchaseItem", b =>
@@ -330,7 +330,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("DirectPurchaseId", "MaterialId")
                         .IsUnique();
 
-                    b.ToTable("DirectPurchaseItems");
+                    b.ToTable("DirectPurchaseItems", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.DirectPurchaseRequest", b =>
@@ -414,7 +414,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("DirectPurchaseRequests");
+                    b.ToTable("DirectPurchaseRequests", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.GoodsReceipt", b =>
@@ -461,7 +461,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("POId");
 
-                    b.ToTable("GoodsReceipts");
+                    b.ToTable("GoodsReceipts", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.GoodsReceiptItem", b =>
@@ -497,7 +497,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("UnitId");
 
-                    b.ToTable("GoodsReceiptItems");
+                    b.ToTable("GoodsReceiptItems", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Incident", b =>
@@ -579,7 +579,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("Incidents");
+                    b.ToTable("Incidents", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.InventoryAdjustment", b =>
@@ -643,7 +643,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("InventoryAdjustments");
+                    b.ToTable("InventoryAdjustments", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.InventoryTransaction", b =>
@@ -689,7 +689,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("InventoryTransactions");
+                    b.ToTable("InventoryTransactions", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.MaterialCatalog", b =>
@@ -741,7 +741,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("MaterialCatalogs");
+                    b.ToTable("MaterialCatalogs", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.MaterialCategory", b =>
@@ -776,7 +776,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasKey("CategoryId");
 
-                    b.ToTable("MaterialCategories");
+                    b.ToTable("MaterialCategories", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.MaterialConversion", b =>
@@ -810,7 +810,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("AlternativeUnitId");
 
-                    b.ToTable("MaterialConversions");
+                    b.ToTable("MaterialConversions", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.MaterialIssuance", b =>
@@ -851,7 +851,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("MaterialIssuances");
+                    b.ToTable("MaterialIssuances", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.MaterialIssuanceItem", b =>
@@ -887,7 +887,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("UnitId");
 
-                    b.ToTable("MaterialIssuanceItems");
+                    b.ToTable("MaterialIssuanceItems", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.MaterialRequest", b =>
@@ -948,7 +948,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("PhaseId");
 
-                    b.ToTable("MaterialRequests");
+                    b.ToTable("MaterialRequests", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.MaterialRequestItem", b =>
@@ -991,7 +991,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("RequestId", "MaterialId")
                         .IsUnique();
 
-                    b.ToTable("MaterialRequestItems");
+                    b.ToTable("MaterialRequestItems", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Notification", b =>
@@ -1036,7 +1036,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.OtpToken", b =>
@@ -1077,7 +1077,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("OtpTokens");
+                    b.ToTable("OtpTokens", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Phase", b =>
@@ -1130,7 +1130,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("Phases");
+                    b.ToTable("Phases", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.PhaseAcceptance", b =>
@@ -1190,7 +1190,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("PhaseId");
 
-                    b.ToTable("PhaseAcceptances");
+                    b.ToTable("PhaseAcceptances", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Project", b =>
@@ -1244,7 +1244,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasKey("ProjectId");
 
-                    b.ToTable("Projects");
+                    b.ToTable("Projects", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.ProjectMember", b =>
@@ -1289,7 +1289,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("ProjectId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("ProjectMembers");
+                    b.ToTable("ProjectMembers", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.ProjectTask", b =>
@@ -1365,7 +1365,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("PhaseId");
 
-                    b.ToTable("Tasks");
+                    b.ToTable("Tasks", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.PurchaseOrder", b =>
@@ -1421,7 +1421,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("SupplierId");
 
-                    b.ToTable("PurchaseOrders");
+                    b.ToTable("PurchaseOrders", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.PurchaseOrderItem", b =>
@@ -1465,7 +1465,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("UnitId");
 
-                    b.ToTable("PurchaseOrderItems");
+                    b.ToTable("PurchaseOrderItems", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.RefreshToken", b =>
@@ -1499,7 +1499,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens");
+                    b.ToTable("RefreshTokens", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Role", b =>
@@ -1537,7 +1537,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("RoleName")
                         .IsUnique();
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
 
                     b.HasData(
                         new
@@ -1631,7 +1631,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasKey("SupplierId");
 
-                    b.ToTable("Suppliers");
+                    b.ToTable("Suppliers", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.SurplusLiquidation", b =>
@@ -1676,7 +1676,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("SurplusRequestItemId");
 
-                    b.ToTable("SurplusLiquidations");
+                    b.ToTable("SurplusLiquidations", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.SurplusRequest", b =>
@@ -1716,7 +1716,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("SurplusRequests");
+                    b.ToTable("SurplusRequests", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.SurplusRequestItem", b =>
@@ -1776,7 +1776,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("SurplusRequestId", "MaterialId")
                         .IsUnique();
 
-                    b.ToTable("SurplusRequestItems");
+                    b.ToTable("SurplusRequestItems", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.SurplusReturnSupplier", b =>
@@ -1825,7 +1825,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("SurplusRequestItemId");
 
-                    b.ToTable("SurplusReturnSuppliers");
+                    b.ToTable("SurplusReturnSuppliers", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.SurplusTransfer", b =>
@@ -1900,7 +1900,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("ToProjectId");
 
-                    b.ToTable("SurplusTransfers");
+                    b.ToTable("SurplusTransfers", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.SystemConfig", b =>
@@ -1933,7 +1933,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasKey("ConfigKey");
 
-                    b.ToTable("SystemConfigs");
+                    b.ToTable("SystemConfigs", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.TaskAssignee", b =>
@@ -1951,7 +1951,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("TaskAssignees");
+                    b.ToTable("TaskAssignees", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.TaskDependency", b =>
@@ -1974,7 +1974,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("TaskDependencies");
+                    b.ToTable("TaskDependencies", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.TaskProgressLog", b =>
@@ -2004,7 +2004,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("TaskProgressLogs");
+                    b.ToTable("TaskProgressLogs", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Unit", b =>
@@ -2043,7 +2043,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("UnitCode")
                         .IsUnique();
 
-                    b.ToTable("Units");
+                    b.ToTable("Units", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.User", b =>
@@ -2104,7 +2104,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.UserRole", b =>
@@ -2134,7 +2134,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("UserRoles");
+                    b.ToTable("UserRoles", (string)null);
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.AdjustmentItem", b =>

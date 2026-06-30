@@ -57,6 +57,11 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             }
 
             await _unitOfWork.Repository<InventoryAdjustment>().AddAsync(adjustment);
+
+            // Update incident status so it doesn't stay pending
+            incident.Status = "Approved";
+            incident.ReviewedBy = Convert.ToInt64(_currentUserService.UserId);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Note: Decrease does not update CurrentInventory nor create InventoryTransaction yet.

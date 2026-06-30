@@ -31,8 +31,12 @@ namespace BPG.Application.Features.InventoryAdjustments.Queries
                 .Include(x => x.Approver)
                 .Include(x => x.Items).ThenInclude(i => i.Material)
                 .Include(x => x.Items).ThenInclude(i => i.Unit)
-                .Where(x => x.ProjectId == request.ProjectId)
                 .AsNoTracking();
+
+            if (request.ProjectId > 0)
+            {
+                query = query.Where(x => x.ProjectId == request.ProjectId);
+            }
 
             if (!string.IsNullOrEmpty(request.AdjustmentType))
             {

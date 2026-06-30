@@ -6,6 +6,7 @@ import type {IncidentReport, WBSTask, WBSPhase, ProjectMember} from '../../types
 import { ReportIncidentModal } from '../Incidents/modals/ReportIncidentModal';
 import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
+import { CreateDecreaseAdjustmentModal } from '../Incidents/modals/CreateDecreaseAdjustmentModal';
 import {
   AlertTriangle,
   CheckCircle,
@@ -37,7 +38,6 @@ export const TaskIncidents: React.FC = () => {
   const currentMember = members.find(m => m.userId === user?.id);
   const isPL = currentMember ? currentMember.isLeader : false;
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
-  const canApproveOrRequestRevision = isTPKT; // Only TPKT/Admin can approve/request revision
   const canReportIncident = isPL || isTPKT; // Only PL or TPKT/Admin
 
   const loadData = async () => {
@@ -243,7 +243,6 @@ export const TaskIncidents: React.FC = () => {
         incident={selectedIncident!}
         phase={selectedTaskPhase}
         user={user ? { id: user.id, name: user.name, role: user.role } : null}
-        canApproveOrRequestRevision={canApproveOrRequestRevision}
         onResolveClick={() => setIsResolveOpen(true)}
         onSuccess={handleSuccess}
         onError={handleError}
@@ -269,19 +268,32 @@ export const TaskIncidents: React.FC = () => {
       )}
 
 
-      {/* ─── MODAL 5: APPROVE & RESOLVE REWORK TASK (TPKT) ─── */}
+      {/* ─── MODAL 5: APPROVE & RESOLVE REWORK TASK (TPKT / ACCOUNTANT) ─── */}
       {isResolveOpen && selectedIncident && selectedTask && (
-        <ResolveIncidentModal
-          isOpen={isResolveOpen}
-          onClose={() => setIsResolveOpen(false)}
-          incident={selectedIncident}
-          task={selectedTask}
-          phase={selectedTaskPhase}
-          members={members}
-          user={user ? { id: user.id, name: user.name } : null}
-          onSuccess={handleSuccess}
-          onError={handleError}
-        />
+        <>
+          {selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage' ? (
+            <CreateDecreaseAdjustmentModal
+              isOpen={isResolveOpen}
+              onClose={() => setIsResolveOpen(false)}
+              incident={selectedIncident}
+              projectId={projectId!}
+              onSuccess={handleSuccess}
+              onError={handleError}
+            />
+          ) : (
+            <ResolveIncidentModal
+              isOpen={isResolveOpen}
+              onClose={() => setIsResolveOpen(false)}
+              incident={selectedIncident}
+              task={selectedTask}
+              phase={selectedTaskPhase!}
+              members={members}
+              user={user ? { id: user.id, name: user.name } : null}
+              onSuccess={handleSuccess}
+              onError={handleError}
+            />
+          )}
+        </>
       )}
 
     </div>

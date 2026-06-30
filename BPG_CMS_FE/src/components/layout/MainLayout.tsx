@@ -13,7 +13,8 @@ import {
   Ruler,
   Tags,
   Package,
-  FileSignature
+  FileSignature,
+  AlertTriangle
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
@@ -41,8 +42,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Danh mục Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin'] },
     { name: 'Kho Vật tư (Catalog)', path: '/materials', icon: <Package size={20} />, roles: ['admin'] },
     { name: 'Phiếu Điều Chỉnh', path: '/inventory-adjustments', icon: <FileSignature size={20} />, roles: ['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer'] },
+    { name: 'Sự cố thi công', path: '/incidents', icon: <AlertTriangle size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
     { name: 'Kiểm soát Vật tư', path: '#materials', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'], disabled: true },
-    { name: 'Báo cáo', path: '#reports', icon: <FileText size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'], disabled: true },
+    { name: 'Báo cáo', path: '/reports', icon: <FileText size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
   ];
 
   const filteredNavItems = navItems.filter(item => user && item.roles.includes(user.role));

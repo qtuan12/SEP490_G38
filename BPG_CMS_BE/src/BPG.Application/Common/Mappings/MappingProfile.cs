@@ -116,6 +116,13 @@ namespace BPG.Application.Common.Mappings
                 .ForMember(dest => dest.MaterialName, opt => opt.MapFrom(src => src.Material != null ? src.Material.Name : string.Empty))
                 .ForMember(dest => dest.Specification, opt => opt.MapFrom(src => src.Material != null ? src.Material.Specification : string.Empty))
                 .ForMember(dest => dest.UnitName, opt => opt.MapFrom(src => src.Unit != null ? src.Unit.UnitName : string.Empty));
+
+            // Incident Mappings
+            CreateMap<Incident, BPG.Application.DTOs.Incidents.IncidentDto>()
+                .ForMember(dest => dest.ReporterName, opt => opt.MapFrom(src => src.Reporter != null ? src.Reporter.FullName : string.Empty))
+                .ForMember(dest => dest.ReviewerName, opt => opt.MapFrom(src => src.Reviewer != null ? src.Reviewer.FullName : string.Empty))
+                .ForMember(dest => dest.ProjectName, opt => opt.MapFrom(src => src.Project != null ? src.Project.Name : string.Empty))
+                .ForMember(dest => dest.TaskName, opt => opt.MapFrom(src => src.Task != null ? src.Task.Name : string.Empty));
         }
     }
 }

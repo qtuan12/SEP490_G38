@@ -15,14 +15,16 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [mode, setMode] = useState<'view' | 'reject'>('view');
+  const [mode, setMode] = useState<'view' | 'reject' | 'confirmApprove'>('view');
 
   const canReview = user?.role === 'director' || user?.role === 'admin';
   const isPending = adjustmentData?.status === 'Pending';
 
-  const handleApprove = async () => {
-    if (!confirm('Bạn có chắc chắn muốn duyệt phiếu điều chỉnh này? Tồn kho sẽ bị giảm ngay lập tức.')) return;
-    
+  const handleApproveClick = () => {
+    setMode('confirmApprove');
+  };
+
+  const handleConfirmApprove = async () => {
     setLoading(true);
     try {
       await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
@@ -128,7 +130,18 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
             {mode === 'view' ? (
               <div className="flex justify-end gap-2">
                 <Button variant="danger" onClick={() => setMode('reject')}>Từ chối</Button>
-                <Button variant="primary" onClick={handleApprove} isLoading={loading}>Phê duyệt</Button>
+                <Button variant="primary" onClick={handleApproveClick} isLoading={loading}>Phê duyệt</Button>
+              </div>
+            ) : mode === 'confirmApprove' ? (
+              <div className="flex flex-col gap-3">
+                <div className="bg-amber-50 text-amber-800 p-3 rounded-lg border border-amber-200">
+                  <strong className="block mb-1">Xác nhận phê duyệt</strong>
+                  Bạn có chắc chắn muốn duyệt phiếu điều chỉnh này? Tồn kho sẽ bị thay đổi ngay lập tức theo nội dung phiếu.
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" onClick={() => setMode('view')}>Hủy</Button>
+                  <Button variant="primary" onClick={handleConfirmApprove} isLoading={loading}>Xác nhận Phê duyệt</Button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col gap-3">

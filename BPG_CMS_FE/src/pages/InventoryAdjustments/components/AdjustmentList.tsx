@@ -49,10 +49,12 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   };
 
   useEffect(() => {
+    if (!projectId || projectId <= 0) return;
     loadData();
   }, [projectId, page, pageSize, typeFilter, statusFilter]);
 
   useEffect(() => {
+    if (!projectId || projectId <= 0) return;
     const checkLeader = async () => {
       if (!user) return;
       if (user.role === 'admin') {

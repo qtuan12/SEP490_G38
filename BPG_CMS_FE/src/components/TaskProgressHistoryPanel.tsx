@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown, History, Minus } from 'lucide-react';
 import { projectService } from '../services/projectService';
@@ -177,9 +178,9 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
 
                   {/* Reason */}
                   {log.updateReason && !compact && (
-                    <p style={{ margin: '3px 0 0', color: 'hsl(var(--text-secondary))', lineHeight: 1.4, wordBreak: 'break-word' }}>
-                      {log.updateReason}
-                    </p>
+                    <div className="prose prose-sm max-w-none markdown-body" style={{ margin: '3px 0 0', color: 'hsl(var(--text-secondary))', lineHeight: 1.4, wordBreak: 'break-word', fontSize: '0.85rem' }}>
+                      <ReactMarkdown>{log.updateReason}</ReactMarkdown>
+                    </div>
                   )}
                 </div>
               </div>

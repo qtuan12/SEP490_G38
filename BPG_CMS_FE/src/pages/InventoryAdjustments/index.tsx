@@ -1,26 +1,33 @@
 import React, { useState, useEffect } from 'react';
-
+import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type { Project } from '../../types/common';
 import { AdjustmentList } from './components/AdjustmentList';
-import { Loader2 } from 'lucide-react';
+import { GlobalInventoryIncidents } from './components/GlobalInventoryIncidents';
+import { Loader2, FileSignature, AlertTriangle } from 'lucide-react';
 import { FormItem } from '../../components/ui';
 
 export const InventoryAdjustmentsPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'adjustments' | 'incidents'>('adjustments');
 
   useEffect(() => {
     loadProjects();
   }, []);
+
+  const { user } = useAuth();
+  const isGlobalRole = user?.role === 'technicalmanager' || user?.role === 'admin' || user?.role === 'accountant';
 
   const loadProjects = async () => {
     setLoading(true);
     try {
       const data = await projectService.getProjects();
       setProjects(data);
-      if (data && data.length > 0) {
+      if (isGlobalRole) {
+        setSelectedProjectId('all');
+      } else if (data && data.length > 0) {
         setSelectedProjectId(data[0].id);
       }
     } catch (err) {
@@ -30,12 +37,16 @@ export const InventoryAdjustmentsPage: React.FC = () => {
     }
   };
 
+  const parsedProjectId = selectedProjectId && selectedProjectId !== 'all'
+    ? (parseInt(selectedProjectId.replace('p-', ''), 10) || null)
+    : null;
+
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Quản lý Phiếu Điều Chỉnh</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Quản lý Phiếu Điều Chỉnh & Sự cố Kho</h1>
         <p className="text-sm text-[hsl(var(--text-secondary))] mt-1">
-          Xem, tạo và phê duyệt các phiếu điều chỉnh tăng/giảm tồn kho.
+          Xem, tạo, phê duyệt phiếu điều chỉnh tăng/giảm và xử lý các sự cố vật tư.
         </p>
       </div>
 
@@ -52,7 +63,8 @@ export const InventoryAdjustmentsPage: React.FC = () => {
                 value={selectedProjectId || ''}
                 onChange={(e) => setSelectedProjectId(e.target.value)}
               >
-                <option value="" disabled>-- Chọn dự án --</option>
+                {isGlobalRole && <option value="all">-- Tất cả dự án --</option>}
+                {!isGlobalRole && <option value="" disabled>-- Chọn dự án --</option>}
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -64,12 +76,49 @@ export const InventoryAdjustmentsPage: React.FC = () => {
         )}
       </div>
 
-      {selectedProjectId ? (
-        <AdjustmentList projectId={parseInt(selectedProjectId.replace('p-', '')) || 0} />
+      <div className="flex border-b border-[hsl(var(--border))]">
+        <button
+          onClick={() => setActiveTab('adjustments')}
+          className={`flex items-center gap-2 px-6 py-3 font-semibold text-sm transition-colors border-b-2 ${
+            activeTab === 'adjustments' 
+              ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' 
+              : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-main))] hover:border-[hsl(var(--border))]'
+          }`}
+        >
+          <FileSignature size={18} />
+          Phiếu Điều Chỉnh
+        </button>
+        <button
+          onClick={() => setActiveTab('incidents')}
+          className={`flex items-center gap-2 px-6 py-3 font-semibold text-sm transition-colors border-b-2 ${
+            activeTab === 'incidents' 
+              ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' 
+              : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-main))] hover:border-[hsl(var(--border))]'
+          }`}
+        >
+          <AlertTriangle size={18} />
+          Báo cáo Sự cố Kho/Vật tư
+        </button>
+      </div>
+
+      {selectedProjectId === 'all' ? (
+        activeTab === 'adjustments' ? (
+          <div className="text-center py-10 text-[hsl(var(--text-muted))]">
+            Vui lòng chọn một dự án cụ thể để xem phiếu điều chỉnh.
+          </div>
+        ) : (
+          <GlobalInventoryIncidents projectId={0} />
+        )
+      ) : parsedProjectId ? (
+        activeTab === 'adjustments' ? (
+          <AdjustmentList projectId={parsedProjectId} />
+        ) : (
+          <GlobalInventoryIncidents projectId={parsedProjectId} />
+        )
       ) : (
         !loading && (
           <div className="text-center py-10 text-[hsl(var(--text-muted))]">
-            Vui lòng chọn một dự án để xem phiếu điều chỉnh.
+            Vui lòng chọn một dự án để xem dữ liệu.
           </div>
         )
       )}
