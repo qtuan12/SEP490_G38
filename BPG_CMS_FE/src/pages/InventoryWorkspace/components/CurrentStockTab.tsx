@@ -264,7 +264,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
               <th className="px-4 py-3 text-right">Tồn thực tế</th>
               <th className="px-4 py-3 text-right">Tạm khóa</th>
               <th className="px-4 py-3 text-right">Khả dụng</th>
-              <th className="px-4 py-3 text-right">Giá trị tồn</th>
+              <th className="px-4 py-3 text-right" title="Giá trị tồn kho tính theo phương pháp bình quân gia quyền di động (Moving Weighted Average) từ các PO thực tế">Giá trị tồn (Ước tính)</th>
               <th className="px-4 py-3 text-center">Cập nhật cuối</th>
               <th className="px-4 py-3 text-center">Cảnh báo tồn kho</th>
             </tr>
@@ -320,7 +320,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                         {item.stockValue > 0 ? (
                           <>
                             <div className="font-bold text-blue-600">{formatPrice(item.stockValue)}</div>
-                            <div className="text-[9px] text-slate-400">Giá TB: {formatPrice(item.avgUnitPrice)}</div>
+                            <div className="text-[9px] text-slate-400" title="Đơn giá bình quân gia quyền di động">Giá BQGQ: {formatPrice(item.avgUnitPrice)}</div>
                           </>
                         ) : (
                           <span className="text-slate-400 italic text-[10px]">Chưa có giá PO</span>
