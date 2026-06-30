@@ -276,6 +276,8 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           isOpen={selectedIssuanceId !== null}
           onClose={() => setSelectedIssuanceId(null)}
           issuanceId={selectedIssuanceId}
+          projectId={projectId}
+          onSuccess={() => setRefreshKey(prev => prev + 1)}
         />
       )}
 

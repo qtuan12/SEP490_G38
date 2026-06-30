@@ -9,7 +9,10 @@ import type {
   PatchGoodsReceiptMetadataCommand,
   MaterialIssuance,
   MaterialIssuanceDetail,
-  CreateMaterialIssuanceCommand
+  CreateMaterialIssuanceCommand,
+  MaterialReturn,
+  MaterialReturnDetail,
+  CreateMaterialReturnCommand
 } from '../types/inventory';
 
 // Type for PO list dropdown
@@ -164,6 +167,42 @@ export const inventoryService = {
   createMaterialIssuance: async (command: CreateMaterialIssuanceCommand): Promise<number> => {
     return unwrap(
       await apiClient.post<ApiResponse<number>>('/materialissuances', command)
+    );
+  },
+
+  // ─── Material Return (Phếu Hoàn Trả Vật Tư) ─────────────────────────────────
+
+  /** Lấy danh sách phiếu hoàn trả, lọc theo dự án hoặc phiếu xuất gốc */
+  getMaterialReturns: async (params: {
+    projectId?: number;
+    issuanceId?: number;
+    pageNumber?: number;
+    pageSize?: number;
+    search?: string;
+  }): Promise<PagedList<MaterialReturn>> => {
+    const queryParams: Record<string, string> = {};
+    if (params.projectId !== undefined) queryParams.projectId = params.projectId.toString();
+    if (params.issuanceId !== undefined) queryParams.issuanceId = params.issuanceId.toString();
+    if (params.pageNumber !== undefined) queryParams.pageNumber = params.pageNumber.toString();
+    if (params.pageSize !== undefined) queryParams.pageSize = params.pageSize.toString();
+    if (params.search) queryParams.search = params.search;
+
+    return unwrap(
+      await apiClient.get<ApiResponse<PagedList<MaterialReturn>>>('/materialreturns', { params: queryParams })
+    );
+  },
+
+  /** Lấy chi tiết 1 phiếu hoàn trả */
+  getMaterialReturnDetail: async (returnId: number): Promise<MaterialReturnDetail> => {
+    return unwrap(
+      await apiClient.get<ApiResponse<MaterialReturnDetail>>(`/materialreturns/${returnId}`)
+    );
+  },
+
+  /** Tạo phiếu hoàn trả vật tư mới */
+  createMaterialReturn: async (command: CreateMaterialReturnCommand): Promise<number> => {
+    return unwrap(
+      await apiClient.post<ApiResponse<number>>('/materialreturns', command)
     );
   }
 };
