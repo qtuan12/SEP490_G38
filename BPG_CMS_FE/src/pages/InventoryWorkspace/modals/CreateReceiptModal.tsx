@@ -27,6 +27,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   // Form fields
   const [delivererInfo, setDelivererInfo] = useState('');
   const [deliveryDocNo, setDeliveryDocNo] = useState('');
+  const [qcStatus, setQcStatus] = useState('Đạt yêu cầu kỹ thuật');
   const [quantities, setQuantities] = useState<Record<number, string>>({}); // materialId -> qty string
   const [errors, setErrors] = useState<Record<number, string>>({}); // materialId -> error message
 
@@ -43,6 +44,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       setSelectedPO(null);
       setDelivererInfo('');
       setDeliveryDocNo('');
+      setQcStatus('Đạt yêu cầu kỹ thuật');
       setQuantities({});
       setErrors({});
       setSelectedFiles([]);
@@ -208,7 +210,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
       await inventoryService.createGoodsReceipt({
         poId: selectedPO.poId,
-        delivererInfo: delivererInfo.trim() || null,
+        delivererInfo: delivererInfo.trim() ? `[QC: ${qcStatus}] ${delivererInfo.trim()}` : `[QC: ${qcStatus}]`,
         deliveryDocNo: deliveryDocNo.trim() || null,
         items: submitItems,
         images: imageUrls
@@ -270,6 +272,19 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             />
           </FormItem>
 
+          <FormItem label="Kiểm tra chất lượng đầu vào (QC)" required>
+            <Select
+              options={[
+                { label: 'Đạt yêu cầu kỹ thuật (Đạt)', value: 'Đạt' },
+                { label: 'Chờ kiểm nghiệm thêm (Chờ)', value: 'Chờ' },
+                { label: 'Không đạt yêu cầu (Trả lại)', value: 'Không đạt' }
+              ]}
+              value={qcStatus}
+              onChange={e => setQcStatus(e.target.value)}
+              disabled={submitting}
+            />
+          </FormItem>
+
           <FormItem label="Số phiếu giao hàng (NCC)">
             <Input
               value={deliveryDocNo}
@@ -285,7 +300,6 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
               onChange={e => setDelivererInfo(e.target.value)}
               placeholder="Họ tên người giao, SĐT..."
               disabled={submitting}
-              className="md:col-span-2"
             />
           </FormItem>
         </div>

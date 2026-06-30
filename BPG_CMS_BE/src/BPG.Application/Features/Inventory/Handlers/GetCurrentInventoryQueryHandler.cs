@@ -52,11 +52,37 @@ namespace BPG.Application.Features.Inventory.Handlers
                 .Select(g => new { g.Key.MaterialId, g.Key.PhaseId, TotalUsed = g.Sum(x => x.BaseQty) })
                 .ToListAsync(cancellationToken);
 
-            var inventory = await _uow.Repository<CurrentInventory>().Query()
+            // Fetch average unit price from PO items
+            var avgPrices = await _uow.Repository<PurchaseOrderItem>().Query()
+                .Where(poi => poi.PurchaseOrder.Request.Phase.ProjectId == request.ProjectId)
+                .GroupBy(poi => poi.MaterialId)
+                .Select(g => new { MaterialId = g.Key, AvgPrice = g.Average(x => x.UnitPrice) })
+                .ToDictionaryAsync(x => x.MaterialId, x => x.AvgPrice, cancellationToken);
+
+            // Fetch last supplier name per material
+            var lastSuppliers = await _uow.Repository<PurchaseOrderItem>().Query()
+                .Where(poi => poi.PurchaseOrder.Request.Phase.ProjectId == request.ProjectId && poi.PurchaseOrder.SupplierId != null)
+                .OrderByDescending(poi => poi.PurchaseOrder.OrderDate)
+                .Select(poi => new { poi.MaterialId, poi.PurchaseOrder.Supplier!.SupplierName })
+                .ToListAsync(cancellationToken);
+
+            var supplierMap = lastSuppliers
+                .GroupBy(x => x.MaterialId)
+                .ToDictionary(g => g.Key, g => g.First().SupplierName);
+
+            var inventoryDb = await _uow.Repository<CurrentInventory>().Query()
                 .Include(ci => ci.Material)
                 .Include(ci => ci.Unit)
                 .Where(ci => ci.ProjectId == request.ProjectId)
-                .Select(ci => new CurrentInventoryDto
+                .ToListAsync(cancellationToken);
+
+            var inventory = new List<CurrentInventoryDto>();
+            foreach (var ci in inventoryDb)
+            {
+                avgPrices.TryGetValue(ci.MaterialId, out var avgPrice);
+                supplierMap.TryGetValue(ci.MaterialId, out var supplierName);
+
+                inventory.Add(new CurrentInventoryDto
                 {
                     InventoryId = ci.InventoryId,
                     ProjectId = ci.ProjectId,
@@ -69,10 +95,13 @@ namespace BPG.Application.Features.Inventory.Handlers
                     Quantity = ci.Quantity,
                     ReservedQuantity = ci.ReservedQuantity,
                     SafetyThreshold = threshold,
+                    AvgUnitPrice = avgPrice,
+                    LastUpdated = ci.LastUpdated,
+                    SupplierName = supplierName ?? "Chưa nhập",
                     BoqQuantity = 0,
                     UsedQuantity = 0
-                })
-                .ToListAsync(cancellationToken);
+                });
+            }
 
             // Group phase data by MaterialId
             var boqGroups = boqByPhase.GroupBy(x => x.MaterialId).ToDictionary(g => g.Key, g => g.ToList());
