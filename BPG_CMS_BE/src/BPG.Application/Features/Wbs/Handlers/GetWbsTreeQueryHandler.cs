@@ -36,6 +36,8 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
 
         var tasks = await _unitOfWork.Repository<ProjectTask>()
             .Query()
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(t => t.Assignees)
                 .ThenInclude(a => a.User)
             .Include(t => t.Dependencies)

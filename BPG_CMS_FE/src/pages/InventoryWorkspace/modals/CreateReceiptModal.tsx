@@ -27,7 +27,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   // Form fields
   const [delivererInfo, setDelivererInfo] = useState('');
   const [deliveryDocNo, setDeliveryDocNo] = useState('');
-  const [qcStatus, setQcStatus] = useState('Đạt yêu cầu kỹ thuật');
+  const [qcNote, setQcNote] = useState('');
   const [quantities, setQuantities] = useState<Record<number, string>>({}); // materialId -> qty string
   const [errors, setErrors] = useState<Record<number, string>>({}); // materialId -> error message
 
@@ -44,7 +44,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       setSelectedPO(null);
       setDelivererInfo('');
       setDeliveryDocNo('');
-      setQcStatus('Đạt yêu cầu kỹ thuật');
+      setQcNote('');
       setQuantities({});
       setErrors({});
       setSelectedFiles([]);
@@ -210,7 +210,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
       await inventoryService.createGoodsReceipt({
         poId: selectedPO.poId,
-        delivererInfo: delivererInfo.trim() ? `[QC: ${qcStatus}] ${delivererInfo.trim()}` : `[QC: ${qcStatus}]`,
+        delivererInfo: delivererInfo.trim() ? `[QC: ${qcNote.trim() || 'Đạt'}] ${delivererInfo.trim()}` : `[QC: ${qcNote.trim() || 'Đạt'}]`,
         deliveryDocNo: deliveryDocNo.trim() || null,
         items: submitItems,
         images: imageUrls
@@ -272,15 +272,11 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             />
           </FormItem>
 
-          <FormItem label="Kiểm tra chất lượng đầu vào (QC)" required>
-            <Select
-              options={[
-                { label: 'Đạt yêu cầu kỹ thuật (Đạt)', value: 'Đạt' },
-                { label: 'Chờ kiểm nghiệm thêm (Chờ)', value: 'Chờ' },
-                { label: 'Không đạt yêu cầu (Trả lại)', value: 'Không đạt' }
-              ]}
-              value={qcStatus}
-              onChange={e => setQcStatus(e.target.value)}
+          <FormItem label="Ghi chú chất lượng kiểm hàng (QC)">
+            <Input
+              value={qcNote}
+              onChange={e => setQcNote(e.target.value)}
+              placeholder="VD: Cát sạch đạt yêu cầu, trả lại 2 cây thép rỉ..."
               disabled={submitting}
             />
           </FormItem>
