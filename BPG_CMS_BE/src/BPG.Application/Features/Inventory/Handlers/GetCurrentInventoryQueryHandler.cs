@@ -52,11 +52,15 @@ namespace BPG.Application.Features.Inventory.Handlers
                 .Select(g => new { g.Key.MaterialId, g.Key.PhaseId, TotalUsed = g.Sum(x => x.BaseQty) })
                 .ToListAsync(cancellationToken);
 
-            // Fetch average unit price from PO items
+            // Fetch weighted average unit price from PO items (Weighted Average = Sum(Qty * Price) / Sum(Qty))
             var avgPrices = await _uow.Repository<PurchaseOrderItem>().Query()
-                .Where(poi => poi.PurchaseOrder.Request.Phase.ProjectId == request.ProjectId)
+                .Where(poi => poi.PurchaseOrder.Request.Phase.ProjectId == request.ProjectId && poi.Quantity > 0)
                 .GroupBy(poi => poi.MaterialId)
-                .Select(g => new { MaterialId = g.Key, AvgPrice = g.Average(x => x.UnitPrice) })
+                .Select(g => new 
+                { 
+                    MaterialId = g.Key, 
+                    AvgPrice = g.Sum(x => x.Quantity * x.UnitPrice) / g.Sum(x => x.Quantity) 
+                })
                 .ToDictionaryAsync(x => x.MaterialId, x => x.AvgPrice, cancellationToken);
 
             // Fetch last supplier name per material

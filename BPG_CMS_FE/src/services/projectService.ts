@@ -32,6 +32,39 @@ const setStorage = <T>(key: string, data: T[]) => {
   localStorage.setItem(key, JSON.stringify(data));
 };
 
+const projectDetailRequests = new Map<string, Promise<any>>();
+const projectDetailCache = new Map<string, { data: any, timestamp: number }>();
+
+async function getRawProjectDetail(projectId: string): Promise<any> {
+  const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+  
+  if (projectDetailRequests.has(parsedId)) {
+    return projectDetailRequests.get(parsedId)!;
+  }
+  
+  const cached = projectDetailCache.get(parsedId);
+  if (cached && Date.now() - cached.timestamp < 5000) {
+    return cached.data;
+  }
+  
+  const promise = (async () => {
+    try {
+      const res = await apiClient.get<ApiResponse<any>>(`/projects/${parsedId}`);
+      if (res.success && res.data) {
+        projectDetailCache.set(parsedId, { data: res.data, timestamp: Date.now() });
+      }
+      return res.data;
+    } catch (err) {
+      return null;
+    } finally {
+      projectDetailRequests.delete(parsedId);
+    }
+  })();
+  
+  projectDetailRequests.set(parsedId, promise);
+  return promise;
+}
+
 export const projectService = {
   // Sync overall progress of projects based on task progress average
   async syncProjectProgress(projectId: string): Promise<number> {
@@ -152,12 +185,10 @@ export const projectService = {
 
   async getProjectById(id: string): Promise<Project | null> {
     if (!USE_MOCK_API) {
-      const parsedId = id.startsWith('p-') ? id.substring(2) : id;
       try {
-        const res = await apiClient.get<ApiResponse<import('../types/common').ProjectDetailDto>>(`/projects/${parsedId}`);
-        if (!res.success) return null;
-        const p = res.data;
-        const designAttachments = p.attachments?.filter(a => a.attachmentType === 'Design') || [];
+        const p = await getRawProjectDetail(id);
+        if (!p) return null;
+        const designAttachments = p.attachments?.filter((a: any) => a.attachmentType === 'Design') || [];
         const drawingAttachment = designAttachments.length > 0 ? designAttachments[0] : null;
         
         const project: Project = {
@@ -168,7 +199,7 @@ export const projectService = {
           endDate: p.plannedEnd,
           status: p.status.toLowerCase() as any,
           drawingUrl: drawingAttachment?.fileUrl || '',
-          drawingUrls: designAttachments.map(a => a.fileUrl).filter(Boolean),
+          drawingUrls: designAttachments.map((a: any) => a.fileUrl).filter(Boolean),
           attachments: p.attachments,
           progress: p.progress || 0,
           pauseReason: p.pauseReason,
@@ -342,10 +373,9 @@ export const projectService = {
   // MEMBERS MANAGEMENT
   async getMembers(projectId: string): Promise<ProjectMember[]> {
     if (!USE_MOCK_API) {
-      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
-      const res = await apiClient.get<ApiResponse<import('../types/common').ProjectDetailDto>>(`/projects/${parsedId}`);
-      if (!res.success || !res.data) return [];
-      return (res.data.members || []).map(m => ({
+      const p = await getRawProjectDetail(projectId);
+      if (!p) return [];
+      return (p.members || []).map((m: any) => ({
         projectId,
         userId: m.userId.toString(),
         userName: m.fullName || (m as any).userName || '',
