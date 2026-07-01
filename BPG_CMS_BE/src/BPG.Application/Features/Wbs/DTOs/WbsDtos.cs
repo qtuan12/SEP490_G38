@@ -46,8 +46,10 @@ public record WbsPhaseDto
 
 public record PhaseMaterialItemDto
 {
+    public long MaterialId { get; set; }
     public string Name { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
+    public int UnitId { get; set; }
     public string Unit { get; set; } = string.Empty;
 }
 

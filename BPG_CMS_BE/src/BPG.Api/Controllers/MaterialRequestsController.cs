@@ -37,7 +37,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpGet]
-        [Authorize(Policy = PolicyNames.RequireManagerOrAbove)]
+        [Authorize(Roles = "Admin,Director,TechnicalManager,Accountant")]
         public async Task<IActionResult> GetAllMaterialRequests(
             [FromQuery] GetMaterialRequestsQuery query,
             CancellationToken ct)
@@ -91,7 +91,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/reject")]
-        [Authorize(Policy = PolicyNames.RequireManagerOrAbove)]
+        [Authorize(Roles = "Admin,Director,TechnicalManager,Accountant")]
         public async Task<IActionResult> RejectMaterialRequest(
             [FromRoute] long id,
             [FromBody] RejectMaterialRequestRequest request,
@@ -101,10 +101,25 @@ namespace BPG.Api.Controllers
             var result = await Mediator.Send(command, ct);
             return Ok(result);
         }
+
+        [HttpPost("{id:long}/resubmit")]
+        public async Task<IActionResult> ResubmitMaterialRequest(
+            [FromRoute] long id,
+            [FromBody] ResubmitMaterialRequestRequest request,
+            CancellationToken ct)
+        {
+            var command = new ResubmitMaterialRequestCommand(id, request.Reason, request.Items);
+            var result = await Mediator.Send(command, ct);
+            return Ok(result);
+        }
     }
 
     public record CancelMaterialRequestRequest(string Reason);
     public record ProcessMaterialRequestRequest(string? Note);
     public record ApproveMaterialRequestRequest(string? Note);
     public record RejectMaterialRequestRequest(string Reason);
+    public record ResubmitMaterialRequestRequest(
+        string Reason,
+        List<BPG.Application.Features.MaterialRequests.Commands.MaterialRequestItemInput> Items
+    );
 }

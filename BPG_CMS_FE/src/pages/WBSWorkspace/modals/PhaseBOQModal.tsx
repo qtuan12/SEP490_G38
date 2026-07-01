@@ -75,12 +75,11 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
     if (isOpen && materialList.length > 0) {
       const initialMaterials = phase.materials && phase.materials.length > 0
         ? phase.materials.map(it => {
-            const matchMat = materialList.find(m => m.name === it.name);
             return {
-              materialId: matchMat ? matchMat.materialId : 0,
+              materialId: it.materialId,
               quantity: it.quantity,
-              unitId: matchMat ? matchMat.baseUnitId : 0,
-              unit: matchMat ? matchMat.baseUnitName || it.unit : it.unit
+              unitId: it.unitId,
+              unit: it.unit
             };
           })
         : [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }];

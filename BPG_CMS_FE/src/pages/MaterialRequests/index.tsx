@@ -4,7 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type {WBSPhase, MaterialRequest, Project} from '../../types/common';
 import { CreateMaterialRequestModal } from '../MaterialRequests/modals/CreateMaterialRequestModal';
-import { Plus, ArrowLeft, ClipboardList, Package, Calendar, User as UserIcon, FileText, AlertTriangle, Menu } from 'lucide-react';
+import { ResubmitMaterialRequestModal } from '../MaterialRequests/modals/ResubmitMaterialRequestModal';
+import { Plus, ArrowLeft, ClipboardList, Package, Calendar, User as UserIcon, FileText, AlertTriangle, Menu, RefreshCw } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Modal } from '../../components/ui/Modal';
 
 export const PhaseMaterialRequests: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -21,6 +24,13 @@ export const PhaseMaterialRequests: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelReasonError, setCancelReasonError] = useState('');
+  const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null);
+
+  const [isResubmitOpen, setIsResubmitOpen] = useState(false);
 
   const fetchData = async () => {
     if (!projectId || !phaseId) return;
@@ -55,6 +65,13 @@ export const PhaseMaterialRequests: React.FC = () => {
     await fetchData();
   };
 
+  const openCancelConfirm = (requestId: string) => {
+    setCancellingRequestId(requestId);
+    setCancelReason('');
+    setCancelReasonError('');
+    setIsCancelConfirmOpen(true);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending_leader': return <span className="badge badge-warning">Chờ Leader</span>;
@@ -64,6 +81,7 @@ export const PhaseMaterialRequests: React.FC = () => {
       case 'pending_director': return <span className="badge badge-warning">Chờ Giám đốc</span>;
       case 'approved': return <span className="badge badge-success">Đã duyệt</span>;
       case 'rejected': return <span className="badge badge-danger">Từ chối</span>;
+      case 'cancelled': return <span className="badge badge-secondary">Đã hủy</span>;
       default: return <span className="badge badge-secondary">{status}</span>;
     }
   };
@@ -179,8 +197,66 @@ export const PhaseMaterialRequests: React.FC = () => {
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={16} /> {selectedRequest.date}</span>
                   </div>
                 </div>
-                <div style={{ transform: 'scale(1.2)', transformOrigin: 'top right' }}>
-                  {getStatusBadge(selectedRequest.status)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {(selectedRequest.status === 'pending_accountant' || selectedRequest.status === 'pending_director') && (isLeader || selectedRequest.requesterName === user?.name) && (
+                    <button
+                      onClick={() => openCancelConfirm(selectedRequest.id)}
+                      style={{
+                        padding: '6px 14px',
+                        backgroundColor: 'hsl(var(--danger-glow))',
+                        border: '1px solid hsl(var(--danger) / 0.3)',
+                        borderRadius: 'var(--radius-sm)',
+                        color: 'hsl(var(--danger))',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'hsl(var(--danger))';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'hsl(var(--danger-glow))';
+                        e.currentTarget.style.color = 'hsl(var(--danger))';
+                      }}
+                    >
+                      Hủy yêu cầu
+                    </button>
+                  )}
+                  {/* Nút Sửa & Gửi lại - chỉ hiện khi bị Từ chối và đúng người tạo */}
+                  {selectedRequest.status === 'rejected' && selectedRequest.requesterName === user?.name && (
+                    <button
+                      onClick={() => setIsResubmitOpen(true)}
+                      style={{
+                        padding: '6px 14px',
+                        backgroundColor: 'hsl(var(--primary-glow))',
+                        border: '1px solid hsl(var(--primary) / 0.4)',
+                        borderRadius: 'var(--radius-sm)',
+                        color: 'hsl(var(--primary))',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'hsl(var(--primary))';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'hsl(var(--primary-glow))';
+                        e.currentTarget.style.color = 'hsl(var(--primary))';
+                      }}
+                    >
+                      <RefreshCw size={14} /> Sửa &amp; Gửi lại
+                    </button>
+                  )}
+                  <div>
+                    {getStatusBadge(selectedRequest.status)}
+                  </div>
                 </div>
               </div>
 
@@ -298,12 +374,117 @@ export const PhaseMaterialRequests: React.FC = () => {
           allMaterialRequests={allRequests}
           requestType="normal"
           onSuccess={(msg) => { 
-            alert(msg); 
+            toast.success(msg); 
             handleRefresh(); 
             setIsCreateOpen(false); 
           }}
-          onError={(msg) => alert(msg)}
+          onError={(msg) => toast.error(msg)}
         />
+      )}
+
+      {/* RESUBMIT MODAL */}
+      {isResubmitOpen && selectedRequest && (
+        <ResubmitMaterialRequestModal
+          isOpen={isResubmitOpen}
+          onClose={() => setIsResubmitOpen(false)}
+          request={selectedRequest}
+          projectId={projectId!}
+          user={user}
+          isLeader={isLeader}
+          onSuccess={async (msg) => {
+            toast.success(msg);
+            setIsResubmitOpen(false);
+            await handleRefresh();
+            // Cập nhật selectedRequest với dữ liệu mới nhất
+            const updatedReqs = await projectService.getMaterialRequests(projectId!);
+            const updated = updatedReqs.find(r => r.id === selectedRequest.id);
+            setSelectedRequest(updated || null);
+          }}
+          onError={(msg) => toast.error(msg)}
+        />
+      )}
+
+      {isCancelConfirmOpen && (
+        <Modal
+          isOpen={isCancelConfirmOpen}
+          onClose={() => setIsCancelConfirmOpen(false)}
+          title="Xác nhận hủy yêu cầu vật tư"
+          width="sm"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', margin: 0 }}>
+              Bạn có chắc chắn muốn hủy yêu cầu vật tư này? Hành động này sẽ giải phóng định mức BOQ và không thể hoàn tác.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ margin: 0, fontWeight: 500, fontSize: '0.85rem' }}>Lý do hủy <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+              <textarea
+                placeholder="Nhập lý do hủy phiếu (tối thiểu 5 ký tự)..."
+                value={cancelReason}
+                onChange={(e) => {
+                  setCancelReason(e.target.value);
+                  if (e.target.value.trim().length >= 5) setCancelReasonError('');
+                }}
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: `1px solid ${cancelReasonError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`,
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  backgroundColor: 'hsl(var(--bg-main))'
+                }}
+              />
+              {cancelReasonError && (
+                <p style={{ color: 'hsl(var(--danger))', fontSize: '0.8rem', margin: '4px 0 0 0' }}>
+                  {cancelReasonError}
+                </p>
+              )}
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'end', gap: '12px', marginTop: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary py-1.5 px-4 text-sm"
+                onClick={() => setIsCancelConfirmOpen(false)}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger py-1.5 px-4 text-sm"
+                onClick={async () => {
+                  if (!cancelReason || cancelReason.trim().length < 5) {
+                    setCancelReasonError('Lý do hủy phải từ 5 ký tự trở lên.');
+                    return;
+                  }
+                  if (!cancellingRequestId) return;
+                  
+                  const rawId = cancellingRequestId.startsWith('mat-req-') ? cancellingRequestId.substring(8) : cancellingRequestId;
+                  try {
+                    await projectService.cancelMaterialRequest(rawId, cancelReason);
+                    toast.success('Đã hủy phiếu yêu cầu vật tư.');
+                    setIsCancelConfirmOpen(false);
+                    await handleRefresh();
+                    
+                    // Tìm lại request đã cập nhật để set selected
+                    const updatedReqs = await projectService.getMaterialRequests(projectId!);
+                    const currentReq = updatedReqs.find(r => r.id === cancellingRequestId);
+                    if (currentReq) {
+                      setSelectedRequest(currentReq);
+                    } else {
+                      setSelectedRequest(null);
+                    }
+                  } catch (err: any) {
+                    toast.error(err.message || 'Lỗi khi hủy yêu cầu.');
+                  }
+                }}
+              >
+                Xác nhận hủy
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

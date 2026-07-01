@@ -70,26 +70,8 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
     }).catch(console.error);
   }, []);
 
-  const handleMaterialChange = async (idx: number, name: string) => {
-    const catalog = allCatalogs.find(c => c.name === name);
-    if (!catalog) return;
 
-    const baseUnit = catalog.baseUnitName || '';
-    let units = [baseUnit];
-
-    try {
-      const convs = await materialService.getConversions(catalog.materialId);
-      const altUnits = convs.map(c => c.alternativeUnitName).filter(Boolean) as string[];
-      units = Array.from(new Set([baseUnit, ...altUnits]));
-    } catch (err) {
-      console.error('Error fetching conversions:', err);
-    }
-
-    setMaterialUnits(prev => ({ ...prev, [name]: units }));
-    setValue(`items.${idx}.unit`, baseUnit);
-  };
-  
-  const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<CreateMaterialRequestForm>({
+  const { register, control, handleSubmit, reset, watch, setValue, setError, formState: { errors } } = useForm<CreateMaterialRequestForm>({
     resolver: zodResolver(createMaterialRequestSchema),
     defaultValues: {
       type: requestType,
@@ -140,6 +122,32 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
   // Nguồn vật tư gốc để chọn
   const sourceMaterials = task ? phaseRequestedMaterials : (phase?.materials || []);
   const displayMaterials = sourceMaterials.length > 0 ? sourceMaterials : allCatalogs;
+
+  const handleMaterialChange = async (idx: number, name: string) => {
+    const selectedItem = displayMaterials.find(m => m.name === name);
+    const selectedUnitName = selectedItem ? ('unit' in selectedItem ? (selectedItem as any).unit : (selectedItem as any).baseUnitName) : '';
+
+    let catalog = allCatalogs.find(c => c.name === name && c.baseUnitName === selectedUnitName);
+    if (!catalog) {
+      catalog = allCatalogs.find(c => c.name === name);
+    }
+
+    if (!catalog) return;
+
+    const baseUnit = catalog.baseUnitName || '';
+    let units = [baseUnit];
+
+    try {
+      const convs = await materialService.getConversions(catalog.materialId);
+      const altUnits = convs.map(c => c.alternativeUnitName).filter(Boolean) as string[];
+      units = Array.from(new Set([baseUnit, ...altUnits]));
+    } catch (err) {
+      console.error('Error fetching conversions:', err);
+    }
+
+    setMaterialUnits(prev => ({ ...prev, [name]: units }));
+    setValue(`items.${idx}.unit`, baseUnit);
+  };
 
   const getUsedQuantity = (materialName: string) => {
     let sum = 0;
@@ -209,6 +217,10 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
   });
 
   const onSubmit = (data: CreateMaterialRequestForm) => {
+    if (isOverBOQ && (!data.reason || data.reason.trim() === '')) {
+      setError('reason', { type: 'manual', message: 'Yêu cầu vượt định mức bắt buộc phải nhập lý do giải trình!' });
+      return;
+    }
     mutation.mutate(data);
   };
 
@@ -320,7 +332,18 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
           </div>
         )}
 
-        {/* Hidden Lý do yêu cầu block per business requirements */}
+        <div className="flex flex-col gap-1.5">
+          <label className="block text-sm font-medium text-slate-600">
+            Lý do yêu cầu / Giải trình {isOverBOQ && <span className="text-red-500">*</span>}
+          </label>
+          <textarea
+            placeholder={isOverBOQ ? "Yêu cầu vượt định mức BOQ bắt buộc phải nhập lý do giải trình..." : "Nhập lý do yêu cầu vật tư..."}
+            {...register('reason')}
+            rows={3}
+            className={`w-full text-sm px-3 py-2 rounded-md border ${errors.reason ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
+          />
+          {errors.reason && <p className="text-red-500 text-xs mt-1">{errors.reason.message}</p>}
+        </div>
 
         <div className="flex justify-end gap-3 mt-4">
           <button type="button" className="btn btn-secondary" onClick={onClose} disabled={mutation.isPending}>Hủy</button>

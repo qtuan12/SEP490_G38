@@ -71,8 +71,10 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                     .Where(b => b.PhaseId == phase.PhaseId)
                     .Select(b => new PhaseMaterialItemDto
                     {
+                        MaterialId = b.MaterialId,
                         Name = b.Material.Name,
                         Quantity = b.Quantity,
+                        UnitId = b.UnitId,
                         Unit = b.Unit.UnitName
                     })
                     .ToList()

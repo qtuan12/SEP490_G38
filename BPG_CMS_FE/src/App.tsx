@@ -26,6 +26,7 @@ import { TaskIncidents } from './pages/TaskIncidents';
 import { PhaseMaterialRequests } from './pages/MaterialRequests';
 import { NotificationProvider } from './context/NotificationContext';
 import { NotificationsList } from './pages/Notifications';
+import { MaterialControl } from './pages/MaterialControl';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -190,6 +191,15 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <MaterialManagement />
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
+                path="/materials-control" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'director', 'accountant']}>
+                    <MaterialControl />
                   </ProtectedRoute>
                 } 
               />
