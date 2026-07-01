@@ -4,15 +4,15 @@ using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace BPG.Application.Features.PurchaseOrders.Queries
 {
-    public record GetPurchaseOrdersQuery(long? ProjectId = null, string? Status = null) : IRequest<ApiResponse<List<PurchaseOrderDto>>>;
+    public class GetPurchaseOrdersQuery : PaginationRequest, IRequest<PagedList<PurchaseOrderDto>>
+    {
+        public long? ProjectId { get; set; }
+        public string? Status { get; set; }
+        public string? PONumber { get; set; }
+    }
 
     public class PurchaseOrderDto
     {
@@ -41,7 +41,7 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
         public decimal TotalReceived { get; set; }
     }
 
-    public class GetPurchaseOrdersQueryHandler : IRequestHandler<GetPurchaseOrdersQuery, ApiResponse<List<PurchaseOrderDto>>>
+    public class GetPurchaseOrdersQueryHandler : IRequestHandler<GetPurchaseOrdersQuery, PagedList<PurchaseOrderDto>>
     {
         private readonly IUnitOfWork _uow;
 
@@ -50,37 +50,40 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
             _uow = uow;
         }
 
-        public async Task<ApiResponse<List<PurchaseOrderDto>>> Handle(GetPurchaseOrdersQuery request, CancellationToken cancellationToken)
+        public async Task<PagedList<PurchaseOrderDto>> Handle(GetPurchaseOrdersQuery request, CancellationToken cancellationToken)
         {
             var query = _uow.Repository<PurchaseOrder>().Query()
                 .Include(po => po.Supplier)
-                .Include(po => po.Request)
-                    .ThenInclude(r => r.Phase)
                 .Include(po => po.Items)
                     .ThenInclude(i => i.Material)
                 .Include(po => po.Items)
                     .ThenInclude(i => i.Unit)
-                .AsQueryable();
+                .AsNoTracking();
 
             if (request.ProjectId.HasValue)
-            {
-                query = query.Where(po => po.Request.Phase.ProjectId == request.ProjectId.Value);
-            }
+                query = query.Where(po => po.ProjectId == request.ProjectId.Value);
 
             if (!string.IsNullOrEmpty(request.Status))
-            {
                 query = query.Where(po => po.Status == request.Status);
-            }
 
-            var pos = await query.ToListAsync(cancellationToken);
+            if (!string.IsNullOrEmpty(request.PONumber))
+                query = query.Where(po => po.PONumber.Contains(request.PONumber));
 
-            // Fetch already received quantities per PO and material
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var pos = await query
+                .OrderByDescending(po => po.OrderDate)
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync(cancellationToken);
+
             var poIds = pos.Select(po => po.POId).ToList();
             var receivedQtyMap = new Dictionary<(long POId, long MaterialId), decimal>();
-            
-            if (poIds.Any())
+
+            if (poIds.Count != 0)
             {
                 var receivedItems = await _uow.Repository<GoodsReceiptItem>().Query()
+                    .AsNoTracking()
                     .Where(gri => poIds.Contains(gri.Receipt.POId) && gri.Receipt.Status == GoodsReceiptStatus.Approved)
                     .Select(gri => new { gri.Receipt.POId, gri.MaterialId, gri.Quantity })
                     .ToListAsync(cancellationToken);
@@ -98,7 +101,8 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
                 TotalAmount = po.TotalAmount,
                 OrderDate = po.OrderDate,
                 SupplierName = po.Supplier?.SupplierName ?? "N/A",
-                Items = po.Items.Select(i => {
+                Items = po.Items.Select(i =>
+                {
                     receivedQtyMap.TryGetValue((po.POId, i.MaterialId), out var totalReceived);
                     return new PurchaseOrderItemDto
                     {
@@ -118,7 +122,7 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
                 }).ToList()
             }).ToList();
 
-            return ApiResponse<List<PurchaseOrderDto>>.SuccessResult(dtos);
+            return new PagedList<PurchaseOrderDto>(dtos, totalCount, request.PageNumber, request.PageSize);
         }
     }
 }

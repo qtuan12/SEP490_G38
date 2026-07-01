@@ -93,3 +93,4 @@ __pycache__/
 .env.production
 !.env.example
 
+BPG_CMS_BE/.github/copilot-instructions.md

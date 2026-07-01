@@ -27,6 +27,10 @@ import { PhaseMaterialRequests } from './pages/MaterialRequests';
 import { NotificationProvider } from './context/NotificationContext';
 import { NotificationsList } from './pages/Notifications';
 import { MaterialControl } from './pages/MaterialControl';
+import { PurchaseOrderList } from './pages/PurchaseOrders';
+import { CreatePOPage } from './pages/PurchaseOrders/CreatePOPage';
+import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
+import { SystemConfigPage } from './pages/SystemConfig';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -294,14 +298,50 @@ function App() {
                 } 
               />
 
+              {/* Purchase Orders - Accountant */}
+              <Route
+                path="/purchase-orders"
+                element={
+                  <ProtectedRoute allowedRoles={['accountant']}>
+                    <PurchaseOrderList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/purchase-orders/new"
+                element={
+                  <ProtectedRoute allowedRoles={['accountant']}>
+                    <CreatePOPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/purchase-orders/:id"
+                element={
+                  <ProtectedRoute allowedRoles={['accountant']}>
+                    <PODetailPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* System Config - Admin only */}
+              <Route
+                path="/system-config"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <SystemConfigPage />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* Phase Acceptances List */}
-              <Route 
-                path="/phase-acceptances" 
+              <Route
+                path="/phase-acceptances"
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'director']}>
                     <PhaseAcceptances />
                   </ProtectedRoute>
-                } 
+                }
               />
 
               {/* Fallback route */}
