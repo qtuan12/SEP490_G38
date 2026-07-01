@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,6 +48,7 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
   onSuccess
 }) => {
   const queryClient = useQueryClient();
+  const [rowConversions, setRowConversions] = useState<Record<number, { unitId: number; unitName: string }[]>>({});
 
   // Fetch materials catalog for dropdown list
   const { data: materialsData, isLoading: loadingMaterials } = useQuery({
@@ -69,24 +70,68 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
     name: 'materials'
   });
 
-  // Map initial values from phase.materials using material names
+  // Map initial values from phase.materials using material names and pre-load their units
   useEffect(() => {
     if (isOpen && materialList.length > 0) {
-      reset({
-        materials: phase.materials && phase.materials.length > 0
-          ? phase.materials.map(it => {
-              const matchMat = materialList.find(m => m.name === it.name);
-              return {
-                materialId: matchMat ? matchMat.materialId : 0,
-                quantity: it.quantity,
-                unitId: matchMat ? matchMat.baseUnitId : 0,
-                unit: matchMat ? matchMat.baseUnitName || it.unit : it.unit
-              };
-            })
-          : [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }]
+      const initialMaterials = phase.materials && phase.materials.length > 0
+        ? phase.materials.map(it => {
+            const matchMat = materialList.find(m => m.name === it.name);
+            return {
+              materialId: matchMat ? matchMat.materialId : 0,
+              quantity: it.quantity,
+              unitId: matchMat ? matchMat.baseUnitId : 0,
+              unit: matchMat ? matchMat.baseUnitName || it.unit : it.unit
+            };
+          })
+        : [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }];
+
+      reset({ materials: initialMaterials });
+
+      // Fetch units options for each material
+      initialMaterials.forEach(async (item, idx) => {
+        if (item.materialId > 0) {
+          const matchMat = materialList.find(m => m.materialId === item.materialId);
+          if (matchMat) {
+            try {
+              const convs = await materialService.getConversions(item.materialId);
+              const options = [
+                { unitId: matchMat.baseUnitId, unitName: matchMat.baseUnitName || 'bao' },
+                ...convs.map(c => ({ unitId: c.alternativeUnitId, unitName: c.alternativeUnitName || '' }))
+              ];
+              setRowConversions(prev => ({ ...prev, [idx]: options }));
+            } catch (err) {
+              console.error(err);
+            }
+          }
+        }
       });
     }
   }, [isOpen, phase, reset, materialList]);
+
+  // Load conversions when user changes material dropdown
+  const handleMaterialChange = async (idx: number, selectedId: number) => {
+    const mat = materialList.find(m => m.materialId === selectedId);
+    if (mat) {
+      setValue(`materials.${idx}.unitId` as any, mat.baseUnitId);
+      setValue(`materials.${idx}.unit` as any, mat.baseUnitName || 'bao');
+
+      try {
+        const convs = await materialService.getConversions(selectedId);
+        const options = [
+          { unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' },
+          ...convs.map(c => ({ unitId: c.alternativeUnitId, unitName: c.alternativeUnitName || '' }))
+        ];
+        setRowConversions(prev => ({ ...prev, [idx]: options }));
+      } catch (err) {
+        console.error(err);
+        setRowConversions(prev => ({ ...prev, [idx]: [{ unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' }] }));
+      }
+    } else {
+      setValue(`materials.${idx}.unitId` as any, 0);
+      setValue(`materials.${idx}.unit` as any, '');
+      setRowConversions(prev => ({ ...prev, [idx]: [] }));
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: async (data: PhaseBOQForm) => {
@@ -153,18 +198,14 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
             
             <div className="flex flex-col gap-2">
               {fields.map((item, idx) => (
-                <div key={item.id} className="grid grid-cols-[2.5fr_1fr_1fr_auto] gap-2 items-start">
+                <div key={item.id} className="grid grid-cols-[2.5fr_1fr_1.2fr_auto] gap-2 items-start">
                   <div>
                     <select
                       {...register(`materials.${idx}.materialId` as const, { valueAsNumber: true })}
                       disabled={hasActiveMRs}
                       onChange={(e) => {
                         const selectedId = parseInt(e.target.value);
-                        const mat = materialList.find(m => m.materialId === selectedId);
-                        if (mat) {
-                          setValue(`materials.${idx}.unitId` as any, mat.baseUnitId);
-                          setValue(`materials.${idx}.unit` as any, mat.baseUnitName || 'bao');
-                        }
+                        handleMaterialChange(idx, selectedId);
                       }}
                       className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.materialId ? 'border-red-500' : 'border-slate-200'} ${hasActiveMRs ? 'bg-slate-100' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
                     >
@@ -192,13 +233,26 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
                   </div>
                   
                   <div>
-                    <input 
-                      type="text" 
-                      placeholder="ĐVT" 
-                      disabled
-                      {...register(`materials.${idx}.unit` as const)}
-                      className="w-full text-sm px-3 py-2 rounded-md border border-slate-200 bg-slate-100 text-slate-500 focus:outline-none"
-                    />
+                    <select
+                      {...register(`materials.${idx}.unitId` as const, { valueAsNumber: true })}
+                      disabled={hasActiveMRs}
+                      onChange={(e) => {
+                        const uId = parseInt(e.target.value);
+                        const opts = rowConversions[idx] || [];
+                        const opt = opts.find(o => o.unitId === uId);
+                        if (opt) {
+                          setValue(`materials.${idx}.unit` as any, opt.unitName);
+                        }
+                      }}
+                      className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.unitId ? 'border-red-500' : 'border-slate-200'} ${hasActiveMRs ? 'bg-slate-100' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+                    >
+                      {(rowConversions[idx] || (item.unitId ? [{ unitId: item.unitId, unitName: item.unit }] : [])).map(opt => (
+                        <option key={opt.unitId} value={opt.unitId}>
+                          {opt.unitName}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.materials?.[idx]?.unitId && <p className="text-red-500 text-xs mt-1">{errors.materials[idx]?.unitId?.message}</p>}
                   </div>
                   
                   {!hasActiveMRs && (
