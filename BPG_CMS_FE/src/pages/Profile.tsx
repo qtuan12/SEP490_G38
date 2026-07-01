@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../services/authService';
 import type { UserDetailProfile } from '../services/authService';
 import { Modal } from '../components/ui/Modal';
-import { User, Mail, Phone, BadgeCheck, Clock, ShieldAlert, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil } from 'lucide-react';
+import { User, Mail, Phone, BadgeCheck, Clock, ShieldAlert, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera } from 'lucide-react';
+
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Quản trị viên',
@@ -32,6 +35,11 @@ export const Profile: React.FC = () => {
   const [editPhone, setEditPhone] = useState('');
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Avatar upload state
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const [showModal, setShowModal] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -72,6 +80,33 @@ export const Profile: React.FC = () => {
       setEditError(err.message || 'Cập nhật thất bại.');
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !profile) return;
+
+    setAvatarError(null);
+    if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+      setAvatarError('Chỉ chấp nhận ảnh định dạng JPG, PNG, WEBP hoặc GIF.');
+      return;
+    }
+    if (file.size > MAX_AVATAR_SIZE) {
+      setAvatarError('Kích thước ảnh tối đa là 5MB.');
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const avatarUrl = await authService.uploadAvatar(file);
+      const updated = await authService.updateProfile(profile.fullName, profile.phoneNumber, avatarUrl);
+      setProfile(updated);
+    } catch (err: any) {
+      setAvatarError(err.message || 'Tải ảnh đại diện thất bại.');
+    } finally {
+      setAvatarUploading(false);
     }
   };
 
@@ -137,14 +172,45 @@ export const Profile: React.FC = () => {
       <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
         <div style={{ height: '88px', background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(220 70% 60%) 100%)' }} />
         <div style={{ padding: '0 28px 24px', position: 'relative' }}>
-          <div style={{
-            width: '76px', height: '76px', borderRadius: '50%',
-            border: '4px solid hsl(var(--bg-card))',
-            background: 'hsl(var(--primary-glow))', color: 'hsl(var(--primary))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1.5rem', fontWeight: 700, marginTop: '-38px', boxShadow: 'var(--shadow-md)',
-          }}>
-            {initials || <User size={30} />}
+          <div style={{ position: 'relative', width: '76px', marginTop: '-38px' }}>
+            <div style={{
+              width: '76px', height: '76px', borderRadius: '50%',
+              border: '4px solid hsl(var(--bg-card))',
+              background: profile.avatarUrl ? `url(${profile.avatarUrl}) center/cover no-repeat` : 'hsl(var(--primary-glow))',
+              color: 'hsl(var(--primary))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1.5rem', fontWeight: 700, boxShadow: 'var(--shadow-md)', overflow: 'hidden',
+            }}>
+              {!profile.avatarUrl && (initials || <User size={30} />)}
+              {avatarUploading && (
+                <div style={{
+                  position: 'absolute', inset: 0, borderRadius: '50%',
+                  background: 'hsl(224 71% 4% / 0.5)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Loader2 size={20} className="animate-spin" style={{ color: '#fff' }} />
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarUploading}
+              title="Đổi ảnh đại diện"
+              style={{
+                position: 'absolute', right: '-2px', bottom: '-2px',
+                width: '28px', height: '28px', borderRadius: '50%',
+                background: 'hsl(var(--primary))', color: '#fff', border: '3px solid hsl(var(--bg-card))',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: avatarUploading ? 'default' : 'pointer', padding: 0,
+              }}
+            >
+              <Camera size={13} />
+            </button>
+            <input
+              ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleAvatarSelect} style={{ display: 'none' }}
+            />
           </div>
           <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
             <div>
@@ -165,6 +231,18 @@ export const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {avatarError && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          backgroundColor: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.3)',
+          borderRadius: 'var(--radius-sm)', padding: '10px 14px',
+          color: 'hsl(346 84% 35%)', fontSize: '0.875rem',
+        }}>
+          <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+          {avatarError}
+        </div>
+      )}
 
       {/* Info Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>

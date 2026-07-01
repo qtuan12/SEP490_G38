@@ -18,6 +18,7 @@ export interface DataTableProps<T> {
   currentPage?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
+  onRowClick?: (item: T) => void;
   className?: string;
 }
 
@@ -30,6 +31,7 @@ export function DataTable<T>({
   currentPage,
   totalPages,
   onPageChange,
+  onRowClick,
   className = '',
 }: DataTableProps<T>) {
   return (
@@ -65,7 +67,12 @@ export function DataTable<T>({
               </tr>
             ) : (
               data.map((item) => (
-                <tr key={keyExtractor(item)} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={keyExtractor(item)}
+                  className="hover:bg-gray-50 transition-colors"
+                  onClick={onRowClick ? () => onRowClick(item) : undefined}
+                  style={onRowClick ? { cursor: 'pointer' } : undefined}
+                >
                   {columns.map((col) => (
                     <td key={col.key} className="px-6 py-4 text-sm text-gray-900 whitespace-normal break-words">
                       {col.render ? col.render(item) : (item as any)[col.key]}

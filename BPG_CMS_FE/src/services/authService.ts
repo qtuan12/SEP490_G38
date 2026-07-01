@@ -13,6 +13,7 @@ export interface UserDetailProfile {
   fullName: string;
   email: string;
   phoneNumber: string | null;
+  avatarUrl: string | null;
   role: string;
   isActive: boolean;
   lastLoginAt: string | null;
@@ -129,7 +130,7 @@ export const authService = {
     };
   },
 
-  async updateProfile(fullName: string, phoneNumber: string | null): Promise<UserDetailProfile> {
+  async updateProfile(fullName: string, phoneNumber: string | null, avatarUrl?: string | null): Promise<UserDetailProfile> {
     if (USE_MOCK_API) {
       await new Promise(r => setTimeout(r, 400));
       const storedUser = localStorage.getItem('bpg_user');
@@ -137,13 +138,29 @@ export const authService = {
       const u: UserProfile = JSON.parse(storedUser);
       const updated = { ...u, name: fullName };
       localStorage.setItem('bpg_user', JSON.stringify(updated));
-      return { userId: Number(u.id), fullName, email: u.email, phoneNumber, role: u.role, isActive: u.status === 'active', lastLoginAt: null, passwordChangedAt: null };
+      return { userId: Number(u.id), fullName, email: u.email, phoneNumber, avatarUrl: avatarUrl ?? null, role: u.role, isActive: u.status === 'active', lastLoginAt: null, passwordChangedAt: null };
     }
 
     interface BackendResponse { success: boolean; message: string; data: UserDetailProfile; }
-    const response = await apiClient.patch<BackendResponse>('/auth/me', { fullName, phoneNumber });
+    const response = await apiClient.patch<BackendResponse>('/auth/me', { fullName, phoneNumber, avatarUrl });
     if (!response.success || !response.data) throw new Error(response.message || 'Cập nhật thất bại.');
     return response.data;
+  },
+
+  async uploadAvatar(file: File): Promise<string> {
+    if (USE_MOCK_API) {
+      await new Promise(r => setTimeout(r, 600));
+      return URL.createObjectURL(file);
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'users/avatars');
+
+    interface BackendResponse { success: boolean; message: string; data: { fileUrl: string }; }
+    const response = await apiClient.postFormData<BackendResponse>('/files/upload', formData);
+    if (!response.success || !response.data) throw new Error(response.message || 'Tải ảnh lên thất bại.');
+    return response.data.fileUrl;
   },
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
@@ -172,7 +189,7 @@ export const authService = {
       const storedUser = localStorage.getItem('bpg_user');
       if (!storedUser) throw new Error('Chưa đăng nhập.');
       const u: UserProfile = JSON.parse(storedUser);
-      return { userId: Number(u.id), fullName: u.name, email: u.email, phoneNumber: null, role: u.role, isActive: u.status === 'active', lastLoginAt: null, passwordChangedAt: null };
+      return { userId: Number(u.id), fullName: u.name, email: u.email, phoneNumber: null, avatarUrl: null, role: u.role, isActive: u.status === 'active', lastLoginAt: null, passwordChangedAt: null };
     }
 
     interface BackendResponse {

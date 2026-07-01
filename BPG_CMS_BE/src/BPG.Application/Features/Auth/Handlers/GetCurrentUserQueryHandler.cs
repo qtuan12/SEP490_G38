@@ -31,6 +31,7 @@ namespace BPG.Application.Features.Auth.Handlers
                 FullName = user.FullName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                AvatarUrl = user.AvatarUrl,
                 Role = user.UserRoles.FirstOrDefault()?.Role?.RoleName ?? string.Empty,
                 IsActive = user.IsActive,
                 LastLoginAt = user.LastLoginAt,
