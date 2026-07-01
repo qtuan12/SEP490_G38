@@ -47,11 +47,7 @@ export const wbsService = {
         endDate: phaseDto.endDate || undefined,
         // @ts-ignore
         progress: phaseDto.progressPercent,
-        materials: phaseDto.boqItems?.map((it: any) => ({
-          name: it.name,
-          quantity: it.quantity,
-          unit: it.unit
-        })) || []
+        materials: phaseDto.materials
       });
 
       const extractTasks = (taskList: any[]) => {

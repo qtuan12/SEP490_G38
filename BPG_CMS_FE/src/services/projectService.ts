@@ -539,14 +539,28 @@ export const projectService = {
     return allPhases[idx];
   },
 
-  async updatePhaseMaterials(phaseId: string, materials: PhaseMaterialItem[]): Promise<WBSPhase> {
+  async updatePhaseMaterials(projectId: string, phaseId: string, materials: { materialId: number; quantity: number; unitId: number }[]): Promise<any> {
+    if (!USE_MOCK_API) {
+      const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const parsedPhaseId = phaseId.startsWith('ph-') ? phaseId.substring(2) : phaseId;
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedProjectId}/phases/${parsedPhaseId}/boq`, {
+        items: materials
+      });
+      if (!res.success) throw new Error(res.message || 'Cập nhật BOQ thất bại');
+      return res.data;
+    }
     const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     const idx = allPhases.findIndex(p => p.id === phaseId);
     if (idx === -1) throw new Error('Không tìm thấy giai đoạn.');
     if (allPhases[idx].status === 'frozen') {
       throw new Error('Giai đoạn đã đóng băng nghiệm thu, không thể cập nhật BOQ.');
     }
-    allPhases[idx] = { ...allPhases[idx], materials };
+    const mockMaterials: PhaseMaterialItem[] = materials.map(m => ({
+      name: `Vật tư ID ${m.materialId}`,
+      quantity: m.quantity,
+      unit: `ĐVT ID ${m.unitId}`
+    }));
+    allPhases[idx] = { ...allPhases[idx], materials: mockMaterials };
     setStorage('bpg_wbs_phases', allPhases);
     return allPhases[idx];
   },

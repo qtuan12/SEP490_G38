@@ -34,6 +34,14 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
             .OrderBy(p => p.OrderIndex)
             .ToListAsync(ct);
 
+        var boqItems = await _unitOfWork.Repository<BOQItem>()
+            .Query()
+            .AsNoTracking()
+            .Include(b => b.Material)
+            .Include(b => b.Unit)
+            .Where(b => b.Phase.ProjectId == request.ProjectId && !b.IsDeleted)
+            .ToListAsync(ct);
+
         var tasks = await _unitOfWork.Repository<ProjectTask>()
             .Query()
             .AsNoTracking()
@@ -43,14 +51,6 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
             .Include(t => t.Dependencies)
             .Where(t => t.Phase.ProjectId == request.ProjectId)
             .OrderBy(t => t.OrderIndex)
-            .ToListAsync(ct);
-
-        var boqItems = await _unitOfWork.Repository<BOQItem>()
-            .Query()
-            .AsNoTracking()
-            .Include(b => b.Material)
-            .Include(b => b.Unit)
-            .Where(b => b.Phase.ProjectId == request.ProjectId && !b.IsDeleted)
             .ToListAsync(ct);
 
         var result = new WbsTreeDto { ProjectId = request.ProjectId };
@@ -67,9 +67,14 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 StartDate = phase.StartDate,
                 EndDate = phase.EndDate,
                 Status = phase.Status,
-                BOQItems = boqItems
+                Materials = boqItems
                     .Where(b => b.PhaseId == phase.PhaseId)
-                    .Select(b => new WbsBOQItemDto(b.Material.Name, b.Quantity, b.Unit.UnitName))
+                    .Select(b => new PhaseMaterialItemDto
+                    {
+                        Name = b.Material.Name,
+                        Quantity = b.Quantity,
+                        Unit = b.Unit.UnitName
+                    })
                     .ToList()
             };
 

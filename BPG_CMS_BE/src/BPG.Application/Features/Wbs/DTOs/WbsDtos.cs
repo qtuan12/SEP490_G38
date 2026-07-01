@@ -41,6 +41,14 @@ public record WbsPhaseDto
     
     public List<WbsBOQItemDto> BOQItems { get; set; } = new();
     public List<WbsTaskDto> Tasks { get; set; } = new();
+    public List<PhaseMaterialItemDto> Materials { get; set; } = new();
+}
+
+public record PhaseMaterialItemDto
+{
+    public string Name { get; set; } = string.Empty;
+    public decimal Quantity { get; set; }
+    public string Unit { get; set; } = string.Empty;
 }
 
 public record WbsTreeDto
