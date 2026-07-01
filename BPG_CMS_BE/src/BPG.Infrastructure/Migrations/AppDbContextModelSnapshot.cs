@@ -532,6 +532,9 @@ namespace BPG.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("HandlingInstruction")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("IncidentType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");

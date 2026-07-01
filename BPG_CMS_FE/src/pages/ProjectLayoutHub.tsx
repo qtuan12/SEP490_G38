@@ -26,6 +26,7 @@ import {
   Package
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
+import { ProjectIncidents } from './ProjectIncidents';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 
@@ -40,7 +41,7 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory'>('wbs');
+  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents'>('wbs');
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
@@ -203,36 +204,49 @@ export const ProjectLayoutHub: React.FC = () => {
             )}
           </div>
 
-          {/* Project Status Actions for TPKT */}
-          {isTPKT && (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {project.status !== 'done' && (
-                <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Edit3 size={16} /> Sửa
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {(user?.role === 'director' || user?.role === 'accountant') && (
+              <>
+                <button onClick={() => navigate(`/projects/${projectId}/reports/boq`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Package size={16} /> Báo cáo BOQ
                 </button>
-              )}
-              {project.status === 'draft' && (
-                <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Play size={16} /> Kích hoạt Dự án
+                <button onClick={() => navigate(`/projects/${projectId}/reports/cost`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertCircle size={16} /> Báo cáo Chi phí
                 </button>
-              )}
-              {project.status === 'inprogress' && (
-                <>
-                  <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
-                    <Pause size={16} /> Tạm dừng
+              </>
+            )}
+
+            {/* Project Status Actions for TPKT */}
+            {isTPKT && (
+              <>
+                {project.status !== 'done' && (
+                  <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Edit3 size={16} /> Sửa
                   </button>
-                  <button onClick={() => handleStatusChange('done')} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'hsl(var(--success))', color: 'white' }}>
-                    <CheckCircle size={16} /> Hoàn thành
+                )}
+                {project.status === 'draft' && (
+                  <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Play size={16} /> Kích hoạt Dự án
                   </button>
-                </>
-              )}
-              {project.status === 'paused' && (
-                <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Play size={16} /> Tiếp tục Dự án
-                </button>
-              )}
-            </div>
-          )}
+                )}
+                {project.status === 'inprogress' && (
+                  <>
+                    <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
+                      <Pause size={16} /> Tạm dừng
+                    </button>
+                    <button onClick={() => handleStatusChange('done')} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'hsl(var(--success))', color: 'white' }}>
+                      <CheckCircle size={16} /> Hoàn thành
+                    </button>
+                  </>
+                )}
+                {project.status === 'paused' && (
+                  <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Play size={16} /> Tiếp tục Dự án
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {statusError && (
@@ -379,6 +393,28 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Kiểm soát Vật tư</span>
         </button>
 
+        <button
+          onClick={() => setActiveTab('incidents')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'incidents' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'incidents' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'incidents' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <AlertCircle size={18} />
+          <span>Sự cố thi công</span>
+        </button>
+
       </div>
 
       {/* Tab Contents */}
@@ -390,6 +426,7 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
         {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
+        {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} />}
       </div>
 
       {isEditOpen && project && (

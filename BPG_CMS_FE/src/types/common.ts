@@ -89,6 +89,7 @@ export interface WBSPhase {
 export interface IncidentReport {
   id: string;
   projectId: string;
+  projectName?: string;
   taskId: string;
   taskName: string;
   reporterId: string;
@@ -97,12 +98,13 @@ export interface IncidentReport {
   reviewerName?: string;
   incidentType: 'Construction' | 'InventoryLoss' | 'InventoryDamage' | 'Delay' | 'Safety' | 'Other';
   description: string;
-  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'Approved' | 'Rejected' | 'Closed';
+  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'Approved' | 'Rejected' | 'Closed';
   damageDescription?: string;
   estimatedMaterialLoss?: number;
   estimatedLaborDays?: number;
   estimatedDelayDays?: number;
   proposedAction?: string;
+  handlingInstruction?: string;
   reworkTaskId?: string;
 
   // Custom fields for frontend
