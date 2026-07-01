@@ -30,6 +30,7 @@ export interface WbsPhase {
   status: string;
   progressPercent: number;
   tasks: WbsTask[];
+  materials?: { name: string; quantity: number; unit: string }[];
 }
 
 export interface WbsTree {
