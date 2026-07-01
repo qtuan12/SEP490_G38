@@ -556,9 +556,11 @@ export const projectService = {
       throw new Error('Giai đoạn đã đóng băng nghiệm thu, không thể cập nhật BOQ.');
     }
     const mockMaterials: PhaseMaterialItem[] = materials.map(m => ({
+      materialId: m.materialId,
       name: `Vật tư ID ${m.materialId}`,
       quantity: m.quantity,
-      unit: `ĐVT ID ${m.unitId}`
+      unitId: m.unitId,
+      unit: 'Cái'
     }));
     allPhases[idx] = { ...allPhases[idx], materials: mockMaterials };
     setStorage('bpg_wbs_phases', allPhases);
@@ -1779,7 +1781,7 @@ export const projectService = {
             if (exist) {
               exist.quantity += reqItem.quantity;
             } else {
-              currentMaterials.push({ name: reqItem.name, quantity: reqItem.quantity, unit: reqItem.unit });
+              currentMaterials.push({ materialId: 0, unitId: 0, name: reqItem.name, quantity: reqItem.quantity, unit: reqItem.unit });
             }
           });
           allPhases[phaseIdx].materials = currentMaterials;
@@ -1856,7 +1858,7 @@ export const projectService = {
           if (exist) {
             exist.quantity += reqItem.quantity;
           } else {
-            currentMaterials.push({ name: reqItem.name, quantity: reqItem.quantity, unit: reqItem.unit });
+            currentMaterials.push({ materialId: 0, unitId: 0, name: reqItem.name, quantity: reqItem.quantity, unit: reqItem.unit });
           }
         });
         allPhases[phaseIdx].materials = currentMaterials;

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import {projectService} from '../../../../src/services/projectService';
 import { materialService } from '../../../../src/services/materialService';
 import type { MaterialCatalog } from '../../../../src/types/material';
@@ -88,7 +88,6 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
   const watchedItems = watch('items') || [];
   const type = watch('type');
-  const reason = watch('reason') || '';
 
   useEffect(() => {
     if (isOpen) {
@@ -178,9 +177,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
     return false;
   }, [watchedItems, sourceMaterials, getUsedQuantity]);
 
-  const hasSelectedItems = useMemo(() => {
-    return watchedItems.some(it => it.name && it.name.trim() !== '');
-  }, [watchedItems]);
+
 
   const mutation = useMutation({
     mutationFn: async (data: CreateMaterialRequestForm) => {

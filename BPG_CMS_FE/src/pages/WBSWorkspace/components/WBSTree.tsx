@@ -28,9 +28,8 @@ export const WBSTree = () => {
     setSelectedPhaseForTask, setParentTaskForNew, setParentDeadlineForNew, setIsCreateTaskOpen,
     setSelectedTaskForEdit, setIsEditTaskOpen,
     setSelectedPhaseForMatReq, setCreateMatReqType, setIsPhaseMatReqOpen, setIsLeaderApprovalOpen,
-    setSelectedPhaseForBOQ, setIsBOQOpen, setSelectedResubmitRequest, setIsResubmitOpen,
+    setSelectedPhaseForBOQ, setIsBOQOpen,
     setSelectedTaskId, setIsDetailOpen, setIsObsoleteOpen,
-    handleCancelMatReq,
     isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase
   } = useWBS();
   

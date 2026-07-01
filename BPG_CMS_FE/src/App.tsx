@@ -35,6 +35,7 @@ import { PurchaseOrderList } from './pages/PurchaseOrders';
 import { CreatePOPage } from './pages/PurchaseOrders/CreatePOPage';
 import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
 import { SystemConfigPage } from './pages/SystemConfig';
+import { TaskIncidents } from './pages/TaskIncidents';
 
 const queryClient = new QueryClient({
   defaultOptions: {

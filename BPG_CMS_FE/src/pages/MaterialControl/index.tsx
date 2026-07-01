@@ -155,7 +155,6 @@ export const MaterialControl: React.FC = () => {
       (req.taskName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (req.phaseName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (req.requesterName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (req.projectName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.items.some(it => it.name.toLowerCase().includes(searchTerm.toLowerCase()));
       
     const matchesStatus = statusFilter === '' || req.status === statusFilter;
