@@ -1,0 +1,110 @@
+using BPG.Application.Features.MaterialRequests.Commands;
+using BPG.Application.Features.MaterialRequests.Queries;
+using BPG.Domain.Constants;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace BPG.Api.Controllers
+{
+    [Authorize]
+    public class MaterialRequestsController : BaseApiController
+    {
+        [HttpPost("/api/projects/{projectId}/material-requests")]
+        public async Task<IActionResult> CreateMaterialRequest(
+            [FromRoute] long projectId,
+            [FromBody] CreateMaterialRequestCommand command,
+            CancellationToken ct)
+        {
+            if (projectId != command.ProjectId)
+            {
+                return ApiBadRequest("Mã dự án không khớp.");
+            }
+            var result = await Mediator.Send(command, ct);
+            return Ok(result);
+        }
+
+        [HttpGet("/api/projects/{projectId}/material-requests")]
+        public async Task<IActionResult> GetProjectMaterialRequests(
+            [FromRoute] long projectId,
+            [FromQuery] GetMaterialRequestsQuery query,
+            CancellationToken ct)
+        {
+            query.ProjectId = projectId;
+            var result = await Mediator.Send(query, ct);
+            return ApiPagedOk(result, "Lấy danh sách đề xuất vật tư của dự án thành công.");
+        }
+
+        [HttpGet]
+        [Authorize(Policy = PolicyNames.RequireManagerOrAbove)]
+        public async Task<IActionResult> GetAllMaterialRequests(
+            [FromQuery] GetMaterialRequestsQuery query,
+            CancellationToken ct)
+        {
+            var result = await Mediator.Send(query, ct);
+            return ApiPagedOk(result, "Lấy danh sách toàn bộ đề xuất vật tư thành công.");
+        }
+
+        [HttpGet("{id:long}")]
+        public async Task<IActionResult> GetMaterialRequestDetail(
+            [FromRoute] long id,
+            CancellationToken ct)
+        {
+            var result = await Mediator.Send(new GetMaterialRequestDetailQuery(id), ct);
+            return Ok(result);
+        }
+
+        [HttpPost("{id:long}/cancel")]
+        public async Task<IActionResult> CancelMaterialRequest(
+            [FromRoute] long id,
+            [FromBody] CancelMaterialRequestRequest request,
+            CancellationToken ct)
+        {
+            var command = new CancelMaterialRequestCommand(id, request.Reason);
+            var result = await Mediator.Send(command, ct);
+            return Ok(result);
+        }
+
+        [HttpPost("{id:long}/accountant-process")]
+        [Authorize(Policy = PolicyNames.RequireAccountant)]
+        public async Task<IActionResult> AccountantProcess(
+            [FromRoute] long id,
+            [FromBody] ProcessMaterialRequestRequest request,
+            CancellationToken ct)
+        {
+            var command = new ProcessMaterialRequestByAccountantCommand(id, request.Note);
+            var result = await Mediator.Send(command, ct);
+            return Ok(result);
+        }
+
+        [HttpPost("{id:long}/director-approve")]
+        [Authorize(Policy = PolicyNames.RequireDirector)]
+        public async Task<IActionResult> DirectorApprove(
+            [FromRoute] long id,
+            [FromBody] ApproveMaterialRequestRequest request,
+            CancellationToken ct)
+        {
+            var command = new ApproveMaterialRequestByDirectorCommand(id, request.Note);
+            var result = await Mediator.Send(command, ct);
+            return Ok(result);
+        }
+
+        [HttpPost("{id:long}/reject")]
+        [Authorize(Policy = PolicyNames.RequireManagerOrAbove)]
+        public async Task<IActionResult> RejectMaterialRequest(
+            [FromRoute] long id,
+            [FromBody] RejectMaterialRequestRequest request,
+            CancellationToken ct)
+        {
+            var command = new RejectMaterialRequestCommand(id, request.Reason);
+            var result = await Mediator.Send(command, ct);
+            return Ok(result);
+        }
+    }
+
+    public record CancelMaterialRequestRequest(string Reason);
+    public record ProcessMaterialRequestRequest(string? Note);
+    public record ApproveMaterialRequestRequest(string? Note);
+    public record RejectMaterialRequestRequest(string Reason);
+}

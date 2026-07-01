@@ -35,7 +35,8 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const { user } = useAuth();
   const { connection } = useNotification();
-  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const [isPL, setIsPL] = useState(false);
+  const isTPKT = isPL || user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,6 +53,10 @@ export const ProjectLayoutHub: React.FC = () => {
     try {
       const data = await projectService.getProjectById(projectId);
       setProject(data);
+
+      const members = await projectService.getMembers(projectId);
+      const currentMember = members.find(m => m.userId === user?.id);
+      setIsPL((currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager');
     } catch (err) {
       console.error('Error loading project details:', err);
     } finally {

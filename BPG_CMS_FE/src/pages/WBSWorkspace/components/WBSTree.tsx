@@ -333,9 +333,9 @@ export const WBSTree = () => {
                         </div>
                       )}
 
-                      {/* Action buttons (hover) */}
+                      {/* Action buttons */}
                       {canEdit && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: isHovered || showMenu ? 1 : 0, transition: 'opacity 0.13s', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }}>
                           {/* + Task */}
                           {!isFrozen && (
                             <button
@@ -370,17 +370,15 @@ export const WBSTree = () => {
                                     <span>Chỉnh sửa Giai đoạn</span>
                                   </div>
                                 )}
-                                {!isFrozen && (
-                                  <div
-                                    style={menuItemStyle}
-                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setPhaseMenuId(null); navigate(`/projects/${ph.projectId}/phases/${ph.id}/material-requests`); }}
-                                  >
-                                    <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                    <span>Yêu cầu vật tư Giai đoạn</span>
-                                  </div>
-                                )}
+                                <div
+                                  style={menuItemStyle}
+                                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                  onClick={() => { setPhaseMenuId(null); navigate(`/projects/${ph.projectId}/phases/${ph.id}/material-requests`); }}
+                                >
+                                  <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                  <span>{isFrozen ? 'Xem yêu cầu vật tư' : 'Yêu cầu vật tư Giai đoạn'}</span>
+                                </div>
                                 {!isFrozen && isPL && (
                                   <div
                                     style={menuItemStyle}
@@ -635,7 +633,7 @@ export const WBSTree = () => {
 
                               {/* Task context menu */}
                               {canEdit && !isFrozen && t.status !== 'obsolete' && (
-                                  <div style={{ position: 'relative', opacity: isHoveredTask || showTaskMenu ? 1 : 0, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                                  <div style={{ position: 'relative', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                                     <button
                                       onClick={e => { e.stopPropagation(); setTaskMenuId(showTaskMenu ? null : t.id); setPhaseMenuId(null); }}
                                       title="Tùy chọn"

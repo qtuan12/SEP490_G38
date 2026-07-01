@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
@@ -32,14 +32,14 @@ export const PhaseMaterialRequests: React.FC = () => {
       const allProjs = await projectService.getProjects();
       setProject(allProjs.find(p => p.id === projectId) || null);
 
-      const reqs = await projectService.getAllMaterialRequests();
+      const reqs = await projectService.getMaterialRequests(projectId);
       setAllRequests(reqs);
       // Chỉ lấy các yêu cầu thuộc Phase này và KHÔNG phải là yêu cầu của Task (Vật tư bù đắp sự cố)
       setPhaseRequests(reqs.filter(r => r.phaseId === phaseId && !r.taskId));
 
       const members = await projectService.getMembers(projectId);
       const currentMember = members.find(m => m.userId === user?.id);
-      setIsLeader((currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager');
+      setIsLeader((currentMember ? currentMember.isLeader : false) || user?.role === 'projectleader' || user?.role === 'admin' || user?.role === 'technicalmanager');
     } catch (err) {
       console.error(err);
     } finally {

@@ -6,6 +6,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2, Plus, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import {projectService} from '../../../../src/services/projectService';
+import { materialService } from '../../../../src/services/materialService';
+import type { MaterialCatalog } from '../../../../src/types/material';
 import type {WBSTask, WBSPhase, MaterialRequest} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
@@ -17,7 +19,7 @@ const createMaterialRequestSchema = z.object({
     z.object({
       name: z.string().min(1, 'Vui lòng chọn vật tư.'),
       quantity: z.number().min(0.01, 'Số lượng phải > 0'),
-      unit: z.string().min(1, 'Vui lòng nhập ĐVT')
+      unit: z.string().min(1, 'Vui lòng chọn ĐVT')
     })
   ).min(1, 'Cần ít nhất 1 vật tư')
 }).superRefine((data, ctx) => {
@@ -59,6 +61,33 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
   onSuccess
 }) => {
   const queryClient = useQueryClient();
+  const [allCatalogs, setAllCatalogs] = React.useState<MaterialCatalog[]>([]);
+  const [materialUnits, setMaterialUnits] = React.useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    materialService.getMaterials({ pageSize: 1000 }).then(res => {
+      setAllCatalogs(res.items || []);
+    }).catch(console.error);
+  }, []);
+
+  const handleMaterialChange = async (idx: number, name: string) => {
+    const catalog = allCatalogs.find(c => c.name === name);
+    if (!catalog) return;
+
+    const baseUnit = catalog.baseUnitName || '';
+    let units = [baseUnit];
+
+    try {
+      const convs = await materialService.getConversions(catalog.materialId);
+      const altUnits = convs.map(c => c.alternativeUnitName).filter(Boolean) as string[];
+      units = Array.from(new Set([baseUnit, ...altUnits]));
+    } catch (err) {
+      console.error('Error fetching conversions:', err);
+    }
+
+    setMaterialUnits(prev => ({ ...prev, [name]: units }));
+    setValue(`items.${idx}.unit`, baseUnit);
+  };
   
   const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<CreateMaterialRequestForm>({
     resolver: zodResolver(createMaterialRequestSchema),
@@ -110,6 +139,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
   // Nguồn vật tư gốc để chọn
   const sourceMaterials = task ? phaseRequestedMaterials : (phase?.materials || []);
+  const displayMaterials = sourceMaterials.length > 0 ? sourceMaterials : allCatalogs;
 
   const getUsedQuantity = (materialName: string) => {
     let sum = 0;
@@ -139,6 +169,10 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
     }
     return false;
   }, [watchedItems, sourceMaterials, getUsedQuantity]);
+
+  const hasSelectedItems = useMemo(() => {
+    return watchedItems.some(it => it.name && it.name.trim() !== '');
+  }, [watchedItems]);
 
   const mutation = useMutation({
     mutationFn: async (data: CreateMaterialRequestForm) => {
@@ -189,28 +223,9 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
           )}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1 text-slate-600">Hình thức yêu cầu:</label>
-          <div className={`text-sm font-medium ${type === 'emergency' ? 'text-amber-600' : 'text-blue-600'}`}>
-            {type === 'normal' ? 'Yêu cầu thông thường (Chờ Kế toán)' : 'Mua ngoài khẩn cấp (Direct Purchase - Chờ Kế toán duyệt)'}
-          </div>
-        </div>
+        {/* Removed Hình thức yêu cầu block */}
 
-        {isOverBOQ ? (
-          <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-600">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0" />
-            <span className="text-sm font-semibold">
-              TỔNG YÊU CẦU VƯỢT ĐỊNH MỨC BOQ. Bắt buộc giải trình lý do và phải chờ Giám đốc duyệt.
-            </span>
-          </div>
-        ) : (
-          <div className="flex items-start gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-600">
-            <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
-            <span className="text-sm font-semibold">
-              Các vật tư yêu cầu nằm trong định mức {task ? 'của Phase' : 'cho phép'}. Sau khi được duyệt sẽ cấp phát cho công trường.
-            </span>
-          </div>
-        )}
+        {/* Temporarily hidden BOQ check status banner */}
 
         <div>
           <div className="flex justify-between items-center mb-3">
@@ -228,32 +243,25 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
             {fields.map((item, idx) => (
               <div key={item.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-start">
                 <div>
-                  {sourceMaterials.length > 0 ? (
-                    <select
-                      {...register(`items.${idx}.name` as const)}
-                      onChange={(e) => {
-                        const selName = e.target.value;
-                        setValue(`items.${idx}.name`, selName);
-                        const selSource = sourceMaterials.find(m => m.name === selName);
-                        if (selSource) {
-                          setValue(`items.${idx}.unit`, selSource.unit);
-                        }
-                      }}
-                      className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
-                    >
-                      <option value="" disabled>-- Chọn vật tư ({task ? 'Từ Phase' : 'BOQ'}) --</option>
-                      {sourceMaterials.map(sm => (
-                        <option key={sm.name} value={sm.name}>{sm.name} (Max: {sm.quantity} {sm.unit})</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      placeholder="Tên vật tư..."
-                      {...register(`items.${idx}.name` as const)}
-                      className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
-                    />
-                  )}
+                  <select
+                    {...register(`items.${idx}.name` as const)}
+                    onChange={(e) => {
+                      const selName = e.target.value;
+                      setValue(`items.${idx}.name`, selName);
+                      handleMaterialChange(idx, selName);
+                    }}
+                    className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
+                  >
+                    <option value="" disabled>-- Chọn vật tư --</option>
+                    {displayMaterials.map(sm => {
+                      const isBOQ = 'quantity' in sm;
+                      return (
+                        <option key={sm.name} value={sm.name}>
+                          {sm.name} {isBOQ ? `(BOQ: ${(sm as any).quantity} ${(sm as any).unit})` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
                   {errors.items?.[idx]?.name && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.name?.message}</p>}
                 </div>
 
@@ -270,13 +278,15 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
                 </div>
 
                 <div>
-                  <input
-                    type="text"
-                    placeholder="ĐVT"
+                  <select
                     {...register(`items.${idx}.unit` as const)}
-                    disabled={sourceMaterials.length > 0}
-                    className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.unit ? 'border-red-500' : 'border-slate-200'} ${sourceMaterials.length > 0 ? 'bg-slate-100' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600`}
-                  />
+                    className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.unit ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
+                  >
+                    <option value="" disabled>-- ĐVT --</option>
+                    {(materialUnits[watchedItems[idx]?.name] || []).map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
                   {errors.items?.[idx]?.unit && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.unit?.message}</p>}
                 </div>
 
@@ -310,19 +320,11 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium mb-1.5 text-slate-600">Lý do yêu cầu / Giải trình</label>
-          <textarea
-            placeholder="Nêu lý do hao hụt, hư hỏng hoặc sự cần thiết..."
-            {...register('reason')}
-            rows={2}
-            className={`w-full text-sm px-3 py-2 rounded-md border ${errors.reason ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
-          />
-        </div>
+        {/* Hidden Lý do yêu cầu block per business requirements */}
 
         <div className="flex justify-end gap-3 mt-4">
           <button type="button" className="btn btn-secondary" onClick={onClose} disabled={mutation.isPending}>Hủy</button>
-          <button type="submit" className="btn btn-primary" disabled={mutation.isPending || (isOverBOQ && !reason)}>
+          <button type="submit" className="btn btn-primary" disabled={mutation.isPending}>
             {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : type === 'emergency' ? 'Nhập kho khẩn cấp' : 'Gửi yêu cầu'}
           </button>
         </div>
