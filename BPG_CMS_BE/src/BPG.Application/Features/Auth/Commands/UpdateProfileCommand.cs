@@ -6,6 +6,7 @@ namespace BPG.Application.Features.Auth.Commands
     public record UpdateProfileCommand(
         long UserId,
         string FullName,
-        string? PhoneNumber
+        string? PhoneNumber,
+        string? AvatarUrl = null
     ) : IRequest<GetCurrentUserDto>;
 }
