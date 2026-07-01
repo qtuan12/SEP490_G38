@@ -10,6 +10,7 @@ public class PurchaseOrderItem
     public decimal UnitPrice { get; set; }
     public decimal LineTotal { get; set; }
     public decimal ConversionRate { get; set; } = 1;
+    public string? Notes { get; set; }
 
     public PurchaseOrder PurchaseOrder { get; set; } = null!;
     public MaterialCatalog Material { get; set; } = null!;

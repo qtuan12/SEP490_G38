@@ -47,6 +47,7 @@ public class AppDbContext : DbContext
     // Procurement
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
+    public DbSet<PurchaseOrderRequest> PurchaseOrderRequests => Set<PurchaseOrderRequest>();
     public DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
     public DbSet<GoodsReceiptItem> GoodsReceiptItems => Set<GoodsReceiptItem>();
 
@@ -332,6 +333,26 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PurchaseOrder>()
             .Property(x => x.TotalAmount)
             .HasPrecision(18, 2);
+        modelBuilder.Entity<PurchaseOrder>()
+            .HasOne(x => x.Request)
+            .WithMany()
+            .HasForeignKey(x => x.RequestId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // PurchaseOrderRequest junction (many-to-many PO ↔ MaterialRequest)
+        modelBuilder.Entity<PurchaseOrderRequest>()
+            .HasKey(x => new { x.POId, x.RequestId });
+        modelBuilder.Entity<PurchaseOrderRequest>()
+            .HasOne(x => x.PurchaseOrder)
+            .WithMany(x => x.RequestLinks)
+            .HasForeignKey(x => x.POId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<PurchaseOrderRequest>()
+            .HasOne(x => x.MaterialRequest)
+            .WithMany()
+            .HasForeignKey(x => x.RequestId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // GoodsReceiptItem precision
         modelBuilder.Entity<GoodsReceiptItem>()
