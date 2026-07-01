@@ -18,6 +18,7 @@ export const GlobalIncidents: React.FC = () => {
   const { user } = useAuth();
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'construction' | 'inventory'>('construction');
 
   // Modals & Selected States
   const [selectedIncident, setSelectedIncident] = useState<IncidentReport | null>(null);
@@ -32,8 +33,10 @@ export const GlobalIncidents: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Lọc danh sách sự cố theo role (Trang này CHỈ hiển thị sự cố thi công)
   const visibleIncidents = incidents.filter(inc => {
+    if (activeTab === 'inventory') {
+      return inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage';
+    }
     return inc.incidentType !== 'InventoryLoss' && inc.incidentType !== 'InventoryDamage';
   });
 
@@ -73,6 +76,7 @@ export const GlobalIncidents: React.FC = () => {
           estimatedLaborDays: dto.estimatedLaborDays,
           estimatedDelayDays: dto.estimatedDelayDays,
           proposedAction: dto.proposedAction,
+          handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
           date: new Date(dto.createdAt).toLocaleString('vi-VN'),
           images: images
@@ -169,12 +173,27 @@ export const GlobalIncidents: React.FC = () => {
       <div className="flex justify-between items-center flex-wrap gap-4 mb-2">
         <div>
           <h3 className="text-[1.3rem] font-bold m-0">
-            Quản lý Sự cố Thi công Toàn hệ thống
+            Quản lý Sự cố Toàn hệ thống
           </h3>
           <p className="text-[0.85rem] text-[hsl(var(--text-muted))] mt-1 mb-0">
-            Tổng hợp toàn bộ báo cáo sự cố thi công từ tất cả dự án (Dành cho TPKT/Admin)
+            Tổng hợp toàn bộ báo cáo sự cố từ tất cả dự án (Dành cho TPKT/Admin)
           </p>
         </div>
+      </div>
+
+      <div className="flex gap-2 border-b border-[hsl(var(--border))] mb-4">
+        <button
+          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
+          onClick={() => setActiveTab('construction')}
+        >
+          Sự cố Thi công
+        </button>
+        <button
+          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
+          onClick={() => setActiveTab('inventory')}
+        >
+          Sự cố Kho vật tư
+        </button>
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fit,_minmax(200px,_1fr))] gap-4">
@@ -225,7 +244,7 @@ export const GlobalIncidents: React.FC = () => {
           </div>
         ) : visibleIncidents.length === 0 ? (
           <div className="text-center py-10 text-[hsl(var(--text-muted))] text-[0.9rem] border border-dashed border-[hsl(var(--border))] rounded-md">
-            Hệ thống chưa ghi nhận sự cố thi công nào.
+            Hệ thống chưa ghi nhận sự cố nào.
           </div>
         ) : (
           <div className="table-container">
@@ -283,12 +302,6 @@ export const GlobalIncidents: React.FC = () => {
           phase={selectedPhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
           onResolveClick={() => setIsResolveOpen(true)}
-          onSuccess={handleSuccess}
-          onError={handleError}
-          onIncidentUpdated={(updatedIncident) => {
-            setSelectedIncident(updatedIncident);
-            setIncidents(prev => prev.map(inc => inc.id === updatedIncident.id ? updatedIncident : inc));
-          }}
           projectId={selectedIncident.projectId}
         />
       )}

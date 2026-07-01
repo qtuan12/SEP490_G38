@@ -19,7 +19,8 @@ public record ConfirmIncidentCommand(
     DateTime? ReworkTaskStartDate,
     DateTime? ReworkTaskEndDate,
     int? DecreaseProgressTo,
-    string? DecreaseProgressReason
+    string? DecreaseProgressReason,
+    string? HandlingInstruction
 ) : IRequest<ApiResponse<IncidentDto>>;
 
 public class ConfirmIncidentCommandValidator : AbstractValidator<ConfirmIncidentCommand>
@@ -154,6 +155,10 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
         incident.Status = "Approved";
         incident.ReviewedBy = currentUserId; // TPKT confirming it
+        if (!string.IsNullOrWhiteSpace(request.HandlingInstruction))
+        {
+            incident.HandlingInstruction = request.HandlingInstruction;
+        }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

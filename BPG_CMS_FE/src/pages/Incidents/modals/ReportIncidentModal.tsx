@@ -681,7 +681,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 lineHeight: 1.6,
               }}>
                 <strong>📋 Quy trình tiếp theo:</strong><br />
-                Sau khi PL lưu báo cáo này, <strong>Kế toán</strong> sẽ xem xét, xác minh và tạo <strong>Phiếu Điều chỉnh Giảm Tồn Kho</strong> để trình <strong>Giám đốc</strong> phê duyệt.
+                Sau khi PL lưu báo cáo này, <strong>Kế toán</strong> sẽ xem xét, xác minh và tạo <strong>Phiếu Kiểm kê Giảm Tồn Kho</strong> để trình <strong>Giám đốc</strong> phê duyệt.
               </div>
             )}
             </div>

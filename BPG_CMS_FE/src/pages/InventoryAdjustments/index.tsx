@@ -3,22 +3,20 @@ import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type { Project } from '../../types/common';
 import { AdjustmentList } from './components/AdjustmentList';
-import { GlobalInventoryIncidents } from './components/GlobalInventoryIncidents';
-import { Loader2, FileSignature, AlertTriangle } from 'lucide-react';
+import { Loader2, FileSignature } from 'lucide-react';
 import { FormItem } from '../../components/ui';
 
 export const InventoryAdjustmentsPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'adjustments' | 'incidents'>('adjustments');
 
   useEffect(() => {
     loadProjects();
   }, []);
 
   const { user } = useAuth();
-  const isGlobalRole = user?.role === 'technicalmanager' || user?.role === 'admin' || user?.role === 'accountant';
+  const isGlobalRole = user?.role === 'technicalmanager' || user?.role === 'admin' || user?.role === 'accountant' || user?.role === 'director';
 
   const loadProjects = async () => {
     setLoading(true);
@@ -44,9 +42,9 @@ export const InventoryAdjustmentsPage: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Quản lý Phiếu Điều Chỉnh & Sự cố Kho</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Quản lý Kiểm kê vật tư & Sự cố Kho</h1>
         <p className="text-sm text-[hsl(var(--text-secondary))] mt-1">
-          Xem, tạo, phê duyệt phiếu điều chỉnh tăng/giảm và xử lý các sự cố vật tư.
+          Xem, tạo, phê duyệt phiếu kiểm kê vật tư và xử lý các sự cố vật tư.
         </p>
       </div>
 
@@ -77,44 +75,16 @@ export const InventoryAdjustmentsPage: React.FC = () => {
       </div>
 
       <div className="flex border-b border-[hsl(var(--border))]">
-        <button
-          onClick={() => setActiveTab('adjustments')}
-          className={`flex items-center gap-2 px-6 py-3 font-semibold text-sm transition-colors border-b-2 ${
-            activeTab === 'adjustments' 
-              ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' 
-              : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-main))] hover:border-[hsl(var(--border))]'
-          }`}
-        >
+        <div className="flex items-center gap-2 px-6 py-3 font-semibold text-sm border-b-2 border-[hsl(var(--primary))] text-[hsl(var(--primary))]">
           <FileSignature size={18} />
-          Phiếu Điều Chỉnh
-        </button>
-        <button
-          onClick={() => setActiveTab('incidents')}
-          className={`flex items-center gap-2 px-6 py-3 font-semibold text-sm transition-colors border-b-2 ${
-            activeTab === 'incidents' 
-              ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' 
-              : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-main))] hover:border-[hsl(var(--border))]'
-          }`}
-        >
-          <AlertTriangle size={18} />
-          Báo cáo Sự cố Kho/Vật tư
-        </button>
+          Danh sách Kiểm kê
+        </div>
       </div>
 
       {selectedProjectId === 'all' ? (
-        activeTab === 'adjustments' ? (
-          <div className="text-center py-10 text-[hsl(var(--text-muted))]">
-            Vui lòng chọn một dự án cụ thể để xem phiếu điều chỉnh.
-          </div>
-        ) : (
-          <GlobalInventoryIncidents projectId={0} />
-        )
+        <AdjustmentList projectId={0} />
       ) : parsedProjectId ? (
-        activeTab === 'adjustments' ? (
-          <AdjustmentList projectId={parsedProjectId} />
-        ) : (
-          <GlobalInventoryIncidents projectId={parsedProjectId} />
-        )
+        <AdjustmentList projectId={parsedProjectId} />
       ) : (
         !loading && (
           <div className="text-center py-10 text-[hsl(var(--text-muted))]">

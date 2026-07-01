@@ -38,7 +38,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
     setLoading(true);
     try {
       const incListDtoAll = await incidentService.getIncidents(Number(projectId));
-      const incListDto = incListDtoAll.filter(dto => dto.incidentType !== 'InventoryLoss' && dto.incidentType !== 'InventoryDamage');
+      const incListDto = incListDtoAll;
       const incList: IncidentReport[] = incListDto.map(dto => {
         let desc = dto.description || '';
         const images: string[] = [];
@@ -72,6 +72,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           estimatedLaborDays: dto.estimatedLaborDays,
           estimatedDelayDays: dto.estimatedDelayDays,
           proposedAction: dto.proposedAction,
+          handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
           date: new Date(dto.createdAt).toLocaleString('vi-VN'),
           images: images
@@ -201,7 +202,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           <div className="text-center py-8 text-[hsl(var(--text-muted))]">Đang tải báo cáo sự cố...</div>
         ) : incidents.length === 0 ? (
           <div className="text-center py-10 text-[hsl(var(--text-muted))] text-[0.9rem] border border-dashed border-[hsl(var(--border))] rounded-md">
-            Chưa ghi nhận sự cố thi công nào tại dự án này.
+            Chưa ghi nhận sự cố nào tại dự án này.
           </div>
         ) : (
           <div className="table-container">
@@ -252,12 +253,6 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           phase={selectedTaskPhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
           onResolveClick={() => setIsResolveOpen(true)}
-          onSuccess={handleSuccess}
-          onError={handleError}
-          onIncidentUpdated={(updatedIncident) => {
-            setSelectedIncident(updatedIncident);
-            setIncidents(prev => prev.map(inc => inc.id === updatedIncident.id ? updatedIncident : inc));
-          }}
           projectId={projectId}
         />
       )}

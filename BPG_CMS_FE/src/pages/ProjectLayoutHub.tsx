@@ -200,13 +200,15 @@ export const ProjectLayoutHub: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button onClick={() => navigate(`/projects/${projectId}/reports/boq`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Package size={16} /> Báo cáo BOQ
-            </button>
-            {(user?.role === 'admin' || user?.role === 'director') && (
-              <button onClick={() => navigate(`/projects/${projectId}/reports/cost`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <AlertCircle size={16} /> Báo cáo Chi phí
-              </button>
+            {(user?.role === 'director' || user?.role === 'accountant') && (
+              <>
+                <button onClick={() => navigate(`/projects/${projectId}/reports/boq`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Package size={16} /> Báo cáo BOQ
+                </button>
+                <button onClick={() => navigate(`/projects/${projectId}/reports/cost`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertCircle size={16} /> Báo cáo Chi phí
+                </button>
+              </>
             )}
 
             {/* Project Status Actions for TPKT */}

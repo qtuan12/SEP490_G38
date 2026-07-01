@@ -102,6 +102,7 @@ export interface IncidentReport {
   estimatedLaborDays?: number;
   estimatedDelayDays?: number;
   proposedAction?: string;
+  handlingInstruction?: string;
   reworkTaskId?: string;
 
   // Custom fields for frontend

@@ -19,7 +19,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("increase")]
-        [Authorize(Roles = "TechnicalManager,ProjectLeader,Admin")]
+        [Authorize(Roles = "TechnicalManager,ProjectLeader,Admin,SiteEngineer")]
         public async Task<IActionResult> CreateIncrease(long projectId, [FromBody] CreateIncreaseAdjustmentCommand command)
         {
             command.ProjectId = projectId;

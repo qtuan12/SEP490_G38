@@ -10,10 +10,11 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onError?: (msg: string) => void;
   projectId: number;
 }
 
-export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId }) => {
+export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, projectId }) => {
   const [loading, setLoading] = useState(false);
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
@@ -50,7 +51,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     
     // Check if already exists
     if (items.some(x => x.materialId === Number(selectedMaterialId))) {
-      alert('Vật tư này đã được chọn.');
+      if (onError) onError('Vật tư này đã được chọn.');
       return;
     }
 
@@ -71,12 +72,12 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (items.length === 0) {
-      alert('Vui lòng thêm ít nhất 1 vật tư.');
+    if (!incidentId) {
+      if (onError) onError('Vui lòng chọn sự cố liên quan.');
       return;
     }
-    if (!incidentId) {
-      alert('Vui lòng chọn sự cố liên quan.');
+    if (items.length === 0) {
+      if (onError) onError('Vui lòng thêm ít nhất 1 vật tư.');
       return;
     }
 
@@ -90,7 +91,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       });
       onSuccess();
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi tạo phiếu giảm tồn.');
+      if (onError) onError(err.message || 'Lỗi khi tạo phiếu giảm tồn.');
     } finally {
       setLoading(false);
     }

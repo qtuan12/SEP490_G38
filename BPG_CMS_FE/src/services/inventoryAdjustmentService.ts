@@ -17,6 +17,7 @@ export interface AdjustmentItemDto {
 export interface InventoryAdjustmentDto {
   adjustmentId: number;
   projectId: number;
+  projectName: string;
   incidentId: number | null;
   adjustmentType: string;
   reason: string;

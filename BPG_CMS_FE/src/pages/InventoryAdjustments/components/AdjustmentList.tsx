@@ -29,6 +29,9 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   const [isIncreaseOpen, setIsIncreaseOpen] = useState(false);
   const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
   const [reviewId, setReviewId] = useState<number | null>(null);
+  
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -49,12 +52,12 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   };
 
   useEffect(() => {
-    if (!projectId || projectId <= 0) return;
+    if (projectId === null || projectId === undefined || projectId < 0) return;
     loadData();
   }, [projectId, page, pageSize, typeFilter, statusFilter]);
 
   useEffect(() => {
-    if (!projectId || projectId <= 0) return;
+    if (projectId === null || projectId === undefined || projectId <= 0) return;
     const checkLeader = async () => {
       if (!user) return;
       if (user.role === 'admin') {
@@ -76,11 +79,20 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     checkLeader();
   }, [projectId, user]);
 
-  const handleSuccess = () => {
+  const handleSuccess = (msg?: string) => {
     setIsIncreaseOpen(false);
     setIsDecreaseOpen(false);
     setReviewId(null);
+    if (msg) {
+      setSuccess(msg);
+      setTimeout(() => setSuccess(null), 3000);
+    }
     loadData();
+  };
+
+  const handleError = (msg: string) => {
+    setError(msg);
+    setTimeout(() => setError(null), 4000);
   };
 
   const getStatusBadge = (status: string) => {
@@ -98,11 +110,21 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     return <span>{type}</span>;
   };
 
-  const canCreateIncrease = isProjectLeader || user?.role === 'admin';
-  const canCreateDecrease = user?.role === 'accountant' || user?.role === 'admin';
+  const canCreateIncrease = projectId > 0 && (isProjectLeader || user?.role === 'admin');
+  const canCreateDecrease = projectId > 0 && (user?.role === 'accountant' || user?.role === 'admin');
 
   return (
     <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl shadow-sm overflow-hidden flex flex-col">
+      {success && (
+        <div className="m-4 mb-0 animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
+          {success}
+        </div>
+      )}
+      {error && (
+        <div className="m-4 mb-0 animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
+          {error}
+        </div>
+      )}
       <div className="p-4 border-b border-[hsl(var(--border))] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex gap-2">
           <select 
@@ -146,6 +168,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
           <thead className="bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] border-b border-[hsl(var(--border))]">
             <tr>
               <th className="px-4 py-3 font-medium">Mã Phiếu</th>
+              {projectId === 0 && <th className="px-4 py-3 font-medium">Dự án</th>}
               <th className="px-4 py-3 font-medium">Loại</th>
               <th className="px-4 py-3 font-medium">Lý do</th>
               <th className="px-4 py-3 font-medium">Trạng thái</th>
@@ -157,14 +180,15 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
-                  Không có dữ liệu phiếu điều chỉnh
+                <td colSpan={projectId === 0 ? 8 : 7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
+                  Không có dữ liệu phiếu kiểm kê
                 </td>
               </tr>
             ) : (
               data.map(item => (
                 <tr key={item.adjustmentId} className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors">
                   <td className="px-4 py-3 font-medium">ADJ-{item.adjustmentId.toString().padStart(5, '0')}</td>
+                  {projectId === 0 && <td className="px-4 py-3 text-[hsl(var(--primary))] font-semibold truncate max-w-[150px]" title={item.projectName}>{item.projectName || `Dự án #${item.projectId}`}</td>}
                   <td className="px-4 py-3">{getTypeBadge(item.adjustmentType)}</td>
                   <td className="px-4 py-3 max-w-xs truncate" title={item.reason}>{item.reason}</td>
                   <td className="px-4 py-3">{getStatusBadge(item.status)}</td>
@@ -194,7 +218,8 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <CreateIncreaseAdjustmentModal
           isOpen={isIncreaseOpen}
           onClose={() => setIsIncreaseOpen(false)}
-          onSuccess={handleSuccess}
+          onSuccess={() => handleSuccess('Tạo phiếu tăng thành công.')}
+          onError={handleError}
           projectId={projectId}
         />
       )}
@@ -204,6 +229,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
           isOpen={isDecreaseOpen}
           onClose={() => setIsDecreaseOpen(false)}
           onSuccess={handleSuccess}
+          onError={handleError}
           projectId={projectId}
         />
       )}
@@ -212,7 +238,8 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <ReviewAdjustmentModal
           isOpen={reviewId !== null}
           onClose={() => setReviewId(null)}
-          onSuccess={handleSuccess}
+          onSuccess={() => handleSuccess('Duyệt phiếu thành công.')}
+          onError={handleError}
           adjustmentId={reviewId}
           adjustmentData={data.find(x => x.adjustmentId === reviewId)}
         />

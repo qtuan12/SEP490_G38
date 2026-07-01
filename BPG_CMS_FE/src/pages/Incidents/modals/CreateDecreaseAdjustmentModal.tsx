@@ -137,7 +137,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({
       });
     },
     onSuccess: () => {
-      onSuccess('Tạo phiếu điều chỉnh giảm tồn thành công. Chờ Giám đốc phê duyệt.');
+      onSuccess('Tạo phiếu kiểm kê giảm tồn thành công. Chờ Giám đốc phê duyệt.');
       reset();
       onClose();
     },
@@ -165,7 +165,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Xác minh & Tạo Phiếu Điều Chỉnh Giảm Tồn" width="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Xác minh & Tạo Phiếu Kiểm Kê Giảm Tồn" width="lg">
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="flex flex-col gap-4">
 
         {/* Incident summary */}

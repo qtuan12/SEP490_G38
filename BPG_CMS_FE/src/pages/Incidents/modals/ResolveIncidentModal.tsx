@@ -9,6 +9,7 @@ import type {IncidentReport, ProjectMember, WBSPhase, WBSTask} from '../../../ty
 import { Info, AlertCircle } from 'lucide-react';
 
 const schema = z.object({
+  handlingInstruction: z.string().min(1, 'Vui lòng nhập hướng dẫn xử lý/giải quyết'),
   resolutionAction: z.enum(['rework', 'reduce_progress']),
   reworkName: z.string().optional(),
   reworkDeadline: z.string().optional(),
@@ -64,6 +65,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
     resolver: zodResolver(schema),
     defaultValues: {
       resolutionAction: 'rework',
+      handlingInstruction: '',
       reworkName: `[Rework] Khắc phục - ${incident.taskName}`,
       reworkDeadline: phase?.deadline || '',
       reworkAssigneeId: members.length > 0 ? members[0].userId : '',
@@ -79,6 +81,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       reset({
+        handlingInstruction: '',
         resolutionAction: 'rework',
         reworkName: `[Rework] Khắc phục - ${incident.taskName}`,
         reworkDeadline: phase?.deadline || '',
@@ -117,7 +120,8 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
           reworkTaskStartDate,
           reworkTaskEndDate,
           decreaseProgressTo,
-          decreaseProgressReason: data.reduceProgressReason
+          decreaseProgressReason: data.reduceProgressReason,
+          handlingInstruction: data.handlingInstruction
         }
       );
       
@@ -156,6 +160,19 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title="Phê duyệt Sự cố">
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         
+        <div style={{ padding: '16px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-card))' }}>
+          <label htmlFor="handlingInstruction" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Hướng dẫn xử lý / Giải quyết <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+          <textarea
+            id="handlingInstruction"
+            rows={3}
+            className="input"
+            style={{ marginTop: '6px' }}
+            placeholder="Nhập hướng giải quyết cho sự cố này..."
+            {...register('handlingInstruction')}
+          />
+          {errors.handlingInstruction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.handlingInstruction.message}</span>}
+        </div>
+
         {/* Option Cards for Selection */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '8px' }}>
           <label 

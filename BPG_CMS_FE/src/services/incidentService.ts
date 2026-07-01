@@ -19,6 +19,7 @@ export interface IncidentDto {
   estimatedLaborDays?: number;
   estimatedDelayDays?: number;
   proposedAction?: string;
+  handlingInstruction?: string;
   reworkTaskId?: number;
   createdAt: string;
   updatedAt?: string;
@@ -60,6 +61,7 @@ export const incidentService = {
       reworkTaskEndDate?: string;
       decreaseProgressTo?: number;
       decreaseProgressReason?: string;
+      handlingInstruction?: string;
     }
   ): Promise<IncidentDto> {
     const response = await apiClient.put<ApiResponse<IncidentDto>>(`/incidents/${id}/confirm`, data);

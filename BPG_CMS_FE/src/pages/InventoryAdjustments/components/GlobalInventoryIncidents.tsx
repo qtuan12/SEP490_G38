@@ -76,6 +76,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           estimatedLaborDays: dto.estimatedLaborDays,
           estimatedDelayDays: dto.estimatedDelayDays,
           proposedAction: dto.proposedAction,
+          handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
           date: new Date(dto.createdAt).toLocaleString('vi-VN'),
           images: images
@@ -298,12 +299,6 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
             // Close detail modal, which will cause CreateDecreaseAdjustmentModal to render
             // because of the !isDetailOpen condition below
             setIsDetailOpen(false);
-          }}
-          onSuccess={handleSuccess}
-          onError={handleError}
-          onIncidentUpdated={(updatedIncident) => {
-            setSelectedIncident(updatedIncident);
-            setIncidents(prev => prev.map(inc => inc.id === updatedIncident.id ? updatedIncident : inc));
           }}
           projectId={selectedIncident.projectId}
         />

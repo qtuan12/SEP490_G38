@@ -11,7 +11,7 @@ namespace BPG.Api.Controllers;
 public class IncidentsController : BaseApiController
 {
     [HttpGet("all")]
-    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin},{UserRole.Accountant}")]
+    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin},{UserRole.Accountant},{UserRole.Director}")]
     public async Task<IActionResult> GetAllIncidents(CancellationToken ct)
     {
         var result = await Mediator.Send(new BPG.Application.Features.Incidents.Queries.GetAllIncidents.GetAllIncidentsQuery(), ct);

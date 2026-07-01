@@ -20,6 +20,7 @@ public record IncidentDto
     public int? EstimatedDelayDays { get; init; }
     public string? ProposedAction { get; init; }
     public long? ReworkTaskId { get; init; }
+    public string? HandlingInstruction { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
 }

@@ -107,6 +107,7 @@ namespace BPG.Application.Common.Mappings
 
             // Inventory Adjustment Mappings
             CreateMap<Domain.Entities.InventoryAdjustment, BPG.Application.DTOs.Inventory.InventoryAdjustmentDto>()
+                .ForMember(dest => dest.ProjectName, opt => opt.MapFrom(src => src.Project != null ? src.Project.Name : string.Empty))
                 .ForMember(dest => dest.CreatorName, opt => opt.Ignore()) // Would need User info, or use audit
                 .ForMember(dest => dest.ApproverName, opt => opt.MapFrom(src => src.Approver != null ? src.Approver.FullName : string.Empty))
                 .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Items));

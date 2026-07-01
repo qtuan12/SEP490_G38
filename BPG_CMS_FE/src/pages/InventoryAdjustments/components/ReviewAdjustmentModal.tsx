@@ -7,11 +7,12 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onError?: (msg: string) => void;
   adjustmentId: number;
   adjustmentData?: InventoryAdjustmentDto;
 }
 
-export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, adjustmentId, adjustmentData }) => {
+export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, adjustmentId, adjustmentData }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -32,7 +33,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
       });
       onSuccess();
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi duyệt phiếu.');
+      if (onError) onError(err.message || 'Lỗi khi duyệt phiếu.');
     } finally {
       setLoading(false);
     }
@@ -40,7 +41,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
 
   const handleReject = async () => {
     if (!rejectReason) {
-      alert('Vui lòng nhập lý do từ chối.');
+      if (onError) onError('Vui lòng nhập lý do từ chối.');
       return;
     }
 
@@ -52,7 +53,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
       });
       onSuccess();
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi từ chối phiếu.');
+      if (onError) onError(err.message || 'Lỗi khi từ chối phiếu.');
     } finally {
       setLoading(false);
     }
@@ -61,7 +62,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
   if (!adjustmentData) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Chi tiết Phiếu Điều Chỉnh #${adjustmentData.adjustmentId}`} width="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Chi tiết Phiếu Kiểm Kê #${adjustmentData.adjustmentId}`} width="md">
       <div className="flex flex-col gap-4">
         
         <div className="bg-slate-50 p-4 rounded-xl border flex flex-col gap-2 text-sm">
@@ -136,7 +137,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
               <div className="flex flex-col gap-3">
                 <div className="bg-amber-50 text-amber-800 p-3 rounded-lg border border-amber-200">
                   <strong className="block mb-1">Xác nhận phê duyệt</strong>
-                  Bạn có chắc chắn muốn duyệt phiếu điều chỉnh này? Tồn kho sẽ bị thay đổi ngay lập tức theo nội dung phiếu.
+                  Bạn có chắc chắn muốn duyệt phiếu kiểm kê này? Tồn kho sẽ bị thay đổi ngay lập tức theo nội dung phiếu.
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" onClick={() => setMode('view')}>Hủy</Button>

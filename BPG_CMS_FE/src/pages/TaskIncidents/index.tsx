@@ -244,12 +244,6 @@ export const TaskIncidents: React.FC = () => {
         phase={selectedTaskPhase}
         user={user ? { id: user.id, name: user.name, role: user.role } : null}
         onResolveClick={() => setIsResolveOpen(true)}
-        onSuccess={handleSuccess}
-        onError={handleError}
-        onIncidentUpdated={(updatedIncident) => {
-          setSelectedIncident(updatedIncident);
-          setIncidents(prev => prev.map(inc => inc.id === updatedIncident.id ? updatedIncident : inc));
-        }}
         projectId={projectId!}
       />
 

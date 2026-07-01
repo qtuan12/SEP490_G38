@@ -1,19 +1,8 @@
 import React from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { MiniMarkdown } from '../../../components/ui/MiniMarkdown';
-import { projectService } from '../../../services/projectService';
 import type { IncidentReport, WBSPhase } from '../../../types/common';
 import { ArrowRight, AlertCircle, CheckCircle, HardHat, Package, MapPin, Clock, Users, BarChart3 } from 'lucide-react';
-
-const commentSchema = z.object({
-  commentText: z.string().min(1, 'Vui lòng nhập ý kiến')
-});
-
-type CommentFormData = z.infer<typeof commentSchema>;
 
 interface IncidentDetailModalProps {
   isOpen: boolean;
@@ -22,9 +11,6 @@ interface IncidentDetailModalProps {
   phase: WBSPhase | null;
   user: { id: string; name: string; role: string } | null;
   onResolveClick: () => void;
-  onSuccess: (msg: string) => void;
-  onError: (msg: string) => void;
-  onIncidentUpdated: (updatedIncident: IncidentReport) => void;
   projectId: string;
 }
 
@@ -85,38 +71,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   phase,
   user,
   onResolveClick,
-  onSuccess,
-  onError,
-  onIncidentUpdated,
 }) => {
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<CommentFormData>({
-    resolver: zodResolver(commentSchema)
-  });
-
-  const commentMutation = useMutation({
-    mutationFn: async (data: CommentFormData) => {
-      if (!user) throw new Error('Chưa đăng nhập');
-      return projectService.addIncidentComment(
-        incident.id,
-        { name: user.name, role: user.role, id: user.id },
-        data.commentText.trim()
-      );
-    },
-    onSuccess: (newComment) => {
-      onIncidentUpdated({
-        ...incident,
-        comments: [...(incident.comments || []), newComment]
-      });
-      reset();
-      onSuccess('Đã gửi ý kiến thành công.');
-    },
-    onError: (err: any) => {
-      onError(err.message || 'Lỗi khi gửi ý kiến.');
-    }
-  });
-
-  const onCommentSubmit = (data: CommentFormData) => commentMutation.mutate(data);
-
   if (!isOpen || !incident) return null;
 
   const incidentType = incident.incidentType as keyof typeof INCIDENT_META;
@@ -325,48 +280,27 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               </span>
               <p style={{ margin: '6px 0 0', fontSize: '0.85rem', color: 'hsl(var(--text-primary))' }}>
                 {isInventoryIncident
-                  ? 'Sự cố đã được Kế toán xác minh. Phiếu Điều chỉnh Giảm Tồn đang chờ Giám đốc phê duyệt.'
+                  ? 'Sự cố đã được Kế toán xác minh. Phiếu Kiểm kê Giảm Tồn đang chờ Giám đốc phê duyệt.'
                   : 'Sự cố đã được TPKT thẩm định. Rework Task hoặc điều chỉnh tiến độ đã được áp dụng.'}
               </p>
             </div>
           </div>
         )}
 
-        {/* ── Consultation comments ──────────────────────────────────── */}
+        {/* ── Handling Instruction ─────────────────────────────────────── */}
         <div style={{ border: '1px solid hsl(var(--border))', borderRadius: '10px', overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', background: 'hsl(var(--bg-muted))' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Nhận xét & Hướng dẫn xử lý
+              Hướng dẫn xử lý (Từ cấp quản lý)
             </span>
           </div>
           <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {!incident.comments || incident.comments.length === 0 ? (
-                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Chưa có nhận xét hoặc hướng dẫn nào.</span>
-              ) : (
-                incident.comments.map((c) => (
-                  <div key={c.id} style={{ padding: '8px 10px', background: 'hsl(var(--bg-card))', borderRadius: '6px', border: '1px solid hsl(var(--border))', fontSize: '0.8rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, marginBottom: '3px' }}>
-                      <span>{c.userName} <span style={{ fontWeight: 400, color: 'hsl(var(--text-muted))' }}>({c.role.toUpperCase()})</span></span>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 400, color: 'hsl(var(--text-muted))' }}>{c.date}</span>
-                    </div>
-                    <p style={{ margin: 0, color: 'hsl(var(--text-secondary))' }}>{c.content}</p>
-                  </div>
-                ))
-              )}
-            </div>
-            {user && (
-              <form onSubmit={handleSubmit(onCommentSubmit)} style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                <input
-                  type="text"
-                  placeholder="Ghi chú nhận xét hoặc hướng xử lý cho nhân viên..."
-                  {...register('commentText')}
-                  style={{ flex: 1, fontSize: '0.8rem', padding: '7px 10px', borderRadius: '6px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}
-                />
-                <button type="submit" className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={isSubmitting}>
-                  {isSubmitting ? 'Đang gửi...' : 'Gửi'}
-                </button>
-              </form>
+            {incident.handlingInstruction ? (
+              <div style={{ padding: '10px', background: 'hsl(var(--bg-card))', borderRadius: '6px', border: '1px solid hsl(var(--border))', fontSize: '0.85rem', color: 'hsl(var(--text-primary))', whiteSpace: 'pre-wrap' }}>
+                {incident.handlingInstruction}
+              </div>
+            ) : (
+              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Chưa có hướng dẫn xử lý.</span>
             )}
           </div>
         </div>
