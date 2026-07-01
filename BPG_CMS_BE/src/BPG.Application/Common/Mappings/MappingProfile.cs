@@ -104,6 +104,19 @@ namespace BPG.Application.Common.Mappings
                         : string.Empty));
 
             CreateMap<Attachment, BPG.Application.Features.Projects.DTOs.AttachmentDto>();
+
+            // MaterialRequest Mapping
+            CreateMap<MaterialRequest, BPG.Application.DTOs.MaterialRequests.MaterialRequestDto>()
+                .ForMember(dest => dest.ProjectId, opt => opt.MapFrom(src => src.Phase != null ? src.Phase.ProjectId : 0))
+                .ForMember(dest => dest.PhaseName, opt => opt.MapFrom(src => src.Phase != null ? src.Phase.Name : string.Empty))
+                .ForMember(dest => dest.CheckedByName, opt => opt.MapFrom(src => src.Checker != null ? src.Checker.FullName : string.Empty))
+                .ForMember(dest => dest.ApprovedByName, opt => opt.MapFrom(src => src.Approver != null ? src.Approver.FullName : string.Empty))
+                .ForMember(dest => dest.CreatedByName, opt => opt.Ignore());
+
+            CreateMap<MaterialRequestItem, BPG.Application.DTOs.MaterialRequests.MaterialRequestItemDto>()
+                .ForMember(dest => dest.MaterialName, opt => opt.MapFrom(src => src.Material != null ? src.Material.Name : string.Empty))
+                .ForMember(dest => dest.MaterialCode, opt => opt.MapFrom(src => src.Material != null ? src.Material.Code : string.Empty))
+                .ForMember(dest => dest.UnitName, opt => opt.MapFrom(src => src.Unit != null ? src.Unit.UnitName : string.Empty));
         }
     }
 }

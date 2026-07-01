@@ -194,6 +194,8 @@ export const WBSModalsContainer = () => {
           isOpen={isBOQOpen}
           onClose={() => { setIsBOQOpen(false); setSelectedPhaseForBOQ(null); }}
           phase={selectedPhaseForBOQ}
+          projectId={projectId}
+          hasActiveMRs={materialRequests.some(mr => mr.phaseId === selectedPhaseForBOQ.id && mr.status !== 'rejected')}
           onSuccess={handleSuccess}
           onError={handleError}
         />

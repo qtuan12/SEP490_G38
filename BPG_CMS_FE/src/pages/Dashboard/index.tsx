@@ -70,10 +70,12 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
-    fetchMaterialRequests();
+    if (isAccountant || isDirector) {
+      fetchMaterialRequests();
+    }
     fetchWarnings();
     fetchMetrics();
-  }, []);
+  }, [isAccountant, isDirector]);
 
   const handleVerifyRequestByAccountant = async (reqId: string) => {
     try {
@@ -231,21 +233,23 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Main Content Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-start">
+      <div className={isAccountant || isDirector ? "grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-start" : "grid grid-cols-1 gap-6 items-start"}>
         {/* Recent Activities / site diary */}
         <RecentActivities activities={recentActivities} />
 
         {/* Step 5: Material Compensation & Over BOQ verification workspace */}
-        <MaterialCompensationTable
-          materialRequests={materialRequests}
-          loadingRequests={loadingRequests}
-          isAccountant={isAccountant}
-          isDirector={isDirector}
-          handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
-          handleDisburseRequestByAccountant={handleDisburseRequestByAccountant}
-          handleApproveRequestByDirector={handleApproveRequestByDirector}
-          handleRejectRequest={handleRejectRequest}
-        />
+        {(isAccountant || isDirector) && (
+          <MaterialCompensationTable
+            materialRequests={materialRequests}
+            loadingRequests={loadingRequests}
+            isAccountant={isAccountant}
+            isDirector={isDirector}
+            handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
+            handleDisburseRequestByAccountant={handleDisburseRequestByAccountant}
+            handleApproveRequestByDirector={handleApproveRequestByDirector}
+            handleRejectRequest={handleRejectRequest}
+          />
+        )}
       </div>
     </div>
   );
