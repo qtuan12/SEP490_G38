@@ -27,6 +27,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   // Form fields
   const [delivererInfo, setDelivererInfo] = useState('');
   const [deliveryDocNo, setDeliveryDocNo] = useState('');
+  const [qcNote, setQcNote] = useState('');
   const [quantities, setQuantities] = useState<Record<number, string>>({}); // materialId -> qty string
   const [errors, setErrors] = useState<Record<number, string>>({}); // materialId -> error message
 
@@ -43,6 +44,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       setSelectedPO(null);
       setDelivererInfo('');
       setDeliveryDocNo('');
+      setQcNote('');
       setQuantities({});
       setErrors({});
       setSelectedFiles([]);
@@ -208,7 +210,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
       await inventoryService.createGoodsReceipt({
         poId: selectedPO.poId,
-        delivererInfo: delivererInfo.trim() || null,
+        delivererInfo: delivererInfo.trim() ? `[QC: ${qcNote.trim() || 'Đạt'}] ${delivererInfo.trim()}` : `[QC: ${qcNote.trim() || 'Đạt'}]`,
         deliveryDocNo: deliveryDocNo.trim() || null,
         items: submitItems,
         images: imageUrls
@@ -270,6 +272,15 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             />
           </FormItem>
 
+          <FormItem label="Ghi chú chất lượng kiểm hàng (QC)">
+            <Input
+              value={qcNote}
+              onChange={e => setQcNote(e.target.value)}
+              placeholder="VD: Cát sạch đạt yêu cầu, trả lại 2 cây thép rỉ..."
+              disabled={submitting}
+            />
+          </FormItem>
+
           <FormItem label="Số phiếu giao hàng (NCC)">
             <Input
               value={deliveryDocNo}
@@ -285,7 +296,6 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
               onChange={e => setDelivererInfo(e.target.value)}
               placeholder="Họ tên người giao, SĐT..."
               disabled={submitting}
-              className="md:col-span-2"
             />
           </FormItem>
         </div>

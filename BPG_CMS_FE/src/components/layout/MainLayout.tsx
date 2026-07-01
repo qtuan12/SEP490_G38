@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  LogOut, 
-  Hammer, 
-  Boxes, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Users,
+  LogOut,
+  Hammer,
+  Boxes,
+  Menu,
   FileText,
   Truck,
   Ruler,
   Tags,
   Package,
   FileSignature,
-  AlertTriangle
+  AlertTriangle,
+  ShoppingCart,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
@@ -43,8 +45,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Kho Vật tư (Catalog)', path: '/materials', icon: <Package size={20} />, roles: ['admin'] },
     { name: 'Kiểm kê vật tư', path: '/inventory-adjustments', icon: <FileSignature size={20} />, roles: ['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer'] },
     { name: 'Sự cố thi công', path: '/incidents', icon: <AlertTriangle size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
-    { name: 'Kiểm soát Vật tư', path: '#materials', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'], disabled: true },
+    { name: 'Kiểm soát Vật tư', path: '/materials-control', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
+    { name: 'Danh sách PO', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: ['accountant'] },
     { name: 'Báo cáo', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant'] },
+    { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, roles: ['admin'] },
   ];
 
   const filteredNavItems = navItems.filter(item => user && item.roles.includes(user.role));

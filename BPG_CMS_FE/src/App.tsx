@@ -30,6 +30,11 @@ import { BoqVsActualReport } from './pages/Reports/BoqVsActualReport';
 import { CostReferenceReport } from './pages/Reports/CostReferenceReport';
 import { ReportsHub } from './pages/ReportsHub';
 import { GlobalIncidents } from './pages/GlobalIncidents';
+import { MaterialControl } from './pages/MaterialControl';
+import { PurchaseOrderList } from './pages/PurchaseOrders';
+import { CreatePOPage } from './pages/PurchaseOrders/CreatePOPage';
+import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
+import { SystemConfigPage } from './pages/SystemConfig';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -199,9 +204,18 @@ function App() {
               />
 
               <Route 
+                path="/materials-control" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'director', 'accountant']}>
+                    <MaterialControl />
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
                 path="/projects" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
                     <ProjectList />
                   </ProtectedRoute>
                 } 
@@ -210,7 +224,7 @@ function App() {
               <Route 
                 path="/projects/:projectId" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <ProjectLayoutHub />
                   </ProtectedRoute>
                 } 
@@ -219,7 +233,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/logs" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
                     <ProjectDailyLogs />
                   </ProtectedRoute>
                 } 
@@ -228,8 +242,17 @@ function App() {
               <Route 
                 path="/projects/:projectId/tasks/:taskId/logs" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
                     <ProjectDailyLogs />
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
+                path="/projects/:projectId/tasks/:taskId/incidents" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
+                    <TaskIncidents />
                   </ProtectedRoute>
                 } 
               />
@@ -237,7 +260,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/phases/:phaseId/material-requests" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director', 'accountant']} noLayout>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']} noLayout>
                     <PhaseMaterialRequests />
                   </ProtectedRoute>
                 } 
@@ -246,7 +269,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/phases/:phaseId/acceptance" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader']}>
                     <PhaseAcceptance />
                   </ProtectedRoute>
                 } 
@@ -255,7 +278,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/gantt" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
                     <GanttChart />
                   </ProtectedRoute>
                 } 
@@ -264,7 +287,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/drawing" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
                     <ProjectDrawing />
                   </ProtectedRoute>
                 } 
@@ -309,20 +332,56 @@ function App() {
               <Route 
                 path="/tasks/:taskId" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer']}>
                     <TaskDetailSE />
                   </ProtectedRoute>
                 } 
               />
 
-              {/* Phase Acceptances List */}
-              <Route 
-                path="/phase-acceptances" 
+              {/* Purchase Orders - Accountant */}
+              <Route
+                path="/purchase-orders"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'director']}>
+                  <ProtectedRoute allowedRoles={['accountant']}>
+                    <PurchaseOrderList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/purchase-orders/new"
+                element={
+                  <ProtectedRoute allowedRoles={['accountant']}>
+                    <CreatePOPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/purchase-orders/:id"
+                element={
+                  <ProtectedRoute allowedRoles={['accountant']}>
+                    <PODetailPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* System Config - Admin only */}
+              <Route
+                path="/system-config"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <SystemConfigPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Phase Acceptances List */}
+              <Route
+                path="/phase-acceptances"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'director']}>
                     <PhaseAcceptances />
                   </ProtectedRoute>
-                } 
+                }
               />
 
               {/* Inventory Adjustments */}

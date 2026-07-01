@@ -1,5 +1,15 @@
+using System.Collections.Generic;
+
 namespace BPG.Application.DTOs.Inventory
 {
+    public class MaterialPhaseUsageDto
+    {
+        public long PhaseId { get; set; }
+        public string PhaseName { get; set; } = string.Empty;
+        public decimal BoqQuantity { get; set; }
+        public decimal UsedQuantity { get; set; }
+    }
+
     public class CurrentInventoryDto
     {
         public long InventoryId { get; set; }
@@ -14,5 +24,12 @@ namespace BPG.Application.DTOs.Inventory
         public decimal ReservedQuantity { get; set; }
         public decimal AvailableQuantity => Quantity - ReservedQuantity;
         public decimal SafetyThreshold { get; set; }
+        public decimal BoqQuantity { get; set; }
+        public decimal UsedQuantity { get; set; }
+        public decimal AvgUnitPrice { get; set; }
+        public decimal StockValue => Quantity * AvgUnitPrice;
+        public System.DateTime LastUpdated { get; set; }
+        public string SupplierName { get; set; } = "Chưa nhập";
+        public List<MaterialPhaseUsageDto> PhaseUsages { get; set; } = new List<MaterialPhaseUsageDto>();
     }
 }

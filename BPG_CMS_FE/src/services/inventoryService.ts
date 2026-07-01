@@ -12,6 +12,96 @@ import type {
   CreateMaterialIssuanceCommand
 } from '../types/inventory';
 
+// ─── PO Types ───────────────────────────────────────────────────────────────
+
+export interface ApprovedRequestForPODto {
+  requestId: number;
+  reason: string;
+  projectId: number;
+  projectName: string;
+  phaseId: number;
+  phaseName: string;
+  hasPO: boolean;
+  items: RequestItemForPODto[];
+}
+
+export interface RequestItemForPODto {
+  requestItemId: number;
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  specification: string;
+  unitId: number;
+  unitName: string;
+  quantity: number;
+  conversionRate: number;
+}
+
+export interface CreatePurchaseOrderCommand {
+  poNumber?: string;
+  orderDate: string;
+  supplierId?: number;
+  projectId: number;
+  expectedDeliveryDate?: string;
+  deliveryAddress?: string;
+  paymentTerms?: string;
+  notes?: string;
+  requestIds: number[];
+  items: CreatePOItemDto[];
+}
+
+export interface CreatePOItemDto {
+  materialId: number;
+  unitId: number;
+  quantity: number;
+  unitPrice: number;
+  conversionRate?: number;
+  notes?: string;
+}
+
+// PO Detail
+export interface PurchaseOrderDetailDto {
+  poId: number;
+  poNumber: string;
+  status: string;
+  orderDate: string;
+  expectedDeliveryDate?: string;
+  deliveryAddress?: string;
+  paymentTerms?: string;
+  notes?: string;
+  totalAmount: number;
+  supplierId?: number;
+  supplierName: string;
+  supplierContactInfo?: string;
+  projectId?: number;
+  projectName: string;
+  cancelledReason?: string;
+  items: PODetailItemDto[];
+  linkedRequests: LinkedRequestDto[];
+}
+
+export interface PODetailItemDto {
+  poItemId: number;
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  specification: string;
+  unitId: number;
+  unitName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  conversionRate: number;
+  totalReceived: number;
+  notes?: string;
+}
+
+export interface LinkedRequestDto {
+  requestId: number;
+  reason: string;
+  phaseName: string;
+}
+
 // Type for PO list dropdown
 export interface PurchaseOrderDto {
   poId: number;
@@ -124,13 +214,63 @@ export const inventoryService = {
     );
   },
 
-  // Get POs for dropdown (Sent and PartiallyReceived)
+  // Get POs for dropdown (Sent and PartiallyReceived) — pass large pageSize to load all
   getPurchaseOrdersForReceipt: async (projectId: number): Promise<PurchaseOrderDto[]> => {
     const params: Record<string, string> = {
-      projectId: projectId.toString()
+      projectId: projectId.toString(),
+      pageSize: '100',
     };
+    const paged = unwrap(
+      await apiClient.get<ApiResponse<PagedList<PurchaseOrderDto>>>('/purchaseorders', { params })
+    );
+    return paged.items ?? [];
+  },
+
+  // Get approved material requests for a project (for PO creation)
+  getApprovedRequestsForPO: async (projectId: number): Promise<ApprovedRequestForPODto[]> => {
     return unwrap(
-      await apiClient.get<ApiResponse<PurchaseOrderDto[]>>('/purchaseorders', { params })
+      await apiClient.get<ApiResponse<ApprovedRequestForPODto[]>>('/purchaseorders/approved-requests', {
+        params: { projectId: projectId.toString() },
+      })
+    );
+  },
+
+  // Cancel PO
+  cancelPurchaseOrder: async (poId: number, reason: string): Promise<boolean> => {
+    return unwrap(
+      await apiClient.post<ApiResponse<boolean>>(`/purchaseorders/${poId}/cancel`, { reason })
+    );
+  },
+
+  // Get PO detail by ID
+  getPurchaseOrderById: async (poId: number): Promise<PurchaseOrderDetailDto> => {
+    return unwrap(
+      await apiClient.get<ApiResponse<PurchaseOrderDetailDto>>(`/purchaseorders/${poId}`)
+    );
+  },
+
+  // Create Purchase Order
+  createPurchaseOrder: async (command: CreatePurchaseOrderCommand): Promise<number> => {
+    return unwrap(
+      await apiClient.post<ApiResponse<number>>('/purchaseorders', command)
+    );
+  },
+
+  // Get paginated PO list for Accountant
+  getPurchaseOrders: async (params: {
+    poNumber?: string;
+    status?: string;
+    pageNumber?: number;
+    pageSize?: number;
+  }): Promise<PagedList<PurchaseOrderDto>> => {
+    const q: Record<string, string> = {
+      pageNumber: (params.pageNumber ?? 1).toString(),
+      pageSize: (params.pageSize ?? 10).toString(),
+    };
+    if (params.poNumber) q.poNumber = params.poNumber;
+    if (params.status) q.status = params.status;
+    return unwrap(
+      await apiClient.get<ApiResponse<PagedList<PurchaseOrderDto>>>('/purchaseorders', { params: q })
     );
   },
 

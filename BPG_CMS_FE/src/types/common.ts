@@ -31,8 +31,10 @@ export interface ProjectMember {
 }
 
 export interface PhaseMaterialItem {
+  materialId: number;
   name: string;
   quantity: number;
+  unitId: number;
   unit: string;
 }
 
@@ -127,7 +129,7 @@ export interface MaterialRequest {
   phaseName?: string;
   requesterName: string;
   items: MaterialRequestItem[];
-  status: 'pending_leader' | 'approved_by_leader' | 'pending_tpkt' | 'pending_accountant' | 'pending_director' | 'approved' | 'rejected' | 'pending_disbursement' | 'disbursed' | 'received';
+  status: 'pending_leader' | 'approved_by_leader' | 'pending_tpkt' | 'pending_accountant' | 'pending_director' | 'approved' | 'rejected' | 'cancelled' | 'pending_disbursement' | 'disbursed' | 'received';
   isOverBOQ: boolean;
   type: 'normal' | 'emergency'; // normal vs emergency (direct purchase)
   invoiceImage?: string;
@@ -152,6 +154,7 @@ export interface TaskHistory {
 export interface WBSTask {
   id: string;
   phaseId: string;
+  phaseName?: string;
   projectId: string;
   parentTaskId?: string;
   name: string;

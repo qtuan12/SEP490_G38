@@ -25,6 +25,8 @@ public record WbsTaskDto
     public List<WbsTaskDto> SubTasks { get; set; } = new();
 }
 
+public record WbsBOQItemDto(string Name, decimal Quantity, string Unit);
+
 public record WbsPhaseDto
 {
     public long PhaseId { get; set; }
@@ -37,7 +39,18 @@ public record WbsPhaseDto
     public string Status { get; set; } = string.Empty;
     public byte ProgressPercent { get; set; }
     
+    public List<WbsBOQItemDto> BOQItems { get; set; } = new();
     public List<WbsTaskDto> Tasks { get; set; } = new();
+    public List<PhaseMaterialItemDto> Materials { get; set; } = new();
+}
+
+public record PhaseMaterialItemDto
+{
+    public long MaterialId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal Quantity { get; set; }
+    public int UnitId { get; set; }
+    public string Unit { get; set; } = string.Empty;
 }
 
 public record WbsTreeDto

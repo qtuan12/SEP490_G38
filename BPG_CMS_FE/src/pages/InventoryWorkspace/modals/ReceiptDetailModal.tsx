@@ -312,7 +312,30 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                   <div className="flex items-center gap-2 text-slate-600">
                     <User size={16} className="text-slate-400" />
                     <span className="font-medium">Người giao hàng:</span>
-                    <span className="text-slate-900">{detail.delivererInfo || 'N/A'}</span>
+                    <span className="text-slate-900">
+                      {(() => {
+                        const info = detail.delivererInfo || 'N/A';
+                        const match = info.match(/^\[QC:\s*([^\]]+)\](.*)$/);
+                        if (match) {
+                          const status = match[1];
+                          const rest = match[2].trim();
+                          let badgeClass = "bg-slate-50 text-slate-600 border-slate-200";
+                          if (status.includes("Đạt")) badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                          else if (status.includes("Không")) badgeClass = "bg-rose-50 text-rose-700 border-rose-200";
+                          else if (status.includes("Chờ")) badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
+                          
+                          return (
+                            <span className="inline-flex flex-col gap-1 items-start">
+                              <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${badgeClass}`}>
+                                QC: {status}
+                              </span>
+                              {rest && <span className="text-xs text-slate-600">{rest}</span>}
+                            </span>
+                          );
+                        }
+                        return info;
+                      })()}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-600">
                     <FileText size={16} className="text-slate-400" />
