@@ -16,6 +16,7 @@ public class Incident : BaseEntity
     public int? EstimatedDelayDays { get; set; }
     public string? ProposedAction { get; set; }
     public long? ReworkTaskId { get; set; }
+    public string? HandlingInstruction { get; set; }
 
     public Project Project { get; set; } = null!;
     public ProjectTask? Task { get; set; }

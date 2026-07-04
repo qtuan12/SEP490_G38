@@ -31,8 +31,10 @@ export interface ProjectMember {
 }
 
 export interface PhaseMaterialItem {
+  materialId: number;
   name: string;
   quantity: number;
+  unitId: number;
   unit: string;
 }
 
@@ -87,6 +89,7 @@ export interface WBSPhase {
 export interface IncidentReport {
   id: string;
   projectId: string;
+  projectName?: string;
   taskId: string;
   taskName: string;
   reporterId: string;
@@ -95,12 +98,13 @@ export interface IncidentReport {
   reviewerName?: string;
   incidentType: 'Construction' | 'InventoryLoss' | 'InventoryDamage' | 'Delay' | 'Safety' | 'Other';
   description: string;
-  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'Approved' | 'Rejected' | 'Closed';
+  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'Approved' | 'Rejected' | 'Closed';
   damageDescription?: string;
   estimatedMaterialLoss?: number;
   estimatedLaborDays?: number;
   estimatedDelayDays?: number;
   proposedAction?: string;
+  handlingInstruction?: string;
   reworkTaskId?: string;
 
   // Custom fields for frontend
@@ -125,7 +129,7 @@ export interface MaterialRequest {
   phaseName?: string;
   requesterName: string;
   items: MaterialRequestItem[];
-  status: 'pending_leader' | 'approved_by_leader' | 'pending_tpkt' | 'pending_accountant' | 'pending_director' | 'approved' | 'rejected' | 'pending_disbursement' | 'disbursed' | 'received';
+  status: 'pending_leader' | 'approved_by_leader' | 'pending_tpkt' | 'pending_accountant' | 'pending_director' | 'approved' | 'rejected' | 'cancelled' | 'pending_disbursement' | 'disbursed' | 'received';
   isOverBOQ: boolean;
   type: 'normal' | 'emergency'; // normal vs emergency (direct purchase)
   invoiceImage?: string;

@@ -74,7 +74,7 @@ export const AcceptanceForm: React.FC<AcceptanceFormProps> = ({
           render={({ field }) => (
             <MDEditor
               value={field.value}
-              onChange={(val) => field.onChange(val || '')}
+              onChange={(val: any) => field.onChange(val || '')}
               previewOptions={{
                 rehypePlugins: [[rehypeSanitize]],
               }}

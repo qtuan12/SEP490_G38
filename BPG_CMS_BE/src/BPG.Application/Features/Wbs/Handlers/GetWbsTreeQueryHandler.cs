@@ -34,6 +34,14 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
             .OrderBy(p => p.OrderIndex)
             .ToListAsync(ct);
 
+        var boqItems = await _unitOfWork.Repository<BOQItem>()
+            .Query()
+            .AsNoTracking()
+            .Include(b => b.Material)
+            .Include(b => b.Unit)
+            .Where(b => b.Phase.ProjectId == request.ProjectId && !b.IsDeleted)
+            .ToListAsync(ct);
+
         var tasks = await _unitOfWork.Repository<ProjectTask>()
             .Query()
             .AsNoTracking()
@@ -58,7 +66,18 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 OrderIndex = phase.OrderIndex,
                 StartDate = phase.StartDate,
                 EndDate = phase.EndDate,
-                Status = phase.Status
+                Status = phase.Status,
+                Materials = boqItems
+                    .Where(b => b.PhaseId == phase.PhaseId)
+                    .Select(b => new PhaseMaterialItemDto
+                    {
+                        MaterialId = b.MaterialId,
+                        Name = b.Material.Name,
+                        Quantity = b.Quantity,
+                        UnitId = b.UnitId,
+                        Unit = b.Unit.UnitName
+                    })
+                    .ToList()
             };
 
             // Get root tasks for this phase

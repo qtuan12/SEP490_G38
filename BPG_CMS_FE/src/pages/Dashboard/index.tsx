@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { userService } from '../../services/userService';
 import { projectService } from '../../services/projectService';
+
 import type {MaterialRequest} from '../../types/common';
 import { useNavigate } from 'react-router-dom';
 import { MaterialCompensationTable } from '../Dashboard/components/MaterialCompensationTable';
@@ -23,6 +24,8 @@ export const Dashboard: React.FC = () => {
   const [loadingRequests, setLoadingRequests] = useState(true);
   const [warnings, setWarnings] = useState<import('../../types/common').DashboardWarningDto[]>([]);
   const [metrics, setMetrics] = useState<import('../../types/common').DashboardMetricsDto | null>(null);
+  
+
 
   const navigate = useNavigate();
 
@@ -70,10 +73,12 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
-    fetchMaterialRequests();
+    if (isAccountant || isDirector) {
+      fetchMaterialRequests();
+    }
     fetchWarnings();
     fetchMetrics();
-  }, []);
+  }, [isAccountant, isDirector]);
 
   const handleVerifyRequestByAccountant = async (reqId: string) => {
     try {
@@ -231,21 +236,26 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Main Content Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-start">
+      <div className={isAccountant || isDirector ? "grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-start" : "grid grid-cols-1 gap-6 items-start"}>
         {/* Recent Activities / site diary */}
-        <RecentActivities activities={recentActivities} />
+        <div className="flex flex-col gap-6">
+
+          <RecentActivities activities={recentActivities} />
+        </div>
 
         {/* Step 5: Material Compensation & Over BOQ verification workspace */}
-        <MaterialCompensationTable
-          materialRequests={materialRequests}
-          loadingRequests={loadingRequests}
-          isAccountant={isAccountant}
-          isDirector={isDirector}
-          handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
-          handleDisburseRequestByAccountant={handleDisburseRequestByAccountant}
-          handleApproveRequestByDirector={handleApproveRequestByDirector}
-          handleRejectRequest={handleRejectRequest}
-        />
+        {(isAccountant || isDirector) && (
+          <MaterialCompensationTable
+            materialRequests={materialRequests}
+            loadingRequests={loadingRequests}
+            isAccountant={isAccountant}
+            isDirector={isDirector}
+            handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
+            handleDisburseRequestByAccountant={handleDisburseRequestByAccountant}
+            handleApproveRequestByDirector={handleApproveRequestByDirector}
+            handleRejectRequest={handleRejectRequest}
+          />
+        )}
       </div>
     </div>
   );

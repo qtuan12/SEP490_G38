@@ -32,7 +32,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
         wbsService.getWbsDataFlattened(projectId),
         projectService.getProjects(),
         projectService.getMembers(projectId),
-        projectService.getAllMaterialRequests()
+        projectService.getMaterialRequests(projectId)
       ]);
       return {
         wbsData,
@@ -139,7 +139,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
 
-  const isTPKTOrPL = user?.role === 'technicalmanager' || user?.role === 'admin';
 
 
   useEffect(() => {
@@ -199,7 +198,8 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const currentMember = members.find(m => m.userId === user?.id);
-  const isPL = (currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager';
+  const isPL = (currentMember ? currentMember.isLeader : false) || user?.role === 'projectleader' || user?.role === 'admin' || user?.role === 'technicalmanager';
+  const isTPKTOrPL = isPL;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');

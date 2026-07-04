@@ -104,6 +104,39 @@ namespace BPG.Application.Common.Mappings
                         : string.Empty));
 
             CreateMap<Attachment, BPG.Application.Features.Projects.DTOs.AttachmentDto>();
+
+            // Inventory Adjustment Mappings
+            CreateMap<Domain.Entities.InventoryAdjustment, BPG.Application.DTOs.Inventory.InventoryAdjustmentDto>()
+                .ForMember(dest => dest.ProjectName, opt => opt.MapFrom(src => src.Project != null ? src.Project.Name : string.Empty))
+                .ForMember(dest => dest.CreatorName, opt => opt.Ignore()) // Would need User info, or use audit
+                .ForMember(dest => dest.ApproverName, opt => opt.MapFrom(src => src.Approver != null ? src.Approver.FullName : string.Empty))
+                .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Items));
+
+            CreateMap<Domain.Entities.AdjustmentItem, BPG.Application.DTOs.Inventory.AdjustmentItemDto>()
+                .ForMember(dest => dest.MaterialCode, opt => opt.MapFrom(src => src.Material != null ? src.Material.Code : string.Empty))
+                .ForMember(dest => dest.MaterialName, opt => opt.MapFrom(src => src.Material != null ? src.Material.Name : string.Empty))
+                .ForMember(dest => dest.Specification, opt => opt.MapFrom(src => src.Material != null ? src.Material.Specification : string.Empty))
+                .ForMember(dest => dest.UnitName, opt => opt.MapFrom(src => src.Unit != null ? src.Unit.UnitName : string.Empty));
+
+            // Incident Mappings
+            CreateMap<Incident, BPG.Application.DTOs.Incidents.IncidentDto>()
+                .ForMember(dest => dest.ReporterName, opt => opt.MapFrom(src => src.Reporter != null ? src.Reporter.FullName : string.Empty))
+                .ForMember(dest => dest.ReviewerName, opt => opt.MapFrom(src => src.Reviewer != null ? src.Reviewer.FullName : string.Empty))
+                .ForMember(dest => dest.ProjectName, opt => opt.MapFrom(src => src.Project != null ? src.Project.Name : string.Empty))
+                .ForMember(dest => dest.TaskName, opt => opt.MapFrom(src => src.Task != null ? src.Task.Name : string.Empty));
+
+            // MaterialRequest Mapping
+            CreateMap<MaterialRequest, BPG.Application.DTOs.MaterialRequests.MaterialRequestDto>()
+                .ForMember(dest => dest.ProjectId, opt => opt.MapFrom(src => src.Phase != null ? src.Phase.ProjectId : 0))
+                .ForMember(dest => dest.PhaseName, opt => opt.MapFrom(src => src.Phase != null ? src.Phase.Name : string.Empty))
+                .ForMember(dest => dest.CheckedByName, opt => opt.MapFrom(src => src.Checker != null ? src.Checker.FullName : string.Empty))
+                .ForMember(dest => dest.ApprovedByName, opt => opt.MapFrom(src => src.Approver != null ? src.Approver.FullName : string.Empty))
+                .ForMember(dest => dest.CreatedByName, opt => opt.Ignore());
+
+            CreateMap<MaterialRequestItem, BPG.Application.DTOs.MaterialRequests.MaterialRequestItemDto>()
+                .ForMember(dest => dest.MaterialName, opt => opt.MapFrom(src => src.Material != null ? src.Material.Name : string.Empty))
+                .ForMember(dest => dest.MaterialCode, opt => opt.MapFrom(src => src.Material != null ? src.Material.Code : string.Empty))
+                .ForMember(dest => dest.UnitName, opt => opt.MapFrom(src => src.Unit != null ? src.Unit.UnitName : string.Empty));
         }
     }
 }
