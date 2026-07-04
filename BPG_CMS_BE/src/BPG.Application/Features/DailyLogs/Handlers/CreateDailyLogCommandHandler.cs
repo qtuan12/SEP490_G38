@@ -81,10 +81,23 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }
 
-            // Kiểm tra xem công việc có bị khóa (đã nghiệm thu) không
-            if (task.IsLocked)
+            // Kiểm tra xem công việc hoặc bất kỳ công việc cha nào có bị khóa (đã nghiệm thu) không
+            var tempTask = task;
+            while (tempTask != null)
             {
-                throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã được nghiệm thu và khóa tiến độ, không thể cập nhật thêm nhật ký thi công.");
+                if (tempTask.IsLocked)
+                {
+                    throw new BusinessException("ERR_TASK_LOCKED", $"Không thể cập nhật tiến độ vì công việc hoặc cấp cha [{tempTask.Name}] đã được nghiệm thu và khóa.");
+                }
+                if (tempTask.ParentTaskId.HasValue)
+                {
+                    tempTask = await _uow.Repository<ProjectTask>().Query()
+                        .FirstOrDefaultAsync(t => t.TaskId == tempTask.ParentTaskId.Value, cancellationToken);
+                }
+                else
+                {
+                    tempTask = null;
+                }
             }
 
             // Kiểm tra số lượng hình ảnh
@@ -161,6 +174,11 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             try
             {
+                // Giải quyết tranh chấp đồng thời khi nhiều kỹ sư báo cáo tiến độ cùng lúc cho cùng một dự án:
+                // Sử dụng sp_getapplock của SQL Server ở cấp độ dự án trong suốt thời gian chạy transaction
+                var lockResource = $"Project_WbsClimb_Lock_{project.ProjectId}";
+                await _uow.ExecuteSqlAsync($"EXEC sp_getapplock @Resource = {lockResource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction'", cancellationToken);
+
                 // 6. Tạo DailyLog
                 var log = new DailyLog
                 {

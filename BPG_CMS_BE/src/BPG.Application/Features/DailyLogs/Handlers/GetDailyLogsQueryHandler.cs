@@ -30,6 +30,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             // Query các DailyLog thuộc dự án
             var query = _uow.Repository<DailyLog>().Query()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(d => d.Task)
                 .Include(d => d.Creator)
                 .Include(d => d.Comments)
