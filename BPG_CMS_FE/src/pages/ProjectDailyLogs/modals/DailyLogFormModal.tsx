@@ -351,12 +351,12 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                   document.getElementById('log-image-input')?.click();
                 }
               }}
-              className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
                 totalImagesCount >= 5 
-                  ? 'border-slate-200 bg-slate-100 cursor-not-allowed opacity-60' 
+                  ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
                   : dragging 
                   ? 'border-blue-500 bg-blue-50' 
-                  : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+                  : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
               }`}
             >
               <input
@@ -368,57 +368,70 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 onChange={handleFileSelect}
                 disabled={totalImagesCount >= 5}
               />
-              <UploadCloud size={32} className="text-slate-400 mx-auto mb-2" />
-              <p className="text-sm font-medium text-slate-600 mb-0.5">
-                Kéo thả hình ảnh vào đây hoặc click để chọn ảnh
-              </p>
-              <span className="text-xs text-slate-500">
-                Đã chọn {totalImagesCount}/5 ảnh
-              </span>
+              
+              {totalImagesCount > 0 ? (
+                <div className="flex flex-wrap items-center justify-center gap-4 mt-2" onClick={e => e.stopPropagation()}>
+                  {/* Existing Images (Edit mode) */}
+                  {existingImages.map((imgUrl, idx) => (
+                    <div key={`existing-${idx}`} className="relative w-16 h-16 rounded shadow-sm border border-gray-200 group overflow-hidden">
+                      <img src={imgUrl} alt="existing preview" className="w-full h-full object-cover" />
+                      <span className="absolute bottom-0 left-0 right-0 bg-slate-500 text-white text-[8px] text-center py-0.5 font-bold">Đã lưu</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeExistingImage(idx);
+                        }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        title="Xóa ảnh này"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* New Selected Images */}
+                  {previews.map((imgUrl, idx) => (
+                    <div key={`new-${idx}`} className="relative w-16 h-16 rounded shadow-sm border border-gray-200 group overflow-hidden">
+                      <img src={imgUrl} alt="new preview" className="w-full h-full object-cover border border-green-500" />
+                      <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">Mới</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeNewImage(idx);
+                        }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        title="Hủy chọn"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <UploadCloud size={32} className="text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-gray-600">
+                    Kéo thả hình ảnh vào đây hoặc click để chọn ảnh
+                  </p>
+                  <span className="text-xs text-slate-500">
+                    Hỗ trợ định dạng hình ảnh tối đa 10MB (tối đa 5 ảnh)
+                  </span>
+                </div>
+              )}
+
+              {totalImagesCount > 0 && totalImagesCount < 5 && (
+                <div className="mt-4 text-xs text-blue-600 font-semibold" onClick={e => e.stopPropagation()}>
+                  <span
+                    className="cursor-pointer hover:underline"
+                    onClick={() => document.getElementById('log-image-input')?.click()}
+                  >
+                    + Thêm ảnh khác ({totalImagesCount}/5)
+                  </span>
+                </div>
+              )}
             </div>
-
-            {/* Image Previews with Delete "X" on Top */}
-            {totalImagesCount > 0 && (
-              <div className="flex gap-3 mt-3 flex-wrap">
-                {/* Existing Images (Edit mode) */}
-                {existingImages.map((imgUrl, idx) => (
-                  <div key={`existing-${idx}`} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200 group">
-                    <img src={imgUrl} alt="existing preview" className="w-full h-full object-cover" />
-                    <span className="absolute bottom-0 left-0 right-0 bg-slate-500 text-white text-[9px] text-center py-0.5 font-bold">Đã lưu</span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeExistingImage(idx);
-                      }}
-                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-700 transition-colors shadow-sm"
-                      title="Xóa ảnh này"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-
-                {/* New Selected Images */}
-                {previews.map((imgUrl, idx) => (
-                  <div key={`new-${idx}`} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200 group">
-                    <img src={imgUrl} alt="new preview" className="w-full h-full object-cover border-2 border-green-400" />
-                    <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[9px] text-center py-0.5 font-bold">Mới</span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeNewImage(idx);
-                      }}
-                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-700 transition-colors shadow-sm"
-                      title="Hủy chọn"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Modal Buttons */}
