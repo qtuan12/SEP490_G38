@@ -63,7 +63,17 @@ export const apiClient = {
         } else if (errorData.title) {
           errMsg = errorData.title;
         }
-        throw new Error(errMsg || `HTTP error! Status: ${response.status}`);
+
+        if (!errMsg) {
+          if (response.status === 500) {
+            errMsg = 'Lỗi hệ thống hoặc mất kết nối cơ sở dữ liệu (Database). Vui lòng liên hệ quản trị viên.';
+          } else if (response.status === 502 || response.status === 503 || response.status === 504) {
+            errMsg = 'Máy chủ dịch vụ đang bảo trì hoặc không phản hồi. Vui lòng thử lại sau.';
+          } else {
+            errMsg = `Lỗi hệ thống (Mã lỗi: ${response.status})`;
+          }
+        }
+        throw new Error(errMsg);
       }
 
       // If response is empty (e.g. 204 No Content)
@@ -74,6 +84,12 @@ export const apiClient = {
       return await response.json() as T;
     } catch (error: any) {
       console.error('API Request Error:', error.message);
+      
+      const msg = error.message || '';
+      if (msg.includes('Failed to fetch') || msg.includes('fetch') || error.name === 'TypeError') {
+        throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau.');
+      }
+      
       throw error;
     }
   },
