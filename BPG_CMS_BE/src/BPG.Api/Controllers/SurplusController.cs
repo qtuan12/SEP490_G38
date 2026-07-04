@@ -38,6 +38,14 @@ public class SurplusController : BaseApiController
     public async Task<IActionResult> GetActionList(long surplusRequestItemId, CancellationToken ct)
         => ApiOk((await Mediator.Send(new GetSurplusActionListQuery(surplusRequestItemId), ct)).Data);
 
+    /// <summary>
+    /// Danh sách các chuyến hàng chuyển đến cho một dự án.
+    /// </summary>
+    [HttpGet("projects/{projectId:long}/incoming-transfers")]
+    [Authorize(Roles = "SiteEngineer,siteengineer")]
+    public async Task<IActionResult> GetIncomingTransfers(long projectId, CancellationToken ct)
+        => ApiOk((await Mediator.Send(new GetIncomingTransfersQuery(projectId), ct)).Data);
+
     // ============================================================
     // CREATE BATCH
     // ============================================================
@@ -46,7 +54,7 @@ public class SurplusController : BaseApiController
     /// Leader tạo đề xuất xử lý vật tư thừa (auto tạo batch với toàn bộ tồn kho).
     /// </summary>
     [HttpPost("projects/{projectId:long}")]
-    [Authorize(Roles = "SiteEngineer")] // ProjectLeader là SiteEngineer có IsLeader=true
+    [Authorize(Roles = "SiteEngineer,siteengineer")] // ProjectLeader là SiteEngineer có IsLeader=true
     public async Task<IActionResult> CreateRequest(long projectId, [FromBody] CreateSurplusRequestBody body, CancellationToken ct)
         => ApiOk(await Mediator.Send(new CreateSurplusRequestCommand(projectId, body.Reason), ct));
 
@@ -59,9 +67,12 @@ public class SurplusController : BaseApiController
     /// </summary>
     [HttpPost("items/{surplusRequestItemId:long}/return")]
     [Authorize(Roles = UserRole.Accountant)]
-    public async Task<IActionResult> CreateReturnAction(long surplusRequestItemId, [FromBody] CreateSurplusReturnBody body, CancellationToken ct)
-        => ApiOk(await Mediator.Send(new CreateSurplusReturnActionCommand(
-            surplusRequestItemId, body.SupplierId, body.ReturnQuantity, body.RefundAmount, body.Note), ct));
+    public async Task<IActionResult> CreateReturnAction(long surplusRequestItemId, [FromForm] CreateSurplusReturnForm form, CancellationToken ct)
+    {
+        var command = new CreateSurplusReturnActionCommand(
+            surplusRequestItemId, form.SupplierId, form.ReturnQuantity, form.RefundAmount, form.Note, form.Attachments);
+        return ApiOk(await Mediator.Send(command, ct));
+    }
 
     // ============================================================
     // ACTION: TRANSFER (Leader → TPKT → Sender → Receiver)
@@ -71,7 +82,7 @@ public class SurplusController : BaseApiController
     /// Leader tạo action chuyển kho sang dự án khác (chờ TPKT duyệt).
     /// </summary>
     [HttpPost("items/{surplusRequestItemId:long}/transfer")]
-    [Authorize(Roles = "SiteEngineer")]
+    [Authorize(Roles = "SiteEngineer,siteengineer")]
     public async Task<IActionResult> CreateTransferAction(long surplusRequestItemId, [FromBody] CreateSurplusTransferBody body, CancellationToken ct)
         => ApiOk(await Mediator.Send(new CreateSurplusTransferActionCommand(
             surplusRequestItemId, body.ToProjectId, body.TransferQuantity), ct));
@@ -88,17 +99,17 @@ public class SurplusController : BaseApiController
     /// Bên gửi xác nhận đã vận chuyển (Dispatched).
     /// </summary>
     [HttpPut("transfers/{surplusTransferId:long}/dispatch")]
-    [Authorize(Roles = "SiteEngineer")]
-    public async Task<IActionResult> DispatchTransfer(long surplusTransferId, CancellationToken ct)
-        => ApiOk(await Mediator.Send(new DispatchSurplusTransferCommand(surplusTransferId), ct));
+    [Authorize(Roles = "SiteEngineer,siteengineer")]
+    public async Task<IActionResult> DispatchTransfer(long surplusTransferId, [FromForm] DispatchTransferForm form, CancellationToken ct)
+        => ApiOk(await Mediator.Send(new DispatchSurplusTransferCommand(surplusTransferId, form.Attachments), ct));
 
     /// <summary>
     /// Bên nhận xác nhận đã nhận hàng (Received) và cập nhật tồn kho hai chiều.
     /// </summary>
     [HttpPut("transfers/{surplusTransferId:long}/receive")]
-    [Authorize(Roles = "SiteEngineer")]
-    public async Task<IActionResult> ReceiveTransfer(long surplusTransferId, CancellationToken ct)
-        => ApiOk(await Mediator.Send(new ReceiveSurplusTransferCommand(surplusTransferId), ct));
+    [Authorize(Roles = "SiteEngineer,siteengineer")]
+    public async Task<IActionResult> ReceiveTransfer(long surplusTransferId, [FromForm] ReceiveTransferForm form, CancellationToken ct)
+        => ApiOk(await Mediator.Send(new ReceiveSurplusTransferCommand(surplusTransferId, form.Attachments), ct));
 
     // ============================================================
     // ACTION: LIQUIDATION (Accountant)
@@ -109,16 +120,45 @@ public class SurplusController : BaseApiController
     /// </summary>
     [HttpPost("items/{surplusRequestItemId:long}/liquidation")]
     [Authorize(Roles = UserRole.Accountant)]
-    public async Task<IActionResult> CreateLiquidationAction(long surplusRequestItemId, [FromBody] CreateSurplusLiquidationBody body, CancellationToken ct)
-        => ApiOk(await Mediator.Send(new CreateSurplusLiquidationActionCommand(
-            surplusRequestItemId, body.BuyerName, body.LiquidationQuantity, body.TotalAmount), ct));
+    public async Task<IActionResult> CreateLiquidationAction(long surplusRequestItemId, [FromForm] CreateSurplusLiquidationForm form, CancellationToken ct)
+    {
+        var command = new CreateSurplusLiquidationActionCommand(
+            surplusRequestItemId, form.BuyerName, form.LiquidationQuantity, form.TotalAmount, form.Attachments);
+        return ApiOk(await Mediator.Send(command, ct));
+    }
 }
 
 // ============================================================
 // Request payload records (thin, no logic)
 // ============================================================
 public record CreateSurplusRequestBody(string? Reason);
-public record CreateSurplusReturnBody(long? SupplierId, decimal ReturnQuantity, decimal? RefundAmount, string? Note);
+
 public record CreateSurplusTransferBody(long ToProjectId, decimal TransferQuantity);
 public record ReviewSurplusTransferBody(bool IsApproved);
-public record CreateSurplusLiquidationBody(string BuyerName, decimal LiquidationQuantity, decimal TotalAmount);
+
+public class CreateSurplusReturnForm
+{
+    public long? SupplierId { get; set; }
+    public decimal ReturnQuantity { get; set; }
+    public decimal? RefundAmount { get; set; }
+    public string? Note { get; set; }
+    public List<Microsoft.AspNetCore.Http.IFormFile>? Attachments { get; set; }
+}
+
+public class CreateSurplusLiquidationForm
+{
+    public string BuyerName { get; set; } = string.Empty;
+    public decimal LiquidationQuantity { get; set; }
+    public decimal TotalAmount { get; set; }
+    public List<Microsoft.AspNetCore.Http.IFormFile>? Attachments { get; set; }
+}
+
+public class DispatchTransferForm
+{
+    public List<Microsoft.AspNetCore.Http.IFormFile>? Attachments { get; set; }
+}
+
+public class ReceiveTransferForm
+{
+    public List<Microsoft.AspNetCore.Http.IFormFile>? Attachments { get; set; }
+}

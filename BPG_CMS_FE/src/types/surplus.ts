@@ -1,3 +1,5 @@
+import type { AttachmentDto } from './common';
+
 // ─── Surplus Request (Batch) ───────────────────────────────────────────────
 export interface SurplusRequest {
   surplusRequestId: number;
@@ -47,6 +49,7 @@ export interface SurplusReturnSupplier {
   refundAmount?: number;
   note?: string;
   createdAt: string;
+  attachments?: AttachmentDto[];
 }
 
 export interface SurplusTransfer {
@@ -63,6 +66,15 @@ export interface SurplusTransfer {
   dispatchedAt?: string;
   receivedAt?: string;
   createdAt: string;
+  attachments?: AttachmentDto[];
+}
+
+export interface IncomingTransfer extends SurplusTransfer {
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  unitId: number;
+  unitName: string;
 }
 
 export interface SurplusLiquidation {
@@ -72,6 +84,7 @@ export interface SurplusLiquidation {
   liquidationQuantity: number;
   totalAmount: number;
   createdAt: string;
+  attachments?: AttachmentDto[];
 }
 
 export interface SurplusActionList {

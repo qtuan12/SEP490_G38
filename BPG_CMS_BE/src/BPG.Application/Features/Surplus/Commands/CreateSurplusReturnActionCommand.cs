@@ -11,5 +11,6 @@ public record CreateSurplusReturnActionCommand(
     long? SupplierId,
     decimal ReturnQuantity,
     decimal? RefundAmount,
-    string? Note
+    string? Note,
+    List<Microsoft.AspNetCore.Http.IFormFile>? Attachments
 ) : IRequest<ApiResponse<long>>;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, LoadingSpinner } from '../../components/ui';
+import { Button } from '../../components/ui';
 import { RefreshCw, PackageX } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -7,11 +7,11 @@ import { projectService } from '../../services/projectService';
 
 import { SurplusRequestListTab } from './components/SurplusRequestListTab';
 import { SurplusRequestDetailTab } from './components/SurplusRequestDetailTab';
+import { IncomingTransfersTab } from './components/IncomingTransfersTab';
 import { CreateSurplusRequestModal } from './modals/CreateSurplusRequestModal';
 import { CreateReturnModal } from './modals/CreateReturnModal';
 import { CreateTransferModal } from './modals/CreateTransferModal';
 import { CreateLiquidationModal } from './modals/CreateLiquidationModal';
-import { SurplusActionListModal } from './modals/SurplusActionListModal';
 import type { SurplusRequestItem } from '../../types/surplus';
 
 interface SurplusWorkspaceProps {
@@ -47,6 +47,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
     checkLeaderStatus();
   }, [projectId, user]);
 
+  const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>('outbound');
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -56,7 +57,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   const [returnItem, setReturnItem] = useState<SurplusRequestItem | null>(null);
   const [transferItem, setTransferItem] = useState<SurplusRequestItem | null>(null);
   const [liquidationItem, setLiquidationItem] = useState<SurplusRequestItem | null>(null);
-  const [actionListItem, setActionListItem] = useState<SurplusRequestItem | null>(null);
+
 
   const handleRefresh = () => setRefreshKey(k => k + 1);
 
@@ -82,34 +83,54 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
       <div className="flex items-center justify-between border-b border-slate-200 pb-3">
         <div className="flex items-center gap-2">
           <PackageX size={20} className="text-orange-500" />
-          <span className="font-semibold text-slate-700 text-base">Xử lý Vật tư Thừa</span>
-          {view === 'detail' && selectedBatchId && (
+          <span className="font-semibold text-slate-700 text-base">Quản lý Vật tư Thừa</span>
+          {activeTab === 'outbound' && view === 'detail' && selectedBatchId && (
             <span className="text-slate-400 text-sm">/ Batch #{selectedBatchId}</span>
           )}
         </div>
-        <Button
-          variant="outline"
-          onClick={handleRefresh}
-          className="flex items-center gap-1.5"
-        >
-          <RefreshCw size={14} />
-          <span>Làm mới</span>
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex bg-slate-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('outbound')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'outbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Hàng gửi đi
+            </button>
+            <button
+              onClick={() => setActiveTab('inbound')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'inbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Hàng chuyển đến
+            </button>
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            className="flex items-center gap-1.5"
+          >
+            <RefreshCw size={14} />
+            <span>Làm mới</span>
+          </Button>
+        </div>
       </div>
 
       {/* Content */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-5">
-        {view === 'list' && (
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-5 min-h-[500px]">
+        {activeTab === 'outbound' && view === 'list' && (
           <SurplusRequestListTab
             projectId={projectId}
             refreshKey={refreshKey}
             onViewDetail={handleViewDetail}
             onCreateRequest={() => setShowCreateBatch(true)}
-            isLeader={isLeader}
+            isLeader={isLeader || isTPKT}
           />
         )}
 
-        {view === 'detail' && selectedBatchId !== null && (
+        {activeTab === 'outbound' && view === 'detail' && selectedBatchId !== null && (
           <SurplusRequestDetailTab
             surplusRequestId={selectedBatchId}
             onBack={handleBack}
@@ -117,12 +138,16 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
             onCreateReturn={item => setReturnItem(item)}
             onCreateTransfer={item => setTransferItem(item)}
             onCreateLiquidation={item => setLiquidationItem(item)}
-            onViewTransferActions={item => setActionListItem(item)}
+
             isAccountant={isAccountant}
             isLeader={isLeader}
             isTPKT={isTPKT}
             refreshKey={refreshKey}
           />
+        )}
+
+        {activeTab === 'inbound' && (
+          <IncomingTransfersTab projectId={projectId} />
         )}
       </div>
 
@@ -166,16 +191,6 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         />
       )}
 
-      {actionListItem && (
-        <SurplusActionListModal
-          isOpen={!!actionListItem}
-          onClose={() => setActionListItem(null)}
-          onRefresh={handleRefresh}
-          item={actionListItem}
-          isTPKT={isTPKT}
-          isLeader={isLeader}
-        />
-      )}
     </div>
   );
 };

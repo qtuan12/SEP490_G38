@@ -66,6 +66,7 @@ public static class AttachmentType
     public const string InvoicePhoto = "InvoicePhoto";   // Ảnh hóa đơn mua ngoài (DirectPurchase)
     public const string IncidentPhoto = "IncidentPhoto"; // Ảnh sự cố (Incident)
     public const string AcceptancePdf = "AcceptancePdf"; // PDF nghiệm thu phase
+    public const string SurplusEvidence = "SurplusEvidence"; // Ảnh/Hóa đơn minh chứng thanh lý/trả NCC
     public const string Other = "Other";                 // Khác
 }
 
@@ -95,6 +96,10 @@ public static class EntityType
     public const string MaterialIssuance = "MaterialIssuance";         // Phiếu xuất kho
     public const string DirectPurchaseRequest = "DirectPurchaseRequest";
     public const string SurplusRequest = "SurplusRequest";
+    public const string SurplusLiquidation = "SurplusLiquidation";
+    public const string SurplusReturnSupplier = "SurplusReturnSupplier";
+    public const string SurplusTransferDispatch = "SurplusTransferDispatch";
+    public const string SurplusTransferReceive = "SurplusTransferReceive";
     public const string InventoryAdjustment = "InventoryAdjustment";
 }
 

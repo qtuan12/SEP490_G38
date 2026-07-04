@@ -10,5 +10,6 @@ public record CreateSurplusLiquidationActionCommand(
     long SurplusRequestItemId,
     string BuyerName,
     decimal LiquidationQuantity,
-    decimal TotalAmount
+    decimal TotalAmount,
+    List<Microsoft.AspNetCore.Http.IFormFile>? Attachments
 ) : IRequest<ApiResponse<long>>;

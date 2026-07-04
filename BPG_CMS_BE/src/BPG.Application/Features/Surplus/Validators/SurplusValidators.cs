@@ -20,6 +20,7 @@ public class CreateSurplusReturnActionValidator : AbstractValidator<CreateSurplu
         RuleFor(x => x.SurplusRequestItemId).GreaterThan(0).WithMessage(ValidationMessages.MustBeGreaterThanZero);
         RuleFor(x => x.ReturnQuantity).GreaterThan(0).WithMessage(ValidationMessages.MustBeGreaterThanZero);
         RuleFor(x => x.RefundAmount).GreaterThanOrEqualTo(0).When(x => x.RefundAmount.HasValue).WithMessage(ValidationMessages.MustBePositive);
+        RuleFor(x => x.Attachments).NotEmpty().WithMessage("Bắt buộc phải tải lên ít nhất 1 file minh chứng.");
     }
 }
 
@@ -41,5 +42,6 @@ public class CreateSurplusLiquidationActionValidator : AbstractValidator<CreateS
         RuleFor(x => x.BuyerName).NotEmpty().WithMessage(ValidationMessages.Required).MaximumLength(200).WithMessage(ValidationMessages.MaxLength);
         RuleFor(x => x.LiquidationQuantity).GreaterThan(0).WithMessage(ValidationMessages.MustBeGreaterThanZero);
         RuleFor(x => x.TotalAmount).GreaterThanOrEqualTo(0).WithMessage(ValidationMessages.MustBePositive);
+        RuleFor(x => x.Attachments).NotEmpty().WithMessage("Bắt buộc phải tải lên ít nhất 1 file minh chứng.");
     }
 }

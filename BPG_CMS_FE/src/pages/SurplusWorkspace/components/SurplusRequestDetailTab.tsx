@@ -8,7 +8,9 @@ import {
   getSurplusItemStatusDetails,
   getSurplusActionTypeLabel,
   formatDateVN,
+  getGeneralActionStatusName,
 } from '../../../utils/surplusHelpers';
+import { SurplusActionInlineDetail } from './SurplusActionInlineDetail';
 
 interface SurplusRequestDetailTabProps {
   surplusRequestId: number;
@@ -17,7 +19,6 @@ interface SurplusRequestDetailTabProps {
   onCreateReturn: (item: SurplusRequestItem) => void;
   onCreateTransfer: (item: SurplusRequestItem) => void;
   onCreateLiquidation: (item: SurplusRequestItem) => void;
-  onViewTransferActions: (item: SurplusRequestItem) => void;
   isAccountant: boolean;
   isLeader: boolean;
   isTPKT: boolean;
@@ -27,18 +28,21 @@ interface SurplusRequestDetailTabProps {
 export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = ({
   surplusRequestId,
   onBack,
+  onRefresh,
   onCreateReturn,
   onCreateTransfer,
   onCreateLiquidation,
-  onViewTransferActions,
   isAccountant,
   isLeader,
+  isTPKT,
   refreshKey,
 }) => {
   const [detail, setDetail] = useState<SurplusRequestDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
+  const [expandedActionId, setExpandedActionId] = useState<number | null>(null);
+  const [expandedActionType, setExpandedActionType] = useState<string | null>(null);
 
   useEffect(() => {
     loadDetail();
@@ -184,11 +188,15 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                   )}
                   {item.actions.length > 0 && (
                     <button
-                      onClick={() => setExpandedItemId(isExpanded ? null : item.surplusRequestItemId)}
+                      onClick={() => {
+                        setExpandedItemId(isExpanded ? null : item.surplusRequestItemId);
+                        setExpandedActionId(null);
+                        setExpandedActionType(null);
+                      }}
                       className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors"
                     >
                       {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                      {item.actions.length} action{item.actions.length > 1 ? 's' : ''}
+                      {item.actions.length} thao tác
                     </button>
                   )}
                 </div>
@@ -200,29 +208,78 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                   <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">
                     Lịch sử xử lý
                   </p>
-                  <div className="flex flex-col gap-1.5">
-                    {item.actions.map((action, idx) => {
-                      const typeBadge = getSurplusActionTypeLabel(action.actionType);
-                      return (
-                        <div key={idx} className="flex items-center gap-3 text-xs">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full font-semibold border ${typeBadge.color}`}>
-                            {typeBadge.name}
-                          </span>
-                          <span className="text-slate-600">
-                            {action.quantity} {item.unitName}
-                          </span>
-                          <span className="text-slate-400">#{action.actionId}</span>
-                          <span className="text-slate-500">{action.status}</span>
-                        </div>
-                      );
-                    })}
+                  <div className="overflow-x-auto rounded-lg border border-slate-200 mt-2">
+                    <table className="w-full text-left border-collapse bg-white">
+                      <thead>
+                        <tr className="bg-slate-100/70 border-b border-slate-200 text-[11px] text-slate-500 uppercase tracking-wide">
+                          <th className="py-2 px-3 font-semibold w-24">Mã phiếu</th>
+                          <th className="py-2 px-3 font-semibold">Loại xử lý</th>
+                          <th className="py-2 px-3 font-semibold text-right">Số lượng</th>
+                          <th className="py-2 px-3 font-semibold text-center">Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {item.actions.map((action, idx) => {
+                          const typeBadge = getSurplusActionTypeLabel(action.actionType);
+                          const isActionExpanded = expandedActionId === action.actionId && expandedActionType === action.actionType;
+                          
+                          return (
+                            <React.Fragment key={idx}>
+                              <tr 
+                                className={`hover:bg-slate-50 transition-colors cursor-pointer ${isActionExpanded ? 'bg-slate-50' : ''}`}
+                                onClick={() => {
+                                  if (isActionExpanded) {
+                                    setExpandedActionId(null);
+                                    setExpandedActionType(null);
+                                  } else {
+                                    setExpandedActionId(action.actionId);
+                                    setExpandedActionType(action.actionType);
+                                  }
+                                }}
+                              >
+                                <td className="py-2 px-3 text-xs text-blue-600 hover:underline font-mono">
+                                  #{action.actionId}
+                                </td>
+                                <td className="py-2 px-3 text-xs">
+                                  <span className={`inline-flex px-2 py-0.5 rounded-full font-semibold border ${typeBadge.color}`}>
+                                    {typeBadge.name}
+                                  </span>
+                                </td>
+                                <td className="py-2 px-3 text-xs text-slate-700 font-semibold text-right">
+                                  {action.quantity} <span className="text-slate-500 font-normal">{item.unitName}</span>
+                                </td>
+                                <td className="py-2 px-3 text-xs text-center">
+                                  <span className="text-slate-600 font-medium">
+                                    {getGeneralActionStatusName(action.status)}
+                                  </span>
+                                </td>
+                              </tr>
+                              
+                              {/* Expanded Inline Detail */}
+                              {isActionExpanded && (
+                                <tr>
+                                  <td colSpan={4} className="p-0 border-b border-slate-200">
+                                    <div className="bg-slate-50/30 overflow-hidden">
+                                      <SurplusActionInlineDetail
+                                        itemId={item.surplusRequestItemId}
+                                        actionId={action.actionId}
+                                        actionType={action.actionType}
+                                        unitName={item.unitName}
+                                        isTPKT={isTPKT}
+                                        isLeader={isLeader}
+                                        onRefresh={onRefresh}
+                                      />
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                  <button
-                    onClick={() => onViewTransferActions(item)}
-                    className="mt-2 text-xs text-blue-600 hover:underline font-medium"
-                  >
-                    Xem chi tiết tất cả actions →
-                  </button>
+
                 </div>
               )}
             </div>

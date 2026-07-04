@@ -4,9 +4,6 @@ import type {
   SurplusRequest,
   SurplusRequestDetail,
   SurplusActionList,
-  SurplusReturnSupplier,
-  SurplusTransfer,
-  SurplusLiquidation,
 } from '../types/surplus';
 
 const unwrap = <T>(res: ApiResponse<T>): T => {
@@ -48,9 +45,14 @@ export const surplusService = {
   // ─── Return to supplier (Accountant) ─────────────────────────────────────
   createReturn: async (
     surplusRequestItemId: number,
-    body: { supplierId?: number; returnQuantity: number; refundAmount?: number; note?: string }
+    formData: FormData
   ): Promise<number> =>
-    unwrap(await apiClient.post<ApiResponse<number>>(`/surplus/items/${surplusRequestItemId}/return`, body)),
+    unwrap(
+      await apiClient.postFormData<ApiResponse<number>>(
+        `/surplus/items/${surplusRequestItemId}/return`,
+        formData
+      )
+    ),
 
   // ─── Transfer (Leader → TPKT → Dispatch → Receive) ───────────────────────
   createTransfer: async (
@@ -62,16 +64,27 @@ export const surplusService = {
   reviewTransfer: async (surplusTransferId: number, isApproved: boolean): Promise<void> =>
     unwrap(await apiClient.put<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/review`, { isApproved })),
 
-  dispatchTransfer: async (surplusTransferId: number): Promise<void> =>
-    unwrap(await apiClient.put<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/dispatch`, {})),
+  dispatchTransfer: async (surplusTransferId: number, formData: FormData): Promise<void> =>
+    unwrap(await apiClient.putFormData<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/dispatch`, formData)),
 
-  receiveTransfer: async (surplusTransferId: number): Promise<void> =>
-    unwrap(await apiClient.put<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/receive`, {})),
+  receiveTransfer: async (surplusTransferId: number, formData: FormData): Promise<void> =>
+    unwrap(await apiClient.putFormData<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/receive`, formData)),
 
   // ─── Liquidation (Accountant) ─────────────────────────────────────────────
   createLiquidation: async (
     surplusRequestItemId: number,
-    body: { buyerName: string; liquidationQuantity: number; totalAmount: number }
+    formData: FormData
   ): Promise<number> =>
-    unwrap(await apiClient.post<ApiResponse<number>>(`/surplus/items/${surplusRequestItemId}/liquidation`, body)),
+    unwrap(
+      await apiClient.postFormData<ApiResponse<number>>(
+        `/surplus/items/${surplusRequestItemId}/liquidation`,
+        formData
+      )
+    ),
+
+  getIncomingTransfers: async (projectId: number): Promise<import('../types/surplus').IncomingTransfer[]> => {
+    const res = await apiClient.get<ApiResponse<import('../types/surplus').IncomingTransfer[]>>(`/surplus/projects/${projectId}/incoming-transfers`);
+    if (!res.success) throw new Error(res.message || 'Lỗi lấy danh sách vật tư chuyển đến');
+    return res.data || [];
+  },
 };

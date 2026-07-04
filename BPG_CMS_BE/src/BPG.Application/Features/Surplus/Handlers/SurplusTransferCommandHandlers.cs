@@ -141,17 +141,22 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
     private readonly INotificationService _notificationService;
+    private readonly IFileStorageService _fileStorage;
 
-    public DispatchSurplusTransferCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, INotificationService notificationService)
+    public DispatchSurplusTransferCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, INotificationService notificationService, IFileStorageService fileStorage)
     {
         _uow = uow;
         _currentUser = currentUser;
         _notificationService = notificationService;
+        _fileStorage = fileStorage;
     }
 
     public async Task<ApiResponse> Handle(DispatchSurplusTransferCommand request, CancellationToken ct)
     {
         var userId = _currentUser.GetRequiredUserId();
+
+        if (request.Attachments == null || !request.Attachments.Any())
+            throw new BusinessException(ErrorCodes.ValidationFailed, "Bắt buộc phải tải lên ít nhất 1 file minh chứng phiếu xuất / ảnh chụp.");
 
         var transfer = await _uow.Repository<SurplusTransfer>().Query()
             .Include(t => t.ToProject)
@@ -165,6 +170,24 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
         transfer.DispatchedBy = userId;
         transfer.DispatchedAt = DateTime.UtcNow;
         _uow.Repository<SurplusTransfer>().Update(transfer);
+
+        // Upload attachments
+        foreach (var file in request.Attachments)
+        {
+            var fileUrl = await _fileStorage.UploadFileAsync(file, "surplus_transfer_dispatches", ct);
+            var fileAttachment = new Attachment
+            {
+                EntityType = EntityType.SurplusTransferDispatch,
+                EntityId = transfer.SurplusTransferId,
+                FileName = file.FileName,
+                FileUrl = fileUrl,
+                ContentType = file.ContentType,
+                FileSizeBytes = file.Length,
+                CreatedBy = userId
+            };
+            await _uow.Repository<Attachment>().AddAsync(fileAttachment, ct);
+        }
+
         await _uow.SaveChangesAsync(ct);
 
         // Notify receiver leader
@@ -191,18 +214,23 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
     private readonly ICurrentUserService _currentUser;
     private readonly IInventoryService _inventoryService;
     private readonly INotificationService _notificationService;
+    private readonly IFileStorageService _fileStorage;
 
-    public ReceiveSurplusTransferCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, IInventoryService inventoryService, INotificationService notificationService)
+    public ReceiveSurplusTransferCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, IInventoryService inventoryService, INotificationService notificationService, IFileStorageService fileStorage)
     {
         _uow = uow;
         _currentUser = currentUser;
         _inventoryService = inventoryService;
         _notificationService = notificationService;
+        _fileStorage = fileStorage;
     }
 
     public async Task<ApiResponse> Handle(ReceiveSurplusTransferCommand request, CancellationToken ct)
     {
         var userId = _currentUser.GetRequiredUserId();
+
+        if (request.Attachments == null || !request.Attachments.Any())
+            throw new BusinessException(ErrorCodes.ValidationFailed, "Bắt buộc phải tải lên ít nhất 1 file minh chứng phiếu nhận / ảnh chụp.");
 
         var transfer = await _uow.Repository<SurplusTransfer>().Query()
             .Include(t => t.SurplusRequestItem)
@@ -217,6 +245,23 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
         transfer.ReceivedBy = userId;
         transfer.ReceivedAt = DateTime.UtcNow;
         _uow.Repository<SurplusTransfer>().Update(transfer);
+
+        // Upload attachments
+        foreach (var file in request.Attachments)
+        {
+            var fileUrl = await _fileStorage.UploadFileAsync(file, "surplus_transfer_receives", ct);
+            var fileAttachment = new Attachment
+            {
+                EntityType = EntityType.SurplusTransferReceive,
+                EntityId = transfer.SurplusTransferId,
+                FileName = file.FileName,
+                FileUrl = fileUrl,
+                ContentType = file.ContentType,
+                FileSizeBytes = file.Length,
+                CreatedBy = userId
+            };
+            await _uow.Repository<Attachment>().AddAsync(fileAttachment, ct);
+        }
 
         // Update SurplusRequestItem processed quantity
         var item = transfer.SurplusRequestItem;

@@ -51,6 +51,7 @@ public class SurplusReturnSupplierDto
     public decimal? RefundAmount { get; set; }
     public string? Note { get; set; }
     public DateTime CreatedAt { get; set; }
+    public List<BPG.Application.Features.Projects.DTOs.AttachmentDto> Attachments { get; set; } = new();
 }
 
 public class SurplusTransferDto
@@ -68,6 +69,7 @@ public class SurplusTransferDto
     public DateTime? DispatchedAt { get; set; }
     public DateTime? ReceivedAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public List<BPG.Application.Features.Projects.DTOs.AttachmentDto> Attachments { get; set; } = new();
 }
 
 public class SurplusLiquidationDto
@@ -78,4 +80,5 @@ public class SurplusLiquidationDto
     public decimal LiquidationQuantity { get; set; }
     public decimal TotalAmount { get; set; }
     public DateTime CreatedAt { get; set; }
+    public List<BPG.Application.Features.Projects.DTOs.AttachmentDto> Attachments { get; set; } = new();
 }

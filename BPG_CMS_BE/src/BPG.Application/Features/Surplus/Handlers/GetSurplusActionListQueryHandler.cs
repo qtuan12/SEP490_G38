@@ -5,6 +5,9 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
+using BPG.Domain.Constants;
+using BPG.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Surplus.Handlers;
@@ -73,6 +76,63 @@ public class GetSurplusActionListQueryHandler : IRequestHandler<GetSurplusAction
                 TotalAmount = l.TotalAmount,
                 CreatedAt = l.CreatedAt
             }).ToListAsync(ct);
+
+        // Fetch attachments
+        var returnIds = returns.Select(x => x.SurplusReturnSupplierId).ToList();
+        var transferIds = transfers.Select(x => x.SurplusTransferId).ToList();
+        var liquidationIds = liquidations.Select(x => x.SurplusLiquidationId).ToList();
+
+        var allAttachments = await _uow.Repository<Attachment>().Query()
+            .Where(a =>
+                (a.EntityType == EntityType.SurplusReturnSupplier && returnIds.Contains(a.EntityId)) ||
+                (a.EntityType == EntityType.SurplusLiquidation && liquidationIds.Contains(a.EntityId)) ||
+                (a.EntityType == EntityType.SurplusTransferDispatch && transferIds.Contains(a.EntityId)) ||
+                (a.EntityType == EntityType.SurplusTransferReceive && transferIds.Contains(a.EntityId))
+            )
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        foreach (var r in returns)
+        {
+            r.Attachments = allAttachments
+                .Where(a => a.EntityType == EntityType.SurplusReturnSupplier && a.EntityId == r.SurplusReturnSupplierId)
+                .Select(a => new BPG.Application.Features.Projects.DTOs.AttachmentDto
+                {
+                    AttachmentId = a.AttachmentId,
+                    FileName = a.FileName,
+                    FileUrl = a.FileUrl,
+                    ContentType = a.ContentType,
+                    FileSizeBytes = a.FileSizeBytes
+                }).ToList();
+        }
+
+        foreach (var t in transfers)
+        {
+            t.Attachments = allAttachments
+                .Where(a => (a.EntityType == EntityType.SurplusTransferDispatch || a.EntityType == EntityType.SurplusTransferReceive) && a.EntityId == t.SurplusTransferId)
+                .Select(a => new BPG.Application.Features.Projects.DTOs.AttachmentDto
+                {
+                    AttachmentId = a.AttachmentId,
+                    FileName = a.FileName,
+                    FileUrl = a.FileUrl,
+                    ContentType = a.ContentType,
+                    FileSizeBytes = a.FileSizeBytes
+                }).ToList();
+        }
+
+        foreach (var l in liquidations)
+        {
+            l.Attachments = allAttachments
+                .Where(a => a.EntityType == EntityType.SurplusLiquidation && a.EntityId == l.SurplusLiquidationId)
+                .Select(a => new BPG.Application.Features.Projects.DTOs.AttachmentDto
+                {
+                    AttachmentId = a.AttachmentId,
+                    FileName = a.FileName,
+                    FileUrl = a.FileUrl,
+                    ContentType = a.ContentType,
+                    FileSizeBytes = a.FileSizeBytes
+                }).ToList();
+        }
 
         var dto = new SurplusActionListDto
         {

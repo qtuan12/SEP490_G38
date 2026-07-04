@@ -1,5 +1,6 @@
 using BPG.Application.Common.Models;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 
 namespace BPG.Application.Features.Surplus.Commands;
 
@@ -24,9 +25,9 @@ public record ReviewSurplusTransferCommand(
 /// <summary>
 /// Bên gửi xác nhận đã vận chuyển (Dispatched).
 /// </summary>
-public record DispatchSurplusTransferCommand(long SurplusTransferId) : IRequest<ApiResponse>;
+public record DispatchSurplusTransferCommand(long SurplusTransferId, List<IFormFile>? Attachments) : IRequest<ApiResponse>;
 
 /// <summary>
 /// Bên nhận xác nhận đã nhận hàng (Received) → cập nhật tồn kho 2 chiều.
 /// </summary>
-public record ReceiveSurplusTransferCommand(long SurplusTransferId) : IRequest<ApiResponse>;
+public record ReceiveSurplusTransferCommand(long SurplusTransferId, List<IFormFile>? Attachments) : IRequest<ApiResponse>;

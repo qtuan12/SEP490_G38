@@ -44,7 +44,7 @@ public class GetProjectsQueryHandler : IRequestHandler<GetProjectsQuery, PagedLi
         }
 
         // Restrict projects for Site Engineers to only those they are assigned to
-        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        if (!request.IgnoreRoleFilter && _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
         {
             var currentUserId = _currentUserService.GetRequiredUserId();
             query = query.Where(p => p.Members.Any(m => m.UserId == currentUserId));

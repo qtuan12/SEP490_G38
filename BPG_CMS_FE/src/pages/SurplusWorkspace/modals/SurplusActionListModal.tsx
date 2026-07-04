@@ -8,22 +8,28 @@ import {
   formatCurrency,
 } from '../../../utils/surplusHelpers';
 import toast from 'react-hot-toast';
+import { DispatchTransferModal } from './DispatchTransferModal';
+import { ReceiveTransferModal } from './ReceiveTransferModal';
 
 interface SurplusActionListModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRefresh: () => void;
   item: SurplusRequestItem;
+  selectedActionId?: number;
+  selectedActionType?: string;
   isTPKT: boolean;
   isLeader: boolean;
 }
 
 export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
-  isOpen, onClose, onRefresh, item, isTPKT, isLeader,
+  isOpen, onClose, onRefresh, item, selectedActionId, selectedActionType, isTPKT, isLeader,
 }) => {
   const [data, setData] = useState<SurplusActionList | null>(null);
   const [loading, setLoading] = useState(false);
   const [actioning, setActioning] = useState<number | null>(null);
+  const [dispatchingTransferId, setDispatchingTransferId] = useState<number | null>(null);
+  const [receivingTransferId, setReceivingTransferId] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) loadData();
@@ -33,7 +39,16 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
     setLoading(true);
     try {
       const res = await surplusService.getActionList(item.surplusRequestItemId);
-      setData(res);
+      let filteredRes = res;
+      if (selectedActionId && selectedActionType) {
+        filteredRes = {
+          ...res,
+          returns: selectedActionType === 'ReturnSupplier' ? res.returns.filter(r => r.surplusReturnSupplierId === selectedActionId) : [],
+          transfers: selectedActionType === 'Transfer' ? res.transfers.filter(t => t.surplusTransferId === selectedActionId) : [],
+          liquidations: selectedActionType === 'Liquidate' ? res.liquidations.filter(l => l.surplusLiquidationId === selectedActionId) : [],
+        };
+      }
+      setData(filteredRes);
     } catch (err: any) {
       toast.error(err.message || 'Không thể tải actions.');
     } finally {
@@ -42,12 +57,20 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
   };
 
   const doTransferAction = async (transferId: number, action: 'review-approve' | 'review-reject' | 'dispatch' | 'receive') => {
+    if (action === 'dispatch') {
+      setDispatchingTransferId(transferId);
+      return;
+    }
+    if (action === 'receive') {
+      setReceivingTransferId(transferId);
+      return;
+    }
+
     setActioning(transferId);
     try {
       if (action === 'review-approve') await surplusService.reviewTransfer(transferId, true);
       else if (action === 'review-reject') await surplusService.reviewTransfer(transferId, false);
-      else if (action === 'dispatch') await surplusService.dispatchTransfer(transferId);
-      else if (action === 'receive') await surplusService.receiveTransfer(transferId);
+      
       toast.success('Thao tác thành công!');
       await loadData();
       onRefresh();
@@ -62,7 +85,7 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Actions — ${item.materialName}`}
+      title={selectedActionId ? `Chi tiết thao tác — ${item.materialName}` : `Danh sách thao tác — ${item.materialName}`}
       width="lg"
       footer={<Button variant="outline" onClick={onClose}>Đóng</Button>}
     >
@@ -201,10 +224,34 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
           )}
 
           {data.returns.length === 0 && data.transfers.length === 0 && data.liquidations.length === 0 && (
-            <p className="text-center text-slate-400 text-sm py-8">Chưa có action nào cho vật tư này.</p>
+            <p className="text-center text-slate-400 text-sm py-8">Chưa có thao tác nào cho vật tư này.</p>
           )}
         </div>
       ) : null}
+
+      {dispatchingTransferId && (
+        <DispatchTransferModal
+          isOpen={!!dispatchingTransferId}
+          onClose={() => setDispatchingTransferId(null)}
+          onSuccess={() => {
+            loadData();
+            onRefresh();
+          }}
+          surplusTransferId={dispatchingTransferId}
+        />
+      )}
+
+      {receivingTransferId && (
+        <ReceiveTransferModal
+          isOpen={!!receivingTransferId}
+          onClose={() => setReceivingTransferId(null)}
+          onSuccess={() => {
+            loadData();
+            onRefresh();
+          }}
+          surplusTransferId={receivingTransferId}
+        />
+      )}
     </Modal>
   );
 };

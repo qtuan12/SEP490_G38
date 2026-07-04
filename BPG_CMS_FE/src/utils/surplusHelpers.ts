@@ -43,6 +43,18 @@ export const getSurplusTransferStatusDetails = (status: string) => {
   }
 };
 
+export const getGeneralActionStatusName = (status: string) => {
+  switch (status) {
+    case 'Pending': return 'Chờ duyệt';
+    case 'Approved': return 'Đã duyệt';
+    case 'Rejected': return 'Từ chối';
+    case 'Dispatched': return 'Đang vận chuyển';
+    case 'Received': return 'Đã nhận';
+    case 'Completed': return 'Hoàn thành';
+    default: return status;
+  }
+};
+
 export const getSurplusActionTypeLabel = (actionType: string) => {
   switch (actionType) {
     case 'ReturnSupplier': return { name: 'Trả NCC', color: 'bg-purple-50 text-purple-700 border-purple-200' };

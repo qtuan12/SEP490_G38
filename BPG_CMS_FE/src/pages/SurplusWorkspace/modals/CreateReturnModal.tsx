@@ -24,13 +24,14 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
 
   const remaining = item.quantity - item.processedQuantity;
 
   useEffect(() => {
     if (isOpen) {
       setSuppliers([]); setSupplierId(''); setReturnQty('');
-      setRefundAmount(''); setNote(''); setError(null);
+      setRefundAmount(''); setNote(''); setError(null); setFiles([]);
       loadSuppliers();
     }
   }, [isOpen]);
@@ -46,16 +47,19 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
     const qty = parseFloat(returnQty);
     if (isNaN(qty) || qty <= 0) { setError('Số lượng phải lớn hơn 0.'); return; }
     if (qty > remaining) { setError(`Số lượng không được vượt quá còn lại (${remaining} ${item.unitName}).`); return; }
+    if (files.length === 0) { setError('Bắt buộc phải tải lên ít nhất 1 file minh chứng.'); return; }
 
     setError(null);
     setSubmitting(true);
     try {
-      await surplusService.createReturn(item.surplusRequestItemId, {
-        supplierId: supplierId ? Number(supplierId) : undefined,
-        returnQuantity: qty,
-        refundAmount: refundAmount ? parseFloat(refundAmount) : undefined,
-        note: note.trim() || undefined,
-      });
+      const formData = new FormData();
+      if (supplierId) formData.append('supplierId', supplierId);
+      formData.append('returnQuantity', qty.toString());
+      if (refundAmount) formData.append('refundAmount', refundAmount);
+      if (note.trim()) formData.append('note', note.trim());
+      files.forEach(f => formData.append('Attachments', f));
+
+      await surplusService.createReturn(item.surplusRequestItemId, formData);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -145,6 +149,31 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
             disabled={submitting}
             className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           />
+        </FormItem>
+
+        <FormItem label="File minh chứng (Bắt buộc)" required>
+          <input
+            type="file"
+            multiple
+            accept="image/*,.pdf"
+            onChange={e => {
+              if (e.target.files) {
+                setFiles(Array.from(e.target.files));
+              }
+            }}
+            disabled={submitting}
+            className="block w-full text-sm text-slate-500
+              file:mr-4 file:py-2 file:px-4
+              file:rounded file:border-0
+              file:text-sm file:font-medium
+              file:bg-blue-50 file:text-blue-700
+              hover:file:bg-blue-100"
+          />
+          {files.length > 0 && (
+            <ul className="mt-2 text-sm text-slate-600 list-disc pl-5">
+              {files.map((f, i) => <li key={i}>{f.name}</li>)}
+            </ul>
+          )}
         </FormItem>
       </div>
     </Modal>

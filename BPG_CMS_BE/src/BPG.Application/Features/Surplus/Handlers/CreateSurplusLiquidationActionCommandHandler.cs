@@ -18,12 +18,14 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
     private readonly IInventoryService _inventoryService;
+    private readonly IFileStorageService _fileStorage;
 
-    public CreateSurplusLiquidationActionCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, IInventoryService inventoryService)
+    public CreateSurplusLiquidationActionCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, IInventoryService inventoryService, IFileStorageService fileStorage)
     {
         _uow = uow;
         _currentUser = currentUser;
         _inventoryService = inventoryService;
+        _fileStorage = fileStorage;
     }
 
     public async Task<ApiResponse<long>> Handle(CreateSurplusLiquidationActionCommand request, CancellationToken ct)
@@ -58,6 +60,26 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
         _uow.Repository<SurplusRequestItem>().Update(item);
 
         await _uow.SaveChangesAsync(ct);
+
+        if (request.Attachments != null && request.Attachments.Any())
+        {
+            foreach (var file in request.Attachments)
+            {
+                var fileUrl = await _fileStorage.UploadFileAsync(file, "surplus_liquidations", ct);
+                var attachment = new Attachment
+                {
+                    EntityType = EntityType.SurplusLiquidation,
+                    EntityId = liquidation.SurplusLiquidationId,
+                    AttachmentType = AttachmentType.SurplusEvidence,
+                    FileName = file.FileName,
+                    FileUrl = fileUrl,
+                    ContentType = file.ContentType,
+                    FileSizeBytes = file.Length
+                };
+                await _uow.Repository<Attachment>().AddAsync(attachment, ct);
+            }
+            await _uow.SaveChangesAsync(ct);
+        }
 
         // Reduce inventory and log transaction
         await _inventoryService.UpdateStockAsync(

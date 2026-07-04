@@ -19,12 +19,13 @@ export const CreateLiquidationModal: React.FC<CreateLiquidationModalProps> = ({
   const [totalAmount, setTotalAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
 
   const remaining = item.quantity - item.processedQuantity;
 
   const handleClose = () => {
     if (submitting) return;
-    setBuyerName(''); setLiqQty(''); setTotalAmount(''); setError(null);
+    setBuyerName(''); setLiqQty(''); setTotalAmount(''); setError(null); setFiles([]);
     onClose();
   };
 
@@ -35,15 +36,18 @@ export const CreateLiquidationModal: React.FC<CreateLiquidationModalProps> = ({
     if (qty > remaining) { setError(`Số lượng không được vượt quá còn lại (${remaining} ${item.unitName}).`); return; }
     const amount = parseFloat(totalAmount);
     if (isNaN(amount) || amount < 0) { setError('Giá trị thu hồi phải >= 0.'); return; }
+    if (files.length === 0) { setError('Bắt buộc phải tải lên ít nhất 1 file minh chứng.'); return; }
 
     setError(null);
     setSubmitting(true);
     try {
-      await surplusService.createLiquidation(item.surplusRequestItemId, {
-        buyerName: buyerName.trim(),
-        liquidationQuantity: qty,
-        totalAmount: amount,
-      });
+      const formData = new FormData();
+      formData.append('buyerName', buyerName.trim());
+      formData.append('liquidationQuantity', qty.toString());
+      formData.append('totalAmount', amount.toString());
+      files.forEach(f => formData.append('Attachments', f));
+
+      await surplusService.createLiquidation(item.surplusRequestItemId, formData);
       onSuccess();
       handleClose();
     } catch (err: any) {
@@ -117,6 +121,31 @@ export const CreateLiquidationModal: React.FC<CreateLiquidationModalProps> = ({
             />
           </FormItem>
         </div>
+
+        <FormItem label="File minh chứng (Bắt buộc)" required>
+          <input
+            type="file"
+            multiple
+            accept="image/*,.pdf"
+            onChange={e => {
+              if (e.target.files) {
+                setFiles(Array.from(e.target.files));
+              }
+            }}
+            disabled={submitting}
+            className="block w-full text-sm text-slate-500
+              file:mr-4 file:py-2 file:px-4
+              file:rounded file:border-0
+              file:text-sm file:font-medium
+              file:bg-blue-50 file:text-blue-700
+              hover:file:bg-blue-100"
+          />
+          {files.length > 0 && (
+            <ul className="mt-2 text-sm text-slate-600 list-disc pl-5">
+              {files.map((f, i) => <li key={i}>{f.name}</li>)}
+            </ul>
+          )}
+        </FormItem>
       </div>
     </Modal>
   );
