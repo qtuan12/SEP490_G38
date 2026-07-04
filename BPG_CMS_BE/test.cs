@@ -1,1 +1,0 @@
-using System; public class Program { public static void Main() { var Phase = new { ProjectId = 5L }; var t = new { Phase.ProjectId }; Console.WriteLine(t.ProjectId); } }

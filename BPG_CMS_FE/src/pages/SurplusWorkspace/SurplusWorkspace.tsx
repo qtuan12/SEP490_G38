@@ -1,0 +1,181 @@
+import React, { useState, useEffect } from 'react';
+import { Button, LoadingSpinner } from '../../components/ui';
+import { RefreshCw, PackageX } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
+import { projectService } from '../../services/projectService';
+
+import { SurplusRequestListTab } from './components/SurplusRequestListTab';
+import { SurplusRequestDetailTab } from './components/SurplusRequestDetailTab';
+import { CreateSurplusRequestModal } from './modals/CreateSurplusRequestModal';
+import { CreateReturnModal } from './modals/CreateReturnModal';
+import { CreateTransferModal } from './modals/CreateTransferModal';
+import { CreateLiquidationModal } from './modals/CreateLiquidationModal';
+import { SurplusActionListModal } from './modals/SurplusActionListModal';
+import type { SurplusRequestItem } from '../../types/surplus';
+
+interface SurplusWorkspaceProps {
+  projectId: number;
+  projectName: string;
+}
+
+export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
+  projectId,
+  projectName,
+}) => {
+  const { user } = useAuth();
+  const [isLeader, setIsLeader] = useState(false);
+  
+  const isAccountant = user?.role === 'accountant';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+
+  useEffect(() => {
+    const checkLeaderStatus = async () => {
+      if (user?.role === 'siteengineer') {
+        try {
+          const members = await projectService.getMembers(projectId.toString());
+          const me = members.find(m => m.userId === user.id);
+          setIsLeader(!!me?.isLeader);
+        } catch (err) {
+          console.error('Error checking leader status:', err);
+          setIsLeader(false);
+        }
+      } else {
+        setIsLeader(false);
+      }
+    };
+    checkLeaderStatus();
+  }, [projectId, user]);
+
+  const [view, setView] = useState<'list' | 'detail'>('list');
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Modal states
+  const [showCreateBatch, setShowCreateBatch] = useState(false);
+  const [returnItem, setReturnItem] = useState<SurplusRequestItem | null>(null);
+  const [transferItem, setTransferItem] = useState<SurplusRequestItem | null>(null);
+  const [liquidationItem, setLiquidationItem] = useState<SurplusRequestItem | null>(null);
+  const [actionListItem, setActionListItem] = useState<SurplusRequestItem | null>(null);
+
+  const handleRefresh = () => setRefreshKey(k => k + 1);
+
+  const handleViewDetail = (id: number) => {
+    setSelectedBatchId(id);
+    setView('detail');
+  };
+
+  const handleBack = () => {
+    setView('list');
+    setSelectedBatchId(null);
+  };
+
+  const handleActionSuccess = () => {
+    toast.success('Thao tác thành công!');
+    handleRefresh();
+  };
+
+  return (
+    <div className="flex flex-col gap-6 text-left">
+
+      {/* Header row */}
+      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="flex items-center gap-2">
+          <PackageX size={20} className="text-orange-500" />
+          <span className="font-semibold text-slate-700 text-base">Xử lý Vật tư Thừa</span>
+          {view === 'detail' && selectedBatchId && (
+            <span className="text-slate-400 text-sm">/ Batch #{selectedBatchId}</span>
+          )}
+        </div>
+        <Button
+          variant="outline"
+          onClick={handleRefresh}
+          className="flex items-center gap-1.5"
+        >
+          <RefreshCw size={14} />
+          <span>Làm mới</span>
+        </Button>
+      </div>
+
+      {/* Content */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-5">
+        {view === 'list' && (
+          <SurplusRequestListTab
+            projectId={projectId}
+            refreshKey={refreshKey}
+            onViewDetail={handleViewDetail}
+            onCreateRequest={() => setShowCreateBatch(true)}
+            isLeader={isLeader}
+          />
+        )}
+
+        {view === 'detail' && selectedBatchId !== null && (
+          <SurplusRequestDetailTab
+            surplusRequestId={selectedBatchId}
+            onBack={handleBack}
+            onRefresh={handleRefresh}
+            onCreateReturn={item => setReturnItem(item)}
+            onCreateTransfer={item => setTransferItem(item)}
+            onCreateLiquidation={item => setLiquidationItem(item)}
+            onViewTransferActions={item => setActionListItem(item)}
+            isAccountant={isAccountant}
+            isLeader={isLeader}
+            isTPKT={isTPKT}
+            refreshKey={refreshKey}
+          />
+        )}
+      </div>
+
+      {/* ── Modals ─────────────────────────────────────────────────────── */}
+
+      {showCreateBatch && (
+        <CreateSurplusRequestModal
+          isOpen={showCreateBatch}
+          onClose={() => setShowCreateBatch(false)}
+          onSuccess={() => { handleActionSuccess(); setShowCreateBatch(false); }}
+          projectId={projectId}
+          projectName={projectName}
+        />
+      )}
+
+      {returnItem && (
+        <CreateReturnModal
+          isOpen={!!returnItem}
+          onClose={() => setReturnItem(null)}
+          onSuccess={() => { handleActionSuccess(); setReturnItem(null); }}
+          item={returnItem}
+        />
+      )}
+
+      {transferItem && (
+        <CreateTransferModal
+          isOpen={!!transferItem}
+          onClose={() => setTransferItem(null)}
+          onSuccess={() => { handleActionSuccess(); setTransferItem(null); }}
+          item={transferItem}
+          currentProjectId={projectId}
+        />
+      )}
+
+      {liquidationItem && (
+        <CreateLiquidationModal
+          isOpen={!!liquidationItem}
+          onClose={() => setLiquidationItem(null)}
+          onSuccess={() => { handleActionSuccess(); setLiquidationItem(null); }}
+          item={liquidationItem}
+        />
+      )}
+
+      {actionListItem && (
+        <SurplusActionListModal
+          isOpen={!!actionListItem}
+          onClose={() => setActionListItem(null)}
+          onRefresh={handleRefresh}
+          item={actionListItem}
+          isTPKT={isTPKT}
+          isLeader={isLeader}
+        />
+      )}
+    </div>
+  );
+};

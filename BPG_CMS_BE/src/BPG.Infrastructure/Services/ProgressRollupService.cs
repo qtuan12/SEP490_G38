@@ -36,12 +36,15 @@ public class ProgressRollupService : IProgressRollupService
             {
                 return children.Sum(CalculateWeight);
             }
+
+            var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
+            var baseWeight = duration > 0 ? duration : 1;
+
             if (task.Weight.HasValue && task.Weight.Value > 0)
             {
-                return (double)task.Weight.Value;
+                return baseWeight * (double)task.Weight.Value;
             }
-            var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
-            return duration > 0 ? duration : 1;
+            return baseWeight;
         }
 
         var directChildren = allTasks.Where(t => t.ParentTaskId == parentTaskId).ToList();

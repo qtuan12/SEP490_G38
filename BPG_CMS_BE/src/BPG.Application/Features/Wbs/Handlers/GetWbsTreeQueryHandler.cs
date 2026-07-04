@@ -96,12 +96,14 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
         {
             return children.Sum(c => CalculateWeight(c, allTasks));
         }
+        var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
+        var baseWeight = duration > 0 ? duration : 1;
+
         if (task.Weight.HasValue && task.Weight.Value > 0)
         {
-            return (double)task.Weight.Value;
+            return baseWeight * (double)task.Weight.Value;
         }
-        var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
-        return duration > 0 ? duration : 1;
+        return baseWeight;
     }
 
     private List<WbsTaskDto> BuildTaskTree(List<ProjectTask> nodes, List<ProjectTask> allTasks, Project project)
