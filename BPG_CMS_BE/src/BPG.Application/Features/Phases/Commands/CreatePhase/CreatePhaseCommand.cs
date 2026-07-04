@@ -42,12 +42,22 @@ public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, Api
 
     public async Task<ApiResponse<long>> Handle(CreatePhaseCommand request, CancellationToken ct)
     {
-        var projectExists = await _unitOfWork.Repository<Project>()
+        var project = await _unitOfWork.Repository<Project>()
             .Query()
-            .AnyAsync(p => p.ProjectId == request.ProjectId, ct);
+            .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId, ct);
 
-        if (!projectExists)
+        if (project == null)
             throw new NotFoundException("Project", request.ProjectId);
+
+        if (request.StartDate.HasValue && request.StartDate.Value < project.PlannedStart)
+        {
+            throw new BusinessException("ERR_PHASE_DATE_INVALID", $"Ngày bắt đầu của giai đoạn ({request.StartDate.Value:dd/MM/yyyy}) không được trước ngày bắt đầu của dự án ({project.PlannedStart:dd/MM/yyyy}).");
+        }
+        
+        if (request.EndDate.HasValue && request.EndDate.Value > project.PlannedEnd)
+        {
+            throw new BusinessException("ERR_PHASE_DATE_INVALID", $"Ngày kết thúc của giai đoạn ({request.EndDate.Value:dd/MM/yyyy}) không được sau ngày kết thúc của dự án ({project.PlannedEnd:dd/MM/yyyy}).");
+        }
 
         var phase = new Phase
         {

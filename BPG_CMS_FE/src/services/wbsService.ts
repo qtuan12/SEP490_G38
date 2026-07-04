@@ -3,11 +3,27 @@ import type { WbsTree, TaskDetails } from '../types/wbs';
 import type { ApiResponse } from '../types/api';
 import type { WBSPhase as CommonWBSPhase, WBSTask as CommonWBSTask } from '../types/common';
 
+// Cache and request deduplication map to prevent double-fetching on page load
+const wbsInFlightRequests = new Map<number, Promise<WbsTree>>();
+
 export const wbsService = {
   // WBS Tree
   getWbsTree: async (projectId: number): Promise<WbsTree> => {
-    const res = await apiClient.get<ApiResponse<WbsTree>>(`/projects/${projectId}/wbs`);
-    return res.data;
+    if (wbsInFlightRequests.has(projectId)) {
+      return wbsInFlightRequests.get(projectId)!;
+    }
+
+    const promise = (async () => {
+      try {
+        const res = await apiClient.get<ApiResponse<WbsTree>>(`/projects/${projectId}/wbs`);
+        return res.data;
+      } finally {
+        wbsInFlightRequests.delete(projectId);
+      }
+    })();
+
+    wbsInFlightRequests.set(projectId, promise);
+    return promise;
   },
 
   // WBS Tree Flattened for Legacy UI Components
@@ -30,7 +46,14 @@ export const wbsService = {
         deadline: phaseDto.endDate || undefined,
         endDate: phaseDto.endDate || undefined,
         // @ts-ignore
-        progress: phaseDto.progressPercent
+        progress: phaseDto.progressPercent,
+        materials: phaseDto.materials?.map((it: any) => ({
+          materialId: it.materialId,
+          name: it.name,
+          quantity: it.quantity,
+          unitId: it.unitId,
+          unit: it.unit
+        })) || []
       });
 
       const extractTasks = (taskList: any[]) => {
@@ -38,6 +61,7 @@ export const wbsService = {
           tasks.push({
             id: taskDto.taskId.toString(),
             phaseId: taskDto.phaseId.toString(),
+            phaseName: phaseDto.name,
             projectId: projectId,
             parentTaskId: taskDto.parentTaskId ? taskDto.parentTaskId.toString() : undefined,
             name: taskDto.name,
@@ -50,9 +74,12 @@ export const wbsService = {
             deadline: taskDto.endDate || undefined,
             isOverdue: taskDto.isOverdue,
             isAtRisk: taskDto.isAtRisk,
+            isLocked: taskDto.isLocked,
             daysLeft: taskDto.daysLeft,
             assignedTo: (taskDto as any).assignedTo || undefined,
-            assignedName: (taskDto as any).assignedName || undefined
+            assignedName: (taskDto as any).assignedName || undefined,
+            weight: taskDto.weight !== undefined ? taskDto.weight : undefined,
+            predecessorTaskIds: taskDto.predecessorTaskIds || undefined
           });
 
           if (taskDto.subTasks && taskDto.subTasks.length > 0) {
@@ -104,5 +131,11 @@ export const wbsService = {
   },
   markTaskObsolete: async (taskId: number, data: { taskId: number, obsoleteReason: string }): Promise<void> => {
     await apiClient.put(`/tasks/${taskId}/obsolete`, data);
+  },
+  addTaskDependency: async (taskId: number, predecessorTaskId: number): Promise<void> => {
+    await apiClient.post(`/tasks/${taskId}/dependencies/${predecessorTaskId}`, {});
+  },
+  removeTaskDependency: async (taskId: number, predecessorTaskId: number): Promise<void> => {
+    await apiClient.delete(`/tasks/${taskId}/dependencies/${predecessorTaskId}`);
   }
 };

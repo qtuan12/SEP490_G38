@@ -200,9 +200,7 @@ export const MaterialManagement: React.FC = () => {
           />
 
           {data && data.totalCount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-              <Pagination currentPage={page} totalPages={data.totalPages} onPageChange={setPage} />
-            </div>
+            <Pagination currentPage={page} totalPages={data.totalPages} onPageChange={setPage} />
           )}
         </div>
       )}

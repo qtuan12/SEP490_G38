@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<DailyLog> DailyLogs => Set<DailyLog>();
     public DbSet<TaskProgressLog> TaskProgressLogs => Set<TaskProgressLog>();
     public DbSet<PhaseAcceptance> PhaseAcceptances => Set<PhaseAcceptance>();
+    public DbSet<TaskDependency> TaskDependencies => Set<TaskDependency>();
 
     // Incidents
     public DbSet<Incident> Incidents => Set<Incident>();
@@ -46,6 +47,7 @@ public class AppDbContext : DbContext
     // Procurement
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
+    public DbSet<PurchaseOrderRequest> PurchaseOrderRequests => Set<PurchaseOrderRequest>();
     public DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
     public DbSet<GoodsReceiptItem> GoodsReceiptItems => Set<GoodsReceiptItem>();
 
@@ -53,6 +55,8 @@ public class AppDbContext : DbContext
     public DbSet<CurrentInventory> CurrentInventories => Set<CurrentInventory>();
     public DbSet<MaterialIssuance> MaterialIssuances => Set<MaterialIssuance>();
     public DbSet<MaterialIssuanceItem> MaterialIssuanceItems => Set<MaterialIssuanceItem>();
+    public DbSet<MaterialReturn> MaterialReturns => Set<MaterialReturn>();
+    public DbSet<MaterialReturnItem> MaterialReturnItems => Set<MaterialReturnItem>();
 
     // Surplus Management
     public DbSet<SurplusRequest> SurplusRequests => Set<SurplusRequest>();
@@ -115,6 +119,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<DailyLog>().HasKey(x => x.LogId);
         modelBuilder.Entity<TaskProgressLog>().HasKey(x => x.TaskProgressLogId);
         modelBuilder.Entity<PhaseAcceptance>().HasKey(x => x.AcceptanceId);
+        modelBuilder.Entity<TaskDependency>().HasKey(x => x.TaskDependencyId);
         modelBuilder.Entity<Incident>().HasKey(x => x.IncidentId);
         modelBuilder.Entity<Comment>().HasKey(x => x.CommentId);
         modelBuilder.Entity<MaterialCategory>().HasKey(x => x.CategoryId);
@@ -131,6 +136,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<CurrentInventory>().HasKey(x => x.InventoryId);
         modelBuilder.Entity<MaterialIssuance>().HasKey(x => x.MaterialIssuanceId);
         modelBuilder.Entity<MaterialIssuanceItem>().HasKey(x => x.IssuanceItemId);
+        modelBuilder.Entity<MaterialReturn>().HasKey(x => x.MaterialReturnId);
+        modelBuilder.Entity<MaterialReturnItem>().HasKey(x => x.ReturnItemId);
         modelBuilder.Entity<SurplusRequest>().HasKey(x => x.SurplusRequestId);
         modelBuilder.Entity<SurplusRequestItem>().HasKey(x => x.SurplusRequestItemId);
         modelBuilder.Entity<SurplusReturnSupplier>().HasKey(x => x.SurplusReturnSupplierId);
@@ -216,6 +223,19 @@ public class AppDbContext : DbContext
             .HasForeignKey(t => t.ParentTaskId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Task Dependencies
+        modelBuilder.Entity<TaskDependency>()
+            .HasOne(td => td.Task)
+            .WithMany(t => t.Dependencies)
+            .HasForeignKey(td => td.TaskId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TaskDependency>()
+            .HasOne(td => td.Predecessor)
+            .WithMany(t => t.Dependents)
+            .HasForeignKey(td => td.PredecessorTaskId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Incident - ReworkTask self-ref
         modelBuilder.Entity<Incident>()
             .HasOne(i => i.ReworkTask)
@@ -263,8 +283,7 @@ public class AppDbContext : DbContext
 
         // PhaseAcceptance
         modelBuilder.Entity<PhaseAcceptance>()
-            .HasIndex(p => p.PhaseId)
-            .IsUnique();
+            .HasIndex(p => p.PhaseId);
 
         modelBuilder.Entity<PhaseAcceptance>()
             .HasOne(p => p.Acceptor)
@@ -318,6 +337,26 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PurchaseOrder>()
             .Property(x => x.TotalAmount)
             .HasPrecision(18, 2);
+        modelBuilder.Entity<PurchaseOrder>()
+            .HasOne(x => x.Request)
+            .WithMany()
+            .HasForeignKey(x => x.RequestId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // PurchaseOrderRequest junction (many-to-many PO ↔ MaterialRequest)
+        modelBuilder.Entity<PurchaseOrderRequest>()
+            .HasKey(x => new { x.POId, x.RequestId });
+        modelBuilder.Entity<PurchaseOrderRequest>()
+            .HasOne(x => x.PurchaseOrder)
+            .WithMany(x => x.RequestLinks)
+            .HasForeignKey(x => x.POId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<PurchaseOrderRequest>()
+            .HasOne(x => x.MaterialRequest)
+            .WithMany()
+            .HasForeignKey(x => x.RequestId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // GoodsReceiptItem precision
         modelBuilder.Entity<GoodsReceiptItem>()
@@ -329,6 +368,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MaterialIssuanceItem>()
             .Property(x => x.Quantity).HasPrecision(18, 3);
         modelBuilder.Entity<MaterialIssuanceItem>()
+            .Property(x => x.ConversionRate).HasPrecision(18, 6);
+
+        // MaterialReturnItem precision
+        modelBuilder.Entity<MaterialReturnItem>()
+            .Property(x => x.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<MaterialReturnItem>()
             .Property(x => x.ConversionRate).HasPrecision(18, 6);
 
         // SurplusRequestItem unique (SurplusRequestId, MaterialId) + precision

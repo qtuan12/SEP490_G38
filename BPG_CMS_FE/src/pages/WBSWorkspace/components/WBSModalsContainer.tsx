@@ -12,8 +12,10 @@ import { CreateMaterialRequestModal } from '../../MaterialRequests/modals/Create
 import { ResubmitMaterialRequestModal } from '../../MaterialRequests/modals/ResubmitMaterialRequestModal';
 import { TaskDetailModal } from '../modals/TaskDetailModal';
 import { ObsoleteTaskModal } from '../modals/ObsoleteTaskModal';
-import { DailyLogFormModal } from '../../Incidents/modals/DailyLogFormModal';
+import { DailyLogFormModal } from '../../ProjectDailyLogs/modals/DailyLogFormModal';
 import { AdjustProgressModal } from '../modals/AdjustProgressModal';
+import { ReportIncidentModal } from '../../Incidents/modals/ReportIncidentModal';
+import { useState } from 'react';
 
 export const WBSModalsContainer = () => {
   const {
@@ -34,6 +36,8 @@ export const WBSModalsContainer = () => {
     isAdjustProgressOpen, setIsAdjustProgressOpen,
     selectedTaskId, phases, handleSuccess, handleError, loadWBSData
   } = useWBS();
+
+  const [isReportIncidentOpen, setIsReportIncidentOpen] = useState(false);
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) || null : null;
@@ -62,7 +66,28 @@ export const WBSModalsContainer = () => {
               handleDeleteTask && handleDeleteTask(selectedTask.id, selectedTask.name);
             }
           }}
+          onReportIncidentOpen={() => {
+            setIsDetailOpen(false);
+            setIsReportIncidentOpen(true);
+          }}
           onSuccess={handleSuccess}
+          onError={handleError}
+        />
+      )}
+
+      {isReportIncidentOpen && selectedTask && selectedTaskPhase && project && (
+        <ReportIncidentModal
+          isOpen={isReportIncidentOpen}
+          onClose={() => setIsReportIncidentOpen(false)}
+          projectId={project.id.toString()}
+          taskId={selectedTask.id.toString()}
+          taskName={selectedTask.name}
+          user={user}
+          onSuccess={(msg) => {
+            setIsReportIncidentOpen(false);
+            handleSuccess(msg || 'Đã báo cáo sự cố thành công.');
+            loadWBSData(); // Refresh to update incident count and status
+          }}
           onError={handleError}
         />
       )}
@@ -194,6 +219,8 @@ export const WBSModalsContainer = () => {
           isOpen={isBOQOpen}
           onClose={() => { setIsBOQOpen(false); setSelectedPhaseForBOQ(null); }}
           phase={selectedPhaseForBOQ}
+          projectId={projectId}
+          hasActiveMRs={materialRequests.some(mr => mr.phaseId === selectedPhaseForBOQ.id && mr.status !== 'rejected')}
           onSuccess={handleSuccess}
           onError={handleError}
         />
@@ -208,6 +235,7 @@ export const WBSModalsContainer = () => {
         parentDeadline={parentDeadlineForNew}
         maxTaskOrder={tasks.filter(t => t.phaseId === selectedPhaseForTask && t.parentTaskId === parentTaskForNew).length + 1}
         members={members}
+        tasks={tasks}
         onSuccess={handleSuccess}
         onError={handleError}
       />
@@ -223,6 +251,7 @@ export const WBSModalsContainer = () => {
           task={selectedTaskForEdit}
           parentDeadline={selectedTaskForEdit.parentTaskId ? tasks.find(t => t.id === selectedTaskForEdit.parentTaskId)?.deadline : undefined}
           members={members}
+          tasks={tasks}
           onSuccess={handleSuccess}
           onError={handleError}
         />

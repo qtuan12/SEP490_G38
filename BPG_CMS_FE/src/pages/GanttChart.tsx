@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Gantt from 'frappe-gantt';
 
 import { projectService } from '../services/projectService';
+import { reportService, type GanttChartDataDto } from '../services/reportService';
 import type {WBSPhase, WBSTask, Project} from '../types/common';
 import {
   ArrowLeft,
@@ -26,11 +27,7 @@ interface FrappeTask {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────
-const addDays = (dateStr: string, n: number) => {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-};
+// Removed unused addDays
 
 const formatDate = (s: string) =>
   new Date(s + 'T00:00:00').toLocaleDateString('vi-VN', {
@@ -45,13 +42,19 @@ const VIEW_MODES: { label: string; value: ViewMode }[] = [
 ];
 
 // ── component ────────────────────────────────────────────────────────────
-export const GanttChart: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+interface Props {
+  embeddedProjectId?: string;
+}
+
+export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
+  const params = useParams<{ projectId: string }>();
+  const projectId = embeddedProjectId || params.projectId;
   const navigate = useNavigate();
 
   const [project, setProject] = useState<Project | null>(null);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
+  const [ganttReport, setGanttReport] = useState<GanttChartDataDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('Week');
@@ -71,10 +74,11 @@ export const GanttChart: React.FC = () => {
     if (!projectId) return;
     (async () => {
       try {
-        const [projs, pList, tList] = await Promise.all([
+        const [projs, pList, tList, reportData] = await Promise.all([
           projectService.getProjects(),
           projectService.getPhases(projectId),
           projectService.getTasks(projectId),
+          reportService.getGanttChart(Number(projectId)),
         ]);
         setProject(projs.find(p => p.id === projectId) ?? null);
         setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
@@ -83,6 +87,7 @@ export const GanttChart: React.FC = () => {
             .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
             .sort((a, b) => a.sortOrder - b.sortOrder)
         );
+        setGanttReport(reportData);
       } catch (e: any) {
         setError(e.message ?? 'Lỗi tải dữ liệu.');
       } finally {
@@ -95,73 +100,48 @@ export const GanttChart: React.FC = () => {
   const buildFrappeTasks = useCallback((): FrappeTask[] => {
     const result: FrappeTask[] = [];
 
-    phases.forEach(ph => {
-      const phaseTasks = tasks
-        .filter(t => t.phaseId === ph.id)
-        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-
-      // Estimate phase start = earliest task start/deadline
-      const earliestStart = phaseTasks.length
-        ? phaseTasks.reduce(
-            (min, t) => {
-              const start = t.startDate || addDays(t.deadline, -7);
-              return start < min ? start : min;
-            },
-            phaseTasks[0].startDate || addDays(phaseTasks[0].deadline, -7)
-          )
-        : (project?.startDate ?? new Date().toISOString().slice(0, 10));
-
-      const latestDeadline = phaseTasks.length
-        ? phaseTasks.reduce(
-            (max, t) => (t.deadline > max ? t.deadline : max),
-            phaseTasks[0].deadline
-          )
-        : (project?.endDate ?? addDays(earliestStart, 30));
-
-      const phaseProgress = phaseTasks.length
-        ? Math.round(
-            phaseTasks
-              .filter(t => t.status !== 'obsolete')
-              .reduce((s, t) => s + t.progress, 0) /
-              Math.max(1, phaseTasks.filter(t => t.status !== 'obsolete').length)
-          )
-        : 0;
-
-      // Phase row
-      result.push({
-        id: ph.id,
-        name: `📁 ${ph.name}`,
-        start: earliestStart,
-        end: latestDeadline,
-        progress: phaseProgress,
-        custom_class: ph.status === 'frozen' ? 'gantt-phase-frozen' : 'gantt-phase',
-      });
-
-      // Task rows
-      phaseTasks.forEach((t, idx) => {
-        const start = t.startDate || (project?.startDate && project.startDate < t.deadline
-          ? addDays(t.deadline, -Math.max(7, Math.round((t.progress / 100) * 30)))
-          : addDays(t.deadline, -7));
-
-        let customClass = 'gantt-task';
-        if (t.status === 'obsolete') customClass = 'gantt-task-obsolete';
-        else if (t.progress === 100) customClass = 'gantt-task-done';
-        else if (t.progress > 0) customClass = 'gantt-task-inprogress';
+    if (ganttReport && ganttReport.phases) {
+      ganttReport.phases.forEach(ph => {
+        const phaseProgress = ph.tasks.length
+          ? Math.round(
+              ph.tasks
+                .filter(t => t.status !== 'obsolete')
+                .reduce((s, t) => s + t.progress, 0) /
+                Math.max(1, ph.tasks.filter(t => t.status !== 'obsolete').length)
+            )
+          : 0;
 
         result.push({
-          id: t.id,
-          name: `  ${idx + 1}. ${t.name}`,
-          start,
-          end: t.deadline,
-          progress: t.progress,
-          dependencies: '', // Remove fake waterfall dependencies
-          custom_class: customClass,
+          id: ph.phaseId.toString(),
+          name: `📁 ${ph.phaseName}`,
+          start: ph.baselineStart.split('T')[0],
+          end: ph.baselineEnd.split('T')[0],
+          progress: phaseProgress,
+          custom_class: ph.status === 'frozen' ? 'gantt-phase-frozen' : 'gantt-phase',
+        });
+
+        ph.tasks.forEach((t, idx) => {
+          let customClass = 'gantt-task';
+          if (t.status === 'obsolete') customClass = 'gantt-task-obsolete';
+          else if (t.isDelayed) customClass = 'gantt-task-delayed';
+          else if (t.progress === 100) customClass = 'gantt-task-done';
+          else if (t.progress > 0) customClass = 'gantt-task-inprogress';
+
+          result.push({
+            id: t.taskId.toString(),
+            name: `  ${idx + 1}. ${t.taskName}`,
+            start: t.baselineStart.split('T')[0],
+            end: t.baselineEnd.split('T')[0],
+            progress: t.progress,
+            dependencies: '', 
+            custom_class: customClass,
+          });
         });
       });
-    });
+    }
 
     return result;
-  }, [phases, tasks, project]);
+  }, [ganttReport]);
 
   // ── init / update Gantt instance ──────────────────────────────────────
   useEffect(() => {
@@ -262,12 +242,14 @@ export const GanttChart: React.FC = () => {
       {/* ── Top bar ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between py-4 px-6 border-b border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] flex-wrap gap-3">
         <div className="flex items-center gap-3.5">
-          <button
-            onClick={() => navigate(`/projects/${projectId}`)}
-            className="flex items-center gap-1.5 py-1.5 px-3.5 border border-[hsl(var(--border))] rounded-sm bg-transparent cursor-pointer text-[hsl(var(--text-secondary))] text-[0.85rem] font-medium hover:bg-[hsl(var(--bg-main))] transition-colors"
-          >
-            <ArrowLeft size={15} /><span>Quay lại</span>
-          </button>
+          {!embeddedProjectId && (
+            <button
+              onClick={() => navigate(`/projects/${projectId}`)}
+              className="flex items-center gap-1.5 py-1.5 px-3.5 border border-[hsl(var(--border))] rounded-sm bg-transparent cursor-pointer text-[hsl(var(--text-secondary))] text-[0.85rem] font-medium hover:bg-[hsl(var(--bg-main))] transition-colors"
+            >
+              <ArrowLeft size={15} /><span>Quay lại</span>
+            </button>
+          )}
           <div>
             <h2 className="text-[1.1rem] font-bold m-0">
               Gantt Chart — {project?.name ?? ''}
@@ -473,6 +455,13 @@ export const GanttChart: React.FC = () => {
           fill: hsl(346 84% 50% / 0.1) !important;
           stroke: hsl(346 84% 50%) !important;
           opacity: 0.5;
+        }
+        .gantt-wrapper .gantt .bar-group.gantt-task-delayed .bar {
+          fill: hsl(346 84% 50% / 0.15) !important;
+          stroke: hsl(346 84% 50%) !important;
+        }
+        .gantt-wrapper .gantt .bar-group.gantt-task-delayed .bar-progress {
+          fill: hsl(346 84% 50%) !important;
         }
         .gantt-wrapper .gantt .bar-label {
           font-family: inherit !important;

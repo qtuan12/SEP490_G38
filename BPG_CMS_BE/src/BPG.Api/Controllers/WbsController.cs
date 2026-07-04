@@ -1,4 +1,4 @@
-using BPG.Application.Features.Wbs.Queries.GetWbsTree;
+using BPG.Application.Features.Wbs.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

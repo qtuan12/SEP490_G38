@@ -32,6 +32,39 @@ const setStorage = <T>(key: string, data: T[]) => {
   localStorage.setItem(key, JSON.stringify(data));
 };
 
+const projectDetailRequests = new Map<string, Promise<any>>();
+const projectDetailCache = new Map<string, { data: any, timestamp: number }>();
+
+async function getRawProjectDetail(projectId: string): Promise<any> {
+  const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+  
+  if (projectDetailRequests.has(parsedId)) {
+    return projectDetailRequests.get(parsedId)!;
+  }
+  
+  const cached = projectDetailCache.get(parsedId);
+  if (cached && Date.now() - cached.timestamp < 5000) {
+    return cached.data;
+  }
+  
+  const promise = (async () => {
+    try {
+      const res = await apiClient.get<ApiResponse<any>>(`/projects/${parsedId}`);
+      if (res.success && res.data) {
+        projectDetailCache.set(parsedId, { data: res.data, timestamp: Date.now() });
+      }
+      return res.data;
+    } catch (err) {
+      return null;
+    } finally {
+      projectDetailRequests.delete(parsedId);
+    }
+  })();
+  
+  projectDetailRequests.set(parsedId, promise);
+  return promise;
+}
+
 export const projectService = {
   // Sync overall progress of projects based on task progress average
   async syncProjectProgress(projectId: string): Promise<number> {
@@ -152,12 +185,10 @@ export const projectService = {
 
   async getProjectById(id: string): Promise<Project | null> {
     if (!USE_MOCK_API) {
-      const parsedId = id.startsWith('p-') ? id.substring(2) : id;
       try {
-        const res = await apiClient.get<ApiResponse<import('../types/common').ProjectDetailDto>>(`/projects/${parsedId}`);
-        if (!res.success) return null;
-        const p = res.data;
-        const designAttachments = p.attachments?.filter(a => a.attachmentType === 'Design') || [];
+        const p = await getRawProjectDetail(id);
+        if (!p) return null;
+        const designAttachments = p.attachments?.filter((a: any) => a.attachmentType === 'Design') || [];
         const drawingAttachment = designAttachments.length > 0 ? designAttachments[0] : null;
         
         const project: Project = {
@@ -168,7 +199,7 @@ export const projectService = {
           endDate: p.plannedEnd,
           status: p.status.toLowerCase() as any,
           drawingUrl: drawingAttachment?.fileUrl || '',
-          drawingUrls: designAttachments.map(a => a.fileUrl).filter(Boolean),
+          drawingUrls: designAttachments.map((a: any) => a.fileUrl).filter(Boolean),
           attachments: p.attachments,
           progress: p.progress || 0,
           pauseReason: p.pauseReason,
@@ -342,14 +373,14 @@ export const projectService = {
   // MEMBERS MANAGEMENT
   async getMembers(projectId: string): Promise<ProjectMember[]> {
     if (!USE_MOCK_API) {
-      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
-      const res = await apiClient.get<ApiResponse<import('../types/common').ProjectDetailDto>>(`/projects/${parsedId}`);
-      if (!res.success || !res.data) return [];
-      return (res.data.members || []).map(m => ({
+      const p = await getRawProjectDetail(projectId);
+      if (!p) return [];
+      return (p.members || []).map((m: any) => ({
         projectId,
         userId: m.userId.toString(),
         userName: m.fullName || (m as any).userName || '',
         userEmail: m.email || (m as any).userEmail || '',
+        userPhone: m.phoneNumber || (m as any).userPhone || '',
         userRole: m.role || '',
         isLeader: m.isLeader
       }));
@@ -508,14 +539,30 @@ export const projectService = {
     return allPhases[idx];
   },
 
-  async updatePhaseMaterials(phaseId: string, materials: PhaseMaterialItem[]): Promise<WBSPhase> {
+  async updatePhaseMaterials(projectId: string, phaseId: string, materials: { materialId: number; quantity: number; unitId: number }[]): Promise<any> {
+    if (!USE_MOCK_API) {
+      const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const parsedPhaseId = phaseId.startsWith('ph-') ? phaseId.substring(2) : phaseId;
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedProjectId}/phases/${parsedPhaseId}/boq`, {
+        items: materials
+      });
+      if (!res.success) throw new Error(res.message || 'Cập nhật BOQ thất bại');
+      return res.data;
+    }
     const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
     const idx = allPhases.findIndex(p => p.id === phaseId);
     if (idx === -1) throw new Error('Không tìm thấy giai đoạn.');
     if (allPhases[idx].status === 'frozen') {
       throw new Error('Giai đoạn đã đóng băng nghiệm thu, không thể cập nhật BOQ.');
     }
-    allPhases[idx] = { ...allPhases[idx], materials };
+    const mockMaterials: PhaseMaterialItem[] = materials.map(m => ({
+      materialId: m.materialId,
+      name: `Vật tư ID ${m.materialId}`,
+      quantity: m.quantity,
+      unitId: m.unitId,
+      unit: 'Cái'
+    }));
+    allPhases[idx] = { ...allPhases[idx], materials: mockMaterials };
     setStorage('bpg_wbs_phases', allPhases);
     return allPhases[idx];
   },
@@ -1490,12 +1537,56 @@ export const projectService = {
   },
 
   // MATERIAL REQUESTS FOR REWORK & COMPENSATION (Section 1.7)
+  // Helper to map DTOs
+  mapRequestDtoToCommon(item: any): MaterialRequest {
+    return {
+      id: `mat-req-${item.requestId}`,
+      projectId: item.projectId ? item.projectId.toString() : '',
+      phaseId: item.phaseId ? item.phaseId.toString() : '',
+      phaseName: item.phaseName,
+      requesterName: item.createdByName || 'PL',
+      reason: item.reason,
+      date: item.createdAt ? item.createdAt.replace('T', ' ').slice(0, 16) : '',
+      isOverBOQ: item.boqCheckStatus === 'OverBOQ',
+      type: 'normal',
+      status: this.mapBackendStatusToFrontend(item.status),
+      items: (item.items || []).map((it: any) => ({
+        name: it.materialName,
+        quantity: it.quantity,
+        unit: it.unitName
+      }))
+    };
+  },
+
+  mapBackendStatusToFrontend(status: string): MaterialRequest['status'] {
+    switch (status) {
+      case 'Pending': return 'pending_accountant';
+      case 'WaitingApproval': return 'pending_director';
+      case 'Approved': return 'approved';
+      case 'Rejected': return 'rejected';
+      case 'Cancelled': return 'cancelled'; // Người tạo tự hủy – KHÁC với Rejected
+      default: return 'pending_accountant';
+    }
+  },
+
+  // MATERIAL REQUESTS FOR REWORK & COMPENSATION (Section 1.7)
   async getMaterialRequests(projectId: string): Promise<MaterialRequest[]> {
+    if (!USE_MOCK_API) {
+      const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      const res = await apiClient.get<ApiResponse<any>>(`/projects/${parsedProjectId}/material-requests`);
+      if (!res.success) throw new Error(res.message || 'Lấy danh sách yêu cầu thất bại');
+      return (res.data?.items || []).map((item: any) => this.mapRequestDtoToCommon(item));
+    }
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     return list.filter(r => r.projectId === projectId).sort((a, b) => b.date.localeCompare(a.date));
   },
 
   async getAllMaterialRequests(): Promise<MaterialRequest[]> {
+    if (!USE_MOCK_API) {
+      const res = await apiClient.get<ApiResponse<any>>('/materialrequests');
+      if (!res.success) throw new Error(res.message || 'Lấy danh sách yêu cầu thất bại');
+      return (res.data?.items || []).map((item: any) => this.mapRequestDtoToCommon(item));
+    }
     return getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS).sort((a, b) => b.date.localeCompare(a.date));
   },
 
@@ -1504,6 +1595,32 @@ export const projectService = {
     userRole?: string,
     isLeader?: boolean
   ): Promise<MaterialRequest> {
+    if (!USE_MOCK_API) {
+      const parsedProjectId = request.projectId.startsWith('p-') ? request.projectId.substring(2) : request.projectId;
+      const parsedPhaseId = request.phaseId?.startsWith('ph-') ? request.phaseId.substring(3) : request.phaseId;
+      
+      const payload = {
+        projectId: parseInt(parsedProjectId),
+        phaseId: parseInt(parsedPhaseId || '0'),
+        reason: request.reason || '',
+        type: request.type || 'normal',
+        invoiceImage: request.invoiceImage || null,
+        items: request.items.map(it => ({
+          name: it.name,
+          quantity: it.quantity,
+          unit: it.unit
+        }))
+      };
+      
+      const res = await apiClient.post<ApiResponse<any>>(`/projects/${parsedProjectId}/material-requests`, payload);
+      if (!res.success) throw new Error(res.message || 'Tạo yêu cầu thất bại');
+      
+      // Lấy chi tiết yêu cầu vừa tạo để trả về đầy đủ DTO
+      const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${res.data}`);
+      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu vừa tạo thất bại');
+      return this.mapRequestDtoToCommon(detailRes.data);
+    }
+
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
 
     const isRework = request.taskName ? (request.taskName.startsWith('[Rework]') || request.taskName.toLowerCase().includes('rework') || request.taskName.toLowerCase().includes('khắc phục')) : false;
@@ -1605,6 +1722,16 @@ export const projectService = {
   },
 
   async cancelMaterialRequest(requestId: string, reason: string): Promise<void> {
+    if (!USE_MOCK_API) {
+      const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
+      const res = await apiClient.post<ApiResponse<any>>(`/materialrequests/${parsedRequestId}/cancel`, {
+        requestId: parseInt(parsedRequestId),
+        reason: reason
+      });
+      if (!res.success) throw new Error(res.message || 'Hủy yêu cầu thất bại');
+      return;
+    }
+
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
@@ -1618,7 +1745,20 @@ export const projectService = {
     setStorage('bpg_material_requests', list);
   },
 
-  async processMaterialRequestByAccountant(requestId: string): Promise<MaterialRequest> {
+  async processMaterialRequestByAccountant(requestId: string, note?: string): Promise<MaterialRequest> {
+    if (!USE_MOCK_API) {
+      const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
+      const res = await apiClient.post<ApiResponse<any>>(`/materialrequests/${parsedRequestId}/accountant-process`, {
+        requestId: parseInt(parsedRequestId),
+        note: note || 'Kế toán xử lý'
+      });
+      if (!res.success) throw new Error(res.message || 'Kế toán xử lý thất bại');
+      
+      const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
+      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
+      return this.mapRequestDtoToCommon(detailRes.data);
+    }
+
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
@@ -1641,7 +1781,7 @@ export const projectService = {
             if (exist) {
               exist.quantity += reqItem.quantity;
             } else {
-              currentMaterials.push({ name: reqItem.name, quantity: reqItem.quantity, unit: reqItem.unit });
+              currentMaterials.push({ materialId: 0, unitId: 0, name: reqItem.name, quantity: reqItem.quantity, unit: reqItem.unit });
             }
           });
           allPhases[phaseIdx].materials = currentMaterials;
@@ -1654,7 +1794,21 @@ export const projectService = {
     return list[idx];
   },
 
-  async disburseEmergencyRequest(requestId: string): Promise<MaterialRequest> {
+  async disburseEmergencyRequest(requestId: string, note?: string): Promise<MaterialRequest> {
+    // Phiếu khẩn cấp/mua ngoài tự giải ngân
+    if (!USE_MOCK_API) {
+      const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
+      const res = await apiClient.post<ApiResponse<any>>(`/materialrequests/${parsedRequestId}/accountant-process`, {
+        requestId: parseInt(parsedRequestId),
+        note: note || 'Đã giải ngân chi phí mua ngoài khẩn cấp'
+      });
+      if (!res.success) throw new Error(res.message || 'Giải ngân thất bại');
+      
+      const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
+      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
+      return this.mapRequestDtoToCommon(detailRes.data);
+    }
+
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
@@ -1668,7 +1822,20 @@ export const projectService = {
     return list[idx];
   },
 
-  async approveMaterialRequestByDirector(requestId: string, approvedBy: string): Promise<MaterialRequest> {
+  async approveMaterialRequestByDirector(requestId: string, approvedBy: string, note?: string): Promise<MaterialRequest> {
+    if (!USE_MOCK_API) {
+      const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
+      const res = await apiClient.post<ApiResponse<any>>(`/materialrequests/${parsedRequestId}/director-approve`, {
+        requestId: parseInt(parsedRequestId),
+        note: note || `Giám đốc duyệt (${approvedBy})`
+      });
+      if (!res.success) throw new Error(res.message || 'Giám đốc phê duyệt thất bại');
+      
+      const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
+      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
+      return this.mapRequestDtoToCommon(detailRes.data);
+    }
+
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
@@ -1691,7 +1858,7 @@ export const projectService = {
           if (exist) {
             exist.quantity += reqItem.quantity;
           } else {
-            currentMaterials.push({ name: reqItem.name, quantity: reqItem.quantity, unit: reqItem.unit });
+            currentMaterials.push({ materialId: 0, unitId: 0, name: reqItem.name, quantity: reqItem.quantity, unit: reqItem.unit });
           }
         });
         allPhases[phaseIdx].materials = currentMaterials;
@@ -1704,6 +1871,19 @@ export const projectService = {
   },
 
   async rejectMaterialRequest(requestId: string, reason: string): Promise<MaterialRequest> {
+    if (!USE_MOCK_API) {
+      const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
+      const res = await apiClient.post<ApiResponse<any>>(`/materialrequests/${parsedRequestId}/reject`, {
+        requestId: parseInt(parsedRequestId),
+        reason: reason
+      });
+      if (!res.success) throw new Error(res.message || 'Từ chối yêu cầu thất bại');
+      
+      const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
+      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
+      return this.mapRequestDtoToCommon(detailRes.data);
+    }
+
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
@@ -1798,6 +1978,24 @@ export const projectService = {
     userRole?: string,
     isLeader?: boolean
   ): Promise<MaterialRequest> {
+    if (!USE_MOCK_API) {
+      const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
+      const res = await apiClient.post<ApiResponse<any>>(`/materialrequests/${parsedRequestId}/resubmit`, {
+        reason: updates.reason?.trim() || '',
+        items: (updates.items || []).map(it => ({
+          name: it.name.trim(),
+          quantity: it.quantity,
+          unit: it.unit.trim()
+        }))
+      });
+      if (!res.success) throw new Error(res.message || 'Gửi lại yêu cầu thất bại');
+
+      // Lấy lại chi tiết phiếu sau khi resubmit
+      const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
+      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
+      return this.mapRequestDtoToCommon(detailRes.data);
+    }
+
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     const idx = list.findIndex(r => r.id === requestId);
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');

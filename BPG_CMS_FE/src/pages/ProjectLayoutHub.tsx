@@ -1,43 +1,52 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
-import type {Project} from '../types/common';
+import type { Project } from '../types/common';
 import { ProjectMembers } from '../components/ProjectMembers';
 import { WBSWorkspace } from './WBSWorkspace';
-import { DailyLogFeed } from '../components/DailyLogFeed';
+import { DailyLogFeed } from './ProjectDailyLogs/components/DailyLogFeed';
 import { EditProjectModal } from './ProjectList/modals/EditProjectModal';
+import { Modal } from '../components/ui/Modal';
+import { Button, Input, FormItem } from '../components/ui';
 
-import { 
-  ArrowLeft, 
-  Users, 
-  FolderGit2, 
-  MapPin, 
+import {
+  ArrowLeft,
+  Users,
+  FolderGit2,
+  MapPin,
   Calendar,
   Loader2,
   Pause,
   CheckCircle,
   Clock,
   Edit3,
-  FileText,
+
   AlertCircle,
-  Play
+  Play,
+  Package
 } from 'lucide-react';
+import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
+import { ProjectIncidents } from './ProjectIncidents';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  
+
   const { user } = useAuth();
   const { connection } = useNotification();
-  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const [isPL, setIsPL] = useState(false);
+  const isTPKT = isPL || user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs'>('wbs');
+  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents'>('wbs');
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
+  const [pauseReason, setPauseReason] = useState("");
+  const [isPausing, setIsPausing] = useState(false);
 
   const fetchProjectDetails = async () => {
     if (!projectId) return;
@@ -45,6 +54,10 @@ export const ProjectLayoutHub: React.FC = () => {
     try {
       const data = await projectService.getProjectById(projectId);
       setProject(data);
+
+      const members = await projectService.getMembers(projectId);
+      const currentMember = members.find(m => m.userId === user?.id);
+      setIsPL((currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager');
     } catch (err) {
       console.error('Error loading project details:', err);
     } finally {
@@ -86,16 +99,31 @@ export const ProjectLayoutHub: React.FC = () => {
         } else {
           await projectService.activateProject(project.id);
         }
+        fetchProjectDetails(); // reload
       } else if (newStatus === 'paused') {
-        const reason = window.prompt("Nhập lý do tạm dừng dự án:", "");
-        if (reason === null) return; // user cancelled
-        await projectService.pauseProject(project.id, reason || "Tạm dừng dự án");
+        setPauseReason("");
+        setIsPauseModalOpen(true);
       } else {
         await projectService.updateProject(project.id, { status: newStatus });
+        fetchProjectDetails(); // reload
       }
-      fetchProjectDetails(); // reload
     } catch (err: any) {
       setStatusError(err.message || 'Có lỗi xảy ra khi đổi trạng thái');
+    }
+  };
+
+  const handleConfirmPause = async () => {
+    if (!project) return;
+    setIsPausing(true);
+    setStatusError(null);
+    try {
+      await projectService.pauseProject(project.id, pauseReason || "Tạm dừng dự án");
+      await fetchProjectDetails();
+      setIsPauseModalOpen(false);
+    } catch (err: any) {
+      setStatusError(err.message || 'Có lỗi xảy ra khi tạm dừng dự án');
+    } finally {
+      setIsPausing(false);
     }
   };
 
@@ -121,18 +149,18 @@ export const ProjectLayoutHub: React.FC = () => {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-      
+
       {/* Back button and Info header */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <button 
-          onClick={() => navigate('/projects')} 
-          style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '6px', 
-            background: 'none', 
-            border: 'none', 
-            color: 'hsl(var(--text-secondary))', 
+        <button
+          onClick={() => navigate('/projects')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'none',
+            border: 'none',
+            color: 'hsl(var(--text-secondary))',
             cursor: 'pointer',
             fontSize: '0.9rem',
             fontWeight: 500,
@@ -147,12 +175,12 @@ export const ProjectLayoutHub: React.FC = () => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{project.name}</h1>
-              {project.status === 'draft' && <span className="badge" style={{ backgroundColor: 'hsl(var(--text-muted))', color: 'white' }}>Bản nháp (Draft)</span>}
-              {project.status === 'inprogress' && <span className="badge badge-primary">Đang triển khai (Inprogress)</span>}
-              {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng (Paused)</span>}
-              {project.status === 'done' && <span className="badge badge-success">Hoàn thành (Done)</span>}
+              {project.status === 'draft' && <span className="badge" style={{ backgroundColor: 'hsl(var(--text-muted))', color: 'white' }}>Bản nháp </span>}
+              {project.status === 'inprogress' && <span className="badge badge-primary">Đang triển khai</span>}
+              {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng </span>}
+              {project.status === 'done' && <span className="badge badge-success">Hoàn thành </span>}
             </div>
-            
+
             <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <MapPin size={14} style={{ color: 'hsl(var(--text-muted))' }} />
@@ -162,14 +190,9 @@ export const ProjectLayoutHub: React.FC = () => {
                 <Calendar size={14} style={{ color: 'hsl(var(--text-muted))' }} />
                 Hạn: {project.startDate?.split('-').reverse().join('-')} → {project.endDate?.split('-').reverse().join('-')}
               </span>
-              {project.drawingUrl && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'hsl(var(--primary-hover))' }}>
-                  <FileText size={14} />
-                  Bản vẽ thiết kế: {project.drawingUrl}
-                </span>
-              )}
+
             </div>
-            
+
             {project.status === 'paused' && project.pauseReason && (
               <div style={{ marginTop: '12px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', borderLeft: '4px solid hsl(var(--warning))', color: 'hsl(var(--warning))', fontSize: '0.9rem', borderRadius: '4px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                 <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
@@ -181,36 +204,49 @@ export const ProjectLayoutHub: React.FC = () => {
             )}
           </div>
 
-          {/* Project Status Actions for TPKT */}
-          {isTPKT && (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {project.status !== 'done' && (
-                <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Edit3 size={16} /> Sửa
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {(user?.role === 'director' || user?.role === 'accountant') && (
+              <>
+                <button onClick={() => navigate(`/projects/${projectId}/reports/boq`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Package size={16} /> Báo cáo BOQ
                 </button>
-              )}
-              {project.status === 'draft' && (
-                <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Play size={16} /> Kích hoạt Dự án
+                <button onClick={() => navigate(`/projects/${projectId}/reports/cost`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertCircle size={16} /> Báo cáo Chi phí
                 </button>
-              )}
-              {project.status === 'inprogress' && (
-                <>
-                  <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
-                    <Pause size={16} /> Tạm dừng
+              </>
+            )}
+
+            {/* Project Status Actions for TPKT */}
+            {isTPKT && (
+              <>
+                {project.status !== 'done' && (
+                  <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Edit3 size={16} /> Sửa
                   </button>
-                  <button onClick={() => handleStatusChange('done')} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'hsl(var(--success))', color: 'white' }}>
-                    <CheckCircle size={16} /> Hoàn thành
+                )}
+                {project.status === 'draft' && (
+                  <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Play size={16} /> Kích hoạt Dự án
                   </button>
-                </>
-              )}
-              {project.status === 'paused' && (
-                <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Play size={16} /> Tiếp tục Dự án
-                </button>
-              )}
-            </div>
-          )}
+                )}
+                {project.status === 'inprogress' && (
+                  <>
+                    <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
+                      <Pause size={16} /> Tạm dừng
+                    </button>
+                    <button onClick={() => handleStatusChange('done')} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'hsl(var(--success))', color: 'white' }}>
+                      <CheckCircle size={16} /> Hoàn thành
+                    </button>
+                  </>
+                )}
+                {project.status === 'paused' && (
+                  <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Play size={16} /> Tiếp tục Dự án
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {statusError && (
@@ -245,16 +281,16 @@ export const ProjectLayoutHub: React.FC = () => {
         </div>
 
         {/* Large Progress bar */}
-        <div style={{ 
-          height: '20px', 
-          backgroundColor: 'hsl(var(--border))', 
-          borderRadius: 'var(--radius-full)', 
+        <div style={{
+          height: '20px',
+          backgroundColor: 'hsl(var(--border))',
+          borderRadius: 'var(--radius-full)',
           overflow: 'hidden',
           boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06)'
         }}>
-          <div style={{ 
-            width: `${project.progress}%`, 
-            height: '100%', 
+          <div style={{
+            width: `${project.progress}%`,
+            height: '100%',
             background: 'linear-gradient(90deg, hsl(var(--primary-hover)) 0%, hsl(var(--primary)) 100%)',
             boxShadow: '0 0 10px hsl(var(--primary) / 0.5)',
             transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -263,9 +299,9 @@ export const ProjectLayoutHub: React.FC = () => {
       </div>
 
       {/* Navigation Tabs Header */}
-      <div style={{ 
-        display: 'flex', 
-        borderBottom: '1px solid hsl(var(--border))', 
+      <div style={{
+        display: 'flex',
+        borderBottom: '1px solid hsl(var(--border))',
         gap: '8px',
         overflowX: 'auto'
       }}>
@@ -335,25 +371,106 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Thành viên dự án</span>
         </button>
 
+        <button
+          onClick={() => setActiveTab('inventory')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'inventory' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'inventory' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'inventory' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <Package size={18} />
+          <span>Kiểm soát Vật tư</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('incidents')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'incidents' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'incidents' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'incidents' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <AlertCircle size={18} />
+          <span>Sự cố thi công</span>
+        </button>
+
       </div>
 
       {/* Tab Contents */}
-      <div 
-        className="animate-fade-in" 
+      <div
+        className="animate-fade-in"
         style={{ marginTop: '10px' }}
       >
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
+        {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
+        {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} />}
       </div>
 
-      <EditProjectModal
-        isOpen={isEditOpen}
-        onClose={() => setIsEditOpen(false)}
-        project={project}
-        onSuccess={fetchProjectDetails}
-      />
+      {isEditOpen && project && (
+        <EditProjectModal
+          isOpen={isEditOpen}
+          onClose={() => setIsEditOpen(false)}
+          onSuccess={fetchProjectDetails}
+          project={project}
+        />
+      )}
+
+      {isPauseModalOpen && project && (
+        <Modal
+          isOpen={isPauseModalOpen}
+          onClose={() => !isPausing && setIsPauseModalOpen(false)}
+          title="Tạm dừng dự án"
+          width="md"
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setIsPauseModalOpen(false)} disabled={isPausing} className="mr-3">
+                Hủy bỏ
+              </Button>
+              <Button variant="danger" onClick={handleConfirmPause} isLoading={isPausing}>
+                Xác nhận Tạm dừng
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-gray-600">
+              Bạn đang yêu cầu tạm dừng dự án <strong>{project.name}</strong>. Vui lòng cung cấp lý do tạm dừng (không bắt buộc nhưng khuyến nghị).
+            </p>
+            <FormItem label="Lý do tạm dừng">
+              <Input
+                placeholder="Nhập lý do tạm dừng dự án..."
+                value={pauseReason}
+                onChange={(e) => setPauseReason(e.target.value)}
+                disabled={isPausing}
+                autoFocus
+              />
+            </FormItem>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
-

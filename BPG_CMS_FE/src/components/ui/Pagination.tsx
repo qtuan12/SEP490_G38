@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+
 
 export interface PaginationProps {
   currentPage: number;
@@ -8,38 +8,28 @@ export interface PaginationProps {
   className?: string;
 }
 
-export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPageChange }) => {
-
-  const btnStyle = (disabled: boolean): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: '32px', height: '32px', borderRadius: '6px', border: '1px solid hsl(var(--border))',
-    background: 'hsl(var(--bg-main))', color: 'hsl(var(--text-primary))',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.4 : 1,
-    transition: 'all var(--transition-fast)',
-  });
+export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPageChange, className }) => {
+  if (totalPages <= 1) return null;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderTop: '1px solid hsl(var(--border))' }}>
-      <span style={{ fontSize: '13px', color: 'hsl(var(--text-secondary))' }}>
-        Trang <strong style={{ color: 'hsl(var(--text-primary))' }}>{currentPage}</strong> / {totalPages}
-      </span>
-      <div style={{ display: 'flex', gap: '8px' }}>
+    <div className={`flex justify-center mt-6 ${className || ''}`}>
+      <div className="flex items-center gap-2">
         <button
-          onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          style={btnStyle(currentPage === 1)}
-          aria-label="Trang trước"
+          onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-hover))] disabled:opacity-50 disabled:cursor-not-allowed border-none transition-colors cursor-pointer"
         >
-          <ChevronLeft size={16} />
+          Trang trước
         </button>
+        <div className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-[hsl(var(--border-light))] text-[hsl(var(--primary))] shadow-sm">
+          Trang {currentPage} / {totalPages}
+        </div>
         <button
-          onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          style={btnStyle(currentPage === totalPages)}
-          aria-label="Trang sau"
+          onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-hover))] disabled:opacity-50 disabled:cursor-not-allowed border-none transition-colors cursor-pointer"
         >
-          <ChevronRight size={16} />
+          Trang sau
         </button>
       </div>
     </div>

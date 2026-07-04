@@ -5,7 +5,7 @@ import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle,
 import { AssignEngineerForm } from './AssignEngineerModal';
 import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';
-import { DailyLogForm } from '../../Incidents/modals/DailyLogFormModal';
+import { DailyLogForm } from '../../ProjectDailyLogs/modals/DailyLogFormModal';
 import type {WBSTask, WBSPhase, Project, MaterialRequest} from '../../../types/common';
 import { TaskProgressHistoryPanel } from '../../../components/TaskProgressHistoryPanel';
 
@@ -22,6 +22,7 @@ interface TaskDetailModalProps {
   isPL: boolean;
   onCreateMatReqOpen: (type: 'normal' | 'emergency') => void;
   onObsolete: () => void;
+  onReportIncidentOpen: () => void;
   onSuccess?: (msg: string) => void;
   onError?: (msg: string) => void;
 }
@@ -41,7 +42,9 @@ const getAvatarColor = (userId: string) => {
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, materialRequests, isTPKTOrPL, isPL,
-  onCreateMatReqOpen, onObsolete,
+  onCreateMatReqOpen,
+  onObsolete,
+  onReportIncidentOpen,
   onSuccess, onError
 }) => {
   const navigate = useNavigate();
@@ -150,8 +153,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Công việc đang chọn" maxWidth={activeForm ? "1100px" : "700px"}>
-      <div className="flex flex-col md:flex-row gap-6 items-start transition-all duration-300">
-        <div className="flex flex-col gap-5 w-full" style={{ flex: activeForm ? '1 1 60%' : '1 1 100%' }}>
+      <div style={{ display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', gap: '24px', alignItems: 'flex-start', transition: 'all 0.3s' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', flex: activeForm ? '1 1 60%' : '1 1 100%' }}>
         <div>
           <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{selectedTask.name}</h3>
           <p style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', marginTop: '2px' }}>
@@ -178,6 +181,35 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           return null;
         })()}
 
+        {/* Check predecessor tasks */}
+        {(() => {
+          const predIds = selectedTask.predecessorTaskIds;
+          if (predIds && predIds.length > 0) {
+            const preds = predIds.map(id => tasks.find(t => t.id === id.toString())).filter(Boolean);
+            return (
+              <div style={{ padding: '10px 14px', backgroundColor: 'hsl(var(--warning-glow) / 0.08)', border: '1px solid hsl(var(--warning) / 0.2)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem' }}>
+                <strong style={{ color: 'hsl(var(--warning-text))', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <AlertCircle size={15} /> Công việc đi trước (Finish-to-Start)
+                </strong>
+                <p style={{ margin: 0, color: 'hsl(var(--text-secondary))' }}>
+                  Cần hoàn thành 100% các công việc sau để có thể bắt đầu công việc này:
+                </p>
+                <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px', color: 'hsl(var(--text-primary))', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {preds.map(p => (
+                    <li key={p!.id} style={{ listStyleType: 'disc' }}>
+                      <span style={{ fontWeight: 500 }}>{p!.name}</span>: {' '}
+                      <span style={{ fontWeight: 600, color: p!.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--warning-text))' }}>
+                        {p!.progress === 100 ? 'Đã xong (100%)' : `Chưa xong (${p!.progress}%)`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* Progress */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 600 }}>
@@ -189,8 +221,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Assignee + Start Date + Deadline */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '16px' }}>
+        {/* Assignee + Start Date + Deadline + Weight */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '16px' }}>
           <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
               <User size={14} />KỸ SƯ PHỤ TRÁCH
@@ -240,6 +272,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <Calendar size={14} />HẠN HOÀN THÀNH
             </span>
             <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.deadline?.split('-').reverse().join('-')}</strong>
+          </div>
+          <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
+              <TrendingUp size={14} />TRỌNG SỐ (WBS)
+            </span>
+            <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>
+              {selectedTask.weight !== undefined && selectedTask.weight !== null ? selectedTask.weight : 'Tự động'}
+            </strong>
           </div>
         </div>
 
@@ -310,6 +350,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             >
               <FileText size={15} />
               <span>Xem Nhật ký thi công</span>
+            </button>
+            <button 
+              onClick={() => onReportIncidentOpen()} 
+              className="btn btn-outline" 
+              style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', borderColor: 'hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
+            >
+              <AlertCircle size={15} />
+              <span>Báo cáo Sự cố</span>
             </button>
           </div>
         ) : (
@@ -389,7 +437,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <History size={13} />
               <span>Nhật ký thi công chi tiết (Click để xem)</span>
             </h5>
-            <div style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', pointerEvents: 'none' }}>
+            <div 
+              onClick={(e) => e.stopPropagation()} 
+              style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', cursor: 'default' }}
+            >
               <TaskProgressHistoryPanel taskId={selectedTask.id} limit={5} compact={true} />
             </div>
           </div>

@@ -1,5 +1,6 @@
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.Common.Extensions;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,10 @@ public class ProgressRollupService : IProgressRollupService
             if (children.Any())
             {
                 return children.Sum(CalculateWeight);
+            }
+            if (task.Weight.HasValue && task.Weight.Value > 0)
+            {
+                return (double)task.Weight.Value;
             }
             var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
             return duration > 0 ? duration : 1;

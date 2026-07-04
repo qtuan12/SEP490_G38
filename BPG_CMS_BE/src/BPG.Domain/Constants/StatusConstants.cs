@@ -58,12 +58,14 @@ public static class PurchaseOrderStatus
     public const string PartiallyReceived = "PartiallyReceived";
     public const string FullyReceived = "FullyReceived";
     public const string Closed = "Closed";
+    public const string Cancelled = "Cancelled";
 }
 
 public static class GoodsReceiptStatus
 {
     public const string Draft = "Draft";
     public const string Approved = "Approved";
+    public const string Cancelled = "Cancelled";
 }
 
 public static class SurplusRequestStatus

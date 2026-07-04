@@ -10,6 +10,7 @@ namespace BPG.Application.DTOs.Users
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public string? AvatarUrl { get; set; }
 
         public static UserDto FromEntity(User user)
         {
@@ -19,7 +20,8 @@ namespace BPG.Application.DTOs.Users
                 Name = user.FullName,
                 Email = user.Email,
                 Role = (user.UserRoles?.FirstOrDefault()?.Role?.RoleName ?? string.Empty).ToLower(),
-                Status = GetStatus(user)
+                Status = GetStatus(user),
+                AvatarUrl = user.AvatarUrl
             };
         }
         public static string GetStatus(User user)

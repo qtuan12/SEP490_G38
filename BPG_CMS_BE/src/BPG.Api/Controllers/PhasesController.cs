@@ -1,6 +1,9 @@
 using BPG.Application.Features.Phases.Commands.CreatePhase;
 using BPG.Application.Features.Phases.Commands.DeletePhase;
 using BPG.Application.Features.Phases.Commands.UpdatePhase;
+using BPG.Application.Features.Phases.Commands.UpdatePhaseBOQ;
+using BPG.Application.DTOs.Phases;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,6 +31,14 @@ public class PhasesController : BaseApiController
             return BadRequest(new { Message = "PhaseId mismatch" });
 
         var result = await Mediator.Send(command, ct);
+        return ApiOk(result);
+    }
+
+    [HttpPut("{phaseId}/boq")]
+    [Authorize(Policy = PolicyNames.RequireTechnicalManager)]
+    public async Task<IActionResult> UpdatePhaseBOQ([FromRoute] long projectId, [FromRoute] long phaseId, [FromBody] UpdatePhaseBOQRequest request, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new UpdatePhaseBOQCommand(projectId, phaseId, request.Items), ct);
         return ApiOk(result);
     }
 

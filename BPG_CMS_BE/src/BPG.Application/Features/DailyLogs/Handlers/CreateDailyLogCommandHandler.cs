@@ -81,10 +81,23 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }
 
-            // Kiểm tra xem công việc có bị khóa (đã nghiệm thu) không
-            if (task.IsLocked)
+            // Kiểm tra xem công việc hoặc bất kỳ công việc cha nào có bị khóa (đã nghiệm thu) không
+            var tempTask = task;
+            while (tempTask != null)
             {
-                throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã được nghiệm thu và khóa tiến độ, không thể cập nhật thêm nhật ký thi công.");
+                if (tempTask.IsLocked)
+                {
+                    throw new BusinessException("ERR_TASK_LOCKED", $"Không thể cập nhật tiến độ vì công việc hoặc cấp cha [{tempTask.Name}] đã được nghiệm thu và khóa.");
+                }
+                if (tempTask.ParentTaskId.HasValue)
+                {
+                    tempTask = await _uow.Repository<ProjectTask>().Query()
+                        .FirstOrDefaultAsync(t => t.TaskId == tempTask.ParentTaskId.Value, cancellationToken);
+                }
+                else
+                {
+                    tempTask = null;
+                }
             }
 
             // Kiểm tra số lượng hình ảnh
@@ -98,6 +111,45 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             {
                 throw new BusinessException("ERR_TASK_HAS_SUBTASKS", 
                     "Không thể cập nhật tiến độ thủ công cho công việc cha có chứa các công việc con.");
+            }
+
+            // 4.5. Kiểm tra điều kiện phụ thuộc (Finish-to-Start)
+            if (request.NewProgressPercent > 0)
+            {
+                var incompletePredecessors = await _uow.Repository<TaskDependency>()
+                    .Query()
+                    .Include(td => td.Predecessor)
+                    .Where(td => td.TaskId == task.TaskId 
+                        && td.Predecessor.ProgressPercent < 100
+                        && td.Predecessor.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+                    .ToListAsync(cancellationToken);
+
+                if (incompletePredecessors.Any())
+                {
+                    // Tìm tất cả các ancestor IDs để loại trừ khỏi danh sách chặn
+                    var ancestorIds = new System.Collections.Generic.HashSet<long>();
+                    long? currentParentId = task.ParentTaskId;
+                    while (currentParentId.HasValue)
+                    {
+                        ancestorIds.Add(currentParentId.Value);
+                        var parent = await _uow.Repository<ProjectTask>()
+                            .Query()
+                            .Select(t => new { t.TaskId, t.ParentTaskId })
+                            .FirstOrDefaultAsync(t => t.TaskId == currentParentId.Value, cancellationToken);
+                        currentParentId = parent?.ParentTaskId;
+                    }
+
+                    var blockedPredecessors = incompletePredecessors
+                        .Where(td => !ancestorIds.Contains(td.PredecessorTaskId))
+                        .ToList();
+
+                    if (blockedPredecessors.Any())
+                    {
+                        var names = string.Join(", ", blockedPredecessors.Select(td => td.Predecessor.Name));
+                        throw new BusinessException("ERR_TASK_DEPENDENCY_BLOCKED",
+                            $"Không thể cập nhật tiến độ. Các công việc tiên quyết chưa hoàn thành: {names}");
+                    }
+                }
             }
 
             // 5. Kiểm tra lùi tiến độ (chỉ Admin/TM được phép lùi tiến độ)
@@ -122,6 +174,11 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             try
             {
+                // Giải quyết tranh chấp đồng thời khi nhiều kỹ sư báo cáo tiến độ cùng lúc cho cùng một dự án:
+                // Sử dụng sp_getapplock của SQL Server ở cấp độ dự án trong suốt thời gian chạy transaction
+                var lockResource = $"Project_WbsClimb_Lock_{project.ProjectId}";
+                await _uow.ExecuteSqlAsync($"EXEC sp_getapplock @Resource = {lockResource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction'", cancellationToken);
+
                 // 6. Tạo DailyLog
                 var log = new DailyLog
                 {

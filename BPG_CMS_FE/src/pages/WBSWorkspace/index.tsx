@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { wbsService } from '../../services/wbsService';
 import { useNotification } from '../../context/NotificationContext';
-import type { WBSPhase, WBSTask, Project, ProjectMember, MaterialRequest } from '../../types/common';
+import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
 import { AlertTriangle, FileText, BarChart2, History } from 'lucide-react';
-import { Button } from '../../components/ui';
+import { Button, ConfirmDialog } from '../../components/ui';
 
 
 interface WBSWorkspaceProps {
@@ -22,14 +23,53 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const navigate = useNavigate();
   const { connection } = useNotification();
 
-  const [phases, setPhases] = useState<WBSPhase[]>([]);
-  const [tasks, setTasks] = useState<WBSTask[]>([]);
-  const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: wbsDataAll, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['wbsDataAll', projectId],
+    queryFn: async () => {
+      const [wbsData, allProjs, memberList, mr] = await Promise.all([
+        wbsService.getWbsDataFlattened(projectId),
+        projectService.getProjects(),
+        projectService.getMembers(projectId),
+        projectService.getMaterialRequests(projectId)
+      ]);
+      return {
+        wbsData,
+        project: allProjs.find(p => p.id === projectId) || null,
+        memberList,
+        materialRequests: mr
+      };
+    }
+  });
+
+  const phases = wbsDataAll?.wbsData.phases || [];
+  const tasks = wbsDataAll?.wbsData.tasks || [];
+  const project = wbsDataAll?.project || null;
+  const members = wbsDataAll?.memberList || [];
+  const materialRequests = wbsDataAll?.materialRequests || [];
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [members, setMembers] = useState<ProjectMember[]>([]);
-  const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    isDanger: false,
+  });
+
+  // When queryError changes, update the error state
+  useEffect(() => {
+    if (queryError) {
+      setError((queryError as any).message || 'Lỗi khi tải cơ cấu WBS.');
+    }
+  }, [queryError]);
 
   // Tree collapse state
   const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({});
@@ -99,32 +139,20 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
 
-  const isTPKTOrPL = user?.role === 'technicalmanager' || user?.role === 'admin';
 
 
-  const loadWBSData = async () => {
-    setLoading(true);
-    try {
-      const wbsData = await wbsService.getWbsDataFlattened(projectId);
-      const allProjs = await projectService.getProjects();
-      const memberList = await projectService.getMembers(projectId);
-      const mr = await projectService.getAllMaterialRequests();
-      setMaterialRequests(mr);
-
-      setProject(allProjs.find(p => p.id === projectId) || null);
-      setPhases(wbsData.phases);
-      setTasks(wbsData.tasks);
-      setMembers(memberList);
-
-      const expands: Record<string, boolean> = {};
-      wbsData.phases.forEach(p => { expands[p.id] = true; });
-      setExpandedPhases(expands);
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi tải cơ cấu WBS.');
-    } finally { setLoading(false); }
-  };
-
-  useEffect(() => { loadWBSData(); }, [projectId]);
+  useEffect(() => {
+    if (wbsDataAll?.wbsData.phases) {
+      setExpandedPhases(prev => {
+        if (Object.keys(prev).length === 0) {
+          const expands: Record<string, boolean> = {};
+          wbsDataAll.wbsData.phases.forEach(p => { expands[p.id] = true; });
+          return expands;
+        }
+        return prev;
+      });
+    }
+  }, [wbsDataAll?.wbsData.phases]);
 
   useEffect(() => {
     if (!connection) return;
@@ -134,13 +162,12 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
       .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
       .catch(err => console.error('SignalR JoinProjectGroup error:', err));
 
-    const handleWbsUpdated = (payload: any) => {
-      console.log('SignalR: WbsTreeUpdated', payload);
-      // Giữ nguyên trạng thái mở của Tree (expandedPhases) sau khi load lại
-      loadWBSData();
-    };
+  const handleWbsUpdated = (payload: any) => {
+    console.log('SignalR: WbsTreeUpdated', payload);
+    queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+  };
 
-    connection.on('WbsTreeUpdated', handleWbsUpdated);
+  connection.on('WbsTreeUpdated', handleWbsUpdated);
 
     return () => {
       connection.off('WbsTreeUpdated', handleWbsUpdated);
@@ -150,13 +177,17 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     };
   }, [connection, projectId]);
 
+  const loadWBSData = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+  };
+
   const togglePhase = (phaseId: string) =>
     setExpandedPhases(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
 
   const handleSuccess = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(null), 3000);
-    loadWBSData();
+    queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
   };
   const handleError = (msg: string) => {
     setError(msg);
@@ -167,7 +198,8 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const currentMember = members.find(m => m.userId === user?.id);
-  const isPL = (currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager';
+  const isPL = (currentMember ? currentMember.isLeader : false) || user?.role === 'projectleader' || user?.role === 'admin' || user?.role === 'technicalmanager';
+  const isTPKTOrPL = isPL;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
@@ -233,24 +265,40 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
       handleError(`Không thể xóa Giai đoạn "${phaseName}" vì bên trong có Công việc đã ghi nhận tiến độ.`);
       return;
     }
-    if (!window.confirm(`Xác nhận xóa Giai đoạn "${phaseName}" và toàn bộ Công việc chưa bắt đầu bên trong?`)) return;
-    try {
-      await wbsService.deletePhase(parseInt(projectId.replace('p-', '')), parseInt(phaseId.replace('ph-', '')));
-      if (selectedTask && tasks.find(t => t.id === selectedTaskId)?.phaseId === phaseId) setSelectedTaskId(null);
-      handleSuccess(`Đã xóa Giai đoạn "${phaseName}".`);
-    } catch (err: any) { handleError(err.message || 'Lỗi khi xóa Phase.'); }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Xóa Giai đoạn',
+      message: `Xác nhận xóa Giai đoạn "${phaseName}" và toàn bộ Công việc chưa bắt đầu bên trong?`,
+      isDanger: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await wbsService.deletePhase(parseInt(projectId.replace('p-', '')), parseInt(phaseId.replace('ph-', '')));
+          if (selectedTask && tasks.find(t => t.id === selectedTaskId)?.phaseId === phaseId) setSelectedTaskId(null);
+          handleSuccess(`Đã xóa Giai đoạn "${phaseName}".`);
+        } catch (err: any) { handleError(err.message || 'Lỗi khi xóa Phase.'); }
+      }
+    });
   };
 
 
 
 
   const handleDeleteTask = async (taskId: string, taskName: string) => {
-    if (!window.confirm(`Xác nhận xóa hẳn công việc "${taskName}"?`)) return;
-    try {
-      await wbsService.deleteTask(parseInt(taskId.replace('t-', '')));
-      if (selectedTaskId === taskId) setSelectedTaskId(null);
-      handleSuccess(`Đã xóa Công việc "${taskName}".`);
-    } catch (err: any) { handleError(err.message || 'Lỗi khi xóa Task.'); }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Xóa Công việc',
+      message: `Xác nhận xóa hẳn công việc "${taskName}"?`,
+      isDanger: true,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await wbsService.deleteTask(parseInt(taskId.replace('t-', '')));
+          if (selectedTaskId === taskId) setSelectedTaskId(null);
+          handleSuccess(`Đã xóa Công việc "${taskName}".`);
+        } catch (err: any) { handleError(err.message || 'Lỗi khi xóa Task.'); }
+      }
+    });
   };
 
   const handleReorderTask = async (phaseId: string, taskId: string, direction: 'up' | 'down') => {
@@ -262,11 +310,19 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const handleActivateProject = async () => {
-    if (!window.confirm('Kích hoạt dự án sẽ đưa vào vận hành thực tế. Bạn có chắc chắn WBS đã hoàn thiện chưa?')) return;
-    try {
-      await projectService.activateProject(projectId);
-      handleSuccess('Dự án đã được Kích hoạt thành công!');
-    } catch (err: any) { handleError(err.message); }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Kích hoạt Dự án',
+      message: 'Kích hoạt dự án sẽ đưa vào vận hành thực tế. Bạn có chắc chắn WBS đã hoàn thiện chưa?',
+      isDanger: false,
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          await projectService.activateProject(projectId);
+          handleSuccess('Dự án đã được Kích hoạt thành công!');
+        } catch (err: any) { handleError(err.message); }
+      }
+    });
   };
 
 
@@ -390,6 +446,15 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
         <WBSModalsContainer />
+
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmDialog.onConfirm}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          isDanger={confirmDialog.isDanger}
+        />
       </div>
     </WBSContext.Provider>
   );

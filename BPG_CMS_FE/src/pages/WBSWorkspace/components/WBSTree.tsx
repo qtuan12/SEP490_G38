@@ -28,9 +28,8 @@ export const WBSTree = () => {
     setSelectedPhaseForTask, setParentTaskForNew, setParentDeadlineForNew, setIsCreateTaskOpen,
     setSelectedTaskForEdit, setIsEditTaskOpen,
     setSelectedPhaseForMatReq, setCreateMatReqType, setIsPhaseMatReqOpen, setIsLeaderApprovalOpen,
-    setSelectedPhaseForBOQ, setIsBOQOpen, setSelectedResubmitRequest, setIsResubmitOpen,
+    setSelectedPhaseForBOQ, setIsBOQOpen,
     setSelectedTaskId, setIsDetailOpen, setIsObsoleteOpen,
-    handleCancelMatReq,
     isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase
   } = useWBS();
   
@@ -202,96 +201,7 @@ export const WBSTree = () => {
                           </span>
                         )}
 
-                        {materialRequests.filter(r => r.phaseId === ph.id && !r.taskId).map(r => (
-                          <span
-                            key={r.id}
-                            className={`badge badge-${r.status === 'approved' || r.status === 'disbursed' || r.status === 'received' ? 'success' :
-                              r.status === 'rejected' ? 'danger' : 'warning'
-                              }`}
-                            style={{ fontSize: '0.62rem', padding: '1px 5px', display: 'inline-flex', alignItems: 'center', gap: '3px', flexShrink: 0, whiteSpace: 'nowrap' }}
-                          >
-                            Yêu cầu vật tư: {
-                              r.status === 'pending_leader' ? 'Chờ Leader' :
-                                r.status === 'pending_tpkt' ? 'Chờ TPKT' :
-                                  r.status === 'pending_accountant' ? 'Chờ KT' :
-                                    r.status === 'pending_director' ? 'Chờ GĐ duyệt' :
-                                      r.status === 'pending_disbursement' ? 'Chờ giải ngân' :
-                                        r.status === 'disbursed' ? 'Đã giải ngân' :
-                                          r.status === 'approved' ? 'Đã duyệt' :
-                                            r.status === 'received' ? 'Đã nhận' : 'Bị từ chối'
-                            }
-                            {r.status === 'rejected' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedResubmitRequest(r);
-                                  setIsResubmitOpen(true);
-                                }}
-                                style={{
-                                  marginLeft: '4px',
-                                  background: 'hsl(var(--primary))',
-                                  border: 'none',
-                                  borderRadius: 'var(--radius-sm)',
-                                  color: '#fff',
-                                  padding: '0px 4px',
-                                  cursor: 'pointer',
-                                  fontSize: '0.55rem',
-                                  fontWeight: 'bold',
-                                  lineHeight: 1.2
-                                }}
-                                title="Sửa & Gửi lại"
-                              >
-                                Sửa & Gửi lại
-                              </button>
-                            )}
-                            {r.status === 'pending_accountant' && isPL && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCancelMatReq(r.id);
-                                }}
-                                style={{
-                                  marginLeft: '4px',
-                                  background: 'hsl(var(--danger))',
-                                  border: 'none',
-                                  borderRadius: 'var(--radius-sm)',
-                                  color: '#fff',
-                                  padding: '0px 4px',
-                                  cursor: 'pointer',
-                                  fontSize: '0.55rem',
-                                  fontWeight: 'bold',
-                                  lineHeight: 1.2
-                                }}
-                                title="Hủy phiếu"
-                              >
-                                Hủy phiếu
-                              </button>
-                            )}
-                            {r.status === 'pending_accountant' && isPL && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCancelMatReq(r.id);
-                                }}
-                                style={{
-                                  marginLeft: '4px',
-                                  background: 'hsl(var(--danger))',
-                                  border: 'none',
-                                  borderRadius: 'var(--radius-sm)',
-                                  color: '#fff',
-                                  padding: '0px 4px',
-                                  cursor: 'pointer',
-                                  fontSize: '0.55rem',
-                                  fontWeight: 'bold',
-                                  lineHeight: 1.2
-                                }}
-                                title="Hủy phiếu"
-                              >
-                                Hủy phiếu
-                              </button>
-                            )}
-                          </span>
-                        ))}
+
 
                       {/* Badge */}
                       {isFrozen ? (
@@ -333,9 +243,9 @@ export const WBSTree = () => {
                         </div>
                       )}
 
-                      {/* Action buttons (hover) */}
+                      {/* Action buttons */}
                       {canEdit && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: isHovered || showMenu ? 1 : 0, transition: 'opacity 0.13s', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }}>
                           {/* + Task */}
                           {!isFrozen && (
                             <button
@@ -370,17 +280,15 @@ export const WBSTree = () => {
                                     <span>Chỉnh sửa Giai đoạn</span>
                                   </div>
                                 )}
-                                {!isFrozen && (
-                                  <div
-                                    style={menuItemStyle}
-                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setPhaseMenuId(null); navigate(`/projects/${ph.projectId}/phases/${ph.id}/material-requests`); }}
-                                  >
-                                    <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                    <span>Yêu cầu vật tư Giai đoạn</span>
-                                  </div>
-                                )}
+                                <div
+                                  style={menuItemStyle}
+                                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                  onClick={() => { setPhaseMenuId(null); navigate(`/projects/${ph.projectId}/phases/${ph.id}/material-requests`); }}
+                                >
+                                  <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                  <span>{isFrozen ? 'Xem yêu cầu vật tư' : 'Yêu cầu vật tư Giai đoạn'}</span>
+                                </div>
                                 {!isFrozen && isPL && (
                                   <div
                                     style={menuItemStyle}
@@ -420,6 +328,19 @@ export const WBSTree = () => {
                                     <span>Duyệt Yêu cầu từ SE</span>
                                   </div>
                                 )}
+
+                                {isPL && (
+                                  <div
+                                    style={menuItemStyle}
+                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                    onClick={() => { setPhaseMenuId(null); navigate(`/phase-acceptances?projectId=${ph.projectId}&phaseId=${ph.id}`); }}
+                                  >
+                                    <CheckCircle size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                    <span>Danh sách Nghiệm thu</span>
+                                  </div>
+                                )}
+
 
                                 {!isFrozen && (
                                   <div
@@ -622,7 +543,7 @@ export const WBSTree = () => {
 
                               {/* Task context menu */}
                               {canEdit && !isFrozen && t.status !== 'obsolete' && (
-                                  <div style={{ position: 'relative', opacity: isHoveredTask || showTaskMenu ? 1 : 0, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                                  <div style={{ position: 'relative', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                                     <button
                                       onClick={e => { e.stopPropagation(); setTaskMenuId(showTaskMenu ? null : t.id); setPhaseMenuId(null); }}
                                       title="Tùy chọn"

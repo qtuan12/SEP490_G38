@@ -18,11 +18,13 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
 {
     private readonly IUnitOfWork _uow;
     private readonly IMapper _mapper;
+    private readonly BPG.Application.IServices.ICurrentUserService _currentUserService;
 
-    public GetProjectByIdQueryHandler(IUnitOfWork uow, IMapper mapper)
+    public GetProjectByIdQueryHandler(IUnitOfWork uow, IMapper mapper, BPG.Application.IServices.ICurrentUserService currentUserService)
     {
         _uow = uow;
         _mapper = mapper;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ProjectDetailDto> Handle(GetProjectByIdQuery request, CancellationToken cancellationToken)
@@ -37,6 +39,15 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
 
         if (project == null)
             throw new NotFoundException(nameof(Project), request.Id);
+
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            if (!project.Members.Any(m => m.UserId == currentUserId))
+            {
+                throw new ForbiddenException("Bạn không được phân công vào dự án này nên không có quyền xem thông tin.");
+            }
+        }
 
         var attachments = await _uow.Repository<Attachment>().Query()
             .AsNoTracking()

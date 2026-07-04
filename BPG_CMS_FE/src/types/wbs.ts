@@ -14,6 +14,8 @@ export interface WbsTask {
   isAtRisk?: boolean;
   daysLeft?: number;
   assignedTo?: string;
+  weight?: number;
+  predecessorTaskIds?: number[];
   subTasks: WbsTask[];
 }
 
@@ -28,6 +30,7 @@ export interface WbsPhase {
   status: string;
   progressPercent: number;
   tasks: WbsTask[];
+  materials?: { materialId: number; name: string; quantity: number; unitId: number; unit: string }[];
 }
 
 export interface WbsTree {

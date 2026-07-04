@@ -1,9 +1,4 @@
-using BPG.Application.Features.Tasks.Commands.AdjustTaskProgress;
-using BPG.Application.Features.Tasks.Commands.AssignTask;
-using BPG.Application.Features.Tasks.Commands.CreateTask;
-using BPG.Application.Features.Tasks.Commands.DeleteTask;
-using BPG.Application.Features.Tasks.Commands.MarkTaskObsolete;
-using BPG.Application.Features.Tasks.Commands.UpdateTask;
+using BPG.Application.Features.Tasks.Commands;
 using BPG.Application.Features.Tasks.Queries.GetTaskDetails;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,20 +20,16 @@ public class TasksController : BaseApiController
     [HttpPost("phases/{phaseId}")]
     public async Task<IActionResult> CreateTask([FromRoute] long phaseId, [FromBody] CreateTaskCommand command, CancellationToken ct)
     {
-        if (phaseId != command.PhaseId)
-            return BadRequest(new { Message = "PhaseId mismatch" });
-
-        var result = await Mediator.Send(command, ct);
+        var finalCommand = command with { PhaseId = phaseId };
+        var result = await Mediator.Send(finalCommand, ct);
         return ApiOk(result);
     }
 
     [HttpPut("{taskId}")]
     public async Task<IActionResult> UpdateTask([FromRoute] long taskId, [FromBody] UpdateTaskCommand command, CancellationToken ct)
     {
-        if (taskId != command.TaskId)
-            return BadRequest(new { Message = "TaskId mismatch" });
-
-        var result = await Mediator.Send(command, ct);
+        var finalCommand = command with { TaskId = taskId };
+        var result = await Mediator.Send(finalCommand, ct);
         return ApiOk(result);
     }
 
@@ -52,10 +43,8 @@ public class TasksController : BaseApiController
     [HttpPut("{taskId}/assignees")]
     public async Task<IActionResult> AssignTask([FromRoute] long taskId, [FromBody] AssignTaskCommand command, CancellationToken ct)
     {
-        if (taskId != command.TaskId)
-            return BadRequest(new { Message = "TaskId mismatch" });
-
-        var result = await Mediator.Send(command, ct);
+        var finalCommand = command with { TaskId = taskId };
+        var result = await Mediator.Send(finalCommand, ct);
         return ApiOk(result);
     }
 
@@ -63,20 +52,30 @@ public class TasksController : BaseApiController
     [Authorize(Policy = BPG.Domain.Constants.PolicyNames.RequireTechnicalManager)]
     public async Task<IActionResult> AdjustTaskProgress([FromRoute] long taskId, [FromBody] AdjustTaskProgressCommand command, CancellationToken ct)
     {
-        if (taskId != command.TaskId)
-            return BadRequest(new { Message = "TaskId mismatch" });
-
-        var result = await Mediator.Send(command, ct);
+        var finalCommand = command with { TaskId = taskId };
+        var result = await Mediator.Send(finalCommand, ct);
         return ApiOk(result);
     }
 
     [HttpPut("{taskId}/obsolete")]
     public async Task<IActionResult> MarkTaskObsolete([FromRoute] long taskId, [FromBody] MarkTaskObsoleteCommand command, CancellationToken ct)
     {
-        if (taskId != command.TaskId)
-            return BadRequest(new { Message = "TaskId mismatch" });
+        var finalCommand = command with { TaskId = taskId };
+        var result = await Mediator.Send(finalCommand, ct);
+        return ApiOk(result);
+    }
 
-        var result = await Mediator.Send(command, ct);
+    [HttpPost("{taskId}/dependencies/{predecessorTaskId}")]
+    public async Task<IActionResult> AddDependency([FromRoute] long taskId, [FromRoute] long predecessorTaskId, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new AddTaskDependencyCommand(taskId, predecessorTaskId), ct);
+        return ApiOk(result);
+    }
+
+    [HttpDelete("{taskId}/dependencies/{predecessorTaskId}")]
+    public async Task<IActionResult> RemoveDependency([FromRoute] long taskId, [FromRoute] long predecessorTaskId, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new RemoveTaskDependencyCommand(taskId, predecessorTaskId), ct);
         return ApiOk(result);
     }
 }

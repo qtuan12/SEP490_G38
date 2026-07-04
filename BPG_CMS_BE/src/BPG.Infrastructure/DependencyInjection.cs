@@ -37,6 +37,8 @@ public static class DependencyInjection
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IFileStorageService, CloudinaryService>();
         services.AddScoped<IProgressRollupService, ProgressRollupService>();
+        services.AddScoped<IPdfService, QuestPdfService>();
+        services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IEmailService, EmailService>();
 
         return services;

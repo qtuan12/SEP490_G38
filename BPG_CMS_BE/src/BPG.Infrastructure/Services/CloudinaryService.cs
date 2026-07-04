@@ -37,6 +37,7 @@ namespace BPG.Infrastructure.Services
             using var stream = file.OpenReadStream();
             var extension = Path.GetExtension(file.FileName).ToLower();
             var isImage = extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".gif" || extension == ".webp" || extension == ".bmp";
+            var isPdf = extension == ".pdf";
 
             UploadResult uploadResult;
 
@@ -54,6 +55,43 @@ namespace BPG.Infrastructure.Services
                 var uploadParams = new RawUploadParams
                 {
                     File = new FileDescription(file.FileName, stream),
+                    Folder = folder
+                };
+                uploadResult = await _cloudinary.UploadAsync(uploadParams, "raw", ct);
+            }
+
+            if (uploadResult.Error != null)
+            {
+                throw new InvalidOperationException($"Lỗi upload file lên Cloudinary: {uploadResult.Error.Message}");
+            }
+
+            return uploadResult.SecureUrl.ToString();
+        }
+
+        public async Task<string> UploadFileAsync(byte[] fileBytes, string fileName, string folder, CancellationToken ct = default)
+        {
+            if (fileBytes == null || fileBytes.Length == 0) return string.Empty;
+
+            using var stream = new MemoryStream(fileBytes);
+            var extension = Path.GetExtension(fileName).ToLower();
+            var isImage = extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".gif" || extension == ".webp" || extension == ".bmp";
+
+            UploadResult uploadResult;
+
+            if (isImage)
+            {
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(fileName, stream),
+                    Folder = folder
+                };
+                uploadResult = await _cloudinary.UploadAsync(uploadParams, ct);
+            }
+            else
+            {
+                var uploadParams = new RawUploadParams
+                {
+                    File = new FileDescription(fileName, stream),
                     Folder = folder
                 };
                 uploadResult = await _cloudinary.UploadAsync(uploadParams, "raw", ct);
