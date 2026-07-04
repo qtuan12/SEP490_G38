@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { LoadingSpinner, Pagination } from '../../../components/ui';
 import { Search, Eye } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
@@ -16,12 +17,22 @@ export const MaterialIssuancesTab: React.FC<MaterialIssuancesTabProps> = ({
   onViewIssuance,
   refreshKey
 }) => {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || '';
   const [issuancesList, setIssuancesList] = useState<MaterialIssuance[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  useEffect(() => {
+    const searchVal = searchParams.get('search');
+    if (searchVal !== null) {
+      setSearchTerm(searchVal);
+      setPage(1);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {

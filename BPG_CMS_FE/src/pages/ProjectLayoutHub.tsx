@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import type { Project } from '../types/common';
 import { ProjectMembers } from '../components/ProjectMembers';
@@ -41,7 +41,22 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents'>('wbs');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents'>(
+    (searchParams.get('tab') as any) || 'wbs'
+  );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['members', 'wbs', 'logs', 'inventory', 'incidents'].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents') => {
+    setActiveTab(tab);
+    navigate(`/projects/${projectId}?tab=${tab}`);
+  };
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
@@ -306,7 +321,7 @@ export const ProjectLayoutHub: React.FC = () => {
         overflowX: 'auto'
       }}>
         <button
-          onClick={() => setActiveTab('wbs')}
+          onClick={() => handleTabChange('wbs')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -328,7 +343,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('logs')}
+          onClick={() => handleTabChange('logs')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -350,7 +365,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('members')}
+          onClick={() => handleTabChange('members')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -372,7 +387,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('inventory')}
+          onClick={() => handleTabChange('inventory')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -394,7 +409,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('incidents')}
+          onClick={() => handleTabChange('incidents')}
           style={{
             display: 'flex',
             alignItems: 'center',
