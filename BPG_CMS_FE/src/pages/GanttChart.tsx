@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Gantt from 'frappe-gantt';
+import { gantt } from 'dhtmlx-gantt';
+import 'dhtmlx-gantt/codebase/dhtmlxgantt.css';
 
 import { projectService } from '../services/projectService';
-import { reportService, type GanttChartDataDto } from '../services/reportService';
-import type {WBSPhase, WBSTask, Project} from '../types/common';
+import type { WBSPhase, WBSTask, Project } from '../types/common';
 import {
   ArrowLeft,
   Calendar,
@@ -15,22 +15,9 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/ui/Modal';
 
-// ── Frappe Gantt task shape ────────────────────────────────────────────────
-interface FrappeTask {
-  id: string;
-  name: string;
-  start: string;   // 'YYYY-MM-DD'
-  end: string;     // 'YYYY-MM-DD'
-  progress: number;
-  dependencies?: string;
-  custom_class?: string;
-}
-
 // ── helpers ───────────────────────────────────────────────────────────────
-// Removed unused addDays
-
 const formatDate = (s: string) =>
-  new Date(s + 'T00:00:00').toLocaleDateString('vi-VN', {
+  new Date(s + (s.includes('T') ? '' : 'T00:00:00')).toLocaleDateString('vi-VN', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 
@@ -54,13 +41,11 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
   const [project, setProject] = useState<Project | null>(null);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
-  const [ganttReport, setGanttReport] = useState<GanttChartDataDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('Week');
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
-  const ganttInstanceRef = useRef<Gantt | null>(null);
   const { user } = useAuth();
 
   const [isAdjustModalOpen, setAdjustModalOpen] = useState(false);
@@ -74,11 +59,10 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
     if (!projectId) return;
     (async () => {
       try {
-        const [projs, pList, tList, reportData] = await Promise.all([
+        const [projs, pList, tList] = await Promise.all([
           projectService.getProjects(),
           projectService.getPhases(projectId),
           projectService.getTasks(projectId),
-          reportService.getGanttChart(Number(projectId)),
         ]);
         setProject(projs.find(p => p.id === projectId) ?? null);
         setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
@@ -87,7 +71,6 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
             .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
             .sort((a, b) => a.sortOrder - b.sortOrder)
         );
-        setGanttReport(reportData);
       } catch (e: any) {
         setError(e.message ?? 'Lỗi tải dữ liệu.');
       } finally {
@@ -96,123 +79,152 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
     })();
   }, [projectId]);
 
-  // ── build Frappe task list ────────────────────────────────────────────
-  const buildFrappeTasks = useCallback((): FrappeTask[] => {
-    const result: FrappeTask[] = [];
+  // ── build DHTMLX data ────────────────────────────────────────────────
+  const buildDhtmlxData = useCallback(() => {
+    const data: any[] = [];
+    const links: any[] = [];
 
-    if (ganttReport && ganttReport.phases) {
-      ganttReport.phases.forEach(ph => {
-        const phaseProgress = ph.tasks.length
-          ? Math.round(
-              ph.tasks
-                .filter(t => t.status !== 'obsolete')
-                .reduce((s, t) => s + t.progress, 0) /
-                Math.max(1, ph.tasks.filter(t => t.status !== 'obsolete').length)
-            )
-          : 0;
+    phases.forEach(ph => {
+      const phaseTasks = tasks.filter(t => t.phaseId === ph.id && t.status !== 'obsolete');
+      const progress = phaseTasks.length
+        ? Math.round(phaseTasks.reduce((s, t) => s + t.progress, 0) / Math.max(1, phaseTasks.length)) / 100
+        : 0;
 
-        result.push({
-          id: ph.phaseId.toString(),
-          name: `📁 ${ph.phaseName}`,
-          start: ph.baselineStart.split('T')[0],
-          end: ph.baselineEnd.split('T')[0],
-          progress: phaseProgress,
-          custom_class: ph.status === 'frozen' ? 'gantt-phase-frozen' : 'gantt-phase',
-        });
+      let minDate = new Date();
+      let maxDate = new Date();
+      if (phaseTasks.length > 0) {
+        minDate = new Date(Math.min(...phaseTasks.map(t => new Date(t.startDate || t.deadline).getTime())));
+        maxDate = new Date(Math.max(...phaseTasks.map(t => new Date(t.deadline).getTime())));
+      }
 
-        ph.tasks.forEach((t, idx) => {
-          let customClass = 'gantt-task';
-          if (t.status === 'obsolete') customClass = 'gantt-task-obsolete';
-          else if (t.isDelayed) customClass = 'gantt-task-delayed';
-          else if (t.progress === 100) customClass = 'gantt-task-done';
-          else if (t.progress > 0) customClass = 'gantt-task-inprogress';
+      data.push({
+        id: `phase_${ph.id}`,
+        text: `📁 ${ph.name}`,
+        start_date: minDate,
+        end_date: maxDate,
+        type: gantt.config.types.project,
+        progress: progress,
+        open: true,
+        custom_class: ph.status === 'frozen' ? 'gantt-phase-frozen' : 'gantt-phase',
+      });
+    });
 
-          result.push({
-            id: t.taskId.toString(),
-            name: `  ${idx + 1}. ${t.taskName}`,
-            start: t.baselineStart.split('T')[0],
-            end: t.baselineEnd.split('T')[0],
-            progress: t.progress,
-            dependencies: '', 
-            custom_class: customClass,
+    tasks.forEach(t => {
+      if (t.status === 'obsolete') return;
+
+      let customClass = 'gantt-task';
+      if (t.isOverdue) customClass = 'gantt-task-delayed';
+      else if (t.progress === 100) customClass = 'gantt-task-done';
+      else if (t.progress > 0) customClass = 'gantt-task-inprogress';
+
+      const tStart = new Date(t.startDate || t.deadline);
+      const tEnd = new Date(t.deadline);
+      let tType = gantt.config.types.task;
+      if (tStart.toDateString() === tEnd.toDateString()) {
+        tType = gantt.config.types.milestone;
+      }
+
+      data.push({
+        id: t.id,
+        text: t.name,
+        start_date: tStart,
+        end_date: tEnd,
+        type: tType,
+        progress: t.progress / 100,
+        parent: `phase_${t.phaseId}`,
+        custom_class: customClass,
+        assignedName: t.assignedName,
+        rawTask: t,
+      });
+
+      // Handle dependencies
+      if (t.predecessorTaskIds && t.predecessorTaskIds.length > 0) {
+        t.predecessorTaskIds.forEach(predId => {
+          links.push({
+            id: `link_${predId}_${t.id}`,
+            source: predId.toString(),
+            target: t.id.toString(),
+            type: '0', // finish_to_start
           });
         });
-      });
-    }
+      }
+    });
 
-    return result;
-  }, [ganttReport]);
+    return { data, links };
+  }, [phases, tasks]);
 
-  // ── init / update Gantt instance ──────────────────────────────────────
+  // ── configure Gantt & Events ──────────────────────────────────────────
   useEffect(() => {
-    if (loading || !ganttContainerRef.current || phases.length === 0) return;
+    if (loading || !ganttContainerRef.current) return;
 
-    const frappeTasks = buildFrappeTasks();
-    if (frappeTasks.length === 0) return;
+    // config basic Gantt Settings
+    gantt.config.readonly = true;
+    gantt.config.columns = [
+      { name: "text", label: "Tên công việc", width: "*", tree: true },
+      { name: "start_date", label: "Bắt đầu", align: "center", width: 80, template: (obj: any) => formatDate(obj.start_date.toISOString().split('T')[0]) },
+      { name: "progress", label: "Tiến độ", align: "center", width: 60, template: (obj: any) => `${Math.round(obj.progress * 100)}%` },
+    ];
 
-    // Clear previous instance
-    ganttContainerRef.current.innerHTML = '';
+    // Config tooltips & resource text
+    gantt.templates.rightside_text = function(start: any, end: any, task: any) {
+      if (task.type === gantt.config.types.project) return "";
+      return task.assignedName ? `<span style="color: #64748b; font-size: 11px; margin-left: 8px;">👤 ${task.assignedName}</span>` : "";
+    };
+    
+    // Initialize Gantt
+    gantt.init(ganttContainerRef.current);
+    gantt.clearAll();
 
-    ganttInstanceRef.current = new Gantt(ganttContainerRef.current, frappeTasks, {
-      view_mode: viewMode,
-      date_format: 'YYYY-MM-DD',
-      language: 'en',
-      popup_trigger: 'click',
-      custom_popup_html: (task: FrappeTask) => {
-        const originalTask = tasks.find(t => t.id === task.id);
-        const originalPhase = phases.find(p => p.id === task.id);
+    const ganttData = buildDhtmlxData();
+    gantt.parse(ganttData);
 
-        if (originalPhase) {
-          const phaseTasks = tasks.filter(t => t.phaseId === originalPhase.id && t.status !== 'obsolete');
-          return `
-            <div style="padding:12px 14px;min-width:220px;font-family:inherit">
-              <strong style="font-size:0.9rem;color:#1e293b">${originalPhase.name}</strong>
-              <div style="margin-top:8px;font-size:0.78rem;color:#64748b">
-                <div>📅 Từ: <strong>${formatDate(task.start)}</strong> đến <strong>${formatDate(task.end)}</strong></div>
-                <div style="margin-top:3px">📋 ${phaseTasks.length} công việc</div>
-                <div style="margin-top:4px">Tiến độ: <strong style="color:#3b82f6">${task.progress}%</strong></div>
-                ${originalPhase.status === 'frozen' ? '<div style="margin-top:4px;color:#16a34a;font-weight:600">✅ Đã nghiệm thu</div>' : ''}
-              </div>
-              <div style="margin-top:8px;background:#e2e8f0;border-radius:4px;height:6px;overflow:hidden">
-                <div style="width:${task.progress}%;height:100%;background:${originalPhase.status === 'frozen' ? '#16a34a' : '#3b82f6'}"></div>
-              </div>
-            </div>`;
-        }
-
-        if (originalTask) {
-          return `
-            <div style="padding:12px 14px;min-width:220px;font-family:inherit">
-              <strong style="font-size:0.85rem;color:#1e293b">${originalTask.name}</strong>
-              <div style="margin-top:8px;font-size:0.78rem;color:#64748b">
-                <div>👤 ${originalTask.assignedName ?? 'Chưa phân công'}</div>
-                <div style="margin-top:3px">📅 Từ: <strong>${formatDate(task.start)}</strong> đến <strong>${formatDate(task.end)}</strong></div>
-                <div style="margin-top:3px">Tiến độ: <strong style="color:${originalTask.progress === 100 ? '#16a34a' : '#3b82f6'}">${originalTask.progress}%</strong></div>
-                ${originalTask.status === 'obsolete' ? '<div style="margin-top:4px;color:#dc2626;font-weight:600">⛔ Đã hủy</div>' : ''}
-              </div>
-              <div style="margin-top:8px;background:#e2e8f0;border-radius:4px;height:6px;overflow:hidden">
-                <div style="width:${task.progress}%;height:100%;background:${originalTask.progress === 100 ? '#16a34a' : originalTask.progress > 0 ? '#3b82f6' : '#94a3b8'}"></div>
-              </div>
-            </div>`;
-        }
-        return `<div style="padding:10px">${task.name}</div>`;
-      },
-      on_click: (task: FrappeTask) => {
-        // Find if it is a task
-        const wbsTask = tasks.find(t => t.id === task.id);
-        if (wbsTask && (user?.role === 'technicalmanager' || user?.role === 'admin') && wbsTask.status !== 'obsolete') {
+    const clickEventId = gantt.attachEvent("onTaskClick", function(id: string | number) {
+      const taskObj = gantt.getTask(id);
+      if (taskObj.type !== gantt.config.types.project && taskObj.rawTask) {
+        const wbsTask = taskObj.rawTask as WBSTask;
+        if ((user?.role === 'technicalmanager' || user?.role === 'admin') && wbsTask.status !== 'obsolete') {
           setSelectedTaskToAdjust(wbsTask);
           setAdjustProgress(wbsTask.progress);
           setAdjustReason('');
           setAdjustModalOpen(true);
         }
       }
-    } as any);
-  }, [loading, phases, tasks, viewMode, buildFrappeTasks, user]);
+      return true;
+    });
+
+    return () => {
+      gantt.detachEvent(clickEventId);
+      gantt.clearAll();
+    };
+  }, [loading, phases, tasks, buildDhtmlxData, user]);
 
   // ── change view mode ──────────────────────────────────────────────────
   const handleViewMode = (mode: ViewMode) => {
     setViewMode(mode);
   };
+
+  useEffect(() => {
+    if (loading || !ganttContainerRef.current) return;
+    
+    if (viewMode === 'Day') {
+      gantt.config.scale_unit = "day";
+      gantt.config.date_scale = "%d %M";
+      gantt.config.scales = [
+        { unit: "day", step: 1, format: "%d %M" }
+      ];
+    } else if (viewMode === 'Week') {
+      gantt.config.scales = [
+        { unit: "week", step: 1, format: "Tuần %W" },
+        { unit: "day", step: 1, format: "%d %M" }
+      ];
+    } else if (viewMode === 'Month') {
+      gantt.config.scales = [
+        { unit: "month", step: 1, format: "%M %Y" },
+        { unit: "week", step: 1, format: "Tuần %W" }
+      ];
+    }
+    gantt.render();
+  }, [viewMode, loading]);
 
   // ── summary stats ─────────────────────────────────────────────────────
   const activeTasks = tasks.filter(t => t.status !== 'obsolete');
@@ -237,10 +249,10 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
   }
 
   return (
-    <div className="flex flex-col gap-0">
+    <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
 
       {/* ── Top bar ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between py-4 px-6 border-b border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] flex-wrap gap-3">
+      <div className="flex items-center justify-between py-4 px-6 border-b border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] flex-wrap gap-3 shrink-0">
         <div className="flex items-center gap-3.5">
           {!embeddedProjectId && (
             <button
@@ -283,7 +295,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
       </div>
 
       {/* ── Stats strip ──────────────────────────────────────────────── */}
-      <div className="flex items-center gap-7 py-2.5 px-6 bg-[hsl(var(--bg-main))] border-b border-[hsl(var(--border))] text-[0.82rem] flex-wrap">
+      <div className="flex items-center gap-7 py-2.5 px-6 bg-[hsl(var(--bg-main))] border-b border-[hsl(var(--border))] text-[0.82rem] flex-wrap shrink-0">
         <div className="flex items-center gap-2">
           <TrendingUp size={14} className="text-[hsl(var(--primary))]" />
           <span className="text-[hsl(var(--text-muted))]">Tiến độ dự án:</span>
@@ -314,13 +326,11 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
       </div>
 
       {/* ── Gantt container ───────────────────────────────────────────── */}
-      <div className="p-6 bg-[hsl(var(--bg-main))]">
-        <div className="gantt-wrapper card p-0 overflow-auto rounded-md">
-          <div ref={ganttContainerRef} />
-        </div>
+      <div className="flex-1 p-0 bg-white relative">
+        <div ref={ganttContainerRef} style={{ width: '100%', height: '100%' }} />
 
         {phases.length === 0 && (
-          <div className="text-center py-15 text-[hsl(var(--text-muted))]">
+          <div className="absolute inset-0 flex items-center justify-center text-[hsl(var(--text-muted))] bg-white z-10">
             Chưa có dữ liệu WBS. Hãy tạo Phase và Task trước.
           </div>
         )}
@@ -331,45 +341,66 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
         <Modal
           isOpen={isAdjustModalOpen}
           onClose={() => setAdjustModalOpen(false)}
-          title="Điều chỉnh tiến độ (Chỉ dành cho TPKT)"
+          title={<span className="text-[#1d4ed8] font-bold text-lg">Cập nhật tiến độ</span>}
+          maxWidth="500px"
         >
-          <div className="flex flex-col gap-4">
-            <div className="p-3 bg-[hsl(var(--bg-main))] rounded-md text-[0.85rem]">
-              <div className="text-[hsl(var(--text-muted))] mb-1">Công việc:</div>
-              <strong className="text-[1rem]">{selectedTaskToAdjust.name}</strong>
-            </div>
+          <div className="flex flex-col gap-6">
             
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[0.8rem] font-semibold text-[hsl(var(--text-secondary))]">
-                Tiến độ mới (%):
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={adjustProgress}
-                onChange={(e) => setAdjustProgress(Number(e.target.value))}
-                className="p-2 bg-[hsl(var(--bg-main))] border border-[hsl(var(--border))] rounded-md text-[0.85rem] focus:outline-none focus:border-[hsl(var(--primary))]"
-              />
+            {/* Progress Row */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-[0.95rem] font-semibold text-gray-800">Tiến độ hoàn thành (%)</span>
+                <span className="text-2xl font-bold text-[#1d4ed8]">{adjustProgress}%</span>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <span className="text-[0.8rem] text-gray-500 whitespace-nowrap min-w-[70px]">
+                  {selectedTaskToAdjust.progress}% (Hiện tại)
+                </span>
+                
+                <input
+                  type="range"
+                  min={selectedTaskToAdjust.progress}
+                  max={100}
+                  value={adjustProgress}
+                  onChange={(e) => setAdjustProgress(Number(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#1d4ed8]"
+                />
+                
+                <span className="text-[0.8rem] text-gray-500 whitespace-nowrap">100%</span>
+              </div>
+              <div className="mt-2 text-[0.75rem] text-gray-500">
+                * Khóa cứng chiều lùi: Bạn chỉ có thể kéo tiến độ tiến lên hoặc giữ nguyên.
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[0.8rem] font-semibold text-[hsl(var(--text-secondary))]">
-                Lý do điều chỉnh:
+            {/* Alert Box */}
+            <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-3.5 flex items-center gap-3">
+              <div className="text-[#1d4ed8] border-2 border-[#1d4ed8] rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px] shrink-0">!</div>
+              <span className="text-[0.85rem] text-[#1e3a8a]">
+                Báo cáo cho việc: <strong className="font-bold">{selectedTaskToAdjust.name}</strong>
+              </span>
+            </div>
+
+            {/* Text Area */}
+            <div>
+              <label className="block text-[0.9rem] font-semibold text-gray-800 mb-2">
+                Diễn biến công việc chi tiết <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={adjustReason}
                 onChange={(e) => setAdjustReason(e.target.value)}
-                placeholder="Nhập lý do điều chỉnh tiến độ..."
-                rows={3}
-                className="p-2 bg-[hsl(var(--bg-main))] border border-[hsl(var(--border))] rounded-md text-[0.85rem] focus:outline-none focus:border-[hsl(var(--primary))]"
+                placeholder="Mô tả công việc đã làm hôm nay, số lượng nhân công huy động, các khó khăn gặp phải nếu có..."
+                rows={4}
+                className="w-full p-3.5 bg-white border border-gray-300 rounded-xl text-[0.85rem] focus:outline-none focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8] resize-y"
               />
             </div>
 
-            <div className="flex justify-end gap-3 mt-4">
+            {/* Buttons */}
+            <div className="flex justify-end gap-3 mt-2">
               <button
                 onClick={() => setAdjustModalOpen(false)}
-                className="px-4 py-2 rounded-md border border-[hsl(var(--border))] text-[0.85rem] font-medium bg-transparent hover:bg-[hsl(var(--bg-main))] transition-colors"
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-[0.85rem] font-semibold bg-white hover:bg-gray-50 text-gray-700 transition-colors"
                 disabled={isAdjusting}
               >
                 Hủy
@@ -377,7 +408,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
               <button
                 onClick={async () => {
                   if (!adjustReason.trim()) {
-                    alert('Vui lòng nhập lý do điều chỉnh');
+                    alert('Vui lòng nhập lý do (diễn biến công việc chi tiết).');
                     return;
                   }
                   try {
@@ -403,10 +434,10 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
                     setIsAdjusting(false);
                   }
                 }}
-                className="px-4 py-2 rounded-md border-none text-white text-[0.85rem] font-medium bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-hover))] transition-colors cursor-pointer"
+                className="px-6 py-2.5 rounded-xl border-none text-white text-[0.85rem] font-semibold bg-[#1d4ed8] hover:bg-blue-700 transition-colors cursor-pointer"
                 disabled={isAdjusting}
               >
-                {isAdjusting ? 'Đang cập nhật...' : 'Cập nhật tiến độ'}
+                {isAdjusting ? 'Đang gửi...' : 'Cập nhật tiến độ'}
               </button>
             </div>
           </div>
@@ -415,101 +446,53 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
       {/* ── Custom CSS overrides for light/dark theme ─────────────────── */}
       <style>{`
-        .gantt-wrapper .gantt .bar-group .bar {
-          fill: hsl(217 91% 52% / 0.2) !important;
-          stroke: hsl(217 91% 52%) !important;
+        /* DHTMLX Gantt Custom Theme Overrides */
+        .gantt-phase .gantt_task_progress {
+          background-color: hsl(271 81% 52%) !important;
         }
-        .gantt-wrapper .gantt .bar-group .bar-progress {
-          fill: hsl(217 91% 52%) !important;
+        .gantt-phase .gantt_task_content {
+          background-color: hsl(271 81% 52% / 0.15) !important;
+          border: 1px solid hsl(271 81% 52%) !important;
         }
-        .gantt-wrapper .gantt .bar-group.gantt-phase .bar {
-          fill: hsl(271 81% 52% / 0.15) !important;
-          stroke: hsl(271 81% 52%) !important;
-          rx: 4px;
+        
+        .gantt-phase-frozen .gantt_task_progress {
+          background-color: hsl(142 70% 38%) !important;
         }
-        .gantt-wrapper .gantt .bar-group.gantt-phase .bar-progress {
-          fill: hsl(271 81% 52%) !important;
+        .gantt-phase-frozen .gantt_task_content {
+          background-color: hsl(142 70% 38% / 0.15) !important;
+          border: 1px solid hsl(142 70% 38%) !important;
         }
-        .gantt-wrapper .gantt .bar-group.gantt-phase-frozen .bar {
-          fill: hsl(142 70% 38% / 0.15) !important;
-          stroke: hsl(142 70% 38%) !important;
+
+        .gantt-task-done .gantt_task_progress {
+          background-color: hsl(142 70% 38%) !important;
         }
-        .gantt-wrapper .gantt .bar-group.gantt-phase-frozen .bar-progress {
-          fill: hsl(142 70% 38%) !important;
+        .gantt-task-done .gantt_task_content {
+          background-color: hsl(142 70% 38% / 0.15) !important;
+          border: 1px solid hsl(142 70% 38%) !important;
         }
-        .gantt-wrapper .gantt .bar-group.gantt-task-done .bar {
-          fill: hsl(142 70% 38% / 0.15) !important;
-          stroke: hsl(142 70% 38%) !important;
+
+        .gantt-task-inprogress .gantt_task_progress {
+          background-color: hsl(38 92% 50%) !important;
         }
-        .gantt-wrapper .gantt .bar-group.gantt-task-done .bar-progress {
-          fill: hsl(142 70% 38%) !important;
+        .gantt-task-inprogress .gantt_task_content {
+          background-color: hsl(38 92% 50% / 0.15) !important;
+          border: 1px solid hsl(38 92% 50%) !important;
         }
-        .gantt-wrapper .gantt .bar-group.gantt-task-inprogress .bar {
-          fill: hsl(38 92% 50% / 0.15) !important;
-          stroke: hsl(38 92% 50%) !important;
+
+        .gantt-task-delayed .gantt_task_progress {
+          background-color: hsl(346 84% 50%) !important;
         }
-        .gantt-wrapper .gantt .bar-group.gantt-task-inprogress .bar-progress {
-          fill: hsl(38 92% 50%) !important;
+        .gantt-task-delayed .gantt_task_content {
+          background-color: hsl(346 84% 50% / 0.15) !important;
+          border: 1px solid hsl(346 84% 50%) !important;
         }
-        .gantt-wrapper .gantt .bar-group.gantt-task-obsolete .bar {
-          fill: hsl(346 84% 50% / 0.1) !important;
-          stroke: hsl(346 84% 50%) !important;
-          opacity: 0.5;
+
+        /* Default task styles */
+        .gantt_task_line {
+          border-radius: 4px;
         }
-        .gantt-wrapper .gantt .bar-group.gantt-task-delayed .bar {
-          fill: hsl(346 84% 50% / 0.15) !important;
-          stroke: hsl(346 84% 50%) !important;
-        }
-        .gantt-wrapper .gantt .bar-group.gantt-task-delayed .bar-progress {
-          fill: hsl(346 84% 50%) !important;
-        }
-        .gantt-wrapper .gantt .bar-label {
-          font-family: inherit !important;
-          font-size: 11px !important;
-          font-weight: 600 !important;
-          fill: hsl(var(--text-primary)) !important;
-        }
-        .gantt-wrapper .gantt .lower-text,
-        .gantt-wrapper .gantt .upper-text {
-          font-family: inherit !important;
-          fill: hsl(var(--text-secondary)) !important;
-          font-size: 11px !important;
-          font-weight: 600 !important;
-        }
-        .gantt-wrapper .gantt .grid-header {
-          fill: hsl(var(--bg-card)) !important;
-          stroke: hsl(var(--border)) !important;
-        }
-        .gantt-wrapper .gantt .grid-row {
-          fill: transparent !important;
-        }
-        .gantt-wrapper .gantt .grid-row:nth-child(even) {
-          fill: hsl(var(--bg-main) / 0.5) !important;
-        }
-        .gantt-wrapper .gantt .row-line,
-        .gantt-wrapper .gantt .tick {
-          stroke: hsl(var(--border)) !important;
-        }
-        .gantt-wrapper .gantt .today-highlight {
-          fill: hsl(0 84% 55% / 0.08) !important;
-        }
-        .gantt-wrapper .gantt svg {
-          background: hsl(var(--bg-card)) !important;
-        }
-        .gantt-wrapper .popup-wrapper {
-          border-radius: 10px !important;
-          box-shadow: 0 10px 40px rgba(0,0,0,0.2) !important;
-          border: 1px solid hsl(var(--border)) !important;
-          overflow: hidden !important;
-        }
-        .gantt-wrapper .popup-wrapper .pointer {
-          display: none !important;
-        }
-        .gantt-wrapper .bar-group .bar-wrapper:hover .bar {
-          filter: brightness(1.1) !important;
-        }
-        .gantt-wrapper .handle.progress {
-          fill: hsl(var(--primary)) !important;
+        .gantt_task_progress {
+          border-radius: 4px;
         }
       `}</style>
     </div>

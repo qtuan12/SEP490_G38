@@ -80,10 +80,10 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
             <span className="text-[hsl(var(--text-secondary))]">Trạng thái:</span>
             <strong>{adjustmentData.status}</strong>
           </div>
-          {adjustmentData.incidentId && (
+          {adjustmentData.phaseId && (
             <div className="flex justify-between border-b pb-2">
-              <span className="text-[hsl(var(--text-secondary))]">Sự cố liên quan (ID):</span>
-              <strong>{adjustmentData.incidentId}</strong>
+              <span className="text-[hsl(var(--text-secondary))]">Giai đoạn liên quan:</span>
+              <strong>{adjustmentData.phaseName || `Giai đoạn ID: ${adjustmentData.phaseId}`}</strong>
             </div>
           )}
           {adjustmentData.description && (

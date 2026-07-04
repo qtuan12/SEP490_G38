@@ -120,6 +120,10 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   // ── ADJUST Progress modal state ───────────────────────────
   const [isAdjustProgressOpen, setIsAdjustProgressOpen] = useState(false);
 
+  // ── INVENTORY INCIDENT modal state ────────────────────────
+  const [isReportInventoryIncidentOpen, setIsReportInventoryIncidentOpen] = useState(false);
+  const [selectedPhaseForInventoryIncident, setSelectedPhaseForInventoryIncident] = useState<WBSPhase | null>(null);
+
 
 
   // ── Hover state ──────────────────────────────────────
@@ -358,6 +362,8 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     isAdjustDeadlineOpen, setIsAdjustDeadlineOpen,
     adjustingTask, setAdjustingTask,
     isAdjustProgressOpen, setIsAdjustProgressOpen,
+    isReportInventoryIncidentOpen, setIsReportInventoryIncidentOpen,
+    selectedPhaseForInventoryIncident, setSelectedPhaseForInventoryIncident,
 
     handleApproveByLeader, handleApproveByTPKT,
     handleRejectMatReq, handleCancelMatReq, handleConfirmReceived,

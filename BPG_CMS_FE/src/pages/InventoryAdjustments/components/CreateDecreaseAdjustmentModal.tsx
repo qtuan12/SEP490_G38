@@ -5,6 +5,7 @@ import { inventoryService } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
 import type { CurrentInventory } from '../../../types/inventory';
 import type { IncidentReport } from '../../../types/common';
+import { incidentService } from '../../../services/incidentService';
 
 interface Props {
   isOpen: boolean;
@@ -12,16 +13,17 @@ interface Props {
   onSuccess: () => void;
   onError?: (msg: string) => void;
   projectId: number;
+  incident?: IncidentReport; // Optional incident to link
 }
 
-export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, projectId }) => {
+export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, projectId, incident }) => {
   const [loading, setLoading] = useState(false);
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
-  const [incidents, setIncidents] = useState<IncidentReport[]>([]);
+  const [phases, setPhases] = useState<any[]>([]);
   
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState('Incident');
   const [description, setDescription] = useState('');
-  const [incidentId, setIncidentId] = useState<number | ''>('');
+  const [phaseId, setPhaseId] = useState<number | ''>('');
   const [items, setItems] = useState<{ materialId: number; quantity: number }[]>([]);
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('');
@@ -30,17 +32,27 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   useEffect(() => {
     if (isOpen) {
       loadData();
+      if (incident) {
+        setReason('Incident');
+        setDescription(`Giảm kho xử lý sự cố: ${incident.description}\n\n[System] Incident ID: ${incident.id}`);
+        setPhaseId(incident.phaseId ? Number(incident.phaseId) : '');
+      } else {
+        setReason('Incident');
+        setDescription('');
+        setPhaseId('');
+        setItems([]);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, incident]);
 
   const loadData = async () => {
     try {
-      const [invData, incData] = await Promise.all([
+      const [invData, phaseData] = await Promise.all([
         inventoryService.getCurrentInventory(projectId),
-        projectService.getIncidents(projectId.toString())
+        projectService.getPhases(projectId.toString())
       ]);
       setInventoryList(invData);
-      setIncidents(incData || []);
+      setPhases(phaseData || []);
     } catch (err) {
       console.error(err);
     }
@@ -72,8 +84,8 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!incidentId) {
-      if (onError) onError('Vui lòng chọn sự cố liên quan.');
+    if (!phaseId) {
+      if (onError) onError('Vui lòng chọn Giai đoạn (Phase).');
       return;
     }
     if (items.length === 0) {
@@ -86,9 +98,18 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       await inventoryAdjustmentService.createDecrease(projectId, {
         reason,
         description,
-        incidentId: Number(incidentId),
+        phaseId: Number(phaseId),
         items
       });
+      
+      if (incident) {
+        await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
+          incidentId: Number(incident.id || (incident as any).incidentId),
+          createReworkTask: false,
+          handlingInstruction: 'Kế toán đã xác minh và lập Phiếu Giảm Tồn kho.'
+        });
+      }
+
       onSuccess();
     } catch (err: any) {
       if (onError) onError(err.message || 'Lỗi khi tạo phiếu giảm tồn.');
@@ -98,7 +119,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Tạo Phiếu Giảm Tồn Kho (Kèm Sự cố)" width="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Tạo Phiếu Giảm Tồn Kho (Theo Giai đoạn)" width="lg">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <FormItem label="Lý do điều chỉnh (*)">
           <input 
@@ -111,17 +132,21 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
           />
         </FormItem>
 
-        <FormItem label="Sự cố liên quan (*)">
+        <FormItem label="Giai đoạn liên quan (*)">
           <select 
             required
             className="w-full px-3 py-2 border rounded-lg"
-            value={incidentId}
-            onChange={e => setIncidentId(Number(e.target.value))}
+            value={phaseId}
+            onChange={e => setPhaseId(Number(e.target.value))}
           >
-            <option value="">-- Chọn sự cố --</option>
-            {incidents.map(inc => (
-              <option key={inc.id} value={inc.id}>{inc.incidentType} - {inc.taskName} ({inc.status})</option>
-            ))}
+            <option value="">-- Chọn giai đoạn --</option>
+            {phases.map(ph => {
+              // phase id might be "ph-123" or "123" depending on mock/real, let's normalize to number
+              const numId = typeof ph.id === 'string' ? parseInt(ph.id.replace('ph-', '')) || ph.id : ph.id;
+              return (
+                <option key={ph.id} value={numId}>{ph.name}</option>
+              );
+            })}
           </select>
         </FormItem>
 

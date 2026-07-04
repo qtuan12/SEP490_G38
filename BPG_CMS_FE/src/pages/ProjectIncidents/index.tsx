@@ -5,7 +5,6 @@ import { incidentService } from '../../services/incidentService';
 import type {IncidentReport, WBSTask, WBSPhase, ProjectMember} from '../../types/common';
 import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
-import { CreateDecreaseAdjustmentModal } from '../Incidents/modals/CreateDecreaseAdjustmentModal';
 import {
   AlertTriangle,
   CheckCircle,
@@ -60,6 +59,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           projectId: dto.projectId.toString(),
           taskId: dto.taskId?.toString() || '',
           taskName: '', // Need to map below
+          phaseId: dto.phaseId?.toString() || '',
+          phaseName: '', // Need to map below
           reporterId: dto.reportedBy.toString(),
           reporterName: dto.reporterName,
           reviewerId: dto.reviewerBy?.toString(),
@@ -86,6 +87,9 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
       incList.forEach(inc => {
         const t = taskList.find(x => x.id === inc.taskId);
         if (t) inc.taskName = t.name;
+        
+        const p = phaseList.find(x => x.id === inc.phaseId);
+        if (p) inc.phaseName = p.name;
       });
 
       setIncidents(incList); // Do not filter by task, show all incidents for the project!
@@ -139,6 +143,9 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
   // Check deadline reserves
   const selectedTask = selectedIncident ? tasks.find(t => t.id === selectedIncident.taskId) : null;
   const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) || null : null;
+  // If incident is inventory, it has phaseId directly
+  const selectedInventoryPhase = selectedIncident ? phases.find(p => p.id === selectedIncident.phaseId) || null : null;
+  const effectivePhase = selectedTaskPhase || selectedInventoryPhase;
 
   return (
     <div className="flex flex-col gap-5">
@@ -211,7 +218,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
               <thead>
                 <tr>
                   <th>Ngày báo cáo</th>
-                  <th>Công việc bị sự cố</th>
+                  <th>Công việc / Giai đoạn bị sự cố</th>
                   <th>Phân loại</th>
                   <th>Người báo cáo</th>
                   <th>Mô tả sự cố</th>
@@ -223,7 +230,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
                 {incidents.map((inc) => (
                   <tr key={inc.id} className="cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors" onClick={() => { setSelectedIncident(inc); setIsDetailOpen(true); }}>
                     <td className="whitespace-nowrap text-sm">{inc.date}</td>
-                    <td><strong className="text-[0.88rem]">{inc.taskName || 'Không xác định'}</strong></td>
+                    <td><strong className="text-[0.88rem]">{(inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') ? (inc.phaseName || 'Giai đoạn') : (inc.taskName || 'Không xác định')}</strong></td>
                     <td>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.75rem] whitespace-nowrap">{inc.incidentType}</span>
                     </td>
@@ -250,7 +257,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           isOpen={isDetailOpen}
           onClose={() => { setIsDetailOpen(false); setSelectedIncident(null); }}
           incident={selectedIncident}
-          phase={selectedTaskPhase!}
+          phase={effectivePhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
           onResolveClick={() => setIsResolveOpen(true)}
           projectId={projectId}
@@ -259,38 +266,21 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
 
       {/* ─── MODAL 5: APPROVE & RESOLVE REWORK TASK (TPKT / ACCOUNTANT) ─── */}
       {isResolveOpen && selectedIncident && selectedTask && (
-        <>
-          {selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage' ? (
-            <CreateDecreaseAdjustmentModal
-              isOpen={isResolveOpen}
-              onClose={() => setIsResolveOpen(false)}
-              incident={selectedIncident}
-              projectId={projectId}
-              onSuccess={(msg) => {
-                setIsDetailOpen(false);
-                setSelectedIncident(null);
-                handleSuccess(msg);
-              }}
-              onError={handleError}
-            />
-          ) : (
-            <ResolveIncidentModal
-              isOpen={isResolveOpen}
-              onClose={() => setIsResolveOpen(false)}
-              incident={selectedIncident}
-              task={selectedTask}
-              phase={selectedTaskPhase!}
-              members={members}
-              user={user ? { id: user.id, name: user.name } : null}
-              onSuccess={(msg) => {
-                setIsDetailOpen(false);
-                setSelectedIncident(null);
-                handleSuccess(msg);
-              }}
-              onError={handleError}
-            />
-          )}
-        </>
+        <ResolveIncidentModal
+          isOpen={isResolveOpen}
+          onClose={() => setIsResolveOpen(false)}
+          incident={selectedIncident}
+          task={selectedTask}
+          phase={effectivePhase!}
+          members={members}
+          user={user ? { id: user.id, name: user.name } : null}
+          onSuccess={(msg) => {
+            setIsDetailOpen(false);
+            setSelectedIncident(null);
+            handleSuccess(msg);
+          }}
+          onError={handleError}
+        />
       )}
 
     </div>

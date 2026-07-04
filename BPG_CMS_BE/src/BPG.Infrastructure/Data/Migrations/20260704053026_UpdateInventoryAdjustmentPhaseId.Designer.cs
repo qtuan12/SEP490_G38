@@ -4,16 +4,19 @@ using BPG.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace BPG.Infrastructure.Migrations
+namespace BPG.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260704053026_UpdateInventoryAdjustmentPhaseId")]
+    partial class UpdateInventoryAdjustmentPhaseId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -542,9 +545,6 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<long?>("PhaseId")
-                        .HasColumnType("bigint");
-
                     b.Property<long>("ProjectId")
                         .HasColumnType("bigint");
 
@@ -574,8 +574,6 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("IncidentId");
-
-                    b.HasIndex("PhaseId");
 
                     b.HasIndex("ProjectId");
 
@@ -2418,11 +2416,6 @@ namespace BPG.Infrastructure.Migrations
 
             modelBuilder.Entity("BPG.Domain.Entities.Incident", b =>
                 {
-                    b.HasOne("BPG.Domain.Entities.Phase", "Phase")
-                        .WithMany()
-                        .HasForeignKey("PhaseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("BPG.Domain.Entities.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId")
@@ -2449,8 +2442,6 @@ namespace BPG.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Phase");
 
                     b.Navigation("Project");
 

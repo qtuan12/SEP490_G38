@@ -257,6 +257,12 @@ public class AppDbContext : DbContext
             .HasForeignKey(i => i.ReviewedBy)
             .OnDelete(DeleteBehavior.Restrict);
 
+        modelBuilder.Entity<Incident>()
+            .HasOne(i => i.Phase)
+            .WithMany()
+            .HasForeignKey(i => i.PhaseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Comment cascade delete from DailyLog
         modelBuilder.Entity<Comment>()
             .HasOne(c => c.DailyLog)
@@ -434,6 +440,12 @@ public class AppDbContext : DbContext
             .Property(x => x.ConversionRate).HasPrecision(18, 6);
 
         // InventoryAdjustment
+        modelBuilder.Entity<InventoryAdjustment>()
+            .HasOne(i => i.Phase)
+            .WithMany()
+            .HasForeignKey(i => i.PhaseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         modelBuilder.Entity<InventoryAdjustment>()
             .HasOne(i => i.Approver)
             .WithMany()

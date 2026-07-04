@@ -108,6 +108,7 @@ namespace BPG.Application.Common.Mappings
             // Inventory Adjustment Mappings
             CreateMap<Domain.Entities.InventoryAdjustment, BPG.Application.DTOs.Inventory.InventoryAdjustmentDto>()
                 .ForMember(dest => dest.ProjectName, opt => opt.MapFrom(src => src.Project != null ? src.Project.Name : string.Empty))
+                .ForMember(dest => dest.PhaseName, opt => opt.MapFrom(src => src.Phase != null ? src.Phase.Name : string.Empty))
                 .ForMember(dest => dest.CreatorName, opt => opt.Ignore()) // Would need User info, or use audit
                 .ForMember(dest => dest.ApproverName, opt => opt.MapFrom(src => src.Approver != null ? src.Approver.FullName : string.Empty))
                 .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Items));
@@ -123,7 +124,8 @@ namespace BPG.Application.Common.Mappings
                 .ForMember(dest => dest.ReporterName, opt => opt.MapFrom(src => src.Reporter != null ? src.Reporter.FullName : string.Empty))
                 .ForMember(dest => dest.ReviewerName, opt => opt.MapFrom(src => src.Reviewer != null ? src.Reviewer.FullName : string.Empty))
                 .ForMember(dest => dest.ProjectName, opt => opt.MapFrom(src => src.Project != null ? src.Project.Name : string.Empty))
-                .ForMember(dest => dest.TaskName, opt => opt.MapFrom(src => src.Task != null ? src.Task.Name : string.Empty));
+                .ForMember(dest => dest.TaskName, opt => opt.MapFrom(src => src.Task != null ? src.Task.Name : string.Empty))
+                .ForMember(dest => dest.PhaseName, opt => opt.MapFrom(src => src.Phase != null ? src.Phase.Name : string.Empty));
 
             // MaterialRequest Mapping
             CreateMap<MaterialRequest, BPG.Application.DTOs.MaterialRequests.MaterialRequestDto>()

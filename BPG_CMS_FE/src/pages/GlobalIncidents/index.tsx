@@ -5,7 +5,7 @@ import { incidentService } from '../../services/incidentService';
 import type {IncidentReport, WBSTask, WBSPhase, ProjectMember} from '../../types/common';
 import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
-import { CreateDecreaseAdjustmentModal } from '../Incidents/modals/CreateDecreaseAdjustmentModal';
+import { CreateDecreaseAdjustmentModal } from '../InventoryAdjustments/components/CreateDecreaseAdjustmentModal';
 import {
   AlertTriangle,
   CheckCircle,
@@ -18,7 +18,9 @@ export const GlobalIncidents: React.FC = () => {
   const { user } = useAuth();
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'construction' | 'inventory'>('construction');
+  const [activeTab, setActiveTab] = useState<'construction' | 'inventory'>(
+    user?.role === 'accountant' ? 'inventory' : 'construction'
+  );
 
   // Modals & Selected States
   const [selectedIncident, setSelectedIncident] = useState<IncidentReport | null>(null);
@@ -28,6 +30,7 @@ export const GlobalIncidents: React.FC = () => {
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isResolveOpen, setIsResolveOpen] = useState(false);
+  const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
   const [loadingRowAction, setLoadingRowAction] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +67,8 @@ export const GlobalIncidents: React.FC = () => {
           projectName: dto.projectName,
           taskId: dto.taskId?.toString() || '',
           taskName: dto.taskName || 'Không xác định',
+          phaseId: dto.phaseId?.toString() || '',
+          phaseName: dto.phaseName || 'Không xác định',
           reporterId: dto.reportedBy.toString(),
           reporterName: dto.reporterName,
           reviewerId: dto.reviewerBy?.toString(),
@@ -116,7 +121,7 @@ export const GlobalIncidents: React.FC = () => {
           projectService.getMembers(inc.projectId)
        ]);
        const task = tList.find(t => t.id === inc.taskId);
-       const phase = pList.find(p => p.id === task?.phaseId);
+       const phase = pList.find(p => p.id === inc.phaseId) || pList.find(p => p.id === task?.phaseId);
        
        setSelectedTask(task || null);
        setSelectedPhase(phase || null);
@@ -155,6 +160,8 @@ export const GlobalIncidents: React.FC = () => {
     }
   };
 
+  const effectivePhase = selectedPhase;
+
   return (
     <div className="flex flex-col gap-5">
       
@@ -176,18 +183,20 @@ export const GlobalIncidents: React.FC = () => {
             Quản lý Sự cố Toàn hệ thống
           </h3>
           <p className="text-[0.85rem] text-[hsl(var(--text-muted))] mt-1 mb-0">
-            Tổng hợp toàn bộ báo cáo sự cố từ tất cả dự án (Dành cho TPKT/Admin)
+            Tổng hợp toàn bộ báo cáo sự cố (Thi công / Vật tư) trên toàn hệ thống
           </p>
         </div>
       </div>
 
       <div className="flex gap-2 border-b border-[hsl(var(--border))] mb-4">
-        <button
-          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
-          onClick={() => setActiveTab('construction')}
-        >
-          Sự cố Thi công
-        </button>
+        {user?.role !== 'accountant' && (
+          <button
+            className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
+            onClick={() => setActiveTab('construction')}
+          >
+            Sự cố Thi công
+          </button>
+        )}
         <button
           className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
           onClick={() => setActiveTab('inventory')}
@@ -254,7 +263,7 @@ export const GlobalIncidents: React.FC = () => {
                 <tr>
                   <th>Ngày báo cáo</th>
                   <th>Dự án</th>
-                  <th>Công việc / Vật tư</th>
+                  <th>Công việc / Giai đoạn</th>
                   <th>Phân loại</th>
                   <th>Người báo cáo</th>
                   <th>Mô tả sự cố</th>
@@ -271,7 +280,7 @@ export const GlobalIncidents: React.FC = () => {
                     <td>
                       <strong className="text-[0.88rem] text-[hsl(var(--primary))]">{inc.projectName || `Dự án #${inc.projectId}`}</strong>
                     </td>
-                    <td><strong className="text-[0.88rem]">{inc.taskName}</strong></td>
+                    <td><strong className="text-[0.88rem]">{(inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') ? (inc.phaseName || 'Giai đoạn') : (inc.taskName || 'Công việc')}</strong></td>
                     <td>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.75rem] whitespace-nowrap">{inc.incidentType}</span>
                     </td>
@@ -299,46 +308,51 @@ export const GlobalIncidents: React.FC = () => {
           isOpen={isDetailOpen}
           onClose={() => { setIsDetailOpen(false); setSelectedIncident(null); }}
           incident={selectedIncident}
-          phase={selectedPhase!}
+          phase={effectivePhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
-          onResolveClick={() => setIsResolveOpen(true)}
+          onResolveClick={() => {
+            if (selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage') {
+              setIsDecreaseOpen(true);
+            } else {
+              setIsResolveOpen(true);
+            }
+          }}
           projectId={selectedIncident.projectId}
         />
       )}
 
-      {isResolveOpen && selectedIncident && selectedTask && (
-        <>
-          {selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage' ? (
-            <CreateDecreaseAdjustmentModal
-              isOpen={isResolveOpen}
-              onClose={() => setIsResolveOpen(false)}
-              incident={selectedIncident}
-              projectId={selectedIncident.projectId}
-              onSuccess={(msg) => {
-                setIsDetailOpen(false);
-                setSelectedIncident(null);
-                handleSuccess(msg);
-              }}
-              onError={handleError}
-            />
-          ) : (
-            <ResolveIncidentModal
-              isOpen={isResolveOpen}
-              onClose={() => setIsResolveOpen(false)}
-              incident={selectedIncident}
-              task={selectedTask}
-              phase={selectedPhase!}
-              members={projectMembers}
-              user={user ? { id: user.id, name: user.name } : null}
-              onSuccess={(msg) => {
-                setIsDetailOpen(false);
-                setSelectedIncident(null);
-                handleSuccess(msg);
-              }}
-              onError={handleError}
-            />
-          )}
-        </>
+      {isResolveOpen && selectedIncident && (selectedTask || effectivePhase) && (
+        <ResolveIncidentModal
+          isOpen={isResolveOpen}
+          onClose={() => setIsResolveOpen(false)}
+          incident={selectedIncident}
+          task={selectedTask as any}
+          phase={effectivePhase!}
+          members={projectMembers}
+          user={user ? { id: user.id, name: user.name } : null}
+          onSuccess={(msg) => {
+            setIsDetailOpen(false);
+            setSelectedIncident(null);
+            handleSuccess(msg);
+          }}
+          onError={handleError}
+        />
+      )}
+
+      {isDecreaseOpen && selectedIncident && (
+        <CreateDecreaseAdjustmentModal
+          isOpen={isDecreaseOpen}
+          onClose={() => setIsDecreaseOpen(false)}
+          projectId={Number(selectedIncident.projectId)}
+          incident={selectedIncident}
+          onSuccess={() => {
+            setIsDecreaseOpen(false);
+            setIsDetailOpen(false);
+            setSelectedIncident(null);
+            handleSuccess("Đã tạo phiếu giảm tồn kho và cập nhật sự cố.");
+          }}
+          onError={handleError}
+        />
       )}
 
     </div>

@@ -6,7 +6,6 @@ import type {IncidentReport, WBSTask, WBSPhase, ProjectMember} from '../../types
 import { ReportIncidentModal } from '../Incidents/modals/ReportIncidentModal';
 import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
-import { CreateDecreaseAdjustmentModal } from '../Incidents/modals/CreateDecreaseAdjustmentModal';
 import {
   AlertTriangle,
   CheckCircle,
@@ -141,7 +140,7 @@ export const TaskIncidents: React.FC = () => {
               onClick={() => setIsCreateOpen(true)} 
               className="flex items-center gap-2"
             >
-              <Plus size={16} /> Lập Báo cáo Sự cố &amp; Thiệt hại
+              <Plus size={16} /> Lập Báo cáo Sự cố thi công
             </Button>
           </div>
         )}
@@ -264,30 +263,17 @@ export const TaskIncidents: React.FC = () => {
 
       {/* ─── MODAL 5: APPROVE & RESOLVE REWORK TASK (TPKT / ACCOUNTANT) ─── */}
       {isResolveOpen && selectedIncident && selectedTask && (
-        <>
-          {selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage' ? (
-            <CreateDecreaseAdjustmentModal
-              isOpen={isResolveOpen}
-              onClose={() => setIsResolveOpen(false)}
-              incident={selectedIncident}
-              projectId={projectId!}
-              onSuccess={handleSuccess}
-              onError={handleError}
-            />
-          ) : (
-            <ResolveIncidentModal
-              isOpen={isResolveOpen}
-              onClose={() => setIsResolveOpen(false)}
-              incident={selectedIncident}
-              task={selectedTask}
-              phase={selectedTaskPhase!}
-              members={members}
-              user={user ? { id: user.id, name: user.name } : null}
-              onSuccess={handleSuccess}
-              onError={handleError}
-            />
-          )}
-        </>
+        <ResolveIncidentModal
+          isOpen={isResolveOpen}
+          onClose={() => setIsResolveOpen(false)}
+          incident={selectedIncident}
+          task={selectedTask}
+          phase={selectedTaskPhase!}
+          members={members}
+          user={user ? { id: user.id, name: user.name } : null}
+          onSuccess={handleSuccess}
+          onError={handleError}
+        />
       )}
 
     </div>
