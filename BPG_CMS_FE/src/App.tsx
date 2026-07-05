@@ -35,6 +35,7 @@ import { PurchaseOrderList } from './pages/PurchaseOrders';
 import { CreatePOPage } from './pages/PurchaseOrders/CreatePOPage';
 import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
 import { SystemConfigPage } from './pages/SystemConfig';
+import { DirectPurchaseList } from './pages/DirectPurchases';
 import { TaskIncidents } from './pages/TaskIncidents';
 
 const queryClient = new QueryClient({
@@ -216,7 +217,7 @@ function App() {
               <Route 
                 path="/projects" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <ProjectList />
                   </ProtectedRoute>
                 } 
@@ -359,8 +360,18 @@ function App() {
               <Route
                 path="/purchase-orders/:id"
                 element={
-                  <ProtectedRoute allowedRoles={['accountant']}>
+                  <ProtectedRoute allowedRoles={['accountant', 'siteengineer', 'admin']}>
                     <PODetailPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Direct Purchases - Leader + Accountant */}
+              <Route
+                path="/direct-purchases"
+                element={
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'siteengineer', 'projectleader', 'accountant', 'admin']}>
+                    <DirectPurchaseList />
                   </ProtectedRoute>
                 }
               />

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
+import { useAuth } from '../../context/AuthContext';
 import { Button, Badge } from '../../components/ui';
 import toast from 'react-hot-toast';
 import {
@@ -61,6 +62,7 @@ export const PODetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const poId = Number(id);
 
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -109,7 +111,7 @@ export const PODetailPage: React.FC = () => {
   }
 
   const receivedTotal = po.items.reduce((s, it) => s + it.totalReceived * it.unitPrice, 0);
-  const canCancel = CANCELLABLE.includes(po.status);
+  const canCancel = CANCELLABLE.includes(po.status) && user?.role === 'accountant';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1120, margin: '0 auto' }}>

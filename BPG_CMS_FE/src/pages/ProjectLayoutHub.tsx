@@ -20,13 +20,16 @@ import {
   CheckCircle,
   Clock,
   Edit3,
-
   AlertCircle,
   Play,
-  Package
+  Package,
+  ShoppingCart,
+  ShoppingBag,
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
 import { ProjectIncidents } from './ProjectIncidents';
+import { ProjectPOTab } from './ProjectLayoutHub/ProjectPOTab';
+import { ProjectDirectPurchaseTab } from './ProjectLayoutHub/ProjectDirectPurchaseTab';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 
@@ -41,7 +44,9 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents'>('wbs');
+  const isAccountant = user?.role === 'accountant';
+  const [isAssignedLeader, setIsAssignedLeader] = useState(false);
+  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'purchaseorders' | 'directpurchases'>('wbs');
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
@@ -57,7 +62,9 @@ export const ProjectLayoutHub: React.FC = () => {
 
       const members = await projectService.getMembers(projectId);
       const currentMember = members.find(m => m.userId === user?.id);
-      setIsPL((currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager');
+      const memberIsLeader = currentMember?.isLeader ?? false;
+      setIsAssignedLeader(memberIsLeader);
+      setIsPL(memberIsLeader || user?.role === 'admin' || user?.role === 'technicalmanager');
     } catch (err) {
       console.error('Error loading project details:', err);
     } finally {
@@ -415,6 +422,54 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Sự cố thi công</span>
         </button>
 
+        {(isAccountant || isAssignedLeader) && (
+          <button
+            onClick={() => setActiveTab('purchaseorders')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 18px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'purchaseorders' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+              color: activeTab === 'purchaseorders' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+              fontWeight: activeTab === 'purchaseorders' ? 600 : 500,
+              fontSize: '0.95rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all var(--transition-fast)'
+            }}
+          >
+            <ShoppingCart size={18} />
+            <span>Đơn hàng PO</span>
+          </button>
+        )}
+
+        {(isAccountant || isAssignedLeader) && (
+          <button
+            onClick={() => setActiveTab('directpurchases')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 18px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'directpurchases' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+              color: activeTab === 'directpurchases' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+              fontWeight: activeTab === 'directpurchases' ? 600 : 500,
+              fontSize: '0.95rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all var(--transition-fast)'
+            }}
+          >
+            <ShoppingBag size={18} />
+            <span>Mua khẩn cấp</span>
+          </button>
+        )}
+
       </div>
 
       {/* Tab Contents */}
@@ -427,6 +482,8 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
         {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} />}
+        {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} />}
+        {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
       </div>
 
       {isEditOpen && project && (

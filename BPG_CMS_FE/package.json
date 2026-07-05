@@ -21,8 +21,9 @@
     "react-dom": "^19.2.6",
     "react-hook-form": "^7.78.0",
     "react-hot-toast": "^2.6.0",
+    "react-is": "^19.2.7",
     "react-router-dom": "^7.15.1",
-    "recharts": "^3.9.0",
+    "recharts": "^3.9.2",
     "rehype-sanitize": "^6.0.0",
     "zod": "^4.4.3"
   },
