@@ -1406,6 +1406,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<bool>("IsLocked")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsOutsourced")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1415,6 +1418,12 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<int>("OrderIndex")
                         .HasColumnType("int");
+
+                    b.Property<string>("OutsourcedTeamContact")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OutsourcedTeamName")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<long?>("ParentTaskId")
                         .HasColumnType("bigint");

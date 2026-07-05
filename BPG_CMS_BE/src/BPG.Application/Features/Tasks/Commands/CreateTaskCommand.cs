@@ -14,5 +14,8 @@ public record CreateTaskCommand(
     DateOnly StartDate,
     DateOnly EndDate,
     List<long>? AssigneeIds,
-    decimal? Weight
+    decimal? Weight,
+    bool IsOutsourced = false,
+    string? OutsourcedTeamName = null,
+    string? OutsourcedTeamContact = null
 ) : IRequest<ApiResponse<long>>;

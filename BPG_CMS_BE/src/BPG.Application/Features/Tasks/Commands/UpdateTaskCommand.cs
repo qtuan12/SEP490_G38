@@ -12,5 +12,8 @@ public record UpdateTaskCommand(
     DateOnly StartDate,
     DateOnly EndDate,
     string? UpdateReason,
-    decimal? Weight
+    decimal? Weight,
+    bool IsOutsourced = false,
+    string? OutsourcedTeamName = null,
+    string? OutsourcedTeamContact = null
 ) : IRequest<ApiResponse>;

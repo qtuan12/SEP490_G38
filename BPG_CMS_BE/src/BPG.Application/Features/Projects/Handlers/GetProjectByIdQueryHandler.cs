@@ -59,7 +59,7 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
         var tasks = await _uow.Repository<ProjectTask>().Query()
             .AsNoTracking()
             .Where(t => t.Phase.ProjectId == request.Id && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
-            .Select(t => new { t.TaskId, t.ParentTaskId, t.StartDate, t.EndDate, t.ProgressPercent })
+            .Select(t => new { t.TaskId, t.ParentTaskId, t.StartDate, t.EndDate, t.ProgressPercent, t.Weight })
             .ToListAsync(cancellationToken);
 
         int projectProgress = 0;
@@ -71,7 +71,8 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
             foreach (var t in leafTasks)
             {
                 var duration = (t.EndDate.ToDateTime(TimeOnly.MinValue) - t.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
-                double weight = duration > 0 ? duration : 1;
+                double baseWeight = duration > 0 ? duration : 1;
+                double weight = (t.Weight.HasValue && t.Weight.Value > 0) ? baseWeight * (double)t.Weight.Value : baseWeight;
                 totalWeightedProgress += t.ProgressPercent * weight;
                 totalWeight += weight;
             }
