@@ -55,6 +55,8 @@ public class AppDbContext : DbContext
     public DbSet<CurrentInventory> CurrentInventories => Set<CurrentInventory>();
     public DbSet<MaterialIssuance> MaterialIssuances => Set<MaterialIssuance>();
     public DbSet<MaterialIssuanceItem> MaterialIssuanceItems => Set<MaterialIssuanceItem>();
+    public DbSet<MaterialReturn> MaterialReturns => Set<MaterialReturn>();
+    public DbSet<MaterialReturnItem> MaterialReturnItems => Set<MaterialReturnItem>();
 
     // Surplus Management
     public DbSet<SurplusRequest> SurplusRequests => Set<SurplusRequest>();
@@ -134,6 +136,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<CurrentInventory>().HasKey(x => x.InventoryId);
         modelBuilder.Entity<MaterialIssuance>().HasKey(x => x.MaterialIssuanceId);
         modelBuilder.Entity<MaterialIssuanceItem>().HasKey(x => x.IssuanceItemId);
+        modelBuilder.Entity<MaterialReturn>().HasKey(x => x.MaterialReturnId);
+        modelBuilder.Entity<MaterialReturnItem>().HasKey(x => x.ReturnItemId);
         modelBuilder.Entity<SurplusRequest>().HasKey(x => x.SurplusRequestId);
         modelBuilder.Entity<SurplusRequestItem>().HasKey(x => x.SurplusRequestItemId);
         modelBuilder.Entity<SurplusReturnSupplier>().HasKey(x => x.SurplusReturnSupplierId);
@@ -364,6 +368,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MaterialIssuanceItem>()
             .Property(x => x.Quantity).HasPrecision(18, 3);
         modelBuilder.Entity<MaterialIssuanceItem>()
+            .Property(x => x.ConversionRate).HasPrecision(18, 6);
+
+        // MaterialReturnItem precision
+        modelBuilder.Entity<MaterialReturnItem>()
+            .Property(x => x.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<MaterialReturnItem>()
             .Property(x => x.ConversionRate).HasPrecision(18, 6);
 
         // SurplusRequestItem unique (SurplusRequestId, MaterialId) + precision

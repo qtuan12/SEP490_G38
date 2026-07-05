@@ -4,16 +4,19 @@ using BPG.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace BPG.Infrastructure.Migrations
+namespace BPG.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630123246_AddMaterialReturn")]
+    partial class AddMaterialReturn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -531,9 +534,6 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<decimal?>("EstimatedMaterialLoss")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
-
-                    b.Property<string>("HandlingInstruction")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("IncidentType")
                         .IsRequired()
@@ -1456,26 +1456,17 @@ namespace BPG.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("POId"));
 
-                    b.Property<string>("CancelledReason")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<long?>("CreatedBy")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("DeliveryAddress")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateOnly?>("ExpectedDeliveryDate")
                         .HasColumnType("date");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("OrderDate")
                         .HasColumnType("datetime2");
@@ -1484,13 +1475,7 @@ namespace BPG.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PaymentTerms")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<long?>("ProjectId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("RequestId")
+                    b.Property<long>("RequestId")
                         .HasColumnType("bigint");
 
                     b.Property<string>("Status")
@@ -1538,9 +1523,6 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<long>("MaterialId")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<long>("POId")
                         .HasColumnType("bigint");
 
@@ -1564,21 +1546,6 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("UnitId");
 
                     b.ToTable("PurchaseOrderItems");
-                });
-
-            modelBuilder.Entity("BPG.Domain.Entities.PurchaseOrderRequest", b =>
-                {
-                    b.Property<long>("POId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("RequestId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("POId", "RequestId");
-
-                    b.HasIndex("RequestId");
-
-                    b.ToTable("PurchaseOrderRequests");
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.RefreshToken", b =>
@@ -2035,18 +2002,8 @@ namespace BPG.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
-
-                    b.Property<string>("Unit")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -2176,9 +2133,6 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("UserId"));
-
-                    b.Property<string>("AvatarUrl")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -2838,7 +2792,8 @@ namespace BPG.Infrastructure.Migrations
                     b.HasOne("BPG.Domain.Entities.MaterialRequest", "Request")
                         .WithMany()
                         .HasForeignKey("RequestId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("BPG.Domain.Entities.Supplier", "Supplier")
                         .WithMany("PurchaseOrders")
@@ -2874,25 +2829,6 @@ namespace BPG.Infrastructure.Migrations
                     b.Navigation("PurchaseOrder");
 
                     b.Navigation("Unit");
-                });
-
-            modelBuilder.Entity("BPG.Domain.Entities.PurchaseOrderRequest", b =>
-                {
-                    b.HasOne("BPG.Domain.Entities.PurchaseOrder", "PurchaseOrder")
-                        .WithMany("RequestLinks")
-                        .HasForeignKey("POId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BPG.Domain.Entities.MaterialRequest", "MaterialRequest")
-                        .WithMany()
-                        .HasForeignKey("RequestId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("MaterialRequest");
-
-                    b.Navigation("PurchaseOrder");
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.RefreshToken", b =>
@@ -3173,8 +3109,6 @@ namespace BPG.Infrastructure.Migrations
                     b.Navigation("GoodsReceipts");
 
                     b.Navigation("Items");
-
-                    b.Navigation("RequestLinks");
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Role", b =>

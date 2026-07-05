@@ -56,6 +56,7 @@ public static class InventoryTransactionType
     public const byte ReturnToSupplier = 5; // Trả lại NCC (giảm)
     public const byte Adjustment = 6;       // Điều chỉnh tăng/giảm (có thể dấu ±)
     public const byte Liquidation = 7;      // Thanh lý vật tư (giảm)
+    public const byte IssuanceReturn = 8;   // Hoàn trả vật tư dư từ công trường về kho (tăng)
 }
 
 public static class AttachmentType
@@ -94,6 +95,7 @@ public static class EntityType
     public const string GoodsReceipt = "GoodsReceipt";
     public const string GoodsReceiptReversal = "GoodsReceiptReversal"; // Bút toán đảo chiều khi hủy phiếu nhập kho
     public const string MaterialIssuance = "MaterialIssuance";         // Phiếu xuất kho
+    public const string MaterialReturn = "MaterialReturn";             // Phiếu hoàn trả vật tư từ công trường về kho
     public const string DirectPurchaseRequest = "DirectPurchaseRequest";
     public const string SurplusRequest = "SurplusRequest";
     public const string SurplusLiquidation = "SurplusLiquidation";
