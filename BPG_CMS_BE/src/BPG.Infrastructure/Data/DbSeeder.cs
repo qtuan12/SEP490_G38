@@ -1134,6 +1134,7 @@ public static class DbSeeder
         var adj = new InventoryAdjustment
         {
             ProjectId      = project.ProjectId,
+            PhaseId        = task.PhaseId,
             AdjustmentType = "Decrease",    // InventoryAdjustmentType.Decrease
             Reason         = "Sự cố ngập nước – xi măng bị hỏng trong kho",
             Description    = "Giảm 30 bao xi măng PCB40 bị ướt do mưa ngập hố móng ngày " +
