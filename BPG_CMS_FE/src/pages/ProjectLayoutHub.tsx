@@ -23,8 +23,7 @@ import {
   AlertCircle,
   Play,
   Package,
-  PackageMinus
-  Package,
+  PackageMinus,
   ShoppingCart,
   ShoppingBag,
 } from 'lucide-react';
@@ -48,25 +47,28 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
- 
- const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus'>(
-  (searchParams.get('tab') as any) || 'wbs'
-);
-useEffect(() => {
-  const tab = searchParams.get('tab');
-  // Thêm 'surplus' vào mảng và ép kiểu (as string[]) để fix lỗi của .includes()
-  if (tab && (['members', 'wbs', 'logs', 'inventory', 'incidents', 'surplus'] as string[]).includes(tab)) {
-    setActiveTab(tab as any);
-  }
-}, [searchParams]);
-// Thêm 'surplus' vào type của tham số
-const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus') => {
-  setActiveTab(tab);
-  navigate(`/projects/${projectId}?tab=${tab}`);
-};
   const isAccountant = user?.role === 'accountant';
   const [isAssignedLeader, setIsAssignedLeader] = useState(false);
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'purchaseorders' | 'directpurchases'>('wbs');
+
+  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus' | 'purchaseorders' | 'directpurchases';
+  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'incidents', 'surplus', 'purchaseorders', 'directpurchases'];
+
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    (searchParams.get('tab') as TabKey) || 'wbs'
+  );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && (TAB_KEYS as string[]).includes(tab)) {
+      setActiveTab(tab as TabKey);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: TabKey) => {
+    setActiveTab(tab);
+    navigate(`/projects/${projectId}?tab=${tab}`);
+  };
+
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
@@ -457,7 +459,7 @@ const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incide
         </button>
 
         <button
-          onClick={() => setActiveTab('surplus')}
+          onClick={() => handleTabChange('surplus')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -480,7 +482,7 @@ const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incide
 
         {(isAccountant || isAssignedLeader) && (
           <button
-            onClick={() => setActiveTab('purchaseorders')}
+            onClick={() => handleTabChange('purchaseorders')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -504,7 +506,7 @@ const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incide
 
         {(isAccountant || isAssignedLeader) && (
           <button
-            onClick={() => setActiveTab('directpurchases')}
+            onClick={() => handleTabChange('directpurchases')}
             style={{
               display: 'flex',
               alignItems: 'center',

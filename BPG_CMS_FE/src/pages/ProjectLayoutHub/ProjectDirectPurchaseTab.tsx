@@ -146,22 +146,41 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <Select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="w-48 h-10"
-            options={STATUS_OPTIONS}
-          />
-          <Select
-            value={auditFilter}
-            onChange={(e) => { setAuditFilter(e.target.value); setPage(1); }}
-            className="w-48 h-10"
-            options={AUDIT_OPTIONS}
-          />
+      <div
+        style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px',
+          padding: '14px 16px', borderRadius: 10,
+          border: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-card))',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Trạng thái</label>
+            <Select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              className="w-48 h-10"
+              options={STATUS_OPTIONS}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Kiểm toán</label>
+            <Select
+              value={auditFilter}
+              onChange={(e) => { setAuditFilter(e.target.value); setPage(1); }}
+              className="w-48 h-10"
+              options={AUDIT_OPTIONS}
+            />
+          </div>
           {data && (
-            <span style={{ fontSize: 13, color: 'hsl(var(--text-muted))', alignSelf: 'center' }}>
+            <span
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, height: 40, padding: '0 12px',
+                borderRadius: 999, background: 'hsl(var(--primary-glow))',
+                fontSize: 13, fontWeight: 600, color: 'hsl(var(--primary))',
+              }}
+            >
+              <ShoppingBag size={14} />
               {data.totalCount} phiếu
             </span>
           )}
@@ -170,7 +189,7 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
           <Button
             variant="primary"
             onClick={() => setIsCreateOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', height: 40 }}
           >
             <Plus size={16} />
             Tạo phiếu mua khẩn cấp
