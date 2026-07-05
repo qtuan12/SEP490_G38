@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type { MaterialRequest } from '../../types/common';
-import { MaterialCompensationTable } from '../Dashboard/components/MaterialCompensationTable';
+import { MaterialRequestTable } from '../Dashboard/components/MaterialRequestTable';
 import { Modal } from '../../components/ui/Modal';
 import { Pagination, Input, Select } from '../../components/ui';
 import toast from 'react-hot-toast';
@@ -212,9 +212,7 @@ export const MaterialControl: React.FC = () => {
               { label: 'Tất cả Trạng thái', value: '' },
               { label: 'Chờ Kế toán soát', value: 'pending_accountant' },
               { label: 'Chờ Giám đốc duyệt', value: 'pending_director' },
-              { label: 'Chờ Giải ngân', value: 'pending_disbursement' },
-              { label: 'Đã duyệt (PO Auto)', value: 'approved' },
-              { label: 'Đã giải ngân', value: 'disbursed' },
+              { label: 'Đã duyệt', value: 'approved' },
               { label: 'Đã từ chối', value: 'rejected' },
             ]}
           />
@@ -223,7 +221,7 @@ export const MaterialControl: React.FC = () => {
 
       {/* MAIN CONTAINER */}
       <div className="flex flex-col gap-4">
-        <MaterialCompensationTable
+        <MaterialRequestTable
           materialRequests={paginatedRequests}
           loadingRequests={loadingRequests}
           isAccountant={isAccountant}

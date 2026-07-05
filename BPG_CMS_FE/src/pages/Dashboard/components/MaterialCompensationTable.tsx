@@ -31,11 +31,11 @@ export const MaterialCompensationTable: React.FC<MaterialCompensationTableProps>
       case 'pending_director':
         return <Badge variant="default" className="text-[0.72rem] py-0.5 px-2 normal-case">Chờ Giám đốc duyệt</Badge>;
       case 'pending_disbursement':
-        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] normal-case">Chờ Giải ngân (PO/Kho Auto)</Badge>;
+        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] normal-case">Chờ Giải ngân</Badge>;
       case 'disbursed':
         return <Badge variant="success" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã giải ngân</Badge>;
       case 'approved':
-        return <Badge variant="success" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã duyệt (PO Auto)</Badge>;
+        return <Badge variant="success" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã duyệt</Badge>;
       case 'rejected':
         return <Badge variant="danger" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã từ chối</Badge>;
       default:
@@ -182,14 +182,14 @@ export const MaterialCompensationTable: React.FC<MaterialCompensationTableProps>
                       )}
 
                       {(req.status === 'approved' || req.status === 'disbursed') && (
-                        <div className="text-[0.78rem] text-[hsl(var(--success))] flex flex-col gap-0.5 items-center justify-center font-medium">
-                          <div className="flex items-center gap-1">
-                            <CheckCircle size={13} />
-                            <span>{req.status === 'approved' ? 'Đã duyệt PO' : 'Đã giải ngân'}</span>
+                          <div className="text-[0.78rem] text-[hsl(var(--success))] flex flex-col gap-0.5 items-center justify-center font-medium">
+                            <div className="flex items-center gap-1">
+                              <CheckCircle size={13} />
+                              <span>{req.status === 'approved' ? 'Đã duyệt' : 'Đã giải ngân'}</span>
+                            </div>
+                            <span className="text-[0.68rem] text-[hsl(var(--text-muted))] font-normal">{req.approvedBy || 'GĐ'}</span>
                           </div>
-                          <span className="text-[0.68rem] text-[hsl(var(--text-muted))] font-normal">{req.approvedBy || 'GĐ'}</span>
-                        </div>
-                      )}
+                        )}
 
                       {req.status === 'rejected' && (
                         <div className="text-[0.78rem] text-[hsl(var(--danger))] flex flex-col gap-0.5 items-center font-medium">

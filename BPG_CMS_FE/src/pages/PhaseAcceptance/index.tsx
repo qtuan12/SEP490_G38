@@ -29,6 +29,7 @@ export const PhaseAcceptance: React.FC = () => {
 
   const [isRevoking, setIsRevoking] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const [searchParams] = useSearchParams();
   const historyId = searchParams.get('historyId');
@@ -95,7 +96,7 @@ export const PhaseAcceptance: React.FC = () => {
 
   const handleRevoke = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phaseId) return;
+    if (!phaseId || submitting) return;
 
     if (revokeReason.trim().length < 20) {
       setError('Lý do hủy nghiệm thu phải từ 20 ký tự trở lên.');
@@ -133,6 +134,8 @@ export const PhaseAcceptance: React.FC = () => {
       return;
     }
 
+    setSubmitting(true);
+    setError(null);
     try {
       await phaseAcceptanceService.cancelAcceptance(targetId, { cancellationReason: revokeReason });
       setIsRevoking(false);
@@ -146,6 +149,8 @@ export const PhaseAcceptance: React.FC = () => {
     } catch (err: any) {
       setError(err.message || 'Có lỗi xảy ra khi hủy nghiệm thu.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -294,6 +299,7 @@ export const PhaseAcceptance: React.FC = () => {
                       value={revokeReason}
                       onChange={(e) => setRevokeReason(e.target.value)}
                       rows={3}
+                      disabled={submitting}
                       className="w-full mb-3 p-2.5 rounded-sm border border-[hsl(var(--danger)/0.3)] bg-[hsl(var(--bg-main))] text-[0.9rem] font-medium resize-y focus:outline-none focus:border-[hsl(var(--danger))]"
                     />
                     <div className="flex justify-between text-[0.8rem] text-[hsl(var(--danger))] mb-3">
@@ -303,6 +309,7 @@ export const PhaseAcceptance: React.FC = () => {
                     <div className="flex justify-end gap-2">
                       <Button
                         type="button"
+                        disabled={submitting}
                         style={{
                           display: 'flex', alignItems: 'center', gap: '6px',
                           padding: '6px 16px', borderRadius: '4px',
@@ -317,9 +324,9 @@ export const PhaseAcceptance: React.FC = () => {
                         type="button" 
                         variant="danger"
                         onClick={handleRevoke} 
-                        disabled={revokeReason.trim().length < 20}
+                        disabled={revokeReason.trim().length < 20 || submitting}
                       >
-                        Xác nhận Hủy Nghiệm Thu
+                        {submitting ? 'Đang xử lý...' : 'Xác nhận Hủy Nghiệm Thu'}
                       </Button>
                     </div>
                   </div>
