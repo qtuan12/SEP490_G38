@@ -263,6 +263,7 @@ export const inventoryService = {
   getPurchaseOrders: async (params: {
     poNumber?: string;
     status?: string;
+    projectId?: number;
     pageNumber?: number;
     pageSize?: number;
   }): Promise<PagedList<PurchaseOrderDto>> => {
@@ -272,6 +273,7 @@ export const inventoryService = {
     };
     if (params.poNumber) q.poNumber = params.poNumber;
     if (params.status) q.status = params.status;
+    if (params.projectId) q.projectId = params.projectId.toString();
     return unwrap(
       await apiClient.get<ApiResponse<PagedList<PurchaseOrderDto>>>('/purchaseorders', { params: q })
     );

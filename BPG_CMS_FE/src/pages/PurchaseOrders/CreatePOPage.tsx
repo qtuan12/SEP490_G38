@@ -246,35 +246,46 @@ export const CreatePOPage: React.FC = () => {
               Không có yêu cầu đã duyệt cho dự án này.
             </p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 10 }}>
               {approvedRequests.map((req) => {
                 const checked = selectedRequestIds.includes(req.requestId);
                 return (
                   <label key={req.requestId} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer',
-                    padding: '10px 12px', borderRadius: 6,
+                    display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer',
+                    padding: '12px 14px', borderRadius: 8,
                     border: `1px solid ${checked ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
-                    background: checked ? 'hsl(var(--primary-glow))' : 'transparent',
+                    background: checked ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-card))',
+                    boxShadow: checked ? '0 0 0 1px hsl(var(--primary))' : 'none',
                     transition: 'all 0.15s',
                   }}>
                     <input type="checkbox" checked={checked} onChange={() => toggleRequest(req.requestId)}
-                      style={{ marginTop: 2, accentColor: 'hsl(var(--primary))' }} />
-                    <div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 600, fontSize: 13, color: 'hsl(var(--text-primary))' }}>
+                      style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2, accentColor: 'hsl(var(--primary))', cursor: 'pointer' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: 'hsl(var(--text-primary))' }}>
                           Yêu cầu #{req.requestId}
                         </span>
-                        <span style={{ fontSize: 12, color: 'hsl(var(--text-muted))' }}>
-                          Giai đoạn: {req.phaseName}
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, color: 'hsl(var(--primary))',
+                          background: 'hsl(var(--primary-glow))', padding: '2px 8px', borderRadius: 999,
+                        }}>
+                          {req.phaseName}
                         </span>
                         {req.hasPO && (
-                          <span style={{ fontSize: 11, color: 'hsl(142 70% 40%)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <CheckCircle2 size={12} /> Đã có PO
+                          <span style={{
+                            fontSize: 11, fontWeight: 600, color: 'hsl(142 70% 35%)',
+                            background: 'hsl(142 70% 40% / 0.12)', padding: '2px 8px', borderRadius: 999,
+                            display: 'inline-flex', alignItems: 'center', gap: 3,
+                          }}>
+                            <CheckCircle2 size={11} /> Đã có PO
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: 12, color: 'hsl(var(--text-secondary))', marginTop: 2 }}>
-                        {req.reason} — {req.items.length} loại vật tư
+                      <div style={{ fontSize: 12, color: 'hsl(var(--text-secondary))', lineHeight: 1.5 }}>
+                        {req.reason}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'hsl(var(--text-muted))', marginTop: 4, fontWeight: 500 }}>
+                        {req.items.length} loại vật tư
                       </div>
                     </div>
                   </label>
