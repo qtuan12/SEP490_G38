@@ -138,9 +138,10 @@ export const projectService = {
     return [];
   },
 
-  async getProjects(): Promise<Project[]> {
+  async getProjects(ignoreRoleFilter: boolean = false): Promise<Project[]> {
     if (!USE_MOCK_API) {
-      const res = await apiClient.get<ApiResponse<{ items: import('../types/common').ProjectDto[], totalCount: number }>>('/projects?pageSize=100');
+      const url = `/projects?pageSize=100${ignoreRoleFilter ? '&ignoreRoleFilter=true' : ''}`;
+      const res = await apiClient.get<ApiResponse<{ items: import('../types/common').ProjectDto[], totalCount: number }>>(url);
       if (!res.success) throw new Error(res.message || 'Lỗi lấy danh sách dự án');
       
       const mapped = res.data.items.map(p => ({

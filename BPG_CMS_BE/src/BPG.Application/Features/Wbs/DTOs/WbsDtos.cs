@@ -22,6 +22,10 @@ public record WbsTaskDto
     public bool IsAtRisk { get; set; }
     public int? DaysLeft { get; set; }
 
+    public bool IsOutsourced { get; set; }
+    public string? OutsourcedTeamName { get; set; }
+    public string? OutsourcedTeamContact { get; set; }
+
     public List<WbsTaskDto> SubTasks { get; set; } = new();
 }
 

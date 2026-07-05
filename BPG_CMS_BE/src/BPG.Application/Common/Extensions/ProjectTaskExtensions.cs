@@ -9,17 +9,20 @@ namespace BPG.Application.Common.Extensions
     {
         public static double CalculateWeight(this ProjectTask task, IEnumerable<ProjectTask> allTasks)
         {
-            var children = allTasks.Where(t => t.ParentTaskId == task.TaskId && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList();
+            var children = allTasks.Where(c => c.ParentTaskId == task.TaskId).ToList();
             if (children.Any())
             {
                 return children.Sum(c => c.CalculateWeight(allTasks));
             }
+
+            var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
+            var baseWeight = duration > 0 ? duration : 1;
+
             if (task.Weight.HasValue && task.Weight.Value > 0)
             {
-                return (double)task.Weight.Value;
+                return baseWeight * (double)task.Weight.Value;
             }
-            var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
-            return duration > 0 ? duration : 1;
+            return baseWeight;
         }
     }
 }

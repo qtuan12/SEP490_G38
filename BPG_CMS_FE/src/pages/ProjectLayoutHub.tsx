@@ -23,9 +23,11 @@ import {
 
   AlertCircle,
   Play,
-  Package
+  Package,
+  PackageMinus
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
+import { SurplusWorkspace } from './SurplusWorkspace/SurplusWorkspace';
 import { ProjectIncidents } from './ProjectIncidents';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
@@ -33,6 +35,7 @@ import { useNotification } from '../context/NotificationContext';
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { user } = useAuth();
   const { connection } = useNotification();
@@ -41,22 +44,22 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents'>(
-    (searchParams.get('tab') as any) || 'wbs'
-  );
-
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab && ['members', 'wbs', 'logs', 'inventory', 'incidents'].includes(tab)) {
-      setActiveTab(tab as any);
-    }
-  }, [searchParams]);
-
-  const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents') => {
-    setActiveTab(tab);
-    navigate(`/projects/${projectId}?tab=${tab}`);
-  };
+ 
+ const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus'>(
+  (searchParams.get('tab') as any) || 'wbs'
+);
+useEffect(() => {
+  const tab = searchParams.get('tab');
+  // Thêm 'surplus' vào mảng và ép kiểu (as string[]) để fix lỗi của .includes()
+  if (tab && (['members', 'wbs', 'logs', 'inventory', 'incidents', 'surplus'] as string[]).includes(tab)) {
+    setActiveTab(tab as any);
+  }
+}, [searchParams]);
+// Thêm 'surplus' vào type của tham số
+const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus') => {
+  setActiveTab(tab);
+  navigate(`/projects/${projectId}?tab=${tab}`);
+};
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
@@ -444,6 +447,28 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Sự cố thi công</span>
         </button>
 
+        <button
+          onClick={() => setActiveTab('surplus')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'surplus' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'surplus' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'surplus' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <PackageMinus size={18} />
+          <span>Xử lý Vật tư thừa</span>
+        </button>
+
       </div>
 
       {/* Tab Contents */}
@@ -455,6 +480,7 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
         {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
+        {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} />}
       </div>
 
