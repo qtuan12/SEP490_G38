@@ -58,41 +58,10 @@ namespace BPG.Application.Features.MaterialRequests.Commands
 
                 _uow.Repository<MaterialRequest>().Update(mr);
 
-                // 2. Tạo đơn PO dạng nháp (Draft PO) tự động
-                var vnNow = DateTime.UtcNow.AddHours(7);
-                var poNumber = $"PO-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
-
-                var purchaseOrder = new PurchaseOrder
-                {
-                    RequestId = mr.RequestId,
-                    PONumber = poNumber,
-                    OrderDate = DateTime.UtcNow,
-                    Status = PurchaseOrderStatus.Draft,
-                    TotalAmount = 0m,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = currentUserId
-                };
-
-                await _uow.Repository<PurchaseOrder>().AddAsync(purchaseOrder, cancellationToken);
-                await _uow.SaveChangesAsync(cancellationToken); // Phát sinh POId
-
-                var poItems = mr.Items.Select(item => new PurchaseOrderItem
-                {
-                    POId = purchaseOrder.POId,
-                    MaterialId = item.MaterialId,
-                    UnitId = item.UnitId,
-                    Quantity = item.Quantity,
-                    UnitPrice = 0m,
-                    LineTotal = 0m,
-                    ConversionRate = item.ConversionRate
-                }).ToList();
-
-                await _uow.Repository<PurchaseOrderItem>().AddRangeAsync(poItems, cancellationToken);
-
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
 
-                return ApiResponse<bool>.SuccessResult(true, "Giám đốc phê duyệt yêu cầu vật tư thành công (Đã tự động tạo PO nháp).");
+                return ApiResponse<bool>.SuccessResult(true, "Giám đốc phê duyệt yêu cầu vật tư thành công.");
             }
             catch (Exception)
             {

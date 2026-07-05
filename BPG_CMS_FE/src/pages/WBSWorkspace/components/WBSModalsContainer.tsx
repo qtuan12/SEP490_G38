@@ -6,7 +6,6 @@ import { CreateTaskModal } from '../modals/CreateTaskModal';
 import { EditTaskModal } from '../modals/EditTaskModal';
 import { AssignEngineerModal } from '../modals/AssignEngineerModal';
 import { AdjustDeadlineModal } from '../modals/AdjustDeadlineModal';
-import { PhaseBOQModal } from '../modals/PhaseBOQModal';
 import { LeaderApprovalModal } from '../modals/LeaderApprovalModal';
 import { CreateMaterialRequestModal } from '../../MaterialRequests/modals/CreateMaterialRequestModal';
 import { ResubmitMaterialRequestModal } from '../../MaterialRequests/modals/ResubmitMaterialRequestModal';
@@ -29,7 +28,6 @@ export const WBSModalsContainer = () => {
     isLeaderApprovalOpen, setIsLeaderApprovalOpen, selectedPhaseForMatReq, setSelectedPhaseForMatReq,
     isResubmitOpen, setIsResubmitOpen, selectedResubmitRequest, setSelectedResubmitRequest,
     isPhaseMatReqOpen, setIsPhaseMatReqOpen,
-    isBOQOpen, setIsBOQOpen, selectedPhaseForBOQ, setSelectedPhaseForBOQ,
     isCreateTaskOpen, setIsCreateTaskOpen, selectedPhaseForTask, parentTaskForNew, parentDeadlineForNew,
     isEditTaskOpen, setIsEditTaskOpen, selectedTaskForEdit, setSelectedTaskForEdit,
     isObsoleteOpen, setIsObsoleteOpen,
@@ -216,18 +214,7 @@ export const WBSModalsContainer = () => {
         />
       )}
 
-      {/* Phase BOQ Modal */}
-      {selectedPhaseForBOQ && (
-        <PhaseBOQModal
-          isOpen={isBOQOpen}
-          onClose={() => { setIsBOQOpen(false); setSelectedPhaseForBOQ(null); }}
-          phase={selectedPhaseForBOQ}
-          projectId={projectId}
-          hasActiveMRs={materialRequests.some(mr => mr.phaseId === selectedPhaseForBOQ.id && mr.status !== 'rejected')}
-          onSuccess={handleSuccess}
-          onError={handleError}
-        />
-      )}
+
 
       {/* Create Task Modal */}
       <CreateTaskModal

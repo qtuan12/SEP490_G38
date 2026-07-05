@@ -20,15 +20,18 @@ import {
   CheckCircle,
   Clock,
   Edit3,
-
   AlertCircle,
   Play,
   Package,
-  PackageMinus
+  PackageMinus,
+  ShoppingCart,
+  ShoppingBag,
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
 import { SurplusWorkspace } from './SurplusWorkspace/SurplusWorkspace';
 import { ProjectIncidents } from './ProjectIncidents';
+import { ProjectPOTab } from './ProjectLayoutHub/ProjectPOTab';
+import { ProjectDirectPurchaseTab } from './ProjectLayoutHub/ProjectDirectPurchaseTab';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 
@@ -44,22 +47,28 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
- 
- const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus'>(
-  (searchParams.get('tab') as any) || 'wbs'
-);
-useEffect(() => {
-  const tab = searchParams.get('tab');
-  // Thêm 'surplus' vào mảng và ép kiểu (as string[]) để fix lỗi của .includes()
-  if (tab && (['members', 'wbs', 'logs', 'inventory', 'incidents', 'surplus'] as string[]).includes(tab)) {
-    setActiveTab(tab as any);
-  }
-}, [searchParams]);
-// Thêm 'surplus' vào type của tham số
-const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus') => {
-  setActiveTab(tab);
-  navigate(`/projects/${projectId}?tab=${tab}`);
-};
+  const isAccountant = user?.role === 'accountant';
+  const [isAssignedLeader, setIsAssignedLeader] = useState(false);
+
+  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus' | 'purchaseorders' | 'directpurchases';
+  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'incidents', 'surplus', 'purchaseorders', 'directpurchases'];
+
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    (searchParams.get('tab') as TabKey) || 'wbs'
+  );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && (TAB_KEYS as string[]).includes(tab)) {
+      setActiveTab(tab as TabKey);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: TabKey) => {
+    setActiveTab(tab);
+    navigate(`/projects/${projectId}?tab=${tab}`);
+  };
+
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
@@ -75,7 +84,9 @@ const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incide
 
       const members = await projectService.getMembers(projectId);
       const currentMember = members.find(m => m.userId === user?.id);
-      setIsPL((currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager');
+      const memberIsLeader = currentMember?.isLeader ?? false;
+      setIsAssignedLeader(memberIsLeader);
+      setIsPL(memberIsLeader || user?.role === 'admin' || user?.role === 'technicalmanager');
     } catch (err) {
       console.error('Error loading project details:', err);
     } finally {
@@ -448,7 +459,7 @@ const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incide
         </button>
 
         <button
-          onClick={() => setActiveTab('surplus')}
+          onClick={() => handleTabChange('surplus')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -469,6 +480,54 @@ const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incide
           <span>Xử lý Vật tư thừa</span>
         </button>
 
+        {(isAccountant || isAssignedLeader) && (
+          <button
+            onClick={() => handleTabChange('purchaseorders')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 18px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'purchaseorders' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+              color: activeTab === 'purchaseorders' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+              fontWeight: activeTab === 'purchaseorders' ? 600 : 500,
+              fontSize: '0.95rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all var(--transition-fast)'
+            }}
+          >
+            <ShoppingCart size={18} />
+            <span>Đơn hàng PO</span>
+          </button>
+        )}
+
+        {(isAccountant || isAssignedLeader) && (
+          <button
+            onClick={() => handleTabChange('directpurchases')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 18px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'directpurchases' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+              color: activeTab === 'directpurchases' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+              fontWeight: activeTab === 'directpurchases' ? 600 : 500,
+              fontSize: '0.95rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all var(--transition-fast)'
+            }}
+          >
+            <ShoppingBag size={18} />
+            <span>Mua khẩn cấp</span>
+          </button>
+        )}
+
       </div>
 
       {/* Tab Contents */}
@@ -482,6 +541,8 @@ const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incide
         {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
         {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} />}
+        {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} />}
+        {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
       </div>
 
       {isEditOpen && project && (

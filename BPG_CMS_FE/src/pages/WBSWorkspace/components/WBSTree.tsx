@@ -20,7 +20,7 @@ const getAvatarColor = (userId: string) => {
 export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => {};
   const {
-    phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests,
+    phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests, user,
     expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -28,7 +28,6 @@ export const WBSTree = () => {
     setSelectedPhaseForTask, setParentTaskForNew, setParentDeadlineForNew, setIsCreateTaskOpen,
     setSelectedTaskForEdit, setIsEditTaskOpen,
     setSelectedPhaseForMatReq, setCreateMatReqType, setIsPhaseMatReqOpen, setIsLeaderApprovalOpen,
-    setSelectedPhaseForBOQ, setIsBOQOpen,
     setSelectedTaskId, setIsDetailOpen, setIsObsoleteOpen,
     setIsReportInventoryIncidentOpen, setSelectedPhaseForInventoryIncident,
     isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase
@@ -245,10 +244,10 @@ export const WBSTree = () => {
                       )}
 
                       {/* Action buttons */}
-                      {canEdit && (
+                      {(canEdit || user?.role === 'accountant' || user?.role === 'director' || user?.role === 'siteengineer') && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }}>
                           {/* + Task */}
-                          {!isFrozen && (
+                          {!isFrozen && canEdit && (
                             <button
                               onClick={e => { e.stopPropagation(); setExpandedPhases(prev => ({ ...prev, [ph.id]: true })); setSelectedPhaseForTask(ph.id); setParentTaskForNew(undefined); setParentDeadlineForNew(ph.deadline); setIsCreateTaskOpen(true); }}
                               title="Thêm Task"
@@ -270,7 +269,7 @@ export const WBSTree = () => {
 
                             {showMenu && (
                               <div onClick={e => e.stopPropagation()} className="absolute top-[24px] z-[200] bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-md shadow-lg min-w-[160px] overflow-hidden left-0 sm:left-auto sm:right-0 py-1">
-                                {!isFrozen && phaseProgress === 0 && (
+                                {!isFrozen && phaseProgress === 0 && canEdit && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
@@ -301,19 +300,19 @@ export const WBSTree = () => {
                                     <span style={{ color: 'hsl(var(--warning-hover))' }}>Mua ngoài khẩn cấp Giai đoạn</span>
                                   </div>
                                 )}
-                                {!isFrozen && (
+                                {!isFrozen && canEdit && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
                                     onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setPhaseMenuId(null); setSelectedPhaseForBOQ(ph); setIsBOQOpen(true); }}
+                                    onClick={() => { setPhaseMenuId(null); navigate(`/projects/${ph.projectId}/phases/${ph.id}/boq`); }}
                                   >
                                     <Box size={13} style={{ color: 'hsl(var(--primary))' }} />
                                     <span>Cập nhật bảng BOQ</span>
                                   </div>
                                 )}
 
-                                {!isFrozen && (
+                                {!isFrozen && canEdit && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
@@ -325,7 +324,7 @@ export const WBSTree = () => {
                                   </div>
                                 )}
 
-                                {!isFrozen && materialRequests.some(r => r.phaseId === ph.id && r.status === 'pending_leader') && (
+                                {!isFrozen && isPL && materialRequests.some(r => r.phaseId === ph.id && r.status === 'pending_leader') && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
@@ -355,7 +354,7 @@ export const WBSTree = () => {
                                 )}
 
 
-                                {!isFrozen && (
+                                {!isFrozen && canEdit && (
                                   <div
                                     style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
