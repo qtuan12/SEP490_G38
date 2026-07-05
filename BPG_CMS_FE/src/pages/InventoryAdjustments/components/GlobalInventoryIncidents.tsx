@@ -73,7 +73,12 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           proposedAction: dto.proposedAction,
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
-          date: new Date(dto.createdAt).toLocaleString('vi-VN'),
+          date: (() => {
+            const d = new Date(dto.createdAt);
+            const hours = d.getHours().toString().padStart(2, '0');
+            const minutes = d.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+          })(),
           images: images
         };
       });

@@ -12,7 +12,7 @@ import {
   Clock,
   Loader2
 } from 'lucide-react';
-import { Badge, Button } from '../../components/ui';
+import { Badge, Button, Pagination } from '../../components/ui';
 
 export const GlobalIncidents: React.FC = () => {
   const { user } = useAuth();
@@ -21,6 +21,13 @@ export const GlobalIncidents: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'construction' | 'inventory'>(
     user?.role === 'accountant' ? 'inventory' : 'construction'
   );
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
 
   // Modals & Selected States
   const [selectedIncident, setSelectedIncident] = useState<IncidentReport | null>(null);
@@ -42,6 +49,9 @@ export const GlobalIncidents: React.FC = () => {
     }
     return inc.incidentType !== 'InventoryLoss' && inc.incidentType !== 'InventoryDamage';
   });
+
+  const totalPages = Math.ceil(visibleIncidents.length / ITEMS_PER_PAGE);
+  const paginatedIncidents = visibleIncidents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const loadData = async () => {
     setLoading(true);
@@ -83,7 +93,12 @@ export const GlobalIncidents: React.FC = () => {
           proposedAction: dto.proposedAction,
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
-          date: new Date(dto.createdAt).toLocaleString('vi-VN'),
+          date: (() => {
+            const d = new Date(dto.createdAt);
+            const hours = d.getHours().toString().padStart(2, '0');
+            const minutes = d.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+          })(),
           images: images
         };
       });
@@ -272,7 +287,7 @@ export const GlobalIncidents: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {visibleIncidents.map((inc) => (
+                {paginatedIncidents.map((inc) => (
                   <tr key={inc.id} 
                       className={`cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors ${loadingRowAction === inc.id ? 'opacity-50 pointer-events-none' : ''}`} 
                       onClick={() => handleRowClick(inc)}>
@@ -299,6 +314,16 @@ export const GlobalIncidents: React.FC = () => {
               </tbody>
             </table>
           </div>
+          </div>
+        )}
+
+        {!loading && visibleIncidents.length > 0 && (
+          <div className="border-t border-[hsl(var(--border))] mt-4 pt-2">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </div>

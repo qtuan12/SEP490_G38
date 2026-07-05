@@ -111,7 +111,6 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       if (cData.estimatedDamage) {
         finalDamageDesc += `**Ước tính thiệt hại:** ${cData.estimatedDamage}\n\n`;
       }
-      finalDamageDesc += 'Không yêu cầu cấp bù vật tư bổ sung.';
 
       await incidentService.createAndAssessIncident({
         projectId: Number(projectId),
@@ -207,7 +206,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
             </h4>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* Nhánh 1 — Loại sự cố cố định */}
+              {/* Nhánh 1 — Loại sự cố cố định */}
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
                   Loại sự cố
@@ -226,23 +225,23 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 <input type="hidden" {...register('incidentType')} value="Construction" />
               </div>
 
-            {/* Mô tả sự cố */}
-            <div>
-              <label htmlFor="report-desc" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                Mô tả nguyên nhân và diễn biến sự cố
-                {' '}<span style={{ color: 'hsl(var(--danger))' }}>*</span>
-              </label>
-              <textarea
-                id="report-desc"
-                className="input"
-                placeholder="Nêu rõ diễn biến sự cố, phần kết cấu bị ảnh hưởng, nguyên nhân sơ bộ..."
-                {...register('description')}
-                rows={3}
-              />
-              {(errors as any).description && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).description?.message)}</span>}
-            </div>
+              {/* Mô tả sự cố */}
+              <div>
+                <label htmlFor="report-desc" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
+                  Mô tả nguyên nhân và diễn biến sự cố
+                  {' '}<span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                </label>
+                <textarea
+                  id="report-desc"
+                  className="input"
+                  placeholder="Nêu rõ diễn biến sự cố, phần kết cấu bị ảnh hưởng, nguyên nhân sơ bộ..."
+                  {...register('description')}
+                  rows={3}
+                />
+                {(errors as any).description && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).description?.message)}</span>}
+              </div>
 
-            {/* Vị trí chi tiết */}
+              {/* Vị trí chi tiết */}
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
                   Vị trí / Hạng mục thi công chi tiết <span style={{ color: 'hsl(var(--danger))' }}>*</span>
@@ -256,78 +255,78 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 {(errors as any).location && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).location?.message)}</span>}
               </div>
 
-            {/* Ngày/Giờ & Đối tượng liên quan */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                  Ngày/Giờ xảy ra <span style={{ color: 'hsl(var(--danger))' }}>*</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  className="input"
-                  {...register('incidentDate')}
-                />
-                {(errors as any).incidentDate && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).incidentDate?.message)}</span>}
-              </div>
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                  Người/Tổ đội phụ trách
-                </label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Vd: Đội thầu phụ điện nước A"
-                  {...register('responsibleParty')}
-                />
-              </div>
-            </div>
-
-            {/* Upload ảnh / biên bản */}
-            <div>
-              <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                Hình ảnh hiện trường (Tối đa 5 ảnh)
-              </label>
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => { if (selectedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
-                style={{
-                  border: `2px dashed ${dragging ? branchCfg.color : 'hsl(var(--border))'}`,
-                  borderRadius: '8px',
-                  padding: '16px',
-                  textAlign: 'center',
-                  cursor: selectedFiles.length >= 5 ? 'not-allowed' : 'pointer',
-                  background: dragging ? branchCfg.bg : 'hsl(var(--bg-card))',
-                  opacity: selectedFiles.length >= 5 ? 0.6 : 1,
-                  transition: 'all 0.2s',
-                }}
-              >
-                <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={selectedFiles.length >= 5} />
-                <UploadCloud size={24} style={{ color: 'hsl(var(--text-secondary))', margin: '0 auto 6px' }} />
-                <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', margin: '0 0 4px' }}>
-                  Kéo thả hoặc click để chọn ảnh
-                </p>
-                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Đã chọn {selectedFiles.length}/5 ảnh</span>
-              </div>
-              {previews.length > 0 && (
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-                  {previews.map((url, idx) => (
-                    <div key={idx} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
-                      <img src={url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      <button
-                        type="button"
-                        onClick={e => { e.stopPropagation(); removeImage(idx); }}
-                        style={{ position: 'absolute', top: 2, right: 2, background: '#dc2626', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                      >
-                        <X size={10} color="white" />
-                      </button>
-                    </div>
-                  ))}
+              {/* Ngày/Giờ & Đối tượng liên quan */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
+                    Ngày/Giờ xảy ra <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    className="input"
+                    {...register('incidentDate')}
+                  />
+                  {(errors as any).incidentDate && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).incidentDate?.message)}</span>}
                 </div>
-              )}
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
+                    Người/Tổ đội phụ trách
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Vd: Đội thầu phụ điện nước A"
+                    {...register('responsibleParty')}
+                  />
+                </div>
+              </div>
+
+              {/* Upload ảnh / biên bản */}
+              <div>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
+                  Hình ảnh hiện trường (Tối đa 5 ảnh)
+                </label>
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => { if (selectedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
+                  style={{
+                    border: `2px dashed ${dragging ? branchCfg.color : 'hsl(var(--border))'}`,
+                    borderRadius: '8px',
+                    padding: '16px',
+                    textAlign: 'center',
+                    cursor: selectedFiles.length >= 5 ? 'not-allowed' : 'pointer',
+                    background: dragging ? branchCfg.bg : 'hsl(var(--bg-card))',
+                    opacity: selectedFiles.length >= 5 ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={selectedFiles.length >= 5} />
+                  <UploadCloud size={24} style={{ color: 'hsl(var(--text-secondary))', margin: '0 auto 6px' }} />
+                  <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', margin: '0 0 4px' }}>
+                    Kéo thả hoặc click để chọn ảnh
+                  </p>
+                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Đã chọn {selectedFiles.length}/5 ảnh</span>
+                </div>
+                {previews.length > 0 && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                    {previews.map((url, idx) => (
+                      <div key={idx} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
+                        <img src={url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); removeImage(idx); }}
+                          style={{ position: 'absolute', top: 2, right: 2, background: '#dc2626', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                        >
+                          <X size={10} color="white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
           </div>
 
           {/* ── PHẦN 2: ĐÁNH GIÁ THIỆT HẠI ────────────────────── */}
@@ -337,7 +336,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
             </h4>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* Đánh giá thiệt hại & Đề xuất (Nhánh 1) */}
+              {/* Đánh giá thiệt hại & Đề xuất (Nhánh 1) */}
               <>
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
@@ -373,7 +372,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
 
 
 
-            {/* Tiến độ + Đề xuất — chỉ Nhánh 1 */}
+              {/* Tiến độ + Đề xuất — chỉ Nhánh 1 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>

@@ -166,7 +166,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
     ];
 
     // Config tooltips & resource text
-    gantt.templates.rightside_text = function(start: any, end: any, task: any) {
+    gantt.templates.rightside_text = function(_start: any, _end: any, task: any) {
       if (task.type === gantt.config.types.project) return "";
       return task.assignedName ? `<span style="color: #64748b; font-size: 11px; margin-left: 8px;">👤 ${task.assignedName}</span>` : "";
     };
