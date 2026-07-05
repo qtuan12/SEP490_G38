@@ -90,8 +90,10 @@ export interface IncidentReport {
   id: string;
   projectId: string;
   projectName?: string;
-  taskId: string;
-  taskName: string;
+  phaseId?: string;
+  phaseName?: string;
+  taskId?: string;
+  taskName?: string;
   reporterId: string;
   reporterName: string;
   reviewerId?: string;

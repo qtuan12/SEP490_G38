@@ -31,6 +31,7 @@ public class GetIncidentsQueryHandler : IRequestHandler<GetIncidentsQuery, ApiRe
             .Include(i => i.Reviewer)
             .Include(i => i.Project)
             .Include(i => i.Task)
+            .Include(i => i.Phase)
             .Where(i => i.ProjectId == request.ProjectId)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);

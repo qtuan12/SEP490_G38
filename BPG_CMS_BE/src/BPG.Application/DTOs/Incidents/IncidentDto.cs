@@ -7,6 +7,8 @@ public record IncidentDto
     public string ProjectName { get; init; } = string.Empty;
     public long? TaskId { get; init; }
     public string? TaskName { get; init; }
+    public long? PhaseId { get; init; }
+    public string? PhaseName { get; init; }
     public long ReportedBy { get; init; }
     public string ReporterName { get; init; } = string.Empty;
     public long? ReviewedBy { get; init; }

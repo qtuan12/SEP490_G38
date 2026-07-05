@@ -4,16 +4,19 @@ using BPG.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace BPG.Infrastructure.Migrations
+namespace BPG.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260704053026_UpdateInventoryAdjustmentPhaseId")]
+    partial class UpdateInventoryAdjustmentPhaseId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -542,9 +545,6 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<long?>("PhaseId")
-                        .HasColumnType("bigint");
-
                     b.Property<long>("ProjectId")
                         .HasColumnType("bigint");
 
@@ -574,8 +574,6 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("IncidentId");
-
-                    b.HasIndex("PhaseId");
 
                     b.HasIndex("ProjectId");
 
@@ -1000,83 +998,6 @@ namespace BPG.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("MaterialRequestItems");
-                });
-
-            modelBuilder.Entity("BPG.Domain.Entities.MaterialReturn", b =>
-                {
-                    b.Property<long>("MaterialReturnId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("MaterialReturnId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<long?>("CreatedBy")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<long>("OriginalIssuanceId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReturnNo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<long?>("UpdatedBy")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("MaterialReturnId");
-
-                    b.HasIndex("OriginalIssuanceId");
-
-                    b.ToTable("MaterialReturns");
-                });
-
-            modelBuilder.Entity("BPG.Domain.Entities.MaterialReturnItem", b =>
-                {
-                    b.Property<long>("ReturnItemId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("ReturnItemId"));
-
-                    b.Property<decimal>("ConversionRate")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)");
-
-                    b.Property<long>("MaterialId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("MaterialReturnId")
-                        .HasColumnType("bigint");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
-
-                    b.Property<int>("UnitId")
-                        .HasColumnType("int");
-
-                    b.HasKey("ReturnItemId");
-
-                    b.HasIndex("MaterialId");
-
-                    b.HasIndex("MaterialReturnId");
-
-                    b.HasIndex("UnitId");
-
-                    b.ToTable("MaterialReturnItems");
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Notification", b =>
@@ -2495,11 +2416,6 @@ namespace BPG.Infrastructure.Migrations
 
             modelBuilder.Entity("BPG.Domain.Entities.Incident", b =>
                 {
-                    b.HasOne("BPG.Domain.Entities.Phase", "Phase")
-                        .WithMany()
-                        .HasForeignKey("PhaseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("BPG.Domain.Entities.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId")
@@ -2526,8 +2442,6 @@ namespace BPG.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Phase");
 
                     b.Navigation("Project");
 
@@ -2709,44 +2623,6 @@ namespace BPG.Infrastructure.Migrations
                     b.Navigation("Material");
 
                     b.Navigation("Request");
-
-                    b.Navigation("Unit");
-                });
-
-            modelBuilder.Entity("BPG.Domain.Entities.MaterialReturn", b =>
-                {
-                    b.HasOne("BPG.Domain.Entities.MaterialIssuance", "OriginalIssuance")
-                        .WithMany()
-                        .HasForeignKey("OriginalIssuanceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("OriginalIssuance");
-                });
-
-            modelBuilder.Entity("BPG.Domain.Entities.MaterialReturnItem", b =>
-                {
-                    b.HasOne("BPG.Domain.Entities.MaterialCatalog", "Material")
-                        .WithMany()
-                        .HasForeignKey("MaterialId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BPG.Domain.Entities.MaterialReturn", "Return")
-                        .WithMany("Items")
-                        .HasForeignKey("MaterialReturnId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BPG.Domain.Entities.Unit", "Unit")
-                        .WithMany()
-                        .HasForeignKey("UnitId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Material");
-
-                    b.Navigation("Return");
 
                     b.Navigation("Unit");
                 });
@@ -3140,11 +3016,6 @@ namespace BPG.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.MaterialRequest", b =>
-                {
-                    b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("BPG.Domain.Entities.MaterialReturn", b =>
                 {
                     b.Navigation("Items");
                 });

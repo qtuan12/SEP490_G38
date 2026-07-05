@@ -17,9 +17,11 @@ public class Incident : BaseEntity
     public string? ProposedAction { get; set; }
     public long? ReworkTaskId { get; set; }
     public string? HandlingInstruction { get; set; }
+    public long? PhaseId { get; set; }
 
     public Project Project { get; set; } = null!;
     public ProjectTask? Task { get; set; }
+    public Phase? Phase { get; set; }
     public User Reporter { get; set; } = null!;
     public User? Reviewer { get; set; }
     public ProjectTask? ReworkTask { get; set; }

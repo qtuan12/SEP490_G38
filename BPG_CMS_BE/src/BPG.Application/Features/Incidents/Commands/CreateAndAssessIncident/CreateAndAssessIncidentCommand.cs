@@ -15,6 +15,7 @@ namespace BPG.Application.Features.Incidents.Commands.CreateAndAssessIncident;
 public record CreateAndAssessIncidentCommand(
     long ProjectId,
     long? TaskId,
+    long? PhaseId,
     string IncidentType,
     string Description,
     string? DamageDescription,
@@ -31,6 +32,16 @@ public class CreateAndAssessIncidentCommandValidator : AbstractValidator<CreateA
         RuleFor(v => v.ProjectId).GreaterThan(0).WithMessage("ProjectId is required.");
         RuleFor(v => v.IncidentType).NotEmpty().WithMessage("IncidentType is required.");
         RuleFor(v => v.Description).NotEmpty().WithMessage("Description is required.");
+
+        RuleFor(v => v.TaskId)
+            .NotNull()
+            .When(v => v.IncidentType == "Construction")
+            .WithMessage("Sự cố thi công yêu cầu TaskId.");
+
+        RuleFor(v => v.PhaseId)
+            .NotNull()
+            .When(v => v.IncidentType == "InventoryLoss" || v.IncidentType == "InventoryDamage")
+            .WithMessage("Sự cố vật tư yêu cầu PhaseId.");
     }
 }
 
@@ -83,6 +94,18 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             }
         }
 
+        if (request.PhaseId.HasValue)
+        {
+            var phase = await _unitOfWork.Repository<Phase>()
+                .Query()
+                .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId.Value, cancellationToken);
+
+            if (phase == null)
+            {
+                throw new NotFoundException(nameof(Phase), request.PhaseId.Value);
+            }
+        }
+
         // Determine which queue this incident goes to based on its type
         var isInventoryIncident = request.IncidentType == "InventoryLoss" || request.IncidentType == "InventoryDamage";
 
@@ -90,6 +113,7 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         {
             ProjectId = request.ProjectId,
             TaskId = request.TaskId,
+            PhaseId = request.PhaseId,
             ReportedBy = currentUserId,
             IncidentType = request.IncidentType,
             Description = request.Description,
