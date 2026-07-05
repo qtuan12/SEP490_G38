@@ -16,6 +16,7 @@ import { ProjectList } from './pages/ProjectList';
 import { ProjectLayoutHub } from './pages/ProjectLayoutHub';
 import { TaskDetailSE } from './pages/TaskDetailSE';
 import { PhaseAcceptance } from './pages/PhaseAcceptance';
+import { PhaseBOQ } from './pages/PhaseBOQ';
 import { UnitManagement } from './pages/MasterData/Units';
 import { CategoryManagement } from './pages/MasterData/Categories';
 import { MaterialManagement } from './pages/MasterData/Materials';
@@ -262,8 +263,17 @@ function App() {
               <Route 
                 path="/projects/:projectId/phases/:phaseId/material-requests" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']} noLayout>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseMaterialRequests />
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
+                path="/projects/:projectId/phases/:phaseId/boq" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader']}>
+                    <PhaseBOQ />
                   </ProtectedRoute>
                 } 
               />
