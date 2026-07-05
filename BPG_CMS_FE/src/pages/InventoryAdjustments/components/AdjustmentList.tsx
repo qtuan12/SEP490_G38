@@ -152,7 +152,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <div className="flex gap-2">
           {canCreateDecrease && (
             <Button variant="danger" className="flex items-center gap-1.5 text-sm" onClick={() => setIsDecreaseOpen(true)}>
-              <Minus size={16} /> Phiếu Giảm (Sự cố)
+              <Minus size={16} /> Phiếu Giảm (Giai đoạn)
             </Button>
           )}
           {canCreateIncrease && (

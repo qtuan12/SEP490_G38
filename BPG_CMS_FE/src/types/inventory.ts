@@ -148,3 +148,57 @@ export interface CreateMaterialIssuanceCommand {
   items: CreateMaterialIssuanceItemDto[];
 }
 
+// ─── Material Return (Phiếu Hoàn Trả Vật Tư) ─────────────────────────────────
+
+export interface MaterialReturn {
+  materialReturnId: number;
+  /** Mã phiếu hoàn trả, ví dụ: PTra-20240630-A3F8B2 */
+  returnNo: string;
+  originalIssuanceId: number;
+  /** Mã phiếu xuất kho gốc, ví dụ: PXK-20240628-D4C1A0 */
+  originalIssuanceNo: string;
+  taskId: number;
+  taskName: string;
+  reason: string;
+  totalItems: number;
+  createdAt: string;
+  createdByName: string;
+  items?: MaterialReturnItemDetail[];
+}
+
+export interface MaterialReturnItemDetail {
+  returnItemId: number;
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  unitId: number;
+  unitName: string;
+  quantity: number;
+  conversionRate: number;
+}
+
+export interface MaterialReturnDetail {
+  materialReturnId: number;
+  returnNo: string;
+  originalIssuanceId: number;
+  originalIssuanceNo: string;
+  taskId: number;
+  taskName: string;
+  reason: string;
+  createdAt: string;
+  createdByName: string;
+  items: MaterialReturnItemDetail[];
+}
+
+export interface CreateMaterialReturnItemDto {
+  materialId: number;
+  unitId: number;
+  quantity: number;
+  conversionRate?: number;
+}
+
+export interface CreateMaterialReturnCommand {
+  originalIssuanceId: number;
+  reason: string;
+  items: CreateMaterialReturnItemDto[];
+}

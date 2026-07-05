@@ -42,6 +42,8 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
 
   // Form states
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
+  const [isTaskDropdownOpen, setIsTaskDropdownOpen] = useState(false);
   const [purpose, setPurpose] = useState('');
   const [selectedItems, setSelectedItems] = useState<IssuanceItemInput[]>([]);
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -50,6 +52,8 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
     if (isOpen) {
       loadFormData();
       setSelectedTaskId('');
+      setTaskSearchQuery('');
+      setIsTaskDropdownOpen(false);
       setPurpose('');
       setSelectedItems([]);
       setGeneralError(null);
@@ -65,6 +69,19 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
       // Lọc các công việc đang thi công và chưa bị khóa
       const activeTasks = allTasks.filter(t => t.status !== 'obsolete' && !t.isLocked);
       setTasks(activeTasks);
+
+      // Tự động chọn task nếu có tham số tìm kiếm từ URL chuyển qua
+      const searchTaskName = new URLSearchParams(window.location.search).get('search');
+      if (searchTaskName) {
+        const decodedSearch = decodeURIComponent(searchTaskName);
+        const matchedTask = activeTasks.find(
+          t => t.name.toLowerCase() === decodedSearch.toLowerCase()
+        );
+        if (matchedTask) {
+          setSelectedTaskId(matchedTask.id);
+          setTaskSearchQuery(matchedTask.name);
+        }
+      }
 
       // 2. Fetch inventory list
       const inv = await inventoryService.getCurrentInventory(projectId);
@@ -291,29 +308,70 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormItem label="Công việc thi công liên quan (Task)" required>
-              <select
-                value={selectedTaskId}
-                onChange={e => setSelectedTaskId(e.target.value)}
-                className="block w-full rounded-md shadow-sm sm:text-sm transition-colors pl-3 pr-10 py-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              >
-                <option value="">-- Chọn công việc --</option>
-                {Object.entries(
-                  tasks.reduce<Record<string, WBSTask[]>>((acc, t) => {
-                    const phase = t.phaseName || 'Chưa phân nhóm';
-                    if (!acc[phase]) acc[phase] = [];
-                    acc[phase].push(t);
-                    return acc;
-                  }, {})
-                ).map(([phaseName, phaseTasks]) => (
-                  <optgroup key={phaseName} label={phaseName}>
-                    {phaseTasks.map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Gõ để tìm kiếm công việc..."
+                  value={taskSearchQuery}
+                  onChange={e => {
+                    setTaskSearchQuery(e.target.value);
+                    setSelectedTaskId(''); // Reset id khi người dùng đang gõ tìm kiếm mới
+                    setIsTaskDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsTaskDropdownOpen(true)}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setIsTaskDropdownOpen(false);
+                      const current = tasks.find(t => t.id === selectedTaskId);
+                      if (current) {
+                        setTaskSearchQuery(current.name);
+                      } else {
+                        setTaskSearchQuery('');
+                      }
+                    }, 200);
+                  }}
+                  className="block w-full rounded-md shadow-sm sm:text-sm pl-3 pr-10 py-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                />
+                <div className="absolute right-3 top-2.5 flex items-center pointer-events-none text-slate-400">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+
+                {isTaskDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {tasks.filter(t => 
+                      t.name.toLowerCase().includes(taskSearchQuery.toLowerCase()) ||
+                      (t.phaseName && t.phaseName.toLowerCase().includes(taskSearchQuery.toLowerCase()))
+                    ).length > 0 ? (
+                      tasks.filter(t => 
+                        t.name.toLowerCase().includes(taskSearchQuery.toLowerCase()) ||
+                        (t.phaseName && t.phaseName.toLowerCase().includes(taskSearchQuery.toLowerCase()))
+                      ).map(t => (
+                        <div
+                          key={t.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault(); // Ngăn sự kiện blur của input ẩn dropdown trước khi kịp chọn
+                            setSelectedTaskId(t.id);
+                            setTaskSearchQuery(t.name);
+                            setIsTaskDropdownOpen(false);
+                          }}
+                          className="px-3 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-100 last:border-0 text-left"
+                        >
+                          <div className="font-semibold text-slate-800 text-xs">{t.name}</div>
+                          {t.phaseName && (
+                            <div className="text-[10px] text-slate-400 mt-0.5">{t.phaseName}</div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-3 py-3 text-xs text-slate-400 text-center">
+                        Không tìm thấy công việc nào
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </FormItem>
 
             <FormItem label="Mục đích xuất kho" required>

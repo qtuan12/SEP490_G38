@@ -28,6 +28,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Queries
         {
             var query = _unitOfWork.Repository<InventoryAdjustment>().Query()
                 .Include(x => x.Project)
+                .Include(x => x.Phase)
                 .Include(x => x.Approver)
                 .Include(x => x.Items).ThenInclude(i => i.Material)
                 .Include(x => x.Items).ThenInclude(i => i.Unit)

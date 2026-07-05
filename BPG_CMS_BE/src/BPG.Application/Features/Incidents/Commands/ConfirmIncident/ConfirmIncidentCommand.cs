@@ -34,7 +34,10 @@ public class ConfirmIncidentCommandValidator : AbstractValidator<ConfirmIncident
             RuleFor(v => v.ReworkTaskStartDate).NotNull().WithMessage("ReworkTaskStartDate is required when creating a rework task.");
             RuleFor(v => v.ReworkTaskEndDate).NotNull().WithMessage("ReworkTaskEndDate is required when creating a rework task.");
         }).Otherwise(() => {
-            RuleFor(v => v.DecreaseProgressTo).NotNull().GreaterThanOrEqualTo(0).LessThanOrEqualTo(100).WithMessage("DecreaseProgressTo is required and must be between 0 and 100 when not creating a rework task.");
+            RuleFor(v => v.DecreaseProgressTo)
+                .GreaterThanOrEqualTo(0).LessThanOrEqualTo(100)
+                .When(v => v.DecreaseProgressTo.HasValue)
+                .WithMessage("DecreaseProgressTo must be between 0 and 100.");
         });
     }
 }

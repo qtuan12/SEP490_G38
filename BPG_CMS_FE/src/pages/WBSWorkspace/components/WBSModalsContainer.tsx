@@ -15,6 +15,7 @@ import { ObsoleteTaskModal } from '../modals/ObsoleteTaskModal';
 import { DailyLogFormModal } from '../../ProjectDailyLogs/modals/DailyLogFormModal';
 import { AdjustProgressModal } from '../modals/AdjustProgressModal';
 import { ReportIncidentModal } from '../../Incidents/modals/ReportIncidentModal';
+import { ReportInventoryIncidentModal } from '../modals/ReportInventoryIncidentModal';
 import { useState } from 'react';
 
 export const WBSModalsContainer = () => {
@@ -34,6 +35,8 @@ export const WBSModalsContainer = () => {
     isObsoleteOpen, setIsObsoleteOpen,
     isAdjustDeadlineOpen, setIsAdjustDeadlineOpen, adjustingTask, setAdjustingTask,
     isAdjustProgressOpen, setIsAdjustProgressOpen,
+    isReportInventoryIncidentOpen, setIsReportInventoryIncidentOpen,
+    selectedPhaseForInventoryIncident,
     selectedTaskId, phases, handleSuccess, handleError, loadWBSData
   } = useWBS();
 
@@ -286,7 +289,23 @@ export const WBSModalsContainer = () => {
         />
       )}
 
-      {/* Report Incident Modal */}
+      {/* Report Inventory Incident Modal */}
+      {isReportInventoryIncidentOpen && selectedPhaseForInventoryIncident && project && (
+        <ReportInventoryIncidentModal
+          isOpen={isReportInventoryIncidentOpen}
+          onClose={() => setIsReportInventoryIncidentOpen(false)}
+          projectId={project.id.toString()}
+          phaseId={selectedPhaseForInventoryIncident.id}
+          phaseName={selectedPhaseForInventoryIncident.name}
+          user={user}
+          onSuccess={(msg) => {
+            setIsReportInventoryIncidentOpen(false);
+            handleSuccess(msg || 'Đã báo cáo sự cố vật tư thành công.');
+            loadWBSData();
+          }}
+          onError={handleError}
+        />
+      )}
     </>
   );
 };

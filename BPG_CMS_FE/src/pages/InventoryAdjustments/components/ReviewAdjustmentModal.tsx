@@ -61,64 +61,158 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
 
   if (!adjustmentData) return null;
 
+  let parsedDesc = adjustmentData.description || '';
+  let incidentTime = '';
+  let witness = '';
+  let location = '';
+
+  let accountantNote = '';
+  let incidentDesc = '';
+
+  if (parsedDesc) {
+    const timeMatch = parsedDesc.match(/\*\*Ngày\/Giờ phát hiện:\*\*([^\r\n]+)/);
+    if (timeMatch) incidentTime = timeMatch[1].trim();
+
+    const witnessMatch = parsedDesc.match(/\*\*Người làm chứng\/Liên đới:\*\*([^\r\n]+)/);
+    if (witnessMatch) witness = witnessMatch[1].trim();
+
+    const locMatch = parsedDesc.match(/\*\*Vị trí kho\/Lô hàng:\*\*([^\r\n]+)/);
+    if (locMatch) location = locMatch[1].trim();
+
+    if (parsedDesc.includes('--- Thông tin sự cố gốc ---')) {
+      const parts = parsedDesc.split('--- Thông tin sự cố gốc ---');
+      accountantNote = parts[0].trim();
+      incidentDesc = parts.length > 1 ? parts[1] : '';
+    } else {
+      accountantNote = parsedDesc;
+    }
+
+    if (incidentDesc) {
+      incidentDesc = incidentDesc.replace(/\*\*Ngày\/Giờ phát hiện:\*\*([^\r\n]+)/g, '');
+      incidentDesc = incidentDesc.replace(/\*\*Người làm chứng\/Liên đới:\*\*([^\r\n]+)/g, '');
+      incidentDesc = incidentDesc.replace(/\*\*Vị trí kho\/Lô hàng:\*\*([^\r\n]+)/g, '');
+      incidentDesc = incidentDesc.replace(/\[System\] Liên kết sự cố #\d+/g, '');
+      incidentDesc = incidentDesc.trim();
+    }
+
+    accountantNote = accountantNote.replace(/\*\*Ngày\/Giờ phát hiện:\*\*([^\r\n]+)/g, '');
+    accountantNote = accountantNote.replace(/\*\*Người làm chứng\/Liên đới:\*\*([^\r\n]+)/g, '');
+    accountantNote = accountantNote.replace(/\*\*Vị trí kho\/Lô hàng:\*\*([^\r\n]+)/g, '');
+    accountantNote = accountantNote.replace(/\[System\] Liên kết sự cố #\d+/g, '');
+    accountantNote = accountantNote.trim();
+  }
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Chi tiết Phiếu Kiểm Kê #${adjustmentData.adjustmentId}`} width="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Chi tiết Phiếu Kiểm Kê #${adjustmentData.adjustmentId}`} width="lg">
       <div className="flex flex-col gap-4">
         
-        <div className="bg-slate-50 p-4 rounded-xl border flex flex-col gap-2 text-sm">
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-[hsl(var(--text-secondary))]">Loại điều chỉnh:</span>
-            <strong className={adjustmentData.adjustmentType === 'Increase' ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]'}>
-              {adjustmentData.adjustmentType === 'Increase' ? 'Tăng tồn kho' : 'Giảm tồn kho'}
-            </strong>
-          </div>
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-[hsl(var(--text-secondary))]">Lý do:</span>
-            <strong>{adjustmentData.reason}</strong>
-          </div>
-          <div className="flex justify-between border-b pb-2">
-            <span className="text-[hsl(var(--text-secondary))]">Trạng thái:</span>
-            <strong>{adjustmentData.status}</strong>
-          </div>
-          {adjustmentData.incidentId && (
-            <div className="flex justify-between border-b pb-2">
-              <span className="text-[hsl(var(--text-secondary))]">Sự cố liên quan (ID):</span>
-              <strong>{adjustmentData.incidentId}</strong>
+        <div className="border border-gray-800 rounded-2xl p-5 bg-white flex flex-col gap-4 text-sm">
+          <h4 className="font-semibold text-sm text-gray-900 border-b border-gray-300 pb-3">
+            Thông tin chung
+          </h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Loại điều chỉnh</span>
+              <strong className={adjustmentData.adjustmentType === 'Increase' ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]'}>
+                {adjustmentData.adjustmentType === 'Increase' ? 'Tăng tồn kho' : 'Giảm tồn kho'}
+              </strong>
             </div>
-          )}
-          {adjustmentData.description && (
-            <div className="flex flex-col gap-1 pb-2">
-              <span className="text-[hsl(var(--text-secondary))]">Mô tả:</span>
-              <p className="bg-white p-2 rounded border">{adjustmentData.description}</p>
+            <div className="flex flex-col gap-1">
+              <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Trạng thái</span>
+              <strong className="text-gray-900">{adjustmentData.status}</strong>
             </div>
-          )}
-          {adjustmentData.rejectedReason && (
-            <div className="flex flex-col gap-1 pb-2">
-              <span className="text-[hsl(var(--danger))] font-semibold">Lý do từ chối:</span>
-              <p className="bg-red-50 text-red-700 p-2 rounded border border-red-200">{adjustmentData.rejectedReason}</p>
+            <div className="flex flex-col gap-1">
+              <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Dự án</span>
+              <strong className="text-gray-900">{adjustmentData.projectName || `Dự án ID: ${adjustmentData.projectId}`}</strong>
             </div>
-          )}
+            {adjustmentData.phaseId && (
+              <div className="flex flex-col gap-1">
+                <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Giai đoạn liên quan</span>
+                <strong className="text-gray-900">{adjustmentData.phaseName || `Giai đoạn ID: ${adjustmentData.phaseId}`}</strong>
+              </div>
+            )}
+            <div className="col-span-2 flex flex-col gap-1">
+              <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Lý do điều chỉnh</span>
+              <strong className="text-gray-900">{adjustmentData.reason}</strong>
+            </div>
+            
+            {accountantNote && (
+              <div className="col-span-2 flex flex-col gap-1 mt-2">
+                <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Ghi chú của kế toán</span>
+                <div className="bg-slate-50 p-3 rounded-xl border border-gray-200 text-gray-800 whitespace-pre-wrap leading-relaxed mt-1">
+                  {accountantNote}
+                </div>
+              </div>
+            )}
+            
+            {adjustmentData.rejectedReason && (
+              <div className="col-span-2 flex flex-col gap-1 mt-2">
+                <span className="text-red-500 text-xs uppercase tracking-wider font-semibold">Lý do từ chối</span>
+                <div className="bg-red-50 p-3 rounded-xl border border-red-200 text-red-700 whitespace-pre-wrap leading-relaxed mt-1">
+                  {adjustmentData.rejectedReason}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div>
-          <h4 className="font-semibold text-sm mb-2">Danh sách vật tư điều chỉnh</h4>
-          <div className="border rounded-lg overflow-hidden">
+        {(incidentDesc || incidentTime || location || witness) && (
+          <div className="border border-gray-800 rounded-2xl p-5 bg-slate-50 flex flex-col gap-4 text-sm">
+            <h4 className="font-semibold text-sm text-gray-900 border-b border-gray-300 pb-3">
+              Thông tin sự cố đính kèm
+            </h4>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {incidentTime && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Thời gian phát hiện</span>
+                  <strong className="text-gray-900">{incidentTime}</strong>
+                </div>
+              )}
+              {location && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Vị trí / Lô hàng</span>
+                  <strong className="text-gray-900">{location}</strong>
+                </div>
+              )}
+              {witness && (
+                <div className="flex flex-col gap-1 col-span-2">
+                  <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Người làm chứng / Liên đới</span>
+                  <strong className="text-gray-900">{witness}</strong>
+                </div>
+              )}
+              
+              {incidentDesc && (
+                <div className="col-span-2 flex flex-col gap-1 mt-1">
+                  <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Mô tả sự cố</span>
+                  <div className="bg-white p-3 rounded-xl border border-gray-300 text-gray-800 whitespace-pre-wrap leading-relaxed mt-1">
+                    {incidentDesc}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="border border-gray-800 rounded-2xl p-5 bg-white flex flex-col gap-3">
+          <h4 className="font-semibold text-sm text-gray-900">Danh sách vật tư điều chỉnh</h4>
+          <div className="rounded-xl overflow-hidden border border-gray-200">
             <table className="w-full text-sm">
-              <thead className="bg-slate-100">
+              <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-3 py-2 text-left">Mã</th>
-                  <th className="px-3 py-2 text-left">Tên vật tư</th>
-                  <th className="px-3 py-2 text-center">ĐVT</th>
-                  <th className="px-3 py-2 text-right">Số lượng</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Mã</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Tên vật tư</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">ĐVT</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Số lượng</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-gray-200">
                 {adjustmentData.items.map(it => (
                   <tr key={it.adjustmentItemId}>
-                    <td className="px-3 py-2">{it.materialCode}</td>
-                    <td className="px-3 py-2">{it.materialName}</td>
-                    <td className="px-3 py-2 text-center">{it.unitName}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{it.quantity}</td>
+                    <td className="px-4 py-3 text-gray-900">{it.materialCode}</td>
+                    <td className="px-4 py-3 text-gray-900">{it.materialName}</td>
+                    <td className="px-4 py-3 text-center text-gray-900">{it.unitName}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{it.quantity}</td>
                   </tr>
                 ))}
               </tbody>
@@ -147,7 +241,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
             ) : (
               <div className="flex flex-col gap-3">
                 <label className="text-sm font-semibold text-[hsl(var(--danger))]">Nhập lý do từ chối:</label>
-                <textarea 
+                <textarea
                   className="w-full px-3 py-2 border rounded-lg"
                   rows={3}
                   value={rejectReason}

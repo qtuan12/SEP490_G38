@@ -6,14 +6,13 @@ import type {IncidentReport, WBSTask, WBSPhase, ProjectMember} from '../../types
 import { ReportIncidentModal } from '../Incidents/modals/ReportIncidentModal';
 import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
-import { CreateDecreaseAdjustmentModal } from '../Incidents/modals/CreateDecreaseAdjustmentModal';
 import {
   AlertTriangle,
   CheckCircle,
   Clock,
   Plus
 } from 'lucide-react';
-import { Badge, Button } from '../../components/ui';
+import { Badge, Button, Pagination } from '../../components/ui';
 
 export const TaskIncidents: React.FC = () => {
   const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>();
@@ -24,6 +23,10 @@ export const TaskIncidents: React.FC = () => {
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Modal states
   const [selectedIncident, setSelectedIncident] = useState<IncidentReport | null>(null);
@@ -141,7 +144,7 @@ export const TaskIncidents: React.FC = () => {
               onClick={() => setIsCreateOpen(true)} 
               className="flex items-center gap-2"
             >
-              <Plus size={16} /> Lập Báo cáo Sự cố &amp; Thiệt hại
+              <Plus size={16} /> Lập Báo cáo Sự cố thi công
             </Button>
           </div>
         )}
@@ -212,7 +215,7 @@ export const TaskIncidents: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {incidents.map((inc) => (
+                {incidents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((inc) => (
                   <tr key={inc.id} className="cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors" onClick={() => { setSelectedIncident(inc); setIsDetailOpen(true); }}>
                     <td className="whitespace-nowrap text-sm">{inc.date}</td>
                     <td><strong className="text-[0.88rem]">{inc.taskName}</strong></td>
@@ -232,6 +235,16 @@ export const TaskIncidents: React.FC = () => {
               </tbody>
             </table>
           </div>
+          </div>
+        )}
+
+        {!loading && incidents.length > 0 && (
+          <div className="border-t border-[hsl(var(--border))] mt-4 pt-2">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(incidents.length / ITEMS_PER_PAGE)}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </div>
@@ -264,30 +277,17 @@ export const TaskIncidents: React.FC = () => {
 
       {/* ─── MODAL 5: APPROVE & RESOLVE REWORK TASK (TPKT / ACCOUNTANT) ─── */}
       {isResolveOpen && selectedIncident && selectedTask && (
-        <>
-          {selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage' ? (
-            <CreateDecreaseAdjustmentModal
-              isOpen={isResolveOpen}
-              onClose={() => setIsResolveOpen(false)}
-              incident={selectedIncident}
-              projectId={projectId!}
-              onSuccess={handleSuccess}
-              onError={handleError}
-            />
-          ) : (
-            <ResolveIncidentModal
-              isOpen={isResolveOpen}
-              onClose={() => setIsResolveOpen(false)}
-              incident={selectedIncident}
-              task={selectedTask}
-              phase={selectedTaskPhase!}
-              members={members}
-              user={user ? { id: user.id, name: user.name } : null}
-              onSuccess={handleSuccess}
-              onError={handleError}
-            />
-          )}
-        </>
+        <ResolveIncidentModal
+          isOpen={isResolveOpen}
+          onClose={() => setIsResolveOpen(false)}
+          incident={selectedIncident}
+          task={selectedTask}
+          phase={selectedTaskPhase!}
+          members={members}
+          user={user ? { id: user.id, name: user.name } : null}
+          onSuccess={handleSuccess}
+          onError={handleError}
+        />
       )}
 
     </div>
