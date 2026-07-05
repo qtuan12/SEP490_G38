@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/ui/Modal';
-import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Box, History, Package, FileText, ArrowLeft, Smartphone } from 'lucide-react';
+import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Box, Package, FileText, ArrowLeft, Smartphone } from 'lucide-react';
 import { AssignEngineerForm } from './AssignEngineerModal';
 import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';
 import { DailyLogForm } from '../../ProjectDailyLogs/modals/DailyLogFormModal';
 import type {WBSTask, WBSPhase, Project, MaterialRequest} from '../../../types/common';
-import { TaskProgressHistoryPanel } from '../../../components/TaskProgressHistoryPanel';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -41,8 +40,7 @@ const getAvatarColor = (userId: string) => {
 };
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
-  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, materialRequests, isTPKTOrPL, isPL,
-  onCreateMatReqOpen,
+  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isPL,
   onObsolete,
   onReportIncidentOpen,
   onSuccess, onError
@@ -384,67 +382,32 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
         )}
 
-        {/* SE Đề xuất vật tư cho Leader */}
+        {/* Link sang trang Xuất kho */}
         {isPL && (
-          <div style={{ backgroundColor: 'hsl(var(--primary-glow) / 0.3)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'hsl(var(--text-primary))', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                <Box size={16} style={{ color: 'hsl(var(--primary))' }} />
-                Đề xuất vật tư cho công việc
-              </h4>
-              {selectedTaskPhase?.status !== 'frozen' && selectedTask.status !== 'obsolete' && project?.status !== 'done' && (
-                <button
-                  onClick={() => onCreateMatReqOpen('normal')}
-                  className="btn btn-primary"
-                  style={{ fontSize: '0.8rem', padding: '6px 12px' }}
-                >
-                  + Đề xuất Vật tư
-                </button>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {materialRequests.filter(r => r.taskId === selectedTask.id && !r.taskName?.includes('[Rework]')).length > 0 ? (
-                materialRequests.filter(r => r.taskId === selectedTask.id && !r.taskName?.includes('[Rework]')).map(r => (
-                  <div 
-                    key={r.id} 
-                    onClick={() => setViewingRequest(r)}
-                    className="hover-card"
-                    style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', transition: 'all 0.2s' }}
-                  >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontWeight: 600 }}>{r.items.length} loại vật tư</span>
-                      <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>{r.date} - {r.requesterName}</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                      {getStatusBadge(r.status)}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', padding: '12px', display: 'block', textAlign: 'center', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)' }}>
-                  Chưa có đề xuất vật tư nào cho công việc này.
-                </span>
-              )}
-            </div>
-          </div>
+          <button
+            onClick={() => {
+              onClose();
+              navigate(`/projects/${project?.id}?tab=inventory&subTab=issuances&search=${encodeURIComponent(selectedTask.name)}`);
+            }}
+            className="btn btn-outline"
+            style={{ 
+              fontSize: '0.85rem', 
+              width: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px', 
+              justifyContent: 'center', 
+              borderColor: 'hsl(var(--success))', 
+              color: 'hsl(var(--success))',
+              marginTop: '4px'
+            }}
+          >
+            <Box size={15} />
+            <span>Xem lịch sử & Yêu cầu Xuất kho Vật tư</span>
+          </button>
         )}
 
-        {/* History logs */}
-        {isPL && (
-          <div onClick={() => navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`)} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', cursor: 'pointer' }} title="Nhấp để xem nhật ký thi công chi tiết">
-            <h5 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
-              <History size={13} />
-              <span>Nhật ký thi công chi tiết (Click để xem)</span>
-            </h5>
-            <div 
-              onClick={(e) => e.stopPropagation()} 
-              style={{ maxHeight: '180px', overflowY: 'auto', backgroundColor: 'hsl(var(--bg-main) / 0.3)', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '8px', cursor: 'default' }}
-            >
-              <TaskProgressHistoryPanel taskId={selectedTask.id} limit={5} compact={true} />
-            </div>
-          </div>
-        )}
+
       </div>
 
       {/* Right Column: Inline Forms Container */}
