@@ -117,12 +117,14 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
         {
             return children.Sum(c => CalculateWeight(c, allTasks));
         }
+        var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
+        var baseWeight = duration > 0 ? duration : 1;
+
         if (task.Weight.HasValue && task.Weight.Value > 0)
         {
-            return (double)task.Weight.Value;
+            return baseWeight * (double)task.Weight.Value;
         }
-        var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
-        return duration > 0 ? duration : 1;
+        return baseWeight;
     }
 
     private List<WbsTaskDto> BuildTaskTree(List<ProjectTask> nodes, List<ProjectTask> allTasks, Project project)
@@ -146,7 +148,10 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 AssignedTo = node.Assignees != null && node.Assignees.Any() ? string.Join(",", node.Assignees.Select(a => a.UserId)) : string.Empty,
                 AssignedName = node.Assignees != null && node.Assignees.Any() ? string.Join(", ", node.Assignees.Select(a => a.User?.FullName ?? "")) : string.Empty,
                 Weight = node.Weight,
-                PredecessorTaskIds = node.Dependencies != null ? node.Dependencies.Select(d => d.PredecessorTaskId).ToList() : new()
+                PredecessorTaskIds = node.Dependencies != null ? node.Dependencies.Select(d => d.PredecessorTaskId).ToList() : new(),
+                IsOutsourced = node.IsOutsourced,
+                OutsourcedTeamName = node.OutsourcedTeamName,
+                OutsourcedTeamContact = node.OutsourcedTeamContact
             };
 
             var taskDeadline = node.EndDate.ToDateTime(new TimeOnly(23, 59, 59));

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, AlertTriangle, AlertCircle, CheckCircle2, Info, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import type { CurrentInventory } from '../../../types/inventory';
 
@@ -10,6 +10,15 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'over_boq' | 'approaching' | 'low_stock' | 'stable'>('all');
   const [expandedItemIds, setExpandedItemIds] = useState<Record<number, boolean>>({});
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
 
   // Định dạng số lượng theo chuẩn tiếng Việt
   const formatQty = (num: number): string => {
@@ -209,6 +218,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     return 'hover:bg-slate-50';
   };
 
+  const totalPages = Math.ceil(filteredInventory.length / ITEMS_PER_PAGE);
+  const paginatedInventory = filteredInventory.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Tìm kiếm & Bộ lọc trạng thái & Xuất Excel */}
@@ -277,7 +289,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                 </td>
               </tr>
             ) : (
-              filteredInventory.map(item => {
+              paginatedInventory.map(item => {
                 const rowBg = getRowBgClass(item);
                 const isExpanded = !!expandedItemIds[item.inventoryId];
                 return (
@@ -426,6 +438,51 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center mt-4 gap-4" style={{ padding: '16px 0' }}>
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            style={{
+              color: currentPage === 1 ? 'hsl(var(--text-muted))' : 'hsl(var(--text-secondary))',
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+              background: 'none',
+              border: 'none',
+              fontWeight: 500,
+              fontSize: '0.9rem'
+            }}
+          >
+            Trang trước
+          </button>
+
+          <div style={{
+            padding: '6px 16px',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '20px',
+            fontWeight: 600,
+            color: '#2563eb', // text-blue-600
+            fontSize: '0.9rem'
+          }}>
+            <span style={{ color: '#2563eb' }}>Trang {currentPage}</span> <span style={{ color: 'hsl(var(--text-secondary))' }}>/ {totalPages}</span>
+          </div>
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            style={{
+              color: currentPage === totalPages ? 'hsl(var(--text-muted))' : 'hsl(var(--text-secondary))',
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+              background: 'none',
+              border: 'none',
+              fontWeight: 500,
+              fontSize: '0.9rem'
+            }}
+          >
+            Trang sau
+          </button>
+        </div>
+      )}
     </div>
   );
 };

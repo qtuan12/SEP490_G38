@@ -28,14 +28,14 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             var project = await _unitOfWork.Repository<Project>().GetByIdAsync(request.ProjectId);
             if (project == null) throw new NotFoundException(nameof(Project), request.ProjectId);
 
-            var incident = await _unitOfWork.Repository<Incident>().GetByIdAsync(request.IncidentId);
-            if (incident == null) throw new NotFoundException(nameof(Incident), request.IncidentId);
-            if (incident.ProjectId != request.ProjectId) throw new BusinessException("ERR_INVALID_INCIDENT", "Sự cố không thuộc dự án này");
+            var phase = await _unitOfWork.Repository<Phase>().GetByIdAsync(request.PhaseId);
+            if (phase == null) throw new NotFoundException(nameof(Phase), request.PhaseId);
+            if (phase.ProjectId != request.ProjectId) throw new BusinessException("ERR_INVALID_PHASE", "Giai đoạn không thuộc dự án này");
 
             var adjustment = new InventoryAdjustment
             {
                 ProjectId = request.ProjectId,
-                IncidentId = request.IncidentId,
+                PhaseId = request.PhaseId,
                 AdjustmentType = InventoryAdjustmentType.Decrease,
                 Reason = request.Reason,
                 Description = request.Description,
@@ -57,10 +57,6 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             }
 
             await _unitOfWork.Repository<InventoryAdjustment>().AddAsync(adjustment);
-
-            // Update incident status so it doesn't stay pending
-            incident.Status = "Approved";
-            incident.ReviewedBy = Convert.ToInt64(_currentUserService.UserId);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

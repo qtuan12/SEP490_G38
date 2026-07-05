@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import type { Project } from '../types/common';
 import { ProjectMembers } from '../components/ProjectMembers';
@@ -23,10 +23,13 @@ import {
   AlertCircle,
   Play,
   Package,
+  PackageMinus
+  Package,
   ShoppingCart,
   ShoppingBag,
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
+import { SurplusWorkspace } from './SurplusWorkspace/SurplusWorkspace';
 import { ProjectIncidents } from './ProjectIncidents';
 import { ProjectPOTab } from './ProjectLayoutHub/ProjectPOTab';
 import { ProjectDirectPurchaseTab } from './ProjectLayoutHub/ProjectDirectPurchaseTab';
@@ -36,6 +39,7 @@ import { useNotification } from '../context/NotificationContext';
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { user } = useAuth();
   const { connection } = useNotification();
@@ -44,6 +48,22 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+ 
+ const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus'>(
+  (searchParams.get('tab') as any) || 'wbs'
+);
+useEffect(() => {
+  const tab = searchParams.get('tab');
+  // Thêm 'surplus' vào mảng và ép kiểu (as string[]) để fix lỗi của .includes()
+  if (tab && (['members', 'wbs', 'logs', 'inventory', 'incidents', 'surplus'] as string[]).includes(tab)) {
+    setActiveTab(tab as any);
+  }
+}, [searchParams]);
+// Thêm 'surplus' vào type của tham số
+const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus') => {
+  setActiveTab(tab);
+  navigate(`/projects/${projectId}?tab=${tab}`);
+};
   const isAccountant = user?.role === 'accountant';
   const [isAssignedLeader, setIsAssignedLeader] = useState(false);
   const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'purchaseorders' | 'directpurchases'>('wbs');
@@ -241,7 +261,21 @@ export const ProjectLayoutHub: React.FC = () => {
                     <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
                       <Pause size={16} /> Tạm dừng
                     </button>
-                    <button onClick={() => handleStatusChange('done')} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'hsl(var(--success))', color: 'white' }}>
+                    <button 
+                      onClick={() => handleStatusChange('done')} 
+                      disabled={project.progress < 100}
+                      className="btn" 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        backgroundColor: project.progress < 100 ? 'hsl(var(--text-muted))' : 'hsl(var(--success))', 
+                        color: 'white',
+                        cursor: project.progress < 100 ? 'not-allowed' : 'pointer',
+                        opacity: project.progress < 100 ? 0.7 : 1
+                      }}
+                      title={project.progress < 100 ? "Tiến độ dự án chưa đạt 100%" : "Hoàn thành dự án"}
+                    >
                       <CheckCircle size={16} /> Hoàn thành
                     </button>
                   </>
@@ -313,7 +347,7 @@ export const ProjectLayoutHub: React.FC = () => {
         overflowX: 'auto'
       }}>
         <button
-          onClick={() => setActiveTab('wbs')}
+          onClick={() => handleTabChange('wbs')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -335,7 +369,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('logs')}
+          onClick={() => handleTabChange('logs')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -357,7 +391,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('members')}
+          onClick={() => handleTabChange('members')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -379,7 +413,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('inventory')}
+          onClick={() => handleTabChange('inventory')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -401,7 +435,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('incidents')}
+          onClick={() => handleTabChange('incidents')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -420,6 +454,28 @@ export const ProjectLayoutHub: React.FC = () => {
         >
           <AlertCircle size={18} />
           <span>Sự cố thi công</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('surplus')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'surplus' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'surplus' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'surplus' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <PackageMinus size={18} />
+          <span>Xử lý Vật tư thừa</span>
         </button>
 
         {(isAccountant || isAssignedLeader) && (
@@ -481,6 +537,7 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
         {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
+        {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} />}
         {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} />}
         {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}

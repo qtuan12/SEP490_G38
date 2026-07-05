@@ -30,6 +30,7 @@ public class GetAllIncidentsQueryHandler : IRequestHandler<GetAllIncidentsQuery,
             .Include(i => i.Reviewer)
             .Include(i => i.Project)
             .Include(i => i.Task)
+            .Include(i => i.Phase)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
 

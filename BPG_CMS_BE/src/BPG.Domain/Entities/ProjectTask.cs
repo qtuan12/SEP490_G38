@@ -16,6 +16,11 @@ public class ProjectTask : BaseEntity
     public string? ObsoleteReason { get; set; }
     public bool IsLocked { get; set; } = false;
     public decimal? Weight { get; set; }
+    
+    // Outsourced Labor fields
+    public bool IsOutsourced { get; set; } = false;
+    public string? OutsourcedTeamName { get; set; }
+    public string? OutsourcedTeamContact { get; set; }
 
     public Phase Phase { get; set; } = null!;
     public ProjectTask? ParentTask { get; set; }
