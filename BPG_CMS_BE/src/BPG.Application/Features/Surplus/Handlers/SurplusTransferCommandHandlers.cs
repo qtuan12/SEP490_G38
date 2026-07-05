@@ -29,6 +29,7 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
 
         var item = await _uow.Repository<SurplusRequestItem>().Query()
             .Include(i => i.SurplusRequest)
+                .ThenInclude(sr => sr.Project)
             .FirstOrDefaultAsync(i => i.SurplusRequestItemId == request.SurplusRequestItemId, ct)
             ?? throw new NotFoundException(nameof(SurplusRequestItem), request.SurplusRequestItemId);
 
@@ -36,6 +37,8 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
             throw new BusinessException(ErrorCodes.AlreadyApproved, "Batch đã hoàn tất, không thể thêm action mới.");
 
         var fromProjectId = item.SurplusRequest.ProjectId;
+        var fromProjectName = item.SurplusRequest.Project.Name;
+        
         if (request.ToProjectId == fromProjectId)
             throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án nguồn và dự án nhận không được trùng nhau.");
 
@@ -61,15 +64,43 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
         await _uow.Repository<SurplusTransfer>().AddAsync(transfer, ct);
         await _uow.SaveChangesAsync(ct);
 
-        // Notify TPKT to review
+        // Notifications
+        var notiTitle = "Chờ duyệt chuyển kho vật tư thừa";
+        var notiContent = $"Đề xuất chuyển kho [{transfer.SurplusTransferId}] từ dự án [{fromProjectName}] sang [{toProject.Name}] đang chờ phê duyệt.";
+
+        // 1. Notify Technical Manager
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.TechnicalManager,
-            "Chờ duyệt chuyển kho vật tư thừa",
-            $"Đề xuất chuyển kho [{transfer.SurplusTransferId}] từ dự án [{fromProjectId}] sang [{toProject.Name}] đang chờ phê duyệt.",
+            notiTitle, notiContent,
             NotificationType.Procurement,
             NotificationReferenceType.SurplusRequest,
             transfer.SurplusTransferId,
             ct);
+
+        // 2. Notify Accountant
+        await _notificationService.SendNotificationToRoleAsync(
+            Domain.Constants.UserRole.Accountant,
+            notiTitle, notiContent,
+            NotificationType.Procurement,
+            NotificationReferenceType.SurplusRequest,
+            transfer.SurplusTransferId,
+            ct);
+
+        // 3. Notify Project Leader (of the source project)
+        var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
+            .Where(pm => pm.ProjectId == fromProjectId && pm.IsLeader)
+            .Select(pm => pm.UserId)
+            .FirstOrDefaultAsync(ct);
+        if (projectLeaderId > 0)
+        {
+            await _notificationService.SendNotificationAsync(
+                projectLeaderId,
+                notiTitle, notiContent,
+                NotificationType.Procurement,
+                NotificationReferenceType.SurplusRequest,
+                transfer.SurplusTransferId,
+                ct);
+        }
 
         return ApiResponse<long>.SuccessResult(transfer.SurplusTransferId, ResponseMessages.CreateSuccess);
     }

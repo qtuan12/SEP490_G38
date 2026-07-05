@@ -175,6 +175,9 @@ export interface WBSTask {
   isRework?: boolean;
   weight?: number;
   predecessorTaskIds?: number[];
+  isOutsourced?: boolean;
+  outsourcedTeamName?: string;
+  outsourcedTeamContact?: string;
 }
 
 export interface DailyLogComment {

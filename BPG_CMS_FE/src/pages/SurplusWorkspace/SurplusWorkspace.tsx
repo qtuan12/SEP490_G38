@@ -96,7 +96,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
                 activeTab === 'outbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              Hàng gửi đi
+              Danh sách đề xuất
             </button>
             <button
               onClick={() => setActiveTab('inbound')}
@@ -104,7 +104,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
                 activeTab === 'inbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              Hàng chuyển đến
+              Vật tư chuyển đến
             </button>
           </div>
           <Button

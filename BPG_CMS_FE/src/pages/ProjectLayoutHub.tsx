@@ -35,6 +35,7 @@ import { useNotification } from '../context/NotificationContext';
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { user } = useAuth();
   const { connection } = useNotification();
@@ -44,21 +45,21 @@ export const ProjectLayoutHub: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
  
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents'| 'surplus'>(
-    (searchParams.get('tab') as any) || 'wbs'
-  );
-
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab && ['members', 'wbs', 'logs', 'inventory', 'incidents'].includes(tab)) {
-      setActiveTab(tab as any);
-    }
-  }, [searchParams]);
-
-  const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents') => {
-    setActiveTab(tab);
-    navigate(`/projects/${projectId}?tab=${tab}`);
-  };
+ const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus'>(
+  (searchParams.get('tab') as any) || 'wbs'
+);
+useEffect(() => {
+  const tab = searchParams.get('tab');
+  // Thêm 'surplus' vào mảng và ép kiểu (as string[]) để fix lỗi của .includes()
+  if (tab && (['members', 'wbs', 'logs', 'inventory', 'incidents', 'surplus'] as string[]).includes(tab)) {
+    setActiveTab(tab as any);
+  }
+}, [searchParams]);
+// Thêm 'surplus' vào type của tham số
+const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus') => {
+  setActiveTab(tab);
+  navigate(`/projects/${projectId}?tab=${tab}`);
+};
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);

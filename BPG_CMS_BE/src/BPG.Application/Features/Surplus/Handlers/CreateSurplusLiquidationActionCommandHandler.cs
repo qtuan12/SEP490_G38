@@ -19,13 +19,15 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
     private readonly ICurrentUserService _currentUser;
     private readonly IInventoryService _inventoryService;
     private readonly IFileStorageService _fileStorage;
+    private readonly INotificationService _notificationService;
 
-    public CreateSurplusLiquidationActionCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, IInventoryService inventoryService, IFileStorageService fileStorage)
+    public CreateSurplusLiquidationActionCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, IInventoryService inventoryService, IFileStorageService fileStorage, INotificationService notificationService)
     {
         _uow = uow;
         _currentUser = currentUser;
         _inventoryService = inventoryService;
         _fileStorage = fileStorage;
+        _notificationService = notificationService;
     }
 
     public async Task<ApiResponse<long>> Handle(CreateSurplusLiquidationActionCommand request, CancellationToken ct)
@@ -34,6 +36,7 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
 
         var item = await _uow.Repository<SurplusRequestItem>().Query()
             .Include(i => i.SurplusRequest)
+                .ThenInclude(sr => sr.Project)
             .FirstOrDefaultAsync(i => i.SurplusRequestItemId == request.SurplusRequestItemId, ct)
             ?? throw new NotFoundException(nameof(SurplusRequestItem), request.SurplusRequestItemId);
 
@@ -93,6 +96,35 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
             ct);
 
         await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
+
+        // Notifications
+        var notiTitle = "Thông báo thanh lý vật tư thừa";
+        var notiContent = $"Vật tư thừa từ dự án [{item.SurplusRequest.Project.Name}] đã được thanh lý (Mã thanh lý: {liquidation.SurplusLiquidationId}).";
+
+        // 1. Notify Accountant
+        await _notificationService.SendNotificationToRoleAsync(
+            Domain.Constants.UserRole.Accountant,
+            notiTitle, notiContent,
+            NotificationType.Procurement, NotificationReferenceType.SurplusRequest, item.SurplusRequestId, ct);
+
+        // 2. Notify Technical Manager
+        await _notificationService.SendNotificationToRoleAsync(
+            Domain.Constants.UserRole.TechnicalManager,
+            notiTitle, notiContent,
+            NotificationType.Procurement, NotificationReferenceType.SurplusRequest, item.SurplusRequestId, ct);
+
+        // 3. Notify Project Leader
+        var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
+            .Where(pm => pm.ProjectId == item.SurplusRequest.ProjectId && pm.IsLeader)
+            .Select(pm => pm.UserId)
+            .FirstOrDefaultAsync(ct);
+        if (projectLeaderId > 0)
+        {
+            await _notificationService.SendNotificationAsync(
+                projectLeaderId,
+                notiTitle, notiContent,
+                NotificationType.Procurement, NotificationReferenceType.SurplusRequest, item.SurplusRequestId, ct);
+        }
 
         return ApiResponse<long>.SuccessResult(liquidation.SurplusLiquidationId, ResponseMessages.CreateSuccess);
     }

@@ -83,14 +83,56 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
         await _uow.Repository<SurplusRequest>().AddAsync(batch, ct);
         await _uow.SaveChangesAsync(ct);
 
+        var creator = await _uow.Repository<User>().Query()
+            .FirstOrDefaultAsync(u => u.UserId == userId, ct);
+        var creatorName = creator?.FullName ?? "Ai đó";
+
+        var notiTitle = "Yêu cầu xử lý vật tư thừa mới";
+        var notiContent = $"[{creatorName}] đã tạo phiếu xử lý vật tư thừa (Mã: {batch.SurplusRequestId}) cho dự án [{project.Name}].";
+
+        // 1. Always notify Accountant
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.Accountant,
-            "Yêu cầu xử lý vật tư thừa mới",
-            string.Format(NotificationTemplates.SurplusRequestSubmitted, batch.SurplusRequestId, project.Name),
+            notiTitle,
+            notiContent,
             NotificationType.Procurement,
             NotificationReferenceType.SurplusRequest,
             batch.SurplusRequestId,
             ct);
+
+        // 2. If created by TechnicalManager/Admin -> Notify Project Leader
+        if (isManagerOrAdmin)
+        {
+            var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
+                .Where(m => m.ProjectId == request.ProjectId && m.IsLeader && m.UserId != userId)
+                .Select(m => m.UserId)
+                .FirstOrDefaultAsync(ct);
+
+            if (projectLeaderId > 0)
+            {
+                await _notificationService.SendNotificationAsync(
+                    projectLeaderId,
+                    notiTitle,
+                    notiContent,
+                    NotificationType.Procurement,
+                    NotificationReferenceType.SurplusRequest,
+                    batch.SurplusRequestId,
+                    ct);
+            }
+        }
+
+        // 3. If created by Project Leader -> Notify Technical Manager
+        if (isLeader)
+        {
+            await _notificationService.SendNotificationToRoleAsync(
+                Domain.Constants.UserRole.TechnicalManager,
+                notiTitle,
+                notiContent,
+                NotificationType.Procurement,
+                NotificationReferenceType.SurplusRequest,
+                batch.SurplusRequestId,
+                ct);
+        }
 
         return ApiResponse<long>.SuccessResult(batch.SurplusRequestId, ResponseMessages.CreateSuccess);
     }

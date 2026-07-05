@@ -49,9 +49,46 @@ public class ProgressRollupService : IProgressRollupService
 
         var directChildren = allTasks.Where(t => t.ParentTaskId == parentTaskId).ToList();
 
+        // Find the base progress of the parent task (the latest progress update that wasn't an automatic rollup)
+        byte baseProgress = 0;
+        var baseLog = await _unitOfWork.Repository<TaskProgressLog>()
+            .Query()
+            .Where(l => l.TaskId == parentTaskId && (l.UpdateReason == null || !l.UpdateReason.Contains("Cập nhật tự động do công việc con")))
+            .OrderByDescending(l => l.UpdatedAt)
+            .FirstOrDefaultAsync(ct);
+            
+        if (baseLog != null)
+        {
+            baseProgress = baseLog.NewProgress;
+        }
+
         if (directChildren.Count == 0)
         {
-            parentTask.ProgressPercent = 0;
+            if (parentTask.ProgressPercent != baseProgress)
+            {
+                var log = new TaskProgressLog
+                {
+                    TaskId = parentTask.TaskId,
+                    OldProgress = parentTask.ProgressPercent,
+                    NewProgress = baseProgress,
+                    UpdateReason = "Cập nhật tự động do tất cả công việc con bị xóa",
+                    UpdatedAt = DateTime.UtcNow
+                };
+                await _unitOfWork.Repository<TaskProgressLog>().AddAsync(log, ct);
+                
+                parentTask.ProgressPercent = baseProgress;
+                if (baseProgress > 0 && baseProgress < 100 && parentTask.Status == BPG.Domain.Constants.TaskStatus.Assigned)
+                {
+                    parentTask.Status = BPG.Domain.Constants.TaskStatus.InProgress;
+                }
+                
+                await _unitOfWork.SaveChangesAsync(ct);
+                
+                if (parentTask.ParentTaskId.HasValue)
+                {
+                    await RecalculateParentTaskProgressAsync(parentTask.ParentTaskId.Value, parentTask.TaskId, ct);
+                }
+            }
             return;
         }
 
@@ -67,7 +104,8 @@ public class ProgressRollupService : IProgressRollupService
 
         if (totalWeight > 0)
         {
-            var newProgress = (byte)Math.Round(totalWeightedProgress / totalWeight);
+            var subtasksProgress = totalWeightedProgress / totalWeight;
+            var newProgress = (byte)Math.Round(baseProgress + (100 - baseProgress) * (subtasksProgress / 100.0));
             
             if (newProgress != parentTask.ProgressPercent)
             {
