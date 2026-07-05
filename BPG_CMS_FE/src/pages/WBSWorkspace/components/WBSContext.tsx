@@ -105,6 +105,11 @@ export interface WBSContextType {
   isAdjustProgressOpen: boolean;
   setIsAdjustProgressOpen: (open: boolean) => void;
 
+  isReportInventoryIncidentOpen: boolean;
+  setIsReportInventoryIncidentOpen: (open: boolean) => void;
+  selectedPhaseForInventoryIncident: WBSPhase | null;
+  setSelectedPhaseForInventoryIncident: (phase: WBSPhase | null) => void;
+
   handleApproveByLeader: (id: string) => void;
   handleApproveByTPKT: (id: string) => void;
   handleRejectMatReq: (id: string) => void;

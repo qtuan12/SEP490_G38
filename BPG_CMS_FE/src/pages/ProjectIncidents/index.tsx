@@ -5,7 +5,6 @@ import { incidentService } from '../../services/incidentService';
 import type {IncidentReport, WBSTask, WBSPhase, ProjectMember} from '../../types/common';
 import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
-import { CreateDecreaseAdjustmentModal } from '../Incidents/modals/CreateDecreaseAdjustmentModal';
 import {
   AlertTriangle,
   CheckCircle,
@@ -24,6 +23,10 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Modal states
   const [selectedIncident, setSelectedIncident] = useState<IncidentReport | null>(null);
@@ -60,6 +63,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           projectId: dto.projectId.toString(),
           taskId: dto.taskId?.toString() || '',
           taskName: '', // Need to map below
+          phaseId: dto.phaseId?.toString() || '',
+          phaseName: '', // Need to map below
           reporterId: dto.reportedBy.toString(),
           reporterName: dto.reporterName,
           reviewerId: dto.reviewerBy?.toString(),
@@ -74,7 +79,12 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           proposedAction: dto.proposedAction,
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
-          date: new Date(dto.createdAt).toLocaleString('vi-VN'),
+          date: (() => {
+            const d = new Date(dto.createdAt);
+            const hours = d.getHours().toString().padStart(2, '0');
+            const minutes = d.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+          })(),
           images: images
         };
       });
@@ -86,6 +96,9 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
       incList.forEach(inc => {
         const t = taskList.find(x => x.id === inc.taskId);
         if (t) inc.taskName = t.name;
+        
+        const p = phaseList.find(x => x.id === inc.phaseId);
+        if (p) inc.phaseName = p.name;
       });
 
       setIncidents(incList); // Do not filter by task, show all incidents for the project!
@@ -139,6 +152,13 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
   // Check deadline reserves
   const selectedTask = selectedIncident ? tasks.find(t => t.id === selectedIncident.taskId) : null;
   const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) || null : null;
+  // If incident is inventory, it has phaseId directly
+  const selectedInventoryPhase = selectedIncident ? phases.find(p => p.id === selectedIncident.phaseId) || null : null;
+  const effectivePhase = selectedTaskPhase || selectedInventoryPhase;
+
+  // Pagination logic
+  const totalPages = Math.ceil(incidents.length / ITEMS_PER_PAGE);
+  const paginatedIncidents = incidents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
     <div className="flex flex-col gap-5">
@@ -211,7 +231,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
               <thead>
                 <tr>
                   <th>Ngày báo cáo</th>
-                  <th>Công việc bị sự cố</th>
+                  <th>Công việc / Giai đoạn bị sự cố</th>
                   <th>Phân loại</th>
                   <th>Người báo cáo</th>
                   <th>Mô tả sự cố</th>
@@ -220,10 +240,10 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
                 </tr>
               </thead>
               <tbody>
-                {incidents.map((inc) => (
+                {paginatedIncidents.map((inc) => (
                   <tr key={inc.id} className="cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors" onClick={() => { setSelectedIncident(inc); setIsDetailOpen(true); }}>
                     <td className="whitespace-nowrap text-sm">{inc.date}</td>
-                    <td><strong className="text-[0.88rem]">{inc.taskName || 'Không xác định'}</strong></td>
+                    <td><strong className="text-[0.88rem]">{(inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') ? (inc.phaseName || 'Giai đoạn') : (inc.taskName || 'Không xác định')}</strong></td>
                     <td>
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.75rem] whitespace-nowrap">{inc.incidentType}</span>
                     </td>
@@ -240,6 +260,51 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
               </tbody>
             </table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center mt-4 gap-4" style={{ padding: '16px 0' }}>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{
+                  color: currentPage === 1 ? 'hsl(var(--text-muted))' : 'hsl(var(--text-secondary))',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  background: 'none',
+                  border: 'none',
+                  fontWeight: 500,
+                  fontSize: '0.9rem'
+                }}
+              >
+                Trang trước
+              </button>
+
+              <div style={{
+                padding: '6px 16px',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '20px',
+                fontWeight: 600,
+                color: '#2563eb', // text-blue-600
+                fontSize: '0.9rem'
+              }}>
+                <span style={{ color: '#2563eb' }}>Trang {currentPage}</span> <span style={{ color: 'hsl(var(--text-secondary))' }}>/ {totalPages}</span>
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                style={{
+                  color: currentPage === totalPages ? 'hsl(var(--text-muted))' : 'hsl(var(--text-secondary))',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  background: 'none',
+                  border: 'none',
+                  fontWeight: 500,
+                  fontSize: '0.9rem'
+                }}
+              >
+                Trang sau
+              </button>
+            </div>
+          )}
           </div>
         )}
       </div>
@@ -250,7 +315,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           isOpen={isDetailOpen}
           onClose={() => { setIsDetailOpen(false); setSelectedIncident(null); }}
           incident={selectedIncident}
-          phase={selectedTaskPhase!}
+          phase={effectivePhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
           onResolveClick={() => setIsResolveOpen(true)}
           projectId={projectId}
@@ -259,38 +324,21 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
 
       {/* ─── MODAL 5: APPROVE & RESOLVE REWORK TASK (TPKT / ACCOUNTANT) ─── */}
       {isResolveOpen && selectedIncident && selectedTask && (
-        <>
-          {selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage' ? (
-            <CreateDecreaseAdjustmentModal
-              isOpen={isResolveOpen}
-              onClose={() => setIsResolveOpen(false)}
-              incident={selectedIncident}
-              projectId={projectId}
-              onSuccess={(msg) => {
-                setIsDetailOpen(false);
-                setSelectedIncident(null);
-                handleSuccess(msg);
-              }}
-              onError={handleError}
-            />
-          ) : (
-            <ResolveIncidentModal
-              isOpen={isResolveOpen}
-              onClose={() => setIsResolveOpen(false)}
-              incident={selectedIncident}
-              task={selectedTask}
-              phase={selectedTaskPhase!}
-              members={members}
-              user={user ? { id: user.id, name: user.name } : null}
-              onSuccess={(msg) => {
-                setIsDetailOpen(false);
-                setSelectedIncident(null);
-                handleSuccess(msg);
-              }}
-              onError={handleError}
-            />
-          )}
-        </>
+        <ResolveIncidentModal
+          isOpen={isResolveOpen}
+          onClose={() => setIsResolveOpen(false)}
+          incident={selectedIncident}
+          task={selectedTask}
+          phase={effectivePhase!}
+          members={members}
+          user={user ? { id: user.id, name: user.name } : null}
+          onSuccess={(msg) => {
+            setIsDetailOpen(false);
+            setSelectedIncident(null);
+            handleSuccess(msg);
+          }}
+          onError={handleError}
+        />
       )}
 
     </div>

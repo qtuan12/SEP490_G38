@@ -30,6 +30,7 @@ export const WBSTree = () => {
     setSelectedPhaseForMatReq, setCreateMatReqType, setIsPhaseMatReqOpen, setIsLeaderApprovalOpen,
     setSelectedPhaseForBOQ, setIsBOQOpen,
     setSelectedTaskId, setIsDetailOpen, setIsObsoleteOpen,
+    setIsReportInventoryIncidentOpen, setSelectedPhaseForInventoryIncident,
     isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase
   } = useWBS();
   
@@ -309,6 +310,18 @@ export const WBSTree = () => {
                                   >
                                     <Box size={13} style={{ color: 'hsl(var(--primary))' }} />
                                     <span>Cập nhật bảng BOQ</span>
+                                  </div>
+                                )}
+
+                                {!isFrozen && (
+                                  <div
+                                    style={menuItemStyle}
+                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                    onClick={() => { setPhaseMenuId(null); setSelectedPhaseForInventoryIncident(ph); setIsReportInventoryIncidentOpen(true); }}
+                                  >
+                                    <AlertTriangle size={13} style={{ color: 'hsl(var(--warning))' }} />
+                                    <span>Báo cáo sự cố vật tư Giai đoạn</span>
                                   </div>
                                 )}
 

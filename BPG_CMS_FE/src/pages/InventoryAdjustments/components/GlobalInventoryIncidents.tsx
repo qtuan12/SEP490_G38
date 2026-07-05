@@ -4,15 +4,13 @@ import { projectService } from '../../../services/projectService';
 import { incidentService } from '../../../services/incidentService';
 import type { IncidentReport, WBSPhase } from '../../../types/common';
 import { IncidentDetailModal } from '../../Incidents/modals/IncidentDetailModal';
-import { CreateDecreaseAdjustmentModal } from '../../Incidents/modals/CreateDecreaseAdjustmentModal';
 import {
   AlertTriangle,
-  CheckCircle,
   Clock,
   Loader2,
-  FileText
+  CheckCircle
 } from 'lucide-react';
-import { Badge, Button } from '../../../components/ui';
+import { Badge } from '../../../components/ui';
 
 interface GlobalInventoryIncidentsProps {
   projectId: number;
@@ -31,9 +29,6 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
   const [loadingRowAction, setLoadingRowAction] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const isAccountant = user?.role === 'accountant';
 
   // Lọc danh sách sự cố kho/vật tư
   const visibleIncidents = incidents.filter(inc => {
@@ -78,7 +73,12 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           proposedAction: dto.proposedAction,
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
-          date: new Date(dto.createdAt).toLocaleString('vi-VN'),
+          date: (() => {
+            const d = new Date(dto.createdAt);
+            const hours = d.getHours().toString().padStart(2, '0');
+            const minutes = d.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+          })(),
           images: images
         };
       });
@@ -95,12 +95,6 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
   useEffect(() => {
     loadData();
   }, [projectId]);
-
-  const handleSuccess = (msg: string) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(null), 3000);
-    loadData();
-  };
 
   const handleError = (msg: string) => {
     setError(msg);
@@ -144,19 +138,8 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
     }
   };
 
-  const handleCreateDecrease = (e: React.MouseEvent, inc: IncidentReport) => {
-    e.stopPropagation();
-    setSelectedIncident(inc);
-  };
-
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      {success && (
-        <div className="bg-[hsl(var(--success-glow))] text-[hsl(var(--success))] p-3 rounded-lg border border-[hsl(var(--success))] text-sm flex items-center gap-2">
-          <CheckCircle size={16} />
-          {success}
-        </div>
-      )}
       {error && (
         <div className="bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))] p-3 rounded-lg border border-[hsl(var(--danger))] text-sm flex items-center gap-2">
           <AlertTriangle size={16} />
@@ -260,15 +243,6 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
                           <Loader2 size={16} className="animate-spin text-[hsl(var(--primary))]" />
                         ) : (
                           <>
-                            {isAccountant && inc.status === 'Reported' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => handleCreateDecrease(e, inc)}
-                              >
-                                <FileText size={16} /> Lập Phiếu
-                              </Button>
-                            )}
                             <button className="text-[hsl(var(--primary))] hover:underline text-sm font-medium px-2 py-1">
                               Xem
                             </button>
@@ -296,27 +270,10 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           phase={selectedPhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
           onResolveClick={() => {
-            // Close detail modal, which will cause CreateDecreaseAdjustmentModal to render
-            // because of the !isDetailOpen condition below
+            // No action needed here anymore since we removed the create decrease modal
             setIsDetailOpen(false);
           }}
           projectId={selectedIncident.projectId}
-        />
-      )}
-
-      {selectedIncident && !isDetailOpen && (
-        <CreateDecreaseAdjustmentModal
-          isOpen={true}
-          onClose={() => setSelectedIncident(null)}
-          incident={selectedIncident}
-          projectId={selectedIncident.projectId}
-          onSuccess={(msg) => {
-            setSelectedIncident(null);
-            handleSuccess(msg);
-          }}
-          onError={(msg) => {
-            handleError(msg);
-          }}
         />
       )}
     </div>

@@ -34,7 +34,7 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPut("{id}/confirm")]
-    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin}")]
+    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin},{UserRole.Accountant}")]
     public async Task<IActionResult> ConfirmIncident(long id, [FromBody] ConfirmIncidentCommand command, CancellationToken ct)
     {
         if (id != command.IncidentId)

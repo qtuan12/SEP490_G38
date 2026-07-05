@@ -252,7 +252,21 @@ const handleTabChange = (tab: 'members' | 'wbs' | 'logs' | 'inventory' | 'incide
                     <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
                       <Pause size={16} /> Tạm dừng
                     </button>
-                    <button onClick={() => handleStatusChange('done')} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'hsl(var(--success))', color: 'white' }}>
+                    <button 
+                      onClick={() => handleStatusChange('done')} 
+                      disabled={project.progress < 100}
+                      className="btn" 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        backgroundColor: project.progress < 100 ? 'hsl(var(--text-muted))' : 'hsl(var(--success))', 
+                        color: 'white',
+                        cursor: project.progress < 100 ? 'not-allowed' : 'pointer',
+                        opacity: project.progress < 100 ? 0.7 : 1
+                      }}
+                      title={project.progress < 100 ? "Tiến độ dự án chưa đạt 100%" : "Hoàn thành dự án"}
+                    >
                       <CheckCircle size={16} /> Hoàn thành
                     </button>
                   </>

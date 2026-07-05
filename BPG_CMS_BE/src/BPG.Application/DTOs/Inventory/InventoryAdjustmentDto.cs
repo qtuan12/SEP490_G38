@@ -8,7 +8,8 @@ namespace BPG.Application.DTOs.Inventory
         public long AdjustmentId { get; set; }
         public long ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
-        public long? IncidentId { get; set; }
+        public long PhaseId { get; set; }
+        public string PhaseName { get; set; } = string.Empty;
         public string AdjustmentType { get; set; } = string.Empty;
         public string Reason { get; set; } = string.Empty;
         public string? Description { get; set; }

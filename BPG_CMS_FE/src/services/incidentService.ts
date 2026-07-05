@@ -7,6 +7,8 @@ export interface IncidentDto {
   projectName?: string;
   taskId?: number;
   taskName?: string;
+  phaseId?: number;
+  phaseName?: string;
   reportedBy: number;
   reporterName: string;
   reviewerBy?: number;
@@ -39,6 +41,7 @@ export const incidentService = {
   async createAndAssessIncident(data: {
     projectId: number;
     taskId?: number;
+    phaseId?: number;
     incidentType: string;
     description: string;
     damageDescription?: string;
