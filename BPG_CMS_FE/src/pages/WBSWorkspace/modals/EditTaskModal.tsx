@@ -16,7 +16,7 @@ const editTaskSchema = z.object({
   deadline: z.string().min(1, 'Vui lòng chọn hạn chót (Deadline).'),
   assignedTo: z.string().optional(),
   weight: z.any().optional(),
-  isOutsourced: z.boolean().default(false),
+  isOutsourced: z.boolean().optional(),
   outsourcedTeamName: z.string().optional(),
   outsourcedTeamContact: z.string().optional()
 }).refine(data => new Date(data.startDate) <= new Date(data.deadline), {
@@ -161,7 +161,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         endDate: data.deadline,
         assigneeIds: data.assignedTo ? [parseInt(data.assignedTo)] : [],
         weight: (data.weight !== undefined && data.weight !== '' && data.weight !== null) ? Number(data.weight) : null,
-        isOutsourced: data.isOutsourced,
+        isOutsourced: !!data.isOutsourced,
         outsourcedTeamName: data.isOutsourced ? data.outsourcedTeamName : null,
         outsourcedTeamContact: data.isOutsourced ? data.outsourcedTeamContact : null
       });
@@ -215,10 +215,10 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
       const taskStartDate = new Date(data.startDate);
       const invalidPredecessors = selectedPredecessorIds
         .map(id => potentialPredecessors.find(p => p.id === id))
-        .filter(p => p && taskStartDate < new Date(p.endDate));
+        .filter(p => p && taskStartDate < new Date(p.deadline));
 
       if (invalidPredecessors.length > 0) {
-        toast.error(`Ngày bắt đầu phải sau ngày kết thúc của "${invalidPredecessors[0]?.name}" (hoàn thành: ${invalidPredecessors[0]?.endDate}).`);
+        toast.error(`Ngày bắt đầu phải sau ngày kết thúc của "${invalidPredecessors[0]?.name}" (hoàn thành: ${invalidPredecessors[0]?.deadline}).`);
         return;
       }
     }
