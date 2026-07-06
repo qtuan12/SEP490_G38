@@ -84,6 +84,12 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   const imageLines = (incident.description || '').split('\n').filter(l => l.startsWith('!['));
   const descWithoutImages = incident.description?.split('\n').filter(l => !l.startsWith('![')).join('\n').trim();
   const { mainDesc: mainDescClean, meta: descMetaClean } = extractMetaFromDesc(descWithoutImages || '');
+  
+  const extractedImages = imageLines.map(l => {
+    const match = l.match(/!\[.*?\]\((.*?)\)/);
+    return match ? match[1] : null;
+  }).filter(Boolean) as string[];
+  const displayImages = (incident.images && incident.images.length > 0) ? incident.images : extractedImages;
 
   const statusColor = {
     WaitingReview:    { label: 'Chờ TPKT Thẩm định', color: 'hsl(38, 92%, 50%)', bg: 'hsl(38, 100%, 96%)' },
@@ -216,11 +222,11 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
             )}
 
             {/* Images */}
-            {imageLines.length > 0 && (
+            {displayImages.length > 0 && (
               <div>
                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Hình ảnh đính kèm</span>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px' }}>
-                  {incident.images?.map((img, idx) => (
+                  {displayImages.map((img, idx) => (
                     <a key={idx} href={img} target="_blank" rel="noopener noreferrer">
                       <img src={img} alt={`Ảnh ${idx + 1}`} style={{ width: '100%', height: '110px', objectFit: 'cover', borderRadius: '6px', border: '1px solid hsl(var(--border))', transition: 'transform 0.2s' }}
                         onMouseOver={e => (e.currentTarget.style.transform = 'scale(1.03)')}

@@ -80,6 +80,7 @@ public static class NotificationReferenceType
     public const string PhaseAcceptance = "PhaseAcceptance";
     public const string InventoryAdjustment = "InventoryAdjustment";
     public const string SurplusRequest = "SurplusRequest";
+    public const string Project = "Project";
 }
 
 public static class EntityType

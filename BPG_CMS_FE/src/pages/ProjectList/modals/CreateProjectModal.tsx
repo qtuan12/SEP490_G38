@@ -25,7 +25,7 @@ const schema = z.object({
     return end >= today;
   }, { message: 'Ngày kết thúc không được trong quá khứ' }),
   status: z.enum(['draft', 'inprogress', 'paused', 'done']).default('draft'),
-  drawingNames: z.array(z.string()).max(5, 'Chỉ được chọn tối đa 5 file').default([])
+  drawingNames: z.array(z.string()).default([])
 }).refine(data => {
   if (!data.startDate || !data.endDate) return true;
   const start = new Date(data.startDate);
@@ -46,9 +46,9 @@ interface CreateProjectModalProps {
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [dragging, setDragging] = useState(false);
-  const [filePreviews, setFilePreviews] = useState<{file: File, url: string | null}[]>([]);
+  const [filePreviews, setFilePreviews] = useState<{ file: File, url: string | null }[]>([]);
   const todayStr = new Date().toISOString().split('T')[0];
-  
+
   const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, reset, watch } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
@@ -89,7 +89,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
           formData.append('files', p.file);
         });
         formData.append('folder', 'projects/design');
-        
+
         try {
           const uploadRes = await apiClient.postFormData<any>('/files/upload-multiple', formData);
           if (uploadRes.success && uploadRes.data) {
@@ -137,10 +137,15 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
     e.preventDefault();
     setDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const files = Array.from(e.dataTransfer.files).slice(0, 5);
+      const files = Array.from(e.dataTransfer.files);
+      const totalSize = files.reduce((acc, f) => acc + f.size, 0);
+      if (totalSize > 20 * 1024 * 1024) {
+        alert(`Tổng dung lượng các file không được vượt quá 20MB (Đã chọn: ${(totalSize / 1024 / 1024).toFixed(2)}MB).`);
+        return;
+      }
       const previews = files.map(f => ({
-          file: f,
-          url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null
+        file: f,
+        url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null
       }));
       setFilePreviews(previews);
       setValue('drawingNames', files.map(f => f.name), { shouldValidate: true });
@@ -149,10 +154,15 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files).slice(0, 5);
+      const files = Array.from(e.target.files);
+      const totalSize = files.reduce((acc, f) => acc + f.size, 0);
+      if (totalSize > 20 * 1024 * 1024) {
+        alert(`Tổng dung lượng các file không được vượt quá 20MB (Đã chọn: ${(totalSize / 1024 / 1024).toFixed(2)}MB).`);
+        return;
+      }
       const previews = files.map(f => ({
-          file: f,
-          url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null
+        file: f,
+        url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null
       }));
       setFilePreviews(previews);
       setValue('drawingNames', files.map(f => f.name), { shouldValidate: true });
@@ -183,27 +193,26 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormItem label="Ngày dự kiến bắt đầu" required error={errors.startDate?.message}>
-            <Input type="date" min={todayStr} {...register('startDate')} error={!!errors.startDate} />
+            <Input type="date" min={todayStr} lang="en-GB" {...register('startDate')} error={!!errors.startDate} />
           </FormItem>
           <FormItem label="Ngày dự kiến kết thúc" required error={errors.endDate?.message}>
-            <Input type="date" min={minEndDate} {...register('endDate')} error={!!errors.endDate} />
+            <Input type="date" min={minEndDate} lang="en-GB" {...register('endDate')} error={!!errors.endDate} />
           </FormItem>
         </div>
 
         <div className="p-3 bg-blue-50 border border-blue-100 rounded-md">
           <p className="text-sm text-gray-600 m-0 flex items-center gap-2">
-            <span className="text-blue-600">ℹ️</span> Dự án mới sẽ được lưu ở trạng thái <strong>Bản nháp (Draft)</strong>. Sau khi tạo, hãy vào trang chi tiết dự án (WBS) để thêm thành viên và Kích hoạt thi công.
+            <span className="text-blue-600"></span> Dự án mới sẽ được lưu ở trạng thái Bản nháp. Sau khi tạo, hãy vào trang chi tiết dự án để thêm thành viên và Kích hoạt thi công.
           </p>
         </div>
 
-        <FormItem label="Bản vẽ thiết kế tổng thể (Tối đa 5 file)" error={errors.drawingNames?.message}>
+        <FormItem label="Bản vẽ thiết kế tổng thể" error={errors.drawingNames?.message}>
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`border-2 dashed rounded-md p-6 text-center cursor-pointer transition-all ${
-              dragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
-            }`}
+            className={`border-2 dashed rounded-md p-6 text-center cursor-pointer transition-all ${dragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+              }`}
             onClick={() => document.getElementById('drawing-file-input')?.click()}
           >
             <input
@@ -215,20 +224,20 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
               onChange={handleFileSelect}
             />
             <UploadCloud className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            
+
             {filePreviews && filePreviews.length > 0 ? (
               <div className="flex flex-wrap items-center justify-center gap-4 mt-4" onClick={(e) => e.stopPropagation()}>
                 {filePreviews.map((preview, idx) => (
                   <div key={idx} className="flex flex-col items-center gap-1 group relative">
                     {preview.url ? (
-                      <img 
-                        src={preview.url} 
-                        alt={preview.file.name} 
-                        className="w-16 h-16 object-cover rounded shadow-sm border border-gray-200" 
+                      <img
+                        src={preview.url}
+                        alt={preview.file.name}
+                        className="w-16 h-16 object-cover rounded shadow-sm border border-gray-200"
                       />
                     ) : (
                       <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded shadow-sm border border-gray-200">
-                         <FileText className="h-8 w-8 text-blue-500" />
+                        <FileText className="h-8 w-8 text-blue-500" />
                       </div>
                     )}
                     <span className="text-xs text-gray-600 truncate w-20 text-center" title={preview.file.name}>
@@ -243,13 +252,13 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                   Kéo thả file vào đây hoặc click để duyệt file
                 </p>
                 <span className="text-xs text-gray-500">
-                  Hỗ trợ PDF, PNG, JPG tối đa 20MB (tối đa 5 file)
+                  Hỗ trợ PDF, PNG, JPG tối đa 20MB
                 </span>
               </div>
             )}
           </div>
         </FormItem>
-        
+
         {mutation.isError && (
           <p className="text-sm text-red-600 mt-2">
             Có lỗi xảy ra khi tạo dự án. Vui lòng thử lại.

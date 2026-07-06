@@ -60,7 +60,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
     isDanger: false,
   });
 
@@ -166,12 +166,12 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
       .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
       .catch(err => console.error('SignalR JoinProjectGroup error:', err));
 
-  const handleWbsUpdated = (payload: any) => {
-    console.log('SignalR: WbsTreeUpdated', payload);
-    queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
-  };
+    const handleWbsUpdated = (payload: any) => {
+      console.log('SignalR: WbsTreeUpdated', payload);
+      queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+    };
 
-  connection.on('WbsTreeUpdated', handleWbsUpdated);
+    connection.on('WbsTreeUpdated', handleWbsUpdated);
 
     return () => {
       connection.off('WbsTreeUpdated', handleWbsUpdated);
@@ -421,8 +421,8 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
             <button
               onClick={() => navigate(`/projects/${projectId}/drawing`)}
               className={`flex items-center gap-2 py-2 px-4 shrink-0 rounded-sm text-[0.85rem] font-semibold transition-all duration-150 cursor-pointer ${project?.drawingUrl
-                  ? 'border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--border-light))]'
-                  : 'border border-dashed border-[#d97706] bg-[#fef3c7] text-[#b45309] hover:bg-[#fde68a]'
+                ? 'border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--border-light))]'
+                : 'border border-dashed border-[#d97706] bg-[#fef3c7] text-[#b45309] hover:bg-[#fde68a]'
                 }`}
             >
               <FileText size={15} />
@@ -433,7 +433,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
               className="flex items-center gap-2 py-2 px-4 shrink-0 border border-[hsl(var(--primary)/0.4)] rounded-sm bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] cursor-pointer text-[0.85rem] font-semibold transition-all duration-150 hover:bg-[hsl(var(--primary))] hover:text-white"
             >
               <BarChart2 size={15} />
-              <span>Xem Gantt Chart</span>
+              <span>Xem Biểu đồ công việc</span>
             </button>
             <button
               onClick={() => navigate(`/projects/${projectId}/logs`)}

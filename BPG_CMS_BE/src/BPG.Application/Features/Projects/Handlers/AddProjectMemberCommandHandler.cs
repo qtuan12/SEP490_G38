@@ -2,6 +2,7 @@ using AutoMapper;
 using BPG.Application.Features.Projects.Commands;
 using BPG.Application.Features.Projects.DTOs;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
@@ -15,11 +16,15 @@ public class AddProjectMemberCommandHandler : IRequestHandler<AddProjectMemberCo
 {
     private readonly IUnitOfWork _uow;
     private readonly IMapper _mapper;
+    private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly INotificationService _notificationService;
 
-    public AddProjectMemberCommandHandler(IUnitOfWork uow, IMapper mapper)
+    public AddProjectMemberCommandHandler(IUnitOfWork uow, IMapper mapper, IRealtimeNotificationSender realtimeSender, INotificationService notificationService)
     {
         _uow = uow;
         _mapper = mapper;
+        _realtimeSender = realtimeSender;
+        _notificationService = notificationService;
     }
 
     public async Task<ProjectMemberDto> Handle(AddProjectMemberCommand request, CancellationToken cancellationToken)
@@ -65,6 +70,25 @@ public class AddProjectMemberCommandHandler : IRequestHandler<AddProjectMemberCo
         await _uow.Repository<ProjectMember>().AddAsync(newMember, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
 
-        return _mapper.Map<ProjectMemberDto>(newMember);
+        var dto = _mapper.Map<ProjectMemberDto>(newMember);
+
+        // Realtime: broadcast to all members currently viewing this project
+        await _realtimeSender.SendToGroupAsync(
+            $"Project_{request.ProjectId}",
+            "ProjectMemberAdded",
+            null,
+            cancellationToken);
+
+        // Personal notification to the newly added engineer
+        await _notificationService.SendNotificationAsync(
+            request.UserId,
+            "Bạn đã được thêm vào dự án",
+            $"Bạn đã được thêm vào dự án \"{project.Name}\". Hãy vào kiểm tra kế hoạch công việc của mình.",
+            BPG.Domain.Constants.NotificationType.System,
+            BPG.Domain.Constants.NotificationReferenceType.Project,
+            request.ProjectId,
+            cancellationToken);
+
+        return dto;
     }
 }
