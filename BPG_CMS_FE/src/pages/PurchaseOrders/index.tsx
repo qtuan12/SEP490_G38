@@ -8,18 +8,18 @@ import { Search, ShoppingCart, AlertCircle, Loader2, Plus } from 'lucide-react';
 
 const PO_STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
-  { label: 'Nháp (Draft)', value: 'Draft' },
-  { label: 'Đã gửi (Sent)', value: 'Sent' },
-  { label: 'Nhận một phần (PartiallyReceived)', value: 'PartiallyReceived' },
-  { label: 'Nhận đủ (FullyReceived)', value: 'FullyReceived' },
-  { label: 'Đã đóng (Closed)', value: 'Closed' },
+  { label: 'Nháp', value: 'Draft' },
+  { label: 'Đã gửi NCC', value: 'Sent' },
+  { label: 'Nhập kho một phần', value: 'PartiallyReceived' },
+  { label: 'Đã nhập đủ', value: 'FullyReceived' },
+  { label: 'Đã đóng', value: 'Closed' },
 ];
 
 const statusLabel: Record<string, string> = {
   Draft: 'Nháp',
-  Sent: 'Đã gửi',
-  PartiallyReceived: 'Nhận một phần',
-  FullyReceived: 'Nhận đủ',
+  Sent: 'Đã gửi NCC',
+  PartiallyReceived: 'Nhập kho một phần',
+  FullyReceived: 'Đã nhập đủ',
   Closed: 'Đã đóng',
 };
 
@@ -34,8 +34,15 @@ const statusVariant: Record<string, 'default' | 'warning' | 'info' | 'success' |
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 export const PurchaseOrderList: React.FC = () => {
   const navigate = useNavigate();

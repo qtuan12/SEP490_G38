@@ -35,15 +35,29 @@ export const getGoodsReceiptStatusDetails = (status: string) => {
 };
 
 /**
- * Định dạng ngày giờ hiển thị theo chuẩn Việt Nam (hh:mm:ss dd/mm/yyyy)
+ * Định dạng ngày giờ hiển thị theo chuẩn Việt Nam (dd/MM/yyyy hh:mm)
  */
 export const formatDateTimeVN = (dateString: string): string => {
-  return new Date(dateString).toLocaleString('vi-VN');
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
 
 /**
- * Định dạng ngày hiển thị theo chuẩn Việt Nam (dd/mm/yyyy)
+ * Định dạng ngày hiển thị theo chuẩn Việt Nam (dd/MM/yyyy)
  */
 export const formatDateVN = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('vi-VN');
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
 };
