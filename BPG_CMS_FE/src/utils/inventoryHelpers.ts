@@ -4,7 +4,7 @@
 export const getTransactionTypeDetails = (type: number) => {
   switch (type) {
     case 1:
-      return { name: 'Nhập kho PO', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+      return { name: 'Nhập kho (Đơn mua)', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
     case 2:
       return { name: 'Xuất thi công', color: 'bg-blue-50 text-blue-700 border-blue-200' };
     case 3:
