@@ -246,8 +246,8 @@ export const SupplierManagement: React.FC = () => {
             className="w-44 h-10"
             options={[
               { label: 'Tất cả trạng thái', value: '' },
-              { label: 'Đang hoạt động (Active)', value: 'Active' },
-              { label: 'Tạm ngưng (Inactive)', value: 'Inactive' },
+              { label: 'Đang hoạt động', value: 'Active' },
+              { label: 'Tạm ngưng', value: 'Inactive' },
             ]}
           />
         </div>

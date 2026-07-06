@@ -273,7 +273,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
           <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
-              <TrendingUp size={14} />TRỌNG SỐ (WBS)
+              <TrendingUp size={14} />TRỌNG SỐ
             </span>
             <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>
               {selectedTask.weight !== undefined && selectedTask.weight !== null ? selectedTask.weight : 'Tự động'}
@@ -337,7 +337,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}
                 >
                   <Smartphone size={15} />
-                  <span>Màn hình SE</span>
+                  <span>Màn hình Kỹ sư</span>
                 </button>
               </>
             )}
@@ -403,7 +403,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             }}
           >
             <Box size={15} />
-            <span>Xem lịch sử & Yêu cầu Xuất kho Vật tư</span>
+            <span>Xem lịch sử & Yêu cầu cấp vật tư</span>
           </button>
         )}
 

@@ -197,7 +197,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
               className="flex items-center gap-1.5"
             >
               <Plus size={16} />
-              <span>Nhập kho PO</span>
+              <span>Nhập kho (Đơn mua hàng)</span>
             </Button>
           )}
 
