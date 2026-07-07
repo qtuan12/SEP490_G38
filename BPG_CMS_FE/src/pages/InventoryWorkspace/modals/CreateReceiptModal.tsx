@@ -61,6 +61,23 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         po => po.status === 'Sent' || po.status === 'PartiallyReceived'
       );
       setPurchaseOrders(activePOs);
+
+      // Auto-select PO if poId is in URL search params
+      const searchPOId = new URLSearchParams(window.location.search).get('poId');
+      if (searchPOId) {
+        const po = activePOs.find(p => p.poId.toString() === searchPOId) || null;
+        if (po) {
+          setSelectedPOId(searchPOId);
+          setSelectedPO(po);
+          
+          const initialQtys: Record<number, string> = {};
+          po.items.forEach(item => {
+            const remaining = item.quantity - item.totalReceived;
+            initialQtys[item.materialId] = remaining > 0 ? remaining.toString() : '0';
+          });
+          setQuantities(initialQtys);
+        }
+      }
     } catch (err: any) {
       console.error('Error fetching POs:', err);
       setGeneralError('Không thể tải danh sách đơn mua hàng PO.');

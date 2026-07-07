@@ -113,6 +113,28 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
         </Badge>
       ),
     },
+    {
+      key: 'actions',
+      header: 'Thao tác',
+      render: (po: PurchaseOrderDto) => {
+        const canReceive = po.status === 'Sent' || po.status === 'PartiallyReceived';
+        return (
+          <div style={{ display: 'flex', gap: 8 }} onClick={(e) => e.stopPropagation()}>
+            {canReceive && (
+              <button
+                onClick={() => {
+                  navigate(`/projects/${projectId}?tab=inventory&subTab=receipts&openCreate=receipt&poId=${po.poId}&poNumber=${encodeURIComponent(po.poNumber)}`);
+                }}
+                className="btn btn-sm btn-primary"
+                style={{ fontSize: '0.78rem', padding: '4px 8px' }}
+              >
+                Nhập kho
+              </button>
+            )}
+          </div>
+        );
+      }
+    },
   ];
 
   return (
