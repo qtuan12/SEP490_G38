@@ -201,11 +201,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       // 2. Merge with remaining existing images
       const allImages = [...existingImages, ...finalImages];
 
-      // If no images at all, add a fallback default image
-      if (allImages.length === 0 && !isEditMode) {
-        allImages.push('https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80');
-      }
-
       if (isEditMode && editLog) {
         return projectService.updateDailyLog(editLog.id, data.content, allImages);
       } else {
