@@ -593,6 +593,21 @@ export const WBSTree = () => {
                                           <History size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Xem nhật ký thi công</span>
                                         </div>
 
+                                        {isPL && !t.parentTaskId && (
+                                          <div
+                                            style={menuItemStyle}
+                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                            onClick={() => {
+                                              setTaskMenuId(null);
+                                              navigate(`/projects/${ph.projectId}?tab=inventory&subTab=issuances&search=${encodeURIComponent(t.name)}`);
+                                            }}
+                                          >
+                                            <Box size={12} style={{ color: 'hsl(var(--success))' }} />
+                                            <span style={{ color: 'hsl(var(--success))' }}>Cấp phát vật tư</span>
+                                          </div>
+                                        )}
+
                                         <div
                                           style={{ ...menuItemStyle, display: t.parentTaskId ? 'none' : 'flex' }}
                                           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}

@@ -41,6 +41,16 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const openCreate = searchParams.get('openCreate');
+    if (openCreate === 'receipt' && activeSubTab === 'receipts') {
+      setIsCreateReceiptOpen(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('openCreate');
+      setSearchParams(newParams);
+    }
+  }, [searchParams, activeSubTab]);
+
   const handleSubTabChange = (subTab: 'current' | 'receipts' | 'issuances' | 'ledger') => {
     setActiveSubTab(subTab);
     const newParams = new URLSearchParams(searchParams);

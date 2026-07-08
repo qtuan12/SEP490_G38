@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { LoadingSpinner, Pagination } from '../../../components/ui';
 import { Search, Eye } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
@@ -16,10 +17,12 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
   onViewReceipt,
   refreshKey
 }) => {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || searchParams.get('poNumber') || '';
   const [receiptsList, setReceiptsList] = useState<GoodsReceipt[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 

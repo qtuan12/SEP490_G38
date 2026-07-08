@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/ui/Modal';
-import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Box, Package, FileText, ArrowLeft, Smartphone } from 'lucide-react';
+import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft, Smartphone } from 'lucide-react';
 import { AssignEngineerForm } from './AssignEngineerModal';
 import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';
@@ -380,31 +380,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <span>Xem Nhật ký thi công</span>
             </button>
           </div>
-        )}
-
-        {/* Link sang trang Xuất kho */}
-        {isPL && (
-          <button
-            onClick={() => {
-              onClose();
-              navigate(`/projects/${project?.id}?tab=inventory&subTab=issuances&search=${encodeURIComponent(selectedTask.name)}`);
-            }}
-            className="btn btn-outline"
-            style={{ 
-              fontSize: '0.85rem', 
-              width: '100%', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              justifyContent: 'center', 
-              borderColor: 'hsl(var(--success))', 
-              color: 'hsl(var(--success))',
-              marginTop: '4px'
-            }}
-          >
-            <Box size={15} />
-            <span>Xem lịch sử & Yêu cầu cấp vật tư</span>
-          </button>
         )}
 
 

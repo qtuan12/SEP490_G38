@@ -15,6 +15,19 @@ interface DailyLogCardProps {
   onReloadLogs: () => Promise<void>;
 }
 
+const formatCommentDate = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const normalized = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+  const d = new Date(normalized);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
 export const DailyLogCard: React.FC<DailyLogCardProps> = ({
   log,
   user,
@@ -242,7 +255,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                         </span>
 
                         <div className="flex items-center gap-2">
-                          <span className="text-[0.65rem] text-[hsl(var(--text-muted))]">{comm.date}</span>
+                          <span className="text-[0.65rem] text-[hsl(var(--text-muted))]">{formatCommentDate(comm.date)}</span>
                           {canEditComment && editingCommentId !== comm.id && (
                             <div className="flex items-center gap-1">
                               <button
