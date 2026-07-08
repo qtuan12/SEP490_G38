@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
 import { projectService } from '../../../services/projectService';
+import { formatDateVN } from '../../../utils/inventoryHelpers';
 import { Button, Badge, Pagination } from '../../../components/ui';
 import { Plus, Minus, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { CreateIncreaseAdjustmentModal } from './CreateIncreaseAdjustmentModal';
@@ -192,7 +193,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
                   <td className="px-4 py-3">{getTypeBadge(item.adjustmentType)}</td>
                   <td className="px-4 py-3 max-w-xs truncate" title={item.reason}>{item.reason}</td>
                   <td className="px-4 py-3">{getStatusBadge(item.status)}</td>
-                  <td className="px-4 py-3">{new Date(item.createdAt).toLocaleDateString('vi-VN')}</td>
+                  <td className="px-4 py-3">{formatDateVN(item.createdAt)}</td>
                   <td className="px-4 py-3">{item.approverName || '-'}</td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" size="sm" onClick={() => setReviewId(item.adjustmentId)}>

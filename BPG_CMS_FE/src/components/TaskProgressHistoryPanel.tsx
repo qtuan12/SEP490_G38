@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown, History, Minus } from 'lucide-react';
@@ -15,8 +15,20 @@ interface TaskProgressHistoryPanelProps {
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
-  // ISO format "2026-06-13T10:00:00" or "2026-06-13 10:00"
-  return dateStr.replace('T', ' ').slice(0, 16);
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) {
+      return dateStr.replace('T', ' ').slice(0, 16);
+    }
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch {
+    return dateStr.replace('T', ' ').slice(0, 16);
+  }
 };
 
 const ProgressDelta: React.FC<{ oldVal: number; newVal: number }> = ({ oldVal, newVal }) => {
@@ -51,6 +63,8 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
   limit,
   compact = false,
 }) => {
+  const [filterType, setFilterType] = useState<'all' | 'increase' | 'decrease'>('all');
+
   const { data: logs = [], isLoading, isError } = useQuery<TaskProgressLog[]>({
     queryKey: ['task-progress-history', taskId],
     queryFn: () => projectService.getTaskProgressHistory(taskId),
@@ -58,7 +72,16 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
     staleTime: 30_000,
   });
 
-  const displayedLogs = limit ? logs.slice(0, limit) : logs;
+  const filteredLogs = React.useMemo(() => {
+    return logs.filter(log => {
+      const delta = log.newProgress - log.oldProgress;
+      if (filterType === 'increase') return delta > 0;
+      if (filterType === 'decrease') return delta < 0;
+      return true;
+    });
+  }, [logs, filterType]);
+
+  const displayedLogs = limit ? filteredLogs.slice(0, limit) : filteredLogs;
 
   if (isLoading) {
     return (
@@ -99,6 +122,33 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
         </div>
       )}
 
+      {/* Bộ lọc tăng giảm - Chỉ hiện ở chế độ đầy đủ và khi có lịch sử */}
+      {!compact && logs.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end', fontSize: '0.8rem', padding: '4px 0' }}>
+          <span style={{ color: 'hsl(var(--text-muted))', fontWeight: 600 }}>Lọc biến động:</span>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as any)}
+            style={{
+              padding: '4px 8px',
+              borderRadius: '6px',
+              border: '1px solid hsl(var(--border))',
+              background: 'white',
+              color: 'hsl(var(--text-primary))',
+              outline: 'none',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+          >
+            <option value="all">Tất cả thay đổi ({logs.length})</option>
+            <option value="increase">Chỉ tăng tiến độ ({logs.filter(l => l.newProgress > l.oldProgress).length})</option>
+            <option value="decrease">Chỉ giảm tiến độ ({logs.filter(l => l.newProgress < l.oldProgress).length})</option>
+          </select>
+        </div>
+      )}
+
       {/* Empty state */}
       {displayedLogs.length === 0 ? (
         <div style={{
@@ -108,7 +158,9 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
           fontSize: '0.8rem',
           fontStyle: 'italic'
         }}>
-          Chưa có lịch sử thay đổi tiến độ.
+          {logs.length === 0
+            ? 'Chưa có lịch sử thay đổi tiến độ.'
+            : 'Không có thay đổi tiến độ nào phù hợp với bộ lọc.'}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? '4px' : '8px' }}>

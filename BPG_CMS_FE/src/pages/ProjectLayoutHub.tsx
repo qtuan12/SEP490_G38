@@ -316,7 +316,7 @@ export const ProjectLayoutHub: React.FC = () => {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-            TIẾN ĐỘ TỔNG THỂ DỰ ÁN WBS
+            TIẾN ĐỘ THI CÔNG DỰ ÁN
           </span>
           <strong style={{ fontSize: '2.2rem', fontWeight: 900, color: 'hsl(var(--primary))', letterSpacing: '-0.02em' }}>
             {project.progress}%
@@ -367,7 +367,7 @@ export const ProjectLayoutHub: React.FC = () => {
           }}
         >
           <FolderGit2 size={18} />
-          <span>Kế hoạch WBS</span>
+          <span>Kế hoạch thi công</span>
         </button>
 
         <button

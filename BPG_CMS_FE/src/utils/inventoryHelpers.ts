@@ -4,7 +4,7 @@
 export const getTransactionTypeDetails = (type: number) => {
   switch (type) {
     case 1:
-      return { name: 'Nhập kho PO', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+      return { name: 'Nhập kho (Đơn mua)', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
     case 2:
       return { name: 'Xuất thi công', color: 'bg-blue-50 text-blue-700 border-blue-200' };
     case 3:
@@ -35,15 +35,29 @@ export const getGoodsReceiptStatusDetails = (status: string) => {
 };
 
 /**
- * Định dạng ngày giờ hiển thị theo chuẩn Việt Nam (hh:mm:ss dd/mm/yyyy)
+ * Định dạng ngày giờ hiển thị theo chuẩn Việt Nam (dd/MM/yyyy hh:mm)
  */
 export const formatDateTimeVN = (dateString: string): string => {
-  return new Date(dateString).toLocaleString('vi-VN');
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
 
 /**
- * Định dạng ngày hiển thị theo chuẩn Việt Nam (dd/mm/yyyy)
+ * Định dạng ngày hiển thị theo chuẩn Việt Nam (dd/MM/yyyy)
  */
 export const formatDateVN = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('vi-VN');
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
 };

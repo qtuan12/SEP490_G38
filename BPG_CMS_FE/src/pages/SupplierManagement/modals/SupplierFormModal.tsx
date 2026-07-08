@@ -192,8 +192,8 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
               {...register('collaborationStatus')}
               error={!!errors.collaborationStatus}
               options={[
-                { label: 'Đang hoạt động (Active)', value: 'Active' },
-                { label: 'Tạm ngưng (Inactive)', value: 'Inactive' },
+                { label: 'Đang hoạt động', value: 'Active' },
+                { label: 'Tạm ngưng', value: 'Inactive' },
               ]}
             />
           </FormItem>

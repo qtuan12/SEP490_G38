@@ -5,6 +5,7 @@ import { Eye, ArrowLeft } from 'lucide-react';
 import { Button, Input, DataTable, Badge, Pagination } from '../../components/ui';
 import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
 import { useAuth } from '../../context/AuthContext';
+import { formatDate } from '../../utils/dateHelpers';
 
 export const PhaseAcceptances: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -54,15 +55,7 @@ export const PhaseAcceptances: React.FC = () => {
     { 
       key: 'acceptanceDate',
       header: 'Ngày nghiệm thu', 
-      render: (row: any) => {
-        try {
-          return new Date(row.acceptanceDate).toLocaleDateString('vi-VN', {
-            hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric'
-          });
-        } catch {
-          return row.acceptanceDate;
-        }
-      }
+      render: (row: any) => formatDate(row.acceptanceDate)
     },
     { 
       key: 'isCancelled',
