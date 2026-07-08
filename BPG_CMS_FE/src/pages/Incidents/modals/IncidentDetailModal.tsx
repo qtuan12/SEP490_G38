@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+import { incidentService } from '../../../services/incidentService';
 import { Modal } from '../../../components/ui/Modal';
 import { MiniMarkdown } from '../../../components/ui/MiniMarkdown';
 import type { IncidentReport, WBSPhase } from '../../../types/common';
 import { ArrowRight, AlertCircle, CheckCircle, HardHat, Package, MapPin, Clock, Users, BarChart3 } from 'lucide-react';
-
 interface IncidentDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -11,7 +13,7 @@ interface IncidentDetailModalProps {
   phase: WBSPhase | null;
   user: { id: string; name: string; role: string } | null;
   onResolveClick: () => void;
-  projectId: string;
+  onSuccessAction?: (msg?: string) => void;
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -71,7 +73,49 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   phase,
   user,
   onResolveClick,
+  onSuccessAction
 }) => {
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const queryClient = useQueryClient();
+
+  const rejectMutation = useMutation({
+    mutationFn: () => incidentService.rejectIncident(Number(incident.id), rejectReason),
+    onSuccess: () => {
+      toast.success('Đã từ chối sự cố');
+      if (onSuccessAction) onSuccessAction('Đã từ chối sự cố');
+      else {
+        queryClient.invalidateQueries({ queryKey: ['incidents'] });
+        queryClient.invalidateQueries({ queryKey: ['globalIncidents'] });
+      }
+      setIsRejecting(false);
+      onClose();
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Có lỗi xảy ra khi từ chối');
+    }
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: () => incidentService.confirmIncident(Number(incident.id), {
+      incidentId: Number(incident.id),
+      createReworkTask: false,
+      handlingInstruction: ''
+    }),
+    onSuccess: () => {
+      toast.success('Đã phê duyệt sự cố');
+      if (onSuccessAction) onSuccessAction('Đã phê duyệt sự cố');
+      else {
+        queryClient.invalidateQueries({ queryKey: ['incidents'] });
+        queryClient.invalidateQueries({ queryKey: ['globalIncidents'] });
+      }
+      onClose();
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Có lỗi xảy ra khi phê duyệt');
+    }
+  });
+
   if (!isOpen || !incident) return null;
 
   const incidentType = incident.incidentType as keyof typeof INCIDENT_META;
@@ -84,7 +128,10 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   const imageLines = (incident.description || '').split('\n').filter(l => l.startsWith('!['));
   const descWithoutImages = incident.description?.split('\n').filter(l => !l.startsWith('![')).join('\n').trim();
   const { mainDesc: mainDescClean, meta: descMetaClean } = extractMetaFromDesc(descWithoutImages || '');
-  
+
+  // Do the same for damageDescription
+  const { mainDesc: damageDescClean, meta: damageMetaClean } = extractMetaFromDesc(incident.damageDescription || '');
+
   const extractedImages = imageLines.map(l => {
     const match = l.match(/!\[.*?\]\((.*?)\)/);
     return match ? match[1] : null;
@@ -92,16 +139,18 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   const displayImages = (incident.images && incident.images.length > 0) ? incident.images : extractedImages;
 
   const statusColor = {
-    WaitingReview:    { label: 'Chờ TPKT Thẩm định', color: 'hsl(38, 92%, 50%)', bg: 'hsl(38, 100%, 96%)' },
-    WaitingAccountant:{ label: 'Chờ Kế toán Xác minh', color: 'hsl(210, 70%, 45%)', bg: 'hsl(210, 100%, 97%)' },
-    Assessing:        { label: 'Cần Bổ sung', color: 'hsl(0, 72%, 50%)', bg: 'hsl(0, 100%, 97%)' },
-    Approved:         { label: 'Đã Duyệt', color: 'hsl(142, 71%, 40%)', bg: 'hsl(142, 100%, 97%)' },
-    Rejected:         { label: 'Bị Từ chối', color: 'hsl(0, 72%, 50%)', bg: 'hsl(0, 100%, 97%)' },
+    WaitingReview: { label: 'Chờ TPKT Thẩm định', color: 'hsl(38, 92%, 50%)', bg: 'hsl(38, 100%, 96%)' },
+    WaitingAccountant: { label: 'Chờ Kế toán Xác minh', color: 'hsl(210, 70%, 45%)', bg: 'hsl(210, 100%, 97%)' },
+    WaitingDirector: { label: 'Chờ Giám đốc Phê duyệt', color: 'hsl(280, 70%, 45%)', bg: 'hsl(280, 100%, 97%)' },
+    Assessing: { label: 'Cần Bổ sung', color: 'hsl(0, 72%, 50%)', bg: 'hsl(0, 100%, 97%)' },
+    Approved: { label: 'Đã Duyệt', color: 'hsl(142, 71%, 40%)', bg: 'hsl(142, 100%, 97%)' },
+    Rejected: { label: 'Bị Từ chối', color: 'hsl(0, 72%, 50%)', bg: 'hsl(0, 100%, 97%)' },
   }[incident.status as string] ?? { label: incident.status, color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' };
 
   const roleLabel = user?.role?.toLowerCase() ?? '';
   const isTPKT = roleLabel === 'technicalmanager' || roleLabel === 'admin';
-  const isAccountant = roleLabel === 'accountant';
+  const isAccountant = roleLabel === 'accountant' || roleLabel === 'admin';
+  const isDirector = roleLabel === 'director' || roleLabel === 'admin';
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} width="lg"
@@ -157,12 +206,12 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         </div>
 
         {/* Revision notice */}
-        {incident.status === 'Assessing' && (
+        {(incident.status === 'Assessing' || incident.status === 'Rejected') && incident.handlingInstruction && (
           <div style={{ padding: '12px', background: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.3)', borderRadius: '8px', display: 'flex', gap: '8px', color: 'hsl(var(--danger))' }}>
             <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
-              <strong style={{ fontSize: '0.85rem' }}>Yêu cầu bổ sung từ {isInventoryIncident ? 'Kế toán' : 'TPKT'}:</strong>
-              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', whiteSpace: 'pre-wrap' }}>{incident.revisionComment}</p>
+              <strong style={{ fontSize: '0.85rem' }}>{incident.status === 'Rejected' ? `Lý do từ chối từ ${incident.reviewerName || 'người duyệt'}:` : `Yêu cầu bổ sung từ ${incident.reviewerName || 'người duyệt'}:`}</strong>
+              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', whiteSpace: 'pre-wrap' }}>{incident.handlingInstruction}</p>
             </div>
           </div>
         )}
@@ -172,18 +221,28 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           {/* Header */}
           <div style={{ padding: '10px 14px', background: meta.bg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: meta.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Bước 1: Báo cáo Sự cố (Project Leader)
+              Bước 1: Báo cáo Sự cố (Trưởng nhóm dự án)
             </span>
-            <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
               {incident.reporterName} · {incident.date}
             </span>
           </div>
 
-          <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* Task name */}
-            <div>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Hạng mục công việc</span>
-              <p style={{ margin: '2px 0 0', fontWeight: 600, fontSize: '0.9rem' }}>{incident.taskName}</p>
+          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Project & Task info */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingBottom: '6px', borderBottom: '1px dashed hsl(var(--border))' }}>
+              <div>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Dự án</span>
+                <p style={{ margin: '2px 0 0', fontWeight: 600, fontSize: '0.9rem', color: 'hsl(var(--primary))' }}>
+                  {incident.projectName || `Dự án #${incident.projectId}`}
+                </p>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Công việc / Giai đoạn</span>
+                <p style={{ margin: '2px 0 0', fontWeight: 600, fontSize: '0.9rem' }}>
+                  {isInventoryIncident ? (incident.phaseName || 'Không xác định') : (incident.taskName || 'Không xác định')}
+                </p>
+              </div>
             </div>
 
             {/* Meta info grid (extracted from description) */}
@@ -213,9 +272,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
 
             {/* Main description */}
             {mainDescClean && (
-              <div>
+              <div style={{ marginTop: '2px' }}>
                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Mô tả diễn biến sự cố</span>
-                <div style={{ marginTop: '4px', padding: '10px', background: 'hsl(var(--bg-muted))', borderRadius: '6px' }}>
+                <div style={{ marginTop: '2px', color: 'hsl(var(--text-primary))', fontSize: '0.85rem' }} className="[&>p:last-child]:mb-0 [&>p]:mt-1">
                   <MiniMarkdown content={mainDescClean} />
                 </div>
               </div>
@@ -224,13 +283,33 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
             {/* Images */}
             {displayImages.length > 0 && (
               <div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Hình ảnh đính kèm</span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Hình ảnh đính kèm</span>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: displayImages.length === 1 ? '1fr' : displayImages.length === 2 ? '1fr 1fr' : 'repeat(auto-fill, minmax(160px, 1fr))',
+                  gap: '10px'
+                }}>
                   {displayImages.map((img, idx) => (
-                    <a key={idx} href={img} target="_blank" rel="noopener noreferrer">
-                      <img src={img} alt={`Ảnh ${idx + 1}`} style={{ width: '100%', height: '110px', objectFit: 'cover', borderRadius: '6px', border: '1px solid hsl(var(--border))', transition: 'transform 0.2s' }}
-                        onMouseOver={e => (e.currentTarget.style.transform = 'scale(1.03)')}
-                        onMouseOut={e => (e.currentTarget.style.transform = 'scale(1)')}
+                    <a key={idx} href={img} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%' }}>
+                      <img src={img} alt={`Ảnh ${idx + 1}`}
+                        style={{
+                          width: '100%',
+                          height: displayImages.length === 1 ? 'auto' : displayImages.length === 2 ? '240px' : '160px',
+                          maxHeight: displayImages.length === 1 ? '400px' : 'none',
+                          objectFit: displayImages.length === 1 ? 'contain' : 'cover',
+                          borderRadius: '8px',
+                          border: '1px solid hsl(var(--border))',
+                          transition: 'all 0.2s ease',
+                          backgroundColor: 'hsl(var(--bg-main))'
+                        }}
+                        onMouseOver={e => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                        }}
+                        onMouseOut={e => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
                       />
                     </a>
                   ))}
@@ -249,29 +328,49 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               </span>
             </div>
 
-            <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Construction-specific stats */}
-              {isConstruction && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div style={{ padding: '8px 10px', background: 'hsl(var(--bg-muted))', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '2px' }}>Nhân công khắc phục</div>
-                    <strong style={{ fontSize: '0.9rem' }}>{incident.estimatedLaborDays} ngày công</strong>
-                  </div>
-                  <div style={{ padding: '8px 10px', background: 'hsl(var(--bg-muted))', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '2px' }}>Trễ tiến độ dự kiến</div>
-                    <strong style={{ fontSize: '0.9rem' }}>{incident.estimatedDelayDays} ngày</strong>
-                  </div>
-                  {incident.proposedAction && (
-                    <div style={{ padding: '8px 10px', background: 'hsl(var(--bg-muted))', borderRadius: '6px', gridColumn: '1 / -1' }}>
-                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '2px' }}>Đề xuất xử lý</div>
-                      <strong style={{ fontSize: '0.9rem' }}>{incident.proposedAction}</strong>
+            <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Unified Stats & Meta Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
+                {isConstruction && (
+                  <>
+                    <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><Users size={12} />Nhân công khắc phục</div>
+                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{incident.estimatedLaborDays} ngày công</strong>
                     </div>
-                  )}
-                </div>
-              )}
+                    <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} />Trễ tiến độ dự kiến</div>
+                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{incident.estimatedDelayDays} ngày</strong>
+                    </div>
+                  </>
+                )}
+
+                {Object.entries(damageMetaClean).map(([key, val]) => (
+                  <div key={key} style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <AlertCircle size={12} />
+                      {key}
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{val}</strong>
+                  </div>
+                ))}
+
+                {isConstruction && incident.proposedAction && (
+                  <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))', gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} />Đề xuất xử lý</div>
+                    <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--primary))' }}>{incident.proposedAction}</strong>
+                  </div>
+                )}
+              </div>
 
               {/* Damage description as Markdown */}
-              <MiniMarkdown content={incident.damageDescription} />
+              {damageDescClean && (
+                <div style={{ marginTop: '2px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Ghi chú thiệt hại bổ sung</span>
+                  <div style={{ color: 'hsl(var(--text-primary))', fontSize: '0.85rem' }} className="[&>p:last-child]:mb-0 [&>p]:mt-1">
+                    <MiniMarkdown content={damageDescClean} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -294,33 +393,119 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         )}
 
         {/* ── Handling Instruction ─────────────────────────────────────── */}
-        <div style={{ border: '1px solid hsl(var(--border))', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', background: 'hsl(var(--bg-muted))' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Hướng dẫn xử lý (Từ cấp quản lý)
-            </span>
+        {incident.status !== 'Assessing' && incident.status !== 'Rejected' && (
+          <div style={{ border: '1px solid hsl(var(--border))', borderRadius: '10px', overflow: 'hidden' }}>
+            <div style={{ padding: '10px 14px', background: 'hsl(var(--bg-muted))' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {isInventoryIncident ? 'Ghi chú / Hướng dẫn xử lý' : 'Hướng dẫn xử lý (Từ cấp quản lý)'}
+              </span>
+            </div>
+            <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {incident.handlingInstruction ? (
+                <div style={{ padding: '10px', background: 'hsl(var(--bg-card))', borderRadius: '6px', border: '1px solid hsl(var(--border))', fontSize: '0.85rem', color: 'hsl(var(--text-primary))', whiteSpace: 'pre-wrap' }}>
+                  {incident.handlingInstruction}
+                </div>
+              ) : (
+                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Chưa có hướng dẫn xử lý.</span>
+              )}
+            </div>
           </div>
-          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {incident.handlingInstruction ? (
-              <div style={{ padding: '10px', background: 'hsl(var(--bg-card))', borderRadius: '6px', border: '1px solid hsl(var(--border))', fontSize: '0.85rem', color: 'hsl(var(--text-primary))', whiteSpace: 'pre-wrap' }}>
-                {incident.handlingInstruction}
-              </div>
-            ) : (
-              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Chưa có hướng dẫn xử lý.</span>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* ── Action buttons ─────────────────────────────────────────── */}
         {!isInventoryIncident && incident.status === 'WaitingReview' && isTPKT && (
-          <button onClick={onResolveClick} className="btn btn-primary" style={{ width: '100%', fontSize: '0.85rem', padding: '10px' }}>
-            🏗 Thẩm định &amp; Phê duyệt (TPKT)
-          </button>
+          isRejecting ? (
+            <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                className="input"
+                rows={3}
+                placeholder="Nhập lý do từ chối chi tiết..."
+              />
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setIsRejecting(false)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem' }} disabled={rejectMutation.isPending}>
+                  Hủy
+                </button>
+                <button onClick={() => rejectMutation.mutate()} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'hsl(var(--danger))' }} disabled={!rejectReason.trim() || rejectMutation.isPending}>
+                  {rejectMutation.isPending ? 'Đang xử lý...' : 'Xác nhận Từ chối'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
+              <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))' }}>
+                ❌ Từ chối
+              </button>
+              <button onClick={onResolveClick} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}>
+                🏗 Thẩm định &amp; Phê duyệt (TPKT)
+              </button>
+            </div>
+          )
         )}
         {isInventoryIncident && incident.status === 'WaitingAccountant' && isAccountant && (
-          <button onClick={onResolveClick} className="btn btn-primary" style={{ width: '100%', fontSize: '0.85rem', padding: '10px', background: 'hsl(210, 70%, 45%)' }}>
-            📦 Xác minh &amp; Tạo Phiếu Giảm Tồn (Kế toán)
-          </button>
+          isRejecting ? (
+            <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                className="input"
+                rows={3}
+                placeholder="Nhập lý do từ chối chi tiết..."
+              />
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setIsRejecting(false)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem' }} disabled={rejectMutation.isPending}>
+                  Hủy
+                </button>
+                <button onClick={() => rejectMutation.mutate()} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'hsl(var(--danger))' }} disabled={!rejectReason.trim() || rejectMutation.isPending}>
+                  {rejectMutation.isPending ? 'Đang xử lý...' : 'Xác nhận Từ chối'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
+              <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))' }}>
+                ❌ Từ chối
+              </button>
+              <button onClick={onResolveClick} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(210, 70%, 45%)' }}>
+                📦 Xác minh &amp; Tạo Phiếu (Kế toán)
+              </button>
+            </div>
+          )
+        )}
+
+        {isInventoryIncident && incident.status === 'WaitingDirector' && isDirector && (
+          isRejecting ? (
+            <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                className="input"
+                rows={3}
+                placeholder="Nhập lý do từ chối chi tiết..."
+              />
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setIsRejecting(false)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem' }} disabled={rejectMutation.isPending}>
+                  Hủy
+                </button>
+                <button onClick={() => rejectMutation.mutate()} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'hsl(var(--danger))' }} disabled={!rejectReason.trim() || rejectMutation.isPending}>
+                  {rejectMutation.isPending ? 'Đang xử lý...' : 'Xác nhận Từ chối'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
+              <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))' }}>
+                ❌ Từ chối
+              </button>
+              <button onClick={() => approveMutation.mutate()} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsla(148, 94%, 48%, 1.00)' }} disabled={approveMutation.isPending}>
+                {approveMutation.isPending ? 'Đang xử lý...' : 'Phê duyệt'}
+              </button>
+            </div>
+          )
         )}
 
       </div>

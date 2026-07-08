@@ -74,7 +74,8 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
           date: (() => {
-            const d = new Date(dto.createdAt);
+            const dateStr = dto.createdAt.endsWith('Z') ? dto.createdAt : dto.createdAt + 'Z';
+            const d = new Date(dateStr);
             const hours = d.getHours().toString().padStart(2, '0');
             const minutes = d.getMinutes().toString().padStart(2, '0');
             return `${hours}:${minutes} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
@@ -129,6 +130,8 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
         return <Badge variant="warning" className="normal-case">Báo cáo mới</Badge>;
       case 'WaitingAccountant':
         return <Badge variant="warning" className="normal-case">Chờ Kế toán xác minh</Badge>;
+      case 'WaitingDirector':
+        return <Badge variant="warning" className="normal-case">Chờ Giám đốc phê duyệt</Badge>;
       case 'Approved':
       case 'Confirmed':
       case 'Closed':
@@ -273,6 +276,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
             // No action needed here anymore since we removed the create decrease modal
             setIsDetailOpen(false);
           }}
+          onSuccessAction={loadData}
           projectId={selectedIncident.projectId}
         />
       )}

@@ -80,7 +80,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
           date: (() => {
-            const d = new Date(dto.createdAt);
+            const dateStr = dto.createdAt.endsWith('Z') ? dto.createdAt : dto.createdAt + 'Z';
+            const d = new Date(dateStr);
             const hours = d.getHours().toString().padStart(2, '0');
             const minutes = d.getMinutes().toString().padStart(2, '0');
             return `${hours}:${minutes} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
@@ -136,6 +137,10 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
         return <Badge variant="warning" className="normal-case">Báo cáo mới</Badge>;
       case 'Assessing':
         return <Badge variant="danger" className="normal-case">Yêu cầu bổ sung</Badge>;
+      case 'WaitingAccountant':
+        return <Badge variant="warning" className="normal-case">Chờ Kế toán xác minh</Badge>;
+      case 'WaitingDirector':
+        return <Badge variant="warning" className="normal-case">Chờ Giám đốc phê duyệt</Badge>;
       case 'WaitingReview':
         return <Badge variant="info" className="normal-case">Chờ TPKT duyệt</Badge>;
       case 'Approved':
@@ -145,7 +150,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
       case 'Closed':
         return <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.75rem] normal-case">Đã đóng</span>;
       default:
-        return null;
+        return <Badge variant="default" className="normal-case bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))]">{status}</Badge>;
     }
   };
 
@@ -232,9 +237,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
                 <tr>
                   <th>Ngày báo cáo</th>
                   <th>Công việc / Giai đoạn bị sự cố</th>
-                  <th>Phân loại</th>
                   <th>Người báo cáo</th>
-                  <th>Mô tả sự cố</th>
                   <th>Trạng thái</th>
                   <th className="text-center">Chi tiết</th>
                 </tr>
@@ -244,13 +247,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
                   <tr key={inc.id} className="cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors" onClick={() => { setSelectedIncident(inc); setIsDetailOpen(true); }}>
                     <td className="whitespace-nowrap text-sm">{inc.date}</td>
                     <td><strong className="text-[0.88rem]">{(inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') ? (inc.phaseName || 'Giai đoạn') : (inc.taskName || 'Không xác định')}</strong></td>
-                    <td>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.75rem] whitespace-nowrap">{inc.incidentType}</span>
-                    </td>
                     <td className="text-sm">{inc.reporterName}</td>
-                    <td className="max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-                      {inc.description}
-                    </td>
                     <td className="whitespace-nowrap">{getStatusBadge(inc.status)}</td>
                     <td className="text-center">
                       <Button variant="secondary" className="py-1 px-2 text-[0.75rem] h-auto">Xem</Button>
@@ -318,7 +315,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           phase={effectivePhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
           onResolveClick={() => setIsResolveOpen(true)}
-          projectId={projectId}
+          onSuccessAction={handleSuccess}
         />
       )}
 

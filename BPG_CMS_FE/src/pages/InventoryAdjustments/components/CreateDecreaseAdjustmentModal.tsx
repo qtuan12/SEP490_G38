@@ -166,7 +166,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
           incidentId: Number(incident.id || (incident as any).incidentId),
           createReworkTask: false,
-          handlingInstruction: 'Kế toán đã xác minh và lập Phiếu Giảm Tồn kho.'
+          handlingInstruction: description || 'Kế toán đã xác minh.'
         });
       }
 
@@ -185,19 +185,21 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
           <input 
             type="text" 
             required 
-            className="w-full px-3 py-2 border rounded-lg" 
+            className={`w-full px-3 py-2 border rounded-lg ${incident ? 'bg-gray-100 cursor-not-allowed text-gray-600 font-medium' : ''}`}
             value={reason} 
             onChange={e => setReason(e.target.value)} 
             placeholder="VD: Hư hỏng vật tư do thời tiết..."
+            readOnly={!!incident}
           />
         </FormItem>
 
         <FormItem label="Giai đoạn liên quan (*)">
           <select 
             required
-            className="w-full px-3 py-2 border rounded-lg"
+            className={`w-full px-3 py-2 border rounded-lg ${incident ? 'bg-gray-100 cursor-not-allowed text-gray-600 font-medium appearance-none' : ''}`}
             value={phaseId}
             onChange={e => setPhaseId(Number(e.target.value))}
+            disabled={!!incident}
           >
             <option value="">-- Chọn giai đoạn --</option>
             {phases.map(ph => {
@@ -265,68 +267,84 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         )}
 
         <div className="border border-gray-800 rounded-2xl p-5 bg-white flex flex-col gap-3">
-          <h4 className="font-semibold text-sm">Thêm vật tư (Chỉ những vật tư đang có tồn kho)</h4>
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <FormItem label="Vật tư">
-                <select 
-                  className="w-full px-3 py-2 border rounded-lg"
-                  value={selectedMaterialId}
-                  onChange={e => {
-                    setSelectedMaterialId(Number(e.target.value));
-                    setSelectedQuantity('');
-                  }}
-                >
-                  <option value="">-- Chọn vật tư --</option>
-                  {inventoryList.filter(x => x.quantity > 0).map(m => (
-                    <option key={m.materialId} value={m.materialId}>{m.materialCode} - {m.materialName} (Tồn: {m.quantity})</option>
-                  ))}
-                </select>
-              </FormItem>
-            </div>
-            <div className="w-32">
-              <FormItem label="Số lượng giảm">
-                <input 
-                  type="number" 
-                  min="0.01" 
-                  step="0.01"
-                  max={selectedMaterialId ? inventoryList.find(x => x.materialId === Number(selectedMaterialId))?.quantity : undefined}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  value={selectedQuantity}
-                  onChange={e => setSelectedQuantity(Number(e.target.value))}
-                />
-              </FormItem>
-            </div>
-            <Button type="button" variant="secondary" onClick={handleAddItem}>Thêm</Button>
-          </div>
-
-          {items.length > 0 && (
-            <div className="mt-3 bg-white rounded-2xl border border-gray-800 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vật tư</th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">Số lượng</th>
-                    <th className="px-4 py-3 w-16 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Xóa</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {items.map(it => {
-                    const m = inventoryList.find(x => x.materialId === it.materialId);
-                    return (
-                      <tr key={it.materialId}>
-                        <td className="px-4 py-3 text-gray-900">{m?.materialCode} - {m?.materialName}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-gray-900">{it.quantity}</td>
-                        <td className="px-4 py-3 text-center">
-                          <button type="button" className="text-red-500 hover:underline" onClick={() => handleRemoveItem(it.materialId)}>Xóa</button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+          <h4 className="font-semibold text-sm">
+            Danh sách vật tư giảm tồn {incident ? '(Được trích xuất từ sự cố)' : '(Chỉ những vật tư đang có tồn kho)'}
+          </h4>
+          {!incident && (
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <FormItem label="Vật tư">
+                  <select 
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={selectedMaterialId}
+                    onChange={e => {
+                      setSelectedMaterialId(Number(e.target.value));
+                      setSelectedQuantity('');
+                    }}
+                  >
+                    <option value="">-- Chọn vật tư --</option>
+                    {inventoryList.map(inv => (
+                      <option key={inv.materialId} value={inv.materialId}>
+                        [{inv.materialCode}] {inv.materialName} (Tồn: {inv.quantity} {inv.unitName})
+                      </option>
+                    ))}
+                  </select>
+                </FormItem>
+              </div>
+              <div className="w-32">
+                <FormItem label="Số lượng giảm">
+                  <input 
+                    type="number" 
+                    min="0.01" 
+                    step="0.01"
+                    className="w-full px-3 py-2 border rounded-lg" 
+                    value={selectedQuantity} 
+                    onChange={e => setSelectedQuantity(Number(e.target.value))} 
+                  />
+                </FormItem>
+              </div>
+              <Button type="button" onClick={handleAddItem} disabled={!selectedMaterialId || !selectedQuantity} className="h-[42px]">
+                Thêm
+              </Button>
             </div>
           )}
+
+          <div className="mt-3 bg-white rounded-2xl border border-gray-800 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100 text-gray-600 text-xs uppercase">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Mã VT</th>
+                  <th className="px-4 py-3 text-left font-medium">Tên vật tư</th>
+                  <th className="px-4 py-3 text-center font-medium">S.Lượng Giảm</th>
+                  {!incident && <th className="px-4 py-3 text-center font-medium w-16">Thao tác</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {items.map(item => {
+                  const invItem = inventoryList.find(x => x.materialId === item.materialId);
+                  return (
+                    <tr key={item.materialId}>
+                      <td className="px-4 py-3 text-gray-500">{invItem?.materialCode}</td>
+                      <td className="px-4 py-3 text-gray-900">{invItem?.materialName}</td>
+                      <td className="px-4 py-3 text-center font-semibold text-red-600">-{item.quantity} {invItem?.unitName}</td>
+                      {!incident && (
+                        <td className="px-4 py-3 text-center">
+                          <button type="button" className="text-red-500 hover:text-red-700" onClick={() => handleRemoveItem(item.materialId)}>
+                            Xóa
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+                {items.length === 0 && (
+                  <tr>
+                    <td colSpan={!incident ? 4 : 3} className="text-center text-gray-500 py-3">Chưa có vật tư nào</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 mt-4">

@@ -50,12 +50,14 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ICurrentUserService _currentUserService;
+    private readonly INotificationService _notificationService;
 
-    public CreateAndAssessIncidentCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService)
+    public CreateAndAssessIncidentCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService, INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _currentUserService = currentUserService;
+        _notificationService = notificationService;
     }
 
     public async Task<ApiResponse<IncidentDto>> Handle(CreateAndAssessIncidentCommand request, CancellationToken cancellationToken)
@@ -136,6 +138,27 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             .Include(i => i.Reporter)
             .Include(i => i.Reviewer)
             .FirstOrDefaultAsync(i => i.IncidentId == incident.IncidentId, cancellationToken);
+
+        if (isInventoryIncident)
+        {
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.Accountant,
+                "Báo cáo sự cố mới",
+                $"Có một sự cố vật tư mới tại dự án {project.Name} đang chờ kế toán xác minh.",
+                "IncidentReported",
+                $"/projects/{project.ProjectId}/workspace/incidents"
+            );
+        }
+        else
+        {
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.TechnicalManager,
+                "Báo cáo sự cố mới",
+                $"Có một sự cố thi công mới tại dự án {project.Name} đang chờ Trưởng phòng Kỹ thuật thẩm định.",
+                "IncidentReported",
+                $"/projects/{project.ProjectId}/workspace/incidents"
+            );
+        }
 
         var dto = _mapper.Map<IncidentDto>(incident);
 

@@ -34,8 +34,21 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPut("{id}/confirm")]
-    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin},{UserRole.Accountant}")]
+    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin},{UserRole.Accountant},{UserRole.Director}")]
     public async Task<IActionResult> ConfirmIncident(long id, [FromBody] ConfirmIncidentCommand command, CancellationToken ct)
+    {
+        if (id != command.IncidentId)
+        {
+            return ApiBadRequest("Id mismatch");
+        }
+
+        var result = await Mediator.Send(command, ct);
+        return ApiOk(result.Data, result.Message);
+    }
+
+    [HttpPut("{id}/reject")]
+    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin},{UserRole.Accountant},{UserRole.Director}")]
+    public async Task<IActionResult> RejectIncident(long id, [FromBody] BPG.Application.Features.Incidents.Commands.RejectIncident.RejectIncidentCommand command, CancellationToken ct)
     {
         if (id != command.IncidentId)
         {

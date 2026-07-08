@@ -69,5 +69,10 @@ export const incidentService = {
   ): Promise<IncidentDto> {
     const response = await apiClient.put<ApiResponse<IncidentDto>>(`/incidents/${id}/confirm`, data);
     return response.data;
+  },
+
+  async rejectIncident(id: number, reason: string): Promise<IncidentDto> {
+    const response = await apiClient.put<ApiResponse<IncidentDto>>(`/incidents/${id}/reject`, { incidentId: id, reason });
+    return response.data;
   }
 };
