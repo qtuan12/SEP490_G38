@@ -236,7 +236,7 @@ export const PhaseAcceptance: React.FC = () => {
               </h3>
               <div className={`space-y-1 text-sm ${historicalAcceptance.isCancelled ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
                 <p><span className="font-medium">Người lập:</span> {historicalAcceptance.acceptedByName}</p>
-                <p><span className="font-medium">Ngày lập:</span> {new Date(historicalAcceptance.acceptanceDate).toLocaleString('vi-VN')}</p>
+                <p><span className="font-medium">Ngày lập:</span> {formatDate(historicalAcceptance.acceptanceDate)}</p>
                 {historicalAcceptance.isCancelled && (
                   <>
                     <p><span className="font-medium">Người hủy:</span> {historicalAcceptance.cancelledByName}</p>

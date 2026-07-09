@@ -8,6 +8,7 @@ import { ResubmitMaterialRequestModal } from '../MaterialRequests/modals/Resubmi
 import { Plus, ArrowLeft, ClipboardList, Package, Calendar, User as UserIcon, FileText, AlertTriangle, Menu, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../components/ui/Modal';
+import { formatDate } from '../../utils/dateHelpers';
 
 export const PhaseMaterialRequests: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -173,7 +174,7 @@ export const PhaseMaterialRequests: React.FC = () => {
                     {getStatusBadge(req.status)}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', marginBottom: '6px' }}>
-                    <Calendar size={14} /> {req.date}
+                    <Calendar size={14} /> {formatDate(req.date)}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>
                     <Package size={14} /> {req.items.length} loại vật tư
@@ -194,7 +195,7 @@ export const PhaseMaterialRequests: React.FC = () => {
                   <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem' }}>Chi tiết Yêu cầu Vật tư</h3>
                   <div style={{ display: 'flex', gap: '16px', color: 'hsl(var(--text-secondary))', fontSize: '0.9rem' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><UserIcon size={16} /> {selectedRequest.requesterName}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={16} /> {selectedRequest.date}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={16} /> {formatDate(selectedRequest.date)}</span>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

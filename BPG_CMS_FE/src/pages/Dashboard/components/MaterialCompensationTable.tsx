@@ -2,6 +2,7 @@ import React from 'react';
 import { Boxes, CheckCircle, XCircle, FileCheck2 } from 'lucide-react';
 import type {MaterialRequest} from '../../../types/common';
 import { Badge, Button } from '../../../components/ui';
+import { formatDate } from '../../../utils/dateHelpers';
 
 interface MaterialCompensationTableProps {
   materialRequests: MaterialRequest[];
@@ -83,7 +84,7 @@ export const MaterialCompensationTable: React.FC<MaterialCompensationTableProps>
                 
                 return (
                   <tr key={req.id} className="hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors">
-                    <td className="whitespace-nowrap text-sm">{req.date}</td>
+                    <td className="whitespace-nowrap text-sm">{formatDate(req.date)}</td>
                     <td><strong className="text-[0.85rem] font-semibold">{req.taskName || req.phaseName || 'N/A'}</strong></td>
                     <td className="text-sm">{req.requesterName}</td>
                     <td>
