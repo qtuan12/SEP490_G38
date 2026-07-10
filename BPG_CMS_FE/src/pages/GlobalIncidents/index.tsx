@@ -150,9 +150,11 @@ export const GlobalIncidents: React.FC = () => {
     loadData();
   });
 
-  const handleSuccess = (msg: string) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(null), 3000);
+  const handleSuccess = (msg?: string) => {
+    if (msg) {
+      setSuccess(msg);
+      setTimeout(() => setSuccess(null), 3000);
+    }
     loadData();
   };
 

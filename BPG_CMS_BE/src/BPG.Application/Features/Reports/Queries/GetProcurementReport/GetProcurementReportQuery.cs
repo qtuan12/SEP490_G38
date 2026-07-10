@@ -27,10 +27,10 @@ public class GetProcurementReportQueryHandler
             .Query()
             .Include(p => p.Supplier)
             .Include(p => p.Items)
-            .Include(p => p.Request).ThenInclude(r => r.Phase)
+            .Include(p => p.Request).ThenInclude(r => r!.Phase)
             .Where(p =>
                 (p.ProjectId == request.ProjectId) ||
-                (p.Request != null && p.Request.Phase.ProjectId == request.ProjectId))
+                (p.Request != null && p.Request.Phase!.ProjectId == request.ProjectId))
             .OrderByDescending(p => p.OrderDate)
             .ToListAsync(cancellationToken);
 

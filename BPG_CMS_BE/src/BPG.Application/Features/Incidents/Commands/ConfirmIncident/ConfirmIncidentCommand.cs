@@ -233,7 +233,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             .Query()
             .Include(i => i.Reporter)
             .Include(i => i.Reviewer)
-            .FirstOrDefaultAsync(i => i.IncidentId == request.IncidentId, cancellationToken);
+            .FirstOrDefaultAsync(i => i.IncidentId == request.IncidentId, cancellationToken)
+            ?? throw new NotFoundException(nameof(Incident), request.IncidentId);
 
         // Realtime: broadcast to all members currently viewing this project
         await _realtimeSender.SendToGroupAsync(

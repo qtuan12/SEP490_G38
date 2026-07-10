@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Shield, Loader2, CheckCircle, Clock, AlertTriangle, AlertCircle, TrendingUp, ChevronRight } from 'lucide-react';
+import { Loader2, CheckCircle, Clock, AlertTriangle, AlertCircle, TrendingUp, ChevronRight } from 'lucide-react';
 import { reportService, type ExecutiveDashboardDto } from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useNavigate } from 'react-router-dom';

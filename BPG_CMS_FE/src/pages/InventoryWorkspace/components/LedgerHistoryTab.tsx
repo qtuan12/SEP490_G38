@@ -140,7 +140,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
                   <th className="px-4 py-3">Ngày giờ</th>
                   <th className="px-4 py-3">Mã vật tư</th>
                   <th className="px-4 py-3">Vật tư</th>
-
+                  <th className="px-4 py-3 text-center">Loại giao dịch</th>
                   <th className="px-4 py-3 text-right">Lượng thay đổi</th>
                   <th className="px-4 py-3 text-right">Tồn sau GD</th>
                   <th className="px-4 py-3">Người thực hiện</th>

@@ -139,7 +139,8 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             .Query()
             .Include(i => i.Reporter)
             .Include(i => i.Reviewer)
-            .FirstOrDefaultAsync(i => i.IncidentId == incident.IncidentId, cancellationToken);
+            .FirstOrDefaultAsync(i => i.IncidentId == incident.IncidentId, cancellationToken)
+            ?? throw new NotFoundException(nameof(Incident), incident.IncidentId);
 
         if (isInventoryIncident)
         {

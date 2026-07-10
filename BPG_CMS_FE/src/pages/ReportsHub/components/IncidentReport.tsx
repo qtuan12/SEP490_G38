@@ -1,18 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, AlertOctagon, CheckCircle, AlertTriangle, Wrench, Construction } from 'lucide-react';
-import { reportService, type IncidentReportDto, type IncidentSummaryDto } from '../../../services/reportService';
+import { reportService, type IncidentReportDto } from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface Props {
   projectId: string | null;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  Reported: 'hsl(var(--warning))',
-  UnderReview: 'hsl(var(--primary))',
-  Resolved: 'hsl(var(--success))',
-  Closed: 'hsl(var(--text-muted))',
-};
 
 const STATUS_LABELS: Record<string, string> = {
   Reported: 'Đã báo cáo',

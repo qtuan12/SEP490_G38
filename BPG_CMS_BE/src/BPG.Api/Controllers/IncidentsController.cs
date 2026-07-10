@@ -30,7 +30,7 @@ public class IncidentsController : BaseApiController
     public async Task<IActionResult> CreateAndAssessIncident([FromBody] CreateAndAssessIncidentCommand command, CancellationToken ct)
     {
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result.Data, result.Message);
+        return ApiOk(result.Data, result.Message ?? "Success");
     }
 
     [HttpPut("{id}/confirm")]
@@ -43,7 +43,7 @@ public class IncidentsController : BaseApiController
         }
 
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result.Data, result.Message);
+        return ApiOk(result.Data, result.Message ?? "Success");
     }
 
     [HttpPut("{id}/reject")]
@@ -56,6 +56,6 @@ public class IncidentsController : BaseApiController
         }
 
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result.Data, result.Message);
+        return ApiOk(result.Data, result.Message ?? "Success");
     }
 }

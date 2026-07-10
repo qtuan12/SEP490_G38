@@ -47,7 +47,7 @@ public class AssignProjectLeaderCommandHandler : IRequestHandler<AssignProjectLe
         _uow.Repository<ProjectMember>().UpdateRange(members);
         await _uow.SaveChangesAsync(cancellationToken);
 
-        await _notificationSender.SendToGroupAsync($"Project_{request.ProjectId}", "ProjectLeaderUpdated", null, cancellationToken);
+        await _notificationSender.SendToGroupAsync($"Project_{request.ProjectId}", "ProjectLeaderUpdated", null!, cancellationToken);
 
         // Nếu gán leader mới (không phải hủy), gửi thông báo cá nhân cho người đó
         if (!wasLeader)

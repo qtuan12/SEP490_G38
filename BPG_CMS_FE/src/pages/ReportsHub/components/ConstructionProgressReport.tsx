@@ -140,7 +140,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId }) => {
                   labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
                   cursor={{ fill: 'hsl(var(--bg-main))' }}
                 />
-                <Bar dataKey="progress" radius={[0, 4, 4, 0]} barSize={20} label={{ position: 'right', formatter: (v: number) => `${v}%`, fontSize: 11 }}>
+                <Bar dataKey="progress" radius={[0, 4, 4, 0]} barSize={20} label={{ position: 'right', formatter: (v: any) => `${v}%`, fontSize: 11 }}>
                   {phaseChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={getPhaseBarColor(entry.status)} />
                   ))}

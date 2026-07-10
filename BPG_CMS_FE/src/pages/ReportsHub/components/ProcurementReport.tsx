@@ -93,7 +93,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId }) => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-35} textAnchor="end" />
                   <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} />
-                  <RechartsTooltip formatter={(value: number) => [formatCurrency(value), 'Giá trị']} cursor={{ fill: 'hsl(var(--bg-main))' }} />
+                  <RechartsTooltip formatter={(value: any) => [formatCurrency(Number(value || 0)), 'Giá trị']} cursor={{ fill: 'hsl(var(--bg-main))' }} />
                   <Legend verticalAlign="top" height={36} />
                   <Bar dataKey="po" name="PO Đã duyệt" stackId="a" fill="hsl(var(--primary))" maxBarSize={60} />
                   <Bar dataKey="dp" name="Mua trực tiếp (khẩn cấp)" stackId="a" fill="hsl(var(--danger))" maxBarSize={60} radius={[4, 4, 0, 0]} />
@@ -167,7 +167,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId }) => {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} />
-                <RechartsTooltip formatter={(value: number) => [formatCurrency(value), 'Giá trị']} cursor={{ fill: 'hsl(var(--bg-main))' }} />
+                <RechartsTooltip formatter={(value: any) => [formatCurrency(Number(value || 0)), 'Giá trị']} cursor={{ fill: 'hsl(var(--bg-main))' }} />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={100}>
                   {[{ color: 'hsl(var(--primary))' }, { color: 'hsl(var(--danger))' }].map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />

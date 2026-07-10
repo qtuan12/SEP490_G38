@@ -64,7 +64,8 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
             .Query()
             .Include(i => i.Reporter)
             .Include(i => i.Reviewer)
-            .FirstOrDefaultAsync(i => i.IncidentId == request.IncidentId, cancellationToken);
+            .FirstOrDefaultAsync(i => i.IncidentId == request.IncidentId, cancellationToken)
+            ?? throw new NotFoundException(nameof(Incident), request.IncidentId);
 
         await _notificationService.SendNotificationAsync(
             incident.ReportedBy,

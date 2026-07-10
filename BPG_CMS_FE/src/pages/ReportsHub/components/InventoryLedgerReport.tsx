@@ -195,7 +195,6 @@ export const InventoryLedgerReport: React.FC<Props> = ({ projectId }) => {
               </thead>
               <tbody className="divide-y divide-[hsl(var(--border))]">
                 {filteredTransactions.map(tx => {
-                  const typeInfo = getTypeInfo(tx.referenceType);
                   const isPositive = tx.quantityChange > 0;
                   return (
                     <tr key={tx.transactionId} className="hover:bg-[hsl(var(--bg-main))] transition-colors">

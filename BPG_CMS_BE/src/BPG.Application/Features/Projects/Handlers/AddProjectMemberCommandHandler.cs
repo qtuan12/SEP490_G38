@@ -76,7 +76,7 @@ public class AddProjectMemberCommandHandler : IRequestHandler<AddProjectMemberCo
         await _realtimeSender.SendToGroupAsync(
             $"Project_{request.ProjectId}",
             "ProjectMemberAdded",
-            null,
+            null!,
             cancellationToken);
 
         // Personal notification to the newly added engineer
