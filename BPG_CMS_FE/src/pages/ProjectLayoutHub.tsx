@@ -499,7 +499,7 @@ export const ProjectLayoutHub: React.FC = () => {
           }}
         >
           <ShoppingCart size={18} />
-          <span>Đơn hàng PO</span>
+          <span>Đơn hàng</span>
         </button>
 
         {(isAccountant || isAssignedLeader) && (

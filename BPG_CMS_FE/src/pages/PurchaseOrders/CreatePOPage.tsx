@@ -34,7 +34,6 @@ export const CreatePOPage: React.FC = () => {
   // Header state
   const [projectId, setProjectId] = useState(0);
   const [selectedRequestId, setSelectedRequestId] = useState(0);
-  const [poNumber, setPONumber] = useState('');
   const [orderDate, setOrderDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [supplierId, setSupplierId] = useState(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -44,6 +43,8 @@ export const CreatePOPage: React.FC = () => {
   // Item table
   const [items, setItems] = useState<POItem[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+  const [orderDateError, setOrderDateError] = useState<string | null>(null);
+  const [deliveryDateError, setDeliveryDateError] = useState<string | null>(null);
 
   // Fetch data
   const { data: projectList = [] } = useQuery({
@@ -78,9 +79,11 @@ export const CreatePOPage: React.FC = () => {
     }
     const merged: Record<number, POItem> = {};
     for (const ri of req.items) {
+      // Bỏ qua vật tư đã đặt đủ qua các PO trước (số lượng còn lại = 0)
+      if (ri.remainingQuantity <= 0) continue;
       if (merged[ri.materialId]) {
-        merged[ri.materialId].maxQuantity += ri.quantity;
-        merged[ri.materialId].quantity += ri.quantity;
+        merged[ri.materialId].maxQuantity += ri.remainingQuantity;
+        merged[ri.materialId].quantity += ri.remainingQuantity;
       } else {
         merged[ri.materialId] = {
           materialId: ri.materialId,
@@ -89,10 +92,10 @@ export const CreatePOPage: React.FC = () => {
           specification: ri.specification,
           unitId: ri.unitId,
           unitName: ri.unitName,
-          quantity: ri.quantity,
+          quantity: ri.remainingQuantity,
           unitPrice: 0,
           notes: '',
-          maxQuantity: ri.quantity,
+          maxQuantity: ri.remainingQuantity,
         };
       }
     }
@@ -110,7 +113,6 @@ export const CreatePOPage: React.FC = () => {
   const mutation = useMutation({
     mutationFn: () =>
       inventoryService.createPurchaseOrder({
-        poNumber: poNumber.trim() || undefined,
         orderDate,
         supplierId: supplierId > 0 ? supplierId : undefined,
         projectId,
@@ -130,11 +132,25 @@ export const CreatePOPage: React.FC = () => {
       toast.success('Tạo đơn mua hàng thành công!');
       navigate('/purchase-orders');
     },
-    onError: (err: any) => setFormError(err.message || 'Tạo PO thất bại.'),
+    onError: (err: any) => {
+      const msg = err.message || 'Tạo đơn hàng thất bại.';
+      // Hiện popup ở giữa (trên) màn hình để không bị bỏ sót lỗi
+      toast.error(msg, { position: 'top-center' });
+      // Đồng thời gắn lỗi ngay dưới trường liên quan nếu nhận diện được
+      if (msg.includes('Ngày đơn hàng')) {
+        setOrderDateError(msg);
+      } else if (msg.includes('Hạn giao hàng') || msg.includes('giao hàng')) {
+        setDeliveryDateError(msg);
+      } else {
+        setFormError(msg);
+      }
+    },
   });
 
   const handleSubmit = () => {
     setFormError(null);
+    setOrderDateError(null);
+    setDeliveryDateError(null);
     if (!projectId) return setFormError('Vui lòng chọn dự án.');
     if (!supplierId) return setFormError('Vui lòng chọn nhà cung cấp.');
     if (!selectedRequestId) return setFormError('Vui lòng chọn một yêu cầu vật tư.');
@@ -167,7 +183,7 @@ export const CreatePOPage: React.FC = () => {
         </Link>
         <ShoppingCart size={22} style={{ color: 'hsl(var(--primary))' }} />
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
-          Tạo Đơn Mua Hàng (PO)
+          Tạo Đơn Hàng
         </h2>
       </div>
 
@@ -182,15 +198,22 @@ export const CreatePOPage: React.FC = () => {
         </div>
       )}
 
-      {/* PO Header */}
+      {/* Đơn hàng Header */}
       <div className="glass-panel p-6">
-        <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>Thông tin PO</h3>
+        <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>Thông tin đơn hàng</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px 20px' }}>
           <div>
             <label style={label}>Dự án <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
             <Select
               value={projectId.toString()}
-              onChange={(e) => { setProjectId(Number(e.target.value)); setSelectedRequestId(0); }}
+              onChange={(e) => {
+                const pid = Number(e.target.value);
+                setProjectId(pid);
+                setSelectedRequestId(0);
+                // Tự động điền địa điểm giao hàng từ địa chỉ dự án
+                const proj = projectList.find((p) => String(p.id) === String(pid));
+                setDeliveryAddress(proj?.address ?? '');
+              }}
               options={[
                 { label: '-- Chọn dự án --', value: '0' },
                 ...projectList.map((p) => ({ label: p.name, value: p.id })),
@@ -199,12 +222,17 @@ export const CreatePOPage: React.FC = () => {
             />
           </div>
           <div>
-            <label style={label}>Mã PO (để trống = tự sinh)</label>
-            <Input value={poNumber} onChange={(e) => setPONumber(e.target.value)} placeholder="VD: PO-20260701-0001" className="h-10" />
-          </div>
-          <div>
-            <label style={label}>Ngày PO <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-            <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="h-10" />
+            <label style={label}>Ngày đơn hàng <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+            <Input
+              type="date"
+              value={orderDate}
+              onChange={(e) => { setOrderDate(e.target.value); setOrderDateError(null); }}
+              className="h-10"
+              style={orderDateError ? { borderColor: 'hsl(var(--danger))' } : undefined}
+            />
+            {orderDateError && (
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{orderDateError}</p>
+            )}
           </div>
           <div>
             <label style={label}>Nhà cung cấp <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
@@ -220,10 +248,19 @@ export const CreatePOPage: React.FC = () => {
           </div>
           <div>
             <label style={label}>Hạn giao hàng</label>
-            <Input type="date" value={expectedDeliveryDate} onChange={(e) => setExpectedDeliveryDate(e.target.value)} className="h-10" />
+            <Input
+              type="date"
+              value={expectedDeliveryDate}
+              onChange={(e) => { setExpectedDeliveryDate(e.target.value); setDeliveryDateError(null); }}
+              className="h-10"
+              style={deliveryDateError ? { borderColor: 'hsl(var(--danger))' } : undefined}
+            />
+            {deliveryDateError && (
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{deliveryDateError}</p>
+            )}
           </div>
           <div>
-            <label style={label}>Địa điểm giao hàng</label>
+            <label style={label}>Địa điểm giao hàng <span style={{ fontWeight: 400, color: 'hsl(var(--text-muted))' }}>(theo địa chỉ dự án)</span></label>
             <Input value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} placeholder="Địa chỉ nhận hàng" className="h-10" />
           </div>
           <div>
@@ -279,7 +316,7 @@ export const CreatePOPage: React.FC = () => {
                             background: 'hsl(142 70% 40% / 0.12)', padding: '2px 8px', borderRadius: 999,
                             display: 'inline-flex', alignItems: 'center', gap: 3,
                           }}>
-                            <CheckCircle2 size={11} /> Đã có PO
+                            <CheckCircle2 size={11} /> Đã có đơn hàng
                           </span>
                         )}
                       </div>
@@ -298,6 +335,18 @@ export const CreatePOPage: React.FC = () => {
         </div>
       )}
 
+      {/* Đã đặt đủ số lượng */}
+      {selectedRequestId > 0 && items.length === 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'hsl(var(--warning) / 0.1)', border: '1px solid hsl(var(--warning) / 0.3)',
+          borderRadius: 6, padding: '12px 16px', color: 'hsl(var(--warning))', fontSize: 14,
+        }}>
+          <AlertCircle size={16} style={{ flexShrink: 0 }} />
+          <span>Yêu cầu này đã được đặt đủ số lượng qua các đơn hàng trước, không còn vật tư nào để tạo đơn hàng mới.</span>
+        </div>
+      )}
+
       {/* Items table */}
       {items.length > 0 && (
         <div className="glass-panel p-6">
@@ -308,7 +357,7 @@ export const CreatePOPage: React.FC = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid hsl(var(--border))' }}>
-                  {['STT', 'Mã VT', 'Tên vật tư', 'ĐVT', 'SL y/cầu', 'SL đặt *', 'Đơn giá (VND) *', 'Thành tiền', 'Ghi chú', ''].map((h) => (
+                  {['STT', 'Mã VT', 'Tên vật tư', 'ĐVT', 'SL còn lại', 'SL đặt *', 'Đơn giá (VND) *', 'Thành tiền', 'Ghi chú', ''].map((h) => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: 'hsl(var(--text-muted))', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -331,7 +380,8 @@ export const CreatePOPage: React.FC = () => {
                     </td>
                     <td style={{ padding: '8px 10px' }}>
                       <Input type="number" min={0} step={1000}
-                        value={it.unitPrice} onChange={(e) => updateItem(idx, 'unitPrice', Number(e.target.value))}
+                        value={it.unitPrice === 0 ? '' : it.unitPrice}
+                        onChange={(e) => updateItem(idx, 'unitPrice', e.target.value === '' ? 0 : Number(e.target.value))}
                         className="h-8" style={{ width: 120 }} />
                     </td>
                     <td style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap', color: 'hsl(var(--text-primary))' }}>
@@ -373,7 +423,7 @@ export const CreatePOPage: React.FC = () => {
           Hủy
         </Link>
         <Button type="button" variant="primary" disabled={mutation.isPending} className="font-semibold" onClick={handleSubmit}>
-          {mutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Đang lưu...</> : <><Plus size={16} /> Tạo PO</>}
+          {mutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Đang lưu...</> : <><Plus size={16} /> Tạo đơn hàng</>}
         </Button>
       </div>
     </div>

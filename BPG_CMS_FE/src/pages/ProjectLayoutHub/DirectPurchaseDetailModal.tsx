@@ -147,7 +147,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({ isOpen, onClose, on
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {detail.autoPONumber && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'hsl(var(--primary-glow))', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'hsl(var(--primary))' }}>
-                  <FileText size={13} /> PO: {detail.autoPONumber}
+                  <FileText size={13} /> Đơn hàng: {detail.autoPONumber}
                 </span>
               )}
               {detail.autoReceiptNo && (

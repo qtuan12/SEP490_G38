@@ -71,7 +71,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const columns = [
     {
       key: 'poNumber',
-      header: 'Số PO',
+      header: 'Số đơn hàng',
       render: (po: PurchaseOrderDto) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ padding: 4, background: 'hsl(var(--primary-glow))', borderRadius: 4, border: '1px solid hsl(var(--border))' }}>

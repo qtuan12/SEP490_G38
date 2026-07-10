@@ -46,7 +46,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Kiểm kê vật tư', path: '/inventory-adjustments', icon: <FileSignature size={20} />, roles: ['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer'] },
     { name: 'Sự cố thi công', path: '/incidents', icon: <AlertTriangle size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
     { name: 'Kiểm soát Vật tư', path: '/materials-control', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
-    { name: 'Danh sách PO', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: ['accountant', 'admin'] },
+    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: ['accountant', 'admin'] },
     { name: 'Báo cáo', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant'] },
     { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, roles: ['admin'] },
   ];

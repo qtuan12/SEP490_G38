@@ -175,7 +175,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         {/* Info banner */}
         <div style={{ display: 'flex', gap: '8px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', border: '1px solid hsl(var(--warning) / 0.3)', borderRadius: 'var(--radius-sm)', color: 'hsl(var(--warning))', fontSize: '0.85rem' }}>
           <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
-          <span>Hệ thống sẽ tự động sinh PO và Phiếu nhập kho. Tồn kho ảo tăng ngay để thợ sử dụng. Chỉ áp dụng vật tư trong định mức BOQ.</span>
+          <span>Hệ thống sẽ tự động sinh Đơn hàng và Phiếu nhập kho. Tồn kho ảo tăng ngay để thợ sử dụng. Chỉ áp dụng vật tư trong định mức BOQ.</span>
         </div>
 
         {/* Row 1: Phase + Date */}
