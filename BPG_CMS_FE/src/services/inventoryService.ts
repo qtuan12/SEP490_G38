@@ -49,7 +49,7 @@ export interface CreatePurchaseOrderCommand {
   deliveryAddress?: string;
   paymentTerms?: string;
   notes?: string;
-  requestIds: number[];
+  requestId: number;
   items: CreatePOItemDto[];
 }
 

@@ -57,12 +57,14 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
                          && r.Status == MaterialRequestStatus.Approved)
                 .ToListAsync(cancellationToken);
 
-            // Check which requests already have a PO via junction table
+            // Check which requests already have a (non-cancelled) PO via RequestId column
             var requestIds = requests.Select(r => r.RequestId).ToList();
-            var linkedRequestIds = await _uow.Repository<PurchaseOrderRequest>().Query()
+            var linkedRequestIds = await _uow.Repository<PurchaseOrder>().Query()
                 .AsNoTracking()
-                .Where(por => requestIds.Contains(por.RequestId))
-                .Select(por => por.RequestId)
+                .Where(po => po.RequestId != null
+                          && requestIds.Contains(po.RequestId.Value)
+                          && po.Status != PurchaseOrderStatus.Cancelled)
+                .Select(po => po.RequestId!.Value)
                 .Distinct()
                 .ToListAsync(cancellationToken);
 

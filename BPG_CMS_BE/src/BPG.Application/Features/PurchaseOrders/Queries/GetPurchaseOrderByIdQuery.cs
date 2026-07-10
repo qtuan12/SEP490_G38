@@ -73,8 +73,7 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
                 .Include(p => p.Supplier)
                 .Include(p => p.Items).ThenInclude(i => i.Material)
                 .Include(p => p.Items).ThenInclude(i => i.Unit)
-                .Include(p => p.RequestLinks).ThenInclude(rl => rl.MaterialRequest)
-                    .ThenInclude(mr => mr.Phase)
+                .Include(p => p.Request).ThenInclude(mr => mr!.Phase)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
                 ?? throw new NotFoundException(nameof(PurchaseOrder), request.POId);
 
@@ -138,12 +137,17 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
                         Notes = i.Notes
                     };
                 }).ToList(),
-                LinkedRequests = po.RequestLinks.Select(rl => new LinkedRequestDto
-                {
-                    RequestId = rl.RequestId,
-                    Reason = rl.MaterialRequest.Reason,
-                    PhaseName = rl.MaterialRequest.Phase?.Name ?? string.Empty
-                }).ToList()
+                LinkedRequests = po.Request == null
+                    ? new List<LinkedRequestDto>()
+                    : new List<LinkedRequestDto>
+                    {
+                        new LinkedRequestDto
+                        {
+                            RequestId = po.Request.RequestId,
+                            Reason = po.Request.Reason,
+                            PhaseName = po.Request.Phase?.Name ?? string.Empty
+                        }
+                    }
             };
 
             return ApiResponse<PurchaseOrderDetailDto>.SuccessResult(dto);

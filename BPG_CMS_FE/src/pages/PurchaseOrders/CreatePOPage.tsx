@@ -33,7 +33,7 @@ export const CreatePOPage: React.FC = () => {
 
   // Header state
   const [projectId, setProjectId] = useState(0);
-  const [selectedRequestIds, setSelectedRequestIds] = useState<number[]>([]);
+  const [selectedRequestId, setSelectedRequestId] = useState(0);
   const [poNumber, setPONumber] = useState('');
   const [orderDate, setOrderDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [supplierId, setSupplierId] = useState(0);
@@ -65,37 +65,39 @@ export const CreatePOPage: React.FC = () => {
   // tránh [] mới mỗi render gây infinite re-render loop trong useEffect bên dưới
   const approvedRequests = useMemo(() => approvedRequestsData ?? [], [approvedRequestsData]);
 
-  // Merge items when request selection changes
+  // Load items when the selected request changes
   useEffect(() => {
-    if (selectedRequestIds.length === 0) {
+    if (!selectedRequestId) {
       setItems((prev) => (prev.length === 0 ? prev : []));
       return;
     }
-    const selectedReqs = approvedRequests.filter((r) => selectedRequestIds.includes(r.requestId));
+    const req = approvedRequests.find((r) => r.requestId === selectedRequestId);
+    if (!req) {
+      setItems((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
     const merged: Record<number, POItem> = {};
-    for (const req of selectedReqs) {
-      for (const ri of req.items) {
-        if (merged[ri.materialId]) {
-          merged[ri.materialId].maxQuantity += ri.quantity;
-          merged[ri.materialId].quantity += ri.quantity;
-        } else {
-          merged[ri.materialId] = {
-            materialId: ri.materialId,
-            materialCode: ri.materialCode,
-            materialName: ri.materialName,
-            specification: ri.specification,
-            unitId: ri.unitId,
-            unitName: ri.unitName,
-            quantity: ri.quantity,
-            unitPrice: 0,
-            notes: '',
-            maxQuantity: ri.quantity,
-          };
-        }
+    for (const ri of req.items) {
+      if (merged[ri.materialId]) {
+        merged[ri.materialId].maxQuantity += ri.quantity;
+        merged[ri.materialId].quantity += ri.quantity;
+      } else {
+        merged[ri.materialId] = {
+          materialId: ri.materialId,
+          materialCode: ri.materialCode,
+          materialName: ri.materialName,
+          specification: ri.specification,
+          unitId: ri.unitId,
+          unitName: ri.unitName,
+          quantity: ri.quantity,
+          unitPrice: 0,
+          notes: '',
+          maxQuantity: ri.quantity,
+        };
       }
     }
     setItems(Object.values(merged));
-  }, [selectedRequestIds, approvedRequests]);
+  }, [selectedRequestId, approvedRequests]);
 
   const updateItem = (idx: number, field: keyof POItem, value: number | string) =>
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
@@ -115,7 +117,7 @@ export const CreatePOPage: React.FC = () => {
         expectedDeliveryDate: expectedDeliveryDate || undefined,
         deliveryAddress: deliveryAddress.trim() || undefined,
         notes: headerNotes.trim() || undefined,
-        requestIds: selectedRequestIds,
+        requestId: selectedRequestId,
         items: items.map((it) => ({
           materialId: it.materialId,
           unitId: it.unitId,
@@ -135,7 +137,7 @@ export const CreatePOPage: React.FC = () => {
     setFormError(null);
     if (!projectId) return setFormError('Vui lòng chọn dự án.');
     if (!supplierId) return setFormError('Vui lòng chọn nhà cung cấp.');
-    if (!selectedRequestIds.length) return setFormError('Vui lòng chọn ít nhất một yêu cầu vật tư.');
+    if (!selectedRequestId) return setFormError('Vui lòng chọn một yêu cầu vật tư.');
     if (!items.length) return setFormError('Không có dòng vật tư nào.');
     for (const it of items) {
       if (it.quantity <= 0) return setFormError(`Số lượng "${it.materialName}" phải lớn hơn 0.`);
@@ -145,8 +147,8 @@ export const CreatePOPage: React.FC = () => {
     mutation.mutate();
   };
 
-  const toggleRequest = (id: number) =>
-    setSelectedRequestIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const selectRequest = (id: number) =>
+    setSelectedRequestId((prev) => (prev === id ? 0 : id));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1120, margin: '0 auto' }}>
@@ -188,7 +190,7 @@ export const CreatePOPage: React.FC = () => {
             <label style={label}>Dự án <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
             <Select
               value={projectId.toString()}
-              onChange={(e) => { setProjectId(Number(e.target.value)); setSelectedRequestIds([]); }}
+              onChange={(e) => { setProjectId(Number(e.target.value)); setSelectedRequestId(0); }}
               options={[
                 { label: '-- Chọn dự án --', value: '0' },
                 ...projectList.map((p) => ({ label: p.name, value: p.id })),
@@ -235,7 +237,7 @@ export const CreatePOPage: React.FC = () => {
       {projectId > 0 && (
         <div className="glass-panel p-6">
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
-            Chọn yêu cầu vật tư đã duyệt
+            Chọn yêu cầu vật tư đã duyệt <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(mỗi đơn hàng thuộc một yêu cầu)</span>
           </h3>
           {loadingRequests ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'hsl(var(--text-muted))' }}>
@@ -248,7 +250,7 @@ export const CreatePOPage: React.FC = () => {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 10 }}>
               {approvedRequests.map((req) => {
-                const checked = selectedRequestIds.includes(req.requestId);
+                const checked = selectedRequestId === req.requestId;
                 return (
                   <label key={req.requestId} style={{
                     display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer',
@@ -258,7 +260,7 @@ export const CreatePOPage: React.FC = () => {
                     boxShadow: checked ? '0 0 0 1px hsl(var(--primary))' : 'none',
                     transition: 'all 0.15s',
                   }}>
-                    <input type="checkbox" checked={checked} onChange={() => toggleRequest(req.requestId)}
+                    <input type="radio" name="po-request" checked={checked} onChange={() => selectRequest(req.requestId)}
                       style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2, accentColor: 'hsl(var(--primary))', cursor: 'pointer' }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>

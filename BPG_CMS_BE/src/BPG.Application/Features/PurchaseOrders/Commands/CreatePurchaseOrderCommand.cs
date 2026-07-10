@@ -18,7 +18,7 @@ namespace BPG.Application.Features.PurchaseOrders.Commands
         public string? DeliveryAddress { get; init; }
         public string? PaymentTerms { get; init; }
         public string? Notes { get; init; }
-        public List<long> RequestIds { get; init; } = new();
+        public long RequestId { get; init; }
         public List<CreatePOItemDto> Items { get; init; } = new();
     }
 
@@ -38,7 +38,7 @@ namespace BPG.Application.Features.PurchaseOrders.Commands
         {
             RuleFor(x => x.ProjectId).GreaterThan(0);
             RuleFor(x => x.OrderDate).NotEmpty();
-            RuleFor(x => x.RequestIds).NotEmpty().WithMessage("Phải chọn ít nhất một yêu cầu vật tư.");
+            RuleFor(x => x.RequestId).GreaterThan(0).WithMessage("Phải chọn một yêu cầu vật tư.");
             RuleFor(x => x.Items).NotEmpty().WithMessage("Đơn hàng phải có ít nhất một dòng vật tư.");
             RuleFor(x => x.PONumber).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.PONumber));
             RuleForEach(x => x.Items).ChildRules(item =>
@@ -59,23 +59,18 @@ namespace BPG.Application.Features.PurchaseOrders.Commands
 
         public async Task<long> Handle(CreatePurchaseOrderCommand request, CancellationToken cancellationToken)
         {
-            // 1. Load and validate linked requests
-            var linkedRequests = await _uow.Repository<MaterialRequest>().Query()
+            // 1. Load and validate the linked request
+            var linkedRequest = await _uow.Repository<MaterialRequest>().Query()
                 .AsNoTracking()
                 .Include(r => r.Items)
-                .Where(r => request.RequestIds.Contains(r.RequestId))
-                .ToListAsync(cancellationToken);
+                .FirstOrDefaultAsync(r => r.RequestId == request.RequestId, cancellationToken)
+                ?? throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
 
-            if (linkedRequests.Count != request.RequestIds.Count)
-                throw new NotFoundException(nameof(MaterialRequest), 0);
-
-            var nonApproved = linkedRequests.Where(r => r.Status != MaterialRequestStatus.Approved).ToList();
-            if (nonApproved.Count != 0)
-                throw new BusinessException("ERR_REQUEST_NOT_APPROVED", "Một hoặc nhiều yêu cầu vật tư chưa được duyệt.");
+            if (linkedRequest.Status != MaterialRequestStatus.Approved)
+                throw new BusinessException("ERR_REQUEST_NOT_APPROVED", "Yêu cầu vật tư chưa được duyệt.");
 
             // 2. Validate quantities: PO qty ≤ total approved request qty per material
-            var maxQtyByMaterial = linkedRequests
-                .SelectMany(r => r.Items)
+            var maxQtyByMaterial = linkedRequest.Items
                 .GroupBy(i => i.MaterialId)
                 .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
 
@@ -108,6 +103,7 @@ namespace BPG.Application.Features.PurchaseOrders.Commands
             var po = new PurchaseOrder
             {
                 PONumber = poNumber,
+                RequestId = request.RequestId,
                 ProjectId = request.ProjectId,
                 SupplierId = request.SupplierId,
                 OrderDate = request.OrderDate,
@@ -136,10 +132,6 @@ namespace BPG.Application.Features.PurchaseOrders.Commands
             }).ToList();
 
             await _uow.Repository<PurchaseOrderItem>().AddRangeAsync(poItems, cancellationToken);
-
-            // 6. Link requests via junction table
-            var links = request.RequestIds.Select(rid => new PurchaseOrderRequest { POId = po.POId, RequestId = rid }).ToList();
-            await _uow.Repository<PurchaseOrderRequest>().AddRangeAsync(links, cancellationToken);
 
             await _uow.SaveChangesAsync(cancellationToken);
             return po.POId;
