@@ -20,7 +20,7 @@ const getAvatarColor = (userId: string) => {
 export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => {};
   const {
-    phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests, user,
+    project, phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests, user,
     expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -34,6 +34,8 @@ export const WBSTree = () => {
   } = useWBS();
   
   const navigate = useNavigate();
+
+  const canAction = canEdit && project?.status === 'inprogress';
 
   const menuItemStyle = {
     padding: '8px 12px',
@@ -117,7 +119,7 @@ export const WBSTree = () => {
                     >
                       {/* Order number + ▲▼ buttons */}
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: '18px' }}>
-                        {canEdit && (isHovered || isFirstPhase && isLastPhase) ? (
+                        {canAction && (isHovered || isFirstPhase && isLastPhase) ? (
                           <>
                             <button
                               onClick={e => { e.stopPropagation(); handleReorderPhase(ph.id, 'up'); }}
@@ -153,8 +155,8 @@ export const WBSTree = () => {
                       {/* Name */}
                       <div
                         style={{ flex: 1, minWidth: '100px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-                        title={canEdit && !isFrozen && phaseProgress === 0 ? "Double-click để chỉnh sửa" : ""}
-                        onDoubleClick={(e) => { e.stopPropagation(); if (canEdit && !isFrozen && phaseProgress === 0) { setSelectedPhaseForEdit(ph); setIsEditPhaseOpen(true); setPhaseMenuId(null); } }}
+                        title={canAction && !isFrozen && phaseProgress === 0 ? "Double-click để chỉnh sửa" : ""}
+                        onDoubleClick={(e) => { e.stopPropagation(); if (canAction && !isFrozen && phaseProgress === 0) { setSelectedPhaseForEdit(ph); setIsEditPhaseOpen(true); setPhaseMenuId(null); } }}
                       >
                         <span style={{ textOverflow: 'ellipsis', whiteSpace: isExpanded ? 'normal' : 'nowrap', color: isFrozen ? 'hsl(var(--text-muted))' : 'hsl(var(--text-primary))', textDecoration: isFrozen ? 'line-through' : 'none' }}>
                           {ph.name}
@@ -269,7 +271,7 @@ export const WBSTree = () => {
 
                             {showMenu && (
                               <div onClick={e => e.stopPropagation()} className="absolute top-[24px] z-[200] bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-md shadow-lg min-w-[160px] overflow-hidden left-0 sm:left-auto sm:right-0 py-1">
-                                {!isFrozen && phaseProgress === 0 && canEdit && (
+                                {!isFrozen && phaseProgress === 0 && canAction && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
@@ -300,7 +302,7 @@ export const WBSTree = () => {
                                     <span style={{ color: 'hsl(var(--warning-hover))' }}>Mua ngoài khẩn cấp Giai đoạn</span>
                                   </div>
                                 )}
-                                {!isFrozen && canEdit && (
+                                {!isFrozen && canAction && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
@@ -312,7 +314,7 @@ export const WBSTree = () => {
                                   </div>
                                 )}
 
-                                {!isFrozen && canEdit && (
+                                {!isFrozen && canAction && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
@@ -354,7 +356,7 @@ export const WBSTree = () => {
                                 )}
 
 
-                                {!isFrozen && canEdit && (
+                                {!isFrozen && canAction && (
                                   <div
                                     style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
@@ -436,7 +438,7 @@ export const WBSTree = () => {
                             >
                               {/* Task order number + ▲▼ */}
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: '16px' }} onClick={e => e.stopPropagation()}>
-                                {canEdit && !isFrozen && t.status !== 'obsolete' && isHoveredTask && !t.parentTaskId ? (
+                                {canAction && !isFrozen && t.status !== 'obsolete' && isHoveredTask && !t.parentTaskId ? (
                                   <>
                                     <button
                                       onClick={e => { e.stopPropagation(); handleReorderTask(ph.id, t.id, 'up'); }}
@@ -471,10 +473,10 @@ export const WBSTree = () => {
                               {/* Name */}
                               <div
                                 style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-                                title={isWorkedOn && t.status !== 'obsolete' ? 'Task đã có tiến độ — không thể chỉnh sửa. Dùng "Hủy việc" và tạo lại.' : canEdit && !isFrozen && t.status !== 'obsolete' ? 'Double-click để chỉnh sửa' : ''}
-                                onDoubleClick={e => { e.stopPropagation(); if (canEdit && !isFrozen && t.status !== 'obsolete' && !isWorkedOn) { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); } }}
+                                title={isWorkedOn && t.status !== 'obsolete' ? 'Task đã có tiến độ — không thể chỉnh sửa. Dùng "Hủy việc" và tạo lại.' : canAction && !isFrozen && t.status !== 'obsolete' ? 'Double-click để chỉnh sửa' : ''}
+                                onDoubleClick={e => { e.stopPropagation(); if (canAction && !isFrozen && t.status !== 'obsolete' && !isWorkedOn) { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); } }}
                               >
-                                <span style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', fontWeight: isSelected ? 600 : 500, color: t.status === 'obsolete' ? 'hsl(var(--text-muted))' : isSelected ? 'hsl(var(--primary-hover))' : 'hsl(var(--text-secondary))', textDecoration: (isFrozen || t.status === 'obsolete') ? 'line-through' : 'none', cursor: canEdit && !isFrozen && t.status !== 'obsolete' && !isWorkedOn ? 'pointer' : 'default' }}>
+                                <span style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', fontWeight: isSelected ? 600 : 500, color: t.status === 'obsolete' ? 'hsl(var(--text-muted))' : isSelected ? 'hsl(var(--primary-hover))' : 'hsl(var(--text-secondary))', textDecoration: (isFrozen || t.status === 'obsolete') ? 'line-through' : 'none', cursor: canAction && !isFrozen && t.status !== 'obsolete' && !isWorkedOn ? 'pointer' : 'default' }}>
                                   {t.name}
                                 </span>
                                 {t.description && (
@@ -566,23 +568,27 @@ export const WBSTree = () => {
 
                                     {showTaskMenu && (
                                       <div onClick={e => e.stopPropagation()} className="absolute top-[22px] z-[200] bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-md shadow-lg min-w-[155px] overflow-hidden left-0 sm:left-auto sm:right-0 py-1">
-                                        <div
-                                          style={menuItemStyle}
-                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); }}
-                                        >
-                                          <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Chỉnh sửa Công việc</span>
-                                        </div>
+                                        {canAction && (
+                                          <div
+                                            style={menuItemStyle}
+                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                            onClick={() => { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); }}
+                                          >
+                                            <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Chỉnh sửa Công việc</span>
+                                          </div>
+                                        )}
 
-                                        <div
-                                          style={menuItemStyle}
-                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
-                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setTaskMenuId(null); navigate(`/projects/${ph.projectId}/tasks/${t.id}/incidents`); }}
-                                        >
-                                          <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
-                                        </div>
+                                        {canAction && (
+                                          <div
+                                            style={menuItemStyle}
+                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                            onClick={() => { setTaskMenuId(null); navigate(`/projects/${ph.projectId}/tasks/${t.id}/incidents`); }}
+                                          >
+                                            <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
+                                          </div>
+                                        )}
 
                                         <div
                                           style={menuItemStyle}
@@ -602,22 +608,24 @@ export const WBSTree = () => {
                                           <FilePlus2 size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Thêm Task con</span>
                                         </div>
 
-                                        <div
-                                          style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
-                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
-                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { 
-                                            setTaskMenuId(null); 
-                                            if (t.progress > 0) {
-                                              setSelectedTaskId(t.id);
-                                              setIsObsoleteOpen(true);
-                                            } else {
-                                              handleDeleteTask(t.id, t.name);
-                                            }
-                                          }}
-                                        >
-                                          <Trash2 size={12} /><span>{t.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa hẳn Task'}</span>
-                                        </div>
+                                        {canAction && (
+                                          <div
+                                            style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
+                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                            onClick={() => { 
+                                              setTaskMenuId(null); 
+                                              if (t.progress > 0) {
+                                                setSelectedTaskId(t.id);
+                                                setIsObsoleteOpen(true);
+                                              } else {
+                                                handleDeleteTask(t.id, t.name);
+                                              }
+                                            }}
+                                          >
+                                            <Trash2 size={12} /><span>{t.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa hẳn Task'}</span>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>

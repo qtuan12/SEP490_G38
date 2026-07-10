@@ -131,14 +131,34 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     return ancestors;
   };
 
+  // Tìm tất cả các task phụ thuộc vào task này (để tránh vòng lặp predecessor)
+  const getSuccessors = (startId: string): Set<string> => {
+    const successors = new Set<string>();
+    const queue = [startId];
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      const children = tasks.filter(t => t.predecessorTaskIds?.some(id => `t-${id}` === currentId || id.toString() === currentId.replace('t-', '')));
+      children.forEach(c => {
+        if (!successors.has(c.id)) {
+          successors.add(c.id);
+          queue.push(c.id);
+        }
+      });
+    }
+    return successors;
+  };
+
   const descendants = getDescendants(task.id);
   const ancestors = getAncestors(task.parentTaskId);
+  const successors = getSuccessors(task.id);
 
   const potentialPredecessors = tasks.filter(t => 
     t.id !== task.id && 
     t.status !== 'obsolete' &&
     !descendants.has(t.id) &&
-    !ancestors.has(t.id)
+    !ancestors.has(t.id) &&
+    !successors.has(t.id) &&
+    t.phaseId?.toString() === task.phaseId?.toString()
   );
 
   const filteredPredecessors = potentialPredecessors.filter(t =>

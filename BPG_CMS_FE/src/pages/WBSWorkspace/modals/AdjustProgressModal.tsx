@@ -16,21 +16,24 @@ export const AdjustProgressForm: React.FC<AdjustProgressFormProps> = ({
   const [adjustProgress, setAdjustProgress] = useState<number | ''>(0);
   const [adjustReason, setAdjustReason] = useState<string>('');
   const [isAdjusting, setIsAdjusting] = useState(false);
+  const [localError, setLocalError] = useState<string>('');
 
   useEffect(() => {
     if (task) {
       setAdjustProgress(task.progress);
       setAdjustReason('');
+      setLocalError('');
     }
   }, [task]);
 
   const handleSubmit = async () => {
+    setLocalError('');
     if (typeof adjustProgress !== 'number' || adjustProgress < 0 || adjustProgress > 100) {
-      onError('Vui lòng nhập tiến độ hợp lệ (từ 0 đến 100)');
+      setLocalError('Vui lòng nhập tiến độ hợp lệ (từ 0 đến 100)');
       return;
     }
     if (!adjustReason.trim()) {
-      onError('Vui lòng nhập lý do điều chỉnh');
+      setLocalError('Vui lòng nhập lý do điều chỉnh');
       return;
     }
     try {
@@ -39,7 +42,7 @@ export const AdjustProgressForm: React.FC<AdjustProgressFormProps> = ({
       onSuccess('Cập nhật tiến độ thành công');
       onCancel();
     } catch (e: any) {
-      onError(e.message || 'Lỗi khi cập nhật tiến độ');
+      setLocalError(e.message || 'Lỗi khi cập nhật tiến độ');
     } finally {
       setIsAdjusting(false);
     }
@@ -113,6 +116,12 @@ export const AdjustProgressForm: React.FC<AdjustProgressFormProps> = ({
             className="p-2 bg-[hsl(var(--bg-main))] border border-[hsl(var(--border))] rounded-md text-[0.85rem] focus:outline-none focus:border-[hsl(var(--primary))]"
           />
         </div>
+
+        {localError && (
+          <div className="text-[0.85rem] text-[hsl(var(--danger))] bg-[hsl(var(--danger-glow))] p-2 rounded-md border border-[hsl(var(--danger)/0.2)]">
+            {localError}
+          </div>
+        )}
 
         <div className="flex justify-end gap-3 mt-2">
           <button
