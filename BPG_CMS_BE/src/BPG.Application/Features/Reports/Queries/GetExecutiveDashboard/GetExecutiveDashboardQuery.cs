@@ -20,46 +20,106 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
 
     public async Task<ApiResponse<ExecutiveDashboardDto>> Handle(GetExecutiveDashboardQuery request, CancellationToken cancellationToken)
     {
-        var tasks = await _unitOfWork.Repository<ProjectTask>()
+        var phases = await _unitOfWork.Repository<Phase>()
             .Query()
-            .Where(t => t.Phase!.ProjectId == request.ProjectId && t.Status != "Obsolete")
+            .Include(p => p.Tasks)
+                .ThenInclude(t => t.Assignees)
+                    .ThenInclude(a => a.User)
+            .Where(p => p.ProjectId == request.ProjectId)
+            .OrderBy(p => p.OrderIndex)
             .ToListAsync(cancellationToken);
 
-        int totalTasks = tasks.Count;
-        int completedTasks = tasks.Count(t => t.Status == "Done" || t.Status == "Accepted");
-        int inProgressTasks = tasks.Count(t => t.Status == "InProgress");
-        
-        var currentDate = DateTime.UtcNow.Date;
-        
-        var delayedTasks = tasks.Count(t => t.EndDate.ToDateTime(TimeOnly.MinValue) < DateTime.UtcNow && t.ProgressPercent < 100);
-        
-        // Simple at risk logic: past half of time but progress < 50%
+        var allTasks = phases.SelectMany(p => p.Tasks)
+            .Where(t => t.Status != "Obsolete")
+            .ToList();
+
+        int totalTasks = allTasks.Count;
+        int completedTasks = allTasks.Count(t => t.Status is "Done" or "Accepted" or "Approved");
+        int inProgressTasks = allTasks.Count(t => t.Status == "InProgress");
+
+        var now = DateTime.UtcNow;
+        var currentDate = now.Date;
+
+        int delayedTasks = allTasks.Count(t =>
+            t.EndDate.ToDateTime(TimeOnly.MinValue) < now &&
+            t.ProgressPercent < 100 &&
+            t.Status is not ("Done" or "Accepted" or "Approved" or "Obsolete"));
+
         int atRiskTasks = 0;
-        foreach (var t in tasks.Where(t => t.ProgressPercent < 100 && (t.EndDate.ToDateTime(TimeOnly.MinValue) - DateTime.UtcNow).TotalDays <= 3 && t.StartDate.ToDateTime(TimeOnly.MinValue) <= DateTime.UtcNow))
+        var atRiskTaskInfos = new List<DelayedTaskInfoDto>();
+        var delayedTaskInfos = new List<DelayedTaskInfoDto>();
+
+        foreach (var t in allTasks.Where(t => t.ProgressPercent < 100 && t.StartDate.ToDateTime(TimeOnly.MinValue) <= now
+            && t.Status is not ("Done" or "Accepted" or "Approved" or "Obsolete")))
         {
-            var totalDuration = (t.EndDate.ToDateTime(TimeOnly.MinValue) - t.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
-            var elapsed = (currentDate - t.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
-            
-            if (totalDuration > 0)
+            var endDt = t.EndDate.ToDateTime(TimeOnly.MinValue);
+            bool isDelayed = endDt < now;
+
+            if (isDelayed)
             {
-                var expectedProgress = (elapsed / totalDuration) * 100;
-                // If progress is significantly behind expected (e.g. 20% behind)
-                if (t.ProgressPercent < expectedProgress - 20)
+                var phaseName = phases.FirstOrDefault(p => p.Tasks.Any(task => task.TaskId == t.TaskId))?.Name ?? string.Empty;
+                delayedTaskInfos.Add(new DelayedTaskInfoDto
                 {
-                    atRiskTasks++;
+                    TaskId = t.TaskId,
+                    TaskName = t.Name,
+                    PhaseName = phaseName,
+                    ProgressPercent = t.ProgressPercent,
+                    EndDate = t.EndDate,
+                    AssigneeName = t.Assignees.FirstOrDefault()?.User?.FullName,
+                    WarningType = "Red"
+                });
+                continue;
+            }
+
+            // At risk: ≤ 3 days left and behind schedule by 20%+
+            var daysLeft = (endDt - now).TotalDays;
+            if (daysLeft <= 3)
+            {
+                var totalDuration = (endDt - t.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
+                var elapsed = (currentDate - t.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
+
+                if (totalDuration > 0)
+                {
+                    var expectedProgress = (elapsed / totalDuration) * 100;
+                    if (t.ProgressPercent < expectedProgress - 20)
+                    {
+                        atRiskTasks++;
+                        var phaseName = phases.FirstOrDefault(p => p.Tasks.Any(task => task.TaskId == t.TaskId))?.Name ?? string.Empty;
+                        atRiskTaskInfos.Add(new DelayedTaskInfoDto
+                        {
+                            TaskId = t.TaskId,
+                            TaskName = t.Name,
+                            PhaseName = phaseName,
+                            ProgressPercent = t.ProgressPercent,
+                            EndDate = t.EndDate,
+                            AssigneeName = t.Assignees.FirstOrDefault()?.User?.FullName,
+                            WarningType = "Yellow"
+                        });
+                    }
                 }
             }
         }
 
-        // BOQ Exceeded logic
-        var boqs = await _unitOfWork.Repository<BOQItem>()
-            .Query()
-            .Where(b => b.Phase!.ProjectId == request.ProjectId)
-            .ToListAsync(cancellationToken);
+        // Phase breakdown
+        var phaseBreakdown = phases.Select(phase =>
+        {
+            var phaseTasks = phase.Tasks.Where(t => t.Status != "Obsolete").ToList();
+            int ptTotal = phaseTasks.Count;
+            int ptDone = phaseTasks.Count(t => t.Status is "Done" or "Accepted" or "Approved");
+            decimal pProgress = ptTotal > 0 ? Math.Round((decimal)ptDone / ptTotal * 100, 1) : 0;
 
-        // This is a simplified version just for the dashboard number. 
-        // A real accurate count would sum issuances, stock, etc.
-        // For performance on the dashboard, we might just look at OverBoqMaterialRequests
+            return new PhaseProgressSummaryDto
+            {
+                PhaseId = phase.PhaseId,
+                PhaseName = phase.Name,
+                Status = phase.Status,
+                TotalTasks = ptTotal,
+                CompletedTasks = ptDone,
+                ProgressPercent = pProgress
+            };
+        }).ToList();
+
+        // BOQ exceeded logic
         var overBoqMRs = await _unitOfWork.Repository<MaterialRequest>()
             .Query()
             .Include(mr => mr.Phase)
@@ -67,9 +127,12 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             .Where(mr => mr.Phase!.ProjectId == request.ProjectId && mr.Items.Any(i => i.IsOverBOQ))
             .CountAsync(cancellationToken);
 
-        // Assuming materials exceeding BOQ loosely ties to MRs that are over BOQ
-        // For a more complex calculation, we'd reuse GetBoqVsActualReportQuery logic.
-        // Let's keep this light.
+        var allDelayedInfos = delayedTaskInfos
+            .Concat(atRiskTaskInfos)
+            .OrderBy(t => t.WarningType == "Red" ? 0 : 1)
+            .ThenBy(t => t.EndDate)
+            .Take(20)
+            .ToList();
 
         var dto = new ExecutiveDashboardDto
         {
@@ -80,7 +143,9 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             DelayedTasks = delayedTasks,
             AtRiskTasks = atRiskTasks,
             OverBoqMaterialRequests = overBoqMRs,
-            MaterialsExceedingBOQ = overBoqMRs // simplified
+            MaterialsExceedingBOQ = overBoqMRs,
+            PhaseBreakdown = phaseBreakdown,
+            DelayedTasksList = allDelayedInfos
         };
 
         return ApiResponse<ExecutiveDashboardDto>.SuccessResult(dto);
