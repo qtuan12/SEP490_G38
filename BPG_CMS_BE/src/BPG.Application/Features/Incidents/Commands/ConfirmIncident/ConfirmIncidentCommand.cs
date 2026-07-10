@@ -48,13 +48,15 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
     private readonly IMapper _mapper;
     private readonly ICurrentUserService _currentUserService;
     private readonly INotificationService _notificationService;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public ConfirmIncidentCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService, INotificationService notificationService)
+    public ConfirmIncidentCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _currentUserService = currentUserService;
         _notificationService = notificationService;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<ApiResponse<IncidentDto>> Handle(ConfirmIncidentCommand request, CancellationToken cancellationToken)
@@ -232,6 +234,20 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             .Include(i => i.Reporter)
             .Include(i => i.Reviewer)
             .FirstOrDefaultAsync(i => i.IncidentId == request.IncidentId, cancellationToken);
+
+        // Realtime: broadcast to all members currently viewing this project
+        await _realtimeSender.SendToGroupAsync(
+            BPG.Domain.Constants.HubMethodNames.GroupProject + updatedIncident.ProjectId,
+            BPG.Domain.Constants.HubMethodNames.IncidentUpdated,
+            updatedIncident.IncidentId,
+            cancellationToken);
+
+        // Realtime: broadcast to all members viewing global incidents (Project_0)
+        await _realtimeSender.SendToGroupAsync(
+            BPG.Domain.Constants.HubMethodNames.GroupProject + 0,
+            BPG.Domain.Constants.HubMethodNames.IncidentUpdated,
+            updatedIncident.IncidentId,
+            cancellationToken);
 
         return ApiResponse<IncidentDto>.SuccessResult(_mapper.Map<IncidentDto>(updatedIncident), "Sự cố đã được xác nhận và xử lý.");
     }

@@ -13,9 +13,14 @@ public static class HubMethodNames
     public const string ReceiveIncidentAlert = "ReceiveIncidentAlert";     // Sự cố mới cần xử lý
     public const string ReceiveApprovalRequest = "ReceiveApprovalRequest"; // Phiếu cần duyệt
 
+    public const string IncidentCreated = "IncidentCreated";               // Báo cáo sự cố mới
+    public const string IncidentUpdated = "IncidentUpdated";               // Trạng thái sự cố cập nhật
+    public const string InventoryAdjustmentCreated = "InventoryAdjustmentCreated"; // Phiếu điều chỉnh kho mới
+    public const string InventoryAdjustmentUpdated = "InventoryAdjustmentUpdated"; // Phiếu điều chỉnh kho được cập nhật
+
     // ==================== HUB GROUP PREFIXES ====================
     // Dùng: Groups.AddToGroupAsync(connectionId, HubMethodNames.GroupProject + projectId)
-    public const string GroupProject = "project_"; // + projectId → "project_123"
+    public const string GroupProject = "Project_"; // + projectId → "Project_123" (phải khớp với NotificationHub: $"Project_{projectId}")
     public const string GroupRole = "role_";        // + role     → "role_Admin"
     public const string GroupUser = "user_";        // + userId   → "user_456"
 }

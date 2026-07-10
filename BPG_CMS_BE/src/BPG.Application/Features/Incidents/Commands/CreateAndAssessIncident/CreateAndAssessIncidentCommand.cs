@@ -51,13 +51,15 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
     private readonly IMapper _mapper;
     private readonly ICurrentUserService _currentUserService;
     private readonly INotificationService _notificationService;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public CreateAndAssessIncidentCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService, INotificationService notificationService)
+    public CreateAndAssessIncidentCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _currentUserService = currentUserService;
         _notificationService = notificationService;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<ApiResponse<IncidentDto>> Handle(CreateAndAssessIncidentCommand request, CancellationToken cancellationToken)
@@ -161,6 +163,20 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         }
 
         var dto = _mapper.Map<IncidentDto>(incident);
+
+        // Realtime: broadcast to all members currently viewing this project
+        await _realtimeSender.SendToGroupAsync(
+            HubMethodNames.GroupProject + request.ProjectId,
+            HubMethodNames.IncidentCreated,
+            incident.IncidentId,
+            cancellationToken);
+
+        // Realtime: broadcast to all members viewing global incidents (Project_0)
+        await _realtimeSender.SendToGroupAsync(
+            HubMethodNames.GroupProject + 0,
+            HubMethodNames.IncidentCreated,
+            incident.IncidentId,
+            cancellationToken);
 
         return ApiResponse<IncidentDto>.SuccessResult(dto, "Sự cố đã được báo cáo và đánh giá.");
     }

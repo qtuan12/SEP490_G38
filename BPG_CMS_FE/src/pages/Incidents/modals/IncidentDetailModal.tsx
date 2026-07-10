@@ -96,25 +96,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     }
   });
 
-  const approveMutation = useMutation({
-    mutationFn: () => incidentService.confirmIncident(Number(incident.id), {
-      incidentId: Number(incident.id),
-      createReworkTask: false,
-      handlingInstruction: ''
-    }),
-    onSuccess: () => {
-      toast.success('Đã phê duyệt sự cố');
-      if (onSuccessAction) onSuccessAction('Đã phê duyệt sự cố');
-      else {
-        queryClient.invalidateQueries({ queryKey: ['incidents'] });
-        queryClient.invalidateQueries({ queryKey: ['globalIncidents'] });
-      }
-      onClose();
-    },
-    onError: (err: any) => {
-      toast.error(err.message || 'Có lỗi xảy ra khi phê duyệt');
-    }
-  });
+
 
   if (!isOpen || !incident) return null;
 
@@ -143,14 +125,18 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     WaitingAccountant: { label: 'Chờ Kế toán Xác minh', color: 'hsl(210, 70%, 45%)', bg: 'hsl(210, 100%, 97%)' },
     WaitingDirector: { label: 'Chờ Giám đốc Phê duyệt', color: 'hsl(280, 70%, 45%)', bg: 'hsl(280, 100%, 97%)' },
     Assessing: { label: 'Cần Bổ sung', color: 'hsl(0, 72%, 50%)', bg: 'hsl(0, 100%, 97%)' },
-    Approved: { label: 'Đã Duyệt', color: 'hsl(142, 71%, 40%)', bg: 'hsl(142, 100%, 97%)' },
+    Approved: {
+      label: isInventoryIncident ? 'Đang trình GĐ duyệt kho' : 'Đã Duyệt',
+      color: 'hsl(142, 71%, 40%)',
+      bg: 'hsl(142, 100%, 97%)'
+    },
     Rejected: { label: 'Bị Từ chối', color: 'hsl(0, 72%, 50%)', bg: 'hsl(0, 100%, 97%)' },
+    Resolved: { label: 'Đã xử lý', color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' },
   }[incident.status as string] ?? { label: incident.status, color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' };
 
   const roleLabel = user?.role?.toLowerCase() ?? '';
   const isTPKT = roleLabel === 'technicalmanager' || roleLabel === 'admin';
   const isAccountant = roleLabel === 'accountant' || roleLabel === 'admin';
-  const isDirector = roleLabel === 'director' || roleLabel === 'admin';
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} width="lg"
@@ -184,7 +170,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           {[
             { n: 1, label: 'PL Báo cáo', done: true },
             { n: 2, label: isInventoryIncident ? 'Kế toán Xác minh' : 'TPKT Thẩm định', done: !!incident.damageDescription },
-            { n: 3, label: isInventoryIncident ? 'GĐ Phê duyệt' : 'Hoàn tất', done: incident.status === 'Approved' },
+            { n: 3, label: isInventoryIncident ? 'Chuyển sang Kho' : 'Hoàn tất', done: incident.status === 'Approved' },
           ].map((step, idx) => (
             <React.Fragment key={step.n}>
               {idx > 0 && <ArrowRight size={13} style={{ color: 'hsl(var(--text-muted))', flexShrink: 0 }} />}
@@ -381,11 +367,11 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
             <CheckCircle size={18} style={{ color: 'hsl(var(--success))', flexShrink: 0, marginTop: '2px' }} />
             <div>
               <span style={{ fontSize: '0.7rem', color: 'hsl(var(--success))', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Bước 3: Đã Duyệt bởi {incident.reviewerName?.toUpperCase()}
+                Bước 3: Đã xử lý bởi {incident.reviewerName?.toUpperCase()}
               </span>
               <p style={{ margin: '6px 0 0', fontSize: '0.85rem', color: 'hsl(var(--text-primary))' }}>
                 {isInventoryIncident
-                  ? 'Sự cố đã được Kế toán xác minh. Phiếu Kiểm kê Giảm Tồn đang chờ Giám đốc phê duyệt.'
+                  ? 'Kế toán đã xác minh và tạo Phiếu giảm kho. Quyết định xuất kho đang chờ Giám đốc duyệt ở phân hệ Kho.'
                   : 'Sự cố đã được TPKT thẩm định. Rework Task hoặc điều chỉnh tiến độ đã được áp dụng.'}
               </p>
             </div>
@@ -471,38 +457,6 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               </button>
               <button onClick={onResolveClick} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(210, 70%, 45%)' }}>
                 📦 Xác minh &amp; Tạo Phiếu (Kế toán)
-              </button>
-            </div>
-          )
-        )}
-
-        {isInventoryIncident && incident.status === 'WaitingDirector' && isDirector && (
-          isRejecting ? (
-            <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-              <textarea
-                value={rejectReason}
-                onChange={e => setRejectReason(e.target.value)}
-                className="input"
-                rows={3}
-                placeholder="Nhập lý do từ chối chi tiết..."
-              />
-              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
-                <button onClick={() => setIsRejecting(false)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem' }} disabled={rejectMutation.isPending}>
-                  Hủy
-                </button>
-                <button onClick={() => rejectMutation.mutate()} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'hsl(var(--danger))' }} disabled={!rejectReason.trim() || rejectMutation.isPending}>
-                  {rejectMutation.isPending ? 'Đang xử lý...' : 'Xác nhận Từ chối'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
-              <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))' }}>
-                ❌ Từ chối
-              </button>
-              <button onClick={() => approveMutation.mutate()} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsla(148, 94%, 48%, 1.00)' }} disabled={approveMutation.isPending}>
-                {approveMutation.isPending ? 'Đang xử lý...' : 'Phê duyệt'}
               </button>
             </div>
           )

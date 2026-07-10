@@ -33,11 +33,11 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     if (isOpen) {
       loadData();
       if (incident) {
-        setReason('Incident');
+        setReason('Xử lý sự cố');
         setDescription(`Phiếu giảm kho xử lý sự cố`);
         setPhaseId(incident.phaseId ? Number(incident.phaseId) : '');
       } else {
-        setReason('Incident');
+        setReason('');
         setDescription('');
         setPhaseId('');
         setItems([]);
@@ -185,11 +185,10 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
           <input 
             type="text" 
             required 
-            className={`w-full px-3 py-2 border rounded-lg ${incident ? 'bg-gray-100 cursor-not-allowed text-gray-600 font-medium' : ''}`}
+            className="w-full px-3 py-2 border rounded-lg"
             value={reason} 
             onChange={e => setReason(e.target.value)} 
             placeholder="VD: Hư hỏng vật tư do thời tiết..."
-            readOnly={!!incident}
           />
         </FormItem>
 

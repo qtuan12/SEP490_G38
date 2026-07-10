@@ -65,6 +65,7 @@ export const inventoryAdjustmentService = {
       pageSize?: number;
       adjustmentType?: string;
       status?: string;
+      searchTerm?: string;
     }
   ): Promise<PagedList<InventoryAdjustmentDto>> => {
     const queryParams: Record<string, string> = {};
@@ -72,6 +73,7 @@ export const inventoryAdjustmentService = {
     if (params?.pageSize) queryParams.pageSize = params.pageSize.toString();
     if (params?.adjustmentType) queryParams.adjustmentType = params.adjustmentType;
     if (params?.status) queryParams.status = params.status;
+    if (params?.searchTerm) queryParams.searchTerm = params.searchTerm;
 
     return unwrap(
       await apiClient.get<ApiResponse<PagedList<InventoryAdjustmentDto>>>(

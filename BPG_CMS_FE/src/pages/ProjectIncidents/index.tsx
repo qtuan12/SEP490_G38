@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { incidentService } from '../../services/incidentService';
-import type {IncidentReport, WBSTask, WBSPhase, ProjectMember} from '../../types/common';
+import type { IncidentReport, WBSTask, WBSPhase, ProjectMember } from '../../types/common';
 import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
 import {
@@ -11,6 +11,8 @@ import {
   Clock
 } from 'lucide-react';
 import { Badge, Button } from '../../components/ui';
+import { useNotification } from '../../context/NotificationContext';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
 
 interface Props {
   projectId: string;
@@ -23,6 +25,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const { connection } = useNotification();
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -45,14 +48,14 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
       const incList: IncidentReport[] = incListDto.map(dto => {
         let desc = dto.description || '';
         const images: string[] = [];
-        
+
         // Match Markdown image syntax ![alt](url)
         const imgRegex = /!\[.*?\]\((.*?)\)/g;
         let match;
         while ((match = imgRegex.exec(desc)) !== null) {
           images.push(match[1]);
         }
-        
+
         // Remove the images and the "**Hình ảnh đính kèm:**" text from description
         desc = desc.replace(/\*\*Hình ảnh đính kèm:\*\*/g, '');
         desc = desc.replace(/!\[.*?\]\((.*?)\)/g, '');
@@ -97,7 +100,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
       incList.forEach(inc => {
         const t = taskList.find(x => x.id === inc.taskId);
         if (t) inc.taskName = t.name;
-        
+
         const p = phaseList.find(x => x.id === inc.phaseId);
         if (p) inc.phaseName = p.name;
       });
@@ -119,6 +122,36 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
     loadData();
   }, [projectId]);
 
+  // Tham gia SignalR group của dự án
+  useEffect(() => {
+    if (!connection) return;
+
+    const joinGroup = () => {
+      connection.invoke('JoinProjectGroup', Number(projectId))
+        .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
+    };
+
+    if (connection.state === 'Connected') {
+      joinGroup();
+    }
+
+    connection.onreconnected(joinGroup);
+
+    return () => {
+      if (connection.state === 'Connected') {
+        connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
+      }
+    };
+  }, [connection, projectId]);
+
+  useSignalREvent('IncidentCreated', () => {
+    loadData();
+  });
+
+  useSignalREvent('IncidentUpdated', () => {
+    loadData();
+  });
+
   const handleSuccess = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(null), 3000);
@@ -131,7 +164,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
   };
 
   // Help functions for UI
-  const getStatusBadge = (status: IncidentReport['status']) => {
+  const getStatusBadge = (status: string, incidentType: string) => {
     switch (status) {
       case 'Reported':
         return <Badge variant="warning" className="normal-case">Báo cáo mới</Badge>;
@@ -144,11 +177,16 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
       case 'WaitingReview':
         return <Badge variant="info" className="normal-case">Chờ TPKT duyệt</Badge>;
       case 'Approved':
+        if (incidentType === 'InventoryLoss' || incidentType === 'InventoryDamage') {
+          return <Badge variant="success" className="normal-case bg-[hsl(var(--success-glow))] text-[hsl(var(--success))]">Đang trình GĐ duyệt kho</Badge>;
+        }
         return <Badge variant="success" className="normal-case">Đã phê duyệt</Badge>;
       case 'Rejected':
         return <Badge variant="danger" className="normal-case">Từ chối</Badge>;
       case 'Closed':
         return <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.75rem] normal-case">Đã đóng</span>;
+      case 'Resolved':
+        return <Badge variant="default" className="normal-case bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))]">Đã xử lý</Badge>;
       default:
         return <Badge variant="default" className="normal-case bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))]">{status}</Badge>;
     }
@@ -167,7 +205,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
 
   return (
     <div className="flex flex-col gap-5">
-      
+
       {/* Notifications */}
       {success && (
         <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
@@ -232,76 +270,76 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
         ) : (
           <div className="table-container">
             <div className="overflow-x-auto w-full">
-            <table>
-              <thead>
-                <tr>
-                  <th>Ngày báo cáo</th>
-                  <th>Công việc / Giai đoạn bị sự cố</th>
-                  <th>Người báo cáo</th>
-                  <th>Trạng thái</th>
-                  <th className="text-center">Chi tiết</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedIncidents.map((inc) => (
-                  <tr key={inc.id} className="cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors" onClick={() => { setSelectedIncident(inc); setIsDetailOpen(true); }}>
-                    <td className="whitespace-nowrap text-sm">{inc.date}</td>
-                    <td><strong className="text-[0.88rem]">{(inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') ? (inc.phaseName || 'Giai đoạn') : (inc.taskName || 'Không xác định')}</strong></td>
-                    <td className="text-sm">{inc.reporterName}</td>
-                    <td className="whitespace-nowrap">{getStatusBadge(inc.status)}</td>
-                    <td className="text-center">
-                      <Button variant="secondary" className="py-1 px-2 text-[0.75rem] h-auto">Xem</Button>
-                    </td>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ngày báo cáo</th>
+                    <th>Công việc / Giai đoạn bị sự cố</th>
+                    <th>Người báo cáo</th>
+                    <th>Trạng thái</th>
+                    <th className="text-center">Chi tiết</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center mt-4 gap-4" style={{ padding: '16px 0' }}>
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                style={{
-                  color: currentPage === 1 ? 'hsl(var(--text-muted))' : 'hsl(var(--text-secondary))',
-                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                  background: 'none',
-                  border: 'none',
-                  fontWeight: 500,
-                  fontSize: '0.9rem'
-                }}
-              >
-                Trang trước
-              </button>
-
-              <div style={{
-                padding: '6px 16px',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '20px',
-                fontWeight: 600,
-                color: '#2563eb', // text-blue-600
-                fontSize: '0.9rem'
-              }}>
-                <span style={{ color: '#2563eb' }}>Trang {currentPage}</span> <span style={{ color: 'hsl(var(--text-secondary))' }}>/ {totalPages}</span>
-              </div>
-
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                style={{
-                  color: currentPage === totalPages ? 'hsl(var(--text-muted))' : 'hsl(var(--text-secondary))',
-                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                  background: 'none',
-                  border: 'none',
-                  fontWeight: 500,
-                  fontSize: '0.9rem'
-                }}
-              >
-                Trang sau
-              </button>
+                </thead>
+                <tbody>
+                  {paginatedIncidents.map((inc) => (
+                    <tr key={inc.id} className="cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors" onClick={() => { setSelectedIncident(inc); setIsDetailOpen(true); }}>
+                      <td className="whitespace-nowrap text-sm">{inc.date}</td>
+                      <td><strong className="text-[0.88rem]">{(inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') ? (inc.phaseName || 'Giai đoạn') : (inc.taskName || 'Không xác định')}</strong></td>
+                      <td className="text-sm">{inc.reporterName}</td>
+                      <td className="whitespace-nowrap">{getStatusBadge(inc.status, inc.incidentType)}</td>
+                      <td className="text-center">
+                        <Button variant="secondary" className="py-1 px-2 text-[0.75rem] h-auto">Xem</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center mt-4 gap-4" style={{ padding: '16px 0' }}>
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  style={{
+                    color: currentPage === 1 ? 'hsl(var(--text-muted))' : 'hsl(var(--text-secondary))',
+                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                    background: 'none',
+                    border: 'none',
+                    fontWeight: 500,
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  Trang trước
+                </button>
+
+                <div style={{
+                  padding: '6px 16px',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '20px',
+                  fontWeight: 600,
+                  color: '#2563eb', // text-blue-600
+                  fontSize: '0.9rem'
+                }}>
+                  <span style={{ color: '#2563eb' }}>Trang {currentPage}</span> <span style={{ color: 'hsl(var(--text-secondary))' }}>/ {totalPages}</span>
+                </div>
+
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    color: currentPage === totalPages ? 'hsl(var(--text-muted))' : 'hsl(var(--text-secondary))',
+                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                    background: 'none',
+                    border: 'none',
+                    fontWeight: 500,
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  Trang sau
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

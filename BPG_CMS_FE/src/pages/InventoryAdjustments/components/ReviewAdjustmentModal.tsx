@@ -21,6 +21,23 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
   const canReview = user?.role === 'director' || user?.role === 'admin';
   const isPending = adjustmentData?.status === 'Pending';
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'Pending':    return 'Chờ duyệt';
+      case 'Approved':   return 'Đã duyệt';
+      case 'Rejected':   return 'Đã từ chối';
+      default:           return status;
+    }
+  };
+
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case 'Approved': return 'text-[hsl(var(--success))]';
+      case 'Rejected': return 'text-[hsl(var(--danger))]';
+      default:         return 'text-amber-600';
+    }
+  };
+
   const handleApproveClick = () => {
     setMode('confirmApprove');
   };
@@ -119,7 +136,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Trạng thái</span>
-              <strong className="text-gray-900">{adjustmentData.status}</strong>
+              <strong className={getStatusClass(adjustmentData.status)}>{getStatusLabel(adjustmentData.status)}</strong>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Dự án</span>

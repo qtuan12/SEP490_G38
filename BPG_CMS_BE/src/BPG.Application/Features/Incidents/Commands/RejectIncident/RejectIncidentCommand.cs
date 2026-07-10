@@ -4,6 +4,7 @@ using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
+using BPG.Domain.Constants;
 using FluentValidation;
 using MediatR;
 using AutoMapper;
@@ -28,13 +29,15 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
     private readonly IMapper _mapper;
     private readonly ICurrentUserService _currentUserService;
     private readonly INotificationService _notificationService;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public RejectIncidentCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService, INotificationService notificationService)
+    public RejectIncidentCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _currentUserService = currentUserService;
         _notificationService = notificationService;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<ApiResponse<IncidentDto>> Handle(RejectIncidentCommand request, CancellationToken cancellationToken)
@@ -71,6 +74,22 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
             $"/projects/{incident.ProjectId}/workspace/incidents"
         );
 
-        return ApiResponse<IncidentDto>.SuccessResult(_mapper.Map<IncidentDto>(updatedIncident), "Đã từ chối sự cố.");
+        var dto = _mapper.Map<IncidentDto>(updatedIncident);
+
+        // Realtime: broadcast to all members currently viewing this project
+        await _realtimeSender.SendToGroupAsync(
+            HubMethodNames.GroupProject + updatedIncident.ProjectId,
+            HubMethodNames.IncidentUpdated,
+            updatedIncident.IncidentId,
+            cancellationToken);
+
+        // Realtime: broadcast to all members viewing global incidents (Project_0)
+        await _realtimeSender.SendToGroupAsync(
+            HubMethodNames.GroupProject + 0,
+            HubMethodNames.IncidentUpdated,
+            updatedIncident.IncidentId,
+            cancellationToken);
+
+        return ApiResponse<IncidentDto>.SuccessResult(dto, "Đã bác bỏ sự cố.");
     }
 }

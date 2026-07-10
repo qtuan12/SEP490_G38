@@ -9,6 +9,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Queries
         public long ProjectId { get; set; }
         public string? AdjustmentType { get; set; }
         public string? Status { get; set; }
+        public string? SearchTerm { get; set; }
         
         public GetInventoryAdjustmentsQuery() {}
 
