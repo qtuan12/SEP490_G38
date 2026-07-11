@@ -96,7 +96,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
       return [
         `"${item.materialCode}"`,
         `"${item.materialName}"`,
-        `"${item.specification || 'N/A'}"`,
+        `"${item.specification || 'Chưa cập nhật'}"`,
         `"${item.supplierName}"`,
         item.quantity,
         item.reservedQuantity,
@@ -104,7 +104,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
         `"${item.unitName}"`,
         item.avgUnitPrice || 0,
         item.stockValue || 0,
-        item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'N/A',
+        item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'Chưa cập nhật',
         `"${statusLabel}"`
       ];
     });
@@ -272,7 +272,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
               <th className="w-10 px-3"></th>
               <th className="px-4 py-3">Mã</th>
               <th className="px-4 py-3">Tên vật tư</th>
-              <th className="px-4 py-3">Thông số / NCC</th>
+              <th className="px-4 py-3">Thông số / Nhà cung cấp</th>
               <th className="px-4 py-3 text-right">Tồn thực tế</th>
               <th className="px-4 py-3 text-right">Tạm khóa</th>
               <th className="px-4 py-3 text-right">Khả dụng</th>
@@ -311,8 +311,8 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                         {item.materialName}
                       </td>
                       <td className="px-4 py-3.5 text-slate-600 text-xs">
-                        <div className="font-semibold text-slate-700">{item.specification || 'N/A'}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">NCC: {item.supplierName}</div>
+                        <div className="font-semibold text-slate-700">{item.specification || 'Không có'}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">Nhà cung cấp: {item.supplierName}</div>
                       </td>
                       <td className="px-4 py-3.5 text-right font-medium text-slate-900">
                         {formatQty(item.quantity)} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
@@ -345,7 +345,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                           year: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit'
-                        }) : 'N/A'}
+                        }) : 'Chưa cập nhật'}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         {getStatusBadge(item)}
@@ -415,7 +415,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                                             {formatQty(phase.usedQuantity)} <span className="text-[10px] text-slate-400">{item.unitName}</span>
                                           </td>
                                           <td className="px-3 py-2 text-right text-slate-500 font-mono">
-                                            {phase.boqQuantity > 0 ? `${percent}%` : 'N/A'}
+                                            {phase.boqQuantity > 0 ? `${percent}%` : '-'}
                                           </td>
                                           <td className="px-3 py-2 text-center">
                                             {statusBadge}

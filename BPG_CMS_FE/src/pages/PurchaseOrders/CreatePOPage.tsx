@@ -240,7 +240,7 @@ export const CreatePOPage: React.FC = () => {
               value={supplierId.toString()}
               onChange={(e) => setSupplierId(Number(e.target.value))}
               options={[
-                { label: '-- Chọn NCC --', value: '0' },
+                { label: '-- Chọn nhà cung cấp --', value: '0' },
                 ...suppliers.map((s) => ({ label: s.supplierName, value: s.supplierId.toString() })),
               ]}
               className="h-10"

@@ -62,7 +62,7 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
     try {
       if (action === 'review-approve') await surplusService.reviewTransfer(transferId, true);
       else if (action === 'review-reject') await surplusService.reviewTransfer(transferId, false);
-      
+
       toast.success('Thao tác thành công!');
       await loadData();
       onRefresh();
@@ -90,7 +90,7 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
         <div key={r.surplusReturnSupplierId} className="border border-purple-100 bg-purple-50/50 rounded-lg px-4 py-3 text-sm">
           <div className="flex justify-between flex-wrap gap-2">
             <span className="font-semibold text-slate-700">
-              #{r.surplusReturnSupplierId} — NCC: {r.supplierName || 'Không xác định'}
+              #{r.surplusReturnSupplierId} — Nhà cung cấp: {r.supplierName || 'Không xác định'}
             </span>
             <span className="text-slate-500">{formatDateVN(r.createdAt)}</span>
           </div>
