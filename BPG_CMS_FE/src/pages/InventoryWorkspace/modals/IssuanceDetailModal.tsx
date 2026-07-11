@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, Input, FormItem } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
+import { formatDateVN } from '../../../utils/inventoryHelpers';
 import type { MaterialIssuanceDetail, MaterialIssuanceItemDetail, MaterialReturn } from '../../../types/inventory';
 import {
   Calendar,
@@ -339,7 +340,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
                   <div>
                     <span className="text-slate-500 text-xs block">Ngày lập phiếu:</span>
                     <span className="text-slate-800 text-xs font-semibold">
-                      {new Date(detail.createdAt).toLocaleDateString('vi-VN')}
+                      {formatDateVN(detail.createdAt)}
                     </span>
                   </div>
                 </div>

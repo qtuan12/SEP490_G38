@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type {WBSPhase, WBSTask, Project} from '../../types/common';
+import { formatDate, formatDateOnly } from '../../utils/dateHelpers';
 import { 
   ArrowLeft,
   Download,
@@ -69,7 +70,7 @@ export const PhaseAcceptance: React.FC = () => {
         const activeAcc = res.items.find((x: any) => !x.isCancelled);
         if (activeAcc) {
           setActiveReportContent(activeAcc.reportContent || '');
-          setActiveAcceptanceDate(new Date(activeAcc.acceptanceDate).toLocaleDateString('vi-VN'));
+          setActiveAcceptanceDate(formatDateOnly(activeAcc.acceptanceDate));
           setActiveCreatorName(activeAcc.acceptedByName || '');
           setActiveAcceptanceId(activeAcc.acceptanceId);
         }
@@ -239,7 +240,7 @@ export const PhaseAcceptance: React.FC = () => {
                 {historicalAcceptance.isCancelled && (
                   <>
                     <p><span className="font-medium">Người hủy:</span> {historicalAcceptance.cancelledByName}</p>
-                    <p><span className="font-medium">Ngày hủy:</span> {new Date(historicalAcceptance.cancelledAt).toLocaleString('vi-VN')}</p>
+                    <p><span className="font-medium">Ngày hủy:</span> {formatDate(historicalAcceptance.cancelledAt)}</p>
                     <p><span className="font-medium">Lý do hủy:</span> {historicalAcceptance.cancellationReason}</p>
                   </>
                 )}
@@ -248,9 +249,9 @@ export const PhaseAcceptance: React.FC = () => {
           )}
 
           {isViewingHistory && historicalDocData !== null ? (
-            <AcceptanceDocument project={project} phase={phase} reportContent={historicalDocData} creatorName={historicalAcceptance?.acceptedByName} acceptanceDate={new Date(historicalAcceptance.acceptanceDate).toLocaleDateString('vi-VN')} />
+            <AcceptanceDocument project={project} phase={phase} reportContent={historicalDocData} creatorName={historicalAcceptance?.acceptedByName} acceptanceDate={formatDateOnly(historicalAcceptance.acceptanceDate)} />
           ) : isSubmitted ? (
-            <AcceptanceDocument project={project} phase={phase} reportContent={activeReportContent || ''} creatorName={activeCreatorName} acceptanceDate={activeAcceptanceDate || new Date().toLocaleDateString('vi-VN')} />
+            <AcceptanceDocument project={project} phase={phase} reportContent={activeReportContent || ''} creatorName={activeCreatorName} acceptanceDate={activeAcceptanceDate || formatDateOnly(new Date().toISOString())} />
           ) : (
             <AcceptanceForm 
               phase={phase!} 

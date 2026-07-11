@@ -1473,6 +1473,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<string>("CancelledReason")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ClosedReason")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 

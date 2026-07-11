@@ -318,7 +318,7 @@ export const ProjectLayoutHub: React.FC = () => {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-            TIẾN ĐỘ TỔNG THỂ DỰ ÁN WBS
+            TIẾN ĐỘ THI CÔNG DỰ ÁN
           </span>
           <strong style={{ fontSize: '2.2rem', fontWeight: 900, color: 'hsl(var(--primary))', letterSpacing: '-0.02em' }}>
             {project.progress}%
@@ -369,7 +369,7 @@ export const ProjectLayoutHub: React.FC = () => {
           }}
         >
           <FolderGit2 size={18} />
-          <span>Kế hoạch WBS</span>
+          <span>Kế hoạch thi công</span>
         </button>
 
         <button
@@ -482,29 +482,27 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Xử lý Vật tư thừa</span>
         </button>
 
-        {(isAccountant || isAssignedLeader) && (
-          <button
-            onClick={() => handleTabChange('purchaseorders')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 18px',
-              background: 'none',
-              border: 'none',
-              borderBottom: activeTab === 'purchaseorders' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
-              color: activeTab === 'purchaseorders' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-              fontWeight: activeTab === 'purchaseorders' ? 600 : 500,
-              fontSize: '0.95rem',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all var(--transition-fast)'
-            }}
-          >
-            <ShoppingCart size={18} />
-            <span>Đơn hàng PO</span>
-          </button>
-        )}
+        <button
+          onClick={() => handleTabChange('purchaseorders')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'purchaseorders' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'purchaseorders' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'purchaseorders' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <ShoppingCart size={18} />
+          <span>Đơn hàng</span>
+        </button>
 
         {(isAccountant || isAssignedLeader) && (
           <button

@@ -307,7 +307,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormItem label="Công việc thi công liên quan (Task)" required>
+            <FormItem label="Công việc thi công liên quan" required>
               <div className="relative">
                 <input
                   type="text"

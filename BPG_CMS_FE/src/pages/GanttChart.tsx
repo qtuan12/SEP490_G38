@@ -18,10 +18,15 @@ import { useAuth } from '../context/AuthContext';
 import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 
 // ── helpers ───────────────────────────────────────────────────────────────
-const formatDate = (s: string) =>
-  new Date(s + (s.includes('T') ? '' : 'T00:00:00')).toLocaleDateString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  });
+const formatDate = (s: string) => {
+  if (!s) return '';
+  const d = new Date(s + (s.includes('T') ? '' : 'T00:00:00'));
+  if (isNaN(d.getTime())) return s;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 type ViewMode = 'Quarter Day' | 'Half Day' | 'Day' | 'Week' | 'Month';
 const VIEW_MODES: { label: string; value: ViewMode }[] = [

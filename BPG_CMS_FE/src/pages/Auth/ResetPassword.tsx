@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { KeyRound, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Check, X } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
 import { authService } from '../../services/authService';
+import { passwordRules, validatePassword } from '../../utils/passwordPolicy';
 
 export const ResetPassword: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -11,6 +12,8 @@ export const ResetPassword: React.FC = () => {
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,8 +22,9 @@ export const ResetPassword: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 6) {
-      setError('Mật khẩu mới phải từ 6 ký tự trở lên.');
+    const pwError = validatePassword(password);
+    if (pwError) {
+      setError(pwError);
       return;
     }
     if (password !== confirmPassword) {
@@ -85,32 +89,72 @@ export const ResetPassword: React.FC = () => {
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <FormItem label="Mật khẩu mới">
               <div className="relative">
-                <KeyRound size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
                 <Input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Nhập mật khẩu mới"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   disabled={loading}
                   required
-                  className="pl-10"
+                  className="pl-10 pr-10"
                 />
+                <KeyRound size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-secondary))] transition-colors"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
+
+              {/* Checklist yêu cầu mật khẩu */}
+              {password.length > 0 && (
+                <ul className="mt-2 flex flex-col gap-1">
+                  {passwordRules.map((rule) => {
+                    const ok = rule.test(password);
+                    return (
+                      <li key={rule.label} className="flex items-center gap-1.5 text-[0.78rem]">
+                        {ok
+                          ? <Check size={14} className="shrink-0 text-[hsl(var(--success))]" />
+                          : <X size={14} className="shrink-0 text-[hsl(var(--text-muted))]" />}
+                        <span className={ok ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--text-muted))]'}>
+                          {rule.label}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </FormItem>
 
             <FormItem label="Xác nhận mật khẩu">
               <div className="relative">
-                <KeyRound size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
                 <Input
-                  type="password"
+                  type={showConfirm ? 'text' : 'password'}
                   placeholder="Nhập lại mật khẩu mới"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   disabled={loading}
                   required
-                  className="pl-10"
+                  className="pl-10 pr-10"
                 />
+                <KeyRound size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-secondary))] transition-colors"
+                  tabIndex={-1}
+                  aria-label={showConfirm ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                >
+                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
+              {confirmPassword.length > 0 && confirmPassword !== password && (
+                <p className="mt-1.5 text-[0.78rem] text-[hsl(var(--danger))]">Mật khẩu xác nhận không trùng khớp.</p>
+              )}
             </FormItem>
 
             <Button type="submit" variant="primary" className="w-full py-3 h-[46px] font-semibold mt-2 mb-2" disabled={loading} isLoading={loading}>

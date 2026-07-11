@@ -75,6 +75,7 @@ public static class NotificationReferenceType
 {
     public const string MaterialRequest = "MaterialRequest";
     public const string PurchaseOrder = "PurchaseOrder";
+    public const string DirectPurchaseRequest = "DirectPurchaseRequest";
     public const string Incident = "Incident";
     public const string Task = "Task";
     public const string PhaseAcceptance = "PhaseAcceptance";

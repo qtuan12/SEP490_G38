@@ -57,6 +57,18 @@ namespace BPG.Api.Controllers
             await Mediator.Send(new CancelPurchaseOrderCommand { POId = id, Reason = body.Reason }, ct);
             return ApiOk(true, "Hủy đơn mua hàng thành công");
         }
+
+        /// <summary>
+        /// Đóng đơn mua hàng đang nhận một phần. Phần vật tư chưa nhận sẽ được trả lại
+        /// yêu cầu vật tư, cho phép tạo đơn mua hàng khác cho phần còn thiếu.
+        /// </summary>
+        [HttpPost("{id:long}/close")]
+        [Authorize(Roles = "Accountant")]
+        public async Task<IActionResult> ClosePurchaseOrder(long id, [FromBody] CancelPORequestBody body, CancellationToken ct)
+        {
+            await Mediator.Send(new ClosePurchaseOrderCommand { POId = id, Reason = body.Reason }, ct);
+            return ApiOk(true, "Đóng đơn mua hàng thành công");
+        }
     }
 
     public class CancelPORequestBody

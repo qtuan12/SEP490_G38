@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import type { PurchaseOrderDto } from '../../services/inventoryService';
 import { Select, Badge, DataTable, Pagination } from '../../components/ui';
 import { ShoppingCart, AlertCircle, Loader2 } from 'lucide-react';
+import { useNotification } from '../../context/NotificationContext';
 
 const PO_STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
@@ -37,8 +38,15 @@ const statusVariant: Record<string, 'default' | 'warning' | 'info' | 'success' |
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 interface Props {
   projectId: number;
@@ -46,6 +54,8 @@ interface Props {
 
 export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { connection } = useNotification();
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -61,10 +71,27 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
       }),
   });
 
+  // Realtime: tự làm mới danh sách khi có PO thay đổi (tạo/hủy/đóng) từ người dùng khác
+  useEffect(() => {
+    if (!connection) return;
+
+    connection.invoke('JoinProjectGroup', projectId).catch(err => console.error('SignalR JoinProjectGroup error:', err));
+
+    const handlePOUpdated = () => {
+      queryClient.invalidateQueries({ queryKey: ['project-purchase-orders', projectId] });
+    };
+    connection.on('PurchaseOrderUpdated', handlePOUpdated);
+
+    return () => {
+      connection.off('PurchaseOrderUpdated', handlePOUpdated);
+      connection.invoke('LeaveProjectGroup', projectId).catch(err => console.error('SignalR LeaveProjectGroup error:', err));
+    };
+  }, [connection, projectId, queryClient]);
+
   const columns = [
     {
       key: 'poNumber',
-      header: 'Số PO',
+      header: 'Số đơn hàng',
       render: (po: PurchaseOrderDto) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ padding: 4, background: 'hsl(var(--primary-glow))', borderRadius: 4, border: '1px solid hsl(var(--border))' }}>
@@ -112,6 +139,28 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
           {statusLabel[po.status] ?? po.status}
         </Badge>
       ),
+    },
+    {
+      key: 'actions',
+      header: 'Thao tác',
+      render: (po: PurchaseOrderDto) => {
+        const canReceive = po.status === 'Sent' || po.status === 'PartiallyReceived';
+        return (
+          <div style={{ display: 'flex', gap: 8 }} onClick={(e) => e.stopPropagation()}>
+            {canReceive && (
+              <button
+                onClick={() => {
+                  navigate(`/projects/${projectId}?tab=inventory&subTab=receipts&openCreate=receipt&poId=${po.poId}&poNumber=${encodeURIComponent(po.poNumber)}`);
+                }}
+                className="btn btn-sm btn-primary"
+                style={{ fontSize: '0.78rem', padding: '4px 8px' }}
+              >
+                Nhập kho
+              </button>
+            )}
+          </div>
+        );
+      }
     },
   ];
 

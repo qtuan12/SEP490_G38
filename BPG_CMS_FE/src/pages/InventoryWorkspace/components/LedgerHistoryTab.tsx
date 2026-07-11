@@ -100,7 +100,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
           <Select
             options={[
               { label: '-- Loại biến động --', value: '' },
-              { label: 'Nhập kho PO', value: '1' },
+              { label: 'Nhập kho (Đơn mua)', value: '1' },
               { label: 'Xuất thi công', value: '2' },
               { label: 'Nhận chuyển kho', value: '3' },
               { label: 'Chuyển kho đi', value: '4' },
