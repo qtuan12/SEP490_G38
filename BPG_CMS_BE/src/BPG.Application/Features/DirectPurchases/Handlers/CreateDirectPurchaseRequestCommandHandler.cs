@@ -35,6 +35,21 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             long userId = _currentUserService.GetRequiredUserId();
 
+            // Validate ngày mua nằm trong khoảng thời gian thi công của giai đoạn
+            var phase = await _uow.Repository<Phase>().Query()
+                .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct)
+                ?? throw new NotFoundException(nameof(Phase), request.PhaseId);
+
+            var purchaseDateOnly = DateOnly.FromDateTime(request.PurchaseDate.Date);
+
+            if (phase.StartDate.HasValue && purchaseDateOnly < phase.StartDate.Value)
+                throw new BusinessException("ERR_PURCHASE_DATE_BEFORE_PHASE",
+                    $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu giai đoạn '{phase.Name}' ({phase.StartDate.Value:dd/MM/yyyy}) trở đi.");
+
+            if (phase.EndDate.HasValue && purchaseDateOnly > phase.EndDate.Value)
+                throw new BusinessException("ERR_PURCHASE_DATE_AFTER_PHASE",
+                    $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) vượt quá ngày kết thúc giai đoạn '{phase.Name}' ({phase.EndDate.Value:dd/MM/yyyy}).");
+
             // Load BOQ items for this phase
             var boqItems = await _uow.Repository<BOQItem>().Query()
                 .Include(b => b.Unit)
