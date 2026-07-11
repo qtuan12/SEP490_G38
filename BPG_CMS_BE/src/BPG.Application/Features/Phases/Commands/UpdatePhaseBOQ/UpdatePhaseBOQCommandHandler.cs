@@ -1,4 +1,6 @@
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
@@ -8,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System;
 
 namespace BPG.Application.Features.Phases.Commands.UpdatePhaseBOQ;
 
@@ -15,17 +18,26 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
 {
     private readonly IUnitOfWork _uow;
     private readonly ILogger<UpdatePhaseBOQCommandHandler> _logger;
+    private readonly INotificationService _notificationService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public UpdatePhaseBOQCommandHandler(IUnitOfWork uow, ILogger<UpdatePhaseBOQCommandHandler> logger)
+    public UpdatePhaseBOQCommandHandler(
+        IUnitOfWork uow, 
+        ILogger<UpdatePhaseBOQCommandHandler> logger,
+        INotificationService notificationService,
+        ICurrentUserService currentUserService)
     {
         _uow = uow;
         _logger = logger;
+        _notificationService = notificationService;
+        _currentUserService = currentUserService;
     }
 
     public async Task<bool> Handle(UpdatePhaseBOQCommand request, CancellationToken cancellationToken)
     {
         // 1. Verify Phase exists and belongs to Project
         var phase = await _uow.Repository<Phase>().Query()
+            .Include(p => p.Project)
             .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId && p.ProjectId == request.ProjectId, cancellationToken);
 
         if (phase == null)
@@ -168,6 +180,44 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
         }
 
         await _uow.SaveChangesAsync(cancellationToken);
+
+        // Gửi thông báo realtime
+        try
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            var user = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+            var userName = user?.FullName ?? "Quản lý";
+
+            // 1. Gửi thông báo tới Technical Manager
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.TechnicalManager,
+                "Cập nhật định mức vật tư",
+                $"Định mức vật tư giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' vừa được cập nhật bởi '{userName}'.",
+                NotificationType.Procurement,
+                NotificationReferenceType.Project,
+                phase.ProjectId,
+                cancellationToken);
+
+            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án
+            var projectLeader = await _uow.Repository<ProjectMember>().Query()
+                .FirstOrDefaultAsync(pm => pm.ProjectId == phase.ProjectId && pm.IsLeader, cancellationToken);
+            if (projectLeader != null && projectLeader.UserId != currentUserId)
+            {
+                await _notificationService.SendNotificationAsync(
+                    projectLeader.UserId,
+                    "Cập nhật định mức vật tư",
+                    $"Định mức vật tư giai đoạn '{phase.Name}' vừa được cập nhật bởi '{userName}'.",
+                    NotificationType.Procurement,
+                    NotificationReferenceType.Project,
+                    phase.ProjectId,
+                    cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending BOQ update notification");
+        }
+
         return true;
     }
 }

@@ -259,18 +259,18 @@ export const MaterialControl: React.FC = () => {
           isOpen={actionModalOpen}
           onClose={() => setActionModalOpen(false)}
           title={
-            actionType === 'verify' ? 'Soát xét yêu cầu vật tư (Kế toán)' :
+            actionType === 'verify' ? 'Kiểm tra yêu cầu vật tư' :
               actionType === 'disburse' ? 'Giải ngân yêu cầu vật tư khẩn cấp' :
-                actionType === 'approve' ? 'Phê duyệt yêu cầu vượt định mức (Giám đốc)' :
+                actionType === 'approve' ? 'Phê duyệt yêu cầu vượt định mức' :
                   'Từ chối yêu cầu vật tư'
           }
           width="sm"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', margin: 0 }}>
-              {actionType === 'verify' ? 'Xác nhận soát xét yêu cầu vật tư này. Nếu vật tư vượt BOQ, hệ thống sẽ tự động trình lên Giám đốc.' :
+              {actionType === 'verify' ? 'Xác nhận yêu cầu vật tư này. Nếu vật tư vượt định mức, hệ thống sẽ tự động trình lên Giám đốc.' :
                 actionType === 'disburse' ? 'Xác nhận giải ngân chi phí mua ngoài khẩn cấp cho dự án.' :
-                  actionType === 'approve' ? 'Phê duyệt yêu cầu vật tư vượt định mức này để cấp mã PO.' :
+                  actionType === 'approve' ? 'Phê duyệt yêu cầu vật tư vượt định mức.' :
                     'Vui lòng nhập lý do từ chối yêu cầu vật tư này.'}
             </p>
 
@@ -326,7 +326,7 @@ export const MaterialControl: React.FC = () => {
                 disabled={isSubmittingAction}
               >
                 {isSubmittingAction ? 'Đang xử lý...' :
-                  actionType === 'verify' ? 'Xác nhận soát xét' :
+                  actionType === 'verify' ? 'Xác nhận' :
                     actionType === 'disburse' ? 'Xác nhận giải ngân' :
                       actionType === 'approve' ? 'Xác nhận duyệt' :
                         'Xác nhận từ chối'}

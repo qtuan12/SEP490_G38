@@ -101,9 +101,9 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
   const getStatusBadge = (status: MaterialRequest['status']) => {
     switch (status) {
       case 'pending_accountant':
-        return <Badge variant="warning">Chờ Kế toán soát</Badge>;
+        return <Badge variant="warning">Đang kiểm tra</Badge>;
       case 'pending_director':
-        return <Badge variant="default">Chờ Giám đốc duyệt</Badge>;
+        return <Badge variant="default">Chờ duyệt</Badge>;
       case 'pending_disbursement':
         return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Chờ Giải ngân</Badge>;
       case 'disbursed':
@@ -301,7 +301,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                     className="flex items-center gap-1 py-1.5 px-3.5 text-xs font-semibold"
                   >
                     <FileCheck2 size={14} />
-                    <span>{request.isOverBOQ ? 'Trình Giám đốc' : 'Duyệt cấp PO'}</span>
+                    <span>{request.isOverBOQ ? 'Trình Giám đốc' : 'Duyệt'}</span>
                   </Button>
                 </>
               )}
