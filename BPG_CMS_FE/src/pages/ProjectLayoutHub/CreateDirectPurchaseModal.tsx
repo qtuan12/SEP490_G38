@@ -35,6 +35,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const [invoiceFiles, setInvoiceFiles] = useState<File[]>([]);
   const [invoicePreviews, setInvoicePreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [purchaseDateError, setPurchaseDateError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -88,7 +89,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     if (!files.length) return;
     const valid = files.filter(f => f.type.startsWith('image/'));
     if (valid.length < files.length) toast.error('Chỉ hỗ trợ file ảnh (jpg, png, ...)');
-    const newFiles = [...invoiceFiles, ...valid].slice(0, 5);
+    const newFiles = [...invoiceFiles, ...valid];
     setInvoiceFiles(newFiles);
     setInvoicePreviews(newFiles.map(f => URL.createObjectURL(f)));
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -119,6 +120,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   };
 
   const handleSubmit = async () => {
+    setPurchaseDateError(null);
     const err = validate();
     if (err) { toast.error(err); return; }
     setSubmitting(true);
@@ -140,7 +142,11 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       onSuccess();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'Tạo phiếu thất bại.');
+      const msg = err.message || 'Tạo phiếu thất bại.';
+      toast.error(msg, { position: 'top-center' });
+      if (msg.includes('Ngày mua')) {
+        setPurchaseDateError(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -175,7 +181,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         {/* Info banner */}
         <div style={{ display: 'flex', gap: '8px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', border: '1px solid hsl(var(--warning) / 0.3)', borderRadius: 'var(--radius-sm)', color: 'hsl(var(--warning))', fontSize: '0.85rem' }}>
           <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
-          <span>Hệ thống sẽ tự động sinh PO và Phiếu nhập kho. Tồn kho ảo tăng ngay để thợ sử dụng. Chỉ áp dụng vật tư trong định mức BOQ.</span>
+          <span>Hệ thống sẽ tự động sinh Đơn hàng và Phiếu nhập kho. Tồn kho ảo tăng ngay để thợ sử dụng. Chỉ áp dụng vật tư trong định mức BOQ.</span>
         </div>
 
         {/* Row 1: Phase + Date */}
@@ -202,9 +208,12 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             <input
               type="date"
               value={purchaseDate}
-              onChange={e => setPurchaseDate(e.target.value)}
-              style={{ width: '100%', padding: '8px 10px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.9rem' }}
+              onChange={e => { setPurchaseDate(e.target.value); setPurchaseDateError(null); }}
+              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${purchaseDateError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.9rem' }}
             />
+            {purchaseDateError && (
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{purchaseDateError}</p>
+            )}
           </div>
         </div>
 
@@ -338,7 +347,6 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         <div>
           <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'hsl(var(--text-secondary))' }}>
             Ảnh hóa đơn <span style={{ color: 'hsl(var(--danger))' }}>*</span>
-            <span style={{ marginLeft: '8px', fontSize: '0.8rem', fontWeight: 400, color: 'hsl(var(--text-muted))' }}>(tối đa 5 ảnh)</span>
           </label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-start' }}>
             {invoicePreviews.map((url, i) => (
@@ -352,15 +360,13 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                 </button>
               </div>
             ))}
-            {invoiceFiles.length < 5 && (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                style={{ width: '80px', height: '80px', border: '2px dashed hsl(var(--border))', borderRadius: 'var(--radius-sm)', background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', color: 'hsl(var(--text-muted))', fontSize: '0.75rem' }}
-              >
-                <Upload size={16} />
-                <span>Tải ảnh</span>
-              </button>
-            )}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{ width: '80px', height: '80px', border: '2px dashed hsl(var(--border))', borderRadius: 'var(--radius-sm)', background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', color: 'hsl(var(--text-muted))', fontSize: '0.75rem' }}
+            >
+              <Upload size={16} />
+              <span>Tải ảnh</span>
+            </button>
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFilesChange} />
         </div>

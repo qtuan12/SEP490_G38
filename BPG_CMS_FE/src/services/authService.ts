@@ -6,6 +6,7 @@ export interface UserProfile {
   email: string;
   role: 'admin' | 'technicalmanager' | 'projectleader' | 'siteengineer' | 'accountant' | 'director';
   status: 'active' | 'locked';
+  avatarUrl?: string | null;
 }
 
 export interface UserDetailProfile {

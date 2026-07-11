@@ -38,6 +38,8 @@ export interface RequestItemForPODto {
   unitName: string;
   quantity: number;
   conversionRate: number;
+  orderedQuantity: number;
+  remainingQuantity: number;
 }
 
 export interface CreatePurchaseOrderCommand {
@@ -49,7 +51,7 @@ export interface CreatePurchaseOrderCommand {
   deliveryAddress?: string;
   paymentTerms?: string;
   notes?: string;
-  requestIds: number[];
+  requestId: number;
   items: CreatePOItemDto[];
 }
 
@@ -79,6 +81,7 @@ export interface PurchaseOrderDetailDto {
   projectId?: number;
   projectName: string;
   cancelledReason?: string;
+  closedReason?: string;
   items: PODetailItemDto[];
   linkedRequests: LinkedRequestDto[];
 }
@@ -102,6 +105,8 @@ export interface PODetailItemDto {
 export interface LinkedRequestDto {
   requestId: number;
   reason: string;
+  projectId: number;
+  phaseId: number;
   phaseName: string;
 }
 
@@ -242,6 +247,13 @@ export const inventoryService = {
   cancelPurchaseOrder: async (poId: number, reason: string): Promise<boolean> => {
     return unwrap(
       await apiClient.post<ApiResponse<boolean>>(`/purchaseorders/${poId}/cancel`, { reason })
+    );
+  },
+
+  // Close PO (nhận một phần) — phần chưa nhận được trả lại yêu cầu vật tư
+  closePurchaseOrder: async (poId: number, reason: string): Promise<boolean> => {
+    return unwrap(
+      await apiClient.post<ApiResponse<boolean>>(`/purchaseorders/${poId}/close`, { reason })
     );
   },
 

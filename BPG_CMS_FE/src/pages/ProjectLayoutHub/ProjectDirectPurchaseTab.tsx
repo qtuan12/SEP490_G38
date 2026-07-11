@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { directPurchaseService } from '../../services/directPurchaseService';
 import type { DirectPurchaseRequestDto } from '../../services/directPurchaseService';
@@ -8,6 +8,7 @@ import { ShoppingBag, AlertCircle, Loader2, Plus } from 'lucide-react';
 import { CreateDirectPurchaseModal } from './CreateDirectPurchaseModal';
 import { DirectPurchaseDetailModal } from './DirectPurchaseDetailModal';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
@@ -61,6 +62,7 @@ interface Props {
 export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader }) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { connection } = useNotification();
   const isAccountant = user?.role === 'accountant';
   const [statusFilter, setStatusFilter] = useState('');
   const [auditFilter, setAuditFilter] = useState('');
@@ -82,6 +84,24 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
         pageSize,
       }),
   });
+
+  // Realtime: tự làm mới danh sách khi có phiếu mua khẩn cấp thay đổi (tạo/kiểm toán) từ người dùng khác
+  useEffect(() => {
+    if (!connection) return;
+
+    connection.invoke('JoinProjectGroup', projectId).catch(err => console.error('SignalR JoinProjectGroup error:', err));
+
+    const handleDPUpdated = () => {
+      refetchList();
+    };
+    connection.on('DirectPurchaseUpdated', handleDPUpdated);
+
+    return () => {
+      connection.off('DirectPurchaseUpdated', handleDPUpdated);
+      connection.invoke('LeaveProjectGroup', projectId).catch(err => console.error('SignalR LeaveProjectGroup error:', err));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection, projectId]);
 
   const columns = [
     {

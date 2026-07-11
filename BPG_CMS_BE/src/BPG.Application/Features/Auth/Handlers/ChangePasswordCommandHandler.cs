@@ -25,9 +25,6 @@ namespace BPG.Application.Features.Auth.Handlers
             if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
                 throw new InvalidOperationException("Mật khẩu hiện tại không chính xác.");
 
-            if (request.NewPassword.Length < 6)
-                throw new InvalidOperationException("Mật khẩu mới phải có ít nhất 6 ký tự.");
-
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
             user.PasswordChangedAt = DateTime.UtcNow;
             await _uow.SaveChangesAsync(cancellationToken);

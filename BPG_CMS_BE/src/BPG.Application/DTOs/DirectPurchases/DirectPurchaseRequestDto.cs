@@ -1,0 +1,22 @@
+namespace BPG.Application.DTOs.DirectPurchases
+{
+    public class DirectPurchaseRequestDto
+    {
+        public long DirectPurchaseId { get; set; }
+        public string RequestNumber { get; set; } = string.Empty;
+        public long ProjectId { get; set; }
+        public string ProjectName { get; set; } = string.Empty;
+        public string PhaseName { get; set; } = string.Empty;
+        public string RequesterName { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+        public decimal TotalAmount { get; set; }
+        public DateTime PurchaseDate { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string AuditStatus { get; set; } = string.Empty;
+        public string? AuditNote { get; set; }
+        public string? AuditorName { get; set; }
+        public DateTime? AuditedAt { get; set; }
+        public int ItemCount { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+}

@@ -75,7 +75,7 @@ export const PurchaseOrderList: React.FC = () => {
   const columns = [
     {
       key: 'poNumber',
-      header: 'Số PO',
+      header: 'Số đơn hàng',
       render: (po: PurchaseOrderDto) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ padding: 4, background: 'hsl(var(--primary-glow))', borderRadius: 4, border: '1px solid hsl(var(--border))' }}>
@@ -145,7 +145,7 @@ export const PurchaseOrderList: React.FC = () => {
           <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
           <Input
             type="text"
-            placeholder="Tìm theo số PO..."
+            placeholder="Tìm theo số đơn hàng..."
             value={searchPO}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-9 h-10"
@@ -164,7 +164,7 @@ export const PurchaseOrderList: React.FC = () => {
         )}
         <Button variant="primary" onClick={() => navigate('/purchase-orders/new')} className="h-10 font-semibold shrink-0">
           <Plus size={18} />
-          <span>Tạo PO</span>
+          <span>Tạo đơn hàng</span>
         </Button>
       </div>
 
@@ -172,7 +172,7 @@ export const PurchaseOrderList: React.FC = () => {
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 250, gap: 10 }}>
           <Loader2 className="animate-spin" size={24} style={{ color: 'hsl(var(--primary))' }} />
-          <span style={{ color: 'hsl(var(--text-secondary))', fontWeight: 500 }}>Đang tải danh sách PO...</span>
+          <span style={{ color: 'hsl(var(--text-secondary))', fontWeight: 500 }}>Đang tải danh sách đơn hàng...</span>
         </div>
       ) : (
         <div className="animate-fade-in flex flex-col gap-4">

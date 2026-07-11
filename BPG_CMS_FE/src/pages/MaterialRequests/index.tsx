@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type {WBSPhase, MaterialRequest, Project} from '../../types/common';
@@ -13,6 +13,7 @@ export const PhaseMaterialRequests: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [phase, setPhase] = useState<WBSPhase | null>(null);
   const [project, setProject] = useState<Project | null>(null);
@@ -60,6 +61,15 @@ export const PhaseMaterialRequests: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [projectId, phaseId, user]);
+
+  // Tự động chọn yêu cầu vật tư khi được điều hướng tới kèm ?requestId=...
+  useEffect(() => {
+    const targetId = searchParams.get('requestId');
+    if (!targetId || phaseRequests.length === 0) return;
+    // id phía FE có dạng "mat-req-{requestId}" (xem mapRequestDtoToCommon)
+    const target = phaseRequests.find(r => r.id === `mat-req-${targetId}`);
+    if (target) setSelectedRequest(target);
+  }, [searchParams, phaseRequests]);
 
   const handleRefresh = async () => {
     await fetchData();
