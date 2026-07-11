@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { incidentService } from '../../../services/incidentService';
 import { projectService } from '../../../services/projectService';
@@ -13,13 +13,12 @@ import { toast } from 'react-hot-toast';
 const schema = z.object({
   incidentType: z.literal('Construction'),
   description: z.string().min(5, 'Mô tả phải có ít nhất 5 ký tự'),
-  location: z.string().min(1, 'Vui lòng nhập vị trí'),
   incidentDate: z.string().min(1, 'Vui lòng chọn ngày phát hiện'),
   responsibleParty: z.string().optional(),
   canceledVolume: z.string().optional(),
   estimatedDamage: z.string().optional(),
-  estimatedLaborDays: z.coerce.number().optional().default(0),
-  estimatedDelayDays: z.coerce.number().optional().default(0),
+  estimatedLaborDays: z.coerce.number({ message: 'Vui lòng nhập số' }).min(0, 'Số ngày không được âm'),
+  estimatedDelayDays: z.coerce.number({ message: 'Vui lòng nhập số' }).min(0, 'Số ngày không được âm'),
   proposedAction: z.enum(['Tạo Rework Task', 'Giảm tiến độ task', 'Khác'], {
     message: 'Vui lòng chọn đề xuất xử lý'
   }),
@@ -41,8 +40,8 @@ interface ReportIncidentModalProps {
 const BRANCH_LABELS = {
   construction: {
     icon: HardHat,
-    title: 'Nhánh 1 — Sự cố Thi công',
-    subtitle: 'Hỏng việc, Rework (do PL báo cáo sau khi xuống hiện trường)',
+    title: 'Sự cố Thi công',
+    subtitle: 'Hỏng việc(do Trưởng dự án báo cáo sau khi xuống hiện trường)',
     color: 'hsl(28, 90%, 50%)',
     bg: 'hsl(28, 100%, 97%)',
     border: 'hsl(28, 80%, 75%)',
@@ -68,12 +67,17 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
+
+  const { data: members = [] } = useQuery({
+    queryKey: ['project-members', projectId],
+    queryFn: () => projectService.getMembers(projectId),
+    enabled: !!projectId && isOpen,
+  });
   const { register, handleSubmit, formState: { errors }, reset } = useForm<any>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       incidentType: 'Construction',
       description: '',
-      location: '',
       incidentDate: new Date().toISOString().slice(0, 16),
       responsibleParty: '',
       canceledVolume: '',
@@ -91,7 +95,6 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       const cData = data as any;
       const d = new Date(cData.incidentDate);
       const dateStr = `${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ngày ${d.toLocaleDateString('vi-VN')}`;
-      finalDesc += `\n\n**Vị trí chi tiết:** ${cData.location}`;
       finalDesc += `\n**Ngày/Giờ xảy ra:** ${dateStr}`;
       if (cData.responsibleParty) {
         finalDesc += `\n**Người/Tổ đội phụ trách:** ${cData.responsibleParty}`;
@@ -177,7 +180,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   const Icon = branchCfg.icon;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Thi công (Project Leader)" width="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Thi công " width="xl">
 
       {/* ── Banner phân loại ────────────────────────────────────── */}
       <div style={{
@@ -220,7 +223,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   color: BRANCH_LABELS.construction.color,
                   fontWeight: 600,
                 }}>
-                  🏗 Sự cố Thi công (Hỏng việc / Rework)
+                  🏗 Sự cố Thi công
                 </div>
                 <input type="hidden" {...register('incidentType')} value="Construction" />
               </div>
@@ -241,19 +244,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 {(errors as any).description && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).description?.message)}</span>}
               </div>
 
-              {/* Vị trí chi tiết */}
-              <div>
-                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                  Vị trí / Hạng mục thi công chi tiết <span style={{ color: 'hsl(var(--danger))' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Vd: Tầng 2 - Căn hộ 204 - Hệ thống điện nước"
-                  {...register('location')}
-                />
-                {(errors as any).location && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).location?.message)}</span>}
-              </div>
+
 
               {/* Ngày/Giờ & Đối tượng liên quan */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -272,12 +263,18 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
                     Người/Tổ đội phụ trách
                   </label>
-                  <input
-                    type="text"
+                  <select
                     className="input"
-                    placeholder="Vd: Đội thầu phụ điện nước A"
                     {...register('responsibleParty')}
-                  />
+                    style={{ padding: '8px', cursor: 'pointer' }}
+                  >
+                    <option value="">Chọn Người/Tổ đội</option>
+                    {members.map(m => (
+                      <option key={m.userId} value={m.userName}>
+                        {m.userName} {m.userRole === 'subcontractor' ? '(Thầu phụ)' : m.userRole === 'engineer' ? '(Kỹ sư)' : ''}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -354,11 +351,11 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
                     Ước tính thiệt hại (Tùy chọn)
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     className="input"
                     placeholder="Vd: 5.000.000 VNĐ tiền vật tư"
                     {...register('estimatedDamage')}
+                    rows={3}
                   />
                 </div>
                 <div>

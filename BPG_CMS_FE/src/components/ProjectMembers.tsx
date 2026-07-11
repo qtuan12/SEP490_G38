@@ -6,6 +6,12 @@ import { userService } from '../services/userService';
 import type { UserProfile } from '../services/authService';
 import { Modal } from './ui/Modal';
 import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
+import { useNotification } from '../context/NotificationContext';
+import { useSignalREvent } from '../hooks/useSignalREvent';
+
+interface AvailableEngineer extends UserProfile {
+  leaderProjectName?: string;
+}
 
 interface ProjectMembersProps {
   projectId: string;
@@ -13,8 +19,9 @@ interface ProjectMembersProps {
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => {
   const { user } = useAuth();
+  const { connection } = useNotification();
   const [members, setMembers] = useState<ProjectMember[]>([]);
-  const [availableEngineers, setAvailableEngineers] = useState<UserProfile[]>([]);
+  const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -27,12 +34,13 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [memberToDelete, setMemberToDelete] = useState<{id: string, name: string} | null>(null);
 
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const hasLeader = members.some(m => m.isLeader);
 
-  const loadData = async () => {
+  const loadData = async (bustCache = false) => {
     setLoading(true);
     setError(null);
     try {
-      const projMembers = await projectService.getMembers(projectId);
+      const projMembers = await projectService.getMembers(projectId, bustCache);
       setMembers(projMembers);
 
       // Only TPKT/Admin needs to load all users to add them
@@ -43,7 +51,28 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         const engineers = allUsers.filter(u =>
           u.role?.toLowerCase() === 'siteengineer' && !projMembers.some(m => m.userId === u.id)
         );
-        setAvailableEngineers(engineers);
+
+        // Lấy tất cả dự án và thành viên để tìm thông tin trưởng nhóm
+        const allProjects = await projectService.getProjects(true);
+        const allMembersPromises = allProjects.map(p => projectService.getMembers(p.id));
+        const allMembersArrays = await Promise.all(allMembersPromises);
+        
+        const leaderMap = new Map<string, string>();
+        allMembersArrays.forEach((mems, index) => {
+          const project = allProjects[index];
+          mems.forEach(m => {
+            if (m.isLeader) {
+              leaderMap.set(m.userId, project.name);
+            }
+          });
+        });
+
+        const engineersWithLeaderInfo: AvailableEngineer[] = engineers.map(e => ({
+          ...e,
+          leaderProjectName: leaderMap.get(e.id)
+        }));
+
+        setAvailableEngineers(engineersWithLeaderInfo);
       }
     } catch (err: any) {
       setError(err.message || 'Không thể tải thành viên dự án.');
@@ -55,6 +84,35 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   useEffect(() => {
     loadData();
   }, [projectId]);
+
+  useEffect(() => {
+    if (!connection) return;
+
+    const joinGroup = () => {
+      connection.invoke('JoinProjectGroup', Number(projectId))
+        .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
+    };
+
+    if (connection.state === 'Connected') {
+      joinGroup();
+    }
+
+    connection.onreconnected(joinGroup);
+
+    return () => {
+      if (connection.state === 'Connected') {
+        connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
+      }
+    };
+  }, [connection, projectId]);
+
+  useSignalREvent('ProjectLeaderUpdated', () => {
+    loadData(true); // bust cache to fetch fresh data
+  });
+
+  useSignalREvent('ProjectMemberAdded', () => {
+    loadData(true); // bust cache to refresh member list
+  });
 
   const openAddModal = () => {
     setSelectedUserIds([]);
@@ -118,7 +176,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       setMembers(updatedList);
 
       const target = updatedList.find(m => m.userId === userId);
-      setSuccess(`Đã ${target?.isLeader ? 'gán' : 'hủy'} vai trò Project Leader cho ${name}.`);
+      setSuccess(`Đã ${target?.isLeader ? 'gán' : 'hủy'} vai trò Trưởng nhóm cho ${name}.`);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.message || 'Lỗi khi cập nhật vai trò trưởng nhóm.');
@@ -262,22 +320,26 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                 marginTop: '4px'
               }}>
                 {/* Crown Assign Checkbox/Button */}
-                <button
-                  onClick={() => handleToggleLeader(m.userId, m.userName)}
-                  className={`btn ${m.isLeader ? 'btn-secondary' : 'btn-secondary'}`}
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: '0.75rem',
-                    color: m.isLeader ? 'hsl(var(--text-secondary))' : 'goldenrod',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  title={m.isLeader ? 'Bỏ vai trò Project Leader' : 'Gán làm Project Leader'}
-                >
-                  <Crown size={14} fill={m.isLeader ? 'none' : 'currentColor'} />
-                  <span>{m.isLeader ? 'Hủy Lead' : 'Gán Lead'}</span>
-                </button>
+                {(!hasLeader || m.isLeader) ? (
+                  <button
+                    onClick={() => handleToggleLeader(m.userId, m.userName)}
+                    className={`btn ${m.isLeader ? 'btn-secondary' : 'btn-secondary'}`}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '0.75rem',
+                      color: m.isLeader ? 'hsl(var(--text-secondary))' : 'goldenrod',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title={m.isLeader ? 'Bỏ vai trò Trưởng nhóm' : 'Gán làm Trưởng nhóm'}
+                  >
+                    <Crown size={14} fill={m.isLeader ? 'none' : 'currentColor'} />
+                    <span>{m.isLeader ? 'Hủy trưởng nhóm' : 'Gán trưởng nhóm'}</span>
+                  </button>
+                ) : (
+                  <div></div>
+                )}
 
                 {/* Remove member button */}
                 <button
@@ -363,6 +425,21 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                         <div className="text-xs sm:text-[0.75rem] text-[hsl(var(--text-muted))] truncate">{eng.email}</div>
                       </div>
                     </div>
+                    {eng.leaderProjectName && (
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2" style={{
+                        backgroundColor: 'hsl(var(--primary-glow) / 0.15)',
+                        color: 'hsl(var(--primary))',
+                        padding: '4px 8px',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        border: '1px solid hsl(var(--primary) / 0.3)'
+                      }}>
+                        <Crown size={12} fill="currentColor" />
+                        <span className="hidden sm:inline">Trưởng nhóm - {eng.leaderProjectName}</span>
+                        <span className="sm:hidden">TN - {eng.leaderProjectName}</span>
+                      </div>
+                    )}
                   </label>
                 ))
               ) : (

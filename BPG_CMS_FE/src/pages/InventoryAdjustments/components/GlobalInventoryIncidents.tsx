@@ -11,6 +11,8 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { Badge } from '../../../components/ui';
+import { useNotification } from '../../../context/NotificationContext';
+import { useSignalREvent } from '../../../hooks/useSignalREvent';
 
 interface GlobalInventoryIncidentsProps {
   projectId: number;
@@ -20,6 +22,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
   const { user } = useAuth();
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const { connection } = useNotification();
 
   // Modals & Selected States
   const [selectedIncident, setSelectedIncident] = useState<IncidentReport | null>(null);
@@ -42,13 +45,13 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
       const incList: IncidentReport[] = incListDto.map(dto => {
         let desc = dto.description || '';
         const images: string[] = [];
-        
+
         const imgRegex = /!\[.*?\]\((.*?)\)/g;
         let match;
         while ((match = imgRegex.exec(desc)) !== null) {
           images.push(match[1]);
         }
-        
+
         desc = desc.replace(/\*\*Hình ảnh đính kèm:\*\*/g, '');
         desc = desc.replace(/!\[.*?\]\((.*?)\)/g, '');
         desc = desc.trim();
@@ -74,7 +77,8 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
           date: (() => {
-            const d = new Date(dto.createdAt);
+            const dateStr = dto.createdAt.endsWith('Z') ? dto.createdAt : dto.createdAt + 'Z';
+            const d = new Date(dateStr);
             const hours = d.getHours().toString().padStart(2, '0');
             const minutes = d.getMinutes().toString().padStart(2, '0');
             return `${hours}:${minutes} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
@@ -96,6 +100,36 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
     loadData();
   }, [projectId]);
 
+  // Tham gia SignalR group
+  useEffect(() => {
+    if (!connection || projectId === null || projectId === undefined || projectId < 0) return;
+
+    const joinGroup = () => {
+      connection.invoke('JoinProjectGroup', Number(projectId))
+        .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
+    };
+
+    if (connection.state === 'Connected') {
+      joinGroup();
+    }
+
+    connection.onreconnected(joinGroup);
+
+    return () => {
+      if (connection.state === 'Connected') {
+        connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
+      }
+    };
+  }, [connection, projectId]);
+
+  useSignalREvent('IncidentCreated', () => {
+    loadData();
+  });
+
+  useSignalREvent('IncidentUpdated', () => {
+    loadData();
+  });
+
   const handleError = (msg: string) => {
     setError(msg);
     setTimeout(() => setError(null), 4000);
@@ -104,22 +138,22 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
   const handleRowClick = async (inc: IncidentReport) => {
     setLoadingRowAction(inc.id);
     try {
-       const [tList, pList] = await Promise.all([
-          projectService.getTasks(inc.projectId),
-          projectService.getPhases(inc.projectId)
-       ]);
-       const task = tList.find(t => t.id === inc.taskId);
-       const phase = pList.find(p => p.id === task?.phaseId);
-       
-       setSelectedPhase(phase || null);
-       
-       setSelectedIncident(inc);
-       setIsDetailOpen(true);
-    } catch(err) {
-       console.error(err);
-       handleError('Lỗi khi tải thông tin chi tiết sự cố.');
+      const [tList, pList] = await Promise.all([
+        projectService.getTasks(inc.projectId),
+        projectService.getPhases(inc.projectId)
+      ]);
+      const task = tList.find(t => t.id === inc.taskId);
+      const phase = pList.find(p => p.id === task?.phaseId);
+
+      setSelectedPhase(phase || null);
+
+      setSelectedIncident(inc);
+      setIsDetailOpen(true);
+    } catch (err) {
+      console.error(err);
+      handleError('Lỗi khi tải thông tin chi tiết sự cố.');
     } finally {
-       setLoadingRowAction(null);
+      setLoadingRowAction(null);
     }
   };
 
@@ -129,10 +163,15 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
         return <Badge variant="warning" className="normal-case">Báo cáo mới</Badge>;
       case 'WaitingAccountant':
         return <Badge variant="warning" className="normal-case">Chờ Kế toán xác minh</Badge>;
+      case 'WaitingDirector':
+        return <Badge variant="warning" className="normal-case">Chờ Giám đốc phê duyệt</Badge>;
       case 'Approved':
+        return <Badge variant="success" className="normal-case bg-[hsl(var(--success-glow))] text-[hsl(var(--success))]">Chờ GĐ duyệt kho</Badge>;
       case 'Confirmed':
       case 'Closed':
         return <Badge variant="success" className="normal-case">Đã xử lý</Badge>;
+      case 'Resolved':
+        return <Badge variant="default" className="normal-case bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))]">Đã xử lý</Badge>;
       default:
         return <Badge variant="default" className="normal-case">{status}</Badge>;
     }
@@ -217,15 +256,15 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
                 </tr>
               ) : (
                 visibleIncidents.map(inc => (
-                  <tr 
-                    key={inc.id} 
+                  <tr
+                    key={inc.id}
                     className="hover:bg-[hsl(var(--bg-card-hover))] cursor-pointer transition-colors"
                     onClick={() => handleRowClick(inc)}
                   >
                     <td className="p-4 font-medium text-[hsl(var(--primary))]">{inc.projectName}</td>
                     <td className="p-4 text-[hsl(var(--text-secondary))]">{inc.date}</td>
                     <td className="p-4">
-                      {inc.taskName === 'Không xác định' 
+                      {inc.taskName === 'Không xác định'
                         ? <span className="text-[hsl(var(--text-muted))] italic">Không có</span>
                         : inc.taskName
                       }
@@ -273,7 +312,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
             // No action needed here anymore since we removed the create decrease modal
             setIsDetailOpen(false);
           }}
-          projectId={selectedIncident.projectId}
+          onSuccessAction={loadData}
         />
       )}
     </div>

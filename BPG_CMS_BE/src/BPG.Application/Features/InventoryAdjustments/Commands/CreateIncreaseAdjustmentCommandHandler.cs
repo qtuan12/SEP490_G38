@@ -16,11 +16,15 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly INotificationService _notificationService;
 
-        public CreateIncreaseAdjustmentCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
+        public CreateIncreaseAdjustmentCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, IRealtimeNotificationSender realtimeSender, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
+            _realtimeSender = realtimeSender;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateIncreaseAdjustmentCommand request, CancellationToken cancellationToken)
@@ -106,7 +110,32 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             }
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return ApiResponse<long>.SuccessResult(adjustment.AdjustmentId, "Tạo phiếu điều chỉnh tăng tồn thành công");
+            // Gửi thông báo DB xác nhận phiếu tăng tồn cho Kế toán
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.Accountant,
+                "Phiếu điều chỉnh tăng tồn đã được tạo",
+                $"Một phiếu tăng tồn kho mới (#{adjustment.AdjustmentId}) đã được tạo và tự động phê duyệt. Tồn kho dự án đã được cập nhật.",
+                BPG.Domain.Constants.NotificationType.Procurement,
+                BPG.Domain.Constants.NotificationReferenceType.InventoryAdjustment,
+                adjustment.AdjustmentId,
+                cancellationToken
+            );
+
+            // Realtime: broadcast to all members currently viewing this project
+            await _realtimeSender.SendToGroupAsync(
+                HubMethodNames.GroupProject + request.ProjectId,
+                HubMethodNames.InventoryAdjustmentCreated,
+                adjustment.AdjustmentId,
+                cancellationToken);
+
+            // Realtime: broadcast to all members viewing global incidents (Project_0)
+            await _realtimeSender.SendToGroupAsync(
+                HubMethodNames.GroupProject + 0,
+                HubMethodNames.InventoryAdjustmentCreated,
+                adjustment.AdjustmentId,
+                cancellationToken);
+
+            return ApiResponse<long>.SuccessResult(adjustment.AdjustmentId, "Tạo phiếu điều chỉnh tăng tồn thành công (đã tự động phê duyệt)");
         }
     }
 }

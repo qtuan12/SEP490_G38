@@ -46,7 +46,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Kiểm kê vật tư', path: '/inventory-adjustments', icon: <FileSignature size={20} />, roles: ['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer'] },
     { name: 'Sự cố thi công', path: '/incidents', icon: <AlertTriangle size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
     { name: 'Kiểm soát Vật tư', path: '/materials-control', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
-    { name: 'Danh sách PO', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: ['accountant', 'admin'] },
+    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: ['accountant', 'admin'] },
     { name: 'Báo cáo', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant'] },
     { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, roles: ['admin'] },
   ];
@@ -98,7 +98,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </button>
         </div>
 
-        <nav className="flex-1 flex flex-col gap-2 py-6 px-4">
+        <nav className="flex-1 flex flex-col gap-2 py-6 px-4 overflow-y-auto">
           {filteredNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -135,7 +135,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               onClick={() => navigate('/profile')}
               title="Xem trang cá nhân"
             >
-              <Avatar name={user.name} size="md" />
+              <Avatar name={user.name} src={user.avatarUrl} size="md" />
               {!isCollapsed && (
                 <div className="overflow-hidden">
                   <div className="font-semibold text-sm truncate">{user.name}</div>

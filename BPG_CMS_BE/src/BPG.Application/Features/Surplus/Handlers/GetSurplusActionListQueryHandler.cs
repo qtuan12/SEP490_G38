@@ -6,8 +6,6 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using BPG.Domain.Constants;
-using BPG.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Surplus.Handlers;

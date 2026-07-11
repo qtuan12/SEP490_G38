@@ -14,6 +14,7 @@ public class PurchaseOrder : BaseEntity
     public string? Notes { get; set; }
     public string Status { get; set; } = "Draft";
     public string? CancelledReason { get; set; }
+    public string? ClosedReason { get; set; }
     public decimal TotalAmount { get; set; }
 
     public MaterialRequest? Request { get; set; }

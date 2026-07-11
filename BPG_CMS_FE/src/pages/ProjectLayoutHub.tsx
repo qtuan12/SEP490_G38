@@ -43,7 +43,7 @@ export const ProjectLayoutHub: React.FC = () => {
   const { user } = useAuth();
   const { connection } = useNotification();
   const [isPL, setIsPL] = useState(false);
-  const isTPKT = isPL || user?.role === 'technicalmanager' || user?.role === 'admin';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -245,14 +245,16 @@ export const ProjectLayoutHub: React.FC = () => {
               </>
             )}
 
-            {/* Project Status Actions for TPKT */}
-            {isTPKT && (
+            {/* Nút Sửa chỉ dành cho TPKT/Admin */}
+            {isTPKT && project.status !== 'done' && (
+              <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Edit3 size={16} /> Sửa
+              </button>
+            )}
+
+            {/* Project Status Actions cho PL và TPKT */}
+            {isPL && (
               <>
-                {project.status !== 'done' && (
-                  <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Edit3 size={16} /> Sửa
-                  </button>
-                )}
                 {project.status === 'draft' && (
                   <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Play size={16} /> Kích hoạt Dự án
@@ -499,7 +501,7 @@ export const ProjectLayoutHub: React.FC = () => {
           }}
         >
           <ShoppingCart size={18} />
-          <span>Đơn hàng PO</span>
+          <span>Đơn hàng</span>
         </button>
 
         {(isAccountant || isAssignedLeader) && (
