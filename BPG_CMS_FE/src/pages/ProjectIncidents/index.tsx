@@ -105,7 +105,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
         if (p) inc.phaseName = p.name;
       });
 
-      setIncidents(incList); // Do not filter by task, show all incidents for the project!
+      setIncidents(incList.filter(inc => inc.incidentType === 'Construction')); // Show only construction incidents for the project!
       setTasks(taskList.filter(t => t.status !== 'obsolete'));
       setPhases(phaseList);
       setMembers(memberList);
@@ -267,7 +267,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           <div className="text-center py-8 text-[hsl(var(--text-muted))]">Đang tải báo cáo sự cố...</div>
         ) : incidents.length === 0 ? (
           <div className="text-center py-10 text-[hsl(var(--text-muted))] text-[0.9rem] border border-dashed border-[hsl(var(--border))] rounded-md">
-            Chưa ghi nhận sự cố nào tại dự án này.
+            Chưa ghi nhận sự cố thi công nào tại dự án này.
           </div>
         ) : (
           <div className="table-container">

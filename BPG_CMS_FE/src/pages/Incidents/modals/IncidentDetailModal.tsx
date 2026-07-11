@@ -27,14 +27,14 @@ const INCIDENT_META: Record<string, { label: string; color: string; bg: string; 
     icon: HardHat,
   },
   InventoryLoss: {
-    label: 'Thất thoát Vật tư',
+    label: 'Sự cố Vật tư Kho',
     color: 'hsl(210, 70%, 45%)',
     bg: 'hsl(210, 100%, 97%)',
     border: 'hsl(210, 70%, 78%)',
     icon: Package,
   },
   InventoryDamage: {
-    label: 'Hư hại Vật tư',
+    label: 'Sự cố Vật tư Kho',
     color: 'hsl(210, 70%, 45%)',
     bg: 'hsl(210, 100%, 97%)',
     border: 'hsl(210, 70%, 78%)',

@@ -26,12 +26,16 @@ import {
   PackageMinus,
   ShoppingCart,
   ShoppingBag,
+  FileSignature,
+  AlertTriangle,
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
 import { SurplusWorkspace } from './SurplusWorkspace/SurplusWorkspace';
 import { ProjectIncidents } from './ProjectIncidents';
 import { ProjectPOTab } from './ProjectLayoutHub/ProjectPOTab';
 import { ProjectDirectPurchaseTab } from './ProjectLayoutHub/ProjectDirectPurchaseTab';
+import { AdjustmentList } from './InventoryAdjustments/components/AdjustmentList';
+import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 
@@ -50,8 +54,8 @@ export const ProjectLayoutHub: React.FC = () => {
   const isAccountant = user?.role === 'accountant';
   const [isAssignedLeader, setIsAssignedLeader] = useState(false);
 
-  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus' | 'purchaseorders' | 'directpurchases';
-  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'incidents', 'surplus', 'purchaseorders', 'directpurchases'];
+  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'directpurchases';
+  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'directpurchases'];
 
   const [activeTab, setActiveTab] = useState<TabKey>(
     (searchParams.get('tab') as TabKey) || 'wbs'
@@ -439,6 +443,28 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
+          onClick={() => handleTabChange('inventoryadjustments')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'inventoryadjustments' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'inventoryadjustments' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'inventoryadjustments' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <FileSignature size={18} />
+          <span>Kiểm kê vật tư</span>
+        </button>
+
+        <button
           onClick={() => handleTabChange('incidents')}
           style={{
             display: 'flex',
@@ -458,6 +484,28 @@ export const ProjectLayoutHub: React.FC = () => {
         >
           <AlertCircle size={18} />
           <span>Sự cố thi công</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('inventoryincidents')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'inventoryincidents' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'inventoryincidents' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'inventoryincidents' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <AlertTriangle size={18} />
+          <span>Sự cố vật tư</span>
         </button>
 
         <button
@@ -539,8 +587,10 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
         {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
+        {activeTab === 'inventoryadjustments' && <AdjustmentList projectId={Number(project.id)} />}
         {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} />}
+        {activeTab === 'inventoryincidents' && <GlobalInventoryIncidents projectId={Number(project.id)} />}
         {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} />}
         {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
       </div>
