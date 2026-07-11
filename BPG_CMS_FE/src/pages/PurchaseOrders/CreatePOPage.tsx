@@ -376,20 +376,20 @@ export const CreatePOPage: React.FC = () => {
                     <td style={{ padding: '8px 10px' }}>
                       <Input type="number" min={0.001} max={it.maxQuantity} step={0.001}
                         value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))}
-                        className="h-8" style={{ width: 90 }} />
+                        className="h-8" style={{ width: 110 }} />
                     </td>
                     <td style={{ padding: '8px 10px' }}>
                       <Input type="number" min={0} step={1000}
                         value={it.unitPrice === 0 ? '' : it.unitPrice}
                         onChange={(e) => updateItem(idx, 'unitPrice', e.target.value === '' ? 0 : Number(e.target.value))}
-                        className="h-8" style={{ width: 120 }} />
+                        className="h-8" style={{ width: 140 }} />
                     </td>
                     <td style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap', color: 'hsl(var(--text-primary))' }}>
                       {fmt(it.quantity * it.unitPrice)}
                     </td>
                     <td style={{ padding: '8px 10px' }}>
                       <Input value={it.notes} onChange={(e) => updateItem(idx, 'notes', e.target.value)}
-                        placeholder="Ghi chú" className="h-8" style={{ width: 130 }} />
+                        placeholder="Ghi chú" className="h-8" style={{ width: 200 }} />
                     </td>
                     <td style={{ padding: '8px 10px' }}>
                       <Button type="button" variant="secondary" className="p-1 h-auto" onClick={() => removeItem(idx)} title="Xóa dòng">

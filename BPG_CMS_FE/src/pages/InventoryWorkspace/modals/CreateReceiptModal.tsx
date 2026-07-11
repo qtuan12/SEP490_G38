@@ -364,7 +364,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                               onChange={e => handleQuantityChange(item.materialId, e.target.value, item)}
                               disabled={remaining <= 0 || submitting}
                               placeholder="0"
-                              className={`text-right w-32 ${error ? 'border-red-500 focus:ring-red-200' : ''}`}
+                              className={`text-right w-36 ${error ? 'border-red-500 focus:ring-red-200' : ''}`}
                             />
                             {error && (
                               <span className="text-[10px] text-red-500 font-medium max-w-[150px] text-right">

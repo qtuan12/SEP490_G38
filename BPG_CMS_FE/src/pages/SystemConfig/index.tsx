@@ -149,7 +149,7 @@ export const SystemConfigPage: React.FC = () => {
                                 setEditError(null);
                               }}
                               className="h-8"
-                              style={{ width: 110 }}
+                              style={{ width: 220 }}
                               autoFocus
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') saveEdit();
