@@ -6,8 +6,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2, Plus, Trash2, AlertCircle } from 'lucide-react';
 import {projectService} from '../../../../src/services/projectService';
+import { materialService } from '../../../../src/services/materialService';
+import type { MaterialCatalog } from '../../../../src/types/material';
 import type {MaterialRequest} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
+import { SearchSelect } from '../../../../src/components/ui/SearchSelect';
 
 const resubmitMaterialRequestSchema = z.object({
   type: z.enum(['normal', 'emergency']),
@@ -53,8 +56,15 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   onSuccess
 }) => {
   const queryClient = useQueryClient();
+  const [allCatalogs, setAllCatalogs] = React.useState<MaterialCatalog[]>([]);
+
+  useEffect(() => {
+    materialService.getMaterials({ pageSize: 1000 }).then(res => {
+      setAllCatalogs(res.items || []);
+    }).catch(console.error);
+  }, []);
   
-  const { register, control, handleSubmit, reset, watch, formState: { errors } } = useForm<ResubmitMaterialRequestForm>({
+  const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<ResubmitMaterialRequestForm>({
     resolver: zodResolver(resubmitMaterialRequestSchema),
     defaultValues: {
       type: request.type || 'normal',
@@ -73,7 +83,15 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   });
 
   const type = watch('type');
+  const watchedItems = watch('items') || [];
   const isPhaseRequest = !!request.phaseId && !request.taskId;
+
+  const handleMaterialChange = (index: number, name: string) => {
+    const mat = allCatalogs.find(m => m.name === name);
+    if (mat) {
+      setValue(`items.${index}.unit`, mat.baseUnitName || '');
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -181,11 +199,18 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
             {fields.map((item, idx) => (
               <div key={item.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-start">
                 <div>
-                  <input
-                    type="text"
-                    placeholder="Tên vật tư..."
-                    {...register(`items.${idx}.name` as const)}
-                    className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
+                  <SearchSelect
+                    options={allCatalogs.map(sm => ({
+                      label: sm.name,
+                      value: sm.name
+                    }))}
+                    value={watchedItems[idx]?.name || ''}
+                    onChange={(selName) => {
+                      setValue(`items.${idx}.name`, selName, { shouldValidate: true });
+                      handleMaterialChange(idx, selName);
+                    }}
+                    placeholder="-- Chọn vật tư --"
+                    error={!!errors.items?.[idx]?.name}
                   />
                   {errors.items?.[idx]?.name && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.name?.message}</p>}
                 </div>

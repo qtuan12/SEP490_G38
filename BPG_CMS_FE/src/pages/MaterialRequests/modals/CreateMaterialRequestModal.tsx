@@ -10,6 +10,7 @@ import { materialService } from '../../../../src/services/materialService';
 import type { MaterialCatalog } from '../../../../src/types/material';
 import type {WBSTask, WBSPhase, MaterialRequest} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
+import { SearchSelect } from '../../../../src/components/ui/SearchSelect';
 
 const createMaterialRequestSchema = z.object({
   type: z.enum(['normal', 'emergency']),
@@ -252,25 +253,23 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
             {fields.map((item, idx) => (
               <div key={item.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-start">
                 <div>
-                  <select
-                    {...register(`items.${idx}.name` as const)}
-                    onChange={(e) => {
-                      const selName = e.target.value;
-                      setValue(`items.${idx}.name`, selName);
+                  <SearchSelect
+                    options={displayMaterials.map(sm => {
+                      const isBOQ = 'quantity' in sm;
+                      return {
+                        label: sm.name,
+                        value: sm.name,
+                        sublabel: isBOQ ? `BOQ: ${(sm as any).quantity} ${(sm as any).unit}` : undefined
+                      };
+                    })}
+                    value={watchedItems[idx]?.name || ''}
+                    onChange={(selName) => {
+                      setValue(`items.${idx}.name`, selName, { shouldValidate: true });
                       handleMaterialChange(idx, selName);
                     }}
-                    className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
-                  >
-                    <option value="" disabled>-- Chọn vật tư --</option>
-                    {displayMaterials.map(sm => {
-                      const isBOQ = 'quantity' in sm;
-                      return (
-                        <option key={sm.name} value={sm.name}>
-                          {sm.name} {isBOQ ? `(BOQ: ${(sm as any).quantity} ${(sm as any).unit})` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    placeholder="-- Chọn vật tư --"
+                    error={!!errors.items?.[idx]?.name}
+                  />
                   {errors.items?.[idx]?.name && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.name?.message}</p>}
                 </div>
 

@@ -9,7 +9,7 @@ import { Loader2, Plus, Trash2, ArrowLeft, ClipboardList, Info, AlertTriangle } 
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import type { WBSPhase, Project } from '../../types/common';
-import { Button } from '../../components/ui';
+import { Button, SearchSelect } from '../../components/ui';
 
 const phaseBOQSchema = z.object({
   materials: z.array(
@@ -48,7 +48,7 @@ export const PhaseBOQ: React.FC = () => {
   });
   const materialList = materialsData?.items || [];
 
-  const { register, control, handleSubmit, reset, setValue, formState: { errors } } = useForm<PhaseBOQForm>({
+  const { register, control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<PhaseBOQForm>({
     resolver: zodResolver(phaseBOQSchema),
     defaultValues: {
       materials: [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }]
@@ -59,6 +59,8 @@ export const PhaseBOQ: React.FC = () => {
     control,
     name: 'materials'
   });
+
+  const watchedMaterials = watch('materials') || [];
 
   useEffect(() => {
     const loadPhaseData = async () => {
@@ -251,22 +253,22 @@ export const PhaseBOQ: React.FC = () => {
 
                       {/* Vật tư */}
                       <td className="py-2 pr-4">
-                        <select
-                          {...register(`materials.${idx}.materialId` as const, { valueAsNumber: true })}
+                        <SearchSelect
+                          options={materialList.map(m => ({
+                            label: m.name + (m.specification ? ` (${m.specification})` : ''),
+                            value: m.materialId.toString(),
+                            sublabel: m.code ? `Mã: ${m.code}` : undefined
+                          }))}
+                          value={watchedMaterials[idx]?.materialId?.toString() || '0'}
                           disabled={hasActiveMRs}
-                          onChange={(e) => {
-                            const selectedId = parseInt(e.target.value);
+                          onChange={(val) => {
+                            const selectedId = parseInt(val) || 0;
+                            setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true });
                             handleMaterialChange(idx, selectedId);
                           }}
-                          className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.materialId ? 'border-red-500' : 'border-slate-200'} ${hasActiveMRs ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
-                        >
-                          <option value={0}>-- Chọn vật tư kỹ thuật --</option>
-                          {materialList.map(m => (
-                            <option key={m.materialId} value={m.materialId}>
-                              {m.name} {m.specification ? `(${m.specification})` : ''}
-                            </option>
-                          ))}
-                        </select>
+                          placeholder="-- Chọn vật tư kỹ thuật --"
+                          error={!!errors.materials?.[idx]?.materialId}
+                        />
                         {errors.materials?.[idx]?.materialId && (
                           <p className="text-red-500 text-xs mt-1 mb-0">{errors.materials[idx]?.materialId?.message}</p>
                         )}
