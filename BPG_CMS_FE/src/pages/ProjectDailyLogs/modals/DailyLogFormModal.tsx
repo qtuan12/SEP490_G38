@@ -152,13 +152,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   };
 
   const addImages = (files: File[]) => {
-    const totalCurrentCount = existingImages.length + selectedFiles.length;
-    const remainingCount = 5 - totalCurrentCount;
-    if (remainingCount <= 0) {
-      toast.error('Đã đạt giới hạn tối đa 5 ảnh.');
-      return;
-    }
-
     // Kiểm tra dung lượng hình ảnh (tối đa 10MB mỗi file)
     const MAX_SIZE = 10 * 1024 * 1024;
     const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
@@ -167,7 +160,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       return;
     }
 
-    const validFiles = files.filter(f => f.type.startsWith('image/')).slice(0, remainingCount);
+    const validFiles = files.filter(f => f.type.startsWith('image/'));
     if (validFiles.length === 0) return;
 
     const newFiles = [...selectedFiles, ...validFiles];
@@ -335,21 +328,19 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
           {/* Cloudinary Image Upload Box */}
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-600">Hình ảnh hiện trường thi công (Tối đa 5 ảnh)</label>
+            <label className="block text-sm font-medium mb-1.5 text-slate-600">Hình ảnh hiện trường thi công</label>
             
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => {
-                if (totalImagesCount < 5) {
+                if (!mutation.isPending) {
                   document.getElementById('log-image-input')?.click();
                 }
               }}
               className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
-                totalImagesCount >= 5 
-                  ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
-                  : dragging 
+                dragging 
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
               }`}
@@ -361,7 +352,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 multiple
                 className="hidden"
                 onChange={handleFileSelect}
-                disabled={totalImagesCount >= 5}
+                disabled={mutation.isPending}
               />
               
               {totalImagesCount > 0 ? (
@@ -411,18 +402,18 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                     Kéo thả hình ảnh vào đây hoặc click để chọn ảnh
                   </p>
                   <span className="text-xs text-slate-500">
-                    Hỗ trợ định dạng hình ảnh tối đa 10MB (tối đa 5 ảnh)
+                    Hỗ trợ định dạng hình ảnh tối đa 10MB
                   </span>
                 </div>
               )}
 
-              {totalImagesCount > 0 && totalImagesCount < 5 && (
+              {totalImagesCount > 0 && (
                 <div className="mt-4 text-xs text-blue-600 font-semibold" onClick={e => e.stopPropagation()}>
                   <span
                     className="cursor-pointer hover:underline"
                     onClick={() => document.getElementById('log-image-input')?.click()}
                   >
-                    + Thêm ảnh khác ({totalImagesCount}/5)
+                    + Thêm ảnh khác (Đã chọn {totalImagesCount} ảnh)
                   </span>
                 </div>
               )}

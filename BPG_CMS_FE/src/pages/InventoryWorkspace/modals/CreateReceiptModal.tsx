@@ -28,6 +28,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   // Form fields
   const [delivererInfo, setDelivererInfo] = useState('');
   const [deliveryDocNo, setDeliveryDocNo] = useState('');
+  const [qcNote, setQcNote] = useState('');
   const [quantities, setQuantities] = useState<Record<number, string>>({}); // materialId -> qty string
   const [errors, setErrors] = useState<Record<number, string>>({}); // materialId -> error message
 
@@ -44,6 +45,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       setSelectedPO(null);
       setDelivererInfo('');
       setDeliveryDocNo('');
+      setQcNote('');
       setQuantities({});
       setErrors({});
       setSelectedFiles([]);
