@@ -135,7 +135,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               onClick={() => navigate('/profile')}
               title="Xem trang cá nhân"
             >
-              <Avatar name={user.name} size="md" />
+              <Avatar name={user.name} src={user.avatarUrl} size="md" />
               {!isCollapsed && (
                 <div className="overflow-hidden">
                   <div className="font-semibold text-sm truncate">{user.name}</div>

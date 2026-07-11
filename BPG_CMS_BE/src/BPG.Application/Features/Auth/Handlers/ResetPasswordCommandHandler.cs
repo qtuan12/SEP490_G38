@@ -32,6 +32,10 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand>
             .FirstOrDefaultAsync(u => u.UserId == resetToken.UserId && !u.IsDeleted, ct)
             ?? throw new BusinessException("AUTH_OTP", "Người dùng không tồn tại.");
 
+        if (!string.IsNullOrEmpty(user.PasswordHash) &&
+            BCrypt.Net.BCrypt.Verify(request.NewPassword, user.PasswordHash))
+            throw new BusinessException("AUTH_SAME_PASSWORD", "Mật khẩu mới phải khác mật khẩu hiện tại.");
+
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         user.PasswordChangedAt = DateTime.UtcNow;
         user.FailedLoginCount = 0;
