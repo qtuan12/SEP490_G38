@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, AlertTriangle, AlertCircle, CheckCircle2, Info, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import type { CurrentInventory } from '../../../types/inventory';
+import { Pagination } from '../../../components/ui';
 
 interface CurrentStockTabProps {
   inventoryList: CurrentInventory[];
@@ -440,48 +441,11 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
       </div>
 
       {totalPages > 1 && (
-        <div className="flex justify-center items-center mt-4 gap-4" style={{ padding: '16px 0' }}>
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            style={{
-              color: currentPage === 1 ? 'hsl(var(--text-muted))' : 'hsl(var(--text-secondary))',
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              background: 'none',
-              border: 'none',
-              fontWeight: 500,
-              fontSize: '0.9rem'
-            }}
-          >
-            Trang trước
-          </button>
-
-          <div style={{
-            padding: '6px 16px',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '20px',
-            fontWeight: 600,
-            color: '#2563eb', // text-blue-600
-            fontSize: '0.9rem'
-          }}>
-            <span style={{ color: '#2563eb' }}>Trang {currentPage}</span> <span style={{ color: 'hsl(var(--text-secondary))' }}>/ {totalPages}</span>
-          </div>
-
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            style={{
-              color: currentPage === totalPages ? 'hsl(var(--text-muted))' : 'hsl(var(--text-secondary))',
-              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-              background: 'none',
-              border: 'none',
-              fontWeight: 500,
-              fontSize: '0.9rem'
-            }}
-          >
-            Trang sau
-          </button>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
       )}
     </div>
   );

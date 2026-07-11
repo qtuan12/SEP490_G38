@@ -532,35 +532,13 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           <button
             onClick={handleLoadMore}
             disabled={loadingMore}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '10px 24px',
-              borderRadius: '8px',
-              border: '1.5px solid hsl(var(--border))',
-              background: 'hsl(var(--bg-card))',
-              color: 'hsl(var(--text-secondary))',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              cursor: loadingMore ? 'not-allowed' : 'pointer',
-              opacity: loadingMore ? 0.6 : 1,
-              transition: 'all 0.15s ease'
-            }}
+            className={`inline-flex items-center gap-1.5 px-6 py-2.5 rounded-lg border-2 border-solid border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] text-[hsl(var(--text-secondary))] font-semibold text-sm transition-all ${
+              loadingMore ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-slate-50'
+            }`}
           >
             {loadingMore ? (
               <>
-                <span
-                  className="animate-spin"
-                  style={{
-                    width: 14,
-                    height: 14,
-                    border: '2px solid hsl(var(--border))',
-                    borderTopColor: 'hsl(var(--primary))',
-                    borderRadius: '50%',
-                    display: 'inline-block'
-                  }}
-                />
+                <span className="animate-spin w-3.5 h-3.5 border-2 border-solid border-[hsl(var(--border))] border-t-[hsl(var(--primary))] rounded-full inline-block" />
                 Đang tải...
               </>
             ) : (

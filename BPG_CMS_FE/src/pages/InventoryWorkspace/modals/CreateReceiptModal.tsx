@@ -335,7 +335,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                     <th className="px-4 py-3">Vật tư</th>
                     <th className="px-4 py-3">Quy cách</th>
                     <th className="px-4 py-3 text-center">Đã nhận / Đặt</th>
-                    <th className="px-4 py-3 text-right" style={{ width: '160px' }}>Thực nhận đợt này</th>
+                    <th className="px-4 py-3 text-right w-40">Thực nhận đợt này</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">

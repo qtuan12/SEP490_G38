@@ -29,17 +29,13 @@ export const ProjectDailyLogs: React.FC = () => {
   if (!projectId) return null;
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="animate-fade-in flex flex-col gap-5">
 
       {/* Top navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <button
           onClick={() => navigate(`/projects/${projectId}`)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            background: 'none', border: 'none', color: 'hsl(var(--text-secondary))',
-            cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500,
-          }}
+          className="inline-flex items-center gap-1.5 bg-transparent border-none text-[hsl(var(--text-secondary))] cursor-pointer text-sm font-medium hover:text-[hsl(var(--primary))]"
         >
           <ArrowLeft size={16} />
           <span>Quay lại Kế hoạch WBS</span>
@@ -49,8 +45,7 @@ export const ProjectDailyLogs: React.FC = () => {
         {taskId && (
           <button
             onClick={() => setIsHistoryOpen(true)}
-            className="btn btn-secondary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '7px 14px' }}
+            className="btn btn-secondary inline-flex items-center gap-1.5 text-xs px-3.5 py-2"
           >
             <BarChart2 size={15} />
             Lịch sử tiến độ
@@ -59,7 +54,7 @@ export const ProjectDailyLogs: React.FC = () => {
       </div>
 
       {project && (
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
+        <h2 className="text-xl font-bold m-0 text-[hsl(var(--text-primary))]">
           {taskId ? `Nhật ký công việc: ${taskName || 'Đang tải...'}` : `Nhật ký thi công: ${project.name}`}
         </h2>
       )}

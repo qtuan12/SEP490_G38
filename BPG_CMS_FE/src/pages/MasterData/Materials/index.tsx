@@ -83,52 +83,52 @@ export const MaterialManagement: React.FC = () => {
       key: 'code',
       header: 'Mã Vật tư',
       render: (m: MaterialCatalog) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ padding: '6px', backgroundColor: 'hsl(var(--primary-glow))', borderRadius: '4px', border: '1px solid hsl(var(--border))' }}>
-            <Package size={14} style={{ color: 'hsl(var(--primary))' }} />
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-[hsl(var(--primary-glow))] rounded border border-solid border-[hsl(var(--border))]">
+            <Package size={14} className="text-[hsl(var(--primary))]" />
           </div>
-          <span style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>{m.code}</span>
+          <span className="font-semibold text-[hsl(var(--text-primary))]">{m.code}</span>
         </div>
       ),
     },
     {
       key: 'name',
       header: 'Tên Vật tư',
-      render: (m: MaterialCatalog) => <span style={{ fontWeight: 500 }}>{m.name}</span>,
+      render: (m: MaterialCatalog) => <span className="font-medium">{m.name}</span>,
     },
     {
       key: 'categoryName',
       header: 'Danh mục',
-      render: (m: MaterialCatalog) => <span style={{ color: 'hsl(var(--text-secondary))' }}>{m.categoryName}</span>,
+      render: (m: MaterialCatalog) => <span className="text-[hsl(var(--text-secondary))]">{m.categoryName}</span>,
     },
     {
       key: 'baseUnitName',
       header: 'ĐVT Gốc',
-      render: (m: MaterialCatalog) => <span style={{ color: 'hsl(var(--primary))', fontWeight: 600 }}>{m.baseUnitName}</span>,
+      render: (m: MaterialCatalog) => <span className="text-[hsl(var(--primary))] font-semibold">{m.baseUnitName}</span>,
     },
     {
       key: 'specification',
       header: 'Quy cách',
-      render: (m: MaterialCatalog) => <span style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.85rem' }}>{m.specification || '-'}</span>,
+      render: (m: MaterialCatalog) => <span className="text-[hsl(var(--text-secondary))] text-xs">{m.specification || '-'}</span>,
     },
     {
       key: 'actions',
       header: 'Hành động',
       render: (m: MaterialCatalog) => (
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+        <div className="flex gap-2 justify-end">
           <Button
             variant="secondary"
             title="Quy đổi đơn vị"
             onClick={() => openConversionDrawer(m)}
-            style={{ padding: '6px 12px', height: 'auto', backgroundColor: 'hsl(var(--success-glow))', color: 'hsl(142_70%_35%)', borderColor: 'hsl(var(--success)/0.3)' }}
+            className="px-3 py-1.5 h-auto bg-[hsl(var(--success-glow))] text-emerald-800 border border-solid border-[hsl(var(--success))]/0.3"
           >
-            <ArrowRightLeft size={14} style={{ marginRight: '4px' }} /> Quy đổi
+            <ArrowRightLeft size={14} className="mr-1" /> Quy đổi
           </Button>
-          <Button variant="secondary" title="Chỉnh sửa" onClick={() => openEditModal(m)} style={{ padding: '8px', height: 'auto' }}>
-            <Edit2 size={15} style={{ color: 'hsl(var(--primary-hover))' }} />
+          <Button variant="secondary" title="Chỉnh sửa" onClick={() => openEditModal(m)} className="p-2 h-auto">
+            <Edit2 size={15} className="text-[hsl(var(--primary-hover))]" />
           </Button>
-          <Button variant="secondary" title="Xóa" onClick={() => openDeleteModal(m)} style={{ padding: '8px', height: 'auto' }}>
-            <Trash2 size={15} style={{ color: 'hsl(var(--danger))' }} />
+          <Button variant="secondary" title="Xóa" onClick={() => openDeleteModal(m)} className="p-2 h-auto">
+            <Trash2 size={15} className="text-[hsl(var(--danger))]" />
           </Button>
         </div>
       ),
@@ -136,62 +136,62 @@ export const MaterialManagement: React.FC = () => {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="flex flex-col gap-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'hsl(var(--text-primary))', margin: 0 }}>Danh mục Vật tư</h1>
-          <p style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.875rem', marginTop: '4px' }}>Quản lý danh sách vật tư chuẩn và tỷ lệ quy đổi</p>
+          <h1 className="text-xl font-bold text-[hsl(var(--text-primary))] m-0">Danh mục Vật tư</h1>
+          <p className="text-xs text-[hsl(var(--text-secondary))] mt-1 m-0">Quản lý danh sách vật tư chuẩn và tỷ lệ quy đổi</p>
         </div>
       </div>
 
       {success && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'hsl(var(--success-glow))', border: '1px solid hsl(var(--success)/0.3)', borderRadius: '4px', padding: '12px 16px', color: 'hsl(142_70%_35%)', fontSize: '0.875rem', fontWeight: 500 }}>
-          <CheckCircle2 size={18} style={{ color: 'hsl(var(--success))', flexShrink: 0 }} />
+        <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-solid border-[hsl(var(--success))]/0.3 rounded px-4 py-3 text-emerald-800 text-sm font-medium">
+          <CheckCircle2 size={18} className="text-[hsl(var(--success))] shrink-0" />
           <span>{success}</span>
         </div>
       )}
 
       {(error || isError) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger)/0.3)', borderRadius: '4px', padding: '12px 16px', color: 'hsl(346_84%_35%)', fontSize: '0.875rem', fontWeight: 500 }}>
-          <AlertCircle size={18} style={{ color: 'hsl(var(--danger))', flexShrink: 0 }} />
+        <div className="flex items-center gap-2.5 bg-[hsl(var(--danger-glow))] border border-solid border-[hsl(var(--danger))]/0.3 rounded px-4 py-3 text-rose-800 text-sm font-medium">
+          <AlertCircle size={18} className="text-[hsl(var(--danger))] shrink-0" />
           <span>{error || (queryError as any)?.message || 'Không thể tải danh sách vật tư.'}</span>
-          <button onClick={() => setError(null)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.125rem', opacity: 0.7 }}>&times;</button>
+          <button onClick={() => setError(null)} className="ml-auto bg-transparent border-none text-inherit cursor-pointer text-lg opacity-70">&times;</button>
         </div>
       )}
 
-      <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '180px' }}>
-            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
+      <div className="glass-panel p-5 flex justify-between items-center flex-wrap gap-4">
+        <div className="flex gap-3 flex-1 min-w-[280px] flex-wrap">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" style={{ pointerEvents: 'none' }} />
             <Input
               type="text"
               placeholder="Tìm theo mã hoặc tên..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-              style={{ paddingLeft: '36px', height: '40px', width: '100%' }}
+              className="pl-9 h-10 w-full"
             />
           </div>
           <Select
             options={categoryOptions}
             value={categoryIdFilter?.toString() || ''}
             onChange={(e) => { setCategoryIdFilter(e.target.value ? Number(e.target.value) : undefined); setPage(1); }}
-            style={{ width: '200px', height: '40px' }}
+            className="w-[200px] h-10"
           />
         </div>
 
-        <Button variant="primary" onClick={openCreateModal} style={{ height: '40px', fontWeight: 600 }}>
-          <Plus size={18} style={{ marginRight: '4px' }} />
+        <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold">
+          <Plus size={18} className="mr-1" />
           <span>Thêm Vật tư</span>
         </Button>
       </div>
 
       {isLoading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '250px', gap: '10px' }}>
-          <Loader2 className="animate-spin" style={{ color: 'hsl(var(--primary))' }} size={24} />
-          <span style={{ color: 'hsl(var(--text-secondary))', fontWeight: 500 }}>Đang tải dữ liệu...</span>
+        <div className="flex justify-center items-center h-[250px] gap-2.5">
+          <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
+          <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu...</span>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="flex flex-col gap-4">
           <DataTable
             columns={columns}
             data={data?.items || []}
