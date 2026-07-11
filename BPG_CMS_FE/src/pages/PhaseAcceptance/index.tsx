@@ -15,6 +15,8 @@ import { AcceptanceTasksChecklist } from '../PhaseAcceptance/components/Acceptan
 import { Button } from '../../components/ui';
 import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
 import html2pdf from 'html2pdf.js';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { toast } from 'react-hot-toast';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -49,7 +51,7 @@ export const PhaseAcceptance: React.FC = () => {
 
   const isTPKT = user?.role === 'technicalmanager';
 
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     if (!projectId || !phaseId) return;
     setLoading(true);
     setError(null);
@@ -89,11 +91,19 @@ export const PhaseAcceptance: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, phaseId, historyId]);
 
   useEffect(() => {
     loadData();
-  }, [projectId, phaseId, historyId]);
+  }, [loadData]);
+
+  // Realtime notification via SignalR
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    if (noti?.referenceType === 'PhaseAcceptance' || noti?.referenceType === 'Project') {
+      loadData();
+      toast('Thông tin nghiệm thu giai đoạn vừa được cập nhật!', { icon: '📝' });
+    }
+  });
 
   const handleRevoke = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,7 +202,7 @@ export const PhaseAcceptance: React.FC = () => {
   const allCompleted = tasks.length > 0 && tasks.every(t => t.progress === 100);
 
   return (
-    <div className="flex flex-col gap-6 max-w-[780px] mx-auto animate-fade-in">
+    <div className="flex flex-col gap-6 max-w-5xl mx-auto animate-fade-in">
       
       {/* Navigation and Title */}
       <div className="flex flex-col gap-3">
@@ -236,7 +246,7 @@ export const PhaseAcceptance: React.FC = () => {
               </h3>
               <div className={`space-y-1 text-sm ${historicalAcceptance.isCancelled ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
                 <p><span className="font-medium">Người lập:</span> {historicalAcceptance.acceptedByName}</p>
-                <p><span className="font-medium">Ngày lập:</span> {new Date(historicalAcceptance.acceptanceDate).toLocaleString('vi-VN')}</p>
+                <p><span className="font-medium">Ngày lập:</span> {formatDate(historicalAcceptance.acceptanceDate)}</p>
                 {historicalAcceptance.isCancelled && (
                   <>
                     <p><span className="font-medium">Người hủy:</span> {historicalAcceptance.cancelledByName}</p>

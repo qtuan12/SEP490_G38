@@ -5,11 +5,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import {projectService} from '../../../../src/services/projectService';
+import { projectService } from '../../../../src/services/projectService';
 import { materialService } from '../../../../src/services/materialService';
 import type { MaterialCatalog } from '../../../../src/types/material';
-import type {WBSTask, WBSPhase, MaterialRequest} from '../../../types/common';
+import type { WBSTask, WBSPhase, MaterialRequest } from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
+import { SearchSelect } from '../../../../src/components/ui/SearchSelect';
+import { isDiscreteUnit } from '../../../../src/utils/unitHelpers';
 
 const createMaterialRequestSchema = z.object({
   type: z.enum(['normal', 'emergency']),
@@ -18,11 +20,21 @@ const createMaterialRequestSchema = z.object({
   items: z.array(
     z.object({
       name: z.string().min(1, 'Vui lòng chọn vật tư.'),
-      quantity: z.number().min(0.01, 'Số lượng phải > 0'),
+      quantity: z.number({ message: 'Vui lòng nhập số lượng.' }).min(0.01, 'Số lượng phải > 0'),
       unit: z.string().min(1, 'Vui lòng chọn ĐVT')
     })
   ).min(1, 'Cần ít nhất 1 vật tư')
 }).superRefine((data, ctx) => {
+  // Kiểm tra trùng lặp vật tư
+  const names = data.items.map(it => it.name).filter(name => name.trim() !== '');
+  if (names.length !== new Set(names).size) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Danh sách vật tư yêu cầu không được trùng lặp.',
+      path: ['items']
+    });
+  }
+
   if (data.type === 'emergency' && (!data.invoiceImage || data.invoiceImage.trim() === '')) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -30,6 +42,19 @@ const createMaterialRequestSchema = z.object({
       path: ['invoiceImage']
     });
   }
+
+  // Ràng buộc ĐVT số nguyên không chấp nhận số lượng lẻ
+  data.items.forEach((item, idx) => {
+    if (item.name && isDiscreteUnit(item.unit)) {
+      if (item.quantity % 1 !== 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Đơn vị "${item.unit}" yêu cầu số lượng phải là số nguyên.`,
+          path: ['items', idx, 'quantity']
+        });
+      }
+    }
+  });
 });
 
 type CreateMaterialRequestForm = z.infer<typeof createMaterialRequestSchema>;
@@ -71,8 +96,9 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
   }, []);
 
 
-  const { register, control, handleSubmit, reset, watch, setValue, setError, formState: { errors } } = useForm<CreateMaterialRequestForm>({
+  const { register, control, handleSubmit, reset, watch, setValue, setError, trigger, formState: { errors } } = useForm<CreateMaterialRequestForm>({
     resolver: zodResolver(createMaterialRequestSchema),
+    mode: 'onTouched',
     defaultValues: {
       type: requestType,
       reason: '',
@@ -228,7 +254,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
           {task ? (
             <span>Công việc: <strong>{task.name}</strong></span>
           ) : (
-            <span>Giai đoạn (Phase): <strong>{phase?.name}</strong></span>
+            <span>Giai đoạn: <strong>{phase?.name}</strong></span>
           )}
         </div>
 
@@ -239,9 +265,9 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
         <div>
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm font-medium text-slate-700">Danh sách vật tư yêu cầu <span className="text-red-500">*</span></span>
-            <button 
-              type="button" 
-              onClick={() => append({ name: '', quantity: 1, unit: '' })} 
+            <button
+              type="button"
+              onClick={() => append({ name: '', quantity: 1, unit: '' })}
               className="btn btn-secondary py-1 px-2 text-xs flex items-center gap-1"
             >
               <Plus size={14} /><span>Thêm vật tư</span>
@@ -252,33 +278,32 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
             {fields.map((item, idx) => (
               <div key={item.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-start">
                 <div>
-                  <select
-                    {...register(`items.${idx}.name` as const)}
-                    onChange={(e) => {
-                      const selName = e.target.value;
-                      setValue(`items.${idx}.name`, selName);
-                      handleMaterialChange(idx, selName);
-                    }}
-                    className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
-                  >
-                    <option value="" disabled>-- Chọn vật tư --</option>
-                    {displayMaterials.map(sm => {
+                  <SearchSelect
+                    options={displayMaterials.map(sm => {
                       const isBOQ = 'quantity' in sm;
-                      return (
-                        <option key={sm.name} value={sm.name}>
-                          {sm.name} {isBOQ ? `(BOQ: ${(sm as any).quantity} ${(sm as any).unit})` : ''}
-                        </option>
-                      );
+                      return {
+                        label: sm.name,
+                        value: sm.name,
+                        sublabel: isBOQ ? `BOQ: ${(sm as any).quantity} ${(sm as any).unit}` : undefined
+                      };
                     })}
-                  </select>
+                    value={watchedItems[idx]?.name || ''}
+                    onChange={async (selName) => {
+                      setValue(`items.${idx}.name`, selName, { shouldValidate: true });
+                      handleMaterialChange(idx, selName);
+                      await trigger('items');
+                    }}
+                    placeholder="-- Chọn vật tư --"
+                    error={!!errors.items?.[idx]?.name}
+                  />
                   {errors.items?.[idx]?.name && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.name?.message}</p>}
                 </div>
 
                 <div>
                   <input
                     type="number"
-                    min={0.01}
-                    step="0.01"
+                    min={isDiscreteUnit(watchedItems[idx]?.unit) ? 1 : 0.01}
+                    step={isDiscreteUnit(watchedItems[idx]?.unit) ? "1" : "any"}
                     placeholder="SL"
                     {...register(`items.${idx}.quantity` as const, { valueAsNumber: true })}
                     className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
@@ -302,14 +327,21 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
                 <button
                   type="button"
                   disabled={fields.length === 1}
-                  onClick={() => remove(idx)}
+                  onClick={async () => {
+                    remove(idx);
+                    await trigger('items');
+                  }}
                   className="p-2 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Trash2 size={18} />
                 </button>
               </div>
             ))}
-            {errors.items?.message && <p className="text-red-500 text-xs mt-1">{errors.items.message}</p>}
+            {(errors.items?.message || (errors.items as any)?.root?.message) && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.items?.message || (errors.items as any)?.root?.message}
+              </p>
+            )}
           </div>
         </div>
 

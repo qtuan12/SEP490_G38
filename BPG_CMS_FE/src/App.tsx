@@ -262,7 +262,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/phases/:phaseId/boq" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseBOQ />
                   </ProtectedRoute>
                 } 

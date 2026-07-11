@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { materialService } from '../../../../services/materialService';
 import { unitService } from '../../../../services/unitService';
 import { materialCategoryService } from '../../../../services/materialCategoryService';
-import { Modal, Button, Input, Select, FormItem } from '../../../../components/ui';
+import { Modal, Button, Input, FormItem, SearchSelect } from '../../../../components/ui';
 import type { MaterialCatalog } from '../../../../types/material';
 
 const materialSchema = z.object({
@@ -101,15 +101,7 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
     mutation.mutate(data);
   };
 
-  const categoryOptions = [
-    { label: '-- Chọn danh mục --', value: '' },
-    ...(categoriesData?.items.map(c => ({ label: c.categoryName, value: c.categoryId.toString() })) || [])
-  ];
 
-  const unitOptions = [
-    { label: '-- Chọn đơn vị cơ sở --', value: '' },
-    ...(unitsData?.items.map(u => ({ label: `${u.unitName} (${u.unitCode})`, value: u.unitId.toString() })) || [])
-  ];
 
   return (
     <Modal
@@ -152,20 +144,24 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           <FormItem label="Danh mục" required error={errors.categoryId?.message}>
-            <Select
-              options={categoryOptions}
+            <SearchSelect
+              options={categoriesData?.items.map(c => ({ label: c.categoryName, value: c.categoryId.toString() })) || []}
               value={watch('categoryId')?.toString() || ''}
-              onChange={(e) => setValue('categoryId', Number(e.target.value), { shouldValidate: true })}
+              onChange={(val) => setValue('categoryId', Number(val) || 0, { shouldValidate: true })}
               disabled={isLoadingCategories || isSubmitting || mutation.isPending}
+              placeholder="-- Chọn danh mục --"
+              error={!!errors.categoryId}
             />
           </FormItem>
 
           <FormItem label="Đơn vị cơ sở" required error={errors.baseUnitId?.message}>
-            <Select
-              options={unitOptions}
+            <SearchSelect
+              options={unitsData?.items.map(u => ({ label: `${u.unitName} (${u.unitCode})`, value: u.unitId.toString() })) || []}
               value={watch('baseUnitId')?.toString() || ''}
-              onChange={(e) => setValue('baseUnitId', Number(e.target.value), { shouldValidate: true })}
+              onChange={(val) => setValue('baseUnitId', Number(val) || 0, { shouldValidate: true })}
               disabled={isLoadingUnits || isSubmitting || mutation.isPending || !!material} // Không nên đổi đơn vị cơ sở sau khi tạo
+              placeholder="-- Chọn đơn vị cơ sở --"
+              error={!!errors.baseUnitId}
             />
           </FormItem>
         </div>
