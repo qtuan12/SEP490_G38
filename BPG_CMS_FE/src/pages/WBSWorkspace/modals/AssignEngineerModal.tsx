@@ -115,15 +115,18 @@ export const AssignEngineerForm: React.FC<AssignEngineerFormProps> = ({
                 {members.length > 0 ? members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'SiteEngineer' || m.userRole.toLowerCase() === 'siteengineer' || m.userRole === 'Nhân viên kỹ thuật').map(m => {
                   const isChecked = selectedUserIds.includes(m.userId);
                   return (
-                    <label key={m.userId} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 400, fontSize: '0.875rem', padding: '4px 8px', borderRadius: 'var(--radius-sm)', backgroundColor: isChecked ? 'hsl(var(--primary-glow))' : 'transparent', transition: 'background 0.2s' }}>
+                    <label key={m.userId} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: '12px', cursor: 'pointer', fontWeight: 500, fontSize: '0.9rem', padding: '10px 16px', borderRadius: 'var(--radius-md)', backgroundColor: isChecked ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-body))', border: isChecked ? '1px solid hsl(var(--primary))' : '1px solid hsl(var(--border-light))', transition: 'all 0.2s', margin: 0 }}>
                       <input
                         type="checkbox"
-                        className="checkbox-custom"
+                        style={{ margin: 0, cursor: 'pointer', width: '16px', height: '16px', flexShrink: 0 }}
                         checked={isChecked}
                         onChange={() => handleToggleUser(m.userId)}
                         disabled={mutation.isPending}
                       />
-                      <span style={{ color: 'hsl(var(--text-primary))' }}>{m.userName} - <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.8rem' }}>{m.userRole}</span></span>
+                      <span style={{ color: 'hsl(var(--text-primary))', flex: 1, textAlign: 'left', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px' }}>
+                        <span>{m.userName}</span>
+                        <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.85rem', fontWeight: 400 }}>- {m.userRole}</span>
+                      </span>
                     </label>
                   );
                 }) : (

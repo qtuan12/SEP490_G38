@@ -65,7 +65,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
     return (
       <div className="flex justify-center items-center py-16 gap-2">
         <LoadingSpinner />
-        <span className="text-slate-500 text-sm">Đang tải chi tiết batch...</span>
+        <span className="text-slate-500 text-sm">Đang tải chi tiết đề xuất...</span>
       </div>
     );
   }
@@ -79,8 +79,6 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
   if (!detail) return null;
 
   const batchBadge = getSurplusRequestStatusDetails(detail.status);
-  const progress = detail.totalItems > 0
-    ? Math.round((detail.processedItems / detail.totalItems) * 100) : 0;
   const isProcessing = detail.status === 'Processing';
 
   return (
@@ -99,7 +97,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-xs text-slate-400">Batch #{detail.surplusRequestId}</span>
+              <span className="font-mono text-xs text-slate-400">Đề xuất #{detail.surplusRequestId}</span>
               <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border ${batchBadge.color}`}>
                 {batchBadge.name}
               </span>
@@ -112,19 +110,6 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
               Tạo ngày {formatDateVN(detail.createdAt)} bởi <strong>{detail.createdByName}</strong>
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-slate-400 mb-1">Tiến độ xử lý</p>
-            <p className="text-3xl font-black text-blue-600">{progress}%</p>
-            <p className="text-xs text-slate-500">{detail.processedItems}/{detail.totalItems} vật tư</p>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
         </div>
       </div>
 

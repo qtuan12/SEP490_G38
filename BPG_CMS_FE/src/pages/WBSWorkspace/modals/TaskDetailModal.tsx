@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/ui/Modal';
-import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft, Smartphone } from 'lucide-react';
+import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft } from 'lucide-react';
 import { AssignEngineerForm } from './AssignEngineerModal';
 import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';
@@ -149,6 +149,15 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const isParentTask = tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
 
+  const isBlocked = (() => {
+    const predIds = selectedTask.predecessorTaskIds;
+    if (predIds && predIds.length > 0) {
+      const preds = predIds.map(id => tasks.find(t => t.id === `t-${id}`)).filter(Boolean).filter(p => p!.status !== 'obsolete');
+      return preds.some(p => p!.progress < 100);
+    }
+    return false;
+  })();
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Công việc đang chọn" maxWidth={activeForm ? "1100px" : "700px"}>
       <div style={{ display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', gap: '24px', alignItems: 'flex-start', transition: 'all 0.3s' }}>
@@ -183,7 +192,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         {(() => {
           const predIds = selectedTask.predecessorTaskIds;
           if (predIds && predIds.length > 0) {
-            const preds = predIds.map(id => tasks.find(t => t.id === id.toString())).filter(Boolean);
+            const preds = predIds.map(id => tasks.find(t => t.id === `t-${id}`)).filter(Boolean).filter(p => p!.status !== 'obsolete');
+            if (preds.length === 0) return null;
             return (
               <div style={{ padding: '10px 14px', backgroundColor: 'hsl(var(--warning-glow) / 0.08)', border: '1px solid hsl(var(--warning) / 0.2)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem' }}>
                 <strong style={{ color: 'hsl(var(--warning-text))', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
@@ -273,20 +283,27 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
           <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
-              <TrendingUp size={14} />TRỌNG SỐ
+              <TrendingUp size={14} />MỨC ĐỘ QUAN TRỌNG
             </span>
             <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>
-              {selectedTask.weight !== undefined && selectedTask.weight !== null ? selectedTask.weight : 'Tự động'}
+              {(() => {
+                const w = selectedTask.weight;
+                if (w === 4) return 'Rất quan trọng';
+                if (w === 3) return 'Quan trọng';
+                if (w === 2) return 'Cao';
+                if (w === 1) return 'Bình thường';
+                return 'Tự động';
+              })()}
             </strong>
           </div>
         </div>
 
         {/* Actions */}
-        {project?.status === 'paused' || project?.status === 'done' ? (
+        {project?.status !== 'inprogress' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', gap: '8px', backgroundColor: 'hsl(var(--danger-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--danger))' }}>
               <AlertCircle size={16} style={{ flexShrink: 0 }} />
-              <span>Dự án đang tạm dừng hoặc đã hoàn thành. Không thể thao tác.</span>
+              <span>Dự án đang là bản nháp không thể thao tác được</span>
             </div>
             <button 
               onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
@@ -307,7 +324,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   </button>
                 )}
                 {(user?.role === 'technicalmanager' || user?.role === 'admin') && !isParentTask && (
-                  <button onClick={() => setActiveForm(activeForm === 'adjust' ? null : 'adjust')} className={`btn ${activeForm === 'adjust' ? 'btn-primary' : 'btn-secondary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', borderColor: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))', color: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))' }}>
+                  <button onClick={() => setActiveForm(activeForm === 'adjust' ? null : 'adjust')} className={`btn ${activeForm === 'adjust' ? 'btn-primary' : 'btn-secondary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', borderColor: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))', color: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))' }} disabled={isBlocked}>
                     <TrendingUp size={16} /><span>Điều chỉnh tiến độ trực tiếp</span>
                   </button>
                 )}
@@ -318,7 +335,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     onObsolete();
                   }
                 }} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: activeForm === 'obsolete' ? 'hsl(var(--danger))' : 'hsl(var(--bg-main))', color: activeForm === 'obsolete' ? '#fff' : 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
-                  <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa công việc'}</span>
+                  <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Tạm ngưng task' : 'Xóa công việc'}</span>
                 </button>
               </>
             )}
@@ -328,17 +345,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               return (isPL || isAssigned) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
             })() && (
               <>
-                <button onClick={() => setActiveForm(activeForm === 'log' ? null : 'log')} className={`btn ${activeForm === 'log' ? 'btn-secondary' : 'btn-primary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }}>
+                <button onClick={() => setActiveForm(activeForm === 'log' ? null : 'log')} className={`btn ${activeForm === 'log' ? 'btn-secondary' : 'btn-primary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }} disabled={isBlocked}>
                   <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
                 </button>
-                <button 
-                  onClick={() => { onClose(); navigate(`/tasks/${selectedTask.id}`); }} 
-                  className="btn btn-outline" 
-                  style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}
-                >
-                  <Smartphone size={15} />
-                  <span>Màn hình Kỹ sư</span>
-                </button>
+
               </>
             )}
             <button 

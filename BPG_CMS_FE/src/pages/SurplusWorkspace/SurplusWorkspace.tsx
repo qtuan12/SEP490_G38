@@ -85,7 +85,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
           <PackageX size={20} className="text-orange-500" />
           <span className="font-semibold text-slate-700 text-base">Quản lý Vật tư Thừa</span>
           {activeTab === 'outbound' && view === 'detail' && selectedBatchId && (
-            <span className="text-slate-400 text-sm">/ Batch #{selectedBatchId}</span>
+            <span className="text-slate-400 text-sm">/ Đề xuất #{selectedBatchId}</span>
           )}
         </div>
         <div className="flex items-center gap-4">
@@ -98,14 +98,16 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
             >
               Danh sách đề xuất
             </button>
-            <button
-              onClick={() => setActiveTab('inbound')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'inbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Vật tư chuyển đến
-            </button>
+            {isLeader && (
+              <button
+                onClick={() => setActiveTab('inbound')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  activeTab === 'inbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Vật tư chuyển đến
+              </button>
+            )}
           </div>
           <Button
             variant="outline"
@@ -146,7 +148,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
           />
         )}
 
-        {activeTab === 'inbound' && (
+        {activeTab === 'inbound' && isLeader && (
           <IncomingTransfersTab projectId={projectId} />
         )}
       </div>
