@@ -60,8 +60,8 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
         // Pending POs
         var poItems = await _unitOfWork.Repository<PurchaseOrderItem>()
             .Query()
-            .Include(p => p.PurchaseOrder).ThenInclude(po => po.Request).ThenInclude(r => r.Phase)
-            .Where(p => p.PurchaseOrder!.Request.Phase.ProjectId == request.ProjectId)
+            .Include(p => p.PurchaseOrder).ThenInclude(po => po!.Request).ThenInclude(r => r!.Phase)
+            .Where(p => p.PurchaseOrder!.Request!.Phase!.ProjectId == request.ProjectId)
             .ToListAsync(cancellationToken);
         
         var poGrouped = poItems

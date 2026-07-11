@@ -37,7 +37,6 @@ import { CreatePOPage } from './pages/PurchaseOrders/CreatePOPage';
 import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
 import { SystemConfigPage } from './pages/SystemConfig';
 import { DirectPurchaseList } from './pages/DirectPurchases';
-import { TaskIncidents } from './pages/TaskIncidents';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -247,15 +246,6 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
                     <ProjectDailyLogs />
-                  </ProtectedRoute>
-                } 
-              />
-
-              <Route 
-                path="/projects/:projectId/tasks/:taskId/incidents" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
-                    <TaskIncidents />
                   </ProtectedRoute>
                 } 
               />

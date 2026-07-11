@@ -98,7 +98,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </button>
         </div>
 
-        <nav className="flex-1 flex flex-col gap-2 py-6 px-4">
+        <nav className="flex-1 flex flex-col gap-2 py-6 px-4 overflow-y-auto">
           {filteredNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (

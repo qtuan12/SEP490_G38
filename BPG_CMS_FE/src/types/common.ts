@@ -100,7 +100,7 @@ export interface IncidentReport {
   reviewerName?: string;
   incidentType: 'Construction' | 'InventoryLoss' | 'InventoryDamage' | 'Delay' | 'Safety' | 'Other';
   description: string;
-  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'Approved' | 'Rejected' | 'Closed';
+  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'WaitingDirector' | 'Approved' | 'Rejected' | 'Closed';
   damageDescription?: string;
   estimatedMaterialLoss?: number;
   estimatedLaborDays?: number;

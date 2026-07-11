@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
-import type {Project} from '../../types/common';
+import type { Project } from '../../types/common';
 import { CreateProjectModal } from './modals/CreateProjectModal';
 import { Button, Input, Select, Badge, Pagination } from '../../components/ui';
 import { Modal } from '../../components/ui/Modal';
 import type { BadgeVariant } from '../../components/ui';
-import { 
-  Search, 
-  FolderPlus, 
-  Layers, 
-  MapPin, 
-  Calendar, 
+import {
+  Search,
+  FolderPlus,
+  Layers,
+  MapPin,
+  Calendar,
   ArrowRight,
   FileText,
   Loader2,
@@ -34,7 +34,7 @@ export const ProjectList: React.FC = () => {
   // Form Drawer Modal state
   const [isOpen, setIsOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [projectToDelete, setProjectToDelete] = useState<{id: string, name: string} | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<{ id: string, name: string } | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,7 +62,7 @@ export const ProjectList: React.FC = () => {
   const confirmDeleteProject = async () => {
     if (!projectToDelete) return;
     setDeleteConfirmOpen(false);
-    
+
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -88,8 +88,8 @@ export const ProjectList: React.FC = () => {
 
   // Filter projects
   const filteredProjects = projects.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          p.address.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.address.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === '' || p.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -119,7 +119,7 @@ export const ProjectList: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      
+
       {/* Alert Messages */}
       {success && (
         <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.3)] rounded-sm py-3 px-4 text-[hsl(142_70%_35%)] text-[0.9rem] font-medium animate-fade-in">
@@ -193,8 +193,8 @@ export const ProjectList: React.FC = () => {
             </div>
           ) : (
             paginatedProjects.map((p) => (
-              <div 
-                key={p.id} 
+              <div
+                key={p.id}
                 className="card flex flex-col gap-4 cursor-pointer transition-all duration-200 animate-fade-in hover:-translate-y-1 hover:border-[hsl(var(--primary))] hover:shadow-lg"
                 onClick={() => navigate(`/projects/${p.id}`)}
               >
@@ -203,7 +203,7 @@ export const ProjectList: React.FC = () => {
                   <h3 className="text-[1.1rem] font-bold leading-tight">{p.name}</h3>
                   <div className="flex items-center gap-2">
                     {p.status === 'draft' && (
-                      <button 
+                      <button
                         onClick={(e) => openDeleteConfirm(e, p.id, p.name)}
                         className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors"
                         title="Xóa dự án"
@@ -250,7 +250,7 @@ export const ProjectList: React.FC = () => {
 
                 {/* Action button mock */}
                 <div className="flex items-center gap-1.5 text-[hsl(var(--primary))] text-[0.9rem] font-semibold mt-1 border-t border-[hsl(var(--border)/0.5)] pt-3">
-                  <span>Xem chi tiết dự án WBS</span>
+                  <span>Xem chi tiết dự án </span>
                   <ArrowRight size={16} />
                 </div>
               </div>
@@ -268,9 +268,9 @@ export const ProjectList: React.FC = () => {
         />
       )}
 
-      <CreateProjectModal 
-        isOpen={isOpen} 
-        onClose={() => setIsOpen(false)} 
+      <CreateProjectModal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
         onSuccess={() => {
           setSuccess('Khởi tạo Dự án thành công!');
           loadProjects();

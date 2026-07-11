@@ -33,9 +33,9 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
             // 1. Tìm phiếu nhập kho
             var receipt = await _uow.Repository<GoodsReceipt>().Query()
                 .Include(gr => gr.PurchaseOrder)
-                    .ThenInclude(p => p.Request)
-                        .ThenInclude(r => r.Phase)
-                            .ThenInclude(ph => ph.Project)
+                    .ThenInclude(p => p!.Request)
+                        .ThenInclude(r => r!.Phase)
+                            .ThenInclude(ph => ph!.Project)
                 .FirstOrDefaultAsync(gr => gr.ReceiptId == request.ReceiptId, cancellationToken);
 
             if (receipt == null)
