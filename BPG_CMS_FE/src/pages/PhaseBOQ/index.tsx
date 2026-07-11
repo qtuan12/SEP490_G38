@@ -12,6 +12,7 @@ import type { WBSPhase, Project } from '../../types/common';
 import { Button, SearchSelect } from '../../components/ui';
 import { isDiscreteUnit } from '../../utils/unitHelpers';
 import { useAuth } from '../../context/AuthContext';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
 
 const phaseBOQSchema = z.object({
   materials: z.array(
@@ -84,30 +85,40 @@ export const PhaseBOQ: React.FC = () => {
 
   const watchedMaterials = watch('materials') || [];
 
-  useEffect(() => {
-    const loadPhaseData = async () => {
-      if (!projectId || !phaseId) return;
-      setLoadingPhase(true);
-      try {
-        const pList = await projectService.getPhases(projectId);
-        const currentPhase = pList.find(p => p.id === phaseId);
-        setPhase(currentPhase || null);
+  const loadPhaseData = React.useCallback(async () => {
+    if (!projectId || !phaseId) return;
+    setLoadingPhase(true);
+    try {
+      const pList = await projectService.getPhases(projectId);
+      const currentPhase = pList.find(p => p.id === phaseId);
+      setPhase(currentPhase || null);
 
-        const allProjs = await projectService.getProjects();
-        setProject(allProjs.find(p => p.id === projectId) || null);
+      const allProjs = await projectService.getProjects();
+      setProject(allProjs.find(p => p.id === projectId) || null);
 
-        const reqs = await projectService.getMaterialRequests(projectId);
-        const phaseHasActiveMRs = reqs.some(mr => mr.phaseId === phaseId && mr.status !== 'rejected');
-        setHasActiveMRs(phaseHasActiveMRs);
-      } catch (err) {
-        console.error('Error loading BOQ data:', err);
-        toast.error('Lỗi khi tải thông tin Giai đoạn.');
-      } finally {
-        setLoadingPhase(false);
-      }
-    };
-    loadPhaseData();
+      const reqs = await projectService.getMaterialRequests(projectId);
+      const phaseHasActiveMRs = reqs.some(mr => mr.phaseId === phaseId && mr.status !== 'rejected');
+      setHasActiveMRs(phaseHasActiveMRs);
+    } catch (err) {
+      console.error('Error loading BOQ data:', err);
+      toast.error('Lỗi khi tải thông tin Giai đoạn.');
+    } finally {
+      setLoadingPhase(false);
+    }
   }, [projectId, phaseId]);
+
+  useEffect(() => {
+    loadPhaseData();
+  }, [loadPhaseData]);
+
+  // Lắng nghe thay đổi từ SignalR
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    // Reload khi có thông báo liên quan tới MaterialRequest hoặc Project
+    if (noti?.referenceType === 'MaterialRequest' || noti?.referenceType === 'Project') {
+      loadPhaseData();
+      toast('Định mức & trạng thái yêu cầu vật tư của giai đoạn được cập nhật!', { icon: '📋' });
+    }
+  });
 
   // Map initial values from phase.materials using material names and pre-load their units
   useEffect(() => {

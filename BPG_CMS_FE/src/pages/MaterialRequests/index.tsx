@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
-import type {WBSPhase, MaterialRequest, Project} from '../../types/common';
+import type { WBSPhase, MaterialRequest, Project } from '../../types/common';
 import { CreateMaterialRequestModal } from '../MaterialRequests/modals/CreateMaterialRequestModal';
 import { ResubmitMaterialRequestModal } from '../MaterialRequests/modals/ResubmitMaterialRequestModal';
 import { Plus, ArrowLeft, ClipboardList, Package, Calendar, User as UserIcon, FileText, AlertTriangle, Menu, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../components/ui/Modal';
 import { formatDate } from '../../utils/dateHelpers';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
 
 export const PhaseMaterialRequests: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -22,7 +23,7 @@ export const PhaseMaterialRequests: React.FC = () => {
   const [phaseRequests, setPhaseRequests] = useState<MaterialRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<MaterialRequest | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -62,6 +63,14 @@ export const PhaseMaterialRequests: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [projectId, phaseId, user]);
+
+  // Realtime update via SignalR
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    if (noti?.referenceType === 'MaterialRequest') {
+      fetchData();
+      toast('Yêu cầu vật tư đã được cập nhật!', { icon: '📋' });
+    }
+  });
 
   // Tự động chọn yêu cầu vật tư khi được điều hướng tới kèm ?requestId=...
   useEffect(() => {
@@ -115,7 +124,7 @@ export const PhaseMaterialRequests: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 180px)', gap: '20px' }}>
-      
+
       {/* HEADER */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', backgroundColor: 'hsl(var(--bg-card))', padding: '16px 20px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--border))' }}>
         <button onClick={() => navigate(`/projects/${projectId}`)} className="btn btn-secondary" title="Quay lại" style={{ padding: '8px' }}>
@@ -134,19 +143,19 @@ export const PhaseMaterialRequests: React.FC = () => {
 
       {/* MAIN LAYOUT */}
       <div style={{ display: 'flex', gap: '24px', flex: 1, overflow: 'hidden' }}>
-        
+
         {/* LEFT PANEL: LIST */}
-        <div style={{ 
-          width: isSidebarOpen ? '400px' : '0px', 
+        <div style={{
+          width: isSidebarOpen ? '400px' : '0px',
           minWidth: isSidebarOpen ? '400px' : '0px',
           opacity: isSidebarOpen ? 1 : 0,
           overflow: 'hidden',
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '16px', 
-          backgroundColor: 'hsl(var(--bg-card))', 
-          padding: isSidebarOpen ? '20px' : '0px', 
-          borderRadius: 'var(--radius-md)', 
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          backgroundColor: 'hsl(var(--bg-card))',
+          padding: isSidebarOpen ? '20px' : '0px',
+          borderRadius: 'var(--radius-md)',
           border: isSidebarOpen ? '1px solid hsl(var(--border))' : 'none',
           transition: 'all 0.3s ease'
         }}>
@@ -158,7 +167,7 @@ export const PhaseMaterialRequests: React.FC = () => {
               <Plus size={16} /> Yêu cầu vật tư
             </button>
           </div>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', paddingRight: '4px', flex: 1 }}>
             {phaseRequests.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'hsl(var(--text-muted))', padding: '40px 20px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)' }}>
@@ -166,13 +175,13 @@ export const PhaseMaterialRequests: React.FC = () => {
               </div>
             ) : (
               phaseRequests.map(req => (
-                <div 
-                  key={req.id} 
+                <div
+                  key={req.id}
                   onClick={() => setSelectedRequest(req)}
-                  style={{ 
-                    padding: '16px', 
-                    border: `1px solid ${selectedRequest?.id === req.id ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`, 
-                    borderRadius: 'var(--radius-md)', 
+                  style={{
+                    padding: '16px',
+                    border: `1px solid ${selectedRequest?.id === req.id ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+                    borderRadius: 'var(--radius-md)',
                     cursor: 'pointer',
                     backgroundColor: selectedRequest?.id === req.id ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-main))',
                     transition: 'all 0.2s',
@@ -199,7 +208,7 @@ export const PhaseMaterialRequests: React.FC = () => {
         <div style={{ flex: 1, backgroundColor: 'hsl(var(--bg-card))', padding: '24px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--border))', overflowY: 'auto' }}>
           {selectedRequest ? (
             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '800px', margin: '0 auto' }}>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '16px', borderBottom: '1px solid hsl(var(--border))' }}>
                 <div>
                   <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem' }}>Chi tiết Yêu cầu Vật tư</h3>
@@ -285,8 +294,8 @@ export const PhaseMaterialRequests: React.FC = () => {
                 <div style={{ padding: '16px', backgroundColor: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.3)', borderRadius: 'var(--radius-md)', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                   <AlertTriangle size={24} style={{ color: 'hsl(var(--danger))', flexShrink: 0 }} />
                   <div>
-                    <strong style={{ display: 'block', color: 'hsl(var(--danger))', marginBottom: '4px' }}>Vượt Định Mức (Over BOQ)</strong>
-                    <span style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))' }}>Yêu cầu này vượt quá định mức BOQ ban đầu và cần Giám đốc phê duyệt.</span>
+                    <strong style={{ display: 'block', color: 'hsl(var(--danger))', marginBottom: '4px' }}>Vượt Định Mức</strong>
+                    <span style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))' }}>Yêu cầu này vượt quá định mức ban đầu và cần Giám đốc phê duyệt.</span>
                   </div>
                 </div>
               )}
@@ -297,27 +306,27 @@ export const PhaseMaterialRequests: React.FC = () => {
                 </h4>
                 <div style={{ border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
                   <div className="overflow-x-auto w-full">
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead style={{ backgroundColor: 'hsl(var(--bg-main))' }}>
-                      <tr>
-                        <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>STT</th>
-                        <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>Tên Vật tư</th>
-                        <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>Số lượng</th>
-                        <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>ĐVT</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedRequest.items.map((item, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid hsl(var(--border-light))' }}>
-                          <td style={{ padding: '12px 16px' }}>{idx + 1}</td>
-                          <td style={{ padding: '12px 16px', fontWeight: 500 }}>{item.name}</td>
-                          <td style={{ padding: '12px 16px', color: 'hsl(var(--primary))', fontWeight: 600 }}>{item.quantity}</td>
-                          <td style={{ padding: '12px 16px', color: 'hsl(var(--text-secondary))' }}>{item.unit}</td>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                      <thead style={{ backgroundColor: 'hsl(var(--bg-main))' }}>
+                        <tr>
+                          <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>STT</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>Tên Vật tư</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>Số lượng</th>
+                          <th style={{ padding: '12px 16px', fontWeight: 600, borderBottom: '1px solid hsl(var(--border))' }}>ĐVT</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-          </div>
+                      </thead>
+                      <tbody>
+                        {selectedRequest.items.map((item, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid hsl(var(--border-light))' }}>
+                            <td style={{ padding: '12px 16px' }}>{idx + 1}</td>
+                            <td style={{ padding: '12px 16px', fontWeight: 500 }}>{item.name}</td>
+                            <td style={{ padding: '12px 16px', color: 'hsl(var(--primary))', fontWeight: 600 }}>{item.quantity}</td>
+                            <td style={{ padding: '12px 16px', color: 'hsl(var(--text-secondary))' }}>{item.unit}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
@@ -350,9 +359,9 @@ export const PhaseMaterialRequests: React.FC = () => {
               {selectedRequest.invoiceImage && (
                 <div style={{ marginTop: '8px' }}>
                   <strong style={{ display: 'block', marginBottom: '12px', fontSize: '1.05rem' }}>Hình ảnh Hóa đơn</strong>
-                  <img 
-                    src={selectedRequest.invoiceImage} 
-                    alt="Invoice" 
+                  <img
+                    src={selectedRequest.invoiceImage}
+                    alt="Invoice"
                     style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--border))', objectFit: 'contain' }}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x300?text=L%E1%BB%97i+t%E1%BA%A3i+%E1%BA%A3nh';
@@ -384,10 +393,10 @@ export const PhaseMaterialRequests: React.FC = () => {
           isLeader={isLeader}
           allMaterialRequests={allRequests}
           requestType="normal"
-          onSuccess={(msg) => { 
-            toast.success(msg); 
-            handleRefresh(); 
-            setIsCreateOpen(false); 
+          onSuccess={(msg) => {
+            toast.success(msg);
+            handleRefresh();
+            setIsCreateOpen(false);
           }}
           onError={(msg) => toast.error(msg)}
         />
@@ -424,7 +433,7 @@ export const PhaseMaterialRequests: React.FC = () => {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', margin: 0 }}>
-              Bạn có chắc chắn muốn hủy yêu cầu vật tư này? Hành động này sẽ giải phóng định mức BOQ và không thể hoàn tác.
+              Bạn có chắc chắn muốn hủy yêu cầu vật tư này? Hành động này sẽ giải phóng định mức và không thể hoàn tác.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ margin: 0, fontWeight: 500, fontSize: '0.85rem' }}>Lý do hủy <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
@@ -452,7 +461,7 @@ export const PhaseMaterialRequests: React.FC = () => {
                 </p>
               )}
             </div>
-            
+
             <div style={{ display: 'flex', justifyContent: 'end', gap: '12px', marginTop: '8px' }}>
               <button
                 type="button"
@@ -470,14 +479,14 @@ export const PhaseMaterialRequests: React.FC = () => {
                     return;
                   }
                   if (!cancellingRequestId) return;
-                  
+
                   const rawId = cancellingRequestId.startsWith('mat-req-') ? cancellingRequestId.substring(8) : cancellingRequestId;
                   try {
                     await projectService.cancelMaterialRequest(rawId, cancelReason);
                     toast.success('Đã hủy phiếu yêu cầu vật tư.');
                     setIsCancelConfirmOpen(false);
                     await handleRefresh();
-                    
+
                     // Tìm lại request đã cập nhật để set selected
                     const updatedReqs = await projectService.getMaterialRequests(projectId!);
                     const currentReq = updatedReqs.find(r => r.id === cancellingRequestId);

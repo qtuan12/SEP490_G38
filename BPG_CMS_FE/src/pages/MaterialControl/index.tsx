@@ -7,6 +7,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Pagination, Input, Select } from '../../components/ui';
 import toast from 'react-hot-toast';
 import { Boxes, Search } from 'lucide-react';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
 
 export const MaterialControl: React.FC = () => {
   const { user } = useAuth();
@@ -51,6 +52,14 @@ export const MaterialControl: React.FC = () => {
       setLoadingRequests(false);
     }
   };
+
+  // ─── SignalR: tự động reload khi có notification liên quan đến yêu cầu vật tư ───
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    if (noti?.referenceType === 'MaterialRequest') {
+      fetchMaterialRequests();
+      toast('Danh sách yêu cầu vật tư vừa được cập nhật!', { icon: '📋' });
+    }
+  });
 
   useEffect(() => {
     const loadInitialData = async () => {

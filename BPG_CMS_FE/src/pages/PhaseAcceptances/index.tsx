@@ -7,6 +7,9 @@ import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
 import { projectService } from '../../services/projectService';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate } from '../../utils/dateHelpers';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 
 export const PhaseAcceptances: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -15,6 +18,16 @@ export const PhaseAcceptances: React.FC = () => {
   const [pageSize] = useState(10);
   const [searchProjectId, setSearchProjectId] = useState(searchParams.get('projectId') || '');
   const [searchPhaseId, setSearchPhaseId] = useState(searchParams.get('phaseId') || '');
+  
+  const queryClient = useQueryClient();
+
+  // Listen to realtime notifications via SignalR
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    if (noti?.referenceType === 'PhaseAcceptance' || noti?.referenceType === 'Project') {
+      queryClient.invalidateQueries({ queryKey: ['phaseAcceptances'] });
+      toast('Danh sách nghiệm thu giai đoạn vừa được cập nhật!', { icon: '📝' });
+    }
+  });
 
   // Lấy thông tin Tên Dự án & Tên Giai đoạn để hiển thị thay vì ID thô
   const { data: project, isLoading: projectLoading } = useQuery({
