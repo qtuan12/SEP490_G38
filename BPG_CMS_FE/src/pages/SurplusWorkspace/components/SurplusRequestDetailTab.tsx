@@ -151,7 +151,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                         className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors"
                       >
                         <RotateCcw size={12} />
-                        Trả NCC
+                        Trả nhà cung cấp
                       </button>
                       <button
                         onClick={() => onCreateLiquidation(item)}

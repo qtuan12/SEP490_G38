@@ -31,6 +31,12 @@ export const Dashboard: React.FC = () => {
 
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      navigate('/users', { replace: true });
+    }
+  }, [user, navigate]);
+
   const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
   const isDirector = user?.role === 'director' || user?.role === 'admin';
 

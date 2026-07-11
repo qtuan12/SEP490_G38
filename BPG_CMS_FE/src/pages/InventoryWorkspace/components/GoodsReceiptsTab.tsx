@@ -120,8 +120,8 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
                       </td>
                       <td className="px-4 py-3.5 text-slate-700">
                         {(() => {
-                          const info = r.delivererInfo || 'N/A';
-                          const match = info.match(/^\[QC:\s*([^\]]+)\](.*)$/);
+                          const info = r.delivererInfo || 'Chưa cập nhật';
+                          const match = info.match(/^\[(?:QC|Kiểm hàng):\s*([^\]]+)\](.*)$/);
                           if (match) {
                             const status = match[1];
                             const rest = match[2].trim();
@@ -132,10 +132,10 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
                             
                             return (
                               <div className="flex flex-col gap-1 items-start">
+                                <span className="font-medium text-slate-900">{rest || 'Chưa cập nhật'}</span>
                                 <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${badgeClass}`}>
-                                  QC: {status}
+                                  {status}
                                 </span>
-                                {rest && <span className="text-xs text-slate-600">{rest}</span>}
                               </div>
                             );
                           }
@@ -143,7 +143,7 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
                         })()}
                       </td>
                       <td className="px-4 py-3.5 text-slate-500 font-mono text-xs">
-                        {r.deliveryDocNo || 'N/A'}
+                        {r.deliveryDocNo || 'Chưa cập nhật'}
                       </td>
                       <td className="px-4 py-3.5 text-slate-600">
                         {formatDateVN(r.createdAt)}

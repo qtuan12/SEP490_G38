@@ -222,7 +222,7 @@ export const PODetailPage: React.FC = () => {
         <InfoItem icon={<Building2 size={14} />} label="Dự án" value={po.projectName || undefined} />
         <InfoItem icon={<Building2 size={14} />} label="Nhà cung cấp" value={po.supplierName || undefined} />
         {po.supplierContactInfo && (
-          <InfoItem icon={<FileText size={14} />} label="Liên hệ NCC" value={po.supplierContactInfo} />
+          <InfoItem icon={<FileText size={14} />} label="Liên hệ nhà cung cấp" value={po.supplierContactInfo} />
         )}
         <InfoItem icon={<MapPin size={14} />} label="Địa điểm giao hàng" value={po.deliveryAddress || undefined} />
         {po.notes && (

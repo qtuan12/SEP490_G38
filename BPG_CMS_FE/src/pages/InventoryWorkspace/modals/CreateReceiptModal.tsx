@@ -70,7 +70,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         if (po) {
           setSelectedPOId(searchPOId);
           setSelectedPO(po);
-          
+
           const initialQtys: Record<number, string> = {};
           po.items.forEach(item => {
             const remaining = item.quantity - item.totalReceived;
@@ -90,7 +90,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   const handlePOChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const poIdStr = e.target.value;
     setSelectedPOId(poIdStr);
-    
+
     if (!poIdStr) {
       setSelectedPO(null);
       setQuantities({});
@@ -235,7 +235,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
       await inventoryService.createGoodsReceipt({
         poId: selectedPO.poId,
-        delivererInfo: delivererInfo.trim() ? `[QC: ${qcNote.trim() || 'Đạt'}] ${delivererInfo.trim()}` : `[QC: ${qcNote.trim() || 'Đạt'}]`,
+        delivererInfo: delivererInfo.trim() ? `[Kiểm hàng: ${qcNote.trim() || 'Đạt'}] ${delivererInfo.trim()}` : `[Kiểm hàng: ${qcNote.trim() || 'Đạt'}]`,
         deliveryDocNo: deliveryDocNo.trim() || null,
         items: submitItems,
         images: imageUrls
@@ -297,20 +297,20 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             />
           </FormItem>
 
-          <FormItem label="Ghi chú chất lượng kiểm hàng (QC)">
+          <FormItem label="Ghi chú chất lượng kiểm hàng">
             <Input
               value={qcNote}
               onChange={e => setQcNote(e.target.value)}
-              placeholder="VD: Cát sạch đạt yêu cầu, trả lại 2 cây thép rỉ..."
+              placeholder="Ví dụ: Cát sạch đạt yêu cầu, trả lại 2 cây thép rỉ..."
               disabled={submitting}
             />
           </FormItem>
 
-          <FormItem label="Số phiếu giao hàng (NCC)">
+          <FormItem label="Số phiếu giao hàng (Nhà cung cấp)">
             <Input
               value={deliveryDocNo}
               onChange={e => setDeliveryDocNo(e.target.value)}
-              placeholder="VD: GD-98212"
+              placeholder="Ví dụ: GD-98212"
               disabled={submitting}
             />
           </FormItem>
@@ -319,7 +319,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             <Input
               value={delivererInfo}
               onChange={e => setDelivererInfo(e.target.value)}
-              placeholder="Họ tên người giao, SĐT..."
+              placeholder="Họ tên người giao, số điện thoại..."
               disabled={submitting}
             />
           </FormItem>
@@ -335,7 +335,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                     <th className="px-4 py-3">Vật tư</th>
                     <th className="px-4 py-3">Quy cách</th>
                     <th className="px-4 py-3 text-center">Đã nhận / Đặt</th>
-                    <th className="px-4 py-3 text-right" style={{ width: '160px' }}>Thực nhận đợt này</th>
+                    <th className="px-4 py-3 text-right w-40">Thực nhận đợt này</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
@@ -348,7 +348,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                           {item.materialName}
                         </td>
                         <td className="px-4 py-3 text-slate-500">
-                          {item.specification || 'N/A'}
+                          {item.specification || 'Chưa cập nhật'}
                         </td>
                         <td className="px-4 py-3 text-center text-slate-600">
                           <span className="font-semibold text-blue-600">{item.totalReceived}</span>
@@ -364,7 +364,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                               onChange={e => handleQuantityChange(item.materialId, e.target.value, item)}
                               disabled={remaining <= 0 || submitting}
                               placeholder="0"
-                              className={`text-right w-32 ${error ? 'border-red-500 focus:ring-red-200' : ''}`}
+                              className={`text-right w-36 ${error ? 'border-red-500 focus:ring-red-200' : ''}`}
                             />
                             {error && (
                               <span className="text-[10px] text-red-500 font-medium max-w-[150px] text-right">
@@ -396,13 +396,12 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                 document.getElementById('receipt-image-input')?.click();
               }
             }}
-            className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
-              selectedFiles.length >= 5
+            className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${selectedFiles.length >= 5
                 ? 'border-slate-200 bg-slate-100 cursor-not-allowed opacity-60'
                 : dragging
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
-            }`}
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+              }`}
           >
             <input
               id="receipt-image-input"
