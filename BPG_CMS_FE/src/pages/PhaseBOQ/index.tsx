@@ -69,7 +69,7 @@ export const PhaseBOQ: React.FC = () => {
   });
   const materialList = materialsData?.items || [];
 
-  const { register, control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<PhaseBOQForm>({
+  const { register, control, handleSubmit, reset, setValue, watch, trigger, formState: { errors } } = useForm<PhaseBOQForm>({
     resolver: zodResolver(phaseBOQSchema),
     mode: 'onTouched',
     defaultValues: {
@@ -309,10 +309,11 @@ export const PhaseBOQ: React.FC = () => {
                           }))}
                           value={watchedMaterials[idx]?.materialId?.toString() || '0'}
                           disabled={hasActiveMRs || !canEdit}
-                          onChange={(val) => {
+                          onChange={async (val) => {
                             const selectedId = parseInt(val) || 0;
                             setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true });
                             handleMaterialChange(idx, selectedId);
+                            await trigger('materials');
                           }}
                           placeholder="-- Chọn vật tư kỹ thuật --"
                           error={!!errors.materials?.[idx]?.materialId}
@@ -370,7 +371,10 @@ export const PhaseBOQ: React.FC = () => {
                         <td className="py-2 pr-2 text-center align-middle">
                           <button 
                             type="button" 
-                            onClick={() => remove(idx)}
+                            onClick={async () => {
+                              remove(idx);
+                              await trigger('materials');
+                            }}
                             className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md cursor-pointer transition-colors border-none bg-transparent"
                             title="Xóa dòng vật tư"
                           >

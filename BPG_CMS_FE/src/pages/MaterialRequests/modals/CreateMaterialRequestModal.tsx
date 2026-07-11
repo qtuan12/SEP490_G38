@@ -25,6 +25,16 @@ const createMaterialRequestSchema = z.object({
     })
   ).min(1, 'Cần ít nhất 1 vật tư')
 }).superRefine((data, ctx) => {
+  // Kiểm tra trùng lặp vật tư
+  const names = data.items.map(it => it.name).filter(name => name.trim() !== '');
+  if (names.length !== new Set(names).size) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Danh sách vật tư yêu cầu không được trùng lặp.',
+      path: ['items']
+    });
+  }
+
   if (data.type === 'emergency' && (!data.invoiceImage || data.invoiceImage.trim() === '')) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -86,7 +96,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
   }, []);
 
 
-  const { register, control, handleSubmit, reset, watch, setValue, setError, formState: { errors } } = useForm<CreateMaterialRequestForm>({
+  const { register, control, handleSubmit, reset, watch, setValue, setError, trigger, formState: { errors } } = useForm<CreateMaterialRequestForm>({
     resolver: zodResolver(createMaterialRequestSchema),
     mode: 'onTouched',
     defaultValues: {
@@ -278,9 +288,10 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
                       };
                     })}
                     value={watchedItems[idx]?.name || ''}
-                    onChange={(selName) => {
+                    onChange={async (selName) => {
                       setValue(`items.${idx}.name`, selName, { shouldValidate: true });
                       handleMaterialChange(idx, selName);
+                      await trigger('items');
                     }}
                     placeholder="-- Chọn vật tư --"
                     error={!!errors.items?.[idx]?.name}
@@ -316,14 +327,21 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
                 <button
                   type="button"
                   disabled={fields.length === 1}
-                  onClick={() => remove(idx)}
+                  onClick={async () => {
+                    remove(idx);
+                    await trigger('items');
+                  }}
                   className="p-2 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Trash2 size={18} />
                 </button>
               </div>
             ))}
-            {errors.items?.message && <p className="text-red-500 text-xs mt-1">{errors.items.message}</p>}
+            {(errors.items?.message || (errors.items as any)?.root?.message) && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.items?.message || (errors.items as any)?.root?.message}
+              </p>
+            )}
           </div>
         </div>
 
