@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Boxes, CheckCircle, XCircle, FileCheck2 } from 'lucide-react';
 import type { MaterialRequest } from '../../../types/common';
 import { Badge, Button } from '../../../components/ui';
+import { MaterialRequestDetailModal } from '../../MaterialRequests/modals/MaterialRequestDetailModal';
 import { formatDate } from '../../../utils/dateHelpers';
 
 interface MaterialRequestTableProps {
@@ -25,6 +26,9 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
   handleApproveRequestByDirector,
   handleRejectRequest
 }) => {
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<MaterialRequest | null>(null);
+
   const getStatusBadgeMR = (status: MaterialRequest['status']) => {
     switch (status) {
       case 'pending_accountant':
@@ -86,16 +90,25 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                       <td className="text-sm">{req.requesterName}</td>
                       <td>
                         <div className="text-[0.8rem] flex flex-col gap-0.5">
-                          {req.items.map((it, idx) => (
+                          {req.items.slice(0, 2).map((it, idx) => (
                             <span key={idx}>- {it.name}: <strong>{it.quantity}</strong> {it.unit}</span>
                           ))}
+                          {req.items.length > 2 && (
+                            <span className="text-[0.72rem] text-[hsl(var(--text-muted))] italic">
+                              và {req.items.length - 2} vật tư khác...
+                            </span>
+                          )}
                         </div>
-                        {req.reason && <p className="text-[0.75rem] text-[hsl(var(--text-muted))] mt-1 mb-0 italic">Lý do: {req.reason}</p>}
-                        {req.type === 'emergency' && req.invoiceImage && (
-                          <div className="mt-1">
-                            <a href={req.invoiceImage} target="_blank" rel="noopener noreferrer" className="text-[0.72rem] text-[hsl(var(--primary))] font-semibold hover:underline">Xem hóa đơn mua lẻ</a>
-                          </div>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedRequest(req);
+                            setDetailModalOpen(true);
+                          }}
+                          className="mt-1.5 text-[0.75rem] text-[hsl(var(--primary))] hover:text-[hsl(var(--primary-hover))] font-semibold underline flex items-center gap-1 bg-transparent border-none cursor-pointer p-0"
+                        >
+                          Xem chi tiết & Đối chiếu
+                        </button>
                       </td>
                       <td>
                         {req.type === 'emergency' ? (
@@ -212,6 +225,23 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
             </table>
           </div>
         </div>
+      )}
+
+      {detailModalOpen && selectedRequest && (
+        <MaterialRequestDetailModal
+          isOpen={detailModalOpen}
+          onClose={() => {
+            setDetailModalOpen(false);
+            setSelectedRequest(null);
+          }}
+          request={selectedRequest}
+          isAccountant={isAccountant}
+          isDirector={isDirector}
+          handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
+          handleDisburseRequestByAccountant={handleDisburseRequestByAccountant}
+          handleApproveRequestByDirector={handleApproveRequestByDirector}
+          handleRejectRequest={handleRejectRequest}
+        />
       )}
     </div>
   );

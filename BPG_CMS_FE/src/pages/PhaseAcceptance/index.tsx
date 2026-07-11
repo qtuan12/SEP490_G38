@@ -192,7 +192,7 @@ export const PhaseAcceptance: React.FC = () => {
   const allCompleted = tasks.length > 0 && tasks.every(t => t.progress === 100);
 
   return (
-    <div className="flex flex-col gap-6 max-w-[780px] mx-auto animate-fade-in">
+    <div className="flex flex-col gap-6 max-w-5xl mx-auto animate-fade-in">
       
       {/* Navigation and Title */}
       <div className="flex flex-col gap-3">
