@@ -11,6 +11,7 @@ import { materialService } from '../../services/materialService';
 import type { WBSPhase, Project } from '../../types/common';
 import { Button, SearchSelect } from '../../components/ui';
 import { isDiscreteUnit } from '../../utils/unitHelpers';
+import { useAuth } from '../../context/AuthContext';
 
 const phaseBOQSchema = z.object({
   materials: z.array(
@@ -20,7 +21,7 @@ const phaseBOQSchema = z.object({
       unitId: z.number().min(1, 'ĐVT không hợp lệ'),
       unit: z.string()
     })
-  ).min(1, 'Cần ít nhất 1 vật tư')
+  )
 }).superRefine((data, ctx) => {
   // 1. Kiểm tra trùng lặp vật tư
   const ids = data.materials.map(m => m.materialId).filter(id => id > 0);
@@ -52,6 +53,8 @@ export const PhaseBOQ: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canEdit = user && ['admin', 'technicalmanager', 'projectleader'].includes(user.role);
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
@@ -118,12 +121,12 @@ export const PhaseBOQ: React.FC = () => {
               unit: it.unit
             };
           })
-        : [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }];
+        : [];
 
       reset({ materials: initialMaterials });
 
       // Fetch units options for each material
-      initialMaterials.forEach(async (item, idx) => {
+      initialMaterials.forEach(async (item) => {
         if (item.materialId > 0) {
           const matchMat = materialList.find(m => m.materialId === item.materialId);
           if (matchMat) {
@@ -133,7 +136,7 @@ export const PhaseBOQ: React.FC = () => {
                 { unitId: matchMat.baseUnitId, unitName: matchMat.baseUnitName || 'bao' },
                 ...convs.map(c => ({ unitId: c.alternativeUnitId, unitName: c.alternativeUnitName || '' }))
               ];
-              setRowConversions(prev => ({ ...prev, [idx]: options }));
+              setRowConversions(prev => ({ ...prev, [item.materialId]: options }));
             } catch (err) {
               console.error(err);
             }
@@ -155,15 +158,14 @@ export const PhaseBOQ: React.FC = () => {
           { unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' },
           ...convs.map(c => ({ unitId: c.alternativeUnitId, unitName: c.alternativeUnitName || '' }))
         ];
-        setRowConversions(prev => ({ ...prev, [idx]: options }));
+        setRowConversions(prev => ({ ...prev, [selectedId]: options }));
       } catch (err) {
         console.error(err);
-        setRowConversions(prev => ({ ...prev, [idx]: [{ unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' }] }));
+        setRowConversions(prev => ({ ...prev, [selectedId]: [{ unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' }] }));
       }
     } else {
       setValue(`materials.${idx}.unitId` as any, 0);
       setValue(`materials.${idx}.unit` as any, '');
-      setRowConversions(prev => ({ ...prev, [idx]: [] }));
     }
   };
 
@@ -177,11 +179,23 @@ export const PhaseBOQ: React.FC = () => {
       }));
       return projectService.updatePhaseMaterials(projectId, phase.id, payload);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       const msg = `Đã cập nhật Bảng vật tư BOQ cho Phase: ${phase?.name}`;
       toast.success(msg);
       queryClient.invalidateQueries(); 
-      navigate(`/projects/${projectId}`);
+      
+      // Reload phase data to display updated values in place
+      if (projectId && phaseId) {
+        try {
+          const pList = await projectService.getPhases(projectId);
+          const currentPhase = pList.find(p => p.id === phaseId);
+          if (currentPhase) {
+            setPhase(currentPhase);
+          }
+        } catch (err) {
+          console.error('Lỗi khi tải lại dữ liệu giai đoạn:', err);
+        }
+      }
     },
     onError: (error: any) => {
       toast.error(error.message || 'Lỗi khi cập nhật BOQ.');
@@ -238,7 +252,7 @@ export const PhaseBOQ: React.FC = () => {
               <ClipboardList size={20} className="text-[hsl(var(--primary))]" />
               <span>Định mức Vật tư Giai đoạn</span>
             </h3>
-            {!hasActiveMRs && (
+            {!hasActiveMRs && canEdit && (
               <Button 
                 type="button" 
                 onClick={() => append({ materialId: 0, quantity: 1, unitId: 0, unit: '' })} 
@@ -251,15 +265,30 @@ export const PhaseBOQ: React.FC = () => {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-sm">
+            {fields.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 px-4 bg-[hsl(var(--bg-main))/0.2] border border-dashed border-[hsl(var(--border))] rounded-lg text-slate-500">
+                <ClipboardList size={40} className="text-slate-400 mb-2" />
+                <p className="text-sm m-0">Chưa có vật tư định mức cho giai đoạn này.</p>
+                {!hasActiveMRs && canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => append({ materialId: 0, quantity: 1, unitId: 0, unit: '' })}
+                    className="mt-3 text-xs font-semibold py-1.5 px-3 rounded-md bg-[hsl(var(--primary))] text-white hover:bg-[hsl(var(--primary-hover))] cursor-pointer border-none transition-colors"
+                  >
+                    Thêm vật tư định mức đầu tiên
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-[hsl(var(--border))] text-[hsl(var(--text-secondary))] font-semibold">
                     <th className="pb-3 pl-2 w-[40px]">STT</th>
                     <th className="pb-3 w-[55%]">Tên vật tư kỹ thuật / Quy cách</th>
                     <th className="pb-3 w-[20%] text-center">Số lượng định mức</th>
                     <th className="pb-3 w-[20%]">Đơn vị tính (ĐVT)</th>
-                    {!hasActiveMRs && <th className="pb-3 pr-2 text-center w-[50px]">Xóa</th>}
+                    {!hasActiveMRs && canEdit && <th className="pb-3 pr-2 text-center w-[50px]">Xóa</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -279,7 +308,7 @@ export const PhaseBOQ: React.FC = () => {
                             sublabel: m.code ? `Mã: ${m.code}` : undefined
                           }))}
                           value={watchedMaterials[idx]?.materialId?.toString() || '0'}
-                          disabled={hasActiveMRs}
+                          disabled={hasActiveMRs || !canEdit}
                           onChange={(val) => {
                             const selectedId = parseInt(val) || 0;
                             setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true });
@@ -301,8 +330,8 @@ export const PhaseBOQ: React.FC = () => {
                           min={isDiscreteUnit(watchedMaterials[idx]?.unit) ? 1 : 0.001} 
                           placeholder="Nhập SL..." 
                           {...register(`materials.${idx}.quantity` as const, { valueAsNumber: true })}
-                          disabled={hasActiveMRs}
-                          className={`w-full text-center text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} ${hasActiveMRs ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+                          disabled={hasActiveMRs || !canEdit}
+                          className={`w-full text-center text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} ${(hasActiveMRs || !canEdit) ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
                         />
                         {errors.materials?.[idx]?.quantity && (
                           <p className="text-red-500 text-xs mt-1 mb-0 text-left">{errors.materials[idx]?.quantity?.message}</p>
@@ -313,18 +342,19 @@ export const PhaseBOQ: React.FC = () => {
                       <td className="py-2 pr-2">
                         <select
                           {...register(`materials.${idx}.unitId` as const, { valueAsNumber: true })}
-                          disabled={hasActiveMRs}
+                          disabled={hasActiveMRs || !canEdit}
                           onChange={(e) => {
                             const uId = parseInt(e.target.value);
-                            const opts = rowConversions[idx] || [];
+                            const currentMatId = watchedMaterials[idx]?.materialId;
+                            const opts = (currentMatId && rowConversions[currentMatId]) || [];
                             const opt = opts.find(o => o.unitId === uId);
                             if (opt) {
                               setValue(`materials.${idx}.unit` as any, opt.unitName);
                             }
                           }}
-                          className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.unitId ? 'border-red-500' : 'border-slate-200'} ${hasActiveMRs ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+                          className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.unitId ? 'border-red-500' : 'border-slate-200'} ${(hasActiveMRs || !canEdit) ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
                         >
-                          {(rowConversions[idx] || (item.unitId ? [{ unitId: item.unitId, unitName: item.unit }] : [])).map(opt => (
+                          {((watchedMaterials[idx]?.materialId && rowConversions[watchedMaterials[idx]?.materialId]) || (item.unitId ? [{ unitId: item.unitId, unitName: item.unit }] : [])).map(opt => (
                             <option key={opt.unitId} value={opt.unitId}>
                               {opt.unitName}
                             </option>
@@ -336,13 +366,12 @@ export const PhaseBOQ: React.FC = () => {
                       </td>
 
                       {/* Hợp tác hành động */}
-                      {!hasActiveMRs && (
+                      {!hasActiveMRs && canEdit && (
                         <td className="py-2 pr-2 text-center align-middle">
                           <button 
                             type="button" 
-                            disabled={fields.length === 1}
                             onClick={() => remove(idx)}
-                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors border-none bg-transparent"
+                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md cursor-pointer transition-colors border-none bg-transparent"
                             title="Xóa dòng vật tư"
                           >
                             <Trash2 size={18} />
@@ -354,21 +383,30 @@ export const PhaseBOQ: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            )}
 
-            {errors.materials?.message && (
+            {(errors.materials?.message || (errors.materials as any)?.root?.message) && (
               <div className="p-3 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-md text-[hsl(var(--danger))] text-sm font-medium">
-                {errors.materials.message}
+                {errors.materials?.message || (errors.materials as any)?.root?.message}
               </div>
             )}
 
             {/* Các nút Submit */}
             <div className="flex justify-end gap-3 pt-4 border-t border-[hsl(var(--border-light))]">
-              <Button type="button" variant="secondary" onClick={() => navigate(`/projects/${projectId}`)} disabled={mutation.isPending}>
-                Hủy bỏ
-              </Button>
-              <Button type="submit" variant="primary" disabled={mutation.isPending}>
-                {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu bảng BOQ'}
-              </Button>
+              {canEdit ? (
+                <>
+                  <Button type="button" variant="secondary" onClick={() => navigate(`/projects/${projectId}`)} disabled={mutation.isPending}>
+                    Hủy bỏ
+                  </Button>
+                  <Button type="submit" variant="primary" disabled={mutation.isPending}>
+                    {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu bảng BOQ'}
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" variant="primary" onClick={() => navigate(`/projects/${projectId}`)}>
+                  Quay lại
+                </Button>
+              )}
             </div>
           </form>
         </div>
