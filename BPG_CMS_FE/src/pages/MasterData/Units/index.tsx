@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { unitService } from '../../../services/unitService';
 import { UnitFormModal } from './modals/UnitFormModal';
-import { ConfirmDialog, Button, Input, DataTable, Pagination } from '../../../components/ui';
+import { ConfirmDialog, Button, DataTable, Pagination } from '../../../components/ui';
 import type { Unit } from '../../../types/unit';
 import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, CheckCircle2, Ruler } from 'lucide-react';
 
@@ -137,13 +137,6 @@ export const UnitManagement: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-[hsl(var(--text-primary))] m-0">Quản lý Đơn vị tính</h1>
-          <p className="text-xs text-[hsl(var(--text-secondary))] mt-1 m-0">Cấu hình các đơn vị đo lường sử dụng trong hệ thống</p>
-        </div>
-      </div>
-
       {success && (
         <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-solid border-[hsl(var(--success))]/0.3 rounded px-4 py-3 text-emerald-800 text-sm font-medium">
           <CheckCircle2 size={18} className="text-[hsl(var(--success))] shrink-0" />
@@ -164,50 +157,53 @@ export const UnitManagement: React.FC = () => {
         </div>
       )}
 
-      <div className="glass-panel p-5 flex justify-between items-center flex-wrap gap-4">
-        <div className="relative min-w-[280px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" style={{ pointerEvents: 'none' }} />
-          <Input
-            type="text"
-            placeholder="Tìm theo tên đơn vị..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setPage(1);
-            }}
-            className="pl-9 h-10 w-full"
-          />
-        </div>
-
-        <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold">
-          <Plus size={18} className="mr-1" />
-          <span>Thêm Đơn vị</span>
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center items-center h-[250px] gap-2.5">
-          <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-          <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu...</span>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          <DataTable
-            columns={columns}
-            data={data?.items || []}
-            keyExtractor={(item) => item.unitId.toString()}
-            emptyMessage="Không tìm thấy đơn vị tính nào."
-          />
-
-          {data && data.totalCount > 0 && (
-            <Pagination
-              currentPage={page}
-              totalPages={data.totalPages}
-              onPageChange={(p) => setPage(p)}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col gap-4">
+        {/* Filters & Actions bar */}
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div className="relative min-w-[280px] flex-1 max-w-sm">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" style={{ pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Tìm theo tên đơn vị..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+              className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-          )}
+          </div>
+
+          <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
+            <Plus size={18} />
+            <span>Thêm Đơn vị</span>
+          </Button>
         </div>
-      )}
+
+        {isLoading ? (
+          <div className="flex justify-center items-center h-[200px] gap-2.5">
+            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
+            <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu...</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <DataTable
+              columns={columns}
+              data={data?.items || []}
+              keyExtractor={(item) => item.unitId.toString()}
+              emptyMessage="Không tìm thấy đơn vị tính nào."
+            />
+
+            {data && data.totalCount > 0 && (
+              <Pagination
+                currentPage={page}
+                totalPages={data.totalPages}
+                onPageChange={(p) => setPage(p)}
+              />
+            )}
+          </div>
+        )}
+      </div>
 
       <UnitFormModal
         isOpen={isFormOpen}

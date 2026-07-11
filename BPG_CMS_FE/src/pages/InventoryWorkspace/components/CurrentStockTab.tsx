@@ -29,8 +29,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
 
   // Định dạng đơn giá và thành tiền tiền tệ Việt Nam
   const formatPrice = (num: number): string => {
-    if (num === undefined || num === null || num === 0) return '0 ₫';
-    return num.toLocaleString('vi-VN') + ' ₫';
+    if (num === undefined || num === null || num === 0) return '0 VNĐ';
+    const rounded = Math.round(num);
+    return rounded.toLocaleString('vi-VN') + ' VNĐ';
   };
 
   // Xác định trạng thái cảnh báo của từng vật tư
@@ -73,17 +74,17 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
   // Xuất báo cáo CSV Tiếng Việt có hỗ trợ BOM để Excel đọc chuẩn font chữ
   const exportToCSV = () => {
     const headers = [
-      'Mã vật tư', 
-      'Tên vật tư', 
-      'Thông số kỹ thuật', 
-      'Nhà cung cấp gần nhất', 
-      'Tồn kho thực tế', 
-      'Tạm khóa (Reserved)', 
-      'Tồn khả dụng', 
-      'Đơn vị tính', 
-      'Đơn giá mua trung bình', 
-      'Tổng giá trị tồn kho', 
-      'Cập nhật cuối', 
+      'Mã vật tư',
+      'Tên vật tư',
+      'Thông số kỹ thuật',
+      'Nhà cung cấp gần nhất',
+      'Tồn kho thực tế',
+      'Tạm khóa (Reserved)',
+      'Tồn khả dụng',
+      'Đơn vị tính',
+      'Đơn giá mua trung bình',
+      'Tổng giá trị tồn kho',
+      'Cập nhật cuối',
       'Cảnh báo'
     ];
 
@@ -110,9 +111,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
       ];
     });
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF"
       + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-      
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -132,8 +133,8 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     if ((boq > 0 && used >= boq) || (boq === 0 && used > 0)) {
       return (
         <div className="flex flex-col items-center gap-0.5">
-          <span 
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200" 
+          <span
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200"
             title="Đã dùng vượt mức kế hoạch dự án. Mọi yêu cầu cấp phát mới cần Giám đốc duyệt."
           >
             <AlertCircle size={12} />
@@ -154,8 +155,8 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     if (boq > 0 && used >= 0.8 * boq && used < boq) {
       return (
         <div className="flex flex-col items-center gap-0.5">
-          <span 
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200" 
+          <span
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200"
             title="Lượng sử dụng sắp đạt giới hạn trần. Cần kiểm soát xuất kho chặt chẽ."
           >
             <Info size={12} />
@@ -174,8 +175,8 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     if (available <= safety) {
       return (
         <div className="flex flex-col items-center gap-0.5">
-          <span 
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200" 
+          <span
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"
             title="Số lượng khả dụng chạm ngưỡng an toàn. Cần đề xuất nhập kho bổ sung."
           >
             <AlertTriangle size={12} />
@@ -273,7 +274,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
               <th className="w-10 px-3"></th>
               <th className="px-4 py-3">Mã</th>
               <th className="px-4 py-3">Tên vật tư</th>
-              <th className="px-4 py-3">Thông số / Nhà cung cấp</th>
+              <th className="px-4 py-3">Thông số</th>
               <th className="px-4 py-3 text-right">Tồn thực tế</th>
               <th className="px-4 py-3 text-right">Tạm khóa</th>
               <th className="px-4 py-3 text-right">Khả dụng</th>
@@ -313,7 +314,6 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                       </td>
                       <td className="px-4 py-3.5 text-slate-600 text-xs">
                         <div className="font-semibold text-slate-700">{item.specification || 'Không có'}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">Nhà cung cấp: {item.supplierName}</div>
                       </td>
                       <td className="px-4 py-3.5 text-right font-medium text-slate-900">
                         {formatQty(item.quantity)} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
@@ -360,7 +360,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                           <div className="flex flex-col gap-2.5">
                             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                               <Info size={14} className="text-blue-500" />
-                              <span>Chi tiết sử dụng vật tư theo từng Giai đoạn (Phases)</span>
+                              <span>Chi tiết sử dụng vật tư theo từng Giai đoạn</span>
                             </div>
 
                             {!item.phaseUsages || item.phaseUsages.length === 0 ? (

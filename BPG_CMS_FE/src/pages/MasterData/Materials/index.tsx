@@ -4,7 +4,7 @@ import { materialService } from '../../../services/materialService';
 import { materialCategoryService } from '../../../services/materialCategoryService';
 import { MaterialFormModal } from './modals/MaterialFormModal';
 import { MaterialConversionDrawer } from './drawers/MaterialConversionDrawer';
-import { ConfirmDialog, Button, Input, Select, DataTable, Pagination } from '../../../components/ui';
+import { ConfirmDialog, Button, Select, DataTable, Pagination } from '../../../components/ui';
 import type { MaterialCatalog } from '../../../types/material';
 import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, CheckCircle2, Package, ArrowRightLeft } from 'lucide-react';
 
@@ -137,13 +137,6 @@ export const MaterialManagement: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-xl font-bold text-[hsl(var(--text-primary))] m-0">Danh mục Vật tư</h1>
-          <p className="text-xs text-[hsl(var(--text-secondary))] mt-1 m-0">Quản lý danh sách vật tư chuẩn và tỷ lệ quy đổi</p>
-        </div>
-      </div>
-
       {success && (
         <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-solid border-[hsl(var(--success))]/0.3 rounded px-4 py-3 text-emerald-800 text-sm font-medium">
           <CheckCircle2 size={18} className="text-[hsl(var(--success))] shrink-0" />
@@ -159,51 +152,56 @@ export const MaterialManagement: React.FC = () => {
         </div>
       )}
 
-      <div className="glass-panel p-5 flex justify-between items-center flex-wrap gap-4">
-        <div className="flex gap-3 flex-1 min-w-[280px] flex-wrap">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" style={{ pointerEvents: 'none' }} />
-            <Input
-              type="text"
-              placeholder="Tìm theo mã hoặc tên..."
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-              className="pl-9 h-10 w-full"
-            />
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col gap-4">
+        {/* Filters & Actions bar */}
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div className="flex items-center gap-3 flex-grow max-w-xl">
+            <div className="relative flex-grow">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" style={{ pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Tìm theo mã hoặc tên..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="w-56 shrink-0">
+              <Select
+                options={categoryOptions}
+                value={categoryIdFilter?.toString() || ''}
+                onChange={(e) => { setCategoryIdFilter(e.target.value ? Number(e.target.value) : undefined); setPage(1); }}
+                className="h-10"
+              />
+            </div>
           </div>
-          <Select
-            options={categoryOptions}
-            value={categoryIdFilter?.toString() || ''}
-            onChange={(e) => { setCategoryIdFilter(e.target.value ? Number(e.target.value) : undefined); setPage(1); }}
-            className="w-[200px] h-10"
-          />
+
+          <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
+            <Plus size={18} />
+            <span>Thêm Vật tư</span>
+          </Button>
         </div>
 
-        <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold">
-          <Plus size={18} className="mr-1" />
-          <span>Thêm Vật tư</span>
-        </Button>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-[200px] gap-2.5">
+            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
+            <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu...</span>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <DataTable
+              columns={columns}
+              data={data?.items || []}
+              keyExtractor={(item) => item.materialId.toString()}
+              emptyMessage="Không tìm thấy vật tư nào."
+            />
+
+            {data && data.totalCount > 0 && (
+              <Pagination currentPage={page} totalPages={data.totalPages} onPageChange={setPage} />
+            )}
+          </div>
+        )}
       </div>
-
-      {isLoading ? (
-        <div className="flex justify-center items-center h-[250px] gap-2.5">
-          <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-          <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu...</span>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          <DataTable
-            columns={columns}
-            data={data?.items || []}
-            keyExtractor={(item) => item.materialId.toString()}
-            emptyMessage="Không tìm thấy vật tư nào."
-          />
-
-          {data && data.totalCount > 0 && (
-            <Pagination currentPage={page} totalPages={data.totalPages} onPageChange={setPage} />
-          )}
-        </div>
-      )}
 
       <MaterialFormModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} material={selectedMaterial} onSuccess={showSuccess} />
       <MaterialConversionDrawer isOpen={isConversionOpen} onClose={() => setIsConversionOpen(false)} material={selectedMaterial} onSuccess={showSuccess} />
