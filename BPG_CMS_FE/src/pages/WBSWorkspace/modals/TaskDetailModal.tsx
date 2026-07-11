@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/ui/Modal';
-import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft, Smartphone } from 'lucide-react';
+import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft } from 'lucide-react';
 import { AssignEngineerForm } from './AssignEngineerModal';
 import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';

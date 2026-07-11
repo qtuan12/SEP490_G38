@@ -79,8 +79,6 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
   if (!detail) return null;
 
   const batchBadge = getSurplusRequestStatusDetails(detail.status);
-  const progress = detail.totalItems > 0
-    ? Math.round((detail.processedItems / detail.totalItems) * 100) : 0;
   const isProcessing = detail.status === 'Processing';
 
   return (

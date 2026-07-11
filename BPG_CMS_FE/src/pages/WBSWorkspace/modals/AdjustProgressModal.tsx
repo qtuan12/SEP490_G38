@@ -11,7 +11,7 @@ interface AdjustProgressFormProps {
 }
 
 export const AdjustProgressForm: React.FC<AdjustProgressFormProps> = ({
-  task, onSuccess, onError, onCancel
+  task, onSuccess, onCancel
 }) => {
   const [adjustProgress, setAdjustProgress] = useState<number | ''>(0);
   const [adjustReason, setAdjustReason] = useState<string>('');
