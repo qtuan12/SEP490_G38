@@ -27,11 +27,16 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
+    private readonly INotificationService _notificationService;
 
-    public CancelAcceptanceCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
+    public CancelAcceptanceCommandHandler(
+        IUnitOfWork unitOfWork, 
+        ICurrentUserService currentUserService,
+        INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
+        _notificationService = notificationService;
     }
 
     public async Task<bool> Handle(CancelAcceptanceCommand request, CancellationToken ct)
@@ -41,6 +46,7 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
 
         var acceptance = await acceptanceRepo.Query()
             .Include(x => x.Phase)
+                .ThenInclude(p => p.Project)
             .FirstOrDefaultAsync(x => x.AcceptanceId == request.AcceptanceId, ct);
 
         if (acceptance == null)
@@ -69,6 +75,46 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
         }
 
         await _unitOfWork.SaveChangesAsync(ct);
+
+        // Gửi thông báo realtime
+        try
+        {
+            var project = acceptance.Phase?.Project;
+            var phaseName = acceptance.Phase?.Name ?? "Giai đoạn";
+            var projectName = project?.Name ?? "Dự án";
+
+            // 1. Gửi thông báo đến Giám đốc
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.Director,
+                "Hủy nghiệm thu giai đoạn",
+                $"Biên bản nghiệm thu của giai đoạn '{phaseName}' thuộc dự án '{projectName}' đã bị hủy.",
+                NotificationType.Progress,
+                NotificationReferenceType.PhaseAcceptance,
+                acceptance.AcceptanceId,
+                ct);
+
+            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án
+            if (project != null)
+            {
+                var projectLeader = await _unitOfWork.Repository<ProjectMember>().Query()
+                    .FirstOrDefaultAsync(pm => pm.ProjectId == project.ProjectId && pm.IsLeader, ct);
+                if (projectLeader != null)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        projectLeader.UserId,
+                        "Hủy nghiệm thu giai đoạn",
+                        $"Biên bản nghiệm thu của giai đoạn '{phaseName}' thuộc dự án '{projectName}' đã bị hủy.",
+                        NotificationType.Progress,
+                        NotificationReferenceType.PhaseAcceptance,
+                        acceptance.AcceptanceId,
+                        ct);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending notification: {ex.Message}");
+        }
 
         return true;
     }
