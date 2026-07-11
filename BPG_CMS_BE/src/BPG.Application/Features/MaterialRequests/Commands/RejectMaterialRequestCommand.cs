@@ -18,11 +18,16 @@ namespace BPG.Application.Features.MaterialRequests.Commands
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly INotificationService _notificationService;
 
-        public RejectMaterialRequestCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public RejectMaterialRequestCommandHandler(
+            IUnitOfWork uow, 
+            ICurrentUserService currentUserService,
+            INotificationService notificationService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<bool>> Handle(RejectMaterialRequestCommand request, CancellationToken cancellationToken)
@@ -35,6 +40,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             }
 
             var mr = await _uow.Repository<MaterialRequest>().Query()
+                .Include(x => x.Phase)
                 .FirstOrDefaultAsync(x => x.RequestId == request.RequestId, cancellationToken);
 
             if (mr == null)
@@ -66,6 +72,29 @@ namespace BPG.Application.Features.MaterialRequests.Commands
 
             _uow.Repository<MaterialRequest>().Update(mr);
             await _uow.SaveChangesAsync(cancellationToken);
+
+            // Gửi thông báo realtime
+            try
+            {
+                var rejectUser = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+                var rejectUserName = rejectUser?.FullName ?? "Người duyệt";
+
+                if (mr.CreatedBy.HasValue)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        mr.CreatedBy.Value,
+                        "Yêu cầu vật tư bị từ chối",
+                        $"Yêu cầu vật tư cho giai đoạn '{mr.Phase?.Name}' của bạn đã bị từ chối bởi '{rejectUserName}'. Lý do: {request.Reason}",
+                        NotificationType.Procurement,
+                        NotificationReferenceType.MaterialRequest,
+                        mr.RequestId,
+                        cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending notification: {ex.Message}");
+            }
 
             return ApiResponse<bool>.SuccessResult(true, "Từ chối yêu cầu vật tư thành công.");
         }

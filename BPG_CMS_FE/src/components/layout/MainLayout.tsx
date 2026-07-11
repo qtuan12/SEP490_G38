@@ -42,7 +42,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Dự án (WBS)', path: '/projects', icon: <Hammer size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin', 'accountant'] },
     { name: 'Danh mục Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Kho Vật tư (Catalog)', path: '/materials', icon: <Package size={20} />, roles: ['admin', 'accountant'] },
+    { name: 'Vật tư', path: '/materials', icon: <Package size={20} />, roles: ['admin', 'accountant'] },
     { name: 'Kiểm kê vật tư', path: '/inventory-adjustments', icon: <FileSignature size={20} />, roles: ['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer'] },
     { name: 'Sự cố thi công', path: '/incidents', icon: <AlertTriangle size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
     { name: 'Kiểm soát Vật tư', path: '/materials-control', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
@@ -58,7 +58,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return (
     <div className="flex h-screen overflow-hidden bg-[hsl(var(--bg-main))]">
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -75,9 +75,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <div className={`flex items-center gap-3 border-b border-[hsl(var(--border))] ${isCollapsed ? 'py-5 justify-center' : 'px-6 py-5 justify-between'}`}>
           <div className="flex items-center gap-3 justify-center">
             {!isCollapsed && (
-              <img 
-                src="/logo.png" 
-                alt="BPG Logo" 
+              <img
+                src="/logo.png"
+                alt="BPG Logo"
                 className="h-10 w-10 object-contain rounded-sm"
               />
             )}
@@ -88,9 +88,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               </div>
             )}
           </div>
-          
-          <button 
-            onClick={() => setIsCollapsed(!isCollapsed)} 
+
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
             className="flex items-center justify-center text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--primary))] transition-colors"
             title="Thu gọn/Mở rộng Sidebar"
           >
@@ -104,13 +104,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             return (
               <button
                 key={item.name}
-                onClick={() => { if(!item.disabled) { navigate(item.path); setIsSidebarOpen(false); } }}
+                onClick={() => { if (!item.disabled) { navigate(item.path); setIsSidebarOpen(false); } }}
                 className={`flex items-center gap-3 w-full p-3 rounded-md transition-all text-sm font-medium border-none outline-none
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
-                  ${isActive 
-                    ? 'bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary-hover))] font-semibold' 
-                    : item.disabled 
-                      ? 'text-[hsl(var(--text-muted))] cursor-not-allowed' 
+                  ${isActive
+                    ? 'bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary-hover))] font-semibold'
+                    : item.disabled
+                      ? 'text-[hsl(var(--text-muted))] cursor-not-allowed'
                       : 'text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--primary))] cursor-pointer'
                   }
                 `}
@@ -130,7 +130,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
         {user && (
           <div className="p-5 border-t border-[hsl(var(--border))] flex flex-col gap-3">
-            <div 
+            <div
               className="flex items-center gap-2.5 cursor-pointer p-1 rounded-sm transition-colors hover:bg-[hsl(var(--bg-main))]"
               onClick={() => navigate('/profile')}
               title="Xem trang cá nhân"
@@ -145,7 +145,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </div>
               )}
             </div>
-            
+
             <Button variant="secondary" className="w-full text-sm py-2 px-3" onClick={handleLogout}>
               <LogOut size={16} />
               {!isCollapsed && <span>Đăng xuất</span>}
@@ -158,21 +158,21 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <header className="h-[70px] bg-[hsl(var(--bg-card))] border-b border-[hsl(var(--border))] flex items-center sticky top-0 z-30 lg:px-12 px-6">
           <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Menu 
-                size={24} 
-                className="text-[hsl(var(--text-secondary))] cursor-pointer lg:hidden" 
-                onClick={() => setIsSidebarOpen(true)} 
+              <Menu
+                size={24}
+                className="text-[hsl(var(--text-secondary))] cursor-pointer lg:hidden"
+                onClick={() => setIsSidebarOpen(true)}
               />
               <h2 className="text-xl font-semibold">
-                {location.pathname === '/dashboard' ? 'Bảng điều khiển' : 
-                 location.pathname === '/users' ? 'Quản lý Thành viên' : 
-                 location.pathname === '/suppliers' ? 'Quản lý Nhà cung cấp' : 
-                 location.pathname === '/units' ? 'Quản lý Đơn vị tính' : 
-                 location.pathname === '/categories' ? 'Danh mục Vật tư' : 
-                 location.pathname === '/materials' ? 'Kho Vật tư (Catalog)' : 
-                 location.pathname === '/projects' ? 'Danh sách Dự án WBS' : 
-                 location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
-                 location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
+                {location.pathname === '/dashboard' ? 'Bảng điều khiển' :
+                  location.pathname === '/users' ? 'Quản lý Thành viên' :
+                    location.pathname === '/suppliers' ? 'Quản lý Nhà cung cấp' :
+                      location.pathname === '/units' ? 'Quản lý Đơn vị tính' :
+                        location.pathname === '/categories' ? 'Danh mục Vật tư' :
+                          location.pathname === '/materials' ? 'Kho Vật tư (Catalog)' :
+                            location.pathname === '/projects' ? 'Danh sách Dự án WBS' :
+                              location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
+                                location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
               </h2>
             </div>
             <div className="flex items-center gap-4">
