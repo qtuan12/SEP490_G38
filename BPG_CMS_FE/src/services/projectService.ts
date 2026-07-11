@@ -138,9 +138,10 @@ export const projectService = {
     return [];
   },
 
-  async getProjects(): Promise<Project[]> {
+  async getProjects(ignoreRoleFilter: boolean = false): Promise<Project[]> {
     if (!USE_MOCK_API) {
-      const res = await apiClient.get<ApiResponse<{ items: import('../types/common').ProjectDto[], totalCount: number }>>('/projects?pageSize=100');
+      const url = `/projects?pageSize=100${ignoreRoleFilter ? '&ignoreRoleFilter=true' : ''}`;
+      const res = await apiClient.get<ApiResponse<{ items: import('../types/common').ProjectDto[], totalCount: number }>>(url);
       if (!res.success) throw new Error(res.message || 'Lỗi lấy danh sách dự án');
       
       const mapped = res.data.items.map(p => ({
@@ -323,7 +324,7 @@ export const projectService = {
   async activateProject(projectId: string): Promise<Project> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
-      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/activate`, {});
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/activate`);
       if (!res.success) throw new Error(res.message || 'Kích hoạt dự án thất bại');
       return this.getProjectById(projectId) as unknown as Project;
     }
@@ -363,7 +364,7 @@ export const projectService = {
   async resumeProject(projectId: string): Promise<Project> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
-      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/resume`, {});
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/resume`);
       if (!res.success) throw new Error(res.message || 'Tiếp tục dự án thất bại');
       return this.getProjectById(projectId) as unknown as Project;
     }
@@ -371,8 +372,12 @@ export const projectService = {
   },
 
   // MEMBERS MANAGEMENT
-  async getMembers(projectId: string): Promise<ProjectMember[]> {
+  async getMembers(projectId: string, bustCache = false): Promise<ProjectMember[]> {
     if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      if (bustCache) {
+        projectDetailCache.delete(parsedId);
+      }
       const p = await getRawProjectDetail(projectId);
       if (!p) return [];
       return (p.members || []).map((m: any) => ({
@@ -398,6 +403,7 @@ export const projectService = {
         userId: parseInt(user.id) 
       });
       if (!res.success) throw new Error(res.message || 'Thêm thành viên thất bại');
+      projectDetailCache.delete(parsedId);
       return {
         projectId,
         userId: user.id,
@@ -432,6 +438,7 @@ export const projectService = {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}`);
       if (!res.success) throw new Error(res.message || 'Xóa thành viên thất bại');
+      projectDetailCache.delete(parsedId);
       return;
     }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
@@ -442,8 +449,9 @@ export const projectService = {
   async toggleLeader(projectId: string, userId: string): Promise<ProjectMember[]> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
-      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}/leader`, {});
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}/leader`);
       if (!res.success) throw new Error(res.message || 'Thay đổi quyền nhóm trưởng thất bại');
+      projectDetailCache.delete(parsedId);
       return this.getMembers(projectId);
     }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);

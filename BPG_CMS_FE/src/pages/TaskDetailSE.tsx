@@ -205,7 +205,8 @@ export const TaskDetailSE: React.FC = () => {
         {(() => {
           const predIds = task.predecessorTaskIds;
           if (predIds && predIds.length > 0) {
-            const preds = predIds.map(id => projectTasks.find(t => t.id === id.toString())).filter(Boolean);
+            const preds = predIds.map(id => projectTasks.find(t => t.id === `t-${id}`)).filter(Boolean).filter(p => p!.status !== 'obsolete');
+            if (preds.length === 0) return null;
             const isBlocked = preds.some(p => p!.progress < 100);
             return (
               <div style={{
@@ -294,9 +295,16 @@ export const TaskDetailSE: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderTop: '1px solid hsl(var(--border) / 0.6)', paddingTop: '10px' }}>
             <TrendingUp size={18} style={{ color: 'hsl(var(--text-muted))' }} />
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'block' }}>TRỌNG SỐ (WBS)</span>
+              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'block' }}>MỨC ĐỘ QUAN TRỌNG</span>
               <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
-                {task.weight !== undefined && task.weight !== null ? task.weight : 'Tự động'}
+                {(() => {
+                  const w = task.weight;
+                  if (w === 4) return 'Rất quan trọng';
+                  if (w === 3) return 'Quan trọng';
+                  if (w === 2) return 'Cao';
+                  if (w === 1) return 'Bình thường';
+                  return 'Tự động';
+                })()}
               </strong>
             </div>
           </div>
@@ -383,6 +391,14 @@ export const TaskDetailSE: React.FC = () => {
             <button
               onClick={() => setIsLogOpen(true)}
               className="btn btn-primary"
+              disabled={(() => {
+                const predIds = task.predecessorTaskIds;
+                if (predIds && predIds.length > 0) {
+                  const preds = predIds.map(id => projectTasks.find(t => t.id === `t-${id}`)).filter(Boolean).filter(p => p!.status !== 'obsolete');
+                  return preds.some(p => p!.progress < 100);
+                }
+                return false;
+              })()}
               style={{
                 width: '100%',
                 padding: '16px',

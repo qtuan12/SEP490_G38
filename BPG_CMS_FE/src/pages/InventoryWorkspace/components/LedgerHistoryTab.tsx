@@ -24,7 +24,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMaterialId, setFilterMaterialId] = useState<string>('');
   const [filterTxType, setFilterTxType] = useState<string>('');
-  
+
   // Phân trang
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -100,11 +100,11 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
           <Select
             options={[
               { label: '-- Loại biến động --', value: '' },
-              { label: 'Nhập kho PO', value: '1' },
+              { label: 'Nhập kho (Đơn mua)', value: '1' },
               { label: 'Xuất thi công', value: '2' },
               { label: 'Nhận chuyển kho', value: '3' },
               { label: 'Chuyển kho đi', value: '4' },
-              { label: 'Trả hàng NCC', value: '5' },
+              { label: 'Trả hàng nhà cung cấp', value: '5' },
               { label: 'Điều chỉnh/Hủy', value: '6' },
               { label: 'Thanh lý', value: '7' },
               { label: 'Hoàn trả thi công', value: '8' }
@@ -172,9 +172,8 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
                             {typeInfo.name}
                           </span>
                         </td>
-                        <td className={`px-4 py-3.5 text-right font-bold ${
-                          t.quantityChange > 0 ? 'text-emerald-600' : 'text-rose-600'
-                        }`}>
+                        <td className={`px-4 py-3.5 text-right font-bold ${t.quantityChange > 0 ? 'text-emerald-600' : 'text-rose-600'
+                          }`}>
                           {t.quantityChange > 0 ? `+${t.quantityChange}` : t.quantityChange}{' '}
                           <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
                         </td>

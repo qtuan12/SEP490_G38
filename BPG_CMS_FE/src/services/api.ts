@@ -50,20 +50,33 @@ export const apiClient = {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         let errMsg = '';
-        if (errorData.message) {
-          errMsg = errorData.message;
-        } else if (errorData.errors) {
-          if (Array.isArray(errorData.errors)) {
+        // Ưu tiên "errors" (thông điệp validate chi tiết) trước "message" (thường chỉ là
+        // câu chung chung kiểu "Dữ liệu đầu vào không hợp lệ." đi kèm errorCode VAL_001)
+        if (errorData.errors) {
+          if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
             errMsg = errorData.errors.join(' ');
-          } else if (typeof errorData.errors === 'object') {
+          } else if (typeof errorData.errors === 'object' && errorData.errors !== null) {
             errMsg = Object.values(errorData.errors)
               .flatMap((messages: any) => messages)
               .join(' ');
           }
-        } else if (errorData.title) {
+        }
+        if (!errMsg && errorData.message) {
+          errMsg = errorData.message;
+        } else if (!errMsg && errorData.title) {
           errMsg = errorData.title;
         }
-        throw new Error(errMsg || `HTTP error! Status: ${response.status}`);
+
+        if (!errMsg) {
+          if (response.status === 500) {
+            errMsg = 'Lỗi hệ thống hoặc mất kết nối cơ sở dữ liệu (Database). Vui lòng liên hệ quản trị viên.';
+          } else if (response.status === 502 || response.status === 503 || response.status === 504) {
+            errMsg = 'Máy chủ dịch vụ đang bảo trì hoặc không phản hồi. Vui lòng thử lại sau.';
+          } else {
+            errMsg = `Lỗi hệ thống (Mã lỗi: ${response.status})`;
+          }
+        }
+        throw new Error(errMsg);
       }
 
       // If response is empty (e.g. 204 No Content)
@@ -74,6 +87,12 @@ export const apiClient = {
       return await response.json() as T;
     } catch (error: any) {
       console.error('API Request Error:', error.message);
+      
+      const msg = error.message || '';
+      if (msg.includes('Failed to fetch') || msg.includes('fetch') || error.name === 'TypeError') {
+        throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau.');
+      }
+      
       throw error;
     }
   },
@@ -82,11 +101,11 @@ export const apiClient = {
     return apiClient.request<T>(endpoint, { ...options, method: 'GET' });
   },
 
-  post<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
+  post<T>(endpoint: string, body?: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
     return apiClient.request<T>(endpoint, {
       ...options,
       method: 'POST',
-      body: JSON.stringify(body),
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {})
     });
   },
 
@@ -98,16 +117,24 @@ export const apiClient = {
     });
   },
 
-  put<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
+  putFormData<T>(endpoint: string, formData: FormData, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
     return apiClient.request<T>(endpoint, {
       ...options,
       method: 'PUT',
-      body: JSON.stringify(body),
+      body: formData,
     });
   },
 
-  patch<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
-    return apiClient.request<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) });
+  put<T>(endpoint: string, body?: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
+    return apiClient.request<T>(endpoint, {
+      ...options,
+      method: 'PUT',
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {})
+    });
+  },
+
+  patch<T>(endpoint: string, body?: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
+    return apiClient.request<T>(endpoint, { ...options, method: 'PATCH', ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
   },
 
   delete<T>(endpoint: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {

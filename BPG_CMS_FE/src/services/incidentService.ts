@@ -7,6 +7,8 @@ export interface IncidentDto {
   projectName?: string;
   taskId?: number;
   taskName?: string;
+  phaseId?: number;
+  phaseName?: string;
   reportedBy: number;
   reporterName: string;
   reviewerBy?: number;
@@ -39,6 +41,7 @@ export const incidentService = {
   async createAndAssessIncident(data: {
     projectId: number;
     taskId?: number;
+    phaseId?: number;
     incidentType: string;
     description: string;
     damageDescription?: string;
@@ -65,6 +68,11 @@ export const incidentService = {
     }
   ): Promise<IncidentDto> {
     const response = await apiClient.put<ApiResponse<IncidentDto>>(`/incidents/${id}/confirm`, data);
+    return response.data;
+  },
+
+  async rejectIncident(id: number, reason: string): Promise<IncidentDto> {
+    const response = await apiClient.put<ApiResponse<IncidentDto>>(`/incidents/${id}/reject`, { incidentId: id, reason });
     return response.data;
   }
 };

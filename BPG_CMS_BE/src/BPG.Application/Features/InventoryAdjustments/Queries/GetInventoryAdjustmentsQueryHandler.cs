@@ -28,6 +28,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Queries
         {
             var query = _unitOfWork.Repository<InventoryAdjustment>().Query()
                 .Include(x => x.Project)
+                .Include(x => x.Phase)
                 .Include(x => x.Approver)
                 .Include(x => x.Items).ThenInclude(i => i.Material)
                 .Include(x => x.Items).ThenInclude(i => i.Unit)
@@ -46,6 +47,16 @@ namespace BPG.Application.Features.InventoryAdjustments.Queries
             if (!string.IsNullOrEmpty(request.Status))
             {
                 query = query.Where(x => x.Status == request.Status);
+            }
+
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+            {
+                var term = request.SearchTerm.ToLower();
+                query = query.Where(x => 
+                    x.Reason.ToLower().Contains(term) ||
+                    x.AdjustmentId.ToString().Contains(term) ||
+                    (x.Description != null && x.Description.ToLower().Contains(term))
+                );
             }
 
             query = query.OrderByDescending(x => x.CreatedAt);

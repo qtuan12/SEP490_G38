@@ -60,7 +60,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
     isDanger: false,
   });
 
@@ -120,7 +120,12 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   // ── ADJUST Progress modal state ───────────────────────────
   const [isAdjustProgressOpen, setIsAdjustProgressOpen] = useState(false);
 
+  // ── INVENTORY INCIDENT modal state ────────────────────────
+  const [isReportInventoryIncidentOpen, setIsReportInventoryIncidentOpen] = useState(false);
+  const [selectedPhaseForInventoryIncident, setSelectedPhaseForInventoryIncident] = useState<WBSPhase | null>(null);
 
+  // ── INCIDENT modal state ────────────────────────
+  const [isReportIncidentOpen, setIsReportIncidentOpen] = useState(false);
 
   // ── Hover state ──────────────────────────────────────
   const [hoveredPhaseId, setHoveredPhaseId] = useState<string | null>(null);
@@ -162,12 +167,12 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
       .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
       .catch(err => console.error('SignalR JoinProjectGroup error:', err));
 
-  const handleWbsUpdated = (payload: any) => {
-    console.log('SignalR: WbsTreeUpdated', payload);
-    queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
-  };
+    const handleWbsUpdated = (payload: any) => {
+      console.log('SignalR: WbsTreeUpdated', payload);
+      queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+    };
 
-  connection.on('WbsTreeUpdated', handleWbsUpdated);
+    connection.on('WbsTreeUpdated', handleWbsUpdated);
 
     return () => {
       connection.off('WbsTreeUpdated', handleWbsUpdated);
@@ -358,6 +363,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     isAdjustDeadlineOpen, setIsAdjustDeadlineOpen,
     adjustingTask, setAdjustingTask,
     isAdjustProgressOpen, setIsAdjustProgressOpen,
+    isReportInventoryIncidentOpen, setIsReportInventoryIncidentOpen,
+    selectedPhaseForInventoryIncident, setSelectedPhaseForInventoryIncident,
+    isReportIncidentOpen, setIsReportIncidentOpen,
 
     handleApproveByLeader, handleApproveByTPKT,
     handleRejectMatReq, handleCancelMatReq, handleConfirmReceived,
@@ -407,16 +415,14 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
             <h3 className="text-[1.15rem] font-semibold m-0">Cơ cấu phân rã công việc (WBS)</h3>
-            <p className="text-[0.8rem] text-[hsl(var(--text-muted))] mt-1 mb-0">
-              Số thứ tự được hiển thị trước tên · Nhấn ▲▼ để sắp xếp lại · Click <strong className="font-bold">⋮</strong> để đổi tên / xóa
-            </p>
+
           </div>
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => navigate(`/projects/${projectId}/drawing`)}
               className={`flex items-center gap-2 py-2 px-4 shrink-0 rounded-sm text-[0.85rem] font-semibold transition-all duration-150 cursor-pointer ${project?.drawingUrl
-                  ? 'border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--border-light))]'
-                  : 'border border-dashed border-[#d97706] bg-[#fef3c7] text-[#b45309] hover:bg-[#fde68a]'
+                ? 'border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--border-light))]'
+                : 'border border-dashed border-[#d97706] bg-[#fef3c7] text-[#b45309] hover:bg-[#fde68a]'
                 }`}
             >
               <FileText size={15} />
@@ -427,7 +433,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
               className="flex items-center gap-2 py-2 px-4 shrink-0 border border-[hsl(var(--primary)/0.4)] rounded-sm bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] cursor-pointer text-[0.85rem] font-semibold transition-all duration-150 hover:bg-[hsl(var(--primary))] hover:text-white"
             >
               <BarChart2 size={15} />
-              <span>Xem Gantt Chart</span>
+              <span>Xem Biểu đồ công việc</span>
             </button>
             <button
               onClick={() => navigate(`/projects/${projectId}/logs`)}

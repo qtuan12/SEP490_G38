@@ -38,6 +38,8 @@ export interface RequestItemForPODto {
   unitName: string;
   quantity: number;
   conversionRate: number;
+  orderedQuantity: number;
+  remainingQuantity: number;
 }
 
 export interface CreatePurchaseOrderCommand {
@@ -49,7 +51,7 @@ export interface CreatePurchaseOrderCommand {
   deliveryAddress?: string;
   paymentTerms?: string;
   notes?: string;
-  requestIds: number[];
+  requestId: number;
   items: CreatePOItemDto[];
 }
 
@@ -79,6 +81,7 @@ export interface PurchaseOrderDetailDto {
   projectId?: number;
   projectName: string;
   cancelledReason?: string;
+  closedReason?: string;
   items: PODetailItemDto[];
   linkedRequests: LinkedRequestDto[];
 }
@@ -102,6 +105,8 @@ export interface PODetailItemDto {
 export interface LinkedRequestDto {
   requestId: number;
   reason: string;
+  projectId: number;
+  phaseId: number;
   phaseName: string;
 }
 
@@ -245,6 +250,13 @@ export const inventoryService = {
     );
   },
 
+  // Close PO (nhận một phần) — phần chưa nhận được trả lại yêu cầu vật tư
+  closePurchaseOrder: async (poId: number, reason: string): Promise<boolean> => {
+    return unwrap(
+      await apiClient.post<ApiResponse<boolean>>(`/purchaseorders/${poId}/close`, { reason })
+    );
+  },
+
   // Get PO detail by ID
   getPurchaseOrderById: async (poId: number): Promise<PurchaseOrderDetailDto> => {
     return unwrap(
@@ -263,6 +275,7 @@ export const inventoryService = {
   getPurchaseOrders: async (params: {
     poNumber?: string;
     status?: string;
+    projectId?: number;
     pageNumber?: number;
     pageSize?: number;
   }): Promise<PagedList<PurchaseOrderDto>> => {
@@ -272,6 +285,7 @@ export const inventoryService = {
     };
     if (params.poNumber) q.poNumber = params.poNumber;
     if (params.status) q.status = params.status;
+    if (params.projectId) q.projectId = params.projectId.toString();
     return unwrap(
       await apiClient.get<ApiResponse<PagedList<PurchaseOrderDto>>>('/purchaseorders', { params: q })
     );

@@ -16,6 +16,9 @@ export interface WbsTask {
   assignedTo?: string;
   weight?: number;
   predecessorTaskIds?: number[];
+  isOutsourced?: boolean;
+  outsourcedTeamName?: string;
+  outsourcedTeamContact?: string;
   subTasks: WbsTask[];
 }
 

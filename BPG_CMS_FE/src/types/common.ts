@@ -90,15 +90,17 @@ export interface IncidentReport {
   id: string;
   projectId: string;
   projectName?: string;
-  taskId: string;
-  taskName: string;
+  phaseId?: string;
+  phaseName?: string;
+  taskId?: string;
+  taskName?: string;
   reporterId: string;
   reporterName: string;
   reviewerId?: string;
   reviewerName?: string;
   incidentType: 'Construction' | 'InventoryLoss' | 'InventoryDamage' | 'Delay' | 'Safety' | 'Other';
   description: string;
-  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'Approved' | 'Rejected' | 'Closed';
+  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'WaitingDirector' | 'Approved' | 'Rejected' | 'Closed';
   damageDescription?: string;
   estimatedMaterialLoss?: number;
   estimatedLaborDays?: number;
@@ -175,6 +177,9 @@ export interface WBSTask {
   isRework?: boolean;
   weight?: number;
   predecessorTaskIds?: number[];
+  isOutsourced?: boolean;
+  outsourcedTeamName?: string;
+  outsourcedTeamContact?: string;
 }
 
 export interface DailyLogComment {

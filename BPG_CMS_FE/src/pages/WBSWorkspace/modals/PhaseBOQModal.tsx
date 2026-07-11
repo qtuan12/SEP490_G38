@@ -75,13 +75,13 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
     if (isOpen && materialList.length > 0) {
       const initialMaterials = phase.materials && phase.materials.length > 0
         ? phase.materials.map(it => {
-            return {
-              materialId: it.materialId,
-              quantity: it.quantity,
-              unitId: it.unitId,
-              unit: it.unit
-            };
-          })
+          return {
+            materialId: it.materialId,
+            quantity: it.quantity,
+            unitId: it.unitId,
+            unit: it.unit
+          };
+        })
         : [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }];
 
       reset({ materials: initialMaterials });
@@ -142,16 +142,16 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
       return projectService.updatePhaseMaterials(projectId, phase.id, payload);
     },
     onSuccess: () => {
-      const msg = `Đã cập nhật Bảng vật tư BOQ cho Phase: ${phase.name}`;
+      const msg = `Đã cập nhật Bảng vật tư định mức cho Giai đoạn: ${phase.name}`;
       toast.success(msg);
       onSuccess(msg);
-      
+
       // Invalidate project or phase data to reflect BOQ
-      queryClient.invalidateQueries(); 
+      queryClient.invalidateQueries();
       onClose();
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Lỗi khi cập nhật BOQ.');
+      toast.error(error.message || 'Lỗi khi cập nhật định mức vật tư.');
     }
   });
 
@@ -162,7 +162,7 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
   const loading = loadingMaterials;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Cập nhật Bảng vật tư BOQ: ${phase.name}`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Cập nhật Bảng vật tư định mức: ${phase.name}`}>
       {loading ? (
         <div className="flex justify-center items-center py-10">
           <Loader2 size={32} className="animate-spin text-blue-500" />
@@ -170,31 +170,31 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
         </div>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
-          
+
           <div className="text-sm bg-blue-50/50 p-3 rounded-md border border-blue-100 text-blue-800">
             Bạn đang chỉnh sửa định mức vật tư dự kiến cho <strong>{phase.name}</strong>. Các kỹ sư khi yêu cầu vật tư cho công việc thuộc Phase này sẽ bị giới hạn bởi số lượng trong bảng này.
           </div>
 
           {hasActiveMRs && (
             <div className="text-sm bg-red-50 p-3 rounded-md border border-red-200 text-red-600">
-              ⚠️ <strong>Đã có Yêu cầu vật tư</strong> cho Giai đoạn này. Không thể tùy tiện thay đổi Định mức (BOQ) để tránh sai lệch kiểm soát. Việc thay đổi BOQ lúc này cần lập tờ trình xin Giám đốc phê duyệt ngoài luồng.
+              ⚠️ <strong>Đã có Yêu cầu vật tư</strong> cho Giai đoạn này. Không thể tùy tiện thay đổi Định mức để tránh sai lệch kiểm soát. Việc thay đổi định mức lúc này cần lập tờ trình xin Giám đốc phê duyệt ngoài luồng.
             </div>
           )}
 
           <div>
             <div className="flex justify-between items-center mb-3">
-              <span className="text-sm font-medium text-slate-700">Danh sách vật tư định mức (BOQ) <span className="text-red-500">*</span></span>
+              <span className="text-sm font-medium text-slate-700">Danh sách vật tư định mức <span className="text-red-500">*</span></span>
               {!hasActiveMRs && (
-                <button 
-                  type="button" 
-                  onClick={() => append({ materialId: 0, quantity: 1, unitId: 0, unit: '' })} 
+                <button
+                  type="button"
+                  onClick={() => append({ materialId: 0, quantity: 1, unitId: 0, unit: '' })}
                   className="btn btn-secondary py-1 px-2 text-xs flex items-center gap-1 cursor-pointer"
                 >
                   <Plus size={14} /><span>Thêm vật tư</span>
                 </button>
               )}
             </div>
-            
+
             <div className="flex flex-col gap-2">
               {fields.map((item, idx) => (
                 <div key={item.id} className="grid grid-cols-[2.5fr_1fr_1.2fr_auto] gap-2 items-start">
@@ -217,20 +217,20 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
                     </select>
                     {errors.materials?.[idx]?.materialId && <p className="text-red-500 text-xs mt-1">{errors.materials[idx]?.materialId?.message}</p>}
                   </div>
-                  
+
                   <div>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       step="any"
-                      min={0.001} 
-                      placeholder="SL" 
+                      min={0.001}
+                      placeholder="SL"
                       {...register(`materials.${idx}.quantity` as const, { valueAsNumber: true })}
                       disabled={hasActiveMRs}
                       className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} ${hasActiveMRs ? 'bg-slate-100' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
                     />
                     {errors.materials?.[idx]?.quantity && <p className="text-red-500 text-xs mt-1">{errors.materials[idx]?.quantity?.message}</p>}
                   </div>
-                  
+
                   <div>
                     <select
                       {...register(`materials.${idx}.unitId` as const, { valueAsNumber: true })}
@@ -253,10 +253,10 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
                     </select>
                     {errors.materials?.[idx]?.unitId && <p className="text-red-500 text-xs mt-1">{errors.materials[idx]?.unitId?.message}</p>}
                   </div>
-                  
+
                   {!hasActiveMRs && (
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       disabled={fields.length === 1}
                       onClick={() => remove(idx)}
                       className="p-2 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
@@ -273,7 +273,7 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
           <div className="flex justify-end gap-3 mt-4">
             <button type="button" className="btn btn-secondary cursor-pointer" onClick={onClose} disabled={mutation.isPending}>Hủy</button>
             <button type="submit" className="btn btn-primary cursor-pointer" disabled={mutation.isPending}>
-              {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu Bảng BOQ'}
+              {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu'}
             </button>
           </div>
         </form>

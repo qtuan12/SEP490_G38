@@ -8,18 +8,18 @@ import { Search, ShoppingCart, AlertCircle, Loader2, Plus } from 'lucide-react';
 
 const PO_STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
-  { label: 'Nháp (Draft)', value: 'Draft' },
-  { label: 'Đã gửi (Sent)', value: 'Sent' },
-  { label: 'Nhận một phần (PartiallyReceived)', value: 'PartiallyReceived' },
-  { label: 'Nhận đủ (FullyReceived)', value: 'FullyReceived' },
-  { label: 'Đã đóng (Closed)', value: 'Closed' },
+  { label: 'Nháp', value: 'Draft' },
+  { label: 'Đã gửi nhà cung cấp', value: 'Sent' },
+  { label: 'Nhập kho một phần', value: 'PartiallyReceived' },
+  { label: 'Đã nhập đủ', value: 'FullyReceived' },
+  { label: 'Đã đóng', value: 'Closed' },
 ];
 
 const statusLabel: Record<string, string> = {
   Draft: 'Nháp',
-  Sent: 'Đã gửi',
-  PartiallyReceived: 'Nhận một phần',
-  FullyReceived: 'Nhận đủ',
+  Sent: 'Đã gửi nhà cung cấp',
+  PartiallyReceived: 'Nhập kho một phần',
+  FullyReceived: 'Đã nhập đủ',
   Closed: 'Đã đóng',
 };
 
@@ -34,8 +34,15 @@ const statusVariant: Record<string, 'default' | 'warning' | 'info' | 'success' |
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 export const PurchaseOrderList: React.FC = () => {
   const navigate = useNavigate();
@@ -68,7 +75,7 @@ export const PurchaseOrderList: React.FC = () => {
   const columns = [
     {
       key: 'poNumber',
-      header: 'Số PO',
+      header: 'Số đơn hàng',
       render: (po: PurchaseOrderDto) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ padding: 4, background: 'hsl(var(--primary-glow))', borderRadius: 4, border: '1px solid hsl(var(--border))' }}>
@@ -138,7 +145,7 @@ export const PurchaseOrderList: React.FC = () => {
           <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
           <Input
             type="text"
-            placeholder="Tìm theo số PO..."
+            placeholder="Tìm theo số đơn hàng..."
             value={searchPO}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-9 h-10"
@@ -157,7 +164,7 @@ export const PurchaseOrderList: React.FC = () => {
         )}
         <Button variant="primary" onClick={() => navigate('/purchase-orders/new')} className="h-10 font-semibold shrink-0">
           <Plus size={18} />
-          <span>Tạo PO</span>
+          <span>Tạo đơn hàng</span>
         </Button>
       </div>
 
@@ -165,7 +172,7 @@ export const PurchaseOrderList: React.FC = () => {
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 250, gap: 10 }}>
           <Loader2 className="animate-spin" size={24} style={{ color: 'hsl(var(--primary))' }} />
-          <span style={{ color: 'hsl(var(--text-secondary))', fontWeight: 500 }}>Đang tải danh sách PO...</span>
+          <span style={{ color: 'hsl(var(--text-secondary))', fontWeight: 500 }}>Đang tải danh sách đơn hàng...</span>
         </div>
       ) : (
         <div className="animate-fade-in flex flex-col gap-4">

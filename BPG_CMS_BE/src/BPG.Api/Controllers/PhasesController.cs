@@ -2,6 +2,7 @@ using BPG.Application.Features.Phases.Commands.CreatePhase;
 using BPG.Application.Features.Phases.Commands.DeletePhase;
 using BPG.Application.Features.Phases.Commands.UpdatePhase;
 using BPG.Application.Features.Phases.Commands.UpdatePhaseBOQ;
+using BPG.Application.Features.Phases.Queries;
 using BPG.Application.DTOs.Phases;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -39,6 +40,14 @@ public class PhasesController : BaseApiController
     public async Task<IActionResult> UpdatePhaseBOQ([FromRoute] long projectId, [FromRoute] long phaseId, [FromBody] UpdatePhaseBOQRequest request, CancellationToken ct)
     {
         var result = await Mediator.Send(new UpdatePhaseBOQCommand(projectId, phaseId, request.Items), ct);
+        return ApiOk(result);
+    }
+
+    [HttpGet("{phaseId}/boq")]
+    [Authorize(Roles = "SiteEngineer,TechnicalManager,Admin")]
+    public async Task<IActionResult> GetPhaseBOQ([FromRoute] long projectId, [FromRoute] long phaseId, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new GetPhaseBOQQuery(phaseId), ct);
         return ApiOk(result);
     }
 

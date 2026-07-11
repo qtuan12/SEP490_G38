@@ -50,12 +50,12 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
             var receipt = await _uow.Repository<GoodsReceipt>().Query()
                 .Include(gr => gr.Items)
                 .Include(gr => gr.PurchaseOrder)
-                    .ThenInclude(p => p.Request)
-                        .ThenInclude(r => r.Phase)
-                            .ThenInclude(ph => ph.Project)
+                    .ThenInclude(p => p!.Request)
+                        .ThenInclude(r => r!.Phase)
+                            .ThenInclude(ph => ph!.Project)
                 .Include(gr => gr.PurchaseOrder)
-                    .ThenInclude(p => p.Items)
-                        .ThenInclude(pi => pi.Material)
+                    .ThenInclude(p => p!.Items)
+                        .ThenInclude(pi => pi!.Material)
                 .FirstOrDefaultAsync(gr => gr.ReceiptId == request.ReceiptId, cancellationToken);
 
             if (receipt == null)

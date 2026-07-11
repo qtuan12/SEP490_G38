@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, AlertTriangle, AlertCircle, CheckCircle2, Info, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import type { CurrentInventory } from '../../../types/inventory';
+import { Pagination } from '../../../components/ui';
 
 interface CurrentStockTabProps {
   inventoryList: CurrentInventory[];
@@ -11,6 +12,15 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
   const [statusFilter, setStatusFilter] = useState<'all' | 'over_boq' | 'approaching' | 'low_stock' | 'stable'>('all');
   const [expandedItemIds, setExpandedItemIds] = useState<Record<number, boolean>>({});
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+
   // Định dạng số lượng theo chuẩn tiếng Việt
   const formatQty = (num: number): string => {
     if (num === undefined || num === null) return '0';
@@ -19,8 +29,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
 
   // Định dạng đơn giá và thành tiền tiền tệ Việt Nam
   const formatPrice = (num: number): string => {
-    if (num === undefined || num === null || num === 0) return '0 ₫';
-    return num.toLocaleString('vi-VN') + ' ₫';
+    if (num === undefined || num === null || num === 0) return '0 VNĐ';
+    const rounded = Math.round(num);
+    return rounded.toLocaleString('vi-VN') + ' VNĐ';
   };
 
   // Xác định trạng thái cảnh báo của từng vật tư
@@ -63,31 +74,31 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
   // Xuất báo cáo CSV Tiếng Việt có hỗ trợ BOM để Excel đọc chuẩn font chữ
   const exportToCSV = () => {
     const headers = [
-      'Mã vật tư', 
-      'Tên vật tư', 
-      'Thông số kỹ thuật', 
-      'Nhà cung cấp gần nhất', 
-      'Tồn kho thực tế', 
-      'Tạm khóa (Reserved)', 
-      'Tồn khả dụng', 
-      'Đơn vị tính', 
-      'Đơn giá PO trung bình', 
-      'Tổng giá trị tồn kho', 
-      'Cập nhật cuối', 
+      'Mã vật tư',
+      'Tên vật tư',
+      'Thông số kỹ thuật',
+      'Nhà cung cấp gần nhất',
+      'Tồn kho thực tế',
+      'Tạm khóa (Reserved)',
+      'Tồn khả dụng',
+      'Đơn vị tính',
+      'Đơn giá mua trung bình',
+      'Tổng giá trị tồn kho',
+      'Cập nhật cuối',
       'Cảnh báo'
     ];
 
     const rows = filteredInventory.map(item => {
       let statusLabel = 'Bình thường';
       const status = getItemStatus(item);
-      if (status === 'over_boq') statusLabel = 'Đã vượt BOQ';
-      else if (status === 'approaching') statusLabel = 'Sắp vượt BOQ';
+      if (status === 'over_boq') statusLabel = 'Đã vượt định mức';
+      else if (status === 'approaching') statusLabel = 'Sắp vượt định mức';
       else if (status === 'low_stock') statusLabel = 'Tồn kho thấp';
 
       return [
         `"${item.materialCode}"`,
         `"${item.materialName}"`,
-        `"${item.specification || 'N/A'}"`,
+        `"${item.specification || 'Chưa cập nhật'}"`,
         `"${item.supplierName}"`,
         item.quantity,
         item.reservedQuantity,
@@ -95,14 +106,14 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
         `"${item.unitName}"`,
         item.avgUnitPrice || 0,
         item.stockValue || 0,
-        item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'N/A',
+        item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'Chưa cập nhật',
         `"${statusLabel}"`
       ];
     });
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF"
       + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-      
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -122,18 +133,18 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     if ((boq > 0 && used >= boq) || (boq === 0 && used > 0)) {
       return (
         <div className="flex flex-col items-center gap-0.5">
-          <span 
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200" 
+          <span
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200"
             title="Đã dùng vượt mức kế hoạch dự án. Mọi yêu cầu cấp phát mới cần Giám đốc duyệt."
           >
             <AlertCircle size={12} />
-            <span>Đã vượt định mức (BOQ)</span>
+            <span>Đã vượt định mức</span>
           </span>
           <span className="text-[10px] text-slate-400 font-medium">
-            Đã dùng: {formatQty(used)} / BOQ: {formatQty(boq)}
+            Đã dùng: {formatQty(used)} / Định mức: {formatQty(boq)}
           </span>
           {boq > 0 && (
-            <div className="w-24 bg-rose-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${Math.round((used / boq) * 100)}% BOQ`}>
+            <div className="w-24 bg-rose-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${Math.round((used / boq) * 100)}% định mức`}>
               <div className="bg-rose-500 h-full rounded-full animate-pulse" style={{ width: '100%' }}></div>
             </div>
           )}
@@ -144,17 +155,17 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     if (boq > 0 && used >= 0.8 * boq && used < boq) {
       return (
         <div className="flex flex-col items-center gap-0.5">
-          <span 
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200" 
+          <span
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200"
             title="Lượng sử dụng sắp đạt giới hạn trần. Cần kiểm soát xuất kho chặt chẽ."
           >
             <Info size={12} />
-            <span>Sắp vượt BOQ ({percent}%)</span>
+            <span>Sắp vượt định mức ({percent}%)</span>
           </span>
           <span className="text-[10px] text-slate-400 font-medium">
-            Đã dùng: {formatQty(used)} / BOQ: {formatQty(boq)}
+            Đã dùng: {formatQty(used)} / Định mức: {formatQty(boq)}
           </span>
-          <div className="w-24 bg-orange-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% BOQ`}>
+          <div className="w-24 bg-orange-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% định mức`}>
             <div className="bg-orange-500 h-full rounded-full" style={{ width: `${percent}%` }}></div>
           </div>
         </div>
@@ -164,8 +175,8 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     if (available <= safety) {
       return (
         <div className="flex flex-col items-center gap-0.5">
-          <span 
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200" 
+          <span
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"
             title="Số lượng khả dụng chạm ngưỡng an toàn. Cần đề xuất nhập kho bổ sung."
           >
             <AlertTriangle size={12} />
@@ -175,7 +186,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
             Khả dụng &le; Ngưỡng an toàn ({formatQty(safety)})
           </span>
           {boq > 0 && (
-            <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% BOQ`}>
+            <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% định mức`}>
               <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${percent}%` }}></div>
             </div>
           )}
@@ -193,7 +204,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           Tồn kho & sử dụng an toàn
         </span>
         {boq > 0 && (
-          <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% BOQ`}>
+          <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% định mức`}>
             <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${percent}%` }}></div>
           </div>
         )}
@@ -208,6 +219,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     if (status === 'low_stock') return 'bg-amber-50/20 hover:bg-amber-50/40';
     return 'hover:bg-slate-50';
   };
+
+  const totalPages = Math.ceil(filteredInventory.length / ITEMS_PER_PAGE);
+  const paginatedInventory = filteredInventory.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
     <div className="flex flex-col gap-4">
@@ -235,7 +249,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
             >
               <option value="all">Tất cả ({inventoryList.length})</option>
               <option value="over_boq">Đã vượt định mức ({inventoryList.filter(i => getItemStatus(i) === 'over_boq').length})</option>
-              <option value="approaching">Sắp vượt BOQ ({inventoryList.filter(i => getItemStatus(i) === 'approaching').length})</option>
+              <option value="approaching">Sắp vượt định mức ({inventoryList.filter(i => getItemStatus(i) === 'approaching').length})</option>
               <option value="low_stock">Tồn kho thấp ({inventoryList.filter(i => getItemStatus(i) === 'low_stock').length})</option>
               <option value="stable">Bình thường ({inventoryList.filter(i => getItemStatus(i) === 'stable').length})</option>
             </select>
@@ -260,11 +274,11 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
               <th className="w-10 px-3"></th>
               <th className="px-4 py-3">Mã</th>
               <th className="px-4 py-3">Tên vật tư</th>
-              <th className="px-4 py-3">Thông số / NCC</th>
+              <th className="px-4 py-3">Thông số</th>
               <th className="px-4 py-3 text-right">Tồn thực tế</th>
               <th className="px-4 py-3 text-right">Tạm khóa</th>
               <th className="px-4 py-3 text-right">Khả dụng</th>
-              <th className="px-4 py-3 text-right" title="Giá trị tồn kho tính theo phương pháp bình quân gia quyền di động (Moving Weighted Average) từ các PO thực tế">Giá trị tồn (Ước tính)</th>
+              <th className="px-4 py-3 text-right" title="Giá trị tồn kho tính theo phương pháp bình quân gia quyền di động (Moving Weighted Average) từ các đơn mua hàng thực tế">Giá trị tồn (Ước tính)</th>
               <th className="px-4 py-3 text-center">Cập nhật cuối</th>
               <th className="px-4 py-3 text-center">Cảnh báo tồn kho</th>
             </tr>
@@ -277,7 +291,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                 </td>
               </tr>
             ) : (
-              filteredInventory.map(item => {
+              paginatedInventory.map(item => {
                 const rowBg = getRowBgClass(item);
                 const isExpanded = !!expandedItemIds[item.inventoryId];
                 return (
@@ -299,8 +313,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                         {item.materialName}
                       </td>
                       <td className="px-4 py-3.5 text-slate-600 text-xs">
-                        <div className="font-semibold text-slate-700">{item.specification || 'N/A'}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">NCC: {item.supplierName}</div>
+                        <div className="font-semibold text-slate-700">{item.specification || 'Không có'}</div>
                       </td>
                       <td className="px-4 py-3.5 text-right font-medium text-slate-900">
                         {formatQty(item.quantity)} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
@@ -323,7 +336,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                             <div className="text-[9px] text-slate-400" title="Đơn giá bình quân gia quyền di động">Giá BQGQ: {formatPrice(item.avgUnitPrice)}</div>
                           </>
                         ) : (
-                          <span className="text-slate-400 italic text-[10px]">Chưa có giá PO</span>
+                          <span className="text-slate-400 italic text-[10px]">Chưa có giá nhập</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-center text-xs text-slate-500">
@@ -333,7 +346,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                           year: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit'
-                        }) : 'N/A'}
+                        }) : 'Chưa cập nhật'}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         {getStatusBadge(item)}
@@ -347,7 +360,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                           <div className="flex flex-col gap-2.5">
                             <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                               <Info size={14} className="text-blue-500" />
-                              <span>Chi tiết sử dụng vật tư theo từng Giai đoạn (Phases)</span>
+                              <span>Chi tiết sử dụng vật tư theo từng Giai đoạn</span>
                             </div>
 
                             {!item.phaseUsages || item.phaseUsages.length === 0 ? (
@@ -360,7 +373,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                                   <thead className="bg-slate-50 font-semibold text-slate-600 uppercase text-[10px] tracking-wider">
                                     <tr>
                                       <th className="px-3 py-2.5">Tên giai đoạn</th>
-                                      <th className="px-3 py-2.5 text-right">Định mức (BOQ)</th>
+                                      <th className="px-3 py-2.5 text-right">Định mức</th>
                                       <th className="px-3 py-2.5 text-right">Đã xuất dùng</th>
                                       <th className="px-3 py-2.5 text-right">Tỷ lệ</th>
                                       <th className="px-3 py-2.5 text-center">Trạng thái</th>
@@ -403,7 +416,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                                             {formatQty(phase.usedQuantity)} <span className="text-[10px] text-slate-400">{item.unitName}</span>
                                           </td>
                                           <td className="px-3 py-2 text-right text-slate-500 font-mono">
-                                            {phase.boqQuantity > 0 ? `${percent}%` : 'N/A'}
+                                            {phase.boqQuantity > 0 ? `${percent}%` : '-'}
                                           </td>
                                           <td className="px-3 py-2 text-center">
                                             {statusBadge}
@@ -426,6 +439,14 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
     </div>
   );
 };

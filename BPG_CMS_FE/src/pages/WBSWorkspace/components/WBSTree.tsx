@@ -20,7 +20,7 @@ const getAvatarColor = (userId: string) => {
 export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => {};
   const {
-    phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests,
+    phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests, user,
     expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -28,9 +28,10 @@ export const WBSTree = () => {
     setSelectedPhaseForTask, setParentTaskForNew, setParentDeadlineForNew, setIsCreateTaskOpen,
     setSelectedTaskForEdit, setIsEditTaskOpen,
     setSelectedPhaseForMatReq, setCreateMatReqType, setIsPhaseMatReqOpen, setIsLeaderApprovalOpen,
-    setSelectedPhaseForBOQ, setIsBOQOpen,
     setSelectedTaskId, setIsDetailOpen, setIsObsoleteOpen,
-    isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase
+    setIsReportInventoryIncidentOpen, setSelectedPhaseForInventoryIncident,
+    setIsReportIncidentOpen,
+    isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase, projectId
   } = useWBS();
   
   const navigate = useNavigate();
@@ -206,7 +207,7 @@ export const WBSTree = () => {
                       {/* Badge */}
                       {isFrozen ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                          <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate(`/projects/${ph.projectId}/phases/${ph.id}/acceptance`); }}>Đã nghiệm thu</span>
+                          <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>Đã nghiệm thu</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--success))', minWidth: '28px', textAlign: 'right' }}>100%</span>
                             <div style={{ width: '50px', height: '6px', backgroundColor: 'hsl(var(--border))', borderRadius: '3px', overflow: 'hidden' }}>
@@ -217,7 +218,7 @@ export const WBSTree = () => {
                       ) : readyForAcceptance ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                           <span className="badge badge-warning animate-fade-in" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
-                            onClick={(e) => { e.stopPropagation(); if (isTPKTOrPL) navigate(`/projects/${ph.projectId}/phases/${ph.id}/acceptance`); }}>
+                            onClick={(e) => { e.stopPropagation(); if (isTPKTOrPL) navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>
                             <FileSignature size={9} /><span>Chờ nghiệm thu</span>
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -244,10 +245,10 @@ export const WBSTree = () => {
                       )}
 
                       {/* Action buttons */}
-                      {canEdit && (
+                      {(canEdit || user?.role === 'accountant' || user?.role === 'director' || user?.role === 'siteengineer') && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }}>
                           {/* + Task */}
-                          {!isFrozen && (
+                          {!isFrozen && canEdit && (
                             <button
                               onClick={e => { e.stopPropagation(); setExpandedPhases(prev => ({ ...prev, [ph.id]: true })); setSelectedPhaseForTask(ph.id); setParentTaskForNew(undefined); setParentDeadlineForNew(ph.deadline); setIsCreateTaskOpen(true); }}
                               title="Thêm Task"
@@ -269,7 +270,7 @@ export const WBSTree = () => {
 
                             {showMenu && (
                               <div onClick={e => e.stopPropagation()} className="absolute top-[24px] z-[200] bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-md shadow-lg min-w-[160px] overflow-hidden left-0 sm:left-auto sm:right-0 py-1">
-                                {!isFrozen && phaseProgress === 0 && (
+                                {!isFrozen && phaseProgress === 0 && canEdit && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
@@ -284,7 +285,7 @@ export const WBSTree = () => {
                                   style={menuItemStyle}
                                   onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
                                   onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                  onClick={() => { setPhaseMenuId(null); navigate(`/projects/${ph.projectId}/phases/${ph.id}/material-requests`); }}
+                                  onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/material-requests`); }}
                                 >
                                   <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
                                   <span>{isFrozen ? 'Xem yêu cầu vật tư' : 'Yêu cầu vật tư Giai đoạn'}</span>
@@ -300,19 +301,31 @@ export const WBSTree = () => {
                                     <span style={{ color: 'hsl(var(--warning-hover))' }}>Mua ngoài khẩn cấp Giai đoạn</span>
                                   </div>
                                 )}
-                                {!isFrozen && (
+                                {!isFrozen && canEdit && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
                                     onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setPhaseMenuId(null); setSelectedPhaseForBOQ(ph); setIsBOQOpen(true); }}
+                                    onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/boq`); }}
                                   >
                                     <Box size={13} style={{ color: 'hsl(var(--primary))' }} />
                                     <span>Cập nhật bảng BOQ</span>
                                   </div>
                                 )}
 
-                                {!isFrozen && materialRequests.some(r => r.phaseId === ph.id && r.status === 'pending_leader') && (
+                                {!isFrozen && canEdit && (
+                                  <div
+                                    style={menuItemStyle}
+                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                    onClick={() => { setPhaseMenuId(null); setSelectedPhaseForInventoryIncident(ph); setIsReportInventoryIncidentOpen(true); }}
+                                  >
+                                    <AlertTriangle size={13} style={{ color: 'hsl(var(--warning))' }} />
+                                    <span>Báo cáo sự cố vật tư Giai đoạn</span>
+                                  </div>
+                                )}
+
+                                {!isFrozen && isPL && materialRequests.some(r => r.phaseId === ph.id && r.status === 'pending_leader') && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
@@ -334,7 +347,7 @@ export const WBSTree = () => {
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
                                     onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setPhaseMenuId(null); navigate(`/phase-acceptances?projectId=${ph.projectId}&phaseId=${ph.id}`); }}
+                                    onClick={() => { setPhaseMenuId(null); navigate(`/phase-acceptances?projectId=${projectId}&phaseId=${ph.id}`); }}
                                   >
                                     <CheckCircle size={13} style={{ color: 'hsl(var(--primary))' }} />
                                     <span>Danh sách Nghiệm thu</span>
@@ -342,7 +355,7 @@ export const WBSTree = () => {
                                 )}
 
 
-                                {!isFrozen && (
+                                {!isFrozen && canEdit && (
                                   <div
                                     style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
@@ -567,7 +580,7 @@ export const WBSTree = () => {
                                           style={menuItemStyle}
                                           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
                                           onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setTaskMenuId(null); navigate(`/projects/${ph.projectId}/tasks/${t.id}/incidents`); }}
+                                          onClick={() => { setTaskMenuId(null); setSelectedTaskId(t.id); setIsReportIncidentOpen(true); }}
                                         >
                                           <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
                                         </div>
@@ -576,10 +589,25 @@ export const WBSTree = () => {
                                           style={menuItemStyle}
                                           onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
                                           onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setTaskMenuId(null); navigate(`/projects/${ph.projectId}/tasks/${t.id}/logs`); }}
+                                          onClick={() => { setTaskMenuId(null); navigate(`/projects/${projectId}/tasks/${t.id}/logs`); }}
                                         >
                                           <History size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Xem nhật ký thi công</span>
                                         </div>
+
+                                        {isPL && !t.parentTaskId && (
+                                          <div
+                                            style={menuItemStyle}
+                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                            onClick={() => {
+                                              setTaskMenuId(null);
+                                              navigate(`/projects/${ph.projectId}?tab=inventory&subTab=issuances&search=${encodeURIComponent(t.name)}`);
+                                            }}
+                                          >
+                                            <Box size={12} style={{ color: 'hsl(var(--success))' }} />
+                                            <span style={{ color: 'hsl(var(--success))' }}>Cấp phát vật tư</span>
+                                          </div>
+                                        )}
 
                                         <div
                                           style={{ ...menuItemStyle, display: t.parentTaskId ? 'none' : 'flex' }}

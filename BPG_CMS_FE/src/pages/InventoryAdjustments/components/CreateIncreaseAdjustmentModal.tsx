@@ -101,7 +101,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
           />
         </FormItem>
 
-        <div className="border rounded-xl p-4 bg-slate-50 flex flex-col gap-3">
+        <div className="border border-gray-800 rounded-2xl p-5 bg-white flex flex-col gap-3">
           <h4 className="font-semibold text-sm">Thêm vật tư</h4>
           <div className="flex gap-2 items-end">
             <div className="flex-1">
@@ -134,23 +134,23 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
           </div>
 
           {items.length > 0 && (
-            <div className="mt-3 bg-white rounded-lg border overflow-hidden">
+            <div className="mt-3 bg-white rounded-2xl border border-gray-800 overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-slate-100">
+                <thead>
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium">Vật tư</th>
-                    <th className="px-3 py-2 text-right font-medium w-24">Số lượng</th>
-                    <th className="px-3 py-2 w-16 text-center">Xóa</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vật tư</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">Số lượng</th>
+                    <th className="px-4 py-3 w-16 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Xóa</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-gray-800">
                   {items.map(it => {
                     const m = materials.find(x => x.materialId === it.materialId);
                     return (
                       <tr key={it.materialId}>
-                        <td className="px-3 py-2">{m?.code} - {m?.name}</td>
-                        <td className="px-3 py-2 text-right">{it.quantity}</td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-4 py-3 text-gray-900">{m?.code} - {m?.name}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-gray-900">{it.quantity}</td>
+                        <td className="px-4 py-3 text-center">
                           <button type="button" className="text-red-500 hover:underline" onClick={() => handleRemoveItem(it.materialId)}>Xóa</button>
                         </td>
                       </tr>

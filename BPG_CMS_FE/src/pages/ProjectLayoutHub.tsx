@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import type { Project } from '../types/common';
 import { ProjectMembers } from '../components/ProjectMembers';
@@ -20,28 +20,55 @@ import {
   CheckCircle,
   Clock,
   Edit3,
-
   AlertCircle,
   Play,
-  Package
+  Package,
+  PackageMinus,
+  ShoppingCart,
+  ShoppingBag,
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
+import { SurplusWorkspace } from './SurplusWorkspace/SurplusWorkspace';
 import { ProjectIncidents } from './ProjectIncidents';
+import { ProjectPOTab } from './ProjectLayoutHub/ProjectPOTab';
+import { ProjectDirectPurchaseTab } from './ProjectLayoutHub/ProjectDirectPurchaseTab';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { user } = useAuth();
   const { connection } = useNotification();
   const [isPL, setIsPL] = useState(false);
-  const isTPKT = isPL || user?.role === 'technicalmanager' || user?.role === 'admin';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'members' | 'wbs' | 'logs' | 'inventory' | 'incidents'>('wbs');
+  const isAccountant = user?.role === 'accountant';
+  const [isAssignedLeader, setIsAssignedLeader] = useState(false);
+
+  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus' | 'purchaseorders' | 'directpurchases';
+  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'incidents', 'surplus', 'purchaseorders', 'directpurchases'];
+
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    (searchParams.get('tab') as TabKey) || 'wbs'
+  );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && (TAB_KEYS as string[]).includes(tab)) {
+      setActiveTab(tab as TabKey);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: TabKey) => {
+    setActiveTab(tab);
+    navigate(`/projects/${projectId}?tab=${tab}`);
+  };
+
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
@@ -57,7 +84,9 @@ export const ProjectLayoutHub: React.FC = () => {
 
       const members = await projectService.getMembers(projectId);
       const currentMember = members.find(m => m.userId === user?.id);
-      setIsPL((currentMember ? currentMember.isLeader : false) || user?.role === 'admin' || user?.role === 'technicalmanager');
+      const memberIsLeader = currentMember?.isLeader ?? false;
+      setIsAssignedLeader(memberIsLeader);
+      setIsPL(memberIsLeader || user?.role === 'admin' || user?.role === 'technicalmanager');
     } catch (err) {
       console.error('Error loading project details:', err);
     } finally {
@@ -216,14 +245,16 @@ export const ProjectLayoutHub: React.FC = () => {
               </>
             )}
 
-            {/* Project Status Actions for TPKT */}
-            {isTPKT && (
+            {/* Nút Sửa chỉ dành cho TPKT/Admin */}
+            {isTPKT && project.status !== 'done' && (
+              <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Edit3 size={16} /> Sửa
+              </button>
+            )}
+
+            {/* Project Status Actions cho PL và TPKT */}
+            {isPL && (
               <>
-                {project.status !== 'done' && (
-                  <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Edit3 size={16} /> Sửa
-                  </button>
-                )}
                 {project.status === 'draft' && (
                   <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Play size={16} /> Kích hoạt Dự án
@@ -234,7 +265,21 @@ export const ProjectLayoutHub: React.FC = () => {
                     <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
                       <Pause size={16} /> Tạm dừng
                     </button>
-                    <button onClick={() => handleStatusChange('done')} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'hsl(var(--success))', color: 'white' }}>
+                    <button 
+                      onClick={() => handleStatusChange('done')} 
+                      disabled={project.progress < 100}
+                      className="btn" 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        backgroundColor: project.progress < 100 ? 'hsl(var(--text-muted))' : 'hsl(var(--success))', 
+                        color: 'white',
+                        cursor: project.progress < 100 ? 'not-allowed' : 'pointer',
+                        opacity: project.progress < 100 ? 0.7 : 1
+                      }}
+                      title={project.progress < 100 ? "Tiến độ dự án chưa đạt 100%" : "Hoàn thành dự án"}
+                    >
                       <CheckCircle size={16} /> Hoàn thành
                     </button>
                   </>
@@ -273,7 +318,7 @@ export const ProjectLayoutHub: React.FC = () => {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-            TIẾN ĐỘ TỔNG THỂ DỰ ÁN WBS
+            TIẾN ĐỘ THI CÔNG DỰ ÁN
           </span>
           <strong style={{ fontSize: '2.2rem', fontWeight: 900, color: 'hsl(var(--primary))', letterSpacing: '-0.02em' }}>
             {project.progress}%
@@ -306,7 +351,7 @@ export const ProjectLayoutHub: React.FC = () => {
         overflowX: 'auto'
       }}>
         <button
-          onClick={() => setActiveTab('wbs')}
+          onClick={() => handleTabChange('wbs')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -324,11 +369,11 @@ export const ProjectLayoutHub: React.FC = () => {
           }}
         >
           <FolderGit2 size={18} />
-          <span>Kế hoạch WBS</span>
+          <span>Kế hoạch thi công</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('logs')}
+          onClick={() => handleTabChange('logs')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -350,7 +395,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('members')}
+          onClick={() => handleTabChange('members')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -372,7 +417,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('inventory')}
+          onClick={() => handleTabChange('inventory')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -394,7 +439,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('incidents')}
+          onClick={() => handleTabChange('incidents')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -415,6 +460,74 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Sự cố thi công</span>
         </button>
 
+        <button
+          onClick={() => handleTabChange('surplus')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'surplus' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'surplus' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'surplus' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <PackageMinus size={18} />
+          <span>Xử lý Vật tư thừa</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('purchaseorders')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'purchaseorders' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'purchaseorders' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'purchaseorders' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <ShoppingCart size={18} />
+          <span>Đơn hàng</span>
+        </button>
+
+        {(isAccountant || isAssignedLeader) && (
+          <button
+            onClick={() => handleTabChange('directpurchases')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 18px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'directpurchases' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+              color: activeTab === 'directpurchases' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+              fontWeight: activeTab === 'directpurchases' ? 600 : 500,
+              fontSize: '0.95rem',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all var(--transition-fast)'
+            }}
+          >
+            <ShoppingBag size={18} />
+            <span>Mua khẩn cấp</span>
+          </button>
+        )}
+
       </div>
 
       {/* Tab Contents */}
@@ -426,7 +539,10 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
         {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
+        {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} />}
+        {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} />}
+        {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
       </div>
 
       {isEditOpen && project && (

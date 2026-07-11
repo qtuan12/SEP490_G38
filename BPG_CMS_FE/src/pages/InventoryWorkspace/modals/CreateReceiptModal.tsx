@@ -4,6 +4,7 @@ import { inventoryService } from '../../../services/inventoryService';
 import type { PurchaseOrderDto, PurchaseOrderItemDto } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
 import { UploadCloud, X, AlertCircle } from 'lucide-react';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
 interface CreateReceiptModalProps {
   isOpen: boolean;
@@ -61,6 +62,23 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         po => po.status === 'Sent' || po.status === 'PartiallyReceived'
       );
       setPurchaseOrders(activePOs);
+
+      // Auto-select PO if poId is in URL search params
+      const searchPOId = new URLSearchParams(window.location.search).get('poId');
+      if (searchPOId) {
+        const po = activePOs.find(p => p.poId.toString() === searchPOId) || null;
+        if (po) {
+          setSelectedPOId(searchPOId);
+          setSelectedPO(po);
+
+          const initialQtys: Record<number, string> = {};
+          po.items.forEach(item => {
+            const remaining = item.quantity - item.totalReceived;
+            initialQtys[item.materialId] = remaining > 0 ? remaining.toString() : '0';
+          });
+          setQuantities(initialQtys);
+        }
+      }
     } catch (err: any) {
       console.error('Error fetching POs:', err);
       setGeneralError('Không thể tải danh sách đơn mua hàng PO.');
@@ -72,7 +90,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   const handlePOChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const poIdStr = e.target.value;
     setSelectedPOId(poIdStr);
-    
+
     if (!poIdStr) {
       setSelectedPO(null);
       setQuantities({});
@@ -108,6 +126,11 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       setErrors(prev => ({
         ...prev,
         [materialId]: `Không được vượt quá số lượng còn lại của PO (${remaining} ${item.unitName}).`
+      }));
+    } else if (isDiscreteUnit(item.unitName) && numVal % 1 !== 0) {
+      setErrors(prev => ({
+        ...prev,
+        [materialId]: `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`
       }));
     } else {
       setErrors(prev => {
@@ -176,6 +199,8 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         itemErrors[item.materialId] = 'Số lượng không hợp lệ.';
       } else if (numVal > remaining) {
         itemErrors[item.materialId] = `Vượt quá giới hạn còn lại (${remaining}).`;
+      } else if (isDiscreteUnit(item.unitName) && numVal % 1 !== 0) {
+        itemErrors[item.materialId] = `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`;
       } else if (numVal > 0) {
         submitItems.push({
           materialId: item.materialId,
@@ -210,7 +235,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
       await inventoryService.createGoodsReceipt({
         poId: selectedPO.poId,
-        delivererInfo: delivererInfo.trim() ? `[QC: ${qcNote.trim() || 'Đạt'}] ${delivererInfo.trim()}` : `[QC: ${qcNote.trim() || 'Đạt'}]`,
+        delivererInfo: delivererInfo.trim() ? `[Kiểm hàng: ${qcNote.trim() || 'Đạt'}] ${delivererInfo.trim()}` : `[Kiểm hàng: ${qcNote.trim() || 'Đạt'}]`,
         deliveryDocNo: deliveryDocNo.trim() || null,
         items: submitItems,
         images: imageUrls
@@ -272,20 +297,20 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             />
           </FormItem>
 
-          <FormItem label="Ghi chú chất lượng kiểm hàng (QC)">
+          <FormItem label="Ghi chú chất lượng kiểm hàng">
             <Input
               value={qcNote}
               onChange={e => setQcNote(e.target.value)}
-              placeholder="VD: Cát sạch đạt yêu cầu, trả lại 2 cây thép rỉ..."
+              placeholder="Ví dụ: Cát sạch đạt yêu cầu, trả lại 2 cây thép rỉ..."
               disabled={submitting}
             />
           </FormItem>
 
-          <FormItem label="Số phiếu giao hàng (NCC)">
+          <FormItem label="Số phiếu giao hàng (Nhà cung cấp)">
             <Input
               value={deliveryDocNo}
               onChange={e => setDeliveryDocNo(e.target.value)}
-              placeholder="VD: GD-98212"
+              placeholder="Ví dụ: GD-98212"
               disabled={submitting}
             />
           </FormItem>
@@ -294,7 +319,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             <Input
               value={delivererInfo}
               onChange={e => setDelivererInfo(e.target.value)}
-              placeholder="Họ tên người giao, SĐT..."
+              placeholder="Họ tên người giao, số điện thoại..."
               disabled={submitting}
             />
           </FormItem>
@@ -310,7 +335,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                     <th className="px-4 py-3">Vật tư</th>
                     <th className="px-4 py-3">Quy cách</th>
                     <th className="px-4 py-3 text-center">Đã nhận / Đặt</th>
-                    <th className="px-4 py-3 text-right" style={{ width: '160px' }}>Thực nhận đợt này</th>
+                    <th className="px-4 py-3 text-right w-40">Thực nhận đợt này</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
@@ -323,7 +348,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                           {item.materialName}
                         </td>
                         <td className="px-4 py-3 text-slate-500">
-                          {item.specification || 'N/A'}
+                          {item.specification || 'Chưa cập nhật'}
                         </td>
                         <td className="px-4 py-3 text-center text-slate-600">
                           <span className="font-semibold text-blue-600">{item.totalReceived}</span>
@@ -334,12 +359,12 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                           <div className="flex flex-col items-end gap-1">
                             <Input
                               type="number"
-                              step="any"
+                              step={isDiscreteUnit(item.unitName) ? "1" : "any"}
                               value={quantities[item.materialId] ?? ''}
                               onChange={e => handleQuantityChange(item.materialId, e.target.value, item)}
                               disabled={remaining <= 0 || submitting}
                               placeholder="0"
-                              className={`text-right w-32 ${error ? 'border-red-500 focus:ring-red-200' : ''}`}
+                              className={`text-right w-36 ${error ? 'border-red-500 focus:ring-red-200' : ''}`}
                             />
                             {error && (
                               <span className="text-[10px] text-red-500 font-medium max-w-[150px] text-right">
@@ -371,13 +396,12 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                 document.getElementById('receipt-image-input')?.click();
               }
             }}
-            className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
-              selectedFiles.length >= 5
+            className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${selectedFiles.length >= 5
                 ? 'border-slate-200 bg-slate-100 cursor-not-allowed opacity-60'
                 : dragging
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
-            }`}
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+              }`}
           >
             <input
               id="receipt-image-input"

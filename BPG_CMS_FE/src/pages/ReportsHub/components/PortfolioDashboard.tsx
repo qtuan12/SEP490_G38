@@ -140,7 +140,7 @@ export const PortfolioDashboard: React.FC = () => {
             Tuyệt vời! Không có cảnh báo đỏ hoặc vàng nào trên toàn bộ các dự án.
           </div>
         ) : (
-          <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-2">
+          <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {warnings.map((w, idx) => (
               <div
                 key={idx}

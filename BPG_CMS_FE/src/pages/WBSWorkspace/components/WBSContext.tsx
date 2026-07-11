@@ -33,6 +33,9 @@ export interface WBSContextType {
   isDetailOpen: boolean;
   setIsDetailOpen: (open: boolean) => void;
   
+  isReportIncidentOpen: boolean;
+  setIsReportIncidentOpen: (open: boolean) => void;
+  
   isAssignOpen: boolean;
   setIsAssignOpen: (open: boolean) => void;
   
@@ -104,6 +107,11 @@ export interface WBSContextType {
 
   isAdjustProgressOpen: boolean;
   setIsAdjustProgressOpen: (open: boolean) => void;
+
+  isReportInventoryIncidentOpen: boolean;
+  setIsReportInventoryIncidentOpen: (open: boolean) => void;
+  selectedPhaseForInventoryIncident: WBSPhase | null;
+  setSelectedPhaseForInventoryIncident: (phase: WBSPhase | null) => void;
 
   handleApproveByLeader: (id: string) => void;
   handleApproveByTPKT: (id: string) => void;

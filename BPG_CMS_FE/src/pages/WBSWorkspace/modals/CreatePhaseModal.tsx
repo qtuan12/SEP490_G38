@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
 import { Modal } from '../../../../src/components/ui/Modal';
+import type { Project, WBSPhase } from '../../../types/common';
 
 const createPhaseSchema = z.object({
   name: z.string().min(1, 'Vui lòng nhập tên Phase.'),
@@ -25,6 +26,8 @@ interface CreatePhaseModalProps {
   onClose: () => void;
   projectId: string;
   maxPhaseOrder: number;
+  project?: Project | null;
+  phases?: WBSPhase[];
   onSuccess: (message: string) => void;
   onError?: (message: string) => void; // Keeping it for compatibility if needed
 }
@@ -34,6 +37,8 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
   onClose,
   projectId,
   maxPhaseOrder,
+  project,
+  phases,
   onSuccess
 }) => {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CreatePhaseForm>({
@@ -71,12 +76,66 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
   });
 
   const onSubmit = (data: CreatePhaseForm) => {
+    const phaseStart = new Date(data.startDate);
+    const phaseEnd = new Date(data.endDate);
+
+    // Xóa giờ để so sánh chính xác theo ngày
+    phaseStart.setHours(0,0,0,0);
+    phaseEnd.setHours(0,0,0,0);
+
+    // 1. Phải trong thời gian dự án
+    if (project) {
+        const projStart = new Date(project.startDate);
+        const projEnd = new Date(project.endDate);
+        projStart.setHours(0,0,0,0);
+        projEnd.setHours(0,0,0,0);
+
+        if (phaseStart < projStart || phaseEnd > projEnd) {
+            toast.error(`Thời gian Giai đoạn phải nằm trong khoảng thời gian Dự án (${projStart.toLocaleDateString('vi-VN')} - ${projEnd.toLocaleDateString('vi-VN')})`);
+            return;
+        }
+    }
+
+    // 2. Phải sau giai đoạn trước (nếu có)
+    if (phases && phases.length > 0) {
+        // Tìm giai đoạn có ngày kết thúc muộn nhất
+        const latestPhase = phases.reduce((latest, current) => {
+             const latestDate = new Date(latest.endDate || latest.deadline || latest.startDate || 0);
+             const currentDate = new Date(current.endDate || current.deadline || current.startDate || 0);
+             return currentDate > latestDate ? current : latest;
+        }, phases[0]);
+
+        if (latestPhase) {
+            const prevEndDateStr = latestPhase.endDate || latestPhase.deadline || latestPhase.startDate;
+            if (prevEndDateStr) {
+                const prevEndDate = new Date(prevEndDateStr);
+                prevEndDate.setHours(0,0,0,0);
+                
+                if (phaseStart <= prevEndDate) {
+                    toast.error(`Ngày bắt đầu phải sau ngày kết thúc của Giai đoạn trước ("${latestPhase.name}" kết thúc vào ${prevEndDate.toLocaleDateString('vi-VN')})`);
+                    return;
+                }
+            }
+        }
+    }
+
     mutation.mutate(data);
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Tạo Giai đoạn (Phase) mới">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+        
+        {/* THÔNG TIN THỜI GIAN DỰ ÁN */}
+        {project && (
+          <div className="bg-blue-50/50 p-3 rounded-lg border border-blue-100 flex flex-col -mb-1">
+            <p className="text-xs text-slate-500 mb-1">Thời gian dự án:</p>
+            <p className="text-sm font-medium text-slate-700">
+              {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
+            </p>
+          </div>
+        )}
+
         <div>
           <label htmlFor="phase-name" className="block text-sm font-medium mb-1.5 text-slate-600">
             Tên Giai đoạn <span className="text-red-500">*</span>

@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { incidentService } from '../../../services/incidentService';
-import type {IncidentReport, ProjectMember, WBSPhase, WBSTask} from '../../../types/common';
+import type { IncidentReport, ProjectMember, WBSPhase, WBSTask } from '../../../types/common';
 import { Info, AlertCircle } from 'lucide-react';
 
 const schema = z.object({
@@ -61,7 +61,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
   onSuccess,
   onError
 }) => {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, control, setValue } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, control, setValue, setError } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       resolutionAction: 'rework',
@@ -104,7 +104,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
       if (data.resolutionAction === 'rework') {
         createReworkTask = true;
         reworkTaskName = data.reworkName!.trim();
-        reworkTaskStartDate = new Date().toISOString(); 
+        reworkTaskStartDate = new Date().toISOString();
         reworkTaskEndDate = data.reworkDeadline ? new Date(data.reworkDeadline).toISOString() : new Date().toISOString();
       } else {
         createReworkTask = false;
@@ -112,7 +112,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
       }
 
       await incidentService.confirmIncident(
-        Number(incident.id || (incident as any).incidentId), 
+        Number(incident.id || (incident as any).incidentId),
         {
           incidentId: Number(incident.id || (incident as any).incidentId),
           createReworkTask,
@@ -124,14 +124,14 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
           handlingInstruction: data.handlingInstruction
         }
       );
-      
+
       return data;
     },
     onSuccess: (data) => {
-      const msg = data.resolutionAction === 'rework' 
+      const msg = data.resolutionAction === 'rework'
         ? `Đã duyệt sự cố và tạo công việc khắc phục: "${data.reworkName?.trim()}"`
         : `Đã duyệt sự cố và giảm ${data.reduceProgressValue}% tiến độ công việc gốc.`;
-      
+
       onSuccess(msg);
       onClose();
     },
@@ -141,6 +141,16 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
   });
 
   const onSubmit = (data: FormData) => {
+    if (data.resolutionAction === 'rework' && data.reworkDeadline) {
+      const selectedDate = new Date(data.reworkDeadline);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (selectedDate < today) {
+        setError('reworkDeadline', { type: 'manual', message: 'Hạn hoàn thành không được nằm trong quá khứ' });
+        return;
+      }
+    }
     mutation.mutate(data);
   };
 
@@ -150,7 +160,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
     if (errs.reduceProgressValue?.message) msg = errs.reduceProgressValue.message;
     else if (errs.reduceProgressReason?.message) msg = errs.reduceProgressReason.message;
     else if (errs.reworkName?.message) msg = errs.reworkName.message;
-    
+
     onError(msg);
   };
 
@@ -159,7 +169,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Phê duyệt Sự cố">
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        
+
         <div style={{ padding: '16px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-card))' }}>
           <label htmlFor="handlingInstruction" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Hướng dẫn xử lý / Giải quyết <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
           <textarea
@@ -175,19 +185,19 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
 
         {/* Option Cards for Selection */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '8px' }}>
-          <label 
-            style={{ 
-              display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', 
-              border: resolutionAction === 'rework' ? '2px solid hsl(var(--primary))' : '2px solid hsl(var(--border))', 
+          <label
+            style={{
+              display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px',
+              border: resolutionAction === 'rework' ? '2px solid hsl(var(--primary))' : '2px solid hsl(var(--border))',
               backgroundColor: resolutionAction === 'rework' ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-card))',
               borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'all 0.2s',
               boxShadow: resolutionAction === 'rework' ? '0 4px 12px hsl(var(--primary)/0.1)' : 'none'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <input 
-                type="radio" 
-                value="rework" 
+              <input
+                type="radio"
+                value="rework"
                 {...register('resolutionAction')}
                 style={{ width: '18px', height: '18px', accentColor: 'hsl(var(--primary))' }}
               />
@@ -198,19 +208,19 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
             </span>
           </label>
 
-          <label 
-            style={{ 
-              display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', 
-              border: resolutionAction === 'reduce_progress' ? '2px solid hsl(var(--primary))' : '2px solid hsl(var(--border))', 
+          <label
+            style={{
+              display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px',
+              border: resolutionAction === 'reduce_progress' ? '2px solid hsl(var(--primary))' : '2px solid hsl(var(--border))',
               backgroundColor: resolutionAction === 'reduce_progress' ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-card))',
               borderRadius: 'var(--radius-md)', cursor: 'pointer', transition: 'all 0.2s',
               boxShadow: resolutionAction === 'reduce_progress' ? '0 4px 12px hsl(var(--primary)/0.1)' : 'none'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <input 
-                type="radio" 
-                value="reduce_progress" 
+              <input
+                type="radio"
+                value="reduce_progress"
                 {...register('resolutionAction')}
                 style={{ width: '18px', height: '18px', accentColor: 'hsl(var(--primary))' }}
               />
@@ -228,12 +238,12 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
               {phase && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', backgroundColor: 'hsl(var(--primary-glow))', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', color: 'hsl(var(--primary))', border: '1px solid hsl(var(--primary)/0.2)' }}>
                   <Info size={16} style={{ flexShrink: 0 }} />
-                  <span>Hạn chót của Giai đoạn (Phase Deadline): <strong style={{ marginLeft: '4px' }}>{phase.deadline || 'Không xác định'}</strong></span>
+                  <span>Hạn chót của Giai đoạn: <strong style={{ marginLeft: '4px' }}>{phase.deadline || 'Không xác định'}</strong></span>
                 </div>
               )}
 
               <div>
-                <label htmlFor="rework-name" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Tên Công việc Rework mới <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+                <label htmlFor="rework-name" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Tên Công việc mới <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
                 <input
                   id="rework-name"
                   type="text"
@@ -243,16 +253,17 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
                 />
                 {errors.reworkName && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.reworkName.message}</span>}
                 <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'block', marginTop: '6px' }}>
-                  * Task cũ sẽ chuyển sang Obsolete (Khóa). Rework task mới sẽ làm lại từ 0%.
+                  * Task cũ sẽ chuyển sang Khóa.Task mới sẽ làm lại từ 0%.
                 </span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label htmlFor="rework-deadline" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Hạn hoàn thành (Deadline) <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+                  <label htmlFor="rework-deadline" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Hạn hoàn thành <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
                   <input
                     id="rework-deadline"
                     type="date"
+                    min={new Date().toISOString().split('T')[0]}
                     className="input"
                     style={{ marginTop: '6px' }}
                     {...register('reworkDeadline')}
@@ -263,7 +274,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
                   <label htmlFor="rework-assignee" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Giao cho kỹ sư phụ trách <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
                   <select id="rework-assignee" className="input" style={{ marginTop: '6px' }} {...register('reworkAssigneeId')}>
                     {members.map(m => (
-                      <option key={m.userId} value={m.userId}>{m.userName} ({m.userRole})</option>
+                      <option key={m.userId} value={m.userId}>{m.userName} </option>
                     ))}
                   </select>
                   {errors.reworkAssigneeId && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.reworkAssigneeId.message}</span>}
@@ -297,14 +308,14 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
                 <label htmlFor="target-progress" style={{ display: 'block', marginBottom: '10px', fontWeight: 600, color: 'hsl(var(--text-primary))' }}>
                   Kéo thả để điều chỉnh Tiến độ thực tế <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'hsl(var(--bg-card))', padding: '24px', borderRadius: 'var(--radius-md)', border: '1px solid hsl(var(--border))', boxShadow: '0 2px 8px hsl(var(--foreground)/0.02)' }}>
-                  
+
                   <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                     <div style={{ width: '80px', textAlign: 'center', fontSize: '2rem', fontWeight: 800, color: 'hsl(var(--primary))', lineHeight: '1' }}>
                       {(task?.progress || 0) - (reduceProgressValue || 0)}<span style={{ fontSize: '1.2rem', marginLeft: '2px' }}>%</span>
                     </div>
-                    
+
                     <input
                       id="target-progress"
                       type="range"
@@ -318,7 +329,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
                       style={{ flex: 1, cursor: 'pointer', accentColor: 'hsl(var(--primary))', height: '6px' }}
                     />
                   </div>
-                  
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: 'hsl(var(--danger-glow))', borderRadius: 'var(--radius-sm)', border: '1px dashed hsl(var(--danger)/0.3)' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--danger))' }}>Mức phạt tiến độ:</span>
                     <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'hsl(var(--danger))' }}>
@@ -328,7 +339,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
                 </div>
                 {errors.reduceProgressValue && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '6px', display: 'block' }}>{errors.reduceProgressValue.message}</span>}
               </div>
-              
+
               <div>
                 <label htmlFor="reduce-progress-reason" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Lý do/Ghi chú <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
                 <textarea

@@ -6,7 +6,6 @@ import { CreateTaskModal } from '../modals/CreateTaskModal';
 import { EditTaskModal } from '../modals/EditTaskModal';
 import { AssignEngineerModal } from '../modals/AssignEngineerModal';
 import { AdjustDeadlineModal } from '../modals/AdjustDeadlineModal';
-import { PhaseBOQModal } from '../modals/PhaseBOQModal';
 import { LeaderApprovalModal } from '../modals/LeaderApprovalModal';
 import { CreateMaterialRequestModal } from '../../MaterialRequests/modals/CreateMaterialRequestModal';
 import { ResubmitMaterialRequestModal } from '../../MaterialRequests/modals/ResubmitMaterialRequestModal';
@@ -15,7 +14,8 @@ import { ObsoleteTaskModal } from '../modals/ObsoleteTaskModal';
 import { DailyLogFormModal } from '../../ProjectDailyLogs/modals/DailyLogFormModal';
 import { AdjustProgressModal } from '../modals/AdjustProgressModal';
 import { ReportIncidentModal } from '../../Incidents/modals/ReportIncidentModal';
-import { useState } from 'react';
+import { ReportInventoryIncidentModal } from '../modals/ReportInventoryIncidentModal';
+
 
 export const WBSModalsContainer = () => {
   const {
@@ -28,16 +28,16 @@ export const WBSModalsContainer = () => {
     isLeaderApprovalOpen, setIsLeaderApprovalOpen, selectedPhaseForMatReq, setSelectedPhaseForMatReq,
     isResubmitOpen, setIsResubmitOpen, selectedResubmitRequest, setSelectedResubmitRequest,
     isPhaseMatReqOpen, setIsPhaseMatReqOpen,
-    isBOQOpen, setIsBOQOpen, selectedPhaseForBOQ, setSelectedPhaseForBOQ,
     isCreateTaskOpen, setIsCreateTaskOpen, selectedPhaseForTask, parentTaskForNew, parentDeadlineForNew,
     isEditTaskOpen, setIsEditTaskOpen, selectedTaskForEdit, setSelectedTaskForEdit,
     isObsoleteOpen, setIsObsoleteOpen,
     isAdjustDeadlineOpen, setIsAdjustDeadlineOpen, adjustingTask, setAdjustingTask,
     isAdjustProgressOpen, setIsAdjustProgressOpen,
+    isReportInventoryIncidentOpen, setIsReportInventoryIncidentOpen,
+    selectedPhaseForInventoryIncident,
+    isReportIncidentOpen, setIsReportIncidentOpen,
     selectedTaskId, phases, handleSuccess, handleError, loadWBSData
   } = useWBS();
-
-  const [isReportIncidentOpen, setIsReportIncidentOpen] = useState(false);
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) || null : null;
@@ -138,6 +138,8 @@ export const WBSModalsContainer = () => {
           onClose={() => setIsCreatePhaseOpen(false)}
           projectId={projectId}
           maxPhaseOrder={phases.length + 1}
+          project={project}
+          phases={phases}
           onSuccess={handleSuccess}
           onError={handleError}
         />
@@ -213,18 +215,7 @@ export const WBSModalsContainer = () => {
         />
       )}
 
-      {/* Phase BOQ Modal */}
-      {selectedPhaseForBOQ && (
-        <PhaseBOQModal
-          isOpen={isBOQOpen}
-          onClose={() => { setIsBOQOpen(false); setSelectedPhaseForBOQ(null); }}
-          phase={selectedPhaseForBOQ}
-          projectId={projectId}
-          hasActiveMRs={materialRequests.some(mr => mr.phaseId === selectedPhaseForBOQ.id && mr.status !== 'rejected')}
-          onSuccess={handleSuccess}
-          onError={handleError}
-        />
-      )}
+
 
       {/* Create Task Modal */}
       <CreateTaskModal
@@ -236,6 +227,8 @@ export const WBSModalsContainer = () => {
         maxTaskOrder={tasks.filter(t => t.phaseId === selectedPhaseForTask && t.parentTaskId === parentTaskForNew).length + 1}
         members={members}
         tasks={tasks}
+        phase={phases.find(p => p.id === selectedPhaseForTask)}
+        project={project}
         onSuccess={handleSuccess}
         onError={handleError}
       />
@@ -286,7 +279,23 @@ export const WBSModalsContainer = () => {
         />
       )}
 
-      {/* Report Incident Modal */}
+      {/* Report Inventory Incident Modal */}
+      {isReportInventoryIncidentOpen && selectedPhaseForInventoryIncident && project && (
+        <ReportInventoryIncidentModal
+          isOpen={isReportInventoryIncidentOpen}
+          onClose={() => setIsReportInventoryIncidentOpen(false)}
+          projectId={project.id.toString()}
+          phaseId={selectedPhaseForInventoryIncident.id}
+          phaseName={selectedPhaseForInventoryIncident.name}
+          user={user}
+          onSuccess={(msg) => {
+            setIsReportInventoryIncidentOpen(false);
+            handleSuccess(msg || 'Đã báo cáo sự cố vật tư thành công.');
+            loadWBSData();
+          }}
+          onError={handleError}
+        />
+      )}
     </>
   );
 };

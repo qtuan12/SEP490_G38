@@ -15,7 +15,7 @@ const schema = z.object({
   address: z.string().min(5, 'Địa chỉ công trường phải có ít nhất 5 ký tự'),
   startDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến bắt đầu'),
   endDate: z.string().min(1, 'Vui lòng chọn ngày dự kiến kết thúc'),
-  drawingNames: z.array(z.string()).max(5, 'Chỉ được chọn tối đa 5 file').default([])
+  drawingNames: z.array(z.string()).default([])
 });
 
 type FormData = z.infer<typeof schema>;
@@ -153,9 +153,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
   };
 
   const addFiles = (files: File[]) => {
-    const spaceLeft = 5 - filePreviews.length;
-    if (spaceLeft <= 0) return;
-    const filesToAdd = files.slice(0, spaceLeft);
+    const filesToAdd = files;
     const newPreviews = filesToAdd.map(f => ({
       file: f,
       url: f.type.startsWith('image/') ? URL.createObjectURL(f) : f.name,
@@ -205,7 +203,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
           </FormItem>
         </div>
         
-        <FormItem label="Bản vẽ thiết kế tổng thể (Tối đa 5 file)" error={errors.drawingNames?.message}>
+        <FormItem label="Bản vẽ thiết kế tổng thể" error={errors.drawingNames?.message}>
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -214,11 +212,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
               dragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
             }`}
             onClick={() => {
-              if (filePreviews.length < 5) {
-                document.getElementById('edit-drawing-file-input')?.click();
-              } else {
-                alert('Chỉ được chọn tối đa 5 file. Hãy xóa bớt file hiện tại trước.');
-              }
+              document.getElementById('edit-drawing-file-input')?.click();
             }}
           >
             <input
@@ -266,7 +260,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
                   Kéo thả file vào đây hoặc click để duyệt file mới
                 </p>
                 <span className="text-xs text-gray-500">
-                  Hỗ trợ PDF, PNG, JPG tối đa 20MB (tối đa 5 file)
+                  Hỗ trợ PDF, PNG, JPG tối đa 20MB
                 </span>
               </div>
             )}

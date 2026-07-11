@@ -6,7 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
-import type {ProjectMember, WBSTask} from '../../../types/common';
+import type {ProjectMember, WBSTask, WBSPhase, Project} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
 const createTaskSchema = z.object({
@@ -15,10 +15,45 @@ const createTaskSchema = z.object({
   startDate: z.string().min(1, 'Vui lòng chọn ngày bắt đầu.'),
   deadline: z.string().min(1, 'Vui lòng chọn hạn chót (Deadline).'),
   assignedTo: z.string().optional(),
-  weight: z.any().optional()
+  weight: z.any().optional(),
+  isOutsourced: z.boolean().optional(),
+  outsourcedTeamName: z.string().optional(),
+  outsourcedTeamContact: z.string().optional()
 }).refine(data => new Date(data.startDate) <= new Date(data.deadline), {
   message: 'Ngày bắt đầu không được lớn hơn hạn chót.',
   path: ['startDate']
+}).refine(data => {
+  if (data.isOutsourced) {
+    return !!data.outsourcedTeamName?.trim();
+  }
+  return true;
+}, {
+  message: 'Vui lòng nhập Tên đội thợ.',
+  path: ['outsourcedTeamName']
+}).refine(data => {
+  if (data.isOutsourced && data.outsourcedTeamName?.trim()) {
+    return data.outsourcedTeamName.trim().length <= 100;
+  }
+  return true;
+}, {
+  message: 'Tên đội thợ không được vượt quá 100 ký tự.',
+  path: ['outsourcedTeamName']
+}).refine(data => {
+  if (data.isOutsourced) {
+    return !!data.outsourcedTeamContact?.trim();
+  }
+  return true;
+}, {
+  message: 'Vui lòng nhập số điện thoại liên hệ.',
+  path: ['outsourcedTeamContact']
+}).refine(data => {
+  if (data.isOutsourced && data.outsourcedTeamContact?.trim()) {
+    return /^0\d{9}$/.test(data.outsourcedTeamContact.trim());
+  }
+  return true;
+}, {
+  message: 'Số điện thoại phải bắt đầu bằng 0, gồm 10 chữ số và không chứa ký tự đặc biệt.',
+  path: ['outsourcedTeamContact']
 });
 
 type CreateTaskForm = z.infer<typeof createTaskSchema>;
@@ -32,6 +67,8 @@ interface CreateTaskModalProps {
   maxTaskOrder: number;
   members: ProjectMember[];
   tasks: WBSTask[];
+  phase?: WBSPhase;
+  project?: Project | null;
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
 }
@@ -45,12 +82,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   maxTaskOrder,
   members,
   tasks,
+  phase,
+  project,
   onSuccess
 }) => {
   const [selectedPredecessorIds, setSelectedPredecessorIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateTaskForm>({
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<CreateTaskForm>({
     resolver: zodResolver(createTaskSchema),
     defaultValues: {
       name: '',
@@ -58,9 +97,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       startDate: '',
       deadline: '',
       assignedTo: '',
-      weight: undefined
+      weight: undefined,
+      isOutsourced: false,
+      outsourcedTeamName: '',
+      outsourcedTeamContact: ''
     }
   });
+
+  const isOutsourced = watch('isOutsourced');
 
   useEffect(() => {
     if (isOpen) {
@@ -92,7 +136,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const parentAncestors = getAncestors(parentTaskId);
   const potentialPredecessors = tasks.filter(t => 
     t.status !== 'obsolete' && 
-    !parentAncestors.has(t.id)
+    !parentAncestors.has(t.id) &&
+    t.phaseId?.toString() === phaseId.replace('ph-', '')
   );
 
   const filteredPredecessors = potentialPredecessors.filter(t =>
@@ -114,7 +159,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         startDate: data.startDate,
         endDate: data.deadline,
         assigneeIds: data.assignedTo ? [parseInt(data.assignedTo)] : [],
-        weight: (data.weight !== undefined && data.weight !== '' && data.weight !== null) ? Number(data.weight) : null
+        weight: (data.weight !== undefined && data.weight !== '' && data.weight !== null) ? Number(data.weight) : null,
+        isOutsourced: !!data.isOutsourced,
+        outsourcedTeamName: data.isOutsourced ? data.outsourcedTeamName : null,
+        outsourcedTeamContact: data.isOutsourced ? data.outsourcedTeamContact : null
       });
     },
     onSuccess: async (newTaskId, variables) => {
@@ -139,127 +187,232 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   });
 
   const onSubmit = (data: CreateTaskForm) => {
+    if (selectedPredecessorIds.length > 0) {
+      const taskStartDate = new Date(data.startDate);
+      taskStartDate.setHours(0,0,0,0);
+
+      const invalidPredecessors = selectedPredecessorIds
+        .map(id => potentialPredecessors.find(p => p.id === id))
+        .filter(p => {
+          if (!p) return false;
+          const pDeadline = new Date(p.deadline);
+          pDeadline.setHours(0,0,0,0);
+          // New task's start date must be STRICTLY AFTER predecessor's deadline
+          return taskStartDate <= pDeadline; 
+        });
+
+      if (invalidPredecessors.length > 0) {
+        const p = invalidPredecessors[0]!;
+        toast.error(`Ngày bắt đầu phải sau ngày kết thúc của "${p.name}" (hoàn thành: ${new Date(p.deadline).toLocaleDateString('vi-VN')}).`);
+        return;
+      }
+    }
     mutation.mutate(data);
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={parentTaskId ? "Thêm Công việc con (Sub-Task)" : "Thêm Công việc mới"}>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto p-1">
-        <div>
-          <label className="block text-sm font-medium mb-1.5 text-slate-600">
-            Tên công việc <span className="text-red-500">*</span>
-          </label>
-          <input 
-            type="text" 
-            placeholder="Ví dụ: Đổ bê tông móng..." 
-            {...register('name')}
-            className={`w-full text-sm px-3 py-2 rounded-md border ${errors.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
-          />
-          {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} width="xl" title={parentTaskId ? "Thêm Công việc con (Sub-Task)" : "Thêm Công việc mới"}>
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 max-h-[85vh] overflow-y-auto p-2">
         
-        <div>
-          <label className="block text-sm font-medium mb-1.5 text-slate-600">Mô tả chi tiết</label>
-          <textarea 
-            placeholder="Mô tả các yêu cầu kỹ thuật, vị trí..." 
-            {...register('description')} 
-            rows={3} 
-            className="w-full text-sm px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-          />
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-600">Ngày bắt đầu <span className="text-red-500">*</span></label>
-            <input 
-              type="date" 
-              {...register('startDate')} 
-              className={`w-full text-sm px-3 py-2 rounded-md border ${errors.startDate ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
-            />
-            {errors.startDate && <p className="text-red-500 text-xs mt-1">{errors.startDate.message}</p>}
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-600">Hạn chót (Deadline) <span className="text-red-500">*</span></label>
-            <input 
-              type="date" 
-              {...register('deadline')} 
-              className={`w-full text-sm px-3 py-2 rounded-md border ${errors.deadline ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
-            />
-            {errors.deadline && <p className="text-red-500 text-xs mt-1">{errors.deadline.message}</p>}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1.5 text-slate-600">Trọng số (Tùy chọn)</label>
-          <input 
-            type="number" 
-            step="any"
-            placeholder="Ví dụ: 10, 100, 1000..." 
-            {...register('weight')}
-            className={`w-full text-sm px-3 py-2 rounded-md border ${errors.weight ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
-          />
-          <p className="text-[11px] text-slate-400 mt-1">Gợi ý: Nhập ngân sách dự toán, hoặc số giờ công. Nếu để trống, hệ thống tự động tính theo số ngày thi công.</p>
-          {errors.weight && <p className="text-red-500 text-xs mt-1">{errors.weight.message?.toString()}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1.5 text-slate-600">Giao cho Nhân viên kỹ thuật (Tùy chọn)</label>
-          <select 
-            {...register('assignedTo')} 
-            className="w-full text-sm px-3 py-2 rounded-md border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-blue-500"
-          >
-            <option value="">-- Chưa phân công --</option>
-            {engineers.map(e => (
-              <option key={e.userId} value={e.userId}>
-                {e.userName} ({e.isLeader ? 'Trưởng dự án' : 'Nhân viên kỹ thuật'})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1.5 text-slate-600">Công việc đi trước (Tùy chọn - Finish-to-Start)</label>
-          {potentialPredecessors.length > 0 && (
-            <input 
-              type="text"
-              placeholder="Tìm kiếm công việc đi trước..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-xs px-3 py-1.5 mb-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
-            />
-          )}
-          <div className="border border-slate-200 rounded-md p-2 max-h-40 overflow-y-auto bg-white flex flex-col gap-1.5">
-            {filteredPredecessors.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-2">
-                {searchTerm ? 'Không tìm thấy công việc nào phù hợp' : 'Không có công việc nào khả dụng'}
-              </p>
-            ) : (
-              filteredPredecessors.map(t => (
-                <label key={t.id} className="flex items-center gap-2 text-sm text-slate-700 hover:bg-slate-50 p-1.5 rounded cursor-pointer select-none">
-                  <input 
-                    type="checkbox"
-                    value={t.id}
-                    checked={selectedPredecessorIds.includes(t.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedPredecessorIds([...selectedPredecessorIds, t.id]);
-                      } else {
-                        setSelectedPredecessorIds(selectedPredecessorIds.filter(id => id !== t.id));
-                      }
-                    }}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>{t.name} ({t.progress}%)</span>
-                </label>
-              ))
+        {/* THÔNG TIN THỜI GIAN PHASE & PROJECT */}
+        {(project || phase) && (
+          <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex flex-col sm:flex-row gap-4 sm:gap-8 -mb-2">
+            {project && (
+              <div>
+                <p className="text-xs text-slate-500 mb-1">Thời gian dự án:</p>
+                <p className="text-sm font-medium text-slate-700">
+                  {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
+                </p>
+              </div>
+            )}
+            {phase && (
+              <div>
+                <p className="text-xs text-slate-500 mb-1">Thời gian Giai đoạn:</p>
+                <p className="text-sm font-medium text-slate-700">
+                  {phase.startDate ? new Date(phase.startDate).toLocaleDateString('vi-VN') : '---'} - {phase.endDate ? new Date(phase.endDate).toLocaleDateString('vi-VN') : (phase.deadline ? new Date(phase.deadline).toLocaleDateString('vi-VN') : '---')}
+                </p>
+              </div>
             )}
           </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          {/* CỘT TRÁI: Thông tin cơ bản */}
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-slate-600">
+                Tên công việc <span className="text-red-500">*</span>
+              </label>
+              <input 
+                type="text" 
+                placeholder="Ví dụ: Đổ bê tông móng..." 
+                {...register('name')}
+                className={`w-full text-sm px-3 py-2 rounded-md border ${errors.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+              />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-slate-600">Mô tả chi tiết</label>
+              <textarea 
+                placeholder="Mô tả các yêu cầu kỹ thuật, vị trí..." 
+                {...register('description')} 
+                rows={4} 
+                className="w-full text-sm px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 resize-none"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5 text-slate-600">Ngày bắt đầu <span className="text-red-500">*</span></label>
+                <input 
+                  type="date" 
+                  {...register('startDate')} 
+                  className={`w-full text-sm px-3 py-2 rounded-md border ${errors.startDate ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+                />
+                {errors.startDate && <p className="text-red-500 text-xs mt-1">{errors.startDate.message}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5 text-slate-600">Hạn chót (Deadline) <span className="text-red-500">*</span></label>
+                <input 
+                  type="date" 
+                  {...register('deadline')} 
+                  className={`w-full text-sm px-3 py-2 rounded-md border ${errors.deadline ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+                />
+                {errors.deadline && <p className="text-red-500 text-xs mt-1">{errors.deadline.message}</p>}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-slate-600">Mức độ quan trọng</label>
+              <select 
+                {...register('weight')}
+                className={`w-full text-sm px-3 py-2 rounded-md border ${errors.weight ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+              >
+                <option value="">Bình thường (Mặc định)</option>
+                <option value="2">Cao</option>
+                <option value="3">Quan trọng</option>
+                <option value="4">Rất quan trọng</option>
+              </select>
+              <p className="text-[11px] text-slate-400 mt-1.5">Mức độ càng cao, % hoàn thành của công việc này càng đóng góp nhiều vào tiến độ chung.</p>
+              {errors.weight && <p className="text-red-500 text-xs mt-1">{errors.weight.message?.toString()}</p>}
+            </div>
+          </div>
+
+          {/* CỘT PHẢI: Phân công & Liên kết */}
+          <div className="flex flex-col gap-5">
+            <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 flex flex-col gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5 text-slate-700">Người phụ trách (Kỹ sư)</label>
+                <select 
+                  {...register('assignedTo')} 
+                  className="w-full text-sm px-3 py-2.5 rounded-md border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
+                >
+                  <option value="">-- Chưa phân công --</option>
+                  {engineers.map(e => (
+                    <option key={e.userId} value={e.userId}>
+                      {e.userName} ({e.isLeader ? 'Trưởng dự án' : 'Nhân viên kỹ thuật'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="border-t border-slate-200 pt-4 mt-1">
+                <label className="flex justify-start items-center gap-2.5 text-sm font-medium text-slate-800 cursor-pointer select-none mb-3">
+                  <input 
+                    type="checkbox" 
+                    {...register('isOutsourced')}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 flex-shrink-0 cursor-pointer"
+                  />
+                  <span>Có thuê thêm khoán / thợ ngoài</span>
+                </label>
+
+                {isOutsourced && (
+                  <div className="flex flex-col gap-3 mt-3 bg-white p-3 rounded-md border border-slate-100 shadow-sm">
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-slate-600">Tên Đội thợ / Thầu phụ <span className="text-red-500">*</span></label>
+                      <input 
+                        type="text" 
+                        placeholder="Ví dụ: Đội thạch cao anh Ba..." 
+                        {...register('outsourcedTeamName')}
+                        className={`w-full text-sm px-3 py-2 rounded-md border ${errors.outsourcedTeamName ? 'border-red-500' : 'border-slate-300'} bg-white text-slate-900 focus:outline-none focus:border-blue-500`}
+                      />
+                      {errors.outsourcedTeamName && <p className="text-red-500 text-xs mt-1">{errors.outsourcedTeamName.message}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1 text-slate-600">SĐT / Liên hệ <span className="text-red-500">*</span></label>
+                      <input 
+                        type="text" 
+                        placeholder="0912..." 
+                        {...register('outsourcedTeamContact')}
+                        className={`w-full text-sm px-3 py-2 rounded-md border ${errors.outsourcedTeamContact ? 'border-red-500' : 'border-slate-300'} bg-white text-slate-900 focus:outline-none focus:border-blue-500`}
+                      />
+                      {errors.outsourcedTeamContact && <p className="text-red-500 text-xs mt-1">{errors.outsourcedTeamContact.message}</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col">
+              <label className="block text-sm font-medium mb-1.5 text-slate-700">Các công việc cần hoàn thành trước</label>
+              {potentialPredecessors.length > 0 && (
+                <input 
+                  type="text"
+                  placeholder="Tìm kiếm công việc..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full text-xs px-3 py-2 mb-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
+                />
+              )}
+              <div className="border border-slate-200 rounded-md p-2 bg-white flex flex-col gap-1 flex-1 min-h-[140px] max-h-[220px] overflow-y-auto shadow-inner">
+                {filteredPredecessors.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-xs text-slate-400 italic">
+                    {searchTerm ? 'Không tìm thấy công việc phù hợp' : 'Không có công việc nào khả dụng'}
+                  </div>
+                ) : (
+                  filteredPredecessors.map(t => (
+                    <label key={t.id} className="flex justify-start items-center gap-2.5 text-sm text-slate-700 hover:bg-slate-50 p-2 rounded cursor-pointer select-none transition-colors">
+                      <input 
+                        type="checkbox"
+                        value={t.id}
+                        checked={selectedPredecessorIds.includes(t.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedPredecessorIds([...selectedPredecessorIds, t.id]);
+                          } else {
+                            setSelectedPredecessorIds(selectedPredecessorIds.filter(id => id !== t.id));
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 flex-shrink-0 cursor-pointer mt-0.5"
+                      />
+                      <div className="flex flex-col truncate flex-1 gap-0.5">
+                        <span className="truncate">{t.name}</span> 
+                        {t.startDate && t.deadline && (
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            {new Date(t.startDate).toLocaleDateString('vi-VN')} - {new Date(t.deadline).toLocaleDateString('vi-VN')}
+                          </span>
+                        )}
+                        {!t.startDate && t.deadline && (
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            Deadline: {new Date(t.deadline).toLocaleDateString('vi-VN')}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-400 ml-auto whitespace-nowrap">({t.progress}%)</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="flex justify-end gap-3 mt-2">
-          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={mutation.isPending}>Hủy</button>
-          <button type="submit" className="btn btn-primary" disabled={mutation.isPending}>
-            {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : (parentTaskId ? 'Thêm Sub-Task' : 'Thêm Task')}
+        <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
+          <button type="button" className="btn btn-secondary px-5" onClick={onClose} disabled={mutation.isPending}>Hủy</button>
+          <button type="submit" className="btn btn-primary px-5" disabled={mutation.isPending}>
+            {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : (parentTaskId ? 'Thêm Sub-Task' : 'Tạo mới Task')}
           </button>
         </div>
       </form>

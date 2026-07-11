@@ -13,6 +13,31 @@ import { DailyLogCard } from './DailyLogCard';
 
 const PAGE_SIZE = 4;
 
+const formatDateTime = (dateStr?: string) => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch {
+    return dateStr.replace('T', ' ').slice(0, 16);
+  }
+};
+
+const formatYYYYMMDDtoDDMMYYYY = (dateStr: string): string => {
+  if (!dateStr || !dateStr.includes('-')) return dateStr;
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
 interface DailyLogFeedProps {
   projectId: string;
   taskId?: string;
@@ -132,7 +157,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       userName: c.authorName,
       role: c.authorRole,
       content: c.content,
-      date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+      date: c.createdAt ? formatDateTime(c.createdAt) : ''
     });
 
     const mapRawDailyLog = (l: any): DailyLog => ({
@@ -403,10 +428,11 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const formatDateLabel = (dateStr: string) => {
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const formatted = formatYYYYMMDDtoDDMMYYYY(dateStr);
 
-    if (dateStr === today) return 'Hôm nay, ' + dateStr;
-    if (dateStr === yesterday) return 'Hôm qua, ' + dateStr;
-    return dateStr;
+    if (dateStr === today) return 'Hôm nay, ' + formatted;
+    if (dateStr === yesterday) return 'Hôm qua, ' + formatted;
+    return formatted;
   };
 
   const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin';
@@ -506,35 +532,13 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           <button
             onClick={handleLoadMore}
             disabled={loadingMore}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '10px 24px',
-              borderRadius: '8px',
-              border: '1.5px solid hsl(var(--border))',
-              background: 'hsl(var(--bg-card))',
-              color: 'hsl(var(--text-secondary))',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              cursor: loadingMore ? 'not-allowed' : 'pointer',
-              opacity: loadingMore ? 0.6 : 1,
-              transition: 'all 0.15s ease'
-            }}
+            className={`inline-flex items-center gap-1.5 px-6 py-2.5 rounded-lg border-2 border-solid border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] text-[hsl(var(--text-secondary))] font-semibold text-sm transition-all ${
+              loadingMore ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-slate-50'
+            }`}
           >
             {loadingMore ? (
               <>
-                <span
-                  className="animate-spin"
-                  style={{
-                    width: 14,
-                    height: 14,
-                    border: '2px solid hsl(var(--border))',
-                    borderTopColor: 'hsl(var(--primary))',
-                    borderRadius: '50%',
-                    display: 'inline-block'
-                  }}
-                />
+                <span className="animate-spin w-3.5 h-3.5 border-2 border-solid border-[hsl(var(--border))] border-t-[hsl(var(--primary))] rounded-full inline-block" />
                 Đang tải...
               </>
             ) : (

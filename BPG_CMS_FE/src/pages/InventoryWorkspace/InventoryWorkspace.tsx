@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button, LoadingSpinner } from '../../components/ui';
 import { inventoryService } from '../../services/inventoryService';
 import type { CurrentInventory } from '../../types/inventory';
@@ -28,7 +29,34 @@ interface InventoryWorkspaceProps {
 }
 
 export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectId }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'current' | 'receipts' | 'issuances' | 'ledger'>('current');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeSubTab, setActiveSubTab] = useState<'current' | 'receipts' | 'issuances' | 'ledger'>(
+    (searchParams.get('subTab') as any) || 'current'
+  );
+
+  useEffect(() => {
+    const subTab = searchParams.get('subTab');
+    if (subTab && ['current', 'receipts', 'issuances', 'ledger'].includes(subTab)) {
+      setActiveSubTab(subTab as any);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const openCreate = searchParams.get('openCreate');
+    if (openCreate === 'receipt' && activeSubTab === 'receipts') {
+      setIsCreateReceiptOpen(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('openCreate');
+      setSearchParams(newParams);
+    }
+  }, [searchParams, activeSubTab]);
+
+  const handleSubTabChange = (subTab: 'current' | 'receipts' | 'issuances' | 'ledger') => {
+    setActiveSubTab(subTab);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('subTab', subTab);
+    setSearchParams(newParams);
+  };
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
@@ -125,7 +153,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
         {/* Nút bấm chuyển Tab */}
         <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
           <button
-            onClick={() => setActiveSubTab('current')}
+            onClick={() => handleSubTabChange('current')}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeSubTab === 'current'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -136,7 +164,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             <span>Tồn kho hiện tại</span>
           </button>
           <button
-            onClick={() => setActiveSubTab('receipts')}
+            onClick={() => handleSubTabChange('receipts')}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeSubTab === 'receipts'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -147,7 +175,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             <span>Phiếu Nhập Kho</span>
           </button>
           <button
-            onClick={() => setActiveSubTab('issuances')}
+            onClick={() => handleSubTabChange('issuances')}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeSubTab === 'issuances'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -158,7 +186,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             <span>Phiếu Xuất Kho</span>
           </button>
           <button
-            onClick={() => setActiveSubTab('ledger')}
+            onClick={() => handleSubTabChange('ledger')}
             className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
               activeSubTab === 'ledger'
                 ? 'bg-white text-blue-600 shadow-sm'
@@ -179,7 +207,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
               className="flex items-center gap-1.5"
             >
               <Plus size={16} />
-              <span>Nhập kho PO</span>
+              <span>Nhập kho (Đơn mua hàng)</span>
             </Button>
           )}
 
