@@ -5,10 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import {projectService} from '../../../../src/services/projectService';
+import { projectService } from '../../../../src/services/projectService';
 import { materialService } from '../../../../src/services/materialService';
 import type { MaterialCatalog } from '../../../../src/types/material';
-import type {WBSTask, WBSPhase, MaterialRequest} from '../../../types/common';
+import type { WBSTask, WBSPhase, MaterialRequest } from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 import { SearchSelect } from '../../../../src/components/ui/SearchSelect';
 import { isDiscreteUnit } from '../../../../src/utils/unitHelpers';
@@ -254,7 +254,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
           {task ? (
             <span>Công việc: <strong>{task.name}</strong></span>
           ) : (
-            <span>Giai đoạn (Phase): <strong>{phase?.name}</strong></span>
+            <span>Giai đoạn: <strong>{phase?.name}</strong></span>
           )}
         </div>
 
@@ -265,9 +265,9 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
         <div>
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm font-medium text-slate-700">Danh sách vật tư yêu cầu <span className="text-red-500">*</span></span>
-            <button 
-              type="button" 
-              onClick={() => append({ name: '', quantity: 1, unit: '' })} 
+            <button
+              type="button"
+              onClick={() => append({ name: '', quantity: 1, unit: '' })}
               className="btn btn-secondary py-1 px-2 text-xs flex items-center gap-1"
             >
               <Plus size={14} /><span>Thêm vật tư</span>

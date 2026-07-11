@@ -84,7 +84,7 @@ export const MaterialControl: React.FC = () => {
       if (req?.isOverBOQ) {
         toast.success('Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
       } else {
-        toast.success('Yêu cầu trong định mức hợp lệ. Đã duyệt cấp PO thành công.');
+        toast.success('Yêu cầu trong định mức hợp lệ. Đã duyệt thành công.');
       }
       fetchMaterialRequests();
     } catch (err: any) {
@@ -151,15 +151,15 @@ export const MaterialControl: React.FC = () => {
 
   // Filter material requests
   const filteredRequests = materialRequests.filter(req => {
-    const matchesSearch = 
+    const matchesSearch =
       (req.taskName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (req.phaseName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (req.requesterName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       req.items.some(it => it.name.toLowerCase().includes(searchTerm.toLowerCase()));
-      
+
     const matchesStatus = statusFilter === '' || req.status === statusFilter;
     const matchesProject = projectFilter === '' || req.projectId === projectFilter;
-    
+
     return matchesSearch && matchesStatus && matchesProject;
   });
 
@@ -210,8 +210,8 @@ export const MaterialControl: React.FC = () => {
             className="w-48 h-10"
             options={[
               { label: 'Tất cả Trạng thái', value: '' },
-              { label: 'Chờ Kế toán soát', value: 'pending_accountant' },
-              { label: 'Chờ Giám đốc duyệt', value: 'pending_director' },
+              { label: 'Đang kiểm tra', value: 'pending_accountant' },
+              { label: 'Chờ duyệt', value: 'pending_director' },
               { label: 'Đã duyệt', value: 'approved' },
               { label: 'Đã từ chối', value: 'rejected' },
             ]}
@@ -251,20 +251,20 @@ export const MaterialControl: React.FC = () => {
           onClose={() => setActionModalOpen(false)}
           title={
             actionType === 'verify' ? 'Soát xét yêu cầu vật tư (Kế toán)' :
-            actionType === 'disburse' ? 'Giải ngân yêu cầu vật tư khẩn cấp' :
-            actionType === 'approve' ? 'Phê duyệt yêu cầu vượt định mức (Giám đốc)' :
-            'Từ chối yêu cầu vật tư'
+              actionType === 'disburse' ? 'Giải ngân yêu cầu vật tư khẩn cấp' :
+                actionType === 'approve' ? 'Phê duyệt yêu cầu vượt định mức (Giám đốc)' :
+                  'Từ chối yêu cầu vật tư'
           }
           width="sm"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', margin: 0 }}>
               {actionType === 'verify' ? 'Xác nhận soát xét yêu cầu vật tư này. Nếu vật tư vượt BOQ, hệ thống sẽ tự động trình lên Giám đốc.' :
-               actionType === 'disburse' ? 'Xác nhận giải ngân chi phí mua ngoài khẩn cấp cho dự án.' :
-               actionType === 'approve' ? 'Phê duyệt yêu cầu vật tư vượt định mức này để cấp mã PO.' :
-               'Vui lòng nhập lý do từ chối yêu cầu vật tư này.'}
+                actionType === 'disburse' ? 'Xác nhận giải ngân chi phí mua ngoài khẩn cấp cho dự án.' :
+                  actionType === 'approve' ? 'Phê duyệt yêu cầu vật tư vượt định mức này để cấp mã PO.' :
+                    'Vui lòng nhập lý do từ chối yêu cầu vật tư này.'}
             </p>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ margin: 0, fontWeight: 500, fontSize: '0.85rem' }}>
                 {actionType === 'reject' ? 'Lý do từ chối' : 'Ghi chú / Ý kiến xử lý'}
@@ -272,8 +272,8 @@ export const MaterialControl: React.FC = () => {
               </label>
               <textarea
                 placeholder={
-                  actionType === 'reject' 
-                    ? 'Nhập lý do từ chối (tối thiểu 5 ký tự)...' 
+                  actionType === 'reject'
+                    ? 'Nhập lý do từ chối (tối thiểu 5 ký tự)...'
                     : 'Nhập ý kiến xử lý (tùy chọn)...'
                 }
                 value={actionNote}
@@ -300,7 +300,7 @@ export const MaterialControl: React.FC = () => {
                 </p>
               )}
             </div>
-            
+
             <div style={{ display: 'flex', justifyContent: 'end', gap: '12px', marginTop: '8px' }}>
               <button
                 type="button"
@@ -316,11 +316,11 @@ export const MaterialControl: React.FC = () => {
                 onClick={handleSubmitAction}
                 disabled={isSubmittingAction}
               >
-                {isSubmittingAction ? 'Đang xử lý...' : 
-                 actionType === 'verify' ? 'Xác nhận soát xét' :
-                 actionType === 'disburse' ? 'Xác nhận giải ngân' :
-                 actionType === 'approve' ? 'Xác nhận duyệt' :
-                 'Xác nhận từ chối'}
+                {isSubmittingAction ? 'Đang xử lý...' :
+                  actionType === 'verify' ? 'Xác nhận soát xét' :
+                    actionType === 'disburse' ? 'Xác nhận giải ngân' :
+                      actionType === 'approve' ? 'Xác nhận duyệt' :
+                        'Xác nhận từ chối'}
               </button>
             </div>
           </div>

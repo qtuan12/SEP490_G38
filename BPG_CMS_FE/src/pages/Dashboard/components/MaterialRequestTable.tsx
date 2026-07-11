@@ -32,9 +32,9 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
   const getStatusBadgeMR = (status: MaterialRequest['status']) => {
     switch (status) {
       case 'pending_accountant':
-        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 normal-case">Chờ Kế toán soát</Badge>;
+        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 normal-case">Đang kiểm tra</Badge>;
       case 'pending_director':
-        return <Badge variant="default" className="text-[0.72rem] py-0.5 px-2 normal-case">Chờ Giám đốc duyệt</Badge>;
+        return <Badge variant="default" className="text-[0.72rem] py-0.5 px-2 normal-case">Chờ duyệt</Badge>;
       case 'pending_disbursement':
         return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] normal-case">Chờ Giải ngân</Badge>;
       case 'disbursed':
@@ -121,15 +121,15 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                         {req.status === 'pending_accountant' && (
                           isAccountant ? (
                             <div className="flex gap-1.5 justify-center flex-wrap">
-                              <Button 
+                              <Button
                                 variant="secondary"
                                 onClick={() => handleVerifyRequestByAccountant(req.id)}
                                 className="py-1 px-2 text-[0.75rem] h-auto flex items-center gap-1 border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]"
                               >
                                 <FileCheck2 size={13} />
-                                <span>{req.isOverBOQ ? 'Trình Giám đốc' : 'Duyệt cấp PO'}</span>
+                                <span>{req.isOverBOQ ? 'Trình Giám đốc' : 'Duyệt'}</span>
                               </Button>
-                              <Button 
+                              <Button
                                 variant="secondary"
                                 onClick={() => handleRejectRequest(req.id)}
                                 className="py-1 px-2 text-[0.75rem] h-auto bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))] border-[hsl(var(--danger)/0.3)] hover:bg-[hsl(var(--danger)/0.15)]"
@@ -138,21 +138,21 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                               </Button>
                             </div>
                           ) : (
-                            <span className="text-[0.78rem] text-[hsl(var(--text-muted))] italic">Chờ Kế toán soát</span>
+                            <span className="text-[0.78rem] text-[hsl(var(--text-muted))] italic">Đang kiểm tra</span>
                           )
                         )}
 
                         {req.status === 'pending_disbursement' && (
                           isAccountant ? (
                             <div className="flex gap-1.5 justify-center flex-wrap">
-                              <Button 
+                              <Button
                                 variant="primary"
                                 onClick={() => handleDisburseRequestByAccountant(req.id)}
                                 className="py-1 px-2 text-[0.75rem] h-auto bg-[hsl(var(--success))] hover:bg-[hsl(142_70%_35%)] border-none"
                               >
                                 Giải ngân
                               </Button>
-                              <Button 
+                              <Button
                                 variant="secondary"
                                 onClick={() => handleRejectRequest(req.id)}
                                 className="py-1 px-2 text-[0.75rem] h-auto bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))] border-[hsl(var(--danger)/0.3)] hover:bg-[hsl(var(--danger)/0.15)]"
@@ -168,14 +168,14 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                         {req.status === 'pending_director' && (
                           isDirector ? (
                             <div className="flex gap-1.5 justify-center flex-wrap">
-                              <Button 
+                              <Button
                                 variant="primary"
                                 onClick={() => handleApproveRequestByDirector(req.id)}
                                 className="py-1 px-2 text-[0.75rem] h-auto bg-[hsl(var(--success))] hover:bg-[hsl(142_70%_35%)] border-none"
                               >
                                 Duyệt
                               </Button>
-                              <Button 
+                              <Button
                                 variant="secondary"
                                 onClick={() => handleRejectRequest(req.id)}
                                 className="py-1 px-2 text-[0.75rem] h-auto bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))] border-[hsl(var(--danger)/0.3)] hover:bg-[hsl(var(--danger)/0.15)]"
@@ -194,7 +194,7 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                               <CheckCircle size={13} />
                               <span>{req.status === 'approved' ? 'Đã duyệt' : 'Đã giải ngân'}</span>
                             </div>
-                            <span className="text-[0.68rem] text-[hsl(var(--text-muted))] font-normal">{req.approvedBy || 'GĐ'}</span>
+                            {/* <span className="text-[0.68rem] text-[hsl(var(--text-muted))] font-normal">{req.approvedBy || 'GĐ'}</span> */}
                           </div>
                         )}
 
@@ -205,8 +205,8 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                               <span>Đã từ chối</span>
                             </div>
                             {req.rejectionReason && (
-                              <span 
-                                className="text-[0.68rem] text-[hsl(var(--text-muted))] max-w-[140px] inline-block overflow-hidden text-ellipsis whitespace-nowrap font-normal" 
+                              <span
+                                className="text-[0.68rem] text-[hsl(var(--text-muted))] max-w-[140px] inline-block overflow-hidden text-ellipsis whitespace-nowrap font-normal"
                                 title={req.rejectionReason}
                               >
                                 Lý do: {req.rejectionReason}

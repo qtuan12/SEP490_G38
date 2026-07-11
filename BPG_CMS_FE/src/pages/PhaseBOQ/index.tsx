@@ -114,13 +114,13 @@ export const PhaseBOQ: React.FC = () => {
     if (phase && materialList.length > 0) {
       const initialMaterials = phase.materials && phase.materials.length > 0
         ? phase.materials.map(it => {
-            return {
-              materialId: it.materialId,
-              quantity: it.quantity,
-              unitId: it.unitId,
-              unit: it.unit
-            };
-          })
+          return {
+            materialId: it.materialId,
+            quantity: it.quantity,
+            unitId: it.unitId,
+            unit: it.unit
+          };
+        })
         : [];
 
       reset({ materials: initialMaterials });
@@ -182,8 +182,8 @@ export const PhaseBOQ: React.FC = () => {
     onSuccess: async () => {
       const msg = `Đã cập nhật Bảng vật tư BOQ cho Phase: ${phase?.name}`;
       toast.success(msg);
-      queryClient.invalidateQueries(); 
-      
+      queryClient.invalidateQueries();
+
       // Reload phase data to display updated values in place
       if (projectId && phaseId) {
         try {
@@ -231,12 +231,12 @@ export const PhaseBOQ: React.FC = () => {
     <div className="flex flex-col gap-6 animate-fade-in max-w-[1200px] mx-auto">
       {/* Header điều hướng */}
       <div className="flex flex-col gap-2">
-        <button 
-          onClick={() => navigate(`/projects/${projectId}`)} 
+        <button
+          onClick={() => navigate(`/projects/${projectId}`)}
           className="inline-flex items-center gap-1.5 bg-transparent border-none text-[hsl(var(--text-secondary))] cursor-pointer text-[0.9rem] font-medium w-fit hover:text-[hsl(var(--primary))] transition-colors p-0"
         >
           <ArrowLeft size={16} />
-          <span>Quay lại không gian dự án WBS</span>
+          <span>Quay lại không gian dự án</span>
         </button>
         <h1 className="text-[1.75rem] font-extrabold m-0">Cập nhật Bảng vật tư định mức</h1>
         <p className="text-[0.875rem] text-[hsl(var(--text-secondary))] m-0">
@@ -253,9 +253,9 @@ export const PhaseBOQ: React.FC = () => {
               <span>Định mức Vật tư Giai đoạn</span>
             </h3>
             {!hasActiveMRs && canEdit && (
-              <Button 
-                type="button" 
-                onClick={() => append({ materialId: 0, quantity: 1, unitId: 0, unit: '' })} 
+              <Button
+                type="button"
+                onClick={() => append({ materialId: 0, quantity: 1, unitId: 0, unit: '' })}
                 className="flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3"
               >
                 <Plus size={15} />
@@ -282,111 +282,111 @@ export const PhaseBOQ: React.FC = () => {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[hsl(var(--border))] text-[hsl(var(--text-secondary))] font-semibold">
-                    <th className="pb-3 pl-2 w-[40px]">STT</th>
-                    <th className="pb-3 w-[55%]">Tên vật tư kỹ thuật / Quy cách</th>
-                    <th className="pb-3 w-[20%] text-center">Số lượng định mức</th>
-                    <th className="pb-3 w-[20%]">Đơn vị tính (ĐVT)</th>
-                    {!hasActiveMRs && canEdit && <th className="pb-3 pr-2 text-center w-[50px]">Xóa</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {fields.map((item, idx) => (
-                    <tr key={item.id} className="border-b border-[hsl(var(--border-light))] align-top hover:bg-[hsl(var(--bg-main))/0.3]">
-                      {/* STT */}
-                      <td className="py-3 pl-2 font-medium text-[hsl(var(--text-secondary))] text-center">
-                        {idx + 1}
-                      </td>
+                  <thead>
+                    <tr className="border-b border-[hsl(var(--border))] text-[hsl(var(--text-secondary))] font-semibold">
+                      <th className="pb-3 pl-2 w-[40px]">STT</th>
+                      <th className="pb-3 w-[55%]">Tên vật tư kỹ thuật / Quy cách</th>
+                      <th className="pb-3 w-[20%] text-center">Số lượng định mức</th>
+                      <th className="pb-3 w-[20%]">Đơn vị tính (ĐVT)</th>
+                      {!hasActiveMRs && canEdit && <th className="pb-3 pr-2 text-center w-[50px]">Xóa</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fields.map((item, idx) => (
+                      <tr key={item.id} className="border-b border-[hsl(var(--border-light))] align-top hover:bg-[hsl(var(--bg-main))/0.3]">
+                        {/* STT */}
+                        <td className="py-3 pl-2 font-medium text-[hsl(var(--text-secondary))] text-center">
+                          {idx + 1}
+                        </td>
 
-                      {/* Vật tư */}
-                      <td className="py-2 pr-4">
-                        <SearchSelect
-                          options={materialList.map(m => ({
-                            label: m.name + (m.specification ? ` (${m.specification})` : ''),
-                            value: m.materialId.toString(),
-                            sublabel: m.code ? `Mã: ${m.code}` : undefined
-                          }))}
-                          value={watchedMaterials[idx]?.materialId?.toString() || '0'}
-                          disabled={hasActiveMRs || !canEdit}
-                          onChange={async (val) => {
-                            const selectedId = parseInt(val) || 0;
-                            setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true });
-                            handleMaterialChange(idx, selectedId);
-                            await trigger('materials');
-                          }}
-                          placeholder="-- Chọn vật tư kỹ thuật --"
-                          error={!!errors.materials?.[idx]?.materialId}
-                        />
-                        {errors.materials?.[idx]?.materialId && (
-                          <p className="text-red-500 text-xs mt-1 mb-0">{errors.materials[idx]?.materialId?.message}</p>
-                        )}
-                      </td>
-
-                      {/* Số lượng */}
-                      <td className="py-2 pr-4 text-center">
-                        <input 
-                          type="number" 
-                          step={isDiscreteUnit(watchedMaterials[idx]?.unit) ? "1" : "any"}
-                          min={isDiscreteUnit(watchedMaterials[idx]?.unit) ? 1 : 0.001} 
-                          placeholder="Nhập SL..." 
-                          {...register(`materials.${idx}.quantity` as const, { valueAsNumber: true })}
-                          disabled={hasActiveMRs || !canEdit}
-                          className={`w-full text-center text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} ${(hasActiveMRs || !canEdit) ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
-                        />
-                        {errors.materials?.[idx]?.quantity && (
-                          <p className="text-red-500 text-xs mt-1 mb-0 text-left">{errors.materials[idx]?.quantity?.message}</p>
-                        )}
-                      </td>
-
-                      {/* ĐVT */}
-                      <td className="py-2 pr-2">
-                        <select
-                          {...register(`materials.${idx}.unitId` as const, { valueAsNumber: true })}
-                          disabled={hasActiveMRs || !canEdit}
-                          onChange={(e) => {
-                            const uId = parseInt(e.target.value);
-                            const currentMatId = watchedMaterials[idx]?.materialId;
-                            const opts = (currentMatId && rowConversions[currentMatId]) || [];
-                            const opt = opts.find(o => o.unitId === uId);
-                            if (opt) {
-                              setValue(`materials.${idx}.unit` as any, opt.unitName);
-                            }
-                          }}
-                          className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.unitId ? 'border-red-500' : 'border-slate-200'} ${(hasActiveMRs || !canEdit) ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
-                        >
-                          {((watchedMaterials[idx]?.materialId && rowConversions[watchedMaterials[idx]?.materialId]) || (item.unitId ? [{ unitId: item.unitId, unitName: item.unit }] : [])).map(opt => (
-                            <option key={opt.unitId} value={opt.unitId}>
-                              {opt.unitName}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.materials?.[idx]?.unitId && (
-                          <p className="text-red-500 text-xs mt-1 mb-0">{errors.materials[idx]?.unitId?.message}</p>
-                        )}
-                      </td>
-
-                      {/* Hợp tác hành động */}
-                      {!hasActiveMRs && canEdit && (
-                        <td className="py-2 pr-2 text-center align-middle">
-                          <button 
-                            type="button" 
-                            onClick={async () => {
-                              remove(idx);
+                        {/* Vật tư */}
+                        <td className="py-2 pr-4">
+                          <SearchSelect
+                            options={materialList.map(m => ({
+                              label: m.name + (m.specification ? ` (${m.specification})` : ''),
+                              value: m.materialId.toString(),
+                              sublabel: m.code ? `Mã: ${m.code}` : undefined
+                            }))}
+                            value={watchedMaterials[idx]?.materialId?.toString() || '0'}
+                            disabled={hasActiveMRs || !canEdit}
+                            onChange={async (val) => {
+                              const selectedId = parseInt(val) || 0;
+                              setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true });
+                              handleMaterialChange(idx, selectedId);
                               await trigger('materials');
                             }}
-                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md cursor-pointer transition-colors border-none bg-transparent"
-                            title="Xóa dòng vật tư"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                            placeholder="-- Chọn vật tư kỹ thuật --"
+                            error={!!errors.materials?.[idx]?.materialId}
+                          />
+                          {errors.materials?.[idx]?.materialId && (
+                            <p className="text-red-500 text-xs mt-1 mb-0">{errors.materials[idx]?.materialId?.message}</p>
+                          )}
                         </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+
+                        {/* Số lượng */}
+                        <td className="py-2 pr-4 text-center">
+                          <input
+                            type="number"
+                            step={isDiscreteUnit(watchedMaterials[idx]?.unit) ? "1" : "any"}
+                            min={isDiscreteUnit(watchedMaterials[idx]?.unit) ? 1 : 0.001}
+                            placeholder="Nhập SL..."
+                            {...register(`materials.${idx}.quantity` as const, { valueAsNumber: true })}
+                            disabled={hasActiveMRs || !canEdit}
+                            className={`w-full text-center text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} ${(hasActiveMRs || !canEdit) ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+                          />
+                          {errors.materials?.[idx]?.quantity && (
+                            <p className="text-red-500 text-xs mt-1 mb-0 text-left">{errors.materials[idx]?.quantity?.message}</p>
+                          )}
+                        </td>
+
+                        {/* ĐVT */}
+                        <td className="py-2 pr-2">
+                          <select
+                            {...register(`materials.${idx}.unitId` as const, { valueAsNumber: true })}
+                            disabled={hasActiveMRs || !canEdit}
+                            onChange={(e) => {
+                              const uId = parseInt(e.target.value);
+                              const currentMatId = watchedMaterials[idx]?.materialId;
+                              const opts = (currentMatId && rowConversions[currentMatId]) || [];
+                              const opt = opts.find(o => o.unitId === uId);
+                              if (opt) {
+                                setValue(`materials.${idx}.unit` as any, opt.unitName);
+                              }
+                            }}
+                            className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.unitId ? 'border-red-500' : 'border-slate-200'} ${(hasActiveMRs || !canEdit) ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+                          >
+                            {((watchedMaterials[idx]?.materialId && rowConversions[watchedMaterials[idx]?.materialId]) || (item.unitId ? [{ unitId: item.unitId, unitName: item.unit }] : [])).map(opt => (
+                              <option key={opt.unitId} value={opt.unitId}>
+                                {opt.unitName}
+                              </option>
+                            ))}
+                          </select>
+                          {errors.materials?.[idx]?.unitId && (
+                            <p className="text-red-500 text-xs mt-1 mb-0">{errors.materials[idx]?.unitId?.message}</p>
+                          )}
+                        </td>
+
+                        {/* Hợp tác hành động */}
+                        {!hasActiveMRs && canEdit && (
+                          <td className="py-2 pr-2 text-center align-middle">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                remove(idx);
+                                await trigger('materials');
+                              }}
+                              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md cursor-pointer transition-colors border-none bg-transparent"
+                              title="Xóa dòng vật tư"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {(errors.materials?.message || (errors.materials as any)?.root?.message) && (
