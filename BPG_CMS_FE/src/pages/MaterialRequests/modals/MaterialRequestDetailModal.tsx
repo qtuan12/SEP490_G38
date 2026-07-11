@@ -121,13 +121,13 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Chi tiết Yêu cầu Vật tư & Đối chiếu Định mức BOQ"
+      title="Chi tiết Yêu cầu Vật tư & Đối chiếu Định mức Giai đoạn"
       width="lg"
     >
       {loadingData ? (
         <div className="flex flex-col justify-center items-center py-12 gap-3">
           <Loader2 size={32} className="animate-spin text-[hsl(var(--primary))]" />
-          <span className="text-sm text-slate-500">Đang tải thông tin đối chiếu định mức BOQ...</span>
+          <span className="text-sm text-slate-500">Đang tải thông tin đối chiếu định mức...</span>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
@@ -161,9 +161,9 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                 <Info size={16} className="text-slate-400" />
                 <span>Phân loại yêu cầu:</span>
                 {request.type === 'emergency' ? (
-                  <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Khẩn cấp (Direct Purchase)</Badge>
+                  <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Khẩn cấp (Mua ngoài)</Badge>
                 ) : request.isOverBOQ ? (
-                  <Badge variant="danger">Vượt định mức (Over BOQ)</Badge>
+                  <Badge variant="danger">Vượt định mức</Badge>
                 ) : (
                   <Badge variant="success" className="bg-blue-50 text-blue-600 border-blue-200">Trong định mức</Badge>
                 )}
@@ -179,7 +179,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
           {/* Bảng đối chiếu chi tiết vật tư */}
           <div className="flex flex-col gap-2">
             <h4 className="text-sm font-bold text-slate-700 m-0 flex items-center gap-1.5">
-              <span>Danh sách vật tư yêu cầu & Đối chiếu Định mức BOQ</span>
+              <span>Danh sách vật tư yêu cầu & Đối chiếu Định mức Giai đoạn</span>
             </h4>
             <div className="overflow-x-auto border border-slate-200 rounded-lg">
               <table className="w-full border-collapse text-left text-xs bg-white">
@@ -189,7 +189,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                     <th className="p-3 w-[35%]">Tên vật tư kỹ thuật / Quy cách</th>
                     <th className="p-3 text-center">Số lượng</th>
                     <th className="p-3 text-center">Đơn vị</th>
-                    <th className="p-3 text-center">Đã dùng</th>
+                    <th className="p-3 text-center">Đã dùng / Định mức</th>
                     <th className="p-3 text-center w-[160px]">Trạng thái</th>
                   </tr>
                 </thead>
@@ -204,7 +204,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                         <span className={item.used > 0 ? "text-slate-700" : "text-slate-400"}>{item.used}</span>
                         <span className="text-slate-300"> / </span>
                         <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
-                          {item.boqLimit > 0 ? item.boqLimit : 'N/A (Ngoài BOQ)'}
+                          {item.boqLimit > 0 ? item.boqLimit : 'N/A (Ngoài định mức)'}
                         </span>
                       </td>
                       <td className="p-3 text-center">
@@ -230,7 +230,6 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
             </div>
           </div>
 
-          {/* Lý do giải trình */}
           {request.reason && (
             <div className="flex flex-col gap-1.5">
               <span className="text-xs font-bold text-slate-600">Lý do yêu cầu / Giải trình của kỹ sư:</span>
@@ -240,7 +239,6 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
             </div>
           )}
 
-          {/* Ảnh hóa đơn mua ngoài khẩn cấp */}
           {request.type === 'emergency' && request.invoiceImage && (
             <div className="flex flex-col gap-1.5">
               <span className="text-xs font-bold text-slate-600">Hình ảnh hóa đơn mua lẻ đính kèm:</span>
@@ -266,7 +264,6 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
             </div>
           )}
 
-          {/* Lý do từ chối (nếu có) */}
           {request.status === 'rejected' && request.rejectionReason && (
             <div className="flex flex-col gap-1.5 border border-red-100 rounded-lg p-3 bg-red-50/30">
               <div className="flex items-center gap-2 text-red-700 font-bold text-sm">
@@ -277,14 +274,12 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
             </div>
           )}
 
-          {/* Các nút xử lý duyệt trực tiếp trên Modal */}
           <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-2">
             <Button type="button" variant="secondary" onClick={onClose}>
               Đóng chi tiết
             </Button>
 
             <div className="flex gap-2">
-              {/* Duyệt dành cho Kế toán */}
               {request.status === 'pending_accountant' && isAccountant && (
                 <>
                   <Button
@@ -311,7 +306,6 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                 </>
               )}
 
-              {/* Giải ngân dành cho Kế toán */}
               {request.status === 'pending_disbursement' && isAccountant && (
                 <>
                   <Button
@@ -337,7 +331,6 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                 </>
               )}
 
-              {/* Duyệt dành cho Giám đốc */}
               {request.status === 'pending_director' && isDirector && (
                 <>
                   <Button
@@ -358,7 +351,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                     }}
                     className="bg-blue-600 hover:bg-blue-700 border-none py-1.5 px-3.5 text-xs font-semibold text-white"
                   >
-                    Phê duyệt vượt BOQ
+                    <span>Phê duyệt vượt định mức</span>
                   </Button>
                 </>
               )}

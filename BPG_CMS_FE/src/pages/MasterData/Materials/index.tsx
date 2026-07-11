@@ -139,7 +139,7 @@ export const MaterialManagement: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'hsl(var(--text-primary))', margin: 0 }}>Kho Vật tư (Catalog)</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'hsl(var(--text-primary))', margin: 0 }}>Danh mục Vật tư</h1>
           <p style={{ color: 'hsl(var(--text-secondary))', fontSize: '0.875rem', marginTop: '4px' }}>Quản lý danh sách vật tư chuẩn và tỷ lệ quy đổi</p>
         </div>
       </div>

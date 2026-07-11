@@ -53,11 +53,8 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
       <div>
         <h3 className="text-[1.15rem] font-semibold m-0 flex items-center gap-2">
           <Boxes className="text-[hsl(var(--primary))]" size={20} />
-          <span>Phê duyệt Yêu cầu Vật tư (Material Request Approval)</span>
+          <span>Phê duyệt Yêu cầu Vật tư</span>
         </h3>
-        <p className="text-[0.8rem] text-[hsl(var(--text-muted))] mt-1.5">
-          Soát xét đề xuất vật tư của Kế toán & Phê duyệt vượt định mức (Over BOQ) của Giám đốc
-        </p>
       </div>
 
       {loadingRequests ? (
@@ -112,9 +109,9 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                       </td>
                       <td>
                         {req.type === 'emergency' ? (
-                          <Badge variant="warning" className="text-[0.65rem] bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] py-0.5 px-2 normal-case">Khẩn cấp (Direct Purchase)</Badge>
+                          <Badge variant="warning" className="text-[0.65rem] bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] py-0.5 px-2 normal-case">Khẩn cấp (Mua ngoài)</Badge>
                         ) : req.isOverBOQ ? (
-                          <Badge variant="danger" className="text-[0.65rem] py-0.5 px-2 normal-case">Over BOQ (Vượt định mức)</Badge>
+                          <Badge variant="danger" className="text-[0.65rem] py-0.5 px-2 normal-case">Vượt định mức</Badge>
                         ) : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.65rem]">Trong định mức</span>
                         )}

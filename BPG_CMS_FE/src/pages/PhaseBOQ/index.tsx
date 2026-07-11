@@ -210,7 +210,7 @@ export const PhaseBOQ: React.FC = () => {
     return (
       <div className="flex flex-col justify-center items-center h-[350px] gap-3">
         <Loader2 size={36} className="animate-spin text-[hsl(var(--primary))]" />
-        <span className="text-sm text-[hsl(var(--text-secondary))]">Đang tải thông tin bảng vật tư BOQ...</span>
+        <span className="text-sm text-[hsl(var(--text-secondary))]">Đang tải thông tin định mức vật tư giai đoạn...</span>
       </div>
     );
   }
@@ -238,7 +238,7 @@ export const PhaseBOQ: React.FC = () => {
           <ArrowLeft size={16} />
           <span>Quay lại không gian dự án WBS</span>
         </button>
-        <h1 className="text-[1.75rem] font-extrabold m-0">Cập nhật Bảng vật tư định mức (BOQ)</h1>
+        <h1 className="text-[1.75rem] font-extrabold m-0">Cập nhật Bảng vật tư định mức</h1>
         <p className="text-[0.875rem] text-[hsl(var(--text-secondary))] m-0">
           Dự án: <strong className="font-semibold">{project.name}</strong> &rarr; Giai đoạn: <strong className="font-semibold">{phase.name}</strong>
         </p>
@@ -403,7 +403,7 @@ export const PhaseBOQ: React.FC = () => {
                     Hủy bỏ
                   </Button>
                   <Button type="submit" variant="primary" disabled={mutation.isPending}>
-                    {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu bảng BOQ'}
+                    {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu bảng định mức'}
                   </Button>
                 </>
               ) : (
@@ -424,10 +424,10 @@ export const PhaseBOQ: React.FC = () => {
             </h4>
             <ul className="text-xs text-[hsl(var(--text-secondary))] space-y-2.5 pl-4 list-disc">
               <li>
-                <strong>Định mức BOQ:</strong> Giới hạn số lượng vật tư tối đa các kỹ sư hiện trường có thể đề xuất cho Giai đoạn này.
+                <strong>Định mức vật tư:</strong> Giới hạn số lượng vật tư tối đa các kỹ sư hiện trường có thể đề xuất cho Giai đoạn này.
               </li>
               <li>
-                <strong>Quy tắc khóa:</strong> Khi đã có bất kỳ **Yêu cầu vật tư (MR)** nào được Leader duyệt hoặc gửi kế toán, bảng BOQ này sẽ bị khóa để tránh sai lệch kiểm soát.
+                <strong>Quy tắc khóa:</strong> Khi đã có bất kỳ **Yêu cầu vật tư** nào được Tổ trưởng duyệt hoặc gửi kế toán, bảng định mức này sẽ bị khóa để tránh sai lệch kiểm soát.
               </li>
               <li>
                 <strong>Trùng lặp:</strong> Hệ thống kiểm tra trùng lặp vật tư, vui lòng gộp chung số lượng của cùng một loại vật tư thay vì tạo nhiều dòng.
@@ -442,7 +442,7 @@ export const PhaseBOQ: React.FC = () => {
                 <strong className="text-sm">Giai đoạn đã phát sinh Yêu cầu Vật tư</strong>
               </div>
               <p className="text-xs text-[hsl(var(--text-secondary))] leading-relaxed m-0">
-                Để tránh rủi ro vỡ định mức ngân sách dự án, hệ thống đã khóa chỉnh sửa bảng BOQ này. Việc thay đổi định mức tại thời điểm này bắt buộc phải làm tờ trình xin phê duyệt ngoài luồng từ Giám đốc.
+                Để tránh rủi ro vỡ định mức ngân sách dự án, hệ thống đã khóa chỉnh sửa bảng định mức vật tư này. Việc thay đổi định mức tại thời điểm này bắt buộc phải làm tờ trình xin phê duyệt ngoài luồng từ Giám đốc.
               </p>
             </div>
           )}
