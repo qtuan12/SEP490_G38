@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import { Button, Badge } from '../../components/ui';
 import toast from 'react-hot-toast';
 import {
@@ -70,6 +71,7 @@ export const PODetailPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { connection } = useNotification();
   const poId = Number(id);
 
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -109,6 +111,24 @@ export const PODetailPage: React.FC = () => {
     queryFn: () => inventoryService.getPurchaseOrderById(poId),
     enabled: !isNaN(poId) && poId > 0,
   });
+
+  // Realtime: tự làm mới nếu PO này bị người khác hủy/đóng trong khi đang xem
+  const poProjectId = po?.projectId;
+  useEffect(() => {
+    if (!connection || !poProjectId) return;
+
+    connection.invoke('JoinProjectGroup', poProjectId).catch(err => console.error('SignalR JoinProjectGroup error:', err));
+
+    const handlePOUpdated = () => {
+      queryClient.invalidateQueries({ queryKey: ['po-detail', poId] });
+    };
+    connection.on('PurchaseOrderUpdated', handlePOUpdated);
+
+    return () => {
+      connection.off('PurchaseOrderUpdated', handlePOUpdated);
+      connection.invoke('LeaveProjectGroup', poProjectId).catch(err => console.error('SignalR LeaveProjectGroup error:', err));
+    };
+  }, [connection, poProjectId, poId, queryClient]);
 
   if (isLoading) {
     return (

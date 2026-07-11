@@ -6,6 +6,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using UserRole = BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.Features.DirectPurchases.Handlers
 {
@@ -14,15 +15,21 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
         private readonly IUnitOfWork _uow;
         private readonly IInventoryService _inventoryService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly INotificationService _notificationService;
 
         public CreateDirectPurchaseRequestCommandHandler(
             IUnitOfWork uow,
             IInventoryService inventoryService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IRealtimeNotificationSender realtimeSender,
+            INotificationService notificationService)
         {
             _uow = uow;
             _inventoryService = inventoryService;
             _currentUserService = currentUserService;
+            _realtimeSender = realtimeSender;
+            _notificationService = notificationService;
         }
 
         public async Task<long> Handle(CreateDirectPurchaseRequestCommand request, CancellationToken ct)
@@ -253,6 +260,18 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 await _uow.SaveChangesAsync(ct);
 
                 await _uow.CommitTransactionAsync(ct);
+
+                await _realtimeSender.SendToGroupAsync(
+                    $"Project_{request.ProjectId}", "DirectPurchaseUpdated",
+                    new { DirectPurchaseId = dp.DirectPurchaseId }, ct);
+
+                // Thông báo cho Kế toán: phiếu mới cần kiểm toán để hoàn tiền/giải ngân
+                await _notificationService.SendNotificationToRoleAsync(
+                    UserRole.Accountant,
+                    "Phiếu mua khẩn cấp mới cần kiểm toán",
+                    $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} vừa được tạo cho giai đoạn '{phase.Name}'. " +
+                    $"Tổng giá trị: {totalAmount:N0}đ. Vui lòng kiểm toán để hoàn tiền/giải ngân.",
+                    NotificationType.Procurement, NotificationReferenceType.DirectPurchaseRequest, dp.DirectPurchaseId, ct);
 
                 return dp.DirectPurchaseId;
             }

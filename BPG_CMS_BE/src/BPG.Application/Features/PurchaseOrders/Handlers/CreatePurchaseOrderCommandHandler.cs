@@ -1,18 +1,33 @@
 using BPG.Application.Features.PurchaseOrders.Commands;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using UserRole = BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
     public class CreatePurchaseOrderCommandHandler : IRequestHandler<CreatePurchaseOrderCommand, long>
     {
         private readonly IUnitOfWork _uow;
+        private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly INotificationService _notificationService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public CreatePurchaseOrderCommandHandler(IUnitOfWork uow) => _uow = uow;
+        public CreatePurchaseOrderCommandHandler(
+            IUnitOfWork uow,
+            IRealtimeNotificationSender realtimeSender,
+            INotificationService notificationService,
+            ICurrentUserService currentUserService)
+        {
+            _uow = uow;
+            _realtimeSender = realtimeSender;
+            _notificationService = notificationService;
+            _currentUserService = currentUserService;
+        }
 
         public async Task<long> Handle(CreatePurchaseOrderCommand request, CancellationToken cancellationToken)
         {
@@ -165,6 +180,29 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             await _uow.Repository<PurchaseOrderItem>().AddRangeAsync(poItems, cancellationToken);
 
             await _uow.SaveChangesAsync(cancellationToken);
+
+            await _realtimeSender.SendToGroupAsync(
+                $"Project_{request.ProjectId}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
+
+            // Thông báo cho những người liên quan: kế toán (theo dõi thanh toán) và trưởng dự án (theo dõi vật tư)
+            var currentUserId = _currentUserService.UserId;
+            var notiTitle = "Đơn hàng mới được tạo";
+            var notiContent = $"Đơn hàng {po.PONumber} vừa được tạo cho giai đoạn '{phase.Name}'. Tổng giá trị: {totalAmount:N0}đ.";
+
+            await _notificationService.SendNotificationToRoleAsync(
+                UserRole.Accountant, notiTitle, notiContent,
+                NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
+
+            var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
+                .Where(m => m.ProjectId == request.ProjectId && m.IsLeader && m.UserId != currentUserId)
+                .Select(m => m.UserId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (projectLeaderId > 0)
+                await _notificationService.SendNotificationAsync(
+                    projectLeaderId, notiTitle, notiContent,
+                    NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
+
             return po.POId;
         }
     }

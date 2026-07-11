@@ -13,11 +13,19 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly INotificationService _notificationService;
 
-        public AuditDirectPurchaseCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public AuditDirectPurchaseCommandHandler(
+            IUnitOfWork uow,
+            ICurrentUserService currentUserService,
+            IRealtimeNotificationSender realtimeSender,
+            INotificationService notificationService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _realtimeSender = realtimeSender;
+            _notificationService = notificationService;
         }
 
         public async Task<bool> Handle(AuditDirectPurchaseCommand request, CancellationToken ct)
@@ -45,6 +53,22 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             _uow.Repository<DirectPurchaseRequest>().Update(dp);
             await _uow.SaveChangesAsync(ct);
+
+            await _realtimeSender.SendToGroupAsync(
+                $"Project_{dp.ProjectId}", "DirectPurchaseUpdated",
+                new { DirectPurchaseId = dp.DirectPurchaseId }, ct);
+
+            // Thông báo cho người tạo phiếu biết kết quả kiểm toán hoàn tiền/giải ngân
+            var notiTitle = request.Approve
+                ? "Phiếu mua khẩn cấp đã được kiểm toán"
+                : "Phiếu mua khẩn cấp bị từ chối kiểm toán";
+            var notiContent = request.Approve
+                ? $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} đã được kiểm toán và xác nhận hoàn tiền/giải ngân."
+                : $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} bị từ chối kiểm toán. Lý do: {dp.AuditNote}";
+
+            await _notificationService.SendNotificationAsync(
+                dp.RequestedBy, notiTitle, notiContent,
+                NotificationType.Procurement, NotificationReferenceType.DirectPurchaseRequest, dp.DirectPurchaseId, ct);
 
             return true;
         }
