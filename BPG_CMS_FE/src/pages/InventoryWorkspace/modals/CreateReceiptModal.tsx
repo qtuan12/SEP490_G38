@@ -4,6 +4,7 @@ import { inventoryService } from '../../../services/inventoryService';
 import type { PurchaseOrderDto, PurchaseOrderItemDto } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
 import { UploadCloud, X, AlertCircle } from 'lucide-react';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
 interface CreateReceiptModalProps {
   isOpen: boolean;
@@ -61,6 +62,23 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         po => po.status === 'Sent' || po.status === 'PartiallyReceived'
       );
       setPurchaseOrders(activePOs);
+
+      // Auto-select PO if poId is in URL search params
+      const searchPOId = new URLSearchParams(window.location.search).get('poId');
+      if (searchPOId) {
+        const po = activePOs.find(p => p.poId.toString() === searchPOId) || null;
+        if (po) {
+          setSelectedPOId(searchPOId);
+          setSelectedPO(po);
+          
+          const initialQtys: Record<number, string> = {};
+          po.items.forEach(item => {
+            const remaining = item.quantity - item.totalReceived;
+            initialQtys[item.materialId] = remaining > 0 ? remaining.toString() : '0';
+          });
+          setQuantities(initialQtys);
+        }
+      }
     } catch (err: any) {
       console.error('Error fetching POs:', err);
       setGeneralError('Không thể tải danh sách đơn mua hàng PO.');
@@ -108,6 +126,11 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       setErrors(prev => ({
         ...prev,
         [materialId]: `Không được vượt quá số lượng còn lại của PO (${remaining} ${item.unitName}).`
+      }));
+    } else if (isDiscreteUnit(item.unitName) && numVal % 1 !== 0) {
+      setErrors(prev => ({
+        ...prev,
+        [materialId]: `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`
       }));
     } else {
       setErrors(prev => {
@@ -176,6 +199,8 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         itemErrors[item.materialId] = 'Số lượng không hợp lệ.';
       } else if (numVal > remaining) {
         itemErrors[item.materialId] = `Vượt quá giới hạn còn lại (${remaining}).`;
+      } else if (isDiscreteUnit(item.unitName) && numVal % 1 !== 0) {
+        itemErrors[item.materialId] = `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`;
       } else if (numVal > 0) {
         submitItems.push({
           materialId: item.materialId,
@@ -334,7 +359,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                           <div className="flex flex-col items-end gap-1">
                             <Input
                               type="number"
-                              step="any"
+                              step={isDiscreteUnit(item.unitName) ? "1" : "any"}
                               value={quantities[item.materialId] ?? ''}
                               onChange={e => handleQuantityChange(item.materialId, e.target.value, item)}
                               disabled={remaining <= 0 || submitting}

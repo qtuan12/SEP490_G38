@@ -54,20 +54,20 @@ namespace BPG.Application.Features.Inventory.Handlers
 
             // Fetch weighted average unit price from PO items (Weighted Average = Sum(Qty * Price) / Sum(Qty))
             var avgPrices = await _uow.Repository<PurchaseOrderItem>().Query()
-                .Where(poi => poi.PurchaseOrder.Request.Phase.ProjectId == request.ProjectId && poi.Quantity > 0)
+                .Where(poi => poi.PurchaseOrder!.Request!.Phase!.ProjectId == request.ProjectId && poi.Quantity > 0)
                 .GroupBy(poi => poi.MaterialId)
                 .Select(g => new 
                 { 
-                    MaterialId = g.Key, 
-                    AvgPrice = g.Sum(x => x.Quantity * x.UnitPrice) / g.Sum(x => x.Quantity) 
+                     MaterialId = g.Key, 
+                     AvgPrice = g.Sum(x => x.Quantity * x.UnitPrice) / g.Sum(x => x.Quantity) 
                 })
                 .ToDictionaryAsync(x => x.MaterialId, x => x.AvgPrice, cancellationToken);
 
             // Fetch last supplier name per material
             var lastSuppliers = await _uow.Repository<PurchaseOrderItem>().Query()
-                .Where(poi => poi.PurchaseOrder.Request.Phase.ProjectId == request.ProjectId && poi.PurchaseOrder.SupplierId != null)
-                .OrderByDescending(poi => poi.PurchaseOrder.OrderDate)
-                .Select(poi => new { poi.MaterialId, poi.PurchaseOrder.Supplier!.SupplierName })
+                .Where(poi => poi.PurchaseOrder!.Request!.Phase!.ProjectId == request.ProjectId && poi.PurchaseOrder!.SupplierId != null)
+                .OrderByDescending(poi => poi.PurchaseOrder!.OrderDate)
+                .Select(poi => new { poi.MaterialId, poi.PurchaseOrder!.Supplier!.SupplierName })
                 .ToListAsync(cancellationToken);
 
             var supplierMap = lastSuppliers

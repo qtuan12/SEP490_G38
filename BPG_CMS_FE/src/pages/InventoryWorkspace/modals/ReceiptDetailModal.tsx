@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Button, Input, FormItem, ConfirmDialog } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
+import { formatDateVN } from '../../../utils/inventoryHelpers';
 import type { GoodsReceiptDetail, GoodsReceiptItemDetail } from '../../../types/inventory';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -259,7 +260,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                     <div className="flex items-center gap-2">
                       <Calendar size={16} className="text-slate-400" />
                       <span className="font-medium">Ngày nhận hàng:</span>
-                      <span className="text-slate-900">{new Date(detail.createdAt).toLocaleDateString('vi-VN')}</span>
+                      <span className="text-slate-900">{formatDateVN(detail.createdAt)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <User size={16} className="text-slate-400" />
@@ -304,7 +305,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                   <div className="flex items-center gap-2 text-slate-600">
                     <Calendar size={16} className="text-slate-400" />
                     <span className="font-medium">Ngày nhận hàng:</span>
-                    <span className="text-slate-900">{new Date(detail.createdAt).toLocaleDateString('vi-VN')}</span>
+                    <span className="text-slate-900">{formatDateVN(detail.createdAt)}</span>
                   </div>
                 </div>
 

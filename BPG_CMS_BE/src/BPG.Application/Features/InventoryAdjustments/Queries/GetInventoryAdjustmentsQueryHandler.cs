@@ -49,6 +49,16 @@ namespace BPG.Application.Features.InventoryAdjustments.Queries
                 query = query.Where(x => x.Status == request.Status);
             }
 
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+            {
+                var term = request.SearchTerm.ToLower();
+                query = query.Where(x => 
+                    x.Reason.ToLower().Contains(term) ||
+                    x.AdjustmentId.ToString().Contains(term) ||
+                    (x.Description != null && x.Description.ToLower().Contains(term))
+                );
+            }
+
             query = query.OrderByDescending(x => x.CreatedAt);
 
             var pagedResult = await query.ToPagedListAsync(request, cancellationToken);

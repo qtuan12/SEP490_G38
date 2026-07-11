@@ -29,8 +29,15 @@ const auditVariant: Record<string, 'default' | 'warning' | 'success' | 'danger'>
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 export const DirectPurchaseDetailModal: React.FC<Props> = ({ isOpen, onClose, onAudited, directPurchaseId, canAudit }) => {
   const [detail, setDetail] = useState<DirectPurchaseDetailDto | null>(null);
@@ -140,7 +147,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({ isOpen, onClose, on
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {detail.autoPONumber && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: 'hsl(var(--primary-glow))', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: 'hsl(var(--primary))' }}>
-                  <FileText size={13} /> PO: {detail.autoPONumber}
+                  <FileText size={13} /> Đơn hàng: {detail.autoPONumber}
                 </span>
               )}
               {detail.autoReceiptNo && (

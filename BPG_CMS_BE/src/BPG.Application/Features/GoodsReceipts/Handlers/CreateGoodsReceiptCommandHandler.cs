@@ -44,10 +44,10 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
             // 1. Kiểm tra đơn hàng PO tồn tại
             var po = await _uow.Repository<PurchaseOrder>().Query()
                 .Include(p => p.Request)
-                    .ThenInclude(r => r.Phase)
-                        .ThenInclude(ph => ph.Project)
+                    .ThenInclude(r => r!.Phase)
+                        .ThenInclude(ph => ph!.Project)
                 .Include(p => p.Items)
-                    .ThenInclude(pi => pi.Material)
+                    .ThenInclude(pi => pi!.Material)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken);
 
             if (po == null)

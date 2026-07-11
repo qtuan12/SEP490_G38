@@ -50,17 +50,20 @@ export const apiClient = {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         let errMsg = '';
-        if (errorData.message) {
-          errMsg = errorData.message;
-        } else if (errorData.errors) {
-          if (Array.isArray(errorData.errors)) {
+        // Ưu tiên "errors" (thông điệp validate chi tiết) trước "message" (thường chỉ là
+        // câu chung chung kiểu "Dữ liệu đầu vào không hợp lệ." đi kèm errorCode VAL_001)
+        if (errorData.errors) {
+          if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
             errMsg = errorData.errors.join(' ');
-          } else if (typeof errorData.errors === 'object') {
+          } else if (typeof errorData.errors === 'object' && errorData.errors !== null) {
             errMsg = Object.values(errorData.errors)
               .flatMap((messages: any) => messages)
               .join(' ');
           }
-        } else if (errorData.title) {
+        }
+        if (!errMsg && errorData.message) {
+          errMsg = errorData.message;
+        } else if (!errMsg && errorData.title) {
           errMsg = errorData.title;
         }
 

@@ -15,7 +15,7 @@ import { DailyLogFormModal } from '../../ProjectDailyLogs/modals/DailyLogFormMod
 import { AdjustProgressModal } from '../modals/AdjustProgressModal';
 import { ReportIncidentModal } from '../../Incidents/modals/ReportIncidentModal';
 import { ReportInventoryIncidentModal } from '../modals/ReportInventoryIncidentModal';
-import { useState } from 'react';
+
 
 export const WBSModalsContainer = () => {
   const {
@@ -35,10 +35,9 @@ export const WBSModalsContainer = () => {
     isAdjustProgressOpen, setIsAdjustProgressOpen,
     isReportInventoryIncidentOpen, setIsReportInventoryIncidentOpen,
     selectedPhaseForInventoryIncident,
+    isReportIncidentOpen, setIsReportIncidentOpen,
     selectedTaskId, phases, handleSuccess, handleError, loadWBSData
   } = useWBS();
-
-  const [isReportIncidentOpen, setIsReportIncidentOpen] = useState(false);
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) || null : null;

@@ -75,11 +75,13 @@ public static class NotificationReferenceType
 {
     public const string MaterialRequest = "MaterialRequest";
     public const string PurchaseOrder = "PurchaseOrder";
+    public const string DirectPurchaseRequest = "DirectPurchaseRequest";
     public const string Incident = "Incident";
     public const string Task = "Task";
     public const string PhaseAcceptance = "PhaseAcceptance";
     public const string InventoryAdjustment = "InventoryAdjustment";
     public const string SurplusRequest = "SurplusRequest";
+    public const string Project = "Project";
 }
 
 public static class EntityType

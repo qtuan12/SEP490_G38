@@ -11,15 +11,22 @@ import {
   Loader2,
   TrendingUp,
   LayoutGrid,
+  List,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Modal } from '../components/ui/Modal';
+
+import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 
 // ── helpers ───────────────────────────────────────────────────────────────
-const formatDate = (s: string) =>
-  new Date(s + (s.includes('T') ? '' : 'T00:00:00')).toLocaleDateString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  });
+const formatDate = (s: string) => {
+  if (!s) return '';
+  const d = new Date(s + (s.includes('T') ? '' : 'T00:00:00'));
+  if (isNaN(d.getTime())) return s;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 type ViewMode = 'Quarter Day' | 'Half Day' | 'Day' | 'Week' | 'Month';
 const VIEW_MODES: { label: string; value: ViewMode }[] = [
@@ -41,30 +48,31 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
   const [project, setProject] = useState<Project | null>(null);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('Week');
+  const [showGrid, setShowGrid] = useState(true);
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
 
   const [isAdjustModalOpen, setAdjustModalOpen] = useState(false);
   const [selectedTaskToAdjust, setSelectedTaskToAdjust] = useState<WBSTask | null>(null);
-  const [adjustProgress, setAdjustProgress] = useState<number>(0);
-  const [adjustReason, setAdjustReason] = useState<string>('');
-  const [isAdjusting, setIsAdjusting] = useState(false);
 
   // ── load data ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!projectId) return;
     (async () => {
       try {
-        const [projs, pList, tList] = await Promise.all([
+        const [projs, pList, tList, mList] = await Promise.all([
           projectService.getProjects(),
           projectService.getPhases(projectId),
           projectService.getTasks(projectId),
+          projectService.getMembers(projectId)
         ]);
         setProject(projs.find(p => p.id === projectId) ?? null);
+        setMembers(mList || []);
         setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
         setTasks(
           tList
@@ -166,11 +174,11 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
     ];
 
     // Config tooltips & resource text
-    gantt.templates.rightside_text = function(_start: any, _end: any, task: any) {
+    gantt.templates.rightside_text = function (_start: any, _end: any, task: any) {
       if (task.type === gantt.config.types.project) return "";
       return task.assignedName ? `<span style="color: #64748b; font-size: 11px; margin-left: 8px;">👤 ${task.assignedName}</span>` : "";
     };
-    
+
     // Initialize Gantt
     gantt.init(ganttContainerRef.current);
     gantt.clearAll();
@@ -178,14 +186,19 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
     const ganttData = buildDhtmlxData();
     gantt.parse(ganttData);
 
-    const clickEventId = gantt.attachEvent("onTaskClick", function(id: string | number) {
+    const clickEventId = gantt.attachEvent("onTaskClick", function (id: string | number) {
       const taskObj = gantt.getTask(id);
       if (taskObj.type !== gantt.config.types.project && taskObj.rawTask) {
         const wbsTask = taskObj.rawTask as WBSTask;
-        if ((user?.role === 'technicalmanager' || user?.role === 'admin') && wbsTask.status !== 'obsolete') {
+        const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin';
+        const currentTaskHasSubtasks = tasks.some(t => t.parentTaskId === wbsTask.id && t.status !== 'obsolete');
+        const assignedIds = wbsTask.assignedTo ? wbsTask.assignedTo.split(',').map(s => s.trim()) : [];
+        const hasAnyAssignedTask = user?.id && assignedIds.includes(user.id.toString());
+
+        const canReport = (isPL || hasAnyAssignedTask) && !currentTaskHasSubtasks && wbsTask.status !== 'obsolete';
+
+        if (canReport) {
           setSelectedTaskToAdjust(wbsTask);
-          setAdjustProgress(wbsTask.progress);
-          setAdjustReason('');
           setAdjustModalOpen(true);
         }
       }
@@ -196,7 +209,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
       gantt.detachEvent(clickEventId);
       gantt.clearAll();
     };
-  }, [loading, phases, tasks, buildDhtmlxData, user]);
+  }, [loading, phases, tasks, members, buildDhtmlxData, user]);
 
   // ── change view mode ──────────────────────────────────────────────────
   const handleViewMode = (mode: ViewMode) => {
@@ -205,26 +218,31 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
   useEffect(() => {
     if (loading || !ganttContainerRef.current) return;
-    
+
+    gantt.config.show_grid = showGrid;
+
     if (viewMode === 'Day') {
       gantt.config.scale_unit = "day";
-      gantt.config.date_scale = "%d %M";
+      gantt.config.min_column_width = 40;
       gantt.config.scales = [
-        { unit: "day", step: 1, format: "%d %M" }
+        { unit: "month", step: 1, format: "Tháng %m, %Y" },
+        { unit: "day", step: 1, format: "%d" }
       ];
     } else if (viewMode === 'Week') {
+      gantt.config.min_column_width = 50;
       gantt.config.scales = [
         { unit: "week", step: 1, format: "Tuần %W" },
-        { unit: "day", step: 1, format: "%d %M" }
+        { unit: "day", step: 1, format: "%d/%m" }
       ];
     } else if (viewMode === 'Month') {
+      gantt.config.min_column_width = 70;
       gantt.config.scales = [
-        { unit: "month", step: 1, format: "%M %Y" },
-        { unit: "week", step: 1, format: "Tuần %W" }
+        { unit: "year", step: 1, format: "%Y" },
+        { unit: "month", step: 1, format: "Tháng %m" }
       ];
     }
     gantt.render();
-  }, [viewMode, loading]);
+  }, [viewMode, loading, showGrid]);
 
   // ── summary stats ─────────────────────────────────────────────────────
   const activeTasks = tasks.filter(t => t.status !== 'obsolete');
@@ -264,7 +282,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
           )}
           <div>
             <h2 className="text-[1.1rem] font-bold m-0">
-              Gantt Chart — {project?.name ?? ''}
+              Biểu đồ công việc — {project?.name ?? ''}
             </h2>
             <p className="text-[0.75rem] text-[hsl(var(--text-muted))] m-0 mt-1 flex items-center gap-1">
               <Calendar size={11} />
@@ -273,23 +291,33 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
           </div>
         </div>
 
-        {/* View mode switcher */}
-        <div className="flex items-center gap-2">
-          <LayoutGrid size={15} className="text-[hsl(var(--text-muted))]" />
-          <div className="flex border border-[hsl(var(--border))] rounded-sm overflow-hidden">
-            {VIEW_MODES.map((m, idx) => (
-              <button
-                key={m.value}
-                onClick={() => handleViewMode(m.value)}
-                className={`py-1.5 px-3.5 border-none cursor-pointer text-[0.82rem] transition-all duration-150 ${
-                  viewMode === m.value 
-                    ? 'font-bold bg-[hsl(var(--primary))] text-white' 
+        {/* Actions right */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowGrid(!showGrid)}
+            className="flex items-center gap-1.5 py-1.5 px-3.5 border border-[hsl(var(--border))] rounded-sm bg-white cursor-pointer text-[hsl(var(--text-secondary))] text-[0.82rem] font-medium hover:bg-[hsl(var(--bg-main))] transition-colors"
+          >
+            <List size={15} />
+            <span>{showGrid ? 'Thu gọn danh sách' : 'Mở rộng danh sách'}</span>
+          </button>
+
+          {/* View mode switcher */}
+          <div className="flex items-center gap-2">
+            <LayoutGrid size={15} className="text-[hsl(var(--text-muted))]" />
+            <div className="flex border border-[hsl(var(--border))] rounded-sm overflow-hidden">
+              {VIEW_MODES.map((m, idx) => (
+                <button
+                  key={m.value}
+                  onClick={() => handleViewMode(m.value)}
+                  className={`py-1.5 px-3.5 border-none cursor-pointer text-[0.82rem] transition-all duration-150 ${viewMode === m.value
+                    ? 'font-bold bg-[hsl(var(--primary))] text-white'
                     : 'font-medium bg-transparent text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--bg-main))]'
-                } ${idx < VIEW_MODES.length - 1 ? 'border-r border-[hsl(var(--border))]' : ''}`}
-              >
-                {m.label}
-              </button>
-            ))}
+                    } ${idx < VIEW_MODES.length - 1 ? 'border-r border-[hsl(var(--border))]' : ''}`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -300,9 +328,9 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
           <TrendingUp size={14} className="text-[hsl(var(--primary))]" />
           <span className="text-[hsl(var(--text-muted))]">Tiến độ dự án:</span>
           <div className="w-[80px] h-[6px] bg-[hsl(var(--border))] rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary-hover))]" 
-              style={{ width: `${project?.progress ?? 0}%` }} 
+            <div
+              className="h-full bg-gradient-to-r from-[hsl(var(--primary))] to-[hsl(var(--primary-hover))]"
+              style={{ width: `${project?.progress ?? 0}%` }}
             />
           </div>
           <strong className="text-[hsl(var(--primary))]">{project?.progress ?? 0}%</strong>
@@ -336,112 +364,34 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
         )}
       </div>
 
-      {/* ── Adjust Progress Modal ─────────────────────────────────────── */}
+      {/* ── Adjust Progress Modal (Using DailyLogFormModal) ──────────────── */}
       {selectedTaskToAdjust && (
-        <Modal
+        <DailyLogFormModal
           isOpen={isAdjustModalOpen}
           onClose={() => setAdjustModalOpen(false)}
-          title={<span className="text-[#1d4ed8] font-bold text-lg">Cập nhật tiến độ</span>}
-          maxWidth="500px"
-        >
-          <div className="flex flex-col gap-6">
-            
-            {/* Progress Row */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-[0.95rem] font-semibold text-gray-800">Tiến độ hoàn thành (%)</span>
-                <span className="text-2xl font-bold text-[#1d4ed8]">{adjustProgress}%</span>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <span className="text-[0.8rem] text-gray-500 whitespace-nowrap min-w-[70px]">
-                  {selectedTaskToAdjust.progress}% (Hiện tại)
-                </span>
-                
-                <input
-                  type="range"
-                  min={selectedTaskToAdjust.progress}
-                  max={100}
-                  value={adjustProgress}
-                  onChange={(e) => setAdjustProgress(Number(e.target.value))}
-                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#1d4ed8]"
-                />
-                
-                <span className="text-[0.8rem] text-gray-500 whitespace-nowrap">100%</span>
-              </div>
-              <div className="mt-2 text-[0.75rem] text-gray-500">
-                * Khóa cứng chiều lùi: Bạn chỉ có thể kéo tiến độ tiến lên hoặc giữ nguyên.
-              </div>
-            </div>
-
-            {/* Alert Box */}
-            <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-3.5 flex items-center gap-3">
-              <div className="text-[#1d4ed8] border-2 border-[#1d4ed8] rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px] shrink-0">!</div>
-              <span className="text-[0.85rem] text-[#1e3a8a]">
-                Báo cáo cho việc: <strong className="font-bold">{selectedTaskToAdjust.name}</strong>
-              </span>
-            </div>
-
-            {/* Text Area */}
-            <div>
-              <label className="block text-[0.9rem] font-semibold text-gray-800 mb-2">
-                Diễn biến công việc chi tiết <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={adjustReason}
-                onChange={(e) => setAdjustReason(e.target.value)}
-                placeholder="Mô tả công việc đã làm hôm nay, số lượng nhân công huy động, các khó khăn gặp phải nếu có..."
-                rows={4}
-                className="w-full p-3.5 bg-white border border-gray-300 rounded-xl text-[0.85rem] focus:outline-none focus:border-[#1d4ed8] focus:ring-1 focus:ring-[#1d4ed8] resize-y"
-              />
-            </div>
-
-            {/* Buttons */}
-            <div className="flex justify-end gap-3 mt-2">
-              <button
-                onClick={() => setAdjustModalOpen(false)}
-                className="px-6 py-2.5 rounded-xl border border-gray-300 text-[0.85rem] font-semibold bg-white hover:bg-gray-50 text-gray-700 transition-colors"
-                disabled={isAdjusting}
-              >
-                Hủy
-              </button>
-              <button
-                onClick={async () => {
-                  if (!adjustReason.trim()) {
-                    alert('Vui lòng nhập lý do (diễn biến công việc chi tiết).');
-                    return;
-                  }
-                  try {
-                    setIsAdjusting(true);
-                    await projectService.adjustTaskProgressDirectly(selectedTaskToAdjust.id, adjustProgress, adjustReason);
-                    // Refresh data
-                    const [projs, pList, tList] = await Promise.all([
-                      projectService.getProjects(),
-                      projectService.getPhases(projectId!),
-                      projectService.getTasks(projectId!),
-                    ]);
-                    setProject(projs.find(p => p.id === projectId) ?? null);
-                    setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
-                    setTasks(
-                      tList
-                        .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
-                        .sort((a, b) => a.sortOrder - b.sortOrder)
-                    );
-                    setAdjustModalOpen(false);
-                  } catch (e: any) {
-                    alert(e.message || 'Lỗi khi cập nhật tiến độ');
-                  } finally {
-                    setIsAdjusting(false);
-                  }
-                }}
-                className="px-6 py-2.5 rounded-xl border-none text-white text-[0.85rem] font-semibold bg-[#1d4ed8] hover:bg-blue-700 transition-colors cursor-pointer"
-                disabled={isAdjusting}
-              >
-                {isAdjusting ? 'Đang gửi...' : 'Cập nhật tiến độ'}
-              </button>
-            </div>
-          </div>
-        </Modal>
+          task={selectedTaskToAdjust}
+          engineerId={user?.id || ''}
+          engineerName={user?.name || ''}
+          onSuccess={async () => {
+            // Refresh Gantt data
+            try {
+              const [projs, pList, tList] = await Promise.all([
+                projectService.getProjects(),
+                projectService.getPhases(projectId!),
+                projectService.getTasks(projectId!),
+              ]);
+              setProject(projs.find(p => p.id === projectId) ?? null);
+              setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
+              setTasks(
+                tList
+                  .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
+                  .sort((a, b) => a.sortOrder - b.sortOrder)
+              );
+            } catch (e) {
+              console.error("Error refreshing gantt data after log update", e);
+            }
+          }}
+        />
       )}
 
       {/* ── Custom CSS overrides for light/dark theme ─────────────────── */}

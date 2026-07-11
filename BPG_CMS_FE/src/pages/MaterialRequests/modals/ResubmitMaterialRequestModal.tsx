@@ -6,8 +6,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2, Plus, Trash2, AlertCircle } from 'lucide-react';
 import {projectService} from '../../../../src/services/projectService';
+import { materialService } from '../../../../src/services/materialService';
+import type { MaterialCatalog } from '../../../../src/types/material';
 import type {MaterialRequest} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
+import { SearchSelect } from '../../../../src/components/ui/SearchSelect';
+import { isDiscreteUnit } from '../../../../src/utils/unitHelpers';
 
 const resubmitMaterialRequestSchema = z.object({
   type: z.enum(['normal', 'emergency']),
@@ -17,11 +21,21 @@ const resubmitMaterialRequestSchema = z.object({
   items: z.array(
     z.object({
       name: z.string().min(1, 'Vui lòng nhập tên vật tư.'),
-      quantity: z.number().min(0.01, 'Số lượng phải > 0'),
+      quantity: z.number({ message: 'Vui lòng nhập số lượng.' }).min(0.01, 'Số lượng phải > 0'),
       unit: z.string().min(1, 'Vui lòng nhập ĐVT')
     })
   ).min(1, 'Cần ít nhất 1 vật tư')
 }).superRefine((data, ctx) => {
+  // Kiểm tra trùng lặp vật tư
+  const names = data.items.map(it => it.name).filter(name => name.trim() !== '');
+  if (names.length !== new Set(names).size) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Danh sách vật tư yêu cầu không được trùng lặp.',
+      path: ['items']
+    });
+  }
+
   if (data.type === 'emergency' && (!data.invoiceImage || data.invoiceImage.trim() === '')) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -29,6 +43,19 @@ const resubmitMaterialRequestSchema = z.object({
       path: ['invoiceImage']
     });
   }
+
+  // Ràng buộc ĐVT số nguyên không chấp nhận số lượng lẻ
+  data.items.forEach((item, idx) => {
+    if (item.name && isDiscreteUnit(item.unit)) {
+      if (item.quantity % 1 !== 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Đơn vị "${item.unit}" yêu cầu số lượng phải là số nguyên.`,
+          path: ['items', idx, 'quantity']
+        });
+      }
+    }
+  });
 });
 
 type ResubmitMaterialRequestForm = z.infer<typeof resubmitMaterialRequestSchema>;
@@ -53,9 +80,17 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   onSuccess
 }) => {
   const queryClient = useQueryClient();
+  const [allCatalogs, setAllCatalogs] = React.useState<MaterialCatalog[]>([]);
+
+  useEffect(() => {
+    materialService.getMaterials({ pageSize: 1000 }).then(res => {
+      setAllCatalogs(res.items || []);
+    }).catch(console.error);
+  }, []);
   
-  const { register, control, handleSubmit, reset, watch, formState: { errors } } = useForm<ResubmitMaterialRequestForm>({
+  const { register, control, handleSubmit, reset, watch, setValue, trigger, formState: { errors } } = useForm<ResubmitMaterialRequestForm>({
     resolver: zodResolver(resubmitMaterialRequestSchema),
+    mode: 'onTouched',
     defaultValues: {
       type: request.type || 'normal',
       reason: request.reason || '',
@@ -73,7 +108,15 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   });
 
   const type = watch('type');
+  const watchedItems = watch('items') || [];
   const isPhaseRequest = !!request.phaseId && !request.taskId;
+
+  const handleMaterialChange = (index: number, name: string) => {
+    const mat = allCatalogs.find(m => m.name === name);
+    if (mat) {
+      setValue(`items.${index}.unit`, mat.baseUnitName || '');
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -181,19 +224,27 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
             {fields.map((item, idx) => (
               <div key={item.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-start">
                 <div>
-                  <input
-                    type="text"
-                    placeholder="Tên vật tư..."
-                    {...register(`items.${idx}.name` as const)}
-                    className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
+                  <SearchSelect
+                    options={allCatalogs.map(sm => ({
+                      label: sm.name,
+                      value: sm.name
+                    }))}
+                    value={watchedItems[idx]?.name || ''}
+                    onChange={async (selName) => {
+                      setValue(`items.${idx}.name`, selName, { shouldValidate: true });
+                      handleMaterialChange(idx, selName);
+                      await trigger('items');
+                    }}
+                    placeholder="-- Chọn vật tư --"
+                    error={!!errors.items?.[idx]?.name}
                   />
                   {errors.items?.[idx]?.name && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.name?.message}</p>}
                 </div>
                 <div>
                   <input
                     type="number"
-                    min={0.01}
-                    step="0.01"
+                    min={isDiscreteUnit(watchedItems[idx]?.unit) ? 1 : 0.01}
+                    step={isDiscreteUnit(watchedItems[idx]?.unit) ? "1" : "any"}
                     placeholder="SL"
                     {...register(`items.${idx}.quantity` as const, { valueAsNumber: true })}
                     className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
@@ -212,14 +263,21 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                 <button
                   type="button"
                   disabled={fields.length === 1}
-                  onClick={() => remove(idx)}
+                  onClick={async () => {
+                    remove(idx);
+                    await trigger('items');
+                  }}
                   className="p-2 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Trash2 size={18} />
                 </button>
               </div>
             ))}
-            {errors.items?.message && <p className="text-red-500 text-xs mt-1">{errors.items.message}</p>}
+            {(errors.items?.message || (errors.items as any)?.root?.message) && (
+              <p className="text-red-500 text-xs mt-1">
+                {errors.items?.message || (errors.items as any)?.root?.message}
+              </p>
+            )}
           </div>
         </div>
 

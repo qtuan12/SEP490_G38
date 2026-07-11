@@ -16,11 +16,15 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly INotificationService _notificationService;
 
-        public CreateDecreaseAdjustmentCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
+        public CreateDecreaseAdjustmentCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, IRealtimeNotificationSender realtimeSender, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
+            _realtimeSender = realtimeSender;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateDecreaseAdjustmentCommand request, CancellationToken cancellationToken)
@@ -63,7 +67,30 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             // Note: Decrease does not update CurrentInventory nor create InventoryTransaction yet.
             // It waits for Approval.
 
-            // Optional: send notification to Director here...
+            // Gửi thông báo DB đến Giám đốc để phê duyệt
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.Director,
+                "Phiếu điều chỉnh giảm tồn kho cần phê duyệt",
+                $"Kế toán vừa tạo phiếu giảm tồn kho #{adjustment.AdjustmentId} tại dự án {project.Name} đang chờ Giám đốc phê duyệt.",
+                BPG.Domain.Constants.NotificationType.Procurement,
+                BPG.Domain.Constants.NotificationReferenceType.InventoryAdjustment,
+                adjustment.AdjustmentId,
+                cancellationToken
+            );
+
+            // Realtime: broadcast to all members currently viewing this project
+            await _realtimeSender.SendToGroupAsync(
+                HubMethodNames.GroupProject + request.ProjectId,
+                HubMethodNames.InventoryAdjustmentCreated,
+                adjustment.AdjustmentId,
+                cancellationToken);
+
+            // Realtime: broadcast to all members viewing global incidents (Project_0)
+            await _realtimeSender.SendToGroupAsync(
+                HubMethodNames.GroupProject + 0,
+                HubMethodNames.InventoryAdjustmentCreated,
+                adjustment.AdjustmentId,
+                cancellationToken);
 
             return ApiResponse<long>.SuccessResult(adjustment.AdjustmentId, "Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt");
         }

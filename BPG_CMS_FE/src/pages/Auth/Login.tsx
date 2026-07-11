@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { KeyRound, Mail, AlertTriangle } from 'lucide-react';
+import { KeyRound, Mail, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
 
 const getRoleDashboard = (role: string): string => {
@@ -20,6 +20,7 @@ export const Login: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [lockoutTimeLeft, setLockoutTimeLeft] = useState<number>(0);
@@ -111,7 +112,7 @@ export const Login: React.FC = () => {
         setLockoutTimeLeft(15 * 60);
         setError('Tài khoản đã bị khóa trong 15 phút do nhập sai mật khẩu 5 lần.');
       } else {
-        setError(`${err.message || 'Đăng nhập thất bại.'} (Bạn còn ${5 - currentAttempts} lần thử)`);
+        setError(err.message || 'Đăng nhập thất bại.');
       }
     } finally {
       setLoading(false);
@@ -135,19 +136,10 @@ export const Login: React.FC = () => {
           </p>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="animate-fade-in flex items-center gap-2.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm p-3 mb-5 text-[hsl(346_84%_35%)] text-sm">
-            <AlertTriangle size={18} className="shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <FormItem label="Email tài khoản">
             <div className="relative">
-              <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
               <Input
                 type="email"
                 placeholder="ten@bpg.com"
@@ -157,21 +149,31 @@ export const Login: React.FC = () => {
                 required
                 className="pl-10"
               />
+              <Mail size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
             </div>
           </FormItem>
 
           <FormItem label="Mật khẩu">
             <div className="relative">
-              <KeyRound size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
               <Input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
                 required
-                className="pl-10"
+                className="pl-10 pr-10"
               />
+              <KeyRound size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-secondary))] transition-colors"
+                tabIndex={-1}
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </FormItem>
 
@@ -180,6 +182,14 @@ export const Login: React.FC = () => {
               Quên mật khẩu?
             </Link>
           </div>
+
+          {/* Error Alert — đặt ngay trên nút để người dùng đọc lỗi rồi thử lại */}
+          {error && (
+            <div className="animate-fade-in flex items-start gap-2.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-md p-3 text-[hsl(346_84%_35%)] text-sm leading-snug">
+              <AlertTriangle size={18} className="shrink-0 mt-px" />
+              <span>{error}</span>
+            </div>
+          )}
 
           <Button
             type="submit"
@@ -191,35 +201,6 @@ export const Login: React.FC = () => {
             {lockoutTimeLeft > 0 ? 'Tài khoản đang bị khóa' : 'Đăng nhập'}
           </Button>
         </form>
-
-        {/* Developer Cheat Sheet */}
-        <div className="mt-8 pt-5 border-t border-[hsl(var(--border))] text-xs text-[hsl(var(--text-muted))]">
-          <p className="font-medium text-[hsl(var(--text-secondary))] mb-2">
-            Tài khoản dùng thử (Mock Accounts):
-          </p>
-          <div className="grid grid-cols-2 gap-2 leading-relaxed">
-            <div>
-              <strong>Admin:</strong> admin@bpg.com<br />
-              <strong>Pass:</strong> 123456
-            </div>
-            <div>
-              <strong>TPKT:</strong> tpkt@bpg.com<br />
-              <strong>Pass:</strong> 123456
-            </div>
-            <div>
-              <strong>Kỹ sư:</strong> kysu1@bpg.com<br />
-              <strong>Pass:</strong> 123456
-            </div>
-            <div>
-              <strong>Giám đốc:</strong> giamdoc@bpg.com<br />
-              <strong>Pass:</strong> 123456
-            </div>
-            <div>
-              <strong>Kế toán:</strong> ketoan@bpg.com<br />
-              <strong>Pass:</strong> 123456
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

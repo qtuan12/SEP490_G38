@@ -37,7 +37,6 @@ import { CreatePOPage } from './pages/PurchaseOrders/CreatePOPage';
 import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
 import { SystemConfigPage } from './pages/SystemConfig';
 import { DirectPurchaseList } from './pages/DirectPurchases';
-import { TaskIncidents } from './pages/TaskIncidents';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -252,15 +251,6 @@ function App() {
               />
 
               <Route 
-                path="/projects/:projectId/tasks/:taskId/incidents" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
-                    <TaskIncidents />
-                  </ProtectedRoute>
-                } 
-              />
-
-              <Route 
                 path="/projects/:projectId/phases/:phaseId/material-requests" 
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
@@ -272,7 +262,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/phases/:phaseId/boq" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseBOQ />
                   </ProtectedRoute>
                 } 

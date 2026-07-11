@@ -41,6 +41,16 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const openCreate = searchParams.get('openCreate');
+    if (openCreate === 'receipt' && activeSubTab === 'receipts') {
+      setIsCreateReceiptOpen(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('openCreate');
+      setSearchParams(newParams);
+    }
+  }, [searchParams, activeSubTab]);
+
   const handleSubTabChange = (subTab: 'current' | 'receipts' | 'issuances' | 'ledger') => {
     setActiveSubTab(subTab);
     const newParams = new URLSearchParams(searchParams);
@@ -197,7 +207,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
               className="flex items-center gap-1.5"
             >
               <Plus size={16} />
-              <span>Nhập kho PO</span>
+              <span>Nhập kho (Đơn mua hàng)</span>
             </Button>
           )}
 

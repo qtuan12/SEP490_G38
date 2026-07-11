@@ -33,6 +33,9 @@ export interface WBSContextType {
   isDetailOpen: boolean;
   setIsDetailOpen: (open: boolean) => void;
   
+  isReportIncidentOpen: boolean;
+  setIsReportIncidentOpen: (open: boolean) => void;
+  
   isAssignOpen: boolean;
   setIsAssignOpen: (open: boolean) => void;
   

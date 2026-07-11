@@ -132,7 +132,7 @@ export const ProjectDrawing: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px - 48px)', margin: '-24px', backgroundColor: '#070a13' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px - 48px)', margin: '-24px', backgroundColor: 'hsl(var(--bg-main))' }}>
       {/* Top bar control */}
       <div style={{
         display: 'flex', 
@@ -252,7 +252,7 @@ export const ProjectDrawing: React.FC = () => {
         style={{ 
           flex: 1, 
           overflow: 'auto', 
-          backgroundColor: '#070a13', 
+          backgroundColor: 'hsl(var(--bg-main))', 
           display: 'flex', 
           justifyContent: 'center', 
           alignItems: 'center', 

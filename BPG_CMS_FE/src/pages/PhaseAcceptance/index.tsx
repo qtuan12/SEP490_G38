@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type {WBSPhase, WBSTask, Project} from '../../types/common';
+import { formatDate, formatDateOnly } from '../../utils/dateHelpers';
 import { 
   ArrowLeft,
   Download,
@@ -14,6 +15,8 @@ import { AcceptanceTasksChecklist } from '../PhaseAcceptance/components/Acceptan
 import { Button } from '../../components/ui';
 import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
 import html2pdf from 'html2pdf.js';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { toast } from 'react-hot-toast';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -48,7 +51,7 @@ export const PhaseAcceptance: React.FC = () => {
 
   const isTPKT = user?.role === 'technicalmanager';
 
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     if (!projectId || !phaseId) return;
     setLoading(true);
     setError(null);
@@ -69,7 +72,7 @@ export const PhaseAcceptance: React.FC = () => {
         const activeAcc = res.items.find((x: any) => !x.isCancelled);
         if (activeAcc) {
           setActiveReportContent(activeAcc.reportContent || '');
-          setActiveAcceptanceDate(new Date(activeAcc.acceptanceDate).toLocaleDateString('vi-VN'));
+          setActiveAcceptanceDate(formatDateOnly(activeAcc.acceptanceDate));
           setActiveCreatorName(activeAcc.acceptedByName || '');
           setActiveAcceptanceId(activeAcc.acceptanceId);
         }
@@ -88,11 +91,19 @@ export const PhaseAcceptance: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, phaseId, historyId]);
 
   useEffect(() => {
     loadData();
-  }, [projectId, phaseId, historyId]);
+  }, [loadData]);
+
+  // Realtime notification via SignalR
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    if (noti?.referenceType === 'PhaseAcceptance' || noti?.referenceType === 'Project') {
+      loadData();
+      toast('Thông tin nghiệm thu giai đoạn vừa được cập nhật!', { icon: '📝' });
+    }
+  });
 
   const handleRevoke = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,7 +202,7 @@ export const PhaseAcceptance: React.FC = () => {
   const allCompleted = tasks.length > 0 && tasks.every(t => t.progress === 100);
 
   return (
-    <div className="flex flex-col gap-6 max-w-[780px] mx-auto animate-fade-in">
+    <div className="flex flex-col gap-6 max-w-5xl mx-auto animate-fade-in">
       
       {/* Navigation and Title */}
       <div className="flex flex-col gap-3">
@@ -235,11 +246,11 @@ export const PhaseAcceptance: React.FC = () => {
               </h3>
               <div className={`space-y-1 text-sm ${historicalAcceptance.isCancelled ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
                 <p><span className="font-medium">Người lập:</span> {historicalAcceptance.acceptedByName}</p>
-                <p><span className="font-medium">Ngày lập:</span> {new Date(historicalAcceptance.acceptanceDate).toLocaleString('vi-VN')}</p>
+                <p><span className="font-medium">Ngày lập:</span> {formatDate(historicalAcceptance.acceptanceDate)}</p>
                 {historicalAcceptance.isCancelled && (
                   <>
                     <p><span className="font-medium">Người hủy:</span> {historicalAcceptance.cancelledByName}</p>
-                    <p><span className="font-medium">Ngày hủy:</span> {new Date(historicalAcceptance.cancelledAt).toLocaleString('vi-VN')}</p>
+                    <p><span className="font-medium">Ngày hủy:</span> {formatDate(historicalAcceptance.cancelledAt)}</p>
                     <p><span className="font-medium">Lý do hủy:</span> {historicalAcceptance.cancellationReason}</p>
                   </>
                 )}
@@ -248,9 +259,9 @@ export const PhaseAcceptance: React.FC = () => {
           )}
 
           {isViewingHistory && historicalDocData !== null ? (
-            <AcceptanceDocument project={project} phase={phase} reportContent={historicalDocData} creatorName={historicalAcceptance?.acceptedByName} acceptanceDate={new Date(historicalAcceptance.acceptanceDate).toLocaleDateString('vi-VN')} />
+            <AcceptanceDocument project={project} phase={phase} reportContent={historicalDocData} creatorName={historicalAcceptance?.acceptedByName} acceptanceDate={formatDateOnly(historicalAcceptance.acceptanceDate)} />
           ) : isSubmitted ? (
-            <AcceptanceDocument project={project} phase={phase} reportContent={activeReportContent || ''} creatorName={activeCreatorName} acceptanceDate={activeAcceptanceDate || new Date().toLocaleDateString('vi-VN')} />
+            <AcceptanceDocument project={project} phase={phase} reportContent={activeReportContent || ''} creatorName={activeCreatorName} acceptanceDate={activeAcceptanceDate || formatDateOnly(new Date().toISOString())} />
           ) : (
             <AcceptanceForm 
               phase={phase!} 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { incidentService } from '../../services/incidentService';
-import type {IncidentReport, WBSTask, WBSPhase, ProjectMember} from '../../types/common';
+import type { IncidentReport, WBSTask, WBSPhase, ProjectMember } from '../../types/common';
 import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
 import { CreateDecreaseAdjustmentModal } from '../InventoryAdjustments/components/CreateDecreaseAdjustmentModal';
@@ -13,15 +13,18 @@ import {
   Loader2
 } from 'lucide-react';
 import { Badge, Button, Pagination } from '../../components/ui';
+import { useNotification } from '../../context/NotificationContext';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
 
 export const GlobalIncidents: React.FC = () => {
   const { user } = useAuth();
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const { connection } = useNotification();
   const [activeTab, setActiveTab] = useState<'construction' | 'inventory'>(
     user?.role === 'accountant' ? 'inventory' : 'construction'
   );
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
@@ -60,13 +63,13 @@ export const GlobalIncidents: React.FC = () => {
       const incList: IncidentReport[] = incListDto.map(dto => {
         let desc = dto.description || '';
         const images: string[] = [];
-        
+
         const imgRegex = /!\[.*?\]\((.*?)\)/g;
         let match;
         while ((match = imgRegex.exec(desc)) !== null) {
           images.push(match[1]);
         }
-        
+
         desc = desc.replace(/\*\*Hình ảnh đính kèm:\*\*/g, '');
         desc = desc.replace(/!\[.*?\]\((.*?)\)/g, '');
         desc = desc.trim();
@@ -94,7 +97,8 @@ export const GlobalIncidents: React.FC = () => {
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
           date: (() => {
-            const d = new Date(dto.createdAt);
+            const dateStr = dto.createdAt.endsWith('Z') ? dto.createdAt : dto.createdAt + 'Z';
+            const d = new Date(dateStr);
             const hours = d.getHours().toString().padStart(2, '0');
             const minutes = d.getMinutes().toString().padStart(2, '0');
             return `${hours}:${minutes} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
@@ -116,9 +120,41 @@ export const GlobalIncidents: React.FC = () => {
     loadData();
   }, []);
 
-  const handleSuccess = (msg: string) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(null), 3000);
+  // Tham gia SignalR group chung (Project_0)
+  useEffect(() => {
+    if (!connection) return;
+
+    const joinGroup = () => {
+      connection.invoke('JoinProjectGroup', 0)
+        .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
+    };
+
+    if (connection.state === 'Connected') {
+      joinGroup();
+    }
+
+    connection.onreconnected(joinGroup);
+
+    return () => {
+      if (connection.state === 'Connected') {
+        connection.invoke('LeaveProjectGroup', 0).catch(console.error);
+      }
+    };
+  }, [connection]);
+
+  useSignalREvent('IncidentCreated', () => {
+    loadData();
+  });
+
+  useSignalREvent('IncidentUpdated', () => {
+    loadData();
+  });
+
+  const handleSuccess = (msg?: string) => {
+    if (msg) {
+      setSuccess(msg);
+      setTimeout(() => setSuccess(null), 3000);
+    }
     loadData();
   };
 
@@ -130,29 +166,29 @@ export const GlobalIncidents: React.FC = () => {
   const handleRowClick = async (inc: IncidentReport) => {
     setLoadingRowAction(inc.id);
     try {
-       const [tList, pList, mList] = await Promise.all([
-          projectService.getTasks(inc.projectId),
-          projectService.getPhases(inc.projectId),
-          projectService.getMembers(inc.projectId)
-       ]);
-       const task = tList.find(t => t.id === inc.taskId);
-       const phase = pList.find(p => p.id === inc.phaseId) || pList.find(p => p.id === task?.phaseId);
-       
-       setSelectedTask(task || null);
-       setSelectedPhase(phase || null);
-       setProjectMembers(mList);
-       
-       setSelectedIncident(inc);
-       setIsDetailOpen(true);
-    } catch(err) {
-       console.error(err);
-       handleError('Lỗi khi tải thông tin chi tiết sự cố.');
+      const [tList, pList, mList] = await Promise.all([
+        projectService.getTasks(inc.projectId),
+        projectService.getPhases(inc.projectId),
+        projectService.getMembers(inc.projectId)
+      ]);
+      const task = tList.find(t => t.id === inc.taskId);
+      const phase = pList.find(p => p.id === inc.phaseId) || pList.find(p => p.id === task?.phaseId);
+
+      setSelectedTask(task || null);
+      setSelectedPhase(phase || null);
+      setProjectMembers(mList);
+
+      setSelectedIncident(inc);
+      setIsDetailOpen(true);
+    } catch (err) {
+      console.error(err);
+      handleError('Lỗi khi tải thông tin chi tiết sự cố.');
     } finally {
-       setLoadingRowAction(null);
+      setLoadingRowAction(null);
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, incidentType: string) => {
     switch (status) {
       case 'Reported':
         return <Badge variant="warning" className="normal-case">Báo cáo mới</Badge>;
@@ -163,15 +199,23 @@ export const GlobalIncidents: React.FC = () => {
         return <Badge variant="info" className="normal-case">Chờ TPKT duyệt</Badge>;
       case 'WaitingAccountant':
         return <Badge variant="warning" className="normal-case">Chờ Kế toán xác minh</Badge>;
+      case 'WaitingDirector':
+        return <Badge variant="warning" className="normal-case">Chờ Giám đốc phê duyệt</Badge>;
       case 'Approved':
+        if (incidentType === 'InventoryLoss' || incidentType === 'InventoryDamage') {
+          return <Badge variant="success" className="normal-case bg-[hsl(var(--success-glow))] text-[hsl(var(--success))]">Chờ GĐ duyệt kho</Badge>;
+        }
+        return <Badge variant="success" className="normal-case">Đã phê duyệt</Badge>;
       case 'Confirmed':
         return <Badge variant="success" className="normal-case">Đã phê duyệt</Badge>;
       case 'Rejected':
         return <Badge variant="danger" className="normal-case">Từ chối</Badge>;
       case 'Closed':
         return <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.75rem] normal-case">Đã đóng</span>;
+      case 'Resolved':
+        return <Badge variant="default" className="normal-case bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))]">Đã xử lý</Badge>;
       default:
-        return null;
+        return <Badge variant="default" className="normal-case bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))]">{status}</Badge>;
     }
   };
 
@@ -179,7 +223,7 @@ export const GlobalIncidents: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-5">
-      
+
       {success && (
         <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
           {success}
@@ -273,47 +317,39 @@ export const GlobalIncidents: React.FC = () => {
         ) : (
           <div className="table-container">
             <div className="overflow-x-auto w-full">
-            <table>
-              <thead>
-                <tr>
-                  <th>Ngày báo cáo</th>
-                  <th>Dự án</th>
-                  <th>Công việc / Giai đoạn</th>
-                  <th>Phân loại</th>
-                  <th>Người báo cáo</th>
-                  <th>Mô tả sự cố</th>
-                  <th>Trạng thái</th>
-                  <th className="text-center">Chi tiết</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedIncidents.map((inc) => (
-                  <tr key={inc.id} 
-                      className={`cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors ${loadingRowAction === inc.id ? 'opacity-50 pointer-events-none' : ''}`} 
-                      onClick={() => handleRowClick(inc)}>
-                    <td className="whitespace-nowrap text-sm">{inc.date}</td>
-                    <td>
-                      <strong className="text-[0.88rem] text-[hsl(var(--primary))]">{inc.projectName || `Dự án #${inc.projectId}`}</strong>
-                    </td>
-                    <td><strong className="text-[0.88rem]">{(inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') ? (inc.phaseName || 'Giai đoạn') : (inc.taskName || 'Công việc')}</strong></td>
-                    <td>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.75rem] whitespace-nowrap">{inc.incidentType}</span>
-                    </td>
-                    <td className="text-sm">{inc.reporterName}</td>
-                    <td className="max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap text-sm" title={inc.description}>
-                      {inc.description}
-                    </td>
-                    <td className="whitespace-nowrap">{getStatusBadge(inc.status)}</td>
-                    <td className="text-center">
-                      <Button variant="secondary" className="py-1 px-2 text-[0.75rem] h-auto">
-                        {loadingRowAction === inc.id ? <Loader2 size={12} className="animate-spin" /> : 'Xem'}
-                      </Button>
-                    </td>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ngày báo cáo</th>
+                    <th>Dự án</th>
+                    <th>Công việc / Giai đoạn</th>
+                    <th>Người báo cáo</th>
+                    <th>Trạng thái</th>
+                    <th className="text-center">Chi tiết</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {paginatedIncidents.map((inc) => (
+                    <tr key={inc.id}
+                      className={`cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors ${loadingRowAction === inc.id ? 'opacity-50 pointer-events-none' : ''}`}
+                      onClick={() => handleRowClick(inc)}>
+                      <td className="whitespace-nowrap text-sm">{inc.date}</td>
+                      <td>
+                        <strong className="text-[0.88rem] text-[hsl(var(--primary))]">{inc.projectName || `Dự án #${inc.projectId}`}</strong>
+                      </td>
+                      <td><strong className="text-[0.88rem]">{(inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') ? (inc.phaseName || 'Giai đoạn') : (inc.taskName || 'Công việc')}</strong></td>
+                      <td className="text-sm">{inc.reporterName}</td>
+                      <td className="whitespace-nowrap">{getStatusBadge(inc.status, inc.incidentType)}</td>
+                      <td className="text-center">
+                        <Button variant="secondary" className="py-1 px-2 text-[0.75rem] h-auto">
+                          {loadingRowAction === inc.id ? <Loader2 size={12} className="animate-spin" /> : 'Xem'}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -342,7 +378,7 @@ export const GlobalIncidents: React.FC = () => {
               setIsResolveOpen(true);
             }
           }}
-          projectId={selectedIncident.projectId}
+          onSuccessAction={handleSuccess}
         />
       )}
 

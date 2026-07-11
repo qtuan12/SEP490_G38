@@ -13,14 +13,30 @@ export const formatRelativeTime = (dateString: string): string => {
   if (diffMins < 60) return `${diffMins} phút trước`;
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours} giờ trước`;
-  return parseDateSafe(dateString).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+  const d = parseDateSafe(dateString);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${day}/${month}`;
 };
 
-export const formatDate = (dateString: string): string =>
-  parseDateSafe(dateString).toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+export const formatDate = (dateString: string): string => {
+  if (!dateString) return '';
+  const d = parseDateSafe(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+};
+
+export const formatDateOnly = (dateString: string): string => {
+  if (!dateString) return '';
+  const d = parseDateSafe(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};

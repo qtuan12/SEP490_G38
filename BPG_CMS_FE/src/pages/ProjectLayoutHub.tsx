@@ -43,7 +43,7 @@ export const ProjectLayoutHub: React.FC = () => {
   const { user } = useAuth();
   const { connection } = useNotification();
   const [isPL, setIsPL] = useState(false);
-  const isTPKT = isPL || user?.role === 'technicalmanager' || user?.role === 'admin';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -245,14 +245,16 @@ export const ProjectLayoutHub: React.FC = () => {
               </>
             )}
 
-            {/* Project Status Actions for TPKT */}
-            {isTPKT && (
+            {/* Nút Sửa chỉ dành cho TPKT/Admin */}
+            {isTPKT && project.status !== 'done' && (
+              <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Edit3 size={16} /> Sửa
+              </button>
+            )}
+
+            {/* Project Status Actions cho PL và TPKT */}
+            {isPL && (
               <>
-                {project.status !== 'done' && (
-                  <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Edit3 size={16} /> Sửa
-                  </button>
-                )}
                 {project.status === 'draft' && (
                   <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Play size={16} /> Kích hoạt Dự án
@@ -316,7 +318,7 @@ export const ProjectLayoutHub: React.FC = () => {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-            TIẾN ĐỘ TỔNG THỂ DỰ ÁN WBS
+            TIẾN ĐỘ THI CÔNG DỰ ÁN
           </span>
           <strong style={{ fontSize: '2.2rem', fontWeight: 900, color: 'hsl(var(--primary))', letterSpacing: '-0.02em' }}>
             {project.progress}%
@@ -367,7 +369,7 @@ export const ProjectLayoutHub: React.FC = () => {
           }}
         >
           <FolderGit2 size={18} />
-          <span>Kế hoạch WBS</span>
+          <span>Kế hoạch thi công</span>
         </button>
 
         <button
@@ -480,29 +482,27 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Xử lý Vật tư thừa</span>
         </button>
 
-        {(isAccountant || isAssignedLeader) && (
-          <button
-            onClick={() => handleTabChange('purchaseorders')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 18px',
-              background: 'none',
-              border: 'none',
-              borderBottom: activeTab === 'purchaseorders' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
-              color: activeTab === 'purchaseorders' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-              fontWeight: activeTab === 'purchaseorders' ? 600 : 500,
-              fontSize: '0.95rem',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all var(--transition-fast)'
-            }}
-          >
-            <ShoppingCart size={18} />
-            <span>Đơn hàng PO</span>
-          </button>
-        )}
+        <button
+          onClick={() => handleTabChange('purchaseorders')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'purchaseorders' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'purchaseorders' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'purchaseorders' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <ShoppingCart size={18} />
+          <span>Đơn hàng</span>
+        </button>
 
         {(isAccountant || isAssignedLeader) && (
           <button

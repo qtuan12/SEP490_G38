@@ -15,8 +15,6 @@ const schema = z.object({
   incidentType: z.enum(['InventoryLoss', 'InventoryDamage']),
   description: z.string().min(5, 'Mô tả sự cố phải có ít nhất 5 ký tự'),
   incidentDate: z.string().min(1, 'Vui lòng chọn ngày phát hiện'),
-  witness: z.string().optional(),
-  warehouseLocation: z.string().min(1, 'Vui lòng nhập vị trí kho'),
   estimatedLaborDays: z.coerce.number().optional().default(0),
   estimatedDelayDays: z.coerce.number().optional().default(0),
 });
@@ -46,7 +44,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
-  
+
   const [damagedMaterials, setDamagedMaterials] = useState<Array<CurrentInventory & { quantityLost: number }>>([]);
   const [inventory, setInventory] = useState<CurrentInventory[]>([]);
   const [showMaterialSelector, setShowMaterialSelector] = useState(false);
@@ -66,8 +64,6 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
       incidentType: 'InventoryLoss',
       description: '',
       incidentDate: new Date().toISOString().slice(0, 16),
-      witness: '',
-      warehouseLocation: '',
       estimatedLaborDays: 0,
       estimatedDelayDays: 0,
     },
@@ -80,10 +76,6 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
       const d = new Date(data.incidentDate);
       const dateStr = `${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ngày ${d.toLocaleDateString('vi-VN')}`;
       finalDesc += `\n\n**Ngày/Giờ phát hiện:** ${dateStr}`;
-      if (data.witness) {
-        finalDesc += `\n**Người làm chứng/Liên đới:** ${data.witness}`;
-      }
-      finalDesc += `\n**Vị trí kho/Lô hàng:** ${data.warehouseLocation}`;
 
       if (selectedFiles.length > 0) {
         const uploadedUrls = await projectService.uploadFiles(selectedFiles, 'incidents');
@@ -163,7 +155,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Vật tư Kho (Project Leader)" width="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Vật tư Kho (Trưởng nhóm)" width="xl">
 
       <div style={{
         display: 'flex',
@@ -195,41 +187,26 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                   Loại sự cố vật tư <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
                 <select className="input" {...register('incidentType')}>
-                  <option value="InventoryLoss">📦 Thất thoát vật tư (Inventory Loss)</option>
-                  <option value="InventoryDamage">🔴 Hư hại vật tư (Inventory Damage)</option>
+                  <option value="InventoryLoss">📦 Thất thoát vật tư </option>
+                  <option value="InventoryDamage">🔴 Hư hại vật tư </option>
                 </select>
               </div>
 
-            <div>
-              <label htmlFor="report-desc" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                Mô tả nguyên nhân và tình trạng sự cố
-                {' '}<span style={{ color: 'hsl(var(--danger))' }}>*</span>
-              </label>
-              <textarea
-                id="report-desc"
-                className="input"
-                placeholder="Mô tả vật tư bị mất/hư hỏng, số lượng ước tính, điều kiện phát hiện..."
-                {...register('description')}
-                rows={3}
-              />
-              {(errors as any).description && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).description?.message)}</span>}
-            </div>
-
               <div>
-                <label htmlFor="warehouse-loc" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                  Vị trí kho / Lô hàng <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+                <label htmlFor="report-desc" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
+                  Mô tả nguyên nhân và tình trạng sự cố
+                  {' '}<span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
-                <input
-                  id="warehouse-loc"
-                  type="text"
+                <textarea
+                  id="report-desc"
                   className="input"
-                  placeholder="Vd: Kho A – Kệ 3 – Lô thép hộp 50x50..."
-                  {...register('warehouseLocation')}
+                  placeholder="Mô tả vật tư bị mất/hư hỏng, số lượng ước tính, điều kiện phát hiện..."
+                  {...register('description')}
+                  rows={3}
                 />
-                {(errors as any).warehouseLocation && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).warehouseLocation?.message)}</span>}
+                {(errors as any).description && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).description?.message)}</span>}
               </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
                   Ngày/Giờ phát hiện <span style={{ color: 'hsl(var(--danger))' }}>*</span>
@@ -241,64 +218,52 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 />
                 {(errors as any).incidentDate && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).incidentDate?.message)}</span>}
               </div>
+
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                  Người làm chứng/Liên đới
+                  Hình ảnh / Biên bản kiểm kê (Tối đa 5 ảnh)
                 </label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="Vd: Nguyễn Văn A (nếu có)"
-                  {...register('witness')}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                Hình ảnh / Biên bản kiểm kê (Tối đa 5 ảnh)
-              </label>
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => { if (selectedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
-                style={{
-                  border: `2px dashed ${dragging ? 'hsl(210, 70%, 45%)' : 'hsl(var(--border))'}`,
-                  borderRadius: '8px',
-                  padding: '16px',
-                  textAlign: 'center',
-                  cursor: selectedFiles.length >= 5 ? 'not-allowed' : 'pointer',
-                  background: dragging ? 'hsl(210, 100%, 97%)' : 'hsl(var(--bg-card))',
-                  opacity: selectedFiles.length >= 5 ? 0.6 : 1,
-                  transition: 'all 0.2s',
-                }}
-              >
-                <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={selectedFiles.length >= 5} />
-                <UploadCloud size={24} style={{ color: 'hsl(var(--text-secondary))', margin: '0 auto 6px' }} />
-                <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', margin: '0 0 4px' }}>
-                  Kéo thả hoặc click để chọn ảnh
-                </p>
-                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Đã chọn {selectedFiles.length}/5 ảnh</span>
-              </div>
-              {previews.length > 0 && (
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-                  {previews.map((url, idx) => (
-                    <div key={idx} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
-                      <img src={url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      <button
-                        type="button"
-                        onClick={e => { e.stopPropagation(); removeImage(idx); }}
-                        style={{ position: 'absolute', top: 2, right: 2, background: '#dc2626', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                      >
-                        <X size={10} color="white" />
-                      </button>
-                    </div>
-                  ))}
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => { if (selectedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
+                  style={{
+                    border: `2px dashed ${dragging ? 'hsl(210, 70%, 45%)' : 'hsl(var(--border))'}`,
+                    borderRadius: '8px',
+                    padding: '16px',
+                    textAlign: 'center',
+                    cursor: selectedFiles.length >= 5 ? 'not-allowed' : 'pointer',
+                    background: dragging ? 'hsl(210, 100%, 97%)' : 'hsl(var(--bg-card))',
+                    opacity: selectedFiles.length >= 5 ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={selectedFiles.length >= 5} />
+                  <UploadCloud size={24} style={{ color: 'hsl(var(--text-secondary))', margin: '0 auto 6px' }} />
+                  <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', margin: '0 0 4px' }}>
+                    Kéo thả hoặc click để chọn ảnh
+                  </p>
+                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Đã chọn {selectedFiles.length}/5 ảnh</span>
                 </div>
-              )}
+                {previews.length > 0 && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                    {previews.map((url, idx) => (
+                      <div key={idx} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
+                        <img src={url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); removeImage(idx); }}
+                          style={{ position: 'absolute', top: 2, right: 2, background: '#dc2626', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                        >
+                          <X size={10} color="white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -313,25 +278,25 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
                     Danh sách vật tư thiệt hại
                   </label>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setShowMaterialSelector(!showMaterialSelector)}
-                    className="btn btn-secondary" 
+                    className="btn btn-secondary"
                     style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
                   >
                     <Plus size={14} /> Thêm vật tư
                   </button>
                 </div>
-                
+
                 {showMaterialSelector && (
                   <div style={{ padding: '10px', background: 'hsl(var(--bg-muted))', borderRadius: '6px', marginBottom: '12px' }}>
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                       <div className="relative flex-1">
                         <Search size={14} className="absolute left-2.5 top-2.5 text-[hsl(var(--text-muted))]" />
-                        <input 
-                          type="text" 
-                          placeholder="Tìm vật tư theo mã hoặc tên..." 
-                          className="input" 
+                        <input
+                          type="text"
+                          placeholder="Tìm vật tư theo mã hoặc tên..."
+                          className="input"
                           style={{ paddingLeft: '32px', fontSize: '0.8rem' }}
                           value={searchMaterial}
                           onChange={e => setSearchMaterial(e.target.value)}
@@ -339,8 +304,8 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                       </div>
                     </div>
                     <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--bg-card))' }}>
-                      {inventory.filter(item => 
-                        item.materialCode.toLowerCase().includes(searchMaterial.toLowerCase()) || 
+                      {inventory.filter(item =>
+                        item.materialCode.toLowerCase().includes(searchMaterial.toLowerCase()) ||
                         item.materialName.toLowerCase().includes(searchMaterial.toLowerCase())
                       ).slice(0, 20).map(item => (
                         <div key={item.materialId} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderBottom: '1px solid hsl(var(--border))', fontSize: '0.8rem' }}>
@@ -389,11 +354,11 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                           </td>
                           <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <input 
-                                type="number" 
+                              <input
+                                type="number"
                                 min={0}
-                                className="input" 
-                                style={{ width: '80px', padding: '4px 8px' }} 
+                                className="input"
+                                style={{ width: '80px', padding: '4px 8px' }}
                                 value={m.quantityLost === 0 ? '' : m.quantityLost}
                                 onChange={e => {
                                   const val = parseFloat(e.target.value) || 0;
@@ -406,8 +371,8 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                             </div>
                           </td>
                           <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', textAlign: 'center' }}>
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               onClick={() => setDamagedMaterials(damagedMaterials.filter((_, i) => i !== idx))}
                               style={{ color: 'hsl(var(--danger))', background: 'transparent', border: 'none', cursor: 'pointer' }}
                             >

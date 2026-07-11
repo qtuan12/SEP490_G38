@@ -26,20 +26,20 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
         {
             var query = _uow.Repository<GoodsReceipt>().Query()
                 .Include(gr => gr.PurchaseOrder)
-                    .ThenInclude(po => po.Request)
-                        .ThenInclude(r => r.Phase)
+                    .ThenInclude(po => po!.Request)
+                        .ThenInclude(r => r!.Phase)
                 .AsQueryable();
 
             if (request.ProjectId.HasValue)
             {
-                query = query.Where(gr => gr.PurchaseOrder.Request.Phase.ProjectId == request.ProjectId.Value);
+                query = query.Where(gr => gr.PurchaseOrder!.Request!.Phase!.ProjectId == request.ProjectId.Value);
             }
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 var search = request.Search.Trim().ToLower();
                 query = query.Where(gr => gr.ReceiptNo.ToLower().Contains(search) 
-                                       || gr.PurchaseOrder.PONumber.ToLower().Contains(search)
+                                       || gr.PurchaseOrder!.PONumber.ToLower().Contains(search)
                                        || (gr.DelivererInfo != null && gr.DelivererInfo.ToLower().Contains(search)));
             }
 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authService } from '../services/authService';
 import type { UserDetailProfile } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/ui/Modal';
-import { User, Mail, Phone, BadgeCheck, Clock, ShieldAlert, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera } from 'lucide-react';
+import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X } from 'lucide-react';
+import { passwordRules, validatePassword } from '../utils/passwordPolicy';
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -25,6 +27,7 @@ const formatDateTime = (iso: string | null): string => {
 };
 
 export const Profile: React.FC = () => {
+  const { updateUser } = useAuth();
   const [profile, setProfile] = useState<UserDetailProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -75,6 +78,7 @@ export const Profile: React.FC = () => {
     try {
       const updated = await authService.updateProfile(editFullName.trim(), editPhone.trim() || null);
       setProfile(updated);
+      updateUser({ name: updated.fullName, avatarUrl: updated.avatarUrl });
       setShowEditModal(false);
     } catch (err: any) {
       setEditError(err.message || 'Cập nhật thất bại.');
@@ -103,6 +107,7 @@ export const Profile: React.FC = () => {
       const avatarUrl = await authService.uploadAvatar(file);
       const updated = await authService.updateProfile(profile.fullName, profile.phoneNumber, avatarUrl);
       setProfile(updated);
+      updateUser({ name: updated.fullName, avatarUrl: updated.avatarUrl });
     } catch (err: any) {
       setAvatarError(err.message || 'Tải ảnh đại diện thất bại.');
     } finally {
@@ -130,8 +135,9 @@ export const Profile: React.FC = () => {
     e.preventDefault();
     setPwError(null);
 
+    const pwPolicyError = validatePassword(newPassword);
+    if (pwPolicyError) { setPwError(pwPolicyError); return; }
     if (newPassword !== confirmPassword) { setPwError('Mật khẩu xác nhận không trùng khớp.'); return; }
-    if (newPassword.length < 6) { setPwError('Mật khẩu mới phải có ít nhất 6 ký tự.'); return; }
     if (currentPassword === newPassword) { setPwError('Mật khẩu mới phải khác mật khẩu hiện tại.'); return; }
 
     setPwLoading(true);
@@ -275,17 +281,6 @@ export const Profile: React.FC = () => {
         </div>
       </div>
 
-      {/* Security notice */}
-      <div className="glass-panel" style={{
-        padding: '12px 18px', display: 'flex', gap: '10px', alignItems: 'center',
-        backgroundColor: 'hsl(var(--warning-glow))', border: '1px solid hsl(var(--warning) / 0.2)',
-      }}>
-        <ShieldAlert size={17} style={{ color: 'hsl(var(--warning))', flexShrink: 0 }} />
-        <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', lineHeight: 1.5, margin: 0 }}>
-          <strong>Lưu ý bảo mật:</strong> Tránh chia sẻ tài khoản hoặc dùng mật khẩu dễ đoán. Mật khẩu nên có ít nhất 6 ký tự.
-        </p>
-      </div>
-
       {/* Edit Profile Modal */}
       <Modal isOpen={showEditModal} onClose={() => !editLoading && setShowEditModal(false)} title="Chỉnh sửa thông tin" width="sm">
         <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -376,8 +371,23 @@ export const Profile: React.FC = () => {
               id="new-pw" label="Mật khẩu mới"
               value={newPassword} onChange={setNewPassword}
               show={showNew} onToggle={() => setShowNew(v => !v)}
-              disabled={pwLoading} placeholder="Ít nhất 6 ký tự"
+              disabled={pwLoading} placeholder="Nhập mật khẩu mới"
             />
+
+            {newPassword.length > 0 && (
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: '4px', margin: '-8px 0 0', padding: 0, listStyle: 'none' }}>
+                {passwordRules.map((rule) => {
+                  const ok = rule.test(newPassword);
+                  return (
+                    <li key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: ok ? 'hsl(var(--success))' : 'hsl(var(--text-muted))' }}>
+                      {ok ? <Check size={14} style={{ flexShrink: 0 }} /> : <X size={14} style={{ flexShrink: 0 }} />}
+                      <span>{rule.label}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
             <PasswordField
               id="confirm-pw" label="Xác nhận mật khẩu mới"
               value={confirmPassword} onChange={setConfirmPassword}
