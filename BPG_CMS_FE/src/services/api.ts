@@ -101,11 +101,11 @@ export const apiClient = {
     return apiClient.request<T>(endpoint, { ...options, method: 'GET' });
   },
 
-  post<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
+  post<T>(endpoint: string, body?: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
     return apiClient.request<T>(endpoint, {
       ...options,
       method: 'POST',
-      body: JSON.stringify(body),
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {})
     });
   },
 
@@ -125,16 +125,16 @@ export const apiClient = {
     });
   },
 
-  put<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
+  put<T>(endpoint: string, body?: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
     return apiClient.request<T>(endpoint, {
       ...options,
       method: 'PUT',
-      body: JSON.stringify(body),
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {})
     });
   },
 
-  patch<T>(endpoint: string, body: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
-    return apiClient.request<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) });
+  patch<T>(endpoint: string, body?: any, options: Omit<RequestOptions, 'method' | 'body'> = {}): Promise<T> {
+    return apiClient.request<T>(endpoint, { ...options, method: 'PATCH', ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
   },
 
   delete<T>(endpoint: string, options: Omit<RequestOptions, 'method'> = {}): Promise<T> {

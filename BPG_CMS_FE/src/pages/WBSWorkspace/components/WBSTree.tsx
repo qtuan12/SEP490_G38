@@ -11,6 +11,13 @@ const getInitials = (name: string) => {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 };
 
+const getProgressColor = (progress: number) => {
+  if (progress === 100) return 'hsl(var(--success))';
+  if (progress >= 70) return 'hsl(var(--primary))';
+  if (progress > 0) return 'hsl(var(--warning))';
+  return 'hsl(var(--text-muted))';
+};
+
 const getAvatarColor = (userId: string) => {
   const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
@@ -337,9 +344,9 @@ export const WBSTree = () => {
                             </div>
 
                             {t.parentTaskId ? (
-                              <CornerDownRight size={12} style={{ color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }} />
+                              <CornerDownRight size={12} style={{ color: getProgressColor(t.progress), flexShrink: 0 }} />
                             ) : (
-                              <FileText size={13} style={{ color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }} />
+                              <FileText size={13} style={{ color: getProgressColor(t.progress), flexShrink: 0 }} />
                             )}
 
                             {/* Name */}
@@ -423,7 +430,7 @@ export const WBSTree = () => {
 
 
                             {/* Task context menu — only show ⋮ when task has NOT been worked on */}
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: getProgressColor(t.progress), flexShrink: 0 }}>
                               {t.progress}%
                             </span>
 
@@ -606,9 +613,9 @@ export const WBSTree = () => {
                               </div>
 
                               {t.parentTaskId ? (
-                                <CornerDownRight size={12} style={{ color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }} />
+                                <CornerDownRight size={12} style={{ color: getProgressColor(t.progress), flexShrink: 0 }} />
                               ) : (
-                                <FileText size={13} style={{ color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }} />
+                                <FileText size={13} style={{ color: getProgressColor(t.progress), flexShrink: 0 }} />
                               )}
 
                               {/* Name */}
@@ -692,7 +699,7 @@ export const WBSTree = () => {
 
 
                               {/* Task context menu — only show ⋮ when task has NOT been worked on */}
-                              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: getProgressColor(t.progress), flexShrink: 0 }}>
                                 {t.progress}%
                               </span>
 

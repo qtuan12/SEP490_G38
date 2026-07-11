@@ -108,7 +108,7 @@ export const SurplusRequestListTab: React.FC<SurplusRequestListTabProps> = ({
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
                 <tr>
-                  <th className="px-4 py-3">Mã Batch</th>
+                  <th className="px-4 py-3">Mã đề xuất</th>
                   <th className="px-4 py-3">Dự án</th>
                   <th className="px-4 py-3">Lý do</th>
                   <th className="px-4 py-3 text-center">Tiến độ</th>

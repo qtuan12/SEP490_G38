@@ -335,7 +335,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     onObsolete();
                   }
                 }} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: activeForm === 'obsolete' ? 'hsl(var(--danger))' : 'hsl(var(--bg-main))', color: activeForm === 'obsolete' ? '#fff' : 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
-                  <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa công việc'}</span>
+                  <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Tạm ngưng task' : 'Xóa công việc'}</span>
                 </button>
               </>
             )}
@@ -348,14 +348,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <button onClick={() => setActiveForm(activeForm === 'log' ? null : 'log')} className={`btn ${activeForm === 'log' ? 'btn-secondary' : 'btn-primary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }} disabled={isBlocked}>
                   <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
                 </button>
-                <button 
-                  onClick={() => { onClose(); navigate(`/tasks/${selectedTask.id}`); }} 
-                  className="btn btn-outline" 
-                  style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}
-                >
-                  <Smartphone size={15} />
-                  <span>Màn hình Kỹ sư</span>
-                </button>
+
               </>
             )}
             <button 
