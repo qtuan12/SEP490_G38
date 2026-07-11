@@ -35,16 +35,16 @@ export function DataTable<T>({
   className = '',
 }: DataTableProps<T>) {
   return (
-    <div className={`overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg ${className}`}>
+    <div className={`overflow-hidden border border-slate-200 rounded-xl bg-white ${className}`}>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-300">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+          <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
             <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                  className="px-4 py-3 text-slate-500 font-semibold uppercase whitespace-nowrap"
                   style={{ width: col.width }}
                 >
                   {col.header}
@@ -52,16 +52,16 @@ export function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-slate-200">
             {isLoading ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-8 text-center">
+                <td colSpan={columns.length} className="px-4 py-8 text-center">
                   <LoadingSpinner />
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-8 text-center text-sm text-gray-500">
+                <td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-slate-500">
                   {emptyMessage}
                 </td>
               </tr>
@@ -69,12 +69,12 @@ export function DataTable<T>({
               data.map((item) => (
                 <tr
                   key={keyExtractor(item)}
-                  className="hover:bg-gray-50 transition-colors"
+                  className="hover:bg-slate-50 transition-colors"
                   onClick={onRowClick ? () => onRowClick(item) : undefined}
                   style={onRowClick ? { cursor: 'pointer' } : undefined}
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className="px-6 py-4 text-sm text-gray-900 whitespace-normal break-words">
+                    <td key={col.key} className="px-4 py-3.5 text-sm text-slate-700 whitespace-normal break-words">
                       {col.render ? col.render(item) : (item as any)[col.key]}
                     </td>
                   ))}
