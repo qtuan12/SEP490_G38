@@ -4,6 +4,7 @@ import { inventoryService } from '../../../services/inventoryService';
 import type { PurchaseOrderDto, PurchaseOrderItemDto } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
 import { UploadCloud, X, AlertCircle } from 'lucide-react';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
 interface CreateReceiptModalProps {
   isOpen: boolean;
@@ -126,6 +127,11 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         ...prev,
         [materialId]: `Không được vượt quá số lượng còn lại của PO (${remaining} ${item.unitName}).`
       }));
+    } else if (isDiscreteUnit(item.unitName) && numVal % 1 !== 0) {
+      setErrors(prev => ({
+        ...prev,
+        [materialId]: `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`
+      }));
     } else {
       setErrors(prev => {
         const copy = { ...prev };
@@ -193,6 +199,8 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         itemErrors[item.materialId] = 'Số lượng không hợp lệ.';
       } else if (numVal > remaining) {
         itemErrors[item.materialId] = `Vượt quá giới hạn còn lại (${remaining}).`;
+      } else if (isDiscreteUnit(item.unitName) && numVal % 1 !== 0) {
+        itemErrors[item.materialId] = `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`;
       } else if (numVal > 0) {
         submitItems.push({
           materialId: item.materialId,
@@ -351,7 +359,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                           <div className="flex flex-col items-end gap-1">
                             <Input
                               type="number"
-                              step="any"
+                              step={isDiscreteUnit(item.unitName) ? "1" : "any"}
                               value={quantities[item.materialId] ?? ''}
                               onChange={e => handleQuantityChange(item.materialId, e.target.value, item)}
                               disabled={remaining <= 0 || submitting}

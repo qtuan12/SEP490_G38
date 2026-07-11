@@ -10,22 +10,40 @@ import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import type { WBSPhase, Project } from '../../types/common';
 import { Button, SearchSelect } from '../../components/ui';
+import { isDiscreteUnit } from '../../utils/unitHelpers';
 
 const phaseBOQSchema = z.object({
   materials: z.array(
     z.object({
       materialId: z.number().min(1, 'Vui lòng chọn vật tư.'),
-      quantity: z.number().min(0.001, 'Số lượng phải lớn hơn 0'),
+      quantity: z.number({ message: 'Vui lòng nhập số lượng.' }).min(0.001, 'Số lượng phải lớn hơn 0'),
       unitId: z.number().min(1, 'ĐVT không hợp lệ'),
       unit: z.string()
     })
   ).min(1, 'Cần ít nhất 1 vật tư')
-}).refine(data => {
+}).superRefine((data, ctx) => {
+  // 1. Kiểm tra trùng lặp vật tư
   const ids = data.materials.map(m => m.materialId).filter(id => id > 0);
-  return ids.length === new Set(ids).size;
-}, {
-  message: 'Danh sách vật tư không được trùng lặp.',
-  path: ['materials']
+  if (ids.length !== new Set(ids).size) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Danh sách vật tư không được trùng lặp.',
+      path: ['materials']
+    });
+  }
+
+  // 2. Ràng buộc ĐVT số nguyên không chấp nhận số lượng lẻ
+  data.materials.forEach((m, idx) => {
+    if (m.materialId > 0 && isDiscreteUnit(m.unit)) {
+      if (m.quantity % 1 !== 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Đơn vị "${m.unit}" yêu cầu số lượng phải là số nguyên.`,
+          path: ['materials', idx, 'quantity']
+        });
+      }
+    }
+  });
 });
 
 type PhaseBOQForm = z.infer<typeof phaseBOQSchema>;
@@ -50,6 +68,7 @@ export const PhaseBOQ: React.FC = () => {
 
   const { register, control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<PhaseBOQForm>({
     resolver: zodResolver(phaseBOQSchema),
+    mode: 'onTouched',
     defaultValues: {
       materials: [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }]
     }
@@ -278,8 +297,8 @@ export const PhaseBOQ: React.FC = () => {
                       <td className="py-2 pr-4 text-center">
                         <input 
                           type="number" 
-                          step="any"
-                          min={0.001} 
+                          step={isDiscreteUnit(watchedMaterials[idx]?.unit) ? "1" : "any"}
+                          min={isDiscreteUnit(watchedMaterials[idx]?.unit) ? 1 : 0.001} 
                           placeholder="Nhập SL..." 
                           {...register(`materials.${idx}.quantity` as const, { valueAsNumber: true })}
                           disabled={hasActiveMRs}

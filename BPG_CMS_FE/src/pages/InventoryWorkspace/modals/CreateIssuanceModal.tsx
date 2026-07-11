@@ -7,6 +7,7 @@ import type { CurrentInventory } from '../../../types/inventory';
 import type { WBSTask } from '../../../types/common';
 import type { MaterialConversion } from '../../../types/material';
 import { Trash2, Plus, AlertCircle, Loader2 } from 'lucide-react';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
 interface CreateIssuanceModalProps {
   isOpen: boolean;
@@ -214,6 +215,8 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
         err = 'Số lượng xuất tối thiểu là 0.001.';
       } else if (num > item.maxQty) {
         err = `Không vượt quá tồn khả dụng (${item.maxQty.toFixed(3)} ${item.unitName}).`;
+      } else if (isDiscreteUnit(item.unitName) && num % 1 !== 0) {
+        err = `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`;
       }
 
       copy[index] = {
@@ -432,7 +435,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                           <div className="w-24 bg-white border border-slate-300 rounded-lg px-2 py-1 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
                             <input
                               type="number"
-                              step="0.001"
+                              step={isDiscreteUnit(item.unitName) ? "1" : "any"}
                               placeholder="0.00"
                               value={item.quantity}
                               onChange={e => handleQuantityChange(idx, e.target.value)}

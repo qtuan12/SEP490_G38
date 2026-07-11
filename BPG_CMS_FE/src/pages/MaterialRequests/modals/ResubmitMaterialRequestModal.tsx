@@ -11,6 +11,7 @@ import type { MaterialCatalog } from '../../../../src/types/material';
 import type {MaterialRequest} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 import { SearchSelect } from '../../../../src/components/ui/SearchSelect';
+import { isDiscreteUnit } from '../../../../src/utils/unitHelpers';
 
 const resubmitMaterialRequestSchema = z.object({
   type: z.enum(['normal', 'emergency']),
@@ -20,7 +21,7 @@ const resubmitMaterialRequestSchema = z.object({
   items: z.array(
     z.object({
       name: z.string().min(1, 'Vui lòng nhập tên vật tư.'),
-      quantity: z.number().min(0.01, 'Số lượng phải > 0'),
+      quantity: z.number({ message: 'Vui lòng nhập số lượng.' }).min(0.01, 'Số lượng phải > 0'),
       unit: z.string().min(1, 'Vui lòng nhập ĐVT')
     })
   ).min(1, 'Cần ít nhất 1 vật tư')
@@ -32,6 +33,19 @@ const resubmitMaterialRequestSchema = z.object({
       path: ['invoiceImage']
     });
   }
+
+  // Ràng buộc ĐVT số nguyên không chấp nhận số lượng lẻ
+  data.items.forEach((item, idx) => {
+    if (item.name && isDiscreteUnit(item.unit)) {
+      if (item.quantity % 1 !== 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Đơn vị "${item.unit}" yêu cầu số lượng phải là số nguyên.`,
+          path: ['items', idx, 'quantity']
+        });
+      }
+    }
+  });
 });
 
 type ResubmitMaterialRequestForm = z.infer<typeof resubmitMaterialRequestSchema>;
@@ -66,6 +80,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   
   const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<ResubmitMaterialRequestForm>({
     resolver: zodResolver(resubmitMaterialRequestSchema),
+    mode: 'onTouched',
     defaultValues: {
       type: request.type || 'normal',
       reason: request.reason || '',
@@ -217,8 +232,8 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                 <div>
                   <input
                     type="number"
-                    min={0.01}
-                    step="0.01"
+                    min={isDiscreteUnit(watchedItems[idx]?.unit) ? 1 : 0.01}
+                    step={isDiscreteUnit(watchedItems[idx]?.unit) ? "1" : "any"}
                     placeholder="SL"
                     {...register(`items.${idx}.quantity` as const, { valueAsNumber: true })}
                     className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
