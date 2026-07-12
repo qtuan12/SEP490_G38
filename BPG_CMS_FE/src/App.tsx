@@ -29,7 +29,6 @@ import { NotificationsList } from './pages/Notifications';
 import { InventoryAdjustmentsPage } from './pages/InventoryAdjustments';
 import { BoqVsActualReport } from './pages/Reports/BoqVsActualReport';
 import { CostReferenceReport } from './pages/Reports/CostReferenceReport';
-import { ReportsHub } from './pages/ReportsHub';
 import { GlobalIncidents } from './pages/GlobalIncidents';
 import { MaterialControl } from './pages/MaterialControl';
 import { PurchaseOrderList } from './pages/PurchaseOrders';
@@ -37,6 +36,7 @@ import { CreatePOPage } from './pages/PurchaseOrders/CreatePOPage';
 import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
 import { SystemConfigPage } from './pages/SystemConfig';
 import { DirectPurchaseList } from './pages/DirectPurchases';
+import { ReportsHub } from './pages/ReportsHub';
 
 const queryClient = new QueryClient({
   defaultOptions: {

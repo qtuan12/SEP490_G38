@@ -1294,8 +1294,13 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               <button onClick={() => setIsResubmittingByDirector(true)} className="btn btn-outline" style={{ minWidth: '180px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--warning))', borderColor: 'hsl(var(--warning))' }}>
                 ⚠️ Yêu cầu làm lại (Resubmit)
               </button>
-              <button onClick={onResolveClick} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}>
-                🏗 Duyệt &amp; Áp dụng Phương án
+              <button
+                onClick={() => directorApproveDirectlyMutation.mutate()}
+                className="btn btn-primary"
+                style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}
+                disabled={directorApproveDirectlyMutation.isPending}
+              >
+                {directorApproveDirectlyMutation.isPending ? 'Đang xử lý...' : '🏗 Duyệt & Áp dụng Phương án'}
               </button>
             </div>
           )

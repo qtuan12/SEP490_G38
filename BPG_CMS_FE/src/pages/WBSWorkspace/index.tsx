@@ -5,13 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { wbsService } from '../../services/wbsService';
+import { incidentService } from '../../services/incidentService';
 import { useNotification } from '../../context/NotificationContext';
 import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
-import { AlertTriangle, FileText, BarChart2, History } from 'lucide-react';
-import { Button, ConfirmDialog } from '../../components/ui';
+import { FileText, BarChart2, History } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui';
 
 
 interface WBSWorkspaceProps {
@@ -28,17 +29,19 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { data: wbsDataAll, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['wbsDataAll', projectId],
     queryFn: async () => {
-      const [wbsData, allProjs, memberList, mr] = await Promise.all([
+      const [wbsData, allProjs, memberList, mr, incidentsList] = await Promise.all([
         wbsService.getWbsDataFlattened(projectId),
         projectService.getProjects(),
         projectService.getMembers(projectId),
-        projectService.getMaterialRequests(projectId)
+        projectService.getMaterialRequests(projectId),
+        incidentService.getIncidents(Number(projectId.replace('p-', '')))
       ]);
       return {
         wbsData,
         project: allProjs.find(p => p.id === projectId) || null,
         memberList,
-        materialRequests: mr
+        materialRequests: mr,
+        incidentsList
       };
     }
   });
@@ -212,7 +215,14 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return phaseTasks.every(t => t.progress === 100);
   };
 
-  const canEdit = isTPKTOrPL && project?.status !== 'paused' && project?.status !== 'done';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const incidentsList = wbsDataAll?.incidentsList || [];
+  const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
+
+  const canEdit = isTPKTOrPL && (
+    project?.status !== 'paused' ||
+    (isTPKT && hasApprovedEmergencyIncident)
+  ) && project?.status !== 'done';
 
   // ── Material Request Actions ─────────────────────────
   const handleApproveByLeader = async (requestId: string) => {
@@ -373,7 +383,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
-            <h3 className="text-[1.15rem] font-semibold m-0">Cơ cấu phân rã công việc (WBS)</h3>
+            <h3 className="text-[1.15rem] font-semibold m-0">Cơ cấu phân rã công việc</h3>
             <p className="text-[0.8rem] text-[hsl(var(--text-muted))] mt-1 mb-0">
               Số thứ tự được hiển thị trước tên · Nhấn ▲▼ để sắp xếp lại · Click <strong className="font-bold">⋮</strong> để đổi tên / xóa
             </p>

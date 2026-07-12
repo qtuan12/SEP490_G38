@@ -107,13 +107,49 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     incident.HandlingInstruction = request.HandlingInstruction;
                 }
 
-                await _notificationService.SendNotificationToRoleAsync(
-                    BPG.Domain.Constants.UserRole.TechnicalManager,
-                    "Yêu cầu dừng thi công đã được duyệt",
-                    $"Yêu cầu dừng thi công do sự cố tại dự án {incident.Project.Name} đã được duyệt. Vui lòng lập báo cáo kế hoạch khắc phục.",
+                await _notificationService.SendNotificationAsync(
+                    incident.ReportedBy,
+                    "Yêu cầu tạm dừng dự án đã được phê duyệt",
+                    $"Yêu cầu tạm dừng dự án {incident.Project.Name} do sự cố khẩn cấp đã được duyệt. Dự án đã chuyển sang trạng thái Tạm dừng thi công.",
                     "IncidentAssessed",
                     $"/projects/{incident.ProjectId}/workspace/incidents"
                 );
+
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.TechnicalManager,
+                    "Cần lập kế hoạch khắc phục sự cố",
+                    $"Dự án {incident.Project.Name} đang tạm dừng thi công. Vui lòng lập báo cáo kế hoạch khắc phục.",
+                    "IncidentAssessed",
+                    $"/projects/{incident.ProjectId}/workspace/incidents"
+                );
+
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.Director,
+                    "Dự án đã tạm dừng thi công",
+                    $"Dự án {incident.Project.Name} đã chính thức tạm dừng thi công do sự cố khẩn cấp. Đang chờ TPKT nộp phương án khắc phục.",
+                    "IncidentAssessed",
+                    $"/projects/{incident.ProjectId}/workspace/incidents"
+                );
+
+                // Notify all project members
+                var projectMembers = await _unitOfWork.Repository<ProjectMember>()
+                    .Query()
+                    .Where(pm => pm.ProjectId == incident.ProjectId)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var pm in projectMembers)
+                {
+                    if (pm.UserId != currentUserId)
+                    {
+                        await _notificationService.SendNotificationAsync(
+                            pm.UserId,
+                            "Dự án tạm dừng thi công",
+                            $"Dự án {incident.Project.Name} đã chính thức tạm dừng thi công do sự cố khẩn cấp.",
+                            "IncidentAssessed",
+                            $"/projects/{incident.ProjectId}/workspace/incidents"
+                        );
+                    }
+                }
             }
             else if (incident.Status == "WaitingRecoveryPlan")
             {
@@ -159,6 +195,30 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 }
                 else
                 {
+                    // Obsolete all unfinished tasks in the project
+                    var unfinishedTasks = await _unitOfWork.Repository<ProjectTask>()
+                        .Query()
+                        .Include(t => t.Phase)
+                        .Where(t => t.Phase.ProjectId == incident.ProjectId && t.ProgressPercent < 100 && t.Status != "Obsolete")
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var task in unfinishedTasks)
+                    {
+                        task.Status = "Obsolete";
+                        task.ObsoleteReason = $"Tự động hủy (Obsolete) do Sự cố khẩn cấp của dự án: {incident.Description}";
+                        _unitOfWork.Repository<ProjectTask>().Update(task);
+
+                        var taskLog = new TaskProgressLog
+                        {
+                            TaskId = task.TaskId,
+                            OldProgress = task.ProgressPercent,
+                            NewProgress = task.ProgressPercent,
+                            UpdateReason = "Task bị đánh dấu Hủy (Obsolete) do Sự cố đặc biệt nghiêm trọng của dự án: " + incident.Description,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+                        await _unitOfWork.Repository<TaskProgressLog>().AddAsync(taskLog);
+                    }
+
                     if (request.CreateReworkTask)
                     {
                         if (incident.Task == null)
@@ -242,13 +302,6 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         }
                     }
 
-                    if (incident.Project.Status == ProjectStatus.Paused)
-                    {
-                        incident.Project.Status = ProjectStatus.InProgress;
-                        incident.Project.ResumedAt = DateTime.UtcNow;
-                        _unitOfWork.Repository<Project>().Update(incident.Project);
-                    }
-
                     incident.Status = "Approved";
                     incident.ReviewedBy = currentUserId;
                     if (!string.IsNullOrWhiteSpace(request.HandlingInstruction))
@@ -259,7 +312,15 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     await _notificationService.SendNotificationAsync(
                         incident.ReportedBy,
                         "Kế hoạch khắc phục sự cố đã được phê duyệt",
-                        $"Báo cáo kế hoạch khắc phục sự cố tại dự án {incident.Project.Name} đã được phê duyệt. Dự án được kích hoạt thi công lại.",
+                        $"Báo cáo kế hoạch khắc phục sự cố tại dự án {incident.Project.Name} đã được phê duyệt. Vui lòng thiết lập Phase/Task khắc phục tại Kế hoạch thi công.",
+                        "IncidentApproved",
+                        $"/projects/{incident.ProjectId}/workspace/incidents"
+                    );
+
+                    await _notificationService.SendNotificationToRoleAsync(
+                        BPG.Domain.Constants.UserRole.TechnicalManager,
+                        "Kế hoạch khắc phục sự cố đã được phê duyệt",
+                        $"Báo cáo kế hoạch khắc phục sự cố tại dự án {incident.Project.Name} đã được Giám đốc phê duyệt. Vui lòng thiết lập Phase/Task khắc phục tại Kế hoạch thi công và kích hoạt lại dự án.",
                         "IncidentApproved",
                         $"/projects/{incident.ProjectId}/workspace/incidents"
                     );

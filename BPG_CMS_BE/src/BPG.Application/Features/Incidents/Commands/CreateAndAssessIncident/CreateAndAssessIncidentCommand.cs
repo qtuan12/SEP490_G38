@@ -154,13 +154,34 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         }
         else
         {
-            await _notificationService.SendNotificationToRoleAsync(
-                BPG.Domain.Constants.UserRole.TechnicalManager,
-                "Báo cáo sự cố mới",
-                $"Có một sự cố thi công mới tại dự án {project.Name} đang chờ Trưởng phòng Kỹ thuật thẩm định.",
-                "IncidentReported",
-                $"/projects/{project.ProjectId}/workspace/incidents"
-            );
+            if (request.IsEmergency)
+            {
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.TechnicalManager,
+                    "Yêu cầu dừng thi công khẩn cấp",
+                    $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng. Vui lòng thẩm định ngay!",
+                    "IncidentReported",
+                    $"/projects/{project.ProjectId}/workspace/incidents"
+                );
+
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.Director,
+                    "Yêu cầu dừng thi công khẩn cấp",
+                    $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng.",
+                    "IncidentReported",
+                    $"/projects/{project.ProjectId}/workspace/incidents"
+                );
+            }
+            else
+            {
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.TechnicalManager,
+                    "Báo cáo sự cố mới",
+                    $"Có một sự cố thi công mới tại dự án {project.Name} đang chờ Trưởng phòng Kỹ thuật thẩm định.",
+                    "IncidentReported",
+                    $"/projects/{project.ProjectId}/workspace/incidents"
+                );
+            }
         }
 
         var dto = _mapper.Map<IncidentDto>(incident);

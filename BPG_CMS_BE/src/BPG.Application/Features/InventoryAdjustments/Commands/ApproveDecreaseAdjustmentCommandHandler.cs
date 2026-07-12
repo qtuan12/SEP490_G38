@@ -97,7 +97,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                         "Phiếu điều chỉnh giảm tồn bị từ chối",
                         $"Phiếu điều chỉnh giảm tồn #{adjustment.AdjustmentId} đã bị Giám đốc từ chối. Lý do: {request.RejectedReason}",
                         BPG.Domain.Constants.NotificationType.Procurement,
-                        BPG.Domain.Constants.NotificationReferenceType.InventoryAdjustment,
+                        $"/projects/{adjustment.ProjectId}/workspace/inventoryadjustments",
                         adjustment.AdjustmentId,
                         cancellationToken
                     );
@@ -206,7 +206,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     "Phiếu điều chỉnh giảm tồn được phê duyệt",
                     $"Phiếu điều chỉnh giảm tồn #{adjustment.AdjustmentId} đã được Giám đốc phê duyệt. Tồn kho đã được cập nhật.",
                     BPG.Domain.Constants.NotificationType.Procurement,
-                    BPG.Domain.Constants.NotificationReferenceType.InventoryAdjustment,
+                    $"/projects/{adjustment.ProjectId}/workspace/inventoryadjustments",
                     adjustment.AdjustmentId,
                     cancellationToken
                 );

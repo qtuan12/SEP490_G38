@@ -194,7 +194,7 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
                       padding: '2px',
                       display: 'flex',
                       alignItems: 'center',
-                      justify: 'center',
+                      justifyContent: 'center',
                     }}
                   >
                     <X size={10} />
