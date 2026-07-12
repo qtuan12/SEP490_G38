@@ -65,10 +65,10 @@ namespace BPG.Application.Features.Notifications.Handlers
                 }
 
                 if (!targetUsers.Any())
-                {
-                    _logger.LogWarning("Không tìm thấy người dùng nhận thông báo hợp lệ cho request: {@Request}", request);
-                    return;
-                }
+{
+    _logger.LogWarning("Không tìm thấy người dùng nhận thông báo hợp lệ cho request: {@Request}", request);
+    throw new Exception("Không tìm thấy người dùng nhận thông báo hợp lệ."); 
+}
 
                 _logger.LogInformation("Đã xác định {UserCount} người nhận thông báo.", targetUsers.Count);
 

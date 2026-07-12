@@ -108,6 +108,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     } catch (err: any) {
       console.error('Error cancelling goods receipt:', err);
       setActionError(err.message || 'Lỗi hệ thống khi hủy phiếu nhập kho.');
+      setIsConfirmCancelOpen(false);
     } finally {
       setCancelling(false);
     }
@@ -301,7 +302,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                     <div className="flex flex-col gap-2.5 text-slate-600 justify-center">
                       <div className="flex items-center gap-2">
                         <FileText size={16} className="text-slate-400" />
-                        <span className="font-medium">Mã đơn hàng PO:</span>
+                        <span className="font-medium">Mã đơn hàng:</span>
                         <span className="text-slate-900 font-semibold">{detail.poNumber}</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -348,7 +349,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                   <div className="flex flex-col gap-2.5">
                     <div className="flex items-center gap-2 text-slate-600">
                       <FileText size={16} className="text-slate-400" />
-                      <span className="font-medium">Mã đơn hàng PO:</span>
+                      <span className="font-medium">Mã đơn hàng:</span>
                       <span className="text-slate-900 font-semibold">{detail.poNumber}</span>
                     </div>
                     <div className="flex items-center gap-2 text-slate-600">
@@ -364,7 +365,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                   </div>
 
                   <div className="flex flex-col gap-2.5">
-                     <div className="flex items-center gap-2 text-slate-600">
+                    <div className="flex items-center gap-2 text-slate-600">
                       <User size={16} className="text-slate-400" />
                       <span className="font-medium">Người giao hàng:</span>
                       <span className="text-slate-900">
@@ -387,12 +388,12 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                         if (status.includes("Đạt")) badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
                         else if (status.includes("Không")) badgeClass = "bg-rose-50 text-rose-700 border-rose-200";
                         else if (status.includes("Chờ")) badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
-                        
+
                         return (
                           <div className="flex items-center gap-2 text-slate-600">
                             <FileText size={16} className="text-slate-400" />
-                            <span className="font-medium">Chất lượng kiểm hàng:</span>
-                            <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-semibold border ${badgeClass}`}>
+                            <span className="font-medium">Ghi chú:</span>
+                            <span className={`inline-flex text-xs font-semibold ${badgeClass}`}>
                               {status}
                             </span>
                           </div>
@@ -516,7 +517,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                         <div key={file.id} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200">
                           <div className={`relative w-full h-full rounded overflow-hidden border ${file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-slate-200'}`}>
                             <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
-                            
+
                             {file.status === 'uploading' && (
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                 <Loader2 size={16} className="animate-spin text-white" />
@@ -531,7 +532,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                               <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">OK</span>
                             )}
                           </div>
-                          
+
                           <button
                             type="button"
                             onClick={() => removeSelectedFile(file.id)}
@@ -594,7 +595,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
         onClose={() => setIsConfirmCancelOpen(false)}
         onConfirm={handleCancelReceipt}
         title="Hủy Phiếu Nhập Kho"
-        message={`Bạn có chắc chắn muốn HỦY phiếu nhập kho ${detail?.receiptNo || ''}? Hệ thống sẽ tự động trừ số lượng vật tư này khỏi kho thực tế dự án và cập nhật lại số lượng nhận trên đơn hàng PO. Hành động này không thể hoàn tác.`}
+        message={`Bạn có chắc chắn muốn HỦY phiếu nhập kho ${detail?.receiptNo || ''}? Hệ thống sẽ tự động trừ số lượng vật tư này khỏi kho thực tế dự án và cập nhật lại số lượng nhận trên đơn hàng. Hành động này không thể hoàn tác.`}
         confirmText="Xác nhận hủy"
         cancelText="Đóng"
         isDanger={true}
