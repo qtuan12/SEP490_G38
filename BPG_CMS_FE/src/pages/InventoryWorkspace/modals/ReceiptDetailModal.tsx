@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, Input, FormItem, ConfirmDialog } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
-import { projectService } from '../../../services/projectService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import type { GoodsReceiptDetail, GoodsReceiptItemDetail } from '../../../types/inventory';
 import { useAuth } from '../../../context/AuthContext';
@@ -19,6 +18,10 @@ import {
   UploadCloud,
   AlertCircle
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { compressAndUploadFile } from '../../../utils/uploadHelper';
+import type { UploadedFileState } from '../../../utils/uploadHelper';
+
 
 interface ReceiptDetailModalProps {
   isOpen: boolean;
@@ -44,7 +47,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
   const [delivererInfo, setDelivererInfo] = useState('');
   const [deliveryDocNo, setDeliveryDocNo] = useState('');
   const [existingImages, setExistingImages] = useState<string[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const [dragging, setDragging] = useState(false);
 
   // Actions states
@@ -64,6 +67,14 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     }
   }, [isOpen, receiptId]);
 
+  useEffect(() => {
+    return () => {
+      uploadedFiles.forEach(p => {
+        if (p.url && p.url.startsWith('blob:')) URL.revokeObjectURL(p.url);
+      });
+    };
+  }, [uploadedFiles]);
+
   const fetchDetail = async () => {
     if (!receiptId) return;
     setLoading(true);
@@ -75,7 +86,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
       setDelivererInfo(data.delivererInfo || '');
       setDeliveryDocNo(data.deliveryDocNo || '');
       setExistingImages(data.images || []);
-      setSelectedFiles([]);
+      setUploadedFiles([]);
     } catch (err: any) {
       console.error('Error fetching receipt detail:', err);
       setError(err.message || 'Không thể tải chi tiết phiếu nhập kho.');
@@ -105,13 +116,17 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
   const handleSaveMetadata = async () => {
     if (!receiptId) return;
 
+    if (uploadedFiles.some(f => f.status === 'uploading')) {
+      toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
+      return;
+    }
+
     setSaving(true);
     setActionError(null);
     try {
-      let uploadedUrls: string[] = [];
-      if (selectedFiles.length > 0) {
-        uploadedUrls = await projectService.uploadFiles(selectedFiles, 'goodsreceipts');
-      }
+      const uploadedUrls = uploadedFiles
+        .filter(f => f.status === 'success' && f.url)
+        .map(f => f.url!);
 
       const finalImages = [...existingImages, ...uploadedUrls];
 
@@ -140,15 +155,54 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
 
   const addFiles = (files: File[]) => {
     const imgFiles = files.filter(f => f.type.startsWith('image/'));
-    setSelectedFiles(prev => {
-      const merged = [...prev, ...imgFiles];
-      const maxAllowed = 5 - existingImages.length;
-      return merged.slice(0, Math.max(0, maxAllowed));
+    const maxAllowed = 5 - (existingImages.length + uploadedFiles.length);
+    if (maxAllowed <= 0) {
+      toast.error('Tổng số ảnh (cũ + mới) không được vượt quá 5.');
+      return;
+    }
+
+    const toUpload = imgFiles.slice(0, maxAllowed);
+    if (!toUpload.length) return;
+
+    toUpload.forEach(file => {
+      const tempId = Math.random().toString(36).substring(7);
+      const localUrl = URL.createObjectURL(file);
+
+      const newFileState: UploadedFileState = {
+        id: tempId,
+        name: file.name,
+        url: localUrl,
+        status: 'uploading'
+      };
+
+      setUploadedFiles(prev => [...prev, newFileState]);
+
+      compressAndUploadFile(
+        file,
+        'goodsreceipts',
+        (uploadedUrl) => {
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
+          );
+        },
+        () => {
+          toast.error(`Tải ảnh ${file.name} lên thất bại.`);
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
+          );
+        }
+      );
     });
   };
 
-  const removeSelectedFile = (idxToRemove: number) => {
-    setSelectedFiles(prev => prev.filter((_, idx) => idx !== idxToRemove));
+  const removeSelectedFile = (id: string) => {
+    setUploadedFiles(prev => {
+      const target = prev.find(f => f.id === id);
+      if (target && target.url && target.url.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter(f => f.id !== id);
+    });
   };
 
   // Check role for Cancel permission (Manager roles and Admin)
@@ -424,7 +478,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                   )}
 
                   {/* Upload New Section */}
-                  {existingImages.length < 5 && (
+                  {existingImages.length + uploadedFiles.length < 5 && (
                     <div
                       onDragOver={e => { e.preventDefault(); setDragging(true); }}
                       onDragLeave={() => setDragging(false)}
@@ -450,29 +504,43 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                         Kéo thả hoặc click để thêm ảnh mới
                       </p>
                       <span className="text-[10px] text-slate-500">
-                        Tổng số ảnh tối đa là 5 (hiện tại còn được chọn thêm {5 - existingImages.length} ảnh)
+                        Tổng số ảnh tối đa là 5 (hiện tại còn được chọn thêm {5 - (existingImages.length + uploadedFiles.length)} ảnh)
                       </span>
                     </div>
                   )}
 
                   {/* Selected Files Preview */}
-                  {selectedFiles.length > 0 && (
+                  {uploadedFiles.length > 0 && (
                     <div className="flex gap-3 flex-wrap">
-                      {selectedFiles.map((file, idx) => {
-                        const previewUrl = URL.createObjectURL(file);
-                        return (
-                          <div key={idx} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200">
-                            <img src={previewUrl} alt="preview" className="w-full h-full object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => removeSelectedFile(idx)}
-                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-80 hover:opacity-100 transition-opacity"
-                            >
-                              <X size={12} />
-                            </button>
+                      {uploadedFiles.map((file) => (
+                        <div key={file.id} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200">
+                          <div className={`relative w-full h-full rounded overflow-hidden border ${file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-slate-200'}`}>
+                            <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                            
+                            {file.status === 'uploading' && (
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <Loader2 size={16} className="animate-spin text-white" />
+                              </div>
+                            )}
+
+                            {file.status === 'error' && (
+                              <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                            )}
+
+                            {file.status === 'success' && (
+                              <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">OK</span>
+                            )}
                           </div>
-                        );
-                      })}
+                          
+                          <button
+                            type="button"
+                            onClick={() => removeSelectedFile(file.id)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-80 hover:opacity-100 transition-opacity z-10 border-none outline-none cursor-pointer"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

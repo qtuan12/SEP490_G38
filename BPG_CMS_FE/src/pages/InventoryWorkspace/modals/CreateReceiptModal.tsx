@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Button, Input, FormItem, Select } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import type { PurchaseOrderDto, PurchaseOrderItemDto } from '../../../services/inventoryService';
-import { projectService } from '../../../services/projectService';
-import { UploadCloud, X, AlertCircle } from 'lucide-react';
+import { UploadCloud, X, AlertCircle, Loader2 } from 'lucide-react';
+import { compressAndUploadFile } from '../../../utils/uploadHelper';
+import type { UploadedFileState } from '../../../utils/uploadHelper';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
 interface CreateReceiptModalProps {
@@ -33,7 +34,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   const [errors, setErrors] = useState<Record<number, string>>({}); // materialId -> error message
 
   // Files upload
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const [dragging, setDragging] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
@@ -48,7 +49,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       setQcNote('');
       setQuantities({});
       setErrors({});
-      setSelectedFiles([]);
+      setUploadedFiles([]);
       setGeneralError(null);
     }
   }, [isOpen]);
@@ -167,14 +168,51 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
   const addFiles = (files: File[]) => {
     const validImages = files.filter(file => file.type.startsWith('image/'));
-    setSelectedFiles(prev => {
-      const merged = [...prev, ...validImages];
-      return merged.slice(0, 5); // Max 5 files
+    const remaining = 5 - uploadedFiles.length;
+    if (remaining <= 0) {
+      return;
+    }
+    const toUpload = validImages.slice(0, remaining);
+    if (!toUpload.length) return;
+
+    toUpload.forEach(file => {
+      const tempId = Math.random().toString(36).substring(7);
+      const localUrl = URL.createObjectURL(file);
+
+      const newFileState: UploadedFileState = {
+        id: tempId,
+        name: file.name,
+        url: localUrl,
+        status: 'uploading'
+      };
+
+      setUploadedFiles(prev => [...prev, newFileState]);
+
+      compressAndUploadFile(
+        file,
+        'goodsreceipts',
+        (uploadedUrl) => {
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
+          );
+        },
+        () => {
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
+          );
+        }
+      );
     });
   };
 
-  const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  const removeFile = (id: string) => {
+    setUploadedFiles(prev => {
+      const target = prev.find(f => f.id === id);
+      if (target && target.url && target.url.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter(f => f.id !== id);
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,17 +259,21 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
     }
 
     // Custom business validation: Goods Receipt requires at least one photo
-    if (selectedFiles.length === 0) {
+    if (uploadedFiles.length === 0) {
       setGeneralError('Biên bản nhận hàng bắt buộc phải có ảnh chụp vật tư thực tế tại công trường.');
+      return;
+    }
+
+    if (uploadedFiles.some(f => f.status === 'uploading')) {
+      setGeneralError('Vui lòng chờ hình ảnh tải lên hoàn tất.');
       return;
     }
 
     setSubmitting(true);
     try {
-      let imageUrls: string[] = [];
-      if (selectedFiles.length > 0) {
-        imageUrls = await projectService.uploadFiles(selectedFiles, 'goodsreceipts');
-      }
+      const imageUrls = uploadedFiles
+        .filter(f => f.status === 'success' && f.url)
+        .map(f => f.url!);
 
       await inventoryService.createGoodsReceipt({
         poId: selectedPO.poId,
@@ -392,11 +434,11 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => {
-              if (selectedFiles.length < 5 && !submitting) {
+              if (uploadedFiles.length < 5 && !submitting) {
                 document.getElementById('receipt-image-input')?.click();
               }
             }}
-            className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${selectedFiles.length >= 5
+            className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${uploadedFiles.length >= 5
                 ? 'border-slate-200 bg-slate-100 cursor-not-allowed opacity-60'
                 : dragging
                   ? 'border-blue-500 bg-blue-50'
@@ -410,37 +452,51 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
               multiple
               className="hidden"
               onChange={handleFileSelect}
-              disabled={selectedFiles.length >= 5 || submitting}
+              disabled={uploadedFiles.length >= 5 || submitting}
             />
             <UploadCloud size={32} className="text-slate-400 mx-auto mb-2" />
             <p className="text-sm font-medium text-slate-600 mb-0.5">
               Kéo thả hình ảnh vào đây hoặc click để chọn ảnh
             </p>
             <span className="text-xs text-slate-500">
-              Đã chọn {selectedFiles.length}/5 ảnh (Bắt buộc ít nhất 1 ảnh chụp vật tư thực tế)
+              Đã chọn {uploadedFiles.length}/5 ảnh (Bắt buộc ít nhất 1 ảnh chụp vật tư thực tế)
             </span>
           </div>
 
-          {selectedFiles.length > 0 && (
+          {uploadedFiles.length > 0 && (
             <div className="flex gap-3 mt-3 flex-wrap">
-              {selectedFiles.map((file, idx) => {
-                const previewUrl = URL.createObjectURL(file);
-                return (
-                  <div key={idx} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200 group">
-                    <img src={previewUrl} alt="preview" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFile(idx);
-                      }}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-80 hover:opacity-100 transition-opacity"
-                    >
-                      <X size={12} />
-                    </button>
+              {uploadedFiles.map((file) => (
+                <div key={file.id} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200 group">
+                  <div className={`relative w-full h-full rounded overflow-hidden border ${file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-slate-200'}`}>
+                    <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                    
+                    {file.status === 'uploading' && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <Loader2 size={16} className="animate-spin text-white" />
+                      </div>
+                    )}
+
+                    {file.status === 'error' && (
+                      <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                    )}
+
+                    {file.status === 'success' && (
+                      <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">OK</span>
+                    )}
                   </div>
-                );
-              })}
+                  
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFile(file.id);
+                    }}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-80 hover:opacity-100 transition-opacity z-10 border-none outline-none cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>

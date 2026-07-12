@@ -6,8 +6,10 @@ import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { Button, Input, FormItem } from '../../../components/ui';
 import { projectService } from '../../../services/projectService';
-import { apiClient } from '../../../services/api';
-import { UploadCloud, FileText } from 'lucide-react';
+import { UploadCloud, FileText, Loader2, X } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { compressAndUploadFile } from '../../../utils/uploadHelper';
+import type { UploadedFileState } from '../../../utils/uploadHelper';
 
 const schema = z.object({
   name: z.string().min(3, 'Tên dự án phải có ít nhất 3 ký tự'),
@@ -46,7 +48,7 @@ interface CreateProjectModalProps {
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [dragging, setDragging] = useState(false);
-  const [filePreviews, setFilePreviews] = useState<{ file: File, url: string | null }[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const todayStr = new Date().toISOString().split('T')[0];
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, reset, watch } = useForm<FormData>({
@@ -72,35 +74,17 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
 
   React.useEffect(() => {
     return () => {
-      filePreviews.forEach(p => {
-        if (p.url) URL.revokeObjectURL(p.url);
+      uploadedFiles.forEach(p => {
+        if (p.url && p.url.startsWith('blob:')) URL.revokeObjectURL(p.url);
       });
     };
-  }, [filePreviews]);
+  }, [uploadedFiles]);
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      let attachments: any[] = [];
-      let drawingUrls: string[] = data.drawingNames;
-
-      if (filePreviews.length > 0) {
-        const formData = new globalThis.FormData();
-        filePreviews.forEach(p => {
-          formData.append('files', p.file);
-        });
-        formData.append('folder', 'projects/design');
-
-        try {
-          const uploadRes = await apiClient.postFormData<any>('/files/upload-multiple', formData);
-          if (uploadRes.success && uploadRes.data) {
-            attachments = uploadRes.data;
-            drawingUrls = uploadRes.data.map((f: any) => f.fileUrl);
-          }
-        } catch (error) {
-          console.error("Lỗi upload file:", error);
-          throw new Error("Lỗi upload file thiết kế");
-        }
-      }
+      const successUrls = uploadedFiles
+        .filter(f => f.status === 'success' && f.url)
+        .map(f => f.url!);
 
       await projectService.createProject({
         name: data.name,
@@ -108,19 +92,28 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
         startDate: data.startDate,
         endDate: data.endDate,
         status: data.status,
-        drawingUrls: drawingUrls,
-        attachments: attachments
+        drawingUrls: successUrls,
+        attachments: successUrls.map(url => ({
+          fileName: url.substring(url.lastIndexOf('/') + 1),
+          fileUrl: url,
+          fileType: url.endsWith('.pdf') ? 'pdf' : 'image',
+          attachmentType: 'design'
+        }))
       });
     },
     onSuccess: () => {
       onSuccess();
       reset();
-      setFilePreviews([]);
+      setUploadedFiles([]);
       onClose();
     }
   });
 
   const onSubmit = async (data: FormData) => {
+    if (uploadedFiles.some(f => f.status === 'uploading')) {
+      toast.error('Vui lòng chờ bản vẽ thiết kế tải lên hoàn tất.');
+      return;
+    }
     await mutation.mutateAsync(data);
   };
 
@@ -137,45 +130,79 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
     e.preventDefault();
     setDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const files = Array.from(e.dataTransfer.files);
-      const totalSize = files.reduce((acc, f) => acc + f.size, 0);
-      if (totalSize > 20 * 1024 * 1024) {
-        alert(`Tổng dung lượng các file không được vượt quá 20MB (Đã chọn: ${(totalSize / 1024 / 1024).toFixed(2)}MB).`);
-        return;
-      }
-      const previews = files.map(f => ({
-        file: f,
-        url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null
-      }));
-      setFilePreviews(previews);
-      setValue('drawingNames', files.map(f => f.name), { shouldValidate: true });
+      addFiles(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files);
-      const totalSize = files.reduce((acc, f) => acc + f.size, 0);
-      if (totalSize > 20 * 1024 * 1024) {
-        alert(`Tổng dung lượng các file không được vượt quá 20MB (Đã chọn: ${(totalSize / 1024 / 1024).toFixed(2)}MB).`);
-        return;
-      }
-      const previews = files.map(f => ({
-        file: f,
-        url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null
-      }));
-      setFilePreviews(previews);
-      setValue('drawingNames', files.map(f => f.name), { shouldValidate: true });
+      addFiles(Array.from(e.target.files));
     }
   };
+
+  const addFiles = (files: File[]) => {
+    const totalSize = files.reduce((acc, f) => acc + f.size, 0);
+    if (totalSize > 20 * 1024 * 1024) {
+      alert(`Tổng dung lượng các file không được vượt quá 20MB (Đã chọn: ${(totalSize / 1024 / 1024).toFixed(2)}MB).`);
+      return;
+    }
+
+    files.forEach(file => {
+      const tempId = Math.random().toString(36).substring(7);
+      const localUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
+
+      const newFileState: UploadedFileState = {
+        id: tempId,
+        name: file.name,
+        url: localUrl || undefined,
+        status: 'uploading'
+      };
+
+      setUploadedFiles(prev => [...prev, newFileState]);
+
+      compressAndUploadFile(
+        file,
+        'projects/design',
+        (uploadedUrl) => {
+          setUploadedFiles(prev => {
+            const updated = prev.map(f => f.id === tempId ? { ...f, status: 'success' as const, url: uploadedUrl } : f);
+            const successUrls = updated.filter(f => f.status === 'success' && f.url).map(f => f.url!);
+            setValue('drawingNames', successUrls, { shouldValidate: true });
+            return updated;
+          });
+        },
+        () => {
+          toast.error(`Tải file ${file.name} lên thất bại.`);
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'error' as const } : f)
+          );
+        }
+      );
+    });
+  };
+
+  const removeFile = (id: string) => {
+    setUploadedFiles(prev => {
+      const target = prev.find(f => f.id === id);
+      if (target && target.url && target.url.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+      }
+      const filtered = prev.filter(f => f.id !== id);
+      const successUrls = filtered.filter(f => f.status === 'success' && f.url).map(f => f.url!);
+      setValue('drawingNames', successUrls, { shouldValidate: true });
+      return filtered;
+    });
+  };
+
+  const isAnyFileUploading = uploadedFiles.some(f => f.status === 'uploading');
 
   const footer = (
     <>
       <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="mr-3">
         Hủy bỏ
       </Button>
-      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={isSubmitting}>
-        Xác nhận tạo mới
+      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={isSubmitting} disabled={isAnyFileUploading}>
+        {isAnyFileUploading ? 'Đang tải bản vẽ...' : 'Xác nhận tạo mới'}
       </Button>
     </>
   );
@@ -225,24 +252,51 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
             />
             <UploadCloud className="h-8 w-8 text-gray-400 mx-auto mb-2" />
 
-            {filePreviews && filePreviews.length > 0 ? (
+            {uploadedFiles && uploadedFiles.length > 0 ? (
               <div className="flex flex-wrap items-center justify-center gap-4 mt-4" onClick={(e) => e.stopPropagation()}>
-                {filePreviews.map((preview, idx) => (
-                  <div key={idx} className="flex flex-col items-center gap-1 group relative">
-                    {preview.url ? (
-                      <img
-                        src={preview.url}
-                        alt={preview.file.name}
-                        className="w-16 h-16 object-cover rounded shadow-sm border border-gray-200"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded shadow-sm border border-gray-200">
-                        <FileText className="h-8 w-8 text-blue-500" />
-                      </div>
-                    )}
-                    <span className="text-xs text-gray-600 truncate w-20 text-center" title={preview.file.name}>
-                      {preview.file.name}
+                {uploadedFiles.map((preview) => (
+                  <div key={preview.id} className="flex flex-col items-center gap-1 group relative">
+                    <div className={`relative w-16 h-16 rounded overflow-hidden shadow-sm border ${preview.status === 'error' ? 'border-red-500' : preview.status === 'success' ? 'border-green-500' : 'border-gray-200'}`}>
+                      {preview.url && (preview.url.startsWith('blob:') || !preview.url.endsWith('.pdf')) ? (
+                        <img
+                          src={preview.url}
+                          alt={preview.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                          <FileText className="h-8 w-8 text-blue-500" />
+                        </div>
+                      )}
+                      
+                      {preview.status === 'uploading' && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <Loader2 size={16} className="animate-spin text-white" />
+                        </div>
+                      )}
+
+                      {preview.status === 'error' && (
+                        <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                      )}
+
+                      {preview.status === 'success' && (
+                        <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">OK</span>
+                      )}
+                    </div>
+                    
+                    <span className="text-xs text-gray-600 truncate w-20 text-center" title={preview.name}>
+                      {preview.name}
                     </span>
+                    
+                    <button
+                      type="button"
+                      onClick={() => removeFile(preview.id)}
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 border-none outline-none"
+                      style={{ cursor: 'pointer' }}
+                      title="Xóa file"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </div>
                 ))}
               </div>
