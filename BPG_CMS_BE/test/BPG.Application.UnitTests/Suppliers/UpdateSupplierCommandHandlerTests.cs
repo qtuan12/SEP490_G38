@@ -79,7 +79,7 @@ namespace BPG.Application.UnitTests.Suppliers
                 ServiceArea: "New Area",
                 Rating: 4.8m,
                 EvaluationNote: "New Note",
-                CollaborationStatus: "Suspended"
+                CollaborationStatus: "Inactive"
             );
 
             // Act
@@ -94,7 +94,7 @@ namespace BPG.Application.UnitTests.Suppliers
             result.ServiceArea.Should().Be("New Area");
             result.Rating.Should().Be(4.8m);
             result.EvaluationNote.Should().Be("New Note");
-            result.CollaborationStatus.Should().Be("Suspended");
+            result.CollaborationStatus.Should().Be("Inactive");
 
             _mockSupplierRepo.Verify(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>()), Times.Once);
             _mockSupplierRepo.Verify(r => r.AnyAsync(It.IsAny<Expression<Func<Supplier, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -314,13 +314,13 @@ namespace BPG.Application.UnitTests.Suppliers
             _mockSupplierRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingSupplier);
             SetupAnyAsync(new List<Supplier> { existingSupplier });
 
-            var command = new UpdateSupplierCommand(1, "A", null, null, null, 0m, null, "Active");
+            var command = new UpdateSupplierCommand(1, "A", null, null, null, 1m, null, "Active");
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            result.Rating.Should().Be(0m);
+            result.Rating.Should().Be(1m);
         }
 
         [Fact]
@@ -348,13 +348,13 @@ namespace BPG.Application.UnitTests.Suppliers
             _mockSupplierRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingSupplier);
             SetupAnyAsync(new List<Supplier> { existingSupplier });
 
-            var command = new UpdateSupplierCommand(1, "A", null, null, null, 4m, null, "Suspended");
+            var command = new UpdateSupplierCommand(1, "A", null, null, null, 4m, null, "Inactive");
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            result.CollaborationStatus.Should().Be("Suspended");
+            result.CollaborationStatus.Should().Be("Inactive");
         }
     }
 }

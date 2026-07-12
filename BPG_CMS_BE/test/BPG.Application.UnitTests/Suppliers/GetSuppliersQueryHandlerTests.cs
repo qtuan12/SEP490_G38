@@ -44,7 +44,7 @@ namespace BPG.Application.UnitTests.Suppliers
             return new List<Supplier>
             {
                 new Supplier { SupplierId = 1, SupplierName = "Supplier Alpha", ContactInfo = "1111", ServiceArea = "Ha Noi", Rating = 4.5m, CollaborationStatus = "Active" },
-                new Supplier { SupplierId = 2, SupplierName = "Supplier Beta", ContactInfo = "2222", ServiceArea = "Da Nang", Rating = 3.8m, CollaborationStatus = "Suspended" },
+                new Supplier { SupplierId = 2, SupplierName = "Supplier Beta", ContactInfo = "2222", ServiceArea = "Da Nang", Rating = 3.8m, CollaborationStatus = "Inactive" },
                 new Supplier { SupplierId = 3, SupplierName = "Supplier Gamma", ContactInfo = "3333", ServiceArea = "Ha Noi", Rating = 5.0m, CollaborationStatus = "Active" }
             };
         }
@@ -267,7 +267,7 @@ namespace BPG.Application.UnitTests.Suppliers
             var result = await _handler.Handle(query, CancellationToken.None);
 
             // Assert
-            result.Items.Select(s => s.CollaborationStatus).Should().ContainInOrder("Active", "Active", "Suspended");
+            result.Items.Select(s => s.CollaborationStatus).Should().ContainInOrder("Active", "Active", "Inactive");
         }
     }
 }

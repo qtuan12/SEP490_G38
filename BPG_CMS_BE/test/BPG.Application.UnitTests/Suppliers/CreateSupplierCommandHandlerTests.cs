@@ -207,7 +207,7 @@ namespace BPG.Application.UnitTests.Suppliers
         }
 
         [Fact]
-        public async Task UTCID06_Handle_RatingBoundaryMin_ShouldSaveSupplierWithRatingZero()
+        public async Task UTCID06_Handle_RatingBoundaryMin_ShouldSaveSupplierWithRatingOne()
         {
             // Arrange
             var existingSuppliers = new List<Supplier>();
@@ -218,7 +218,7 @@ namespace BPG.Application.UnitTests.Suppliers
                 ContactInfo: "0123",
                 Address: "Street",
                 ServiceArea: "Area",
-                Rating: 0m,
+                Rating: 1m,
                 EvaluationNote: "Note",
                 CollaborationStatus: "Active"
             );
@@ -227,7 +227,7 @@ namespace BPG.Application.UnitTests.Suppliers
             var result = await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            result.Rating.Should().Be(0m);
+            result.Rating.Should().Be(1m);
         }
 
         [Fact]
@@ -279,27 +279,27 @@ namespace BPG.Application.UnitTests.Suppliers
         }
 
         [Fact]
-        public async Task UTCID09_Handle_CollaborationStatusSuspended_ShouldSaveSuspendedStatus()
+        public async Task UTCID09_Handle_CollaborationStatusInactive_ShouldSaveInactiveStatus()
         {
             // Arrange
             var existingSuppliers = new List<Supplier>();
             SetupAnyAsync(existingSuppliers);
 
             var command = new CreateSupplierCommand(
-                SupplierName: "Nha Cung Cap Suspended",
+                SupplierName: "Nha Cung Cap Inactive",
                 ContactInfo: "0123",
                 Address: "Street",
                 ServiceArea: "Area",
                 Rating: 4m,
                 EvaluationNote: "Note",
-                CollaborationStatus: "Suspended"
+                CollaborationStatus: "Inactive"
             );
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            result.CollaborationStatus.Should().Be("Suspended");
+            result.CollaborationStatus.Should().Be("Inactive");
         }
 
         [Fact]
