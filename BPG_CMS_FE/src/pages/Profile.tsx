@@ -6,6 +6,8 @@ import { Modal } from '../components/ui/Modal';
 import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X } from 'lucide-react';
 import { passwordRules, validatePassword } from '../utils/passwordPolicy';
 
+import imageCompression from 'browser-image-compression';
+
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
@@ -102,16 +104,33 @@ export const Profile: React.FC = () => {
       return;
     }
 
+    const previousAvatarUrl = profile.avatarUrl;
+    const localUrl = URL.createObjectURL(file);
+    setProfile(prev => prev ? { ...prev, avatarUrl: localUrl } : null);
     setAvatarUploading(true);
+
     try {
-      const avatarUrl = await authService.uploadAvatar(file);
+      let fileToSend = file;
+      try {
+        fileToSend = await imageCompression(file, {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 800,
+          useWebWorker: true
+        });
+      } catch (compressionErr) {
+        console.warn("Lỗi nén ảnh avatar:", compressionErr);
+      }
+
+      const avatarUrl = await authService.uploadAvatar(fileToSend);
       const updated = await authService.updateProfile(profile.fullName, profile.phoneNumber, avatarUrl);
       setProfile(updated);
       updateUser({ name: updated.fullName, avatarUrl: updated.avatarUrl });
     } catch (err: any) {
+      setProfile(prev => prev ? { ...prev, avatarUrl: previousAvatarUrl } : null);
       setAvatarError(err.message || 'Tải ảnh đại diện thất bại.');
     } finally {
       setAvatarUploading(false);
+      URL.revokeObjectURL(localUrl);
     }
   };
 
