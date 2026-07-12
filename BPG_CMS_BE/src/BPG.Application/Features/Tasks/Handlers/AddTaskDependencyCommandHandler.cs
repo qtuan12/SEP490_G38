@@ -86,9 +86,10 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
             return ApiResponse.SuccessResult("Liên kết phụ thuộc đã tồn tại.");
 
         // Circular Dependency Validation
+        var projectId = task.Phase.ProjectId;
         var allDeps = await _unitOfWork.Repository<TaskDependency>()
             .Query()
-            .Where(d => d.Task.Phase.ProjectId == task.Phase.ProjectId)
+            .Where(d => d.Task.Phase.ProjectId == projectId)
             .ToListAsync(ct);
 
         var visited = new HashSet<long>();
@@ -120,7 +121,9 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
         var newDep = new TaskDependency
         {
             TaskId = request.TaskId,
-            PredecessorTaskId = request.PredecessorTaskId
+            PredecessorTaskId = request.PredecessorTaskId,
+            Task = task,
+            Predecessor = predecessor
         };
 
         await _unitOfWork.Repository<TaskDependency>().AddAsync(newDep, ct);

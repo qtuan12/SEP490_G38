@@ -195,15 +195,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         .map(id => potentialPredecessors.find(p => p.id === id))
         .filter(p => {
           if (!p) return false;
-          const pDeadline = new Date(p.deadline);
-          pDeadline.setHours(0,0,0,0);
-          // New task's start date must be STRICTLY AFTER predecessor's deadline
-          return taskStartDate <= pDeadline; 
+          const pStartDate = new Date(p.startDate || '');
+          pStartDate.setHours(0,0,0,0);
+          // New task's start date must be >= predecessor's start date
+          return taskStartDate < pStartDate; 
         });
 
       if (invalidPredecessors.length > 0) {
         const p = invalidPredecessors[0]!;
-        toast.error(`Ngày bắt đầu phải sau ngày kết thúc của "${p.name}" (hoàn thành: ${new Date(p.deadline).toLocaleDateString('vi-VN')}).`);
+        toast.error(`Ngày bắt đầu không được trước ngày bắt đầu của "${p.name}" (${new Date(p.startDate || '').toLocaleDateString('vi-VN')}).`);
         return;
       }
     }

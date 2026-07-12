@@ -4,6 +4,7 @@ import { surplusService } from '../../../services/surplusService';
 import type { IncomingTransfer } from '../../../types/surplus';
 import { getSurplusTransferStatusDetails, formatDateVN } from '../../../utils/surplusHelpers';
 import { useAuth } from '../../../context/AuthContext';
+import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import toast from 'react-hot-toast';
 import { RefreshCw, Package } from 'lucide-react';
 import { ReceiveTransferModal } from '../modals/ReceiveTransferModal';
@@ -23,6 +24,12 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
   useEffect(() => {
     if (projectId) loadData();
   }, [projectId, refreshKey]);
+
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    if (noti?.referenceType === 'SurplusRequest') {
+      setRefreshKey(k => k + 1);
+    }
+  });
 
   const loadData = async () => {
     setLoading(true);

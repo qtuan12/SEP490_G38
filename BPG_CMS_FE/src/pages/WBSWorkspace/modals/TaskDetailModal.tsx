@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/ui/Modal';
-import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft } from 'lucide-react';
+import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft, Users, RotateCcw } from 'lucide-react';
 import { AssignEngineerForm } from './AssignEngineerModal';
 import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';
 import { DailyLogForm } from '../../ProjectDailyLogs/modals/DailyLogFormModal';
 import type {WBSTask, WBSPhase, Project, MaterialRequest} from '../../../types/common';
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+import { wbsService } from '../../../services/wbsService';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -48,6 +52,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const navigate = useNavigate();
   const [viewingRequest, setViewingRequest] = useState<MaterialRequest | null>(null);
   const [activeForm, setActiveForm] = useState<'assign' | 'adjust' | 'obsolete' | 'log' | null>(null);
+  const [isRestoreConfirmOpen, setIsRestoreConfirmOpen] = useState(false);
 
   const handleFormSuccess = (msg: string) => {
     setActiveForm(null);
@@ -55,8 +60,22 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   const handleFormError = (msg: string) => {
-    onError && onError(msg);
+    if (onError) onError(msg);
   };
+
+  const restoreMutation = useMutation({
+    mutationFn: () => wbsService.restoreTask(parseInt(selectedTask.id.replace('t-', ''))),
+    onSuccess: () => {
+      toast.success('Đã khôi phục công việc thành công');
+      setIsRestoreConfirmOpen(false);
+      if (onSuccess) onSuccess('Đã khôi phục công việc thành công');
+      onClose();
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || 'Có lỗi xảy ra khi khôi phục công việc');
+      setIsRestoreConfirmOpen(false);
+    }
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -152,7 +171,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const isBlocked = (() => {
     const predIds = selectedTask.predecessorTaskIds;
     if (predIds && predIds.length > 0) {
-      const preds = predIds.map(id => tasks.find(t => t.id === `t-${id}`)).filter(Boolean).filter(p => p!.status !== 'obsolete');
+      const preds = predIds.map(id => tasks.find(t => t.id === id.toString())).filter(Boolean).filter(p => p!.status !== 'obsolete');
       return preds.some(p => p!.progress < 100);
     }
     return false;
@@ -192,12 +211,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         {(() => {
           const predIds = selectedTask.predecessorTaskIds;
           if (predIds && predIds.length > 0) {
-            const preds = predIds.map(id => tasks.find(t => t.id === `t-${id}`)).filter(Boolean).filter(p => p!.status !== 'obsolete');
+            const preds = predIds.map(id => tasks.find(t => t.id === id.toString())).filter(Boolean).filter(p => p!.status !== 'obsolete');
             if (preds.length === 0) return null;
             return (
               <div style={{ padding: '10px 14px', backgroundColor: 'hsl(var(--warning-glow) / 0.08)', border: '1px solid hsl(var(--warning) / 0.2)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem' }}>
                 <strong style={{ color: 'hsl(var(--warning-text))', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <AlertCircle size={15} /> Công việc đi trước (Finish-to-Start)
+                  <AlertCircle size={15} /> Công việc đi trước
                 </strong>
                 <p style={{ margin: 0, color: 'hsl(var(--text-secondary))' }}>
                   Cần hoàn thành 100% các công việc sau để có thể bắt đầu công việc này:
@@ -298,6 +317,24 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
         </div>
 
+        {selectedTask.isOutsourced && (
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ flex: 1, padding: '12px', backgroundColor: 'hsl(var(--warning-glow) / 0.05)', borderRadius: 'var(--radius-sm)', border: '1px dashed hsl(var(--warning) / 0.3)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
+                <Users size={14} />ĐỘI THỢ / THẦU PHỤ NGOÀI
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.outsourcedTeamName || 'Không rõ tên'}</strong>
+                {selectedTask.outsourcedTeamContact && (
+                  <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))' }}>
+                    SĐT liên hệ: {selectedTask.outsourcedTeamContact}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         {project?.status !== 'inprogress' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -335,7 +372,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     onObsolete();
                   }
                 }} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: activeForm === 'obsolete' ? 'hsl(var(--danger))' : 'hsl(var(--bg-main))', color: activeForm === 'obsolete' ? '#fff' : 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
-                  <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Tạm ngưng task' : 'Xóa công việc'}</span>
+                  <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Tạm dừng công việc' : 'Xóa công việc'}</span>
                 </button>
               </>
             )}
@@ -373,7 +410,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: 'hsl(var(--success-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--success) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--success))' }}>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <CheckCircle size={16} style={{ flexShrink: 0 }} />
-                <span>{selectedTask.status === 'obsolete' ? 'Công việc đã bị hủy bỏ.' : 'Phase này đã được nghiệm thu và khóa tiến độ.'}</span>
+                <span>{selectedTask.status === 'obsolete' ? 'Công việc đã bị tạm dừng.' : 'Phase này đã được nghiệm thu và khóa tiến độ.'}</span>
               </div>
               {selectedTask.status !== 'obsolete' && (
                 <button onClick={() => navigate(`/projects/${project?.id}/phases/${selectedTask.phaseId}/acceptance`)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'fit-content', marginTop: '4px', borderColor: 'hsl(var(--success))', color: 'hsl(var(--success))', backgroundColor: 'transparent' }}>
@@ -381,6 +418,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </button>
               )}
             </div>
+            {selectedTask.status === 'obsolete' && isTPKTOrPL && (
+              <button 
+                onClick={() => setIsRestoreConfirmOpen(true)} 
+                className="btn" 
+                style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', backgroundColor: 'hsl(var(--success))', color: '#fff' }}
+                disabled={restoreMutation.isPending}
+              >
+                <RotateCcw size={15} />
+                <span>{restoreMutation.isPending ? 'Đang xử lý...' : 'Khôi phục công việc'}</span>
+              </button>
+            )}
             <button 
               onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
               className="btn btn-outline" 
@@ -413,6 +461,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         </div>
       )}
       </div>
+      <ConfirmDialog
+        isOpen={isRestoreConfirmOpen}
+        onClose={() => setIsRestoreConfirmOpen(false)}
+        onConfirm={() => restoreMutation.mutate()}
+        title="Xác nhận khôi phục công việc"
+        message={`Bạn có chắc chắn muốn khôi phục công việc "${selectedTask.name}" này không?`}
+        confirmText="Khôi phục"
+        cancelText="Hủy"
+        isDanger={false}
+        isLoading={restoreMutation.isPending}
+      />
     </Modal>
   );
 };

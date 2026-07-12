@@ -4,6 +4,7 @@ import { RefreshCw, PackageX } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { projectService } from '../../services/projectService';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
 
 import { SurplusRequestListTab } from './components/SurplusRequestListTab';
 import { SurplusRequestDetailTab } from './components/SurplusRequestDetailTab';
@@ -60,6 +61,13 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
 
 
   const handleRefresh = () => setRefreshKey(k => k + 1);
+
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    if (noti?.referenceType === 'SurplusRequest') {
+      handleRefresh();
+      toast('Dữ liệu Vật tư thừa đã được cập nhật!', { icon: '🔄' });
+    }
+  });
 
   const handleViewDetail = (id: number) => {
     setSelectedBatchId(id);

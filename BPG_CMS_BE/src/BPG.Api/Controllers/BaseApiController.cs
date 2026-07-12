@@ -21,6 +21,10 @@ namespace BPG.Api.Controllers
 
         protected IActionResult ApiOk<T>(T data, string message = "Success")
         {
+            if (data is ApiResponse)
+            {
+                return Ok(data);
+            }
             return Ok(ApiResponse<T>.SuccessResult(data, message));
         }
 

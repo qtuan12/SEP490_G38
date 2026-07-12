@@ -92,26 +92,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
         Quay lại danh sách
       </button>
 
-      {/* Header card */}
-      <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-xs text-slate-400">Đề xuất #{detail.surplusRequestId}</span>
-              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border ${batchBadge.color}`}>
-                {batchBadge.name}
-              </span>
-            </div>
-            <h2 className="text-lg font-bold text-slate-800">{detail.projectName}</h2>
-            {detail.reason && (
-              <p className="text-sm text-slate-500 mt-1">Lý do: {detail.reason}</p>
-            )}
-            <p className="text-xs text-slate-400 mt-1">
-              Tạo ngày {formatDateVN(detail.createdAt)} bởi <strong>{detail.createdByName}</strong>
-            </p>
-          </div>
-        </div>
-      </div>
+
 
       {/* Item list */}
       <div className="flex flex-col gap-3">

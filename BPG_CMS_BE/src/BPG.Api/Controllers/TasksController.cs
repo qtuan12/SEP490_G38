@@ -65,6 +65,14 @@ public class TasksController : BaseApiController
         return ApiOk(result);
     }
 
+    [HttpPut("{taskId}/restore")]
+    public async Task<IActionResult> RestoreTask([FromRoute] long taskId, CancellationToken ct)
+    {
+        var command = new RestoreTaskCommand(taskId);
+        var result = await Mediator.Send(command, ct);
+        return ApiOk(result);
+    }
+
     [HttpPost("{taskId}/dependencies/{predecessorTaskId}")]
     public async Task<IActionResult> AddDependency([FromRoute] long taskId, [FromRoute] long predecessorTaskId, CancellationToken ct)
     {
