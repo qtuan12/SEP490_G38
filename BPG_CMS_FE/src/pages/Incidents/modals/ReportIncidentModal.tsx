@@ -29,6 +29,7 @@ const schema = z.object({
     message: 'Vui lòng chọn đề xuất xử lý'
   }),
   customProposedAction: z.string().optional(),
+  isEmergency: z.boolean().optional(),
 }).superRefine((data, ctx) => {
   if (data.proposedAction === 'Khác' && (!data.customProposedAction || data.customProposedAction.trim() === '')) {
     ctx.addIssue({
@@ -101,6 +102,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       estimatedDelayDays: 0,
       proposedAction: 'Tạo Rework Task',
       customProposedAction: '',
+      isEmergency: false,
     },
   });
 
@@ -141,6 +143,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
         estimatedLaborDays: data.estimatedLaborDays ?? 0,
         estimatedDelayDays: data.estimatedDelayDays ?? 0,
         proposedAction: (data as any).proposedAction === 'Khác' ? (data as any).customProposedAction : (data as any).proposedAction,
+        isEmergency: data.isEmergency ?? false,
       });
     },
     onSuccess: () => {
@@ -242,6 +245,19 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   🏗 Sự cố Thi công
                 </div>
                 <input type="hidden" {...register('incidentType')} value="Construction" />
+              </div>
+
+              {/* Sự cố khẩn cấp (Ngừng thi công) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.2)', borderRadius: '6px' }}>
+                <input
+                  type="checkbox"
+                  id="is-emergency"
+                  {...register('isEmergency')}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="is-emergency" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'hsl(var(--danger))', cursor: 'pointer', margin: 0 }}>
+                  ⚠️ Yêu cầu ngừng thi công khẩn cấp (Sự cố đặc biệt nghiêm trọng)
+                </label>
               </div>
 
               {/* Mô tả sự cố */}

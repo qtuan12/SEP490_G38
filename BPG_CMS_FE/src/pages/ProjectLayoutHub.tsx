@@ -39,6 +39,15 @@ import { GlobalInventoryIncidents } from './InventoryAdjustments/components/Glob
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 
+const cleanPauseReason = (reason: string): string => {
+  if (!reason) return "";
+  return reason
+    .replace(/!\[.*?\]\(.*?\)/g, "")
+    .replace(/\*\*Hình ảnh đính kèm:?\*\*/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -230,7 +239,7 @@ export const ProjectLayoutHub: React.FC = () => {
               <div style={{ marginTop: '12px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', borderLeft: '4px solid hsl(var(--warning))', color: 'hsl(var(--warning))', fontSize: '0.9rem', borderRadius: '4px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                 <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
                 <div>
-                  <strong>Lý do tạm dừng:</strong> {project.pauseReason}
+                  <strong>Lý do tạm dừng:</strong> {cleanPauseReason(project.pauseReason)}
                   {project.pausedAt && <span style={{ marginLeft: '8px', fontSize: '0.85em', opacity: 0.8 }}>(Thời gian: {new Date(project.pausedAt).toLocaleString('vi-VN')})</span>}
                 </div>
               </div>

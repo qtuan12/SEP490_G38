@@ -5,6 +5,7 @@ import { incidentService } from '../../services/incidentService';
 import type { IncidentReport, WBSTask, WBSPhase, ProjectMember } from '../../types/common';
 import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
+import { ReportEmergencyStopModal } from '../Incidents/modals/ReportEmergencyStopModal';
 import {
   AlertTriangle,
   CheckCircle,
@@ -35,6 +36,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
   const [selectedIncident, setSelectedIncident] = useState<IncidentReport | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isResolveOpen, setIsResolveOpen] = useState(false);
+  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -82,6 +84,9 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
           proposedAction: dto.proposedAction,
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
+          isEmergency: dto.isEmergency,
+          recoveryPlanText: dto.recoveryPlanText,
+          recoveryEstimateCost: dto.recoveryEstimateCost,
           date: (() => {
             const dateStr = dto.createdAt.endsWith('Z') ? dto.createdAt : dto.createdAt + 'Z';
             const d = new Date(dateStr);
@@ -178,6 +183,12 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
         return <Badge variant="warning" className="normal-case">Chờ Giám đốc phê duyệt</Badge>;
       case 'WaitingReview':
         return <Badge variant="info" className="normal-case">Chờ TPKT duyệt</Badge>;
+      case 'WaitingStopApproval':
+        return <Badge variant="danger" className="normal-case bg-[hsl(0_100%_96%)] text-[hsl(0_92%_50%)]">Chờ duyệt dừng thi công</Badge>;
+      case 'WaitingRecoveryPlan':
+        return <Badge variant="warning" className="normal-case bg-[hsl(280_100%_97%)] text-[hsl(280_70%_45%)]">Chờ lập kế hoạch</Badge>;
+      case 'WaitingDirectorApproval':
+        return <Badge variant="success" className="normal-case bg-[hsl(142_100%_97%)] text-[hsl(142_71%_40%)]">Chờ Giám đốc duyệt</Badge>;
       case 'Approved':
         if (incidentType === 'InventoryLoss' || incidentType === 'InventoryDamage') {
           return <Badge variant="success" className="normal-case bg-[hsl(var(--success-glow))] text-[hsl(var(--success))]">Đang trình GĐ duyệt kho</Badge>;
@@ -204,6 +215,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
   // Pagination logic
   const totalPages = Math.ceil(incidents.length / ITEMS_PER_PAGE);
   const paginatedIncidents = incidents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role?.toLowerCase() === 'admin';
 
   return (
     <div className="flex flex-col gap-5">
@@ -259,9 +272,19 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
 
       {/* Main Incidents Table */}
       <div className="card p-5">
-        <h4 className="text-[0.95rem] font-semibold text-[hsl(var(--text-secondary))] mb-3.5 pb-2 border-b border-[hsl(var(--border))]">
-          Danh sách Báo cáo sự cố toàn dự án
-        </h4>
+        <div className="flex justify-between items-center mb-3.5 pb-2 border-b border-[hsl(var(--border))]">
+          <h4 className="text-[0.95rem] font-semibold text-[hsl(var(--text-secondary))]">
+            Danh sách Báo cáo sự cố toàn dự án
+          </h4>
+          {isPL && (
+            <Button
+              onClick={() => setIsEmergencyModalOpen(true)}
+              className="bg-[hsl(0_72%_45%)] hover:bg-[hsl(0_72%_35%)] text-white font-medium py-1.5 px-3 rounded text-[0.8rem] flex items-center gap-1.5"
+            >
+              🛑 Yêu cầu dừng thi công khẩn cấp
+            </Button>
+          )}
+        </div>
 
         {loading ? (
           <div className="text-center py-8 text-[hsl(var(--text-muted))]">Đang tải báo cáo sự cố...</div>
@@ -286,7 +309,15 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
                   {paginatedIncidents.map((inc) => (
                     <tr key={inc.id} className="cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors" onClick={() => { setSelectedIncident(inc); setIsDetailOpen(true); }}>
                       <td className="whitespace-nowrap text-sm">{inc.date}</td>
-                      <td><strong className="text-[0.88rem]">{(inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') ? (inc.phaseName || 'Giai đoạn') : (inc.taskName || 'Không xác định')}</strong></td>
+                      <td>
+                        <strong className="text-[0.88rem]">
+                          {inc.isEmergency 
+                            ? '🛑 Toàn bộ dự án (Yêu cầu dừng)' 
+                            : (inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') 
+                              ? (inc.phaseName || 'Giai đoạn') 
+                              : (inc.taskName || 'Không xác định')}
+                        </strong>
+                      </td>
                       <td className="text-sm">{inc.reporterName}</td>
                       <td className="whitespace-nowrap">{getStatusBadge(inc.status, inc.incidentType)}</td>
                       <td className="text-center">
@@ -378,6 +409,12 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
         />
       )}
 
+      <ReportEmergencyStopModal
+        isOpen={isEmergencyModalOpen}
+        onClose={() => setIsEmergencyModalOpen(false)}
+        projectId={projectId}
+        onSuccess={handleSuccess}
+      />
     </div>
   );
 };

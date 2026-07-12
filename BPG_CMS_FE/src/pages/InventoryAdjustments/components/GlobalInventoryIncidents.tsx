@@ -80,6 +80,9 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           proposedAction: dto.proposedAction,
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
+          isEmergency: dto.isEmergency,
+          recoveryPlanText: dto.recoveryPlanText,
+          recoveryEstimateCost: dto.recoveryEstimateCost,
           date: (() => {
             const dateStr = dto.createdAt.endsWith('Z') ? dto.createdAt : dto.createdAt + 'Z';
             const d = new Date(dateStr);

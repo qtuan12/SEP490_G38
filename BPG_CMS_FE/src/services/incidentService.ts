@@ -23,6 +23,9 @@ export interface IncidentDto {
   proposedAction?: string;
   handlingInstruction?: string;
   reworkTaskId?: number;
+  isEmergency?: boolean;
+  recoveryPlanText?: string;
+  recoveryEstimateCost?: number;
   createdAt: string;
   updatedAt?: string;
 }
@@ -49,6 +52,7 @@ export const incidentService = {
     estimatedLaborDays?: number;
     estimatedDelayDays?: number;
     proposedAction?: string;
+    isEmergency?: boolean;
   }): Promise<IncidentDto> {
     const response = await apiClient.post<ApiResponse<IncidentDto>>('/incidents', data);
     return response.data;
@@ -66,6 +70,9 @@ export const incidentService = {
       decreaseProgressTo?: number;
       decreaseProgressReason?: string;
       handlingInstruction?: string;
+      recoveryPlanText?: string;
+      recoveryEstimateCost?: number;
+      decision?: string;
     }
   ): Promise<IncidentDto> {
     const response = await apiClient.put<ApiResponse<IncidentDto>>(`/incidents/${id}/confirm`, data);
