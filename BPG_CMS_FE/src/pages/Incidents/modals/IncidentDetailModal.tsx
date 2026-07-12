@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { incidentService } from '../../../services/incidentService';
@@ -6,6 +6,8 @@ import { Modal } from '../../../components/ui/Modal';
 import { MiniMarkdown } from '../../../components/ui/MiniMarkdown';
 import type { IncidentReport, WBSPhase } from '../../../types/common';
 import { ArrowRight, AlertCircle, CheckCircle, HardHat, Package, MapPin, Clock, Users, BarChart3 } from 'lucide-react';
+import { inventoryService } from '../../../services/inventoryService';
+import type { CurrentInventory } from '../../../types/inventory';
 interface IncidentDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -77,6 +79,16 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
 }) => {
   const [isRejecting, setIsRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [inventory, setInventory] = useState<CurrentInventory[]>([]);
+
+  useEffect(() => {
+    if (isOpen && incident && (incident.incidentType === 'InventoryLoss' || incident.incidentType === 'InventoryDamage')) {
+      inventoryService.getCurrentInventory(Number(incident.projectId))
+        .then(res => setInventory(res))
+        .catch(console.error);
+    }
+  }, [isOpen, incident]);
+
   const queryClient = useQueryClient();
 
   const rejectMutation = useMutation({
@@ -114,6 +126,32 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   // Do the same for damageDescription
   const { mainDesc: damageDescClean, meta: damageMetaClean } = extractMetaFromDesc(incident.damageDescription || '');
 
+  interface DamagedItem {
+    code: string;
+    name: string;
+    unit: string;
+    quantityLost: number;
+  }
+  const parsedDamagedItems: DamagedItem[] = [];
+  if (isInventoryIncident && incident.damageDescription) {
+    const lines = incident.damageDescription.split('\n');
+    lines.forEach(line => {
+      if (line.trim().startsWith('|') && !line.includes('Mã vật tư') && !line.includes('---')) {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length >= 5) {
+          const code = parts[1];
+          const name = parts[2];
+          const unit = parts[3];
+          const qtyStr = parts[4].replace(/\*\*/g, '');
+          const qty = parseFloat(qtyStr) || 0;
+          if (code && name) {
+            parsedDamagedItems.push({ code, name, unit, quantityLost: qty });
+          }
+        }
+      }
+    });
+  }
+
   const extractedImages = imageLines.map(l => {
     const match = l.match(/!\[.*?\]\((.*?)\)/);
     return match ? match[1] : null;
@@ -126,7 +164,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     WaitingDirector: { label: 'Chờ Giám đốc Phê duyệt', color: 'hsl(280, 70%, 45%)', bg: 'hsl(280, 100%, 97%)' },
     Assessing: { label: 'Cần Bổ sung', color: 'hsl(0, 72%, 50%)', bg: 'hsl(0, 100%, 97%)' },
     Approved: {
-      label: isInventoryIncident ? 'Đang trình GĐ duyệt kho' : 'Đã Duyệt',
+      label: 'Đã Duyệt',
       color: 'hsl(142, 71%, 40%)',
       bg: 'hsl(142, 100%, 97%)'
     },
@@ -170,7 +208,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           {[
             { n: 1, label: 'PL Báo cáo', done: true },
             { n: 2, label: isInventoryIncident ? 'Kế toán Xác minh' : 'TPKT Thẩm định', done: !!incident.damageDescription },
-            { n: 3, label: isInventoryIncident ? 'Chuyển sang Kho' : 'Hoàn tất', done: incident.status === 'Approved' },
+            { n: 3, label: isInventoryIncident ? 'Chuyển sang Giám đốc' : 'Hoàn tất', done: incident.status === 'Approved' },
           ].map((step, idx) => (
             <React.Fragment key={step.n}>
               {idx > 0 && <ArrowRight size={13} style={{ color: 'hsl(var(--text-muted))', flexShrink: 0 }} />}
@@ -240,7 +278,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                     'Vị trí kho/Lô hàng': <MapPin size={12} />,
                     'Ngày/Giờ xảy ra': <Clock size={12} />,
                     'Ngày/Giờ phát hiện': <Clock size={12} />,
-                    'Người/Tổ đội phụ trách': <Users size={12} />,
+                    'Người chịu trách nhiệm': <Users size={12} />,
                     'Người làm chứng/Liên đới': <Users size={12} />,
                   };
                   return (
@@ -348,8 +386,60 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                 )}
               </div>
 
-              {/* Damage description as Markdown */}
-              {damageDescClean && (
+              {/* Table for Inventory Incidents */}
+              {isInventoryIncident && parsedDamagedItems.length > 0 && (
+                <div style={{ marginTop: '10px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+                    Bảng thống kê vật tư thiệt hại
+                  </span>
+                  <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
+                    <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: 'hsl(var(--bg-muted))', textAlign: 'left', borderBottom: '1px solid hsl(var(--border))' }}>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Mã VT</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Tên vật tư</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))', textAlign: 'center' }}>Tồn kho ban đầu</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))', textAlign: 'center' }}>SL Lỗi/Mất</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))', textAlign: 'right' }}>Tồn kho sau trừ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parsedDamagedItems.map((it, idx) => {
+                          const invItem = inventory.find(inv => inv.materialCode === it.code);
+                          const hasInv = !!invItem;
+
+                          let stockBeforeStr = '-';
+                          let stockAfterStr = '-';
+
+                          if (hasInv) {
+                            const isAlreadyDecreased = incident.status === 'Approved';
+                            const stockBeforeVal = isAlreadyDecreased ? invItem.quantity + it.quantityLost : invItem.quantity;
+                            const stockAfterVal = isAlreadyDecreased ? invItem.quantity : invItem.quantity - it.quantityLost;
+
+                            stockBeforeStr = `${stockBeforeVal} ${it.unit}`;
+                            stockAfterStr = `${stockAfterVal} ${it.unit}`;
+                          }
+
+                          return (
+                            <tr key={idx} style={{ borderBottom: idx < parsedDamagedItems.length - 1 ? '1px solid hsl(var(--border))' : 'none' }}>
+                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))' }}>{it.code}</td>
+                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))' }}>{it.name}</td>
+                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))', textAlign: 'center' }}>{stockBeforeStr}</td>
+                              <td style={{ padding: '8px 12px', color: 'red', fontWeight: 600, textAlign: 'center' }}>
+                                -{it.quantityLost} {it.unit}
+                              </td>
+                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))', fontWeight: 700, textAlign: 'right' }}>{stockAfterStr}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Damage description as Markdown (only for construction incidents or if there is extra text) */}
+              {damageDescClean && !isInventoryIncident && (
                 <div style={{ marginTop: '2px' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Ghi chú thiệt hại bổ sung</span>
                   <div style={{ color: 'hsl(var(--text-primary))', fontSize: '0.85rem' }} className="[&>p:last-child]:mb-0 [&>p]:mt-1">
@@ -371,7 +461,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               </span>
               <p style={{ margin: '6px 0 0', fontSize: '0.85rem', color: 'hsl(var(--text-primary))' }}>
                 {isInventoryIncident
-                  ? 'Kế toán đã xác minh và tạo Phiếu giảm kho. Quyết định xuất kho đang chờ Giám đốc duyệt ở phân hệ Kho.'
+                  ? 'Giám đốc đã phê duyệt phiếu giảm tồn kho liên quan. Sự cố vật tư kho đã được xử lý hoàn tất.'
                   : 'Sự cố đã được TPKT thẩm định. Rework Task hoặc điều chỉnh tiến độ đã được áp dụng.'}
               </p>
             </div>

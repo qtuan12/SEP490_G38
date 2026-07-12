@@ -13,7 +13,13 @@ import { toast } from 'react-hot-toast';
 const schema = z.object({
   incidentType: z.literal('Construction'),
   description: z.string().min(5, 'Mô tả phải có ít nhất 5 ký tự'),
-  incidentDate: z.string().min(1, 'Vui lòng chọn ngày phát hiện'),
+  incidentDate: z.string()
+    .min(1, 'Vui lòng chọn ngày phát hiện')
+    .refine((val) => {
+      const selected = new Date(val);
+      const now = new Date();
+      return selected <= now;
+    }, 'Ngày/Giờ xảy ra không được vượt quá thời gian hiện tại'),
   responsibleParty: z.string().optional(),
   canceledVolume: z.string().optional(),
   estimatedDamage: z.string().optional(),
@@ -22,6 +28,15 @@ const schema = z.object({
   proposedAction: z.enum(['Tạo Rework Task', 'Giảm tiến độ task', 'Khác'], {
     message: 'Vui lòng chọn đề xuất xử lý'
   }),
+  customProposedAction: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.proposedAction === 'Khác' && (!data.customProposedAction || data.customProposedAction.trim() === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Vui lòng nhập đề xuất xử lý khác',
+      path: ['customProposedAction'],
+    });
+  }
 });
 
 type FormData = z.infer<typeof schema>;
@@ -73,7 +88,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
     queryFn: () => projectService.getMembers(projectId),
     enabled: !!projectId && isOpen,
   });
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<any>({
+  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<any>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       incidentType: 'Construction',
@@ -85,6 +100,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       estimatedLaborDays: 0,
       estimatedDelayDays: 0,
       proposedAction: 'Tạo Rework Task',
+      customProposedAction: '',
     },
   });
 
@@ -97,7 +113,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       const dateStr = `${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ngày ${d.toLocaleDateString('vi-VN')}`;
       finalDesc += `\n**Ngày/Giờ xảy ra:** ${dateStr}`;
       if (cData.responsibleParty) {
-        finalDesc += `\n**Người/Tổ đội phụ trách:** ${cData.responsibleParty}`;
+        finalDesc += `\n**Người chịu trách nhiệm:** ${cData.responsibleParty}`;
       }
 
       if (selectedFiles.length > 0) {
@@ -124,7 +140,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
         estimatedMaterialLoss: 0,
         estimatedLaborDays: data.estimatedLaborDays ?? 0,
         estimatedDelayDays: data.estimatedDelayDays ?? 0,
-        proposedAction: (data as any).proposedAction,
+        proposedAction: (data as any).proposedAction === 'Khác' ? (data as any).customProposedAction : (data as any).proposedAction,
       });
     },
     onSuccess: () => {
@@ -255,13 +271,14 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <input
                     type="datetime-local"
                     className="input"
+                    max={new Date().toISOString().slice(0, 16)}
                     {...register('incidentDate')}
                   />
                   {(errors as any).incidentDate && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).incidentDate?.message)}</span>}
                 </div>
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                    Người/Tổ đội phụ trách
+                    Người chịu trách nhiệm
                   </label>
                   <select
                     className="input"
@@ -388,6 +405,18 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                     <option value="Khác">Khác</option>
                   </select>
                   {(errors as any).proposedAction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).proposedAction?.message)}</span>}
+
+                  {watch('proposedAction') === 'Khác' && (
+                    <div style={{ marginTop: '8px' }}>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Nhập đề xuất xử lý khác..."
+                        {...register('customProposedAction')}
+                      />
+                      {(errors as any).customProposedAction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', display: 'block', marginTop: '4px' }}>{String((errors as any).customProposedAction?.message)}</span>}
+                    </div>
+                  )}
                 </div>
               </div>
 

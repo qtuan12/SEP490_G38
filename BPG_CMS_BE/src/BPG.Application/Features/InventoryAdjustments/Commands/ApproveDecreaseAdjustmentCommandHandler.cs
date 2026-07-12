@@ -46,6 +46,47 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 adjustment.ApprovedAt = System.DateTime.UtcNow;
 
                 _unitOfWork.Repository<InventoryAdjustment>().Update(adjustment);
+
+                Incident rejIncident = null;
+                if (!string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
+                    if (match.Success)
+                    {
+                        var incidentId = long.Parse(match.Groups[1].Value);
+                        rejIncident = await _unitOfWork.Repository<Incident>().Query()
+                            .FirstOrDefaultAsync(i => i.IncidentId == incidentId, cancellationToken);
+                    }
+                }
+
+                if (rejIncident == null)
+                {
+                    rejIncident = await _unitOfWork.Repository<Incident>().Query()
+                        .Where(i => i.ProjectId == adjustment.ProjectId && i.PhaseId == adjustment.PhaseId && i.Status == "WaitingDirector")
+                        .OrderBy(i => i.IncidentId)
+                        .FirstOrDefaultAsync(cancellationToken);
+                }
+
+                if (rejIncident != null)
+                {
+                    rejIncident.Status = "Rejected";
+                    rejIncident.ReviewedBy = _currentUserService.GetRequiredUserId();
+                    rejIncident.HandlingInstruction = $"Giám đốc đã từ chối phiếu giảm tồn kho liên quan. Lý do: {request.RejectedReason}";
+                    _unitOfWork.Repository<Incident>().Update(rejIncident);
+
+                    await _realtimeSender.SendToGroupAsync(
+                        HubMethodNames.GroupProject + rejIncident.ProjectId,
+                        HubMethodNames.IncidentUpdated,
+                        rejIncident.IncidentId,
+                        cancellationToken);
+
+                    await _realtimeSender.SendToGroupAsync(
+                        HubMethodNames.GroupProject + 0,
+                        HubMethodNames.IncidentUpdated,
+                        rejIncident.IncidentId,
+                        cancellationToken);
+                }
+
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 // Gửi thông báo DB cho người tạo phiếu
@@ -84,6 +125,26 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             adjustment.ApprovedBy = _currentUserService.GetRequiredUserId();
             adjustment.ApprovedAt = System.DateTime.UtcNow;
 
+            Incident appIncident = null;
+            if (!string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
+                if (match.Success)
+                {
+                    var incidentId = long.Parse(match.Groups[1].Value);
+                    appIncident = await _unitOfWork.Repository<Incident>().Query()
+                        .FirstOrDefaultAsync(i => i.IncidentId == incidentId, cancellationToken);
+                }
+            }
+
+            if (appIncident == null)
+            {
+                appIncident = await _unitOfWork.Repository<Incident>().Query()
+                    .Where(i => i.ProjectId == adjustment.ProjectId && i.PhaseId == adjustment.PhaseId && i.Status == "WaitingDirector")
+                    .OrderBy(i => i.IncidentId)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
             foreach (var item in adjustment.Items)
             {
                 var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
@@ -102,16 +163,39 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 {
                     ProjectId = adjustment.ProjectId,
                     MaterialId = item.MaterialId,
-                    TransactionType = InventoryTransactionType.Adjustment,
+                    TransactionType = (appIncident != null) ? (byte)9 : InventoryTransactionType.Adjustment,
                     QuantityChange = -item.Quantity, // Âm cho giảm
                     BalanceAfter = currentInventory.Quantity,
                     ReferenceId = adjustment.AdjustmentId,
-                    ReferenceType = EntityType.InventoryAdjustment
+                    ReferenceType = EntityType.InventoryAdjustment,
+                    CreatedBy = _currentUserService.GetRequiredUserId(),
+                    CreatedAt = System.DateTime.UtcNow
                 };
                 await _unitOfWork.Repository<InventoryTransaction>().AddAsync(transaction);
             }
 
             _unitOfWork.Repository<InventoryAdjustment>().Update(adjustment);
+
+            if (appIncident != null)
+            {
+                appIncident.Status = "Approved";
+                appIncident.ReviewedBy = _currentUserService.GetRequiredUserId();
+                appIncident.HandlingInstruction = "Giám đốc đã phê duyệt phiếu giảm tồn kho liên quan.";
+                _unitOfWork.Repository<Incident>().Update(appIncident);
+
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + appIncident.ProjectId,
+                    HubMethodNames.IncidentUpdated,
+                    appIncident.IncidentId,
+                    cancellationToken);
+
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + 0,
+                    HubMethodNames.IncidentUpdated,
+                    appIncident.IncidentId,
+                    cancellationToken);
+            }
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Gửi thông báo DB cho người tạo phiếu

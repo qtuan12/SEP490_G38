@@ -107,7 +107,8 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
               { label: 'Trả hàng NCC', value: '5' },
               { label: 'Điều chỉnh/Hủy', value: '6' },
               { label: 'Thanh lý', value: '7' },
-              { label: 'Hoàn trả thi công', value: '8' }
+              { label: 'Hoàn trả thi công', value: '8' },
+              { label: 'Giảm tồn do sự cố', value: '9' }
             ]}
             value={filterTxType}
             onChange={(e: any) => {

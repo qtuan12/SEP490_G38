@@ -4,6 +4,7 @@ import { projectService } from '../../../services/projectService';
 import { incidentService } from '../../../services/incidentService';
 import type { IncidentReport, WBSPhase } from '../../../types/common';
 import { IncidentDetailModal } from '../../Incidents/modals/IncidentDetailModal';
+import { CreateDecreaseAdjustmentModal } from './CreateDecreaseAdjustmentModal';
 import {
   AlertTriangle,
   Clock,
@@ -29,6 +30,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
   const [selectedPhase, setSelectedPhase] = useState<WBSPhase | null>(null);
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
   const [loadingRowAction, setLoadingRowAction] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +64,8 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           projectName: dto.projectName,
           taskId: dto.taskId?.toString() || '',
           taskName: dto.taskName || 'Không xác định',
+          phaseId: dto.phaseId?.toString() || '',
+          phaseName: dto.phaseName || '',
           reporterId: dto.reportedBy.toString(),
           reporterName: dto.reporterName,
           reviewerId: dto.reviewerBy?.toString(),
@@ -142,12 +146,19 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
         projectService.getTasks(inc.projectId),
         projectService.getPhases(inc.projectId)
       ]);
-      const task = tList.find(t => t.id === inc.taskId);
-      const phase = pList.find(p => p.id === task?.phaseId);
+      let phase = pList.find(p => p.id === inc.phaseId);
+      if (!phase && inc.taskId) {
+        const task = tList.find(t => t.id === inc.taskId);
+        phase = pList.find(p => p.id === task?.phaseId);
+      }
 
       setSelectedPhase(phase || null);
 
-      setSelectedIncident(inc);
+      setSelectedIncident({
+        ...inc,
+        phaseId: phase ? phase.id.toString() : inc.phaseId,
+        phaseName: phase ? phase.name : inc.phaseName
+      });
       setIsDetailOpen(true);
     } catch (err) {
       console.error(err);
@@ -160,18 +171,18 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Reported':
-        return <Badge variant="warning" className="normal-case">Báo cáo mới</Badge>;
+        return <Badge className="normal-case bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50">Báo cáo mới</Badge>;
       case 'WaitingAccountant':
-        return <Badge variant="warning" className="normal-case">Chờ Kế toán xác minh</Badge>;
+        return <Badge className="normal-case bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-50">Chờ Kế toán xác minh</Badge>;
       case 'WaitingDirector':
-        return <Badge variant="warning" className="normal-case">Chờ Giám đốc phê duyệt</Badge>;
+        return <Badge className="normal-case bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-50">Chờ Giám đốc phê duyệt</Badge>;
       case 'Approved':
-        return <Badge variant="success" className="normal-case bg-[hsl(var(--success-glow))] text-[hsl(var(--success))]">Chờ GĐ duyệt kho</Badge>;
       case 'Confirmed':
       case 'Closed':
-        return <Badge variant="success" className="normal-case">Đã xử lý</Badge>;
       case 'Resolved':
-        return <Badge variant="default" className="normal-case bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))]">Đã xử lý</Badge>;
+        return <Badge className="normal-case bg-green-50 text-green-700 border border-green-200 hover:bg-green-50">Đã xử lý</Badge>;
+      case 'Rejected':
+        return <Badge className="normal-case bg-red-50 text-red-700 border border-red-200 hover:bg-red-50">Bị từ chối</Badge>;
       default:
         return <Badge variant="default" className="normal-case">{status}</Badge>;
     }
@@ -233,8 +244,6 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
               <tr className="bg-[hsl(var(--bg-card-hover))] text-left text-[hsl(var(--text-muted))]">
                 <th className="p-4 font-semibold">DỰ ÁN</th>
                 <th className="p-4 font-semibold">NGÀY BÁO CÁO</th>
-                <th className="p-4 font-semibold">CÔNG VIỆC BỊ SỰ CỐ</th>
-                <th className="p-4 font-semibold">PHÂN LOẠI</th>
                 <th className="p-4 font-semibold">NGƯỜI BÁO CÁO</th>
                 <th className="p-4 font-semibold">TRẠNG THÁI</th>
                 <th className="p-4 font-semibold text-center w-32">THAO TÁC</th>
@@ -243,14 +252,14 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
             <tbody className="divide-y divide-[hsl(var(--border))]">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-[hsl(var(--text-muted))]">
+                  <td colSpan={5} className="p-8 text-center text-[hsl(var(--text-muted))]">
                     <Loader2 className="animate-spin inline-block mr-2" size={20} />
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : visibleIncidents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-[hsl(var(--text-muted))]">
+                  <td colSpan={5} className="p-8 text-center text-[hsl(var(--text-muted))]">
                     Không có sự cố vật tư/kho nào.
                   </td>
                 </tr>
@@ -263,17 +272,6 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
                   >
                     <td className="p-4 font-medium text-[hsl(var(--primary))]">{inc.projectName}</td>
                     <td className="p-4 text-[hsl(var(--text-secondary))]">{inc.date}</td>
-                    <td className="p-4">
-                      {inc.taskName === 'Không xác định'
-                        ? <span className="text-[hsl(var(--text-muted))] italic">Không có</span>
-                        : inc.taskName
-                      }
-                    </td>
-                    <td className="p-4">
-                      <Badge variant="default" className="bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))] normal-case border-none">
-                        {inc.incidentType}
-                      </Badge>
-                    </td>
                     <td className="p-4">{inc.reporterName}</td>
                     <td className="p-4">{getStatusBadge(inc.status)}</td>
                     <td className="p-4 text-center">
@@ -309,10 +307,23 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           phase={selectedPhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
           onResolveClick={() => {
-            // No action needed here anymore since we removed the create decrease modal
             setIsDetailOpen(false);
+            setIsDecreaseOpen(true);
           }}
           onSuccessAction={loadData}
+        />
+      )}
+
+      {isDecreaseOpen && selectedIncident && (
+        <CreateDecreaseAdjustmentModal
+          isOpen={isDecreaseOpen}
+          onClose={() => setIsDecreaseOpen(false)}
+          onSuccess={() => {
+            setIsDecreaseOpen(false);
+            loadData();
+          }}
+          projectId={projectId}
+          incident={selectedIncident}
         />
       )}
     </div>

@@ -18,6 +18,7 @@ public record ConfirmIncidentCommand(
     string? ReworkTaskName,
     DateTime? ReworkTaskStartDate,
     DateTime? ReworkTaskEndDate,
+    long? ReworkAssigneeId,
     int? DecreaseProgressTo,
     string? DecreaseProgressReason,
     string? HandlingInstruction
@@ -33,6 +34,7 @@ public class ConfirmIncidentCommandValidator : AbstractValidator<ConfirmIncident
             RuleFor(v => v.ReworkTaskName).NotEmpty().WithMessage("ReworkTaskName is required when creating a rework task.");
             RuleFor(v => v.ReworkTaskStartDate).NotNull().WithMessage("ReworkTaskStartDate is required when creating a rework task.");
             RuleFor(v => v.ReworkTaskEndDate).NotNull().WithMessage("ReworkTaskEndDate is required when creating a rework task.");
+            RuleFor(v => v.ReworkAssigneeId).NotNull().WithMessage("ReworkAssigneeId is required when creating a rework task.");
         }).Otherwise(() => {
             RuleFor(v => v.DecreaseProgressTo)
                 .GreaterThanOrEqualTo(0).LessThanOrEqualTo(100)
@@ -113,6 +115,17 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
             await _unitOfWork.Repository<ProjectTask>().AddAsync(reworkTask);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            if (request.ReworkAssigneeId.HasValue)
+            {
+                var assignee = new TaskAssignee
+                {
+                    TaskId = reworkTask.TaskId,
+                    UserId = request.ReworkAssigneeId.Value
+                };
+                await _unitOfWork.Repository<TaskAssignee>().AddAsync(assignee);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
 
             incident.ReworkTaskId = reworkTask.TaskId;
         }

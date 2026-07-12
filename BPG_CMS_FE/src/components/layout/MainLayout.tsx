@@ -13,8 +13,6 @@ import {
   Ruler,
   Tags,
   Package,
-  FileSignature,
-  AlertTriangle,
   ShoppingCart,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -42,13 +40,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Dự án (WBS)', path: '/projects', icon: <Hammer size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin', 'accountant'] },
     { name: 'Danh mục Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin', 'accountant'] },
-<<<<<<< Updated upstream
-    { name: 'Kho Vật tư (Catalog)', path: '/materials', icon: <Package size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Kiểm kê vật tư', path: '/inventory-adjustments', icon: <FileSignature size={20} />, roles: ['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer'] },
-    { name: 'Sự cố thi công', path: '/incidents', icon: <AlertTriangle size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
-=======
     { name: 'Vật tư', path: '/materials', icon: <Package size={20} />, roles: ['admin', 'accountant'] },
->>>>>>> Stashed changes
     { name: 'Kiểm soát Vật tư', path: '/materials-control', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
     { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: ['accountant', 'admin'] },
     { name: 'Báo cáo', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant'] },
@@ -168,17 +160,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 onClick={() => setIsSidebarOpen(true)} 
               />
               <h2 className="text-xl font-semibold">
-<<<<<<< Updated upstream
-                {location.pathname === '/dashboard' ? 'Bảng điều khiển' : 
-                 location.pathname === '/users' ? 'Quản lý Thành viên' : 
-                 location.pathname === '/suppliers' ? 'Quản lý Nhà cung cấp' : 
-                 location.pathname === '/units' ? 'Quản lý Đơn vị tính' : 
-                 location.pathname === '/categories' ? 'Danh mục Vật tư' : 
-                 location.pathname === '/materials' ? 'Kho Vật tư (Catalog)' : 
-                 location.pathname === '/projects' ? 'Danh sách Dự án WBS' : 
-                 location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
-                 location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
-=======
                 {location.pathname === '/dashboard' ? 'Bảng điều khiển' :
                   location.pathname === '/users' ? 'Quản lý Thành viên' :
                     location.pathname === '/suppliers' ? 'Quản lý Nhà cung cấp' :
@@ -188,7 +169,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                             location.pathname === '/projects' ? 'Danh sách Dự án' :
                               location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
                                 location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
->>>>>>> Stashed changes
               </h2>
             </div>
             <div className="flex items-center gap-4">

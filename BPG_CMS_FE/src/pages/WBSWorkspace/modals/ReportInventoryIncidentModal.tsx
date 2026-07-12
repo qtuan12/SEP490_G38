@@ -14,7 +14,13 @@ import type { CurrentInventory } from '../../../types/inventory';
 const schema = z.object({
   incidentType: z.enum(['InventoryLoss', 'InventoryDamage']),
   description: z.string().min(5, 'Mô tả sự cố phải có ít nhất 5 ký tự'),
-  incidentDate: z.string().min(1, 'Vui lòng chọn ngày phát hiện'),
+  incidentDate: z.string()
+    .min(1, 'Vui lòng chọn ngày phát hiện')
+    .refine((val) => {
+      const selected = new Date(val);
+      const now = new Date();
+      return selected <= now;
+    }, 'Ngày/Giờ phát hiện không được vượt quá thời gian hiện tại'),
   estimatedLaborDays: z.coerce.number().optional().default(0),
   estimatedDelayDays: z.coerce.number().optional().default(0),
 });
@@ -221,6 +227,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 <input
                   type="datetime-local"
                   className="input"
+                  max={new Date().toISOString().slice(0, 16)}
                   {...register('incidentDate')}
                 />
                 {(errors as any).incidentDate && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).incidentDate?.message)}</span>}

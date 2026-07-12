@@ -62,6 +62,7 @@ export const incidentService = {
       reworkTaskName?: string;
       reworkTaskStartDate?: string;
       reworkTaskEndDate?: string;
+      reworkAssigneeId?: number;
       decreaseProgressTo?: number;
       decreaseProgressReason?: string;
       handlingInstruction?: string;
