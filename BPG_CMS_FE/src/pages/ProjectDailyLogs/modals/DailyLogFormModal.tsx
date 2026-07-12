@@ -4,11 +4,13 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { UploadCloud, X, AlertCircle } from 'lucide-react';
+import { UploadCloud, X, AlertCircle, Loader2 } from 'lucide-react';
 import { projectService } from '../../../services/projectService';
 import type { WBSTask, DailyLog, WBSPhase } from '../../../types/common';
 import { Modal, Button, Textarea } from '../../../components/ui';
 import { useAuth } from '../../../context/AuthContext';
+import { compressAndUploadFile } from '../../../utils/uploadHelper';
+import type { UploadedFileState } from '../../../utils/uploadHelper';
 
 const dailyLogSchema = z.object({
   progress: z.number().min(0).max(100),
@@ -48,10 +50,8 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const queryClient = useQueryClient();
   const isEditMode = !!editLog;
 
-  // Selected new files for upload
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  // Local object URLs for previewing new files
-  const [previews, setPreviews] = useState<string[]>([]);
+  // Selected new files with upload status
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   // Keep track of existing images in edit mode
   const [existingImages, setExistingImages] = useState<string[]>([]);
   // File dragging state
@@ -107,8 +107,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const progress = watch('progress');
 
   useEffect(() => {
-    setSelectedFiles([]);
-    setPreviews([]);
+    setUploadedFiles([]);
     
     if (isEditMode && editLog) {
       setExistingImages(editLog.images || []);
@@ -163,18 +162,44 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
     const validFiles = files.filter(f => f.type.startsWith('image/'));
     if (validFiles.length === 0) return;
 
-    const newFiles = [...selectedFiles, ...validFiles];
-    setSelectedFiles(newFiles);
+    validFiles.forEach(file => {
+      const tempId = Math.random().toString(36).substring(7);
+      const localUrl = URL.createObjectURL(file);
+      
+      const newFileState: UploadedFileState = {
+        id: tempId,
+        name: file.name,
+        url: localUrl,
+        status: 'uploading'
+      };
 
-    const urls = validFiles.map(file => URL.createObjectURL(file));
-    setPreviews(prev => [...prev, ...urls]);
+      setUploadedFiles(prev => [...prev, newFileState]);
+
+      compressAndUploadFile(
+        file,
+        'dailylogs',
+        (uploadedUrl) => {
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
+          );
+        },
+        () => {
+          toast.error(`Tải ảnh ${file.name} lên thất bại.`);
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
+          );
+        }
+      );
+    });
   };
 
-  const removeNewImage = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    setPreviews(prev => {
-      URL.revokeObjectURL(prev[index]);
-      return prev.filter((_, i) => i !== index);
+  const removeNewImage = (id: string) => {
+    setUploadedFiles(prev => {
+      const target = prev.find(f => f.id === id);
+      if (target && target.url && target.url.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter(f => f.id !== id);
     });
   };
 
@@ -184,14 +209,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
   const mutation = useMutation({
     mutationFn: async (data: DailyLogForm) => {
-      let finalImages: string[] = [];
+      // Collect successful URLs
+      const finalImages = uploadedFiles
+        .filter(f => f.status === 'success' && f.url)
+        .map(f => f.url!);
 
-      // 1. Upload new files to Cloudinary if any
-      if (selectedFiles.length > 0) {
-        finalImages = await projectService.uploadFiles(selectedFiles, 'dailylogs');
-      }
-
-      // 2. Merge with remaining existing images
       const allImages = [...existingImages, ...finalImages];
 
       if (isEditMode && editLog) {
@@ -232,10 +254,15 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   });
 
   const onSubmit = (data: DailyLogForm) => {
+    // Prevent submitting if any file is still uploading
+    if (uploadedFiles.some(f => f.status === 'uploading')) {
+      toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
+      return;
+    }
     mutation.mutate(data);
   };
 
-  const totalImagesCount = existingImages.length + selectedFiles.length;
+  const totalImagesCount = existingImages.length + uploadedFiles.length;
 
   return (
     <div className={`bg-[hsl(var(--bg-card))] rounded-md ${hideHeader ? '' : 'border border-[hsl(var(--border))] shadow-sm mt-4'} overflow-hidden animate-fade-in`}>
@@ -377,15 +404,29 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                   ))}
 
                   {/* New Selected Images */}
-                  {previews.map((imgUrl, idx) => (
-                    <div key={`new-${idx}`} className="relative w-16 h-16 rounded shadow-sm border border-gray-200 group overflow-hidden">
-                      <img src={imgUrl} alt="new preview" className="w-full h-full object-cover border border-green-500" />
-                      <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">Mới</span>
+                  {uploadedFiles.map((file) => (
+                    <div key={file.id} className={`relative w-16 h-16 rounded shadow-sm border group overflow-hidden ${file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-gray-200'}`}>
+                      <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                      
+                      {file.status === 'uploading' && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <Loader2 size={12} className="animate-spin text-white" />
+                        </div>
+                      )}
+                      
+                      {file.status === 'error' && (
+                        <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                      )}
+                      
+                      {file.status === 'success' && (
+                        <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">Mới</span>
+                      )}
+                      
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          removeNewImage(idx);
+                          removeNewImage(file.id);
                         }}
                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         title="Hủy chọn"
