@@ -63,7 +63,7 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Tìm kiếm theo mã receipt, mã PO, deliverer..."
+            placeholder="Tìm kiếm theo mã nhập, mã đơn hàng, người giao hàng..."
             value={searchTerm}
             onChange={e => {
               setSearchTerm(e.target.value);
@@ -93,7 +93,7 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
               <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
                 <tr>
                   <th className="px-4 py-3">Mã phiếu</th>
-                  <th className="px-4 py-3">Mã đơn PO</th>
+                  <th className="px-4 py-3">Mã đơn hàng</th>
                   <th className="px-4 py-3">Người giao</th>
                   <th className="px-4 py-3">Số phiếu giao</th>
                   <th className="px-4 py-3">Ngày nhận</th>
@@ -123,21 +123,7 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
                           const info = r.delivererInfo || 'Chưa cập nhật';
                           const match = info.match(/^\[(?:QC|Kiểm hàng):\s*([^\]]+)\](.*)$/);
                           if (match) {
-                            const status = match[1];
-                            const rest = match[2].trim();
-                            let badgeClass = "bg-slate-50 text-slate-600 border-slate-200";
-                            if (status.includes("Đạt")) badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
-                            else if (status.includes("Không")) badgeClass = "bg-rose-50 text-rose-700 border-rose-200";
-                            else if (status.includes("Chờ")) badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
-                            
-                            return (
-                              <div className="flex flex-col gap-1 items-start">
-                                <span className="font-medium text-slate-900">{rest || 'Chưa cập nhật'}</span>
-                                <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${badgeClass}`}>
-                                  {status}
-                                </span>
-                              </div>
-                            );
+                            return match[2].trim() || 'Chưa cập nhật';
                           }
                           return info;
                         })()}

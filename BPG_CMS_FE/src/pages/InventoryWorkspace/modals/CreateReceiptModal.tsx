@@ -82,7 +82,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       }
     } catch (err: any) {
       console.error('Error fetching POs:', err);
-      setGeneralError('Không thể tải danh sách đơn mua hàng PO.');
+      setGeneralError('Không thể tải danh sách đơn mua hàng.');
     } finally {
       setLoadingPOs(false);
     }
@@ -126,7 +126,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
     } else if (numVal > remaining) {
       setErrors(prev => ({
         ...prev,
-        [materialId]: `Không được vượt quá số lượng còn lại của PO (${remaining} ${item.unitName}).`
+        [materialId]: `Không được vượt quá số lượng còn lại của đơn hàng (${remaining} ${item.unitName}).`
       }));
     } else if (isDiscreteUnit(item.unitName) && numVal % 1 !== 0) {
       setErrors(prev => ({
@@ -218,7 +218,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPO) {
-      setGeneralError('Vui lòng chọn đơn mua hàng PO.');
+      setGeneralError('Vui lòng chọn đơn mua hàng.');
       return;
     }
 
@@ -324,10 +324,10 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormItem label="Chọn đơn hàng PO" required>
+          <FormItem label="Chọn đơn hàng" required>
             <Select
               options={[
-                { label: '-- Chọn đơn hàng PO --', value: '' },
+                { label: '-- Chọn đơn hàng --', value: '' },
                 ...purchaseOrders.map(po => ({
                   label: `${po.poNumber} (${po.supplierName}) - ${po.status === 'Sent' ? 'Chưa giao' : 'Đã giao một phần'}`,
                   value: po.poId.toString()
@@ -369,7 +369,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
         {selectedPO && (
           <div className="mt-2">
-            <h4 className="text-sm font-semibold text-slate-700 mb-2">Chi tiết vật tư trong đơn PO</h4>
+            <h4 className="text-sm font-semibold text-slate-700 mb-2">Chi tiết vật tư trong đơn mua hàng</h4>
             <div className="overflow-x-auto border border-slate-200 rounded-lg">
               <table className="min-w-full divide-y divide-slate-200 text-sm text-left">
                 <thead className="bg-slate-50 text-slate-600 font-medium uppercase text-xs">
@@ -439,10 +439,10 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
               }
             }}
             className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${uploadedFiles.length >= 5
-                ? 'border-slate-200 bg-slate-100 cursor-not-allowed opacity-60'
-                : dragging
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+              ? 'border-slate-200 bg-slate-100 cursor-not-allowed opacity-60'
+              : dragging
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
               }`}
           >
             <input
@@ -469,7 +469,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                 <div key={file.id} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200 group">
                   <div className={`relative w-full h-full rounded overflow-hidden border ${file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-slate-200'}`}>
                     <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
-                    
+
                     {file.status === 'uploading' && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                         <Loader2 size={16} className="animate-spin text-white" />
@@ -484,7 +484,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                       <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">OK</span>
                     )}
                   </div>
-                  
+
                   <button
                     type="button"
                     onClick={(e) => {
