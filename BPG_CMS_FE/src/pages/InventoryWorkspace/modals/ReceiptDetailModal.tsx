@@ -108,6 +108,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     } catch (err: any) {
       console.error('Error cancelling goods receipt:', err);
       setActionError(err.message || 'Lỗi hệ thống khi hủy phiếu nhập kho.');
+      setIsConfirmCancelOpen(false);
     } finally {
       setCancelling(false);
     }
@@ -391,8 +392,8 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                         return (
                           <div className="flex items-center gap-2 text-slate-600">
                             <FileText size={16} className="text-slate-400" />
-                            <span className="font-medium">Chất lượng kiểm hàng:</span>
-                            <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-semibold border ${badgeClass}`}>
+                            <span className="font-medium">Ghi chú:</span>
+                            <span className={`inline-flex text-xs font-semibold ${badgeClass}`}>
                               {status}
                             </span>
                           </div>
