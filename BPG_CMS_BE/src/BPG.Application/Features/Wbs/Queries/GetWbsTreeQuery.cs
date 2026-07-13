@@ -1,4 +1,4 @@
-using BPG.Application.Features.Wbs.DTOs;
+using BPG.Application.DTOs.Wbs;
 using MediatR;
 
 namespace BPG.Application.Features.Wbs.Queries;

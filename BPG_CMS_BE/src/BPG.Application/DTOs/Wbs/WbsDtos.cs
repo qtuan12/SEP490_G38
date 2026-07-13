@@ -1,4 +1,7 @@
-namespace BPG.Application.Features.Wbs.DTOs;
+using System;
+using System.Collections.Generic;
+
+namespace BPG.Application.DTOs.Wbs;
 
 public record WbsTaskDto
 {
