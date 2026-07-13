@@ -3,6 +3,7 @@ using System.Text.Json;
 using BPG.Application.Common.Models;
 using BPG.Domain.Constants;
 using BPG.Domain.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Api.Middleware;
 
@@ -48,6 +49,11 @@ public class ExceptionMiddleware
 
         switch (exception)
         {
+            case DbUpdateConcurrencyException ex:
+                statusCode = HttpStatusCode.Conflict;
+                response = ApiResponse.FailureResult(ErrorCodes.DatabaseError, "Dữ liệu tồn kho hoặc thông tin liên quan đã bị thay đổi bởi một phiên làm việc khác. Vui lòng tải lại trang và thực hiện lại.");
+                break;
+
             case NotFoundException ex:
                 statusCode = HttpStatusCode.NotFound;
                 response = ApiResponse.FailureResult(ex.ErrorCode, ex.Message);

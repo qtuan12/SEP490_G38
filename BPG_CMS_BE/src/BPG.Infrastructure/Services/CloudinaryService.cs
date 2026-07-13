@@ -3,6 +3,7 @@ using CloudinaryDotNet.Actions;
 using BPG.Application.IServices;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Threading;
@@ -13,17 +14,18 @@ namespace BPG.Infrastructure.Services
     public class CloudinaryService : IFileStorageService
     {
         private readonly Cloudinary _cloudinary;
+        private readonly ILogger<CloudinaryService> _logger;
 
-        public CloudinaryService(IConfiguration configuration)
+        public CloudinaryService(IConfiguration configuration, ILogger<CloudinaryService> logger)
         {
+            _logger = logger;
             var cloudName = configuration["Cloudinary:CloudName"];
             var apiKey = configuration["Cloudinary:ApiKey"];
             var apiSecret = configuration["Cloudinary:ApiSecret"];
 
             if (string.IsNullOrEmpty(cloudName) || string.IsNullOrEmpty(apiKey) || string.IsNullOrEmpty(apiSecret))
             {
-                // Fallback to avoid crashing on startup if settings are missing
-                Console.WriteLine("[Cloudinary Warnings] Cloudinary credentials are not fully configured in settings.");
+                _logger.LogWarning("Thông tin cấu hình Cloudinary chưa được khai báo đầy đủ trong Settings.");
             }
 
             var account = new Account(cloudName, apiKey, apiSecret);
@@ -32,7 +34,13 @@ namespace BPG.Infrastructure.Services
 
         public async Task<string> UploadFileAsync(IFormFile file, string folder, CancellationToken ct = default)
         {
-            if (file == null || file.Length == 0) return string.Empty;
+            if (file == null || file.Length == 0)
+            {
+                _logger.LogWarning("Tệp tin truyền vào rỗng hoặc Null, bỏ qua tải lên Cloudinary.");
+                return string.Empty;
+            }
+
+            _logger.LogInformation("Bắt đầu upload tệp '{FileName}' (Kích thước: {Length} bytes) lên thư mục '{Folder}'", file.FileName, file.Length, folder);
 
             using var stream = file.OpenReadStream();
             var extension = Path.GetExtension(file.FileName).ToLower();
@@ -41,36 +49,52 @@ namespace BPG.Infrastructure.Services
 
             UploadResult uploadResult;
 
-            if (isImage)
+            try
             {
-                var uploadParams = new ImageUploadParams
+                if (isImage)
                 {
-                    File = new FileDescription(file.FileName, stream),
-                    Folder = folder
-                };
-                uploadResult = await _cloudinary.UploadAsync(uploadParams, ct);
+                    var uploadParams = new ImageUploadParams
+                    {
+                        File = new FileDescription(file.FileName, stream),
+                        Folder = folder
+                    };
+                    uploadResult = await _cloudinary.UploadAsync(uploadParams, ct);
+                }
+                else
+                {
+                    var uploadParams = new RawUploadParams
+                    {
+                        File = new FileDescription(file.FileName, stream),
+                        Folder = folder
+                    };
+                    uploadResult = await _cloudinary.UploadAsync(uploadParams, "raw", ct);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                var uploadParams = new RawUploadParams
-                {
-                    File = new FileDescription(file.FileName, stream),
-                    Folder = folder
-                };
-                uploadResult = await _cloudinary.UploadAsync(uploadParams, "raw", ct);
+                _logger.LogError(ex, "Lỗi kết nối hoặc ngoại lệ xảy ra khi gửi tệp '{FileName}' sang Cloudinary.", file.FileName);
+                throw;
             }
 
             if (uploadResult.Error != null)
             {
+                _logger.LogError("Cloudinary từ chối upload tệp '{FileName}'. Lỗi: {ErrorMessage}", file.FileName, uploadResult.Error.Message);
                 throw new InvalidOperationException($"Lỗi upload file lên Cloudinary: {uploadResult.Error.Message}");
             }
 
+            _logger.LogInformation("Upload tệp '{FileName}' lên Cloudinary thành công. URL: {SecureUrl}", file.FileName, uploadResult.SecureUrl);
             return uploadResult.SecureUrl.ToString();
         }
 
         public async Task<string> UploadFileAsync(byte[] fileBytes, string fileName, string folder, CancellationToken ct = default)
         {
-            if (fileBytes == null || fileBytes.Length == 0) return string.Empty;
+            if (fileBytes == null || fileBytes.Length == 0)
+            {
+                _logger.LogWarning("Dữ liệu byte[] truyền vào rỗng hoặc Null, bỏ qua tải lên Cloudinary.");
+                return string.Empty;
+            }
+
+            _logger.LogInformation("Bắt đầu upload tệp từ byte[] '{FileName}' (Kích thước: {Length} bytes) lên thư mục '{Folder}'", fileName, fileBytes.Length, folder);
 
             using var stream = new MemoryStream(fileBytes);
             var extension = Path.GetExtension(fileName).ToLower();
@@ -78,39 +102,59 @@ namespace BPG.Infrastructure.Services
 
             UploadResult uploadResult;
 
-            if (isImage)
+            try
             {
-                var uploadParams = new ImageUploadParams
+                if (isImage)
                 {
-                    File = new FileDescription(fileName, stream),
-                    Folder = folder
-                };
-                uploadResult = await _cloudinary.UploadAsync(uploadParams, ct);
+                    var uploadParams = new ImageUploadParams
+                    {
+                        File = new FileDescription(fileName, stream),
+                        Folder = folder
+                    };
+                    uploadResult = await _cloudinary.UploadAsync(uploadParams, ct);
+                }
+                else
+                {
+                    var uploadParams = new RawUploadParams
+                    {
+                        File = new FileDescription(fileName, stream),
+                        Folder = folder
+                    };
+                    uploadResult = await _cloudinary.UploadAsync(uploadParams, "raw", ct);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                var uploadParams = new RawUploadParams
-                {
-                    File = new FileDescription(fileName, stream),
-                    Folder = folder
-                };
-                uploadResult = await _cloudinary.UploadAsync(uploadParams, "raw", ct);
+                _logger.LogError(ex, "Lỗi kết nối hoặc ngoại lệ xảy ra khi gửi byte[] tệp '{FileName}' sang Cloudinary.", fileName);
+                throw;
             }
 
             if (uploadResult.Error != null)
             {
+                _logger.LogError("Cloudinary từ chối upload tệp từ byte[] '{FileName}'. Lỗi: {ErrorMessage}", fileName, uploadResult.Error.Message);
                 throw new InvalidOperationException($"Lỗi upload file lên Cloudinary: {uploadResult.Error.Message}");
             }
 
+            _logger.LogInformation("Upload tệp từ byte[] '{FileName}' lên Cloudinary thành công. URL: {SecureUrl}", fileName, uploadResult.SecureUrl);
             return uploadResult.SecureUrl.ToString();
         }
 
         public async Task<bool> DeleteFileAsync(string fileUrl, CancellationToken ct = default)
         {
-            if (string.IsNullOrWhiteSpace(fileUrl)) return false;
+            if (string.IsNullOrWhiteSpace(fileUrl))
+            {
+                _logger.LogWarning("Yêu cầu xóa tệp với URL rỗng, bỏ qua.");
+                return false;
+            }
+
+            _logger.LogInformation("Bắt đầu yêu cầu xóa tệp tại URL '{FileUrl}' trên Cloudinary.", fileUrl);
 
             var publicId = ExtractPublicIdFromUrl(fileUrl);
-            if (string.IsNullOrEmpty(publicId)) return false;
+            if (string.IsNullOrEmpty(publicId))
+            {
+                _logger.LogWarning("Không thể trích xuất PublicId từ URL '{FileUrl}'.", fileUrl);
+                return false;
+            }
 
             var resourceType = GetResourceTypeFromUrl(fileUrl);
             var deletionParams = new DeletionParams(publicId)
@@ -118,8 +162,28 @@ namespace BPG.Infrastructure.Services
                 ResourceType = resourceType
             };
 
-            var result = await _cloudinary.DestroyAsync(deletionParams);
-            return result.Result == "ok";
+            DeletionResult result;
+            try
+            {
+                result = await _cloudinary.DestroyAsync(deletionParams);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi xảy ra khi gửi yêu cầu hủy tệp PublicId '{PublicId}' tới Cloudinary.", publicId);
+                throw;
+            }
+
+            var success = result.Result == "ok";
+            if (success)
+            {
+                _logger.LogInformation("Xóa tệp PublicId '{PublicId}' trên Cloudinary thành công.", publicId);
+            }
+            else
+            {
+                _logger.LogWarning("Yêu cầu xóa tệp PublicId '{PublicId}' trên Cloudinary trả về trạng thái: {ResultStatus}", publicId, result.Result);
+            }
+
+            return success;
         }
 
         private string ExtractPublicIdFromUrl(string url)
