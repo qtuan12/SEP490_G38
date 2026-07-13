@@ -444,7 +444,7 @@ namespace BPG.Application.UnitTests.Comments
         }
 
         [Fact]
-        public async Task UTCID9_Handle_UserNotAuthenticated_ShouldThrowUnauthorizedAccessException()
+        public async Task UTCID09_Handle_UserNotAuthenticated_ShouldThrowUnauthorizedAccessException()
         {
             // Arrange
             SetupCurrentUser(userId: 0, role: "", isAuthenticated: false);
@@ -457,6 +457,71 @@ namespace BPG.Application.UnitTests.Comments
             // Assert
             await act.Should().ThrowAsync<UnauthorizedAccessException>()
                 .WithMessage("User is not authenticated.");
+        }
+
+        [Fact]
+        public async Task UTCID10_Handle_SelfCommentWithOtherCommenters_ShouldNotNotifySelfButNotifyOthers()
+        {
+            // Arrange
+            SetupCurrentUser(userId: 20, role: BPG.Domain.Constants.UserRole.SiteEngineer); // Creator of log is 20, which is also current user
+
+            var dailyLog = new DailyLog
+            {
+                LogId = 100,
+                CreatedBy = 20, // matching currentUserId
+                Task = new ProjectTask
+                {
+                    Name = "Brickwork Detail",
+                    Phase = new Phase { ProjectId = 5 }
+                }
+            };
+            _mockDailyLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { dailyLog }.AsQueryable().BuildMock());
+
+            var member = new ProjectMember { ProjectId = 5, UserId = 20 };
+            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember> { member }.AsQueryable().BuildMock());
+
+            var authorUser = new User
+            {
+                UserId = 20,
+                FullName = "Creator User",
+                UserRoles = new List<BPG.Domain.Entities.UserRole>()
+            };
+            _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { authorUser }.AsQueryable().BuildMock());
+
+            // User 30 has also commented on this log before
+            var existingComments = new List<Comment>
+            {
+                new Comment { LogId = 100, AuthorId = 30, IsDeleted = false }
+            };
+            _mockCommentRepo.Setup(r => r.Query()).Returns(existingComments.AsQueryable().BuildMock());
+
+            var command = new AddCommentCommand { LogId = 100, Content = "Another comment by creator" };
+
+            // Act
+            await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            // 1. Creator (20) should NOT receive "new comment" notification because they are the one commenting
+            _mockNotificationService.Verify(n => n.SendNotificationAsync(
+                20,
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<long?>(),
+                It.IsAny<CancellationToken>()
+            ), Times.Never);
+
+            // 2. Other commenter (30) SHOULD receive "new comment activity" notification
+            _mockNotificationService.Verify(n => n.SendNotificationAsync(
+                30,
+                "Hoạt động bình luận mới",
+                It.IsAny<string>(),
+                NotificationType.Progress,
+                NotificationReferenceType.Task,
+                dailyLog.TaskId,
+                It.IsAny<CancellationToken>()
+            ), Times.Once);
         }
     }
 }

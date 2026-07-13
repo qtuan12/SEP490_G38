@@ -385,5 +385,142 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("*Không thể hủy phiếu nhập kho. Vật tư [Cement] đã được xuất dùng hoặc đóng băng*");
         }
+
+        [Fact]
+        public async Task UTCID12_Handle_ErrorDuringTransaction_ShouldRollbackAndThrow()
+        {
+            // Arrange
+            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder
+            {
+                POId = 100,
+                Status = PurchaseOrderStatus.FullyReceived,
+                Items = new List<PurchaseOrderItem> { new PurchaseOrderItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 } },
+                Request = new MaterialRequest { Phase = new Phase { Project = project } }
+            };
+
+            var receipt = new GoodsReceipt
+            {
+                ReceiptId = 500,
+                POId = 100,
+                Status = GoodsReceiptStatus.Approved,
+                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                PurchaseOrder = po,
+                Items = new List<GoodsReceiptItem> { new GoodsReceiptItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 } }
+            };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
+
+            var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 15, ReservedQuantity = 0 };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
+
+            // Set up UpdateStockAsync to throw exception to trigger transaction rollback
+            _mockInventoryService.Setup(s => s.UpdateStockAsync(
+                It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(),
+                It.IsAny<byte>(), It.IsAny<long>(), It.IsAny<string>(),
+                It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("Database connectivity failure"));
+
+            var command = new CancelGoodsReceiptCommand(500);
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<Exception>().WithMessage("Database connectivity failure");
+
+            _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockUow.Verify(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task UTCID13_Handle_SystemConfigKeyMissing_ShouldFallbackToDefaultSevenDaysLimit()
+        {
+            // Arrange
+            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder
+            {
+                POId = 100,
+                Status = PurchaseOrderStatus.FullyReceived,
+                Items = new List<PurchaseOrderItem> { new PurchaseOrderItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 } },
+                Request = new MaterialRequest { Phase = new Phase { Project = project } }
+            };
+
+            // Receipt created 8 days ago (exceeds default 7 days limit)
+            var receipt = new GoodsReceipt
+            {
+                ReceiptId = 500,
+                POId = 100,
+                Status = GoodsReceiptStatus.Approved,
+                CreatedAt = DateTime.UtcNow.AddDays(-8),
+                PurchaseOrder = po,
+                Items = new List<GoodsReceiptItem> { new GoodsReceiptItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 } }
+            };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
+
+            // Config repo query returns empty (meaning config missing)
+            _mockConfigRepo.Setup(r => r.Query()).Returns(new List<SystemConfig>().AsQueryable().BuildMock());
+
+            var command = new CancelGoodsReceiptCommand(500);
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<BusinessException>()
+                .WithMessage("*Phiếu nhập kho đã được tạo quá 7 ngày*"); // Asserts fallback default of 7 days
+        }
+
+        [Fact]
+        public async Task UTCID14_Handle_MultipleMaterialsOneInsufficient_ShouldThrowBusinessException()
+        {
+            // Arrange
+            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder
+            {
+                POId = 100,
+                Status = PurchaseOrderStatus.FullyReceived,
+                Request = new MaterialRequest { Phase = new Phase { Project = project } },
+                Items = new List<PurchaseOrderItem>
+                {
+                    new PurchaseOrderItem { MaterialId = 50, Material = new MaterialCatalog { Name = "Cement" } },
+                    new PurchaseOrderItem { MaterialId = 60, Material = new MaterialCatalog { Name = "Brick" } }
+                }
+            };
+            var receipt = new GoodsReceipt
+            {
+                ReceiptId = 500,
+                Status = GoodsReceiptStatus.Approved,
+                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                PurchaseOrder = po,
+                Items = new List<GoodsReceiptItem>
+                {
+                    new GoodsReceiptItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }, // Sufficent
+                    new GoodsReceiptItem { MaterialId = 60, Quantity = 20, ConversionRate = 1 }  // Insufficient!
+                }
+            };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
+
+            // Cement available = 15 - 0 = 15 >= 10
+            var cementInv = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 15, ReservedQuantity = 0 };
+            // Brick available = 5 - 0 = 5 < 20
+            var brickInv = new CurrentInventory { ProjectId = 5, MaterialId = 60, Quantity = 5, ReservedQuantity = 0 };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { cementInv, brickInv }.AsQueryable().BuildMock());
+
+            var command = new CancelGoodsReceiptCommand(500);
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<BusinessException>()
+                .WithMessage("*Không thể hủy phiếu nhập kho. Vật tư [Brick] đã được xuất dùng hoặc đóng băng*");
+        }
     }
 }

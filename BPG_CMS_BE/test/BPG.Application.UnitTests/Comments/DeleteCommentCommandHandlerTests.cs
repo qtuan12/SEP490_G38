@@ -198,5 +198,26 @@ namespace BPG.Application.UnitTests.Comments
                 It.IsAny<CancellationToken>()
             ), Times.Never);
         }
+
+        [Fact]
+        public async Task UTCID06_Handle_AlreadyDeletedComment_ShouldThrowNotFoundException()
+        {
+            // Arrange
+            SetupCurrentUser(userId: 10);
+            // Since EF Core has global filter for IsDeleted = false, already deleted comment won't be returned by Query()
+            _mockCommentRepo.Setup(r => r.Query()).Returns(new List<Comment>().AsQueryable().BuildMock());
+
+            var command = new DeleteCommentCommand(100);
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<NotFoundException>()
+                .WithMessage("Comment với ID [100] không tồn tại.");
+
+            _mockCommentRepo.Verify(r => r.Remove(It.IsAny<Comment>()), Times.Never);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        }
     }
 }

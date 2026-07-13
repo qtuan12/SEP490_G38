@@ -70,24 +70,24 @@ namespace BPG.Application.UnitTests.Suppliers
         }
 
         [Fact]
-        public async Task UTCID03_Handle_AlreadyDeletedSupplier_ShouldStillSetDeletedAndReturnTrue()
+        public async Task UTCID03_Handle_AlreadyDeletedSupplier_ShouldThrowNotFoundException()
         {
             // Arrange
-            var supplier = new Supplier { SupplierId = 1, SupplierName = "Supplier A", IsDeleted = true };
+            // Since EF Core has global filter for IsDeleted = false, in real runtime, finding an already deleted supplier will return null.
             _mockSupplierRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(supplier);
+                .ReturnsAsync((Supplier?)null);
 
             var command = new DeleteSupplierCommand(1);
 
             // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            result.Should().BeTrue();
-            supplier.IsDeleted.Should().BeTrue();
+            await act.Should().ThrowAsync<NotFoundException>()
+                .WithMessage("Supplier với ID [1] không tồn tại.");
 
-            _mockSupplierRepo.Verify(r => r.Update(supplier), Times.Once);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockSupplierRepo.Verify(r => r.Update(It.IsAny<Supplier>()), Times.Never);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
     }
 }

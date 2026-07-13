@@ -170,5 +170,29 @@ namespace BPG.Application.UnitTests.Notifications
             _mockNotiRepo.Verify(r => r.Update(It.IsAny<Notification>()), Times.Never);
             _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
+
+        [Fact]
+        public async Task UTCID07_Handle_BothMarkAllAndNotificationIdProvided_ShouldPrioritizeMarkAll()
+        {
+            // Arrange
+            var notifications = new List<Notification>
+            {
+                new Notification { NotificationId = 1, UserId = 10, IsRead = false },
+                new Notification { NotificationId = 2, UserId = 10, IsRead = false }
+            };
+            SetupRepositoryMock(notifications);
+
+            var command = new MarkNotificationAsReadCommand(UserId: 10, NotificationId: 1, MarkAll: true);
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().BeTrue();
+            notifications.All(n => n.IsRead).Should().BeTrue(); // All notifications marked read, not just ID 1
+
+            _mockNotiRepo.Verify(r => r.Update(It.IsAny<Notification>()), Times.Exactly(2));
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
     }
 }
