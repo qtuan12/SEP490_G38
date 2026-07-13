@@ -1,4 +1,7 @@
-namespace BPG.Application.Features.Surplus.DTOs;
+using System;
+using System.Collections.Generic;
+
+namespace BPG.Application.DTOs.Surplus;
 
 public class SurplusRequestDto
 {

@@ -88,7 +88,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         outsourcedTeamContact: task.outsourcedTeamContact || ''
       });
       const initialIds = task.predecessorTaskIds 
-        ? task.predecessorTaskIds.map(id => `t-${id}`)
+        ? task.predecessorTaskIds.map(id => id.toString())
         : [];
       setSelectedPredecessorIds(initialIds);
       setSearchTerm('');
@@ -235,10 +235,16 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
       const taskStartDate = new Date(data.startDate);
       const invalidPredecessors = selectedPredecessorIds
         .map(id => potentialPredecessors.find(p => p.id === id))
-        .filter(p => p && taskStartDate < new Date(p.deadline));
+        .filter(p => {
+          if (!p) return false;
+          const pStartDate = new Date(p.startDate || '');
+          pStartDate.setHours(0,0,0,0);
+          return taskStartDate < pStartDate;
+        });
 
       if (invalidPredecessors.length > 0) {
-        toast.error(`Ngày bắt đầu phải sau ngày kết thúc của "${invalidPredecessors[0]?.name}" (hoàn thành: ${invalidPredecessors[0]?.deadline}).`);
+        const p = invalidPredecessors[0]!;
+        toast.error(`Ngày bắt đầu không được trước ngày bắt đầu của "${p.name}" (${new Date(p.startDate || '').toLocaleDateString('vi-VN')}).`);
         return;
       }
     }
@@ -395,9 +401,21 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                             setSelectedPredecessorIds(selectedPredecessorIds.filter(id => id !== t.id));
                           }
                         }}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 flex-shrink-0 cursor-pointer"
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 flex-shrink-0 cursor-pointer mt-0.5"
                       />
-                      <span className="truncate">{t.name}</span> 
+                      <div className="flex flex-col truncate flex-1 gap-0.5">
+                        <span className="truncate">{t.name}</span> 
+                        {t.startDate && t.deadline && (
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            {new Date(t.startDate).toLocaleDateString('vi-VN')} - {new Date(t.deadline).toLocaleDateString('vi-VN')}
+                          </span>
+                        )}
+                        {!t.startDate && t.deadline && (
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            Deadline: {new Date(t.deadline).toLocaleDateString('vi-VN')}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs text-slate-400 ml-auto whitespace-nowrap">({t.progress}%)</span>
                     </label>
                   ))

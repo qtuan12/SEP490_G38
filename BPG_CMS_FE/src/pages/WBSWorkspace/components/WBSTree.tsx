@@ -20,7 +20,7 @@ const getAvatarColor = (userId: string) => {
 export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => {};
   const {
-    phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests, user,
+    phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests, user, project,
     expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -281,27 +281,33 @@ export const WBSTree = () => {
                                     <span>Chỉnh sửa Giai đoạn</span>
                                   </div>
                                 )}
-                                <div
-                                  style={menuItemStyle}
-                                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                  onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/material-requests`); }}
-                                >
-                                  <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                  <span>{isFrozen ? 'Xem yêu cầu vật tư' : 'Yêu cầu vật tư Giai đoạn'}</span>
-                                </div>
-                                {!isFrozen && isPL && (
-                                  <div
-                                    style={menuItemStyle}
-                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
-                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setPhaseMenuId(null); setSelectedPhaseForMatReq(ph); setCreateMatReqType('emergency'); setIsPhaseMatReqOpen(true); }}
-                                  >
-                                    <AlertTriangle size={13} style={{ color: 'hsl(var(--warning))' }} />
-                                    <span style={{ color: 'hsl(var(--warning-hover))' }}>Mua ngoài khẩn cấp Giai đoạn</span>
-                                  </div>
+
+                                {project?.status !== 'draft' && (
+                                  <>
+                                    <div
+                                      style={menuItemStyle}
+                                      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                      onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/material-requests`); }}
+                                    >
+                                      <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                      <span>{isFrozen ? 'Xem yêu cầu vật tư' : 'Yêu cầu vật tư Giai đoạn'}</span>
+                                    </div>
+                                    {!isFrozen && isPL && (
+                                      <div
+                                        style={menuItemStyle}
+                                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                        onClick={() => { setPhaseMenuId(null); setSelectedPhaseForMatReq(ph); setCreateMatReqType('emergency'); setIsPhaseMatReqOpen(true); }}
+                                      >
+                                        <AlertTriangle size={13} style={{ color: 'hsl(var(--warning))' }} />
+                                        <span style={{ color: 'hsl(var(--warning-hover))' }}>Mua ngoài khẩn cấp Giai đoạn</span>
+                                      </div>
+                                    )}
+                                  </>
                                 )}
-                                {!isFrozen && canEdit && (
+
+                                {project?.status !== 'draft' && !isFrozen && canEdit && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
@@ -313,45 +319,48 @@ export const WBSTree = () => {
                                   </div>
                                 )}
 
-                                {!isFrozen && canEdit && (
-                                  <div
-                                    style={menuItemStyle}
-                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
-                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setPhaseMenuId(null); setSelectedPhaseForInventoryIncident(ph); setIsReportInventoryIncidentOpen(true); }}
-                                  >
-                                    <AlertTriangle size={13} style={{ color: 'hsl(var(--warning))' }} />
-                                    <span>Báo cáo sự cố vật tư Giai đoạn</span>
-                                  </div>
-                                )}
+                                {project?.status !== 'draft' && (
+                                  <>
+                                    {!isFrozen && canEdit && (
+                                      <div
+                                        style={menuItemStyle}
+                                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                        onClick={() => { setPhaseMenuId(null); setSelectedPhaseForInventoryIncident(ph); setIsReportInventoryIncidentOpen(true); }}
+                                      >
+                                        <AlertTriangle size={13} style={{ color: 'hsl(var(--warning))' }} />
+                                        <span>Báo cáo sự cố vật tư Giai đoạn</span>
+                                      </div>
+                                    )}
 
-                                {!isFrozen && isPL && materialRequests.some(r => r.phaseId === ph.id && r.status === 'pending_leader') && (
-                                  <div
-                                    style={menuItemStyle}
-                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => {
-                                      setPhaseMenuId(null);
-                                      // Mở modal duyệt đề xuất (Ta sẽ định nghĩa sau)
-                                      setSelectedPhaseForMatReq(ph);
-                                      setIsLeaderApprovalOpen(true);
-                                    }}
-                                  >
-                                    <CheckCircle size={13} style={{ color: 'hsl(var(--warning))' }} />
-                                    <span>Duyệt Yêu cầu từ SE</span>
-                                  </div>
-                                )}
+                                    {!isFrozen && isPL && materialRequests.some(r => r.phaseId === ph.id && r.status === 'pending_leader') && (
+                                      <div
+                                        style={menuItemStyle}
+                                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                        onClick={() => {
+                                          setPhaseMenuId(null);
+                                          setSelectedPhaseForMatReq(ph);
+                                          setIsLeaderApprovalOpen(true);
+                                        }}
+                                      >
+                                        <CheckCircle size={13} style={{ color: 'hsl(var(--warning))' }} />
+                                        <span>Duyệt Yêu cầu từ SE</span>
+                                      </div>
+                                    )}
 
-                                {isPL && (
-                                  <div
-                                    style={menuItemStyle}
-                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                    onClick={() => { setPhaseMenuId(null); navigate(`/phase-acceptances?projectId=${projectId}&phaseId=${ph.id}`); }}
-                                  >
-                                    <CheckCircle size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                    <span>Danh sách Nghiệm thu</span>
-                                  </div>
+                                    {isPL && (
+                                      <div
+                                        style={menuItemStyle}
+                                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                        onClick={() => { setPhaseMenuId(null); navigate(`/phase-acceptances?projectId=${projectId}&phaseId=${ph.id}`); }}
+                                      >
+                                        <CheckCircle size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                        <span>Danh sách Nghiệm thu</span>
+                                      </div>
+                                    )}
+                                  </>
                                 )}
 
 
@@ -544,7 +553,7 @@ export const WBSTree = () => {
                               )}
 
                               {t.status === 'obsolete' && (
-                                <span className="badge badge-danger" style={{ fontSize: '0.6rem', padding: '1px 4px', flexShrink: 0 }}>Đã hủy</span>
+                                <span className="badge badge-danger" style={{ fontSize: '0.6rem', padding: '1px 4px', flexShrink: 0 }}>Đã dừng</span>
                               )}
 
 
@@ -576,37 +585,41 @@ export const WBSTree = () => {
                                           <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Chỉnh sửa Công việc</span>
                                         </div>
 
-                                        <div
-                                          style={menuItemStyle}
-                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
-                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setTaskMenuId(null); setSelectedTaskId(t.id); setIsReportIncidentOpen(true); }}
-                                        >
-                                          <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
-                                        </div>
+                                        {project?.status !== 'draft' && (
+                                          <>
+                                            <div
+                                              style={menuItemStyle}
+                                              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                              onClick={() => { setTaskMenuId(null); setSelectedTaskId(t.id); setIsReportIncidentOpen(true); }}
+                                            >
+                                              <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
+                                            </div>
 
-                                        <div
-                                          style={menuItemStyle}
-                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setTaskMenuId(null); navigate(`/projects/${projectId}/tasks/${t.id}/logs`); }}
-                                        >
-                                          <History size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Xem nhật ký thi công</span>
-                                        </div>
+                                            <div
+                                              style={menuItemStyle}
+                                              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                              onClick={() => { setTaskMenuId(null); navigate(`/projects/${projectId}/tasks/${t.id}/logs`); }}
+                                            >
+                                              <History size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Xem nhật ký thi công</span>
+                                            </div>
 
-                                        {isPL && !t.parentTaskId && (
-                                          <div
-                                            style={menuItemStyle}
-                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                            onClick={() => {
-                                              setTaskMenuId(null);
-                                              navigate(`/projects/${ph.projectId}?tab=inventory&subTab=issuances&search=${encodeURIComponent(t.name)}`);
-                                            }}
-                                          >
-                                            <Box size={12} style={{ color: 'hsl(var(--success))' }} />
-                                            <span style={{ color: 'hsl(var(--success))' }}>Cấp phát vật tư</span>
-                                          </div>
+                                            {isPL && !t.parentTaskId && (
+                                              <div
+                                                style={menuItemStyle}
+                                                onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                                onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                                onClick={() => {
+                                                  setTaskMenuId(null);
+                                                  navigate(`/projects/${ph.projectId}?tab=inventory&subTab=issuances&search=${encodeURIComponent(t.name)}`);
+                                                }}
+                                              >
+                                                <Box size={12} style={{ color: 'hsl(var(--success))' }} />
+                                                <span style={{ color: 'hsl(var(--success))' }}>Cấp phát vật tư</span>
+                                              </div>
+                                            )}
+                                          </>
                                         )}
 
                                         <div
@@ -618,22 +631,24 @@ export const WBSTree = () => {
                                           <FilePlus2 size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Thêm Task con</span>
                                         </div>
 
-                                        <div
-                                          style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
-                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
-                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { 
-                                            setTaskMenuId(null); 
-                                            if (t.progress > 0) {
-                                              setSelectedTaskId(t.id);
-                                              setIsObsoleteOpen(true);
-                                            } else {
-                                              handleDeleteTask(t.id, t.name);
-                                            }
-                                          }}
-                                        >
-                                          <Trash2 size={12} /><span>{t.progress > 0 ? 'Đánh dấu lỗi thời' : 'Xóa hẳn Task'}</span>
-                                        </div>
+                                        {isTPKTOrPL && (
+                                          <div
+                                            style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
+                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                            onClick={() => { 
+                                              setTaskMenuId(null); 
+                                              if (t.progress > 0) {
+                                                setSelectedTaskId(t.id);
+                                                setIsObsoleteOpen(true);
+                                              } else {
+                                                handleDeleteTask(t.id, t.name);
+                                              }
+                                            }}
+                                          >
+                                            <Trash2 size={12} /><span>{t.progress > 0 ? 'Tạm dừng công việc' : 'Xóa Task'}</span>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>

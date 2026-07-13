@@ -343,7 +343,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
             { label: '✅ Hoàn thành', val: doneTasks.length, color: 'text-[hsl(142_70%_38%)]' },
             { label: '🔵 Đang thi công', val: inProgressTasks.length, color: 'text-[hsl(217_91%_52%)]' },
             { label: '⚫ Chưa bắt đầu', val: activeTasks.filter(t => t.progress === 0).length, color: 'text-[hsl(var(--text-muted))]' },
-            { label: '⛔ Đã hủy', val: tasks.filter(t => t.status === 'obsolete').length, color: 'text-[hsl(346_84%_50%)]' },
+            { label: '⛔ Đã dừng', val: tasks.filter(t => t.status === 'obsolete').length, color: 'text-[hsl(346_84%_50%)]' },
           ].map(s => (
             <div key={s.label} className="flex items-center gap-1.5">
               <strong className={`text-base ${s.color}`}>{s.val}</strong>

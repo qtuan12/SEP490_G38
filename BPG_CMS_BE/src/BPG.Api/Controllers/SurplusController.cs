@@ -1,6 +1,6 @@
 using BPG.Application.Features.Surplus.Commands;
 using BPG.Application.Features.Surplus.Queries;
-using BPG.Api.DTOs.Surplus;
+using BPG.Application.DTOs.Surplus;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

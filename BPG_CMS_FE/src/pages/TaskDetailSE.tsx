@@ -15,7 +15,8 @@ import {
   CheckCircle,
   TrendingUp,
   History,
-  AlertCircle
+  AlertCircle,
+  Users
 } from 'lucide-react';
 
 const getInitials = (name: string) => {
@@ -205,7 +206,7 @@ export const TaskDetailSE: React.FC = () => {
         {(() => {
           const predIds = task.predecessorTaskIds;
           if (predIds && predIds.length > 0) {
-            const preds = predIds.map(id => projectTasks.find(t => t.id === `t-${id}`)).filter(Boolean).filter(p => p!.status !== 'obsolete');
+            const preds = predIds.map(id => projectTasks.find(t => t.id === id.toString())).filter(Boolean).filter(p => p!.status !== 'obsolete');
             if (preds.length === 0) return null;
             const isBlocked = preds.some(p => p!.progress < 100);
             return (
@@ -348,6 +349,21 @@ export const TaskDetailSE: React.FC = () => {
               )}
             </div>
           </div>
+
+          {task.isOutsourced && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderTop: '1px solid hsl(var(--border) / 0.6)', paddingTop: '10px' }}>
+              <Users size={18} style={{ color: 'hsl(var(--text-muted))', flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'block' }}>ĐỘI THỢ / THẦU PHỤ NGOÀI</span>
+                <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{task.outsourcedTeamName || 'Không rõ tên'}</strong>
+                {task.outsourcedTeamContact && (
+                  <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', marginTop: '2px' }}>
+                    SĐT: {task.outsourcedTeamContact}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Big Update Button (Locked if task completed or not assigned to user) */}
@@ -394,7 +410,7 @@ export const TaskDetailSE: React.FC = () => {
               disabled={(() => {
                 const predIds = task.predecessorTaskIds;
                 if (predIds && predIds.length > 0) {
-                  const preds = predIds.map(id => projectTasks.find(t => t.id === `t-${id}`)).filter(Boolean).filter(p => p!.status !== 'obsolete');
+                  const preds = predIds.map(id => projectTasks.find(t => t.id === id.toString())).filter(Boolean).filter(p => p!.status !== 'obsolete');
                   return preds.some(p => p!.progress < 100);
                 }
                 return false;

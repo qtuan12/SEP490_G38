@@ -10,6 +10,7 @@ import {
 import toast from 'react-hot-toast';
 import { DispatchTransferModal } from './DispatchTransferModal';
 import { ReceiveTransferModal } from './ReceiveTransferModal';
+import { useParams } from 'react-router-dom';
 
 interface SurplusActionListModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ interface SurplusActionListModalProps {
 export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
   isOpen, onClose, onRefresh, item, selectedActionId, selectedActionType, isTPKT, isLeader,
 }) => {
+  const { projectId } = useParams<{ projectId: string }>();
+  const currentProjectId = Number(projectId);
   const [data, setData] = useState<SurplusActionList | null>(null);
   const [loading, setLoading] = useState(false);
   const [actioning, setActioning] = useState<number | null>(null);
@@ -172,7 +175,7 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
                             </button>
                           </>
                         )}
-                        {t.status === 'Approved' && isLeader && (
+                        {t.status === 'Approved' && isLeader && t.fromProjectId === currentProjectId && (
                           <button
                             disabled={isActioning}
                             onClick={() => doTransferAction(t.surplusTransferId, 'dispatch')}
@@ -181,7 +184,7 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
                             {isActioning ? '...' : '🚚 Xác nhận đã gửi'}
                           </button>
                         )}
-                        {t.status === 'Dispatched' && isLeader && (
+                        {t.status === 'Dispatched' && isLeader && t.toProjectId === currentProjectId && (
                           <button
                             disabled={isActioning}
                             onClick={() => doTransferAction(t.surplusTransferId, 'receive')}
