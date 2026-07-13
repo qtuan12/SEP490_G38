@@ -631,7 +631,7 @@ export const WBSTree = () => {
                                           <FilePlus2 size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Thêm Task con</span>
                                         </div>
 
-                                        {t.status !== 'obsolete' && isTPKTOrPL && (
+                                        {isTPKTOrPL && (
                                           <div
                                             style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
                                             onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}

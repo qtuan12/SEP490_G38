@@ -4,10 +4,8 @@ import { ArrowLeft, RotateCcw, ArrowRightLeft, Flame, ChevronDown, ChevronUp } f
 import { surplusService } from '../../../services/surplusService';
 import type { SurplusRequestDetail, SurplusRequestItem } from '../../../types/surplus';
 import {
-  getSurplusRequestStatusDetails,
   getSurplusItemStatusDetails,
   getSurplusActionTypeLabel,
-  formatDateVN,
   getGeneralActionStatusName,
 } from '../../../utils/surplusHelpers';
 import { SurplusActionInlineDetail } from './SurplusActionInlineDetail';
@@ -78,7 +76,6 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
 
   if (!detail) return null;
 
-  const batchBadge = getSurplusRequestStatusDetails(detail.status);
   const isProcessing = detail.status === 'Processing';
 
   return (

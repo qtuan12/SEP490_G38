@@ -128,6 +128,8 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
        return currentDate > latestDate ? current : latest;
   }, phases[0]) : null;
 
+  const latestDateStr = latestPhase ? (latestPhase.endDate || latestPhase.deadline || latestPhase.startDate) : undefined;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Tạo Giai đoạn mới">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
@@ -147,7 +149,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
             <div className="bg-orange-50/50 p-3 rounded-lg border border-orange-100 flex flex-col">
               <p className="text-xs text-slate-500 mb-1">Giai đoạn trước nhất ({latestPhase.name}):</p>
               <p className="text-sm font-medium text-slate-700">
-                {new Date(latestPhase.startDate).toLocaleDateString('vi-VN')} - {new Date(latestPhase.endDate || latestPhase.deadline || latestPhase.startDate).toLocaleDateString('vi-VN')}
+                {latestPhase.startDate ? new Date(latestPhase.startDate).toLocaleDateString('vi-VN') : 'N/A'} - {latestDateStr ? new Date(latestDateStr).toLocaleDateString('vi-VN') : 'N/A'}
               </p>
             </div>
           )}
