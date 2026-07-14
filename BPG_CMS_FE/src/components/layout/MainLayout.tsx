@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
+import { HeaderNotification } from './HeaderNotification';
 
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -174,6 +175,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               <div className="hidden md:flex text-sm gap-1 text-[hsl(var(--text-secondary))]">
                 Dự án: <strong className="text-[hsl(var(--text-primary))]">BPG Construction (MVP)</strong>
               </div>
+              <HeaderNotification />
             </div>
           </div>
         </header>

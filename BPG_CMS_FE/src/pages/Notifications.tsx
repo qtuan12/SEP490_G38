@@ -17,7 +17,7 @@ const resolveNotificationUrl = (noti: any): string | null => {
     return `/tasks/${referenceId}`;
   }
   if (referenceType.startsWith('/')) {
-    const projectWorkspaceRegex = /^\/projects\/(\d+)\/workspace\/([a-z]+)/i;
+    const projectWorkspaceRegex = /^\/projects\/(\d+)\/workspace\/([a-zA-Z0-9_-]+)/i;
     const match = referenceType.match(projectWorkspaceRegex);
     if (match) {
       const projectId = match[1];
@@ -28,6 +28,11 @@ const resolveNotificationUrl = (noti: any): string | null => {
         tab = 'inventoryincidents';
       }
       
+      if (projectId === '0') {
+        if (tab === 'inventoryadjustments') return '/inventory-adjustments';
+        if (tab === 'inventoryincidents') return '/materials-control';
+      }
+
       return `/projects/${projectId}?tab=${tab}`;
     }
     return referenceType;

@@ -313,18 +313,21 @@ export const Dashboard: React.FC = () => {
                     <div
                       key={p.projectId}
                       onClick={() => navigate(`/projects/${p.projectId}`)}
-                      className="flex flex-col gap-1.5 p-3 rounded border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))] transition-colors cursor-pointer hover:shadow-md"
+                      className={`flex flex-col gap-1.5 p-3 rounded border ${p.status === 'paused' ? 'border-yellow-200 hover:border-yellow-400 bg-yellow-50/20' : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))]'} transition-colors cursor-pointer hover:shadow-md`}
                     >
                       <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold truncate">{p.projectName}</span>
-                        <span className="font-semibold text-[hsl(var(--primary-hover))]">{p.progress}%</span>
+                        <span className="font-bold flex items-center gap-1.5 truncate">
+                          {p.projectName}
+                          {p.status === 'paused' && <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] rounded font-semibold uppercase tracking-wider">Tạm dừng</span>}
+                        </span>
+                        <span className={`font-semibold shrink-0 ${p.status === 'paused' ? 'text-yellow-600' : 'text-[hsl(var(--primary-hover))]'}`}>{p.progress}%</span>
                       </div>
                       <div className="text-[10px] text-[hsl(var(--text-muted))] flex items-center gap-1">
                         <span className="truncate">{p.address}</span>
                       </div>
                       <div className="h-1.5 w-full bg-[hsl(var(--border))] rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-[hsl(var(--primary-hover))] to-[hsl(var(--primary))] transition-all duration-500 ease-out"
+                          className={`h-full transition-all duration-500 ease-out ${p.status === 'paused' ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' : 'bg-gradient-to-r from-[hsl(var(--primary-hover))] to-[hsl(var(--primary))]'}`}
                           style={{ width: `${p.progress}%` }}
                         />
                       </div>
@@ -474,18 +477,21 @@ export const Dashboard: React.FC = () => {
                     <div
                       key={p.projectId}
                       onClick={() => navigate(`/projects/${p.projectId}`)}
-                      className="flex flex-col gap-1.5 p-3 rounded border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))] transition-colors cursor-pointer hover:shadow-md"
+                      className={`flex flex-col gap-1.5 p-3 rounded border ${p.status === 'paused' ? 'border-yellow-200 hover:border-yellow-400 bg-yellow-50/20' : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))]'} transition-colors cursor-pointer hover:shadow-md`}
                     >
                       <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold truncate">{p.projectName}</span>
-                        <span className="font-semibold text-[hsl(var(--primary-hover))]">{p.progress}%</span>
+                        <span className="font-bold flex items-center gap-1.5 truncate">
+                          {p.projectName}
+                          {p.status === 'paused' && <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] rounded font-semibold uppercase tracking-wider">Tạm dừng</span>}
+                        </span>
+                        <span className={`font-semibold shrink-0 ${p.status === 'paused' ? 'text-yellow-600' : 'text-[hsl(var(--primary-hover))]'}`}>{p.progress}%</span>
                       </div>
                       <div className="text-[10px] text-[hsl(var(--text-muted))] flex items-center gap-1">
                         <span className="truncate">{p.address}</span>
                       </div>
                       <div className="h-1.5 w-full bg-[hsl(var(--border))] rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-[hsl(var(--primary-hover))] to-[hsl(var(--primary))] transition-all duration-500 ease-out"
+                          className={`h-full transition-all duration-500 ease-out ${p.status === 'paused' ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' : 'bg-gradient-to-r from-[hsl(var(--primary-hover))] to-[hsl(var(--primary))]'}`}
                           style={{ width: `${p.progress}%` }}
                         />
                       </div>
