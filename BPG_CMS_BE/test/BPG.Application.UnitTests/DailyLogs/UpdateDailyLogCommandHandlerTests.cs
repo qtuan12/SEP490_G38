@@ -413,5 +413,67 @@ namespace BPG.Application.UnitTests.DailyLogs
             await act.Should().ThrowAsync<Exception>().WithMessage("DB Error");
             _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
+
+        [Fact]
+        public async Task UTCID11_Handle_ValidRequest_ProgressUnchanged_DescriptionOrImagesChanged_ShouldSucceed()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var log = new DailyLog
+            {
+                LogId = 800,
+                TaskId = 100,
+                NewProgressPercent = 50,
+                Description = "Old Description",
+                CreatedAt = DateTime.UtcNow.AddMinutes(-10),
+                Task = new ProjectTask
+                {
+                    TaskId = 100,
+                    IsLocked = false,
+                    Phase = new Phase { Project = project }
+                }
+            };
+            _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
+
+            // Return empty attachments initially
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            // Mock progress logs to verify OldProgressPercent resolving logic
+            var progressLog = new TaskProgressLog
+            {
+                TaskId = 100,
+                OldProgress = 40,
+                NewProgress = 50,
+                UpdatedAt = DateTime.UtcNow.AddMinutes(-10)
+            };
+            _mockProgressLogRepo.Setup(r => r.Query()).Returns(new List<TaskProgressLog> { progressLog }.AsQueryable().BuildMock());
+
+            var newImages = new List<string> { "new_photo1.jpg" };
+            var command = new UpdateDailyLogCommand
+            {
+                LogId = 800,
+                Description = "New Description - Progress remains 50%",
+                Images = newImages
+            };
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            log.Description.Should().Be("New Description - Progress remains 50%");
+            result.OldProgressPercent.Should().Be(40);
+            result.NewProgressPercent.Should().Be(50);
+            result.Images.Should().ContainSingle(img => img == "new_photo1.jpg");
+
+            // Verify that Uow calls were made
+            _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockLogRepo.Verify(r => r.Update(log), Times.Once);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockUow.Verify(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockRealtimeSender.Verify(s => s.SendToGroupAsync("Project_5", "ReceiveDailyLogUpdated", It.IsAny<DailyLogDto>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
     }
 }
