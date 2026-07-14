@@ -73,7 +73,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 "Phiếu điều chỉnh giảm tồn kho cần phê duyệt",
                 $"Kế toán vừa tạo phiếu giảm tồn kho #{adjustment.AdjustmentId} tại dự án {project.Name} đang chờ Giám đốc phê duyệt.",
                 BPG.Domain.Constants.NotificationType.Procurement,
-                BPG.Domain.Constants.NotificationReferenceType.InventoryAdjustment,
+                $"/projects/{request.ProjectId}/workspace/inventoryadjustments",
                 adjustment.AdjustmentId,
                 cancellationToken
             );

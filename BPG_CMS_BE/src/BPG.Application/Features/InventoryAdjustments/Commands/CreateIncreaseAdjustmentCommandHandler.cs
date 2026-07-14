@@ -110,13 +110,12 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             }
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Gửi thông báo DB xác nhận phiếu tăng tồn cho Kế toán
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Accountant,
                 "Phiếu điều chỉnh tăng tồn đã được tạo",
                 $"Một phiếu tăng tồn kho mới (#{adjustment.AdjustmentId}) đã được tạo và tự động phê duyệt. Tồn kho dự án đã được cập nhật.",
                 BPG.Domain.Constants.NotificationType.Procurement,
-                BPG.Domain.Constants.NotificationReferenceType.InventoryAdjustment,
+                $"/projects/{request.ProjectId}/workspace/inventoryadjustments",
                 adjustment.AdjustmentId,
                 cancellationToken
             );

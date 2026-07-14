@@ -96,6 +96,9 @@ export const GlobalIncidents: React.FC = () => {
           proposedAction: dto.proposedAction,
           handlingInstruction: dto.handlingInstruction,
           reworkTaskId: dto.reworkTaskId?.toString(),
+          isEmergency: dto.isEmergency,
+          recoveryPlanText: dto.recoveryPlanText,
+          recoveryEstimateCost: dto.recoveryEstimateCost,
           date: (() => {
             const dateStr = dto.createdAt.endsWith('Z') ? dto.createdAt : dto.createdAt + 'Z';
             const d = new Date(dateStr);
@@ -197,6 +200,12 @@ export const GlobalIncidents: React.FC = () => {
       case 'WaitingReview':
       case 'Assessed':
         return <Badge variant="info" className="normal-case">Chờ TPKT duyệt</Badge>;
+      case 'WaitingStopApproval':
+        return <Badge variant="danger" className="normal-case bg-[hsl(0_100%_96%)] text-[hsl(0_92%_50%)]">Chờ duyệt dừng thi công</Badge>;
+      case 'WaitingRecoveryPlan':
+        return <Badge variant="warning" className="normal-case bg-[hsl(280_100%_97%)] text-[hsl(280_70%_45%)]">Chờ lập kế hoạch</Badge>;
+      case 'WaitingDirectorApproval':
+        return <Badge variant="success" className="normal-case bg-[hsl(142_100%_97%)] text-[hsl(142_71%_40%)]">Chờ Giám đốc duyệt</Badge>;
       case 'WaitingAccountant':
         return <Badge variant="warning" className="normal-case">Chờ Kế toán xác minh</Badge>;
       case 'WaitingDirector':
@@ -337,7 +346,15 @@ export const GlobalIncidents: React.FC = () => {
                       <td>
                         <strong className="text-[0.88rem] text-[hsl(var(--primary))]">{inc.projectName || `Dự án #${inc.projectId}`}</strong>
                       </td>
-                      <td><strong className="text-[0.88rem]">{(inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') ? (inc.phaseName || 'Giai đoạn') : (inc.taskName || 'Công việc')}</strong></td>
+                      <td>
+                        <strong className="text-[0.88rem]">
+                          {inc.isEmergency
+                            ? '🛑 Toàn bộ dự án (Yêu cầu dừng)'
+                            : (inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage')
+                              ? (inc.phaseName || 'Giai đoạn')
+                              : (inc.taskName || 'Công việc')}
+                        </strong>
+                      </td>
                       <td className="text-sm">{inc.reporterName}</td>
                       <td className="whitespace-nowrap">{getStatusBadge(inc.status, inc.incidentType)}</td>
                       <td className="text-center">
