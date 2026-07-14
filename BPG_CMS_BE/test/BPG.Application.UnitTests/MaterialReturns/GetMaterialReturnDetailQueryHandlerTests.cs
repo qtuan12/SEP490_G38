@@ -100,6 +100,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
             dto.Items[0].MaterialName.Should().Be("Cement");
             dto.Items[0].UnitName.Should().Be("Bag");
             dto.Items[0].Quantity.Should().Be(5);
+
+            _mockUserRepo.Verify(r => r.GetByIdAsync(10, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -116,6 +118,55 @@ namespace BPG.Application.UnitTests.MaterialReturns
             // Assert
             await act.Should().ThrowAsync<NotFoundException>()
                 .WithMessage("MaterialReturn với ID [999] không tồn tại.");
+        }
+
+        [Fact]
+        public async Task UTCID03_Handle_CreatorUserNotFound_ShouldReturnNAForCreatedByName()
+        {
+            // Arrange
+            var mr = new MaterialReturn
+            {
+                MaterialReturnId = 700,
+                ReturnNo = "PTRA-001",
+                CreatedBy = 999, // User 999 does not exist
+                Items = new List<MaterialReturnItem>()
+            };
+            _mockReturnRepo.Setup(r => r.Query()).Returns(new List<MaterialReturn> { mr }.AsQueryable().BuildMock());
+            _mockUserRepo.Setup(r => r.GetByIdAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((User)null);
+
+            var query = new GetMaterialReturnDetailQuery(700);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.CreatedByName.Should().Be("N/A");
+            _mockUserRepo.Verify(r => r.GetByIdAsync(999, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID04_Handle_NullOriginalIssuance_ShouldMapGracefully()
+        {
+            // Arrange
+            var mr = new MaterialReturn
+            {
+                MaterialReturnId = 700,
+                ReturnNo = "PTRA-001",
+                OriginalIssuance = null, // Null original issuance
+                Items = new List<MaterialReturnItem>()
+            };
+            _mockReturnRepo.Setup(r => r.Query()).Returns(new List<MaterialReturn> { mr }.AsQueryable().BuildMock());
+
+            var query = new GetMaterialReturnDetailQuery(700);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.OriginalIssuanceNo.Should().BeEmpty();
+            result.Data.TaskName.Should().BeEmpty();
         }
     }
 }

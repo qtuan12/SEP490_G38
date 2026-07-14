@@ -16,6 +16,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using BPG.Application.UnitTests.Helpers;
 
 namespace BPG.Application.UnitTests.MaterialReturns
 {
@@ -59,16 +60,13 @@ namespace BPG.Application.UnitTests.MaterialReturns
             );
         }
 
-        private void SetupCurrentUser(long userId)
-        {
-            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(userId);
-        }
+
 
         [Fact]
         public async Task UTCID01_Handle_ValidRequest_ShouldCreateMaterialReturnSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
@@ -112,7 +110,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID02_Handle_EmptyItemsList_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>());
 
             // Act
@@ -127,7 +125,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID03_Handle_OriginalIssuanceNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var command = new CreateMaterialReturnCommand(999, "Reason", new List<ReturnItemDto>
             {
                 new ReturnItemDto(50, 1, 5)
@@ -145,7 +143,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID04_Handle_ProjectNotFound_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var issuance = new MaterialIssuance
             {
                 MaterialIssuanceId = 500,
@@ -170,7 +168,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID05_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Inactive
             var issuance = new MaterialIssuance
             {
@@ -196,7 +194,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID06_Handle_MaterialNotInOriginalIssuance_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -228,7 +226,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID07_Handle_InvalidQuantityLessThanZero_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -259,7 +257,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID08_Handle_ReturnQuantityExceedsIssued_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -291,7 +289,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID09_Handle_CumulativeReturnQuantityExceedsIssued_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -336,7 +334,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID10_Handle_ValidCumulativeReturn_ShouldSucceed()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -374,6 +372,74 @@ namespace BPG.Application.UnitTests.MaterialReturns
             // Assert
             result.Success.Should().BeTrue();
             _mockInventoryService.Verify(s => s.UpdateStockAsync(5, 50, 6, It.IsAny<byte>(), It.IsAny<long>(), It.IsAny<string>(), 10, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID11_Handle_ConversionRateApplied_ShouldAddCorrectBaseQty()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 500,
+                Task = new ProjectTask { Phase = new Phase { Project = project } },
+                Items = new List<MaterialIssuanceItem>
+                {
+                    new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 0.5m } // Base qty = 10 / 0.5 = 20
+                }
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+
+            // Requesting to return 5 units (with rate = 0.5 -> base quantity = 5 / 0.5 = 10 base units)
+            var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+            {
+                new ReturnItemDto(50, 1, 5, 0.5m)
+            });
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            // Verify that we update the inventory with base quantity of +10
+            _mockInventoryService.Verify(s => s.UpdateStockAsync(5, 50, 10, InventoryTransactionType.IssuanceReturn, It.IsAny<long>(), EntityType.MaterialReturn, 10, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID12_Handle_ExceptionDuringStockUpdate_ShouldRollbackTransactionAndThrow()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 500,
+                Task = new ProjectTask { Phase = new Phase { Project = project } },
+                Items = new List<MaterialIssuanceItem>
+                {
+                    new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+                }
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+
+            _mockInventoryService.Setup(s => s.UpdateStockAsync(
+                It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(), It.IsAny<byte>(), It.IsAny<long>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("DB Connection Timeout"));
+
+            var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+            {
+                new ReturnItemDto(50, 1, 5, 1)
+            });
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<Exception>().WithMessage("DB Connection Timeout");
+            _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
     }
 }

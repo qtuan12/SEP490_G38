@@ -184,7 +184,8 @@ namespace BPG.Application.UnitTests.Notifications
             // ==========================================
             // ASSERT
             // ==========================================
-            await act.Should().ThrowAsync<Exception>();
+            await act.Should().ThrowAsync<Exception>()
+                .WithMessage("Không tìm thấy người dùng nhận thông báo hợp lệ.");
 
             _mockNotificationRepo.Verify(r => r.AddRangeAsync(
                 It.IsAny<IEnumerable<Notification>>(),
@@ -195,6 +196,82 @@ namespace BPG.Application.UnitTests.Notifications
 
             _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
                 It.IsAny<string>(),
+                It.IsAny<NotificationDto>(),
+                It.IsAny<CancellationToken>()
+            ), Times.Never);
+        }
+
+        [Fact]
+        public async Task Handle_SendToRoleName_ShouldNotifyOnlyUsersWithRoleAndSendRealtime()
+        {
+            // ==========================================
+            // ARRANGE
+            // ==========================================
+            var roleAdmin = new Role { RoleName = "Admin" };
+            var roleSiteEng = new Role { RoleName = "SiteEngineer" };
+
+            var users = new List<User>
+            {
+                new User 
+                { 
+                    UserId = 1, 
+                    IsActive = true, 
+                    IsDeleted = false, 
+                    UserRoles = new List<BPG.Domain.Entities.UserRole> { new BPG.Domain.Entities.UserRole { Role = roleAdmin } } 
+                },
+                new User 
+                { 
+                    UserId = 2, 
+                    IsActive = true, 
+                    IsDeleted = false, 
+                    UserRoles = new List<BPG.Domain.Entities.UserRole> { new BPG.Domain.Entities.UserRole { Role = roleSiteEng } } 
+                }
+            };
+
+            _mockUserRepo.Setup(r => r.Query())
+                .Returns(users.AsQueryable().BuildMock());
+
+            var request = new SendNotificationCommand(
+                UserId: null,
+                Title: "Role Announcement",
+                Content: "For Admins only",
+                NotificationType: "System",
+                SendToAll: false,
+                RoleName: "Admin",
+                ReferenceType: null,
+                ReferenceId: null
+            );
+
+            _mockMapper.Setup(m => m.Map<Notification>(It.IsAny<SendNotificationCommand>()))
+                .Returns(new Notification { Title = request.Title, Content = request.Content });
+
+            _mockMapper.Setup(m => m.Map<NotificationDto>(It.IsAny<Notification>()))
+                .Returns(new NotificationDto { NotificationId = 1, Title = request.Title });
+
+            // ==========================================
+            // ACT
+            // ==========================================
+            await _handler.Handle(request, CancellationToken.None);
+
+            // ==========================================
+            // ASSERT
+            // ==========================================
+            // Only user 1 (Admin) should be saved/notified
+            _mockNotificationRepo.Verify(r => r.AddRangeAsync(
+                It.Is<IEnumerable<Notification>>(list => list.Count() == 1 && list.First().UserId == 1),
+                It.IsAny<CancellationToken>()
+            ), Times.Once);
+
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+
+            _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
+                "1",
+                It.IsAny<NotificationDto>(),
+                It.IsAny<CancellationToken>()
+            ), Times.Once);
+
+            _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
+                "2",
                 It.IsAny<NotificationDto>(),
                 It.IsAny<CancellationToken>()
             ), Times.Never);

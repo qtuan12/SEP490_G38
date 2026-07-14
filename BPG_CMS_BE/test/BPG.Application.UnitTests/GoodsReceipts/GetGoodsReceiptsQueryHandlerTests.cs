@@ -33,6 +33,8 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockUow.Setup(u => u.Repository<GoodsReceipt>()).Returns(_mockGrRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
 
+            _mockUserRepo.Setup(r => r.Query()).Returns(new List<User>().AsQueryable().BuildMock());
+
             _handler = new GetGoodsReceiptsQueryHandler(_mockUow.Object);
         }
 
@@ -217,6 +219,120 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             // Assert
             result.Items.Count.Should().Be(1);
             result.Items[0].ReceiptId.Should().Be(2);
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_CreatedByUserNotFound_ShouldReturnNAForCreatedByName()
+        {
+            // Arrange
+            var receipts = GetMockReceiptsList();
+            receipts[0].CreatedBy = 999; // User 999 not in user list
+            _mockGrRepo.Setup(r => r.Query()).Returns(receipts.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetGoodsReceiptsQuery { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Count.Should().Be(2);
+            result.Items[0].CreatedByName.Should().Be("N/A");
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_SearchNoMatch_ShouldReturnEmptyList()
+        {
+            // Arrange
+            var receipts = GetMockReceiptsList();
+            _mockGrRepo.Setup(r => r.Query()).Returns(receipts.AsQueryable().BuildMock());
+
+            var query = new GetGoodsReceiptsQuery { Search = "NonExistentName" };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task UTCID08_Handle_ProjectIdNoMatch_ShouldReturnEmptyList()
+        {
+            // Arrange
+            var receipts = GetMockReceiptsList();
+            _mockGrRepo.Setup(r => r.Query()).Returns(receipts.AsQueryable().BuildMock());
+
+            var query = new GetGoodsReceiptsQuery { ProjectId = 999 };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task UTCID09_Handle_PageNumberGreaterThanOne_ShouldReturnEmptyOrCorrectPage()
+        {
+            // Arrange
+            var receipts = GetMockReceiptsList();
+            _mockGrRepo.Setup(r => r.Query()).Returns(receipts.AsQueryable().BuildMock());
+
+            var query = new GetGoodsReceiptsQuery { PageNumber = 2, PageSize = 10 };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().BeEmpty(); // Since only 2 items exist and PageSize is 10, page 2 must be empty
+        }
+
+        [Fact]
+        public async Task UTCID10_Handle_CombinedProjectIdAndSearch_ShouldFilterCorrectly()
+        {
+            // Arrange
+            var receipts = GetMockReceiptsList();
+            _mockGrRepo.Setup(r => r.Query()).Returns(receipts.AsQueryable().BuildMock());
+
+            var query = new GetGoodsReceiptsQuery
+            {
+                ProjectId = 5,
+                Search = "GR-001"
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().ContainSingle().Which.ReceiptId.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task UTCID11_Handle_NullPurchaseOrderOrPhase_ShouldSkipOrHandleGracefully()
+        {
+            // Arrange
+            var receipts = new List<GoodsReceipt>
+            {
+                new GoodsReceipt
+                {
+                    ReceiptId = 3,
+                    ReceiptNo = "GR-003",
+                    PurchaseOrder = null // Null PO
+                }
+            };
+            _mockGrRepo.Setup(r => r.Query()).Returns(receipts.AsQueryable().BuildMock());
+
+            var query = new GetGoodsReceiptsQuery { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().ContainSingle();
+            result.Items[0].PONumber.Should().BeEmpty();
         }
     }
 }

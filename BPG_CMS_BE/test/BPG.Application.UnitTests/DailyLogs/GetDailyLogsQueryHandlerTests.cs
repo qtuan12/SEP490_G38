@@ -216,5 +216,47 @@ namespace BPG.Application.UnitTests.DailyLogs
             result.Items.Should().HaveCount(1);
             result.Items.First().LogId.Should().Be(2);
         }
+
+        [Fact]
+        public async Task UTCID05_Handle_CombinedFiltersWithNoMatches_ShouldReturnEmptyList()
+        {
+            // Arrange
+            var logs = GetMockLogs();
+            _mockLogRepo.Setup(r => r.Query()).Returns(logs.AsQueryable().BuildMock());
+
+            var query = new GetDailyLogsQuery
+            {
+                ProjectId = 5,
+                CreatedBy = 999, // User 999 has no logs
+                LogDate = new DateOnly(2026, 6, 21)
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_PageNumberOutOfBounds_ShouldReturnEmptyPagedList()
+        {
+            // Arrange
+            var logs = GetMockLogs();
+            _mockLogRepo.Setup(r => r.Query()).Returns(logs.AsQueryable().BuildMock());
+
+            var query = new GetDailyLogsQuery
+            {
+                ProjectId = 5,
+                PageNumber = 999, // Out of bounds page
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().BeEmpty();
+        }
     }
 }

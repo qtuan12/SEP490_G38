@@ -18,6 +18,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using BPG.Application.UnitTests.Helpers;
 
 namespace BPG.Application.UnitTests.DailyLogs
 {
@@ -84,18 +85,13 @@ namespace BPG.Application.UnitTests.DailyLogs
             );
         }
 
-        private void SetupCurrentUser(long userId, string role, bool isAdminOrTM = true)
-        {
-            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(userId);
-            _mockCurrentUserService.Setup(s => s.IsInAnyRole(It.IsAny<string[]>()))
-                .Returns((string[] roles) => roles.Contains(role) && isAdminOrTM);
-        }
+
 
         [Fact]
         public async Task UTCID01_Handle_ValidRequest_ShouldUpdateDailyLogSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin, isAdminOrTM: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -164,7 +160,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID02_Handle_DailyLogNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
             var command = new UpdateDailyLogCommand { LogId = 999, Description = "New Desc" };
 
             // Act
@@ -179,7 +175,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID03_Handle_InsufficientPermission_ShouldThrowForbiddenException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, isAdminOrTM: false); // Engineer
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -210,7 +206,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID04_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Inactive
             var log = new DailyLog
@@ -234,7 +230,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID05_Handle_TaskIsLocked_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -262,7 +258,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID06_Handle_MaxImagesExceeded_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -285,6 +281,137 @@ namespace BPG.Application.UnitTests.DailyLogs
             // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("Tối đa chỉ được đính kèm 5 hình ảnh hiện trường thi công.");
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_UserIsAssignee_ShouldUpdateSuccessfully()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var log = new DailyLog
+            {
+                LogId = 800,
+                TaskId = 100,
+                Task = new ProjectTask
+                {
+                    TaskId = 100,
+                    IsLocked = false,
+                    Phase = new Phase { Project = project }
+                }
+            };
+            _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
+
+            var assignees = new List<TaskAssignee>
+            {
+                new TaskAssignee { TaskId = 100, UserId = 10 }
+            };
+            _mockAssigneeRepo.Setup(r => r.Query()).Returns(assignees.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            var command = new UpdateDailyLogCommand { LogId = 800, Description = "New Description" };
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            _mockAssigneeRepo.Verify(r => r.Query(), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID08_Handle_ImagesIsNull_ShouldRemoveAllOldAttachments()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var log = new DailyLog
+            {
+                LogId = 800,
+                Task = new ProjectTask
+                {
+                    IsLocked = false,
+                    Phase = new Phase { Project = project }
+                }
+            };
+            _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
+
+            var oldAtt = new Attachment { EntityType = EntityType.DailyLog, EntityId = 800, FileUrl = "old.jpg", IsDeleted = false };
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment> { oldAtt }.AsQueryable().BuildMock());
+
+            var command = new UpdateDailyLogCommand { LogId = 800, Description = "Desc", Images = null };
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            oldAtt.IsDeleted.Should().BeTrue();
+            _mockAttachmentRepo.Verify(r => r.Update(oldAtt), Times.Once);
+            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<Attachment>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task UTCID09_Handle_Exactly5Images_ShouldUpdateSuccessfully()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var log = new DailyLog
+            {
+                LogId = 800,
+                Task = new ProjectTask
+                {
+                    IsLocked = false,
+                    Phase = new Phase { Project = project }
+                }
+            };
+            _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            var fiveImages = new List<string> { "img1.jpg", "img2.jpg", "img3.jpg", "img4.jpg", "img5.jpg" };
+            var command = new UpdateDailyLogCommand { LogId = 800, Description = "Desc", Images = fiveImages };
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(It.Is<IEnumerable<Attachment>>(l => l.Count() == 5), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID10_Handle_ExceptionDuringUpdate_ShouldRollbackAndThrow()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var log = new DailyLog
+            {
+                LogId = 800,
+                Task = new ProjectTask
+                {
+                    IsLocked = false,
+                    Phase = new Phase { Project = project }
+                }
+            };
+            _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new Exception("DB Error"));
+
+            var command = new UpdateDailyLogCommand { LogId = 800, Description = "Desc" };
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<Exception>().WithMessage("DB Error");
+            _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
     }
 }

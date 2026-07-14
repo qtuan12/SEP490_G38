@@ -213,6 +213,36 @@ namespace BPG.Application.UnitTests.Comments
 
             // Assert
             result.Content.Length.Should().Be(1000);
+
+            _mockCommentRepo.Verify(r => r.Update(existingComment), Times.Once);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockRealtimeSender.Verify(s => s.SendToGroupAsync(
+                "Project_5",
+                "ReceiveCommentUpdated",
+                It.Is<CommentDto>(dto => dto.Content == maxLengthContent),
+                It.IsAny<CancellationToken>()
+            ), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_AlreadyDeletedComment_ShouldThrowNotFoundException()
+        {
+            // Arrange
+            SetupCurrentUser(userId: 10);
+            // Soft-deleted comment is filtered out by global query filter in Query()
+            _mockCommentRepo.Setup(r => r.Query()).Returns(new List<Comment>().AsQueryable().BuildMock());
+
+            var command = new UpdateCommentCommand { CommentId = 100, Content = "New Content" };
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<NotFoundException>()
+                .WithMessage("Comment với ID [100] không tồn tại.");
+
+            _mockCommentRepo.Verify(r => r.Update(It.IsAny<Comment>()), Times.Never);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
     }
 }

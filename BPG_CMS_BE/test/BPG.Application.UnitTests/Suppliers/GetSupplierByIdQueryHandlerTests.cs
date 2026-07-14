@@ -90,5 +90,23 @@ namespace BPG.Application.UnitTests.Suppliers
             await act.Should().ThrowAsync<NotFoundException>()
                 .WithMessage("Supplier với ID [999] không tồn tại.");
         }
+
+        [Fact]
+        public async Task UTCID03_Handle_SoftDeletedSupplier_ShouldThrowNotFoundException()
+        {
+            // Arrange
+            // Soft-deleted supplier returns null under global query filters
+            _mockSupplierRepo.Setup(r => r.GetByIdAsync(5, It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Supplier?)null);
+
+            var query = new GetSupplierByIdQuery(5);
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<NotFoundException>()
+                .WithMessage("Supplier với ID [5] không tồn tại.");
+        }
     }
 }

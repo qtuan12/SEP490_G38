@@ -16,6 +16,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using BPG.Application.UnitTests.Helpers;
 
 namespace BPG.Application.UnitTests.GoodsReceipts
 {
@@ -43,16 +44,13 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             );
         }
 
-        private void SetupCurrentUser(long userId)
-        {
-            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(userId);
-        }
+
 
         [Fact]
         public async Task UTCID01_Handle_ValidRequest_ShouldUpdateMetadataSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
@@ -100,7 +98,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID02_Handle_ReceiptNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt>().AsQueryable().BuildMock());
 
             var command = new PatchGoodsReceiptMetadataCommand(999, "John", "DOC-123");
@@ -117,7 +115,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID03_Handle_ProjectNotFound_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = null } } };
             var receipt = new GoodsReceipt { ReceiptId = 500, PurchaseOrder = po };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
@@ -136,7 +134,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID04_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Inactive
             var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
             var receipt = new GoodsReceipt { ReceiptId = 500, PurchaseOrder = po };
@@ -150,6 +148,118 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("Dự án liên kết không còn hoạt động, không thể chỉnh sửa thông tin.");
+        }
+
+        [Fact]
+        public async Task UTCID05_Handle_StatusIsCancelled_ShouldStillUpdateMetadataSuccessfully()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
+            var receipt = new GoodsReceipt { ReceiptId = 500, PurchaseOrder = po, Status = GoodsReceiptStatus.Cancelled };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            var command = new PatchGoodsReceiptMetadataCommand(500, "John", "DOC-123");
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            receipt.DelivererInfo.Should().Be("John");
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_ImagesIsNull_ShouldRemoveAllOldAttachmentsAndNotAddNew()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
+            var receipt = new GoodsReceipt { ReceiptId = 500, PurchaseOrder = po };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
+
+            var oldAtt = new Attachment { EntityType = EntityType.GoodsReceipt, EntityId = 500, FileUrl = "old.jpg" };
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment> { oldAtt }.AsQueryable().BuildMock());
+
+            var command = new PatchGoodsReceiptMetadataCommand(500, "John", "DOC-123", Images: null);
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            _mockAttachmentRepo.Verify(r => r.Remove(oldAtt), Times.Once);
+            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<Attachment>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_ImagesCountGreaterThanFive_ShouldStillUpdateMetadataSuccessfully()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
+            var receipt = new GoodsReceipt { ReceiptId = 500, PurchaseOrder = po };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            var sixImages = new List<string> { "1", "2", "3", "4", "5", "6" };
+            var command = new PatchGoodsReceiptMetadataCommand(500, "John", "DOC-123", Images: sixImages);
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(It.Is<IEnumerable<Attachment>>(l => l.Count() == 6), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID08_Handle_DelivererInfoAndDocNoNullOrEmpty_ShouldUpdateSuccessfully()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
+            var receipt = new GoodsReceipt { ReceiptId = 500, PurchaseOrder = po, DelivererInfo = "Old", DeliveryDocNo = "OldDoc" };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            var command = new PatchGoodsReceiptMetadataCommand(500, null, "");
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            receipt.DelivererInfo.Should().BeNull();
+            receipt.DeliveryDocNo.Should().Be("");
+        }
+
+        [Fact]
+        public async Task UTCID09_Handle_ExceptionDuringUpdate_ShouldRollbackAndThrow()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
+            var receipt = new GoodsReceipt { ReceiptId = 500, PurchaseOrder = po };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new Exception("DB Error"));
+
+            var command = new PatchGoodsReceiptMetadataCommand(500, "John", "DOC-123");
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<Exception>().WithMessage("DB Error");
+            _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
     }
 }

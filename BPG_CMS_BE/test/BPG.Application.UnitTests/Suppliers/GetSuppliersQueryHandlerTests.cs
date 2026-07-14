@@ -269,5 +269,79 @@ namespace BPG.Application.UnitTests.Suppliers
             // Assert
             result.Items.Select(s => s.CollaborationStatus).Should().ContainInOrder("Active", "Active", "Inactive");
         }
+
+        [Fact]
+        public async Task UTCID11_Handle_PaginationFallback_ShouldClampInvalidPageNumberAndSize()
+        {
+            // Arrange
+            var suppliers = GetSampleSuppliers();
+            _mockSupplierRepo.Setup(r => r.Query()).Returns(suppliers.BuildMock());
+
+            var query = new GetSuppliersQuery
+            {
+                PageNumber = -1, // Invalid PageNumber -> should fallback to 1
+                PageSize = -5    // Invalid PageSize -> should fallback to 1 via PaginationRequest
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.PageNumber.Should().Be(1);
+            result.PageSize.Should().Be(1);
+            result.Items.Should().HaveCount(1); // PageSize = 1, so only 1 item returned
+        }
+
+        [Fact]
+        public async Task UTCID12_Handle_InvalidSortByField_ShouldFallbackToCreatedAtDescending()
+        {
+            // Arrange
+            var suppliers = GetSampleSuppliers();
+            // Assign different CreatedAt times to verify sort fallback
+            suppliers[0].CreatedAt = DateTime.UtcNow.AddMinutes(-10);
+            suppliers[1].CreatedAt = DateTime.UtcNow; // Newest
+            suppliers[2].CreatedAt = DateTime.UtcNow.AddMinutes(-5);
+
+            _mockSupplierRepo.Setup(r => r.Query()).Returns(suppliers.BuildMock());
+
+            var query = new GetSuppliersQuery
+            {
+                SortBy = "invalidFieldName",
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Select(s => s.SupplierId).Should().ContainInOrder(2, 3, 1);
+        }
+
+        [Fact]
+        public async Task UTCID13_Handle_CombinedFilters_ShouldApplyAllFilterCriteriaCorrectly()
+        {
+            // Arrange
+            var suppliers = GetSampleSuppliers();
+            _mockSupplierRepo.Setup(r => r.Query()).Returns(suppliers.BuildMock());
+
+            var query = new GetSuppliersQuery
+            {
+                CollaborationStatus = "Active",
+                Search = "alpha",
+                SortBy = "name",
+                SortDescending = false,
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().HaveCount(1);
+            result.Items.First().SupplierName.Should().Be("Supplier Alpha");
+        }
     }
 }

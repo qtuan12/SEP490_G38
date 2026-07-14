@@ -196,5 +196,29 @@ namespace BPG.Application.UnitTests.Notifications
             await act.Should().ThrowAsync<UnauthorizedAccessException>()
                 .WithMessage("User is not authenticated.");
         }
+
+        [Fact]
+        public async Task UTCID07_Handle_PaginationFallback_ShouldClampInvalidPageNumberAndSize()
+        {
+            // Arrange
+            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(10);
+
+            var notifications = GetSampleNotifications();
+            _mockNotiRepo.Setup(r => r.Query()).Returns(notifications.BuildMock());
+
+            var query = new GetMyNotificationsQuery
+            {
+                PageNumber = 0,
+                PageSize = -10
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.PageNumber.Should().Be(1);
+            result.PageSize.Should().Be(1);
+        }
     }
 }
