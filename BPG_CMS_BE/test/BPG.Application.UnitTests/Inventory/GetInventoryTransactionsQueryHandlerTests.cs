@@ -226,7 +226,7 @@ namespace BPG.Application.UnitTests.Inventory
         }
 
         [Fact]
-        public async Task UTCID06_Handle_CreatedByUserNotFound_ShouldReturnUnknownForCreatedByName()
+        public async Task UTCID06_Handle_CreatedByUserNotFound_ShouldReturnNAForCreatedByName()
         {
             // Arrange
             var txs = GetMockTxList();
@@ -248,7 +248,7 @@ namespace BPG.Application.UnitTests.Inventory
 
             // Assert
             result.Items.Count.Should().Be(2);
-            result.Items[0].CreatedByName.Should().Be("Unknown");
+            result.Items[0].CreatedByName.Should().Be("N/A");
         }
 
         [Fact]
@@ -298,7 +298,7 @@ namespace BPG.Application.UnitTests.Inventory
 
             // Assert
             result.PageNumber.Should().Be(1);
-            result.PageSize.Should().Be(20);
+            result.PageSize.Should().Be(1);
         }
 
         [Fact]

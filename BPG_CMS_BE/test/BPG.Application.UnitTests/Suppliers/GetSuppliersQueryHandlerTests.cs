@@ -280,7 +280,7 @@ namespace BPG.Application.UnitTests.Suppliers
             var query = new GetSuppliersQuery
             {
                 PageNumber = -1, // Invalid PageNumber -> should fallback to 1
-                PageSize = -5    // Invalid PageSize -> should fallback to 20
+                PageSize = -5    // Invalid PageSize -> should fallback to 1 via PaginationRequest
             };
 
             // Act
@@ -289,8 +289,8 @@ namespace BPG.Application.UnitTests.Suppliers
             // Assert
             result.Should().NotBeNull();
             result.PageNumber.Should().Be(1);
-            result.PageSize.Should().Be(20);
-            result.Items.Should().HaveCount(3);
+            result.PageSize.Should().Be(1);
+            result.Items.Should().HaveCount(1); // PageSize = 1, so only 1 item returned
         }
 
         [Fact]

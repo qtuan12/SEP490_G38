@@ -218,7 +218,7 @@ namespace BPG.Application.UnitTests.Notifications
             // Assert
             result.Should().NotBeNull();
             result.PageNumber.Should().Be(1);
-            result.PageSize.Should().Be(20);
+            result.PageSize.Should().Be(1);
         }
     }
 }
