@@ -17,6 +17,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using BPG.Application.UnitTests.Helpers;
 
 namespace BPG.Application.UnitTests.DailyLogs
 {
@@ -69,18 +70,13 @@ namespace BPG.Application.UnitTests.DailyLogs
             );
         }
 
-        private void SetupCurrentUser(long userId, string role, bool isAdminOrTM = true)
-        {
-            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(userId);
-            _mockCurrentUserService.Setup(s => s.IsInAnyRole(It.IsAny<string[]>()))
-                .Returns((string[] roles) => roles.Contains(role) && isAdminOrTM);
-        }
+
 
         [Fact]
         public async Task UTCID01_Handle_ValidId_ShouldReturnHistory()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin, isAdminOrTM: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5 };
             var task = new ProjectTask
@@ -112,7 +108,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID02_Handle_TaskNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
             var query = new GetTaskProgressHistoryQuery(999);
 
             // Act
@@ -127,7 +123,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID03_Handle_InsufficientPermission_ShouldThrowForbiddenException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, isAdminOrTM: false); // Engineer
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
 
             var project = new Project { ProjectId = 5 };
             var task = new ProjectTask
@@ -155,7 +151,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID04_Handle_UserIsProjectMemberNotAdmin_ShouldReturnHistorySuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, isAdminOrTM: false); // Engineer
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
 
             var project = new Project { ProjectId = 5 };
             var task = new ProjectTask
@@ -192,7 +188,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID05_Handle_NoProgressHistoryExists_ShouldReturnEmptyList()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin, isAdminOrTM: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5 };
             var task = new ProjectTask

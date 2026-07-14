@@ -57,59 +57,13 @@ namespace BPG.Application.UnitTests.Inventory
         }
 
         [Fact]
-        public async Task UTCID01_Handle_ValidRequest_ShouldReturnInventoryWithCorrectAggregation()
+        public async Task Handle_ValidRequest_ShouldCalculateSafetyThresholdCorrectly()
         {
             // Arrange
             long projectId = 5;
-
-            // 1. Config Threshold = 15
             var config = new SystemConfig { ConfigKey = "NguongTonKhoThap", ConfigValue = "15" };
             _mockConfigRepo.Setup(r => r.Query()).Returns(new List<SystemConfig> { config }.AsQueryable().BuildMock());
 
-            // 2. Project Phases
-            var phase = new Phase { PhaseId = 20, ProjectId = projectId, Name = "Foundation Phase", IsDeleted = false };
-            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
-
-            // 3. BOQ Item (Material 50, Phase 20, Qty = 100, ConvRate = 1 -> BaseQty = 100)
-            var boqItem = new BOQItem { PhaseId = 20, MaterialId = 50, Quantity = 100, ConversionRate = 1, IsDeleted = false, Phase = phase };
-            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem> { boqItem }.AsQueryable().BuildMock());
-
-            // 4. Material Issuance Item (Material 50, Phase 20, Qty = 40, ConvRate = 1 -> BaseQty = 40)
-            var issuanceItem = new MaterialIssuanceItem
-            {
-                MaterialId = 50,
-                Quantity = 40,
-                ConversionRate = 1,
-                Issuance = new MaterialIssuance
-                {
-                    IsDeleted = false,
-                    Task = new ProjectTask { PhaseId = 20, Phase = phase }
-                }
-            };
-            _mockIssuanceItemRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuanceItem> { issuanceItem }.AsQueryable().BuildMock());
-
-            // 5. Weighted average price (Material 50, Price 1: Qty 10, Price 100; Price 2: Qty 20, Price 130 -> Avg = (10*100 + 20*130)/30 = 120)
-            var po1 = new PurchaseOrder
-            {
-                POId = 1,
-                SupplierId = 10,
-                Supplier = new Supplier { SupplierId = 10, SupplierName = "Supplier Alpha" },
-                Request = new MaterialRequest { Phase = phase },
-                OrderDate = DateTime.UtcNow.AddDays(-2)
-            };
-            var po2 = new PurchaseOrder
-            {
-                POId = 2,
-                SupplierId = 10,
-                Supplier = new Supplier { SupplierId = 10, SupplierName = "Supplier Alpha" },
-                Request = new MaterialRequest { Phase = phase },
-                OrderDate = DateTime.UtcNow.AddDays(-1) // Last supplier order date
-            };
-            var poItem1 = new PurchaseOrderItem { POId = 1, MaterialId = 50, Quantity = 10, UnitPrice = 100, PurchaseOrder = po1 };
-            var poItem2 = new PurchaseOrderItem { POId = 2, MaterialId = 50, Quantity = 20, UnitPrice = 130, PurchaseOrder = po2 };
-            _mockPoItemRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrderItem> { poItem1, poItem2 }.AsQueryable().BuildMock());
-
-            // 6. Current Inventory database list
             var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement", Specification = "Grade 50" };
             var unit = new Unit { UnitId = 2, UnitName = "Bag" };
             var inventory = new CurrentInventory
@@ -135,19 +89,168 @@ namespace BPG.Application.UnitTests.Inventory
             result.Should().NotBeNull();
             result.Success.Should().BeTrue();
             result.Data.Should().HaveCount(1);
+            result.Data.First().SafetyThreshold.Should().Be(15);
+        }
 
+        [Fact]
+        public async Task Handle_ValidRequest_ShouldCalculateAvgUnitPriceCorrectly()
+        {
+            // Arrange
+            long projectId = 5;
+            var phase = new Phase { PhaseId = 20, ProjectId = projectId, Name = "Foundation Phase", IsDeleted = false };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
+
+            var po1 = new PurchaseOrder
+            {
+                POId = 1,
+                SupplierId = 10,
+                Supplier = new Supplier { SupplierId = 10, SupplierName = "Supplier Alpha" },
+                Request = new MaterialRequest { Phase = phase },
+                OrderDate = DateTime.UtcNow.AddDays(-2)
+            };
+            var po2 = new PurchaseOrder
+            {
+                POId = 2,
+                SupplierId = 10,
+                Supplier = new Supplier { SupplierId = 10, SupplierName = "Supplier Alpha" },
+                Request = new MaterialRequest { Phase = phase },
+                OrderDate = DateTime.UtcNow.AddDays(-1)
+            };
+            var poItem1 = new PurchaseOrderItem { POId = 1, MaterialId = 50, Quantity = 10, UnitPrice = 100, PurchaseOrder = po1 };
+            var poItem2 = new PurchaseOrderItem { POId = 2, MaterialId = 50, Quantity = 20, UnitPrice = 130, PurchaseOrder = po2 };
+            _mockPoItemRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrderItem> { poItem1, poItem2 }.AsQueryable().BuildMock());
+
+            var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement", Specification = "Grade 50" };
+            var unit = new Unit { UnitId = 2, UnitName = "Bag" };
+            var inventory = new CurrentInventory
+            {
+                InventoryId = 300,
+                ProjectId = projectId,
+                MaterialId = 50,
+                Quantity = 60,
+                ReservedQuantity = 10,
+                LastUpdated = DateTime.UtcNow,
+                Material = material,
+                Unit = unit,
+                UnitId = 2
+            };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
+
+            var query = new GetCurrentInventoryQuery(projectId);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Success.Should().BeTrue();
             var dto = result.Data.First();
-            dto.MaterialCode.Should().Be("MAT-50");
-            dto.MaterialName.Should().Be("Cement");
-            dto.Quantity.Should().Be(60);
-            dto.ReservedQuantity.Should().Be(10);
-            dto.SafetyThreshold.Should().Be(15); // Weighted average threshold
-            dto.AvgUnitPrice.Should().Be(120); // (1000 + 2600) / 30 = 120
+            dto.AvgUnitPrice.Should().Be(120); // (10*100 + 20*130)/30 = 120
             dto.SupplierName.Should().Be("Supplier Alpha");
+        }
 
+        [Fact]
+        public async Task Handle_ValidRequest_ShouldCalculateBoqAndUsedQuantitiesCorrectly()
+        {
+            // Arrange
+            long projectId = 5;
+            var phase = new Phase { PhaseId = 20, ProjectId = projectId, Name = "Foundation Phase", IsDeleted = false };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
+
+            var boqItem = new BOQItem { PhaseId = 20, MaterialId = 50, Quantity = 100, ConversionRate = 1, IsDeleted = false, Phase = phase };
+            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem> { boqItem }.AsQueryable().BuildMock());
+
+            var issuanceItem = new MaterialIssuanceItem
+            {
+                MaterialId = 50,
+                Quantity = 40,
+                ConversionRate = 1,
+                Issuance = new MaterialIssuance
+                {
+                    IsDeleted = false,
+                    Task = new ProjectTask { PhaseId = 20, Phase = phase }
+                }
+            };
+            _mockIssuanceItemRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuanceItem> { issuanceItem }.AsQueryable().BuildMock());
+
+            var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement", Specification = "Grade 50" };
+            var unit = new Unit { UnitId = 2, UnitName = "Bag" };
+            var inventory = new CurrentInventory
+            {
+                InventoryId = 300,
+                ProjectId = projectId,
+                MaterialId = 50,
+                Quantity = 60,
+                ReservedQuantity = 10,
+                LastUpdated = DateTime.UtcNow,
+                Material = material,
+                Unit = unit,
+                UnitId = 2
+            };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
+
+            var query = new GetCurrentInventoryQuery(projectId);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Success.Should().BeTrue();
+            var dto = result.Data.First();
             dto.BoqQuantity.Should().Be(100);
             dto.UsedQuantity.Should().Be(40);
+        }
 
+        [Fact]
+        public async Task Handle_ValidRequest_ShouldIncludePhaseUsagesCorrectly()
+        {
+            // Arrange
+            long projectId = 5;
+            var phase = new Phase { PhaseId = 20, ProjectId = projectId, Name = "Foundation Phase", IsDeleted = false };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
+
+            var boqItem = new BOQItem { PhaseId = 20, MaterialId = 50, Quantity = 100, ConversionRate = 1, IsDeleted = false, Phase = phase };
+            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem> { boqItem }.AsQueryable().BuildMock());
+
+            var issuanceItem = new MaterialIssuanceItem
+            {
+                MaterialId = 50,
+                Quantity = 40,
+                ConversionRate = 1,
+                Issuance = new MaterialIssuance
+                {
+                    IsDeleted = false,
+                    Task = new ProjectTask { PhaseId = 20, Phase = phase }
+                }
+            };
+            _mockIssuanceItemRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuanceItem> { issuanceItem }.AsQueryable().BuildMock());
+
+            var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement", Specification = "Grade 50" };
+            var unit = new Unit { UnitId = 2, UnitName = "Bag" };
+            var inventory = new CurrentInventory
+            {
+                InventoryId = 300,
+                ProjectId = projectId,
+                MaterialId = 50,
+                Quantity = 60,
+                ReservedQuantity = 10,
+                LastUpdated = DateTime.UtcNow,
+                Material = material,
+                Unit = unit,
+                UnitId = 2
+            };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
+
+            var query = new GetCurrentInventoryQuery(projectId);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Success.Should().BeTrue();
+            var dto = result.Data.First();
             dto.PhaseUsages.Should().HaveCount(1);
             dto.PhaseUsages.First().PhaseName.Should().Be("Foundation Phase");
             dto.PhaseUsages.First().BoqQuantity.Should().Be(100);

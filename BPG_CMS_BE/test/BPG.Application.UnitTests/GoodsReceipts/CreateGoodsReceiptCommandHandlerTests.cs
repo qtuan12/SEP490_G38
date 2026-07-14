@@ -17,6 +17,7 @@ using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using BPG.Application.UnitTests.Helpers;
 
 namespace BPG.Application.UnitTests.GoodsReceipts
 {
@@ -64,16 +65,13 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             );
         }
 
-        private void SetupCurrentUser(long userId)
-        {
-            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(userId);
-        }
+
 
         [Fact]
         public async Task UTCID01_Handle_ValidRequest_FullyReceived_ShouldCreateGoodsReceiptSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
@@ -135,7 +133,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID02_Handle_ValidRequest_PartiallyReceived_ShouldCreateGoodsReceiptSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
@@ -186,7 +184,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID03_Handle_EmptyItemsList_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>());
 
             // Act
@@ -201,7 +199,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID04_Handle_PurchaseOrderNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
 
             var command = new CreateGoodsReceiptCommand(999, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
             {
@@ -220,7 +218,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID05_Handle_ProjectNotFound_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var po = new PurchaseOrder
             {
                 POId = 100,
@@ -248,7 +246,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID06_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Closed project!
             var po = new PurchaseOrder
             {
@@ -277,7 +275,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID07_Handle_InvalidPOStatus_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
@@ -307,7 +305,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID08_Handle_MaxImagesExceeded_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
@@ -342,7 +340,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID09_Handle_MaterialNotInPO_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
@@ -377,7 +375,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID10_Handle_InvalidQuantityLessThanZero_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
@@ -412,7 +410,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID11_Handle_QuantityExceededRemaining_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
@@ -459,7 +457,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID12_Handle_Exactly5Images_ShouldCreateGoodsReceiptSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
@@ -495,7 +493,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID13_Handle_MultipleItemsOneInvalid_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
@@ -532,7 +530,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID14_Handle_POWithMultipleItemsPartiallyReceived_ShouldUpdatePOStatusToPartiallyReceived()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
@@ -569,7 +567,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID15_Handle_ExceptionDuringStockUpdate_ShouldRollbackTransactionAndThrow()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {

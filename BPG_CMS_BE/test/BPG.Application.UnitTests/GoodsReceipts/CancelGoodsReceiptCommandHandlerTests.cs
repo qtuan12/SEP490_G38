@@ -16,6 +16,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using BPG.Application.UnitTests.Helpers;
 
 namespace BPG.Application.UnitTests.GoodsReceipts
 {
@@ -62,18 +63,13 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             );
         }
 
-        private void SetupCurrentUser(long userId, string role, bool hasPermission = true)
-        {
-            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(userId);
-            _mockCurrentUserService.Setup(s => s.IsInAnyRole(It.IsAny<string[]>()))
-                .Returns((string[] roles) => roles.Contains(role) && hasPermission);
-        }
+
 
         [Fact]
         public async Task UTCID01_Handle_ValidRequest_AllReversed_ShouldCancelSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
@@ -133,7 +129,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID02_Handle_ValidRequest_PartiallyReversed_ShouldCancelSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
@@ -189,7 +185,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID03_Handle_InsufficientPermission_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasPermission: false); // Standard worker
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Standard worker
 
             var command = new CancelGoodsReceiptCommand(500);
 
@@ -205,7 +201,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID04_Handle_ReceiptNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
 
             var command = new CancelGoodsReceiptCommand(999);
 
@@ -221,7 +217,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID05_Handle_AlreadyCancelled_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
             var receipt = new GoodsReceipt { ReceiptId = 500, Status = GoodsReceiptStatus.Cancelled };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
@@ -239,7 +235,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID06_Handle_PONotFound_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
             var receipt = new GoodsReceipt { ReceiptId = 500, Status = GoodsReceiptStatus.Approved, PurchaseOrder = null };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
@@ -257,7 +253,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID07_Handle_ProjectNotFound_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
             var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = null } } };
             var receipt = new GoodsReceipt { ReceiptId = 500, Status = GoodsReceiptStatus.Approved, PurchaseOrder = po };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
@@ -276,7 +272,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID08_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Inactive
             var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
             var receipt = new GoodsReceipt { ReceiptId = 500, Status = GoodsReceiptStatus.Approved, PurchaseOrder = po };
@@ -296,7 +292,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID09_Handle_POClosed_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder { POId = 100, Status = PurchaseOrderStatus.Closed, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
             var receipt = new GoodsReceipt { ReceiptId = 500, Status = GoodsReceiptStatus.Approved, PurchaseOrder = po };
@@ -316,7 +312,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID10_Handle_CancelTimeframeExceeded_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder { POId = 100, Status = PurchaseOrderStatus.FullyReceived, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
             
@@ -347,7 +343,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID11_Handle_InsufficientInventory_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
@@ -390,7 +386,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID12_Handle_ErrorDuringTransaction_ShouldRollbackAndThrow()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
@@ -439,7 +435,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID13_Handle_SystemConfigKeyMissing_ShouldFallbackToDefaultSevenDaysLimit()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
@@ -479,7 +475,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID14_Handle_MultipleMaterialsOneInsufficient_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder

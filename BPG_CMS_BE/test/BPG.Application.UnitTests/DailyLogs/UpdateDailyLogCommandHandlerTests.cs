@@ -18,6 +18,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using BPG.Application.UnitTests.Helpers;
 
 namespace BPG.Application.UnitTests.DailyLogs
 {
@@ -84,18 +85,13 @@ namespace BPG.Application.UnitTests.DailyLogs
             );
         }
 
-        private void SetupCurrentUser(long userId, string role, bool isAdminOrTM = true)
-        {
-            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(userId);
-            _mockCurrentUserService.Setup(s => s.IsInAnyRole(It.IsAny<string[]>()))
-                .Returns((string[] roles) => roles.Contains(role) && isAdminOrTM);
-        }
+
 
         [Fact]
         public async Task UTCID01_Handle_ValidRequest_ShouldUpdateDailyLogSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin, isAdminOrTM: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -164,7 +160,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID02_Handle_DailyLogNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
             var command = new UpdateDailyLogCommand { LogId = 999, Description = "New Desc" };
 
             // Act
@@ -179,7 +175,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID03_Handle_InsufficientPermission_ShouldThrowForbiddenException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, isAdminOrTM: false); // Engineer
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -210,7 +206,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID04_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Inactive
             var log = new DailyLog
@@ -234,7 +230,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID05_Handle_TaskIsLocked_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -262,7 +258,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID06_Handle_MaxImagesExceeded_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -291,7 +287,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID07_Handle_UserIsAssignee_ShouldUpdateSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, isAdminOrTM: false); // Engineer
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -328,7 +324,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID08_Handle_ImagesIsNull_ShouldRemoveAllOldAttachments()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin, isAdminOrTM: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -361,7 +357,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID09_Handle_Exactly5Images_ShouldUpdateSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin, isAdminOrTM: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog
@@ -391,7 +387,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID10_Handle_ExceptionDuringUpdate_ShouldRollbackAndThrow()
         {
             // Arrange
-            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin, isAdminOrTM: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var log = new DailyLog

@@ -16,6 +16,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using BPG.Application.UnitTests.Helpers;
 
 namespace BPG.Application.UnitTests.MaterialIssuances
 {
@@ -63,16 +64,13 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             );
         }
 
-        private void SetupCurrentUser(long userId)
-        {
-            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(userId);
-        }
+
 
         [Fact]
         public async Task UTCID01_Handle_ValidRequest_ShouldCreateMaterialIssuanceSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
@@ -113,7 +111,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID02_Handle_EmptyItemsList_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var command = new CreateMaterialIssuanceCommand(100, "Purpose", new List<CreateMaterialIssuanceItemDto>());
 
             // Act
@@ -128,7 +126,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID03_Handle_TaskNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var command = new CreateMaterialIssuanceCommand(999, "Purpose", new List<CreateMaterialIssuanceItemDto>
             {
                 new CreateMaterialIssuanceItemDto(50, 1, 10)
@@ -146,7 +144,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID04_Handle_ProjectNotFound_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var task = new ProjectTask
             {
                 TaskId = 100,
@@ -171,7 +169,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID05_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Inactive
             var task = new ProjectTask
             {
@@ -197,7 +195,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID06_Handle_TaskIsLocked_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
             {
@@ -224,7 +222,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID07_Handle_NoInventoryEntry_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
             {
@@ -254,7 +252,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID08_Handle_InsufficientStock_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
             {
@@ -286,7 +284,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID09_Handle_ConversionRateApplied_ShouldSubtractCorrectBaseQty()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
@@ -322,7 +320,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID11_Handle_ExactlyAvailableQuantity_ShouldCreateSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask { TaskId = 100, IsLocked = false, Phase = new Phase { Project = project } };
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
@@ -348,7 +346,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID12_Handle_MultipleItemsOneInsufficient_ShouldThrowBusinessException()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask { TaskId = 100, IsLocked = false, Phase = new Phase { Project = project } };
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
@@ -377,7 +375,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID13_Handle_PurposeNullOrEmpty_ShouldCreateSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask { TaskId = 100, IsLocked = false, Phase = new Phase { Project = project } };
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
@@ -402,7 +400,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID14_Handle_ExceptionDuringStockUpdate_ShouldRollbackAndThrow()
         {
             // Arrange
-            SetupCurrentUser(10);
+            _mockCurrentUserService.SetupUser(10);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask { TaskId = 100, IsLocked = false, Phase = new Phase { Project = project } };
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
