@@ -249,10 +249,10 @@ export const Dashboard: React.FC = () => {
                 <div
                   key={idx}
                   className={`flex items-start justify-between gap-3 p-4 border rounded-md cursor-pointer hover:shadow-md transition-shadow ${w.warningType === 'Critical' ? 'bg-[hsl(var(--danger)/0.1)] border-[hsl(var(--danger)/0.4)] text-[hsl(var(--danger))]' :
-                      w.warningType === 'Red' ? 'bg-red-50 border-red-200 text-red-700' :
-                        'bg-yellow-50 border-yellow-200 text-yellow-700'
+                    w.warningType === 'Red' ? 'bg-red-50 border-red-200 text-red-700' :
+                      'bg-yellow-50 border-yellow-200 text-yellow-700'
                     }`}
-                  onClick={() => navigate(`/projects/${w.projectId}/tasks/${w.taskId}`)}
+                  onClick={() => navigate(`/projects/${w.projectId}?tab=wbs`)}
                 >
                   <div className="flex items-start gap-3">
                     <AlertTriangle size={20} className="shrink-0 mt-0.5" />
@@ -505,7 +505,7 @@ export const Dashboard: React.FC = () => {
           <div className="glass-panel p-5 animate-fade-in flex flex-col h-[380px] lg:col-span-5">
             <h3 className="text-[1.05rem] font-bold mb-4 flex items-center gap-2 text-[hsl(var(--text-primary))]">
               <AlertTriangle className="text-[hsl(var(--danger))]" size={18} />
-              <span>Danh sách cảnh báo WBS cần xử lý</span>
+              <span>Danh sách cảnh báo cần xử lý</span>
             </h3>
             <div className="flex-1 min-h-0">
               {warnings.length === 0 ? (
@@ -517,16 +517,16 @@ export const Dashboard: React.FC = () => {
                   {warnings.map((w, idx) => (
                     <div
                       key={idx}
-                      onClick={() => navigate(`/projects/${w.projectId}/tasks/${w.taskId}`)}
+                      onClick={() => navigate(`/projects/${w.projectId}?tab=wbs`)}
                       className={`p-3 rounded border text-xs cursor-pointer hover:shadow-sm transition-all flex flex-col gap-1 ${w.warningType === 'Critical' ? 'bg-[hsl(var(--danger)/0.04)] border-[hsl(var(--danger)/0.25)] hover:border-[hsl(var(--danger))]' :
-                          w.warningType === 'Red' ? 'bg-red-50/40 border-red-200 hover:border-red-400' :
-                            'bg-yellow-50/40 border-yellow-200 hover:border-yellow-400'
+                        w.warningType === 'Red' ? 'bg-red-50/40 border-red-200 hover:border-red-400' :
+                          'bg-yellow-50/40 border-yellow-200 hover:border-yellow-400'
                         }`}
                     >
                       <div className="flex justify-between items-center gap-2">
                         <span className="font-bold truncate text-[hsl(var(--text-primary))]">{w.projectName}</span>
                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${w.warningType === 'Critical' ? 'bg-[hsl(var(--danger)/0.15)] text-[hsl(var(--danger))]' :
-                            w.warningType === 'Red' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                          w.warningType === 'Red' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
                           }`}>
                           {w.warningType === 'Critical' ? 'KHẨN CẤP' : w.warningType === 'Red' ? 'TRỄ HẠN' : 'NGUY CƠ'}
                         </span>
@@ -845,8 +845,8 @@ export const Dashboard: React.FC = () => {
                             key={task.taskId}
                             onClick={() => navigate(`/projects/${numericProjectId}/tasks/${task.taskId}/logs`)}
                             className={`p-3 rounded border text-xs cursor-pointer hover:shadow-sm transition-all flex justify-between items-center gap-4 ${isAssignedToMe
-                                ? 'bg-[hsl(var(--primary-glow)/0.4)] border-[hsl(var(--primary))] font-semibold'
-                                : 'bg-[hsl(var(--bg-main))] border-[hsl(var(--border))]'
+                              ? 'bg-[hsl(var(--primary-glow)/0.4)] border-[hsl(var(--primary))] font-semibold'
+                              : 'bg-[hsl(var(--bg-main))] border-[hsl(var(--border))]'
                               }`}
                           >
                             <div className="flex-1 min-w-0">

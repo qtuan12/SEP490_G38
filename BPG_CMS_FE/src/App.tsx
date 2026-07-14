@@ -334,7 +334,7 @@ function App() {
               <Route 
                 path="/tasks/:taskId" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <TaskDetailSE />
                   </ProtectedRoute>
                 } 
