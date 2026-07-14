@@ -94,6 +94,8 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             dto.Items[0].MaterialName.Should().Be("Cement");
             dto.Items[0].UnitName.Should().Be("Bag");
             dto.Items[0].Quantity.Should().Be(10);
+
+            _mockUserRepo.Verify(r => r.GetByIdAsync(10, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
@@ -110,6 +112,53 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             // Assert
             await act.Should().ThrowAsync<NotFoundException>()
                 .WithMessage("MaterialIssuance với ID [999] không tồn tại.");
+        }
+
+        [Fact]
+        public async Task UTCID03_Handle_UserNotFound_ShouldNotCrash()
+        {
+            // Arrange
+            var mi = new MaterialIssuance
+            {
+                MaterialIssuanceId = 600,
+                IssuanceNo = "PXK-001",
+                CreatedBy = 999, // User 999 does not exist
+                Items = new List<MaterialIssuanceItem>()
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { mi }.AsQueryable().BuildMock());
+            _mockUserRepo.Setup(r => r.GetByIdAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((User)null);
+
+            var query = new GetMaterialIssuanceDetailQuery(600);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.CreatedByName.Should().Be("N/A");
+            _mockUserRepo.Verify(r => r.GetByIdAsync(999, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID04_Handle_EmptyItemsList_ShouldReturnEmptyItems()
+        {
+            // Arrange
+            var mi = new MaterialIssuance
+            {
+                MaterialIssuanceId = 600,
+                IssuanceNo = "PXK-001",
+                Items = new List<MaterialIssuanceItem>()
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { mi }.AsQueryable().BuildMock());
+
+            var query = new GetMaterialIssuanceDetailQuery(600);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Items.Should().BeEmpty();
         }
     }
 }

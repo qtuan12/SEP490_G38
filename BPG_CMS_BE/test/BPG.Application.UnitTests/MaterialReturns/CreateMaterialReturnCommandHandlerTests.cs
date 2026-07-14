@@ -375,5 +375,73 @@ namespace BPG.Application.UnitTests.MaterialReturns
             result.Success.Should().BeTrue();
             _mockInventoryService.Verify(s => s.UpdateStockAsync(5, 50, 6, It.IsAny<byte>(), It.IsAny<long>(), It.IsAny<string>(), 10, It.IsAny<CancellationToken>()), Times.Once);
         }
+
+        [Fact]
+        public async Task UTCID11_Handle_ConversionRateApplied_ShouldAddCorrectBaseQty()
+        {
+            // Arrange
+            SetupCurrentUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 500,
+                Task = new ProjectTask { Phase = new Phase { Project = project } },
+                Items = new List<MaterialIssuanceItem>
+                {
+                    new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 0.5m } // Base qty = 10 / 0.5 = 20
+                }
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+
+            // Requesting to return 5 units (with rate = 0.5 -> base quantity = 5 / 0.5 = 10 base units)
+            var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+            {
+                new ReturnItemDto(50, 1, 5, 0.5m)
+            });
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            // Verify that we update the inventory with base quantity of +10
+            _mockInventoryService.Verify(s => s.UpdateStockAsync(5, 50, 10, InventoryTransactionType.IssuanceReturn, It.IsAny<long>(), EntityType.MaterialReturn, 10, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID12_Handle_ExceptionDuringStockUpdate_ShouldRollbackTransactionAndThrow()
+        {
+            // Arrange
+            SetupCurrentUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 500,
+                Task = new ProjectTask { Phase = new Phase { Project = project } },
+                Items = new List<MaterialIssuanceItem>
+                {
+                    new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+                }
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+
+            _mockInventoryService.Setup(s => s.UpdateStockAsync(
+                It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(), It.IsAny<byte>(), It.IsAny<long>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("DB Connection Timeout"));
+
+            var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+            {
+                new ReturnItemDto(50, 1, 5, 1)
+            });
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<Exception>().WithMessage("DB Connection Timeout");
+            _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
     }
 }

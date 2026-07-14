@@ -317,5 +317,115 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             // Required base quantity must be 10 / 0.5 = 20, which is updated as -20 in stock.
             _mockInventoryService.Verify(s => s.UpdateStockAsync(5, 50, -20, InventoryTransactionType.Issuance, 600, EntityType.MaterialIssuance, 10, It.IsAny<CancellationToken>()), Times.Once);
         }
+
+        [Fact]
+        public async Task UTCID11_Handle_ExactlyAvailableQuantity_ShouldCreateSuccessfully()
+        {
+            // Arrange
+            SetupCurrentUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, IsLocked = false, Phase = new Phase { Project = project } };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var material = new MaterialCatalog { MaterialId = 50, Name = "Cement", BaseUnit = new Unit { UnitName = "Bag" } };
+            var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 10, ReservedQuantity = 0, Material = material };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
+
+            var command = new CreateMaterialIssuanceCommand(100, "Purpose", new List<CreateMaterialIssuanceItemDto>
+            {
+                new CreateMaterialIssuanceItemDto(50, 1, 10, 1) // 10 / 1 = 10 (exactly equal to available)
+            });
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            _mockInventoryService.Verify(s => s.UpdateStockAsync(5, 50, -10, InventoryTransactionType.Issuance, It.IsAny<long>(), EntityType.MaterialIssuance, 10, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID12_Handle_MultipleItemsOneInsufficient_ShouldThrowBusinessException()
+        {
+            // Arrange
+            SetupCurrentUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, IsLocked = false, Phase = new Phase { Project = project } };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var m1 = new MaterialCatalog { MaterialId = 50, Name = "Cement", BaseUnit = new Unit { UnitName = "Bag" } };
+            var m2 = new MaterialCatalog { MaterialId = 51, Name = "Sand", BaseUnit = new Unit { UnitName = "Bag" } };
+            var i1 = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 10, ReservedQuantity = 0, Material = m1 };
+            var i2 = new CurrentInventory { ProjectId = 5, MaterialId = 51, Quantity = 5, ReservedQuantity = 0, Material = m2 };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { i1, i2 }.AsQueryable().BuildMock());
+
+            var command = new CreateMaterialIssuanceCommand(100, "Purpose", new List<CreateMaterialIssuanceItemDto>
+            {
+                new CreateMaterialIssuanceItemDto(50, 1, 5, 1),
+                new CreateMaterialIssuanceItemDto(51, 1, 10, 1) // Sand requires 10 but only has 5
+            });
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<BusinessException>()
+                .WithMessage("Không đủ tồn kho khả dụng cho vật tư [Sand]. Yêu cầu xuất: 10 Bag, tồn khả dụng còn lại: 5 Bag.");
+        }
+
+        [Fact]
+        public async Task UTCID13_Handle_PurposeNullOrEmpty_ShouldCreateSuccessfully()
+        {
+            // Arrange
+            SetupCurrentUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, IsLocked = false, Phase = new Phase { Project = project } };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var material = new MaterialCatalog { MaterialId = 50, Name = "Cement", BaseUnit = new Unit { UnitName = "Bag" } };
+            var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 10, ReservedQuantity = 0, Material = material };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
+
+            var command = new CreateMaterialIssuanceCommand(100, null, new List<CreateMaterialIssuanceItemDto>
+            {
+                new CreateMaterialIssuanceItemDto(50, 1, 5, 1)
+            });
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task UTCID14_Handle_ExceptionDuringStockUpdate_ShouldRollbackAndThrow()
+        {
+            // Arrange
+            SetupCurrentUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, IsLocked = false, Phase = new Phase { Project = project } };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var material = new MaterialCatalog { MaterialId = 50, Name = "Cement", BaseUnit = new Unit { UnitName = "Bag" } };
+            var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 10, ReservedQuantity = 0, Material = material };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
+
+            _mockInventoryService.Setup(s => s.UpdateStockAsync(
+                It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(), It.IsAny<byte>(), It.IsAny<long>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("DB Error"));
+
+            var command = new CreateMaterialIssuanceCommand(100, "Purpose", new List<CreateMaterialIssuanceItemDto>
+            {
+                new CreateMaterialIssuanceItemDto(50, 1, 5, 1)
+            });
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<Exception>().WithMessage("DB Error");
+            _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
     }
 }

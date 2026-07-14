@@ -492,5 +492,65 @@ namespace BPG.Application.UnitTests.DailyLogs
             await act.Should().ThrowAsync<ForbiddenException>()
                 .WithMessage("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
         }
+
+        [Fact]
+        public async Task UTCID14_Handle_Exactly5Images_ShouldSucceed()
+        {
+            // Arrange
+            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin, isAdminOrTM: true);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                Phase = new Phase { Project = project }
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var user = new User { UserId = 10, FullName = "Admin User", UserRoles = new List<BPG.Domain.Entities.UserRole>() };
+            _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { user }.AsQueryable().BuildMock());
+
+            var fiveImages = new List<string> { "img1.jpg", "img2.jpg", "img3.jpg", "img4.jpg", "img5.jpg" };
+            var command = new CreateDailyLogCommand
+            {
+                TaskId = 100,
+                NewProgressPercent = 50,
+                Description = "Completed 50%",
+                Images = fiveImages
+            };
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(It.Is<IEnumerable<Attachment>>(l => l.Count() == 5), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID15_Handle_ExceptionDuringUpdate_ShouldRollbackAndThrow()
+        {
+            // Arrange
+            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin, isAdminOrTM: true);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                Phase = new Phase { Project = project }
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new Exception("DB Error"));
+
+            var command = new CreateDailyLogCommand { TaskId = 100, NewProgressPercent = 50, Description = "Succeed" };
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<Exception>().WithMessage("DB Error");
+            _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
     }
 }

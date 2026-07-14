@@ -135,5 +135,129 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             await act.Should().ThrowAsync<NotFoundException>()
                 .WithMessage("GoodsReceipt với ID [999] không tồn tại.");
         }
+
+        [Fact]
+        public async Task UTCID03_Handle_CreatorUserNotFound_ShouldReturnNAForCreatedByName()
+        {
+            // Arrange
+            var gr = new GoodsReceipt
+            {
+                ReceiptId = 500,
+                ReceiptNo = "GR-001",
+                CreatedBy = 999, // User 999 does not exist
+                Items = new List<GoodsReceiptItem>()
+            };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { gr }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+            _mockUserRepo.Setup(r => r.GetByIdAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((User)null);
+
+            var query = new GetGoodsReceiptDetailQuery(500);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.CreatedByName.Should().Be("N/A");
+            _mockUserRepo.Verify(r => r.GetByIdAsync(999, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID04_Handle_SoftDeletedAttachmentOrNoAttachment_ShouldExcludeSoftDeletedAndReturnEmptyList()
+        {
+            // Arrange
+            var gr = new GoodsReceipt
+            {
+                ReceiptId = 500,
+                ReceiptNo = "GR-001",
+                Items = new List<GoodsReceiptItem>()
+            };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { gr }.AsQueryable().BuildMock());
+
+            var attachments = new List<Attachment>
+            {
+                new Attachment { EntityType = EntityType.GoodsReceipt, EntityId = 500, FileUrl = "deleted.jpg", IsDeleted = true },
+                new Attachment { EntityType = EntityType.GoodsReceipt, EntityId = 500, FileUrl = "active.jpg", IsDeleted = false }
+            };
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(attachments.AsQueryable().BuildMock());
+
+            var query = new GetGoodsReceiptDetailQuery(500);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Images.Should().ContainSingle().Which.Should().Be("active.jpg");
+        }
+
+        [Fact]
+        public async Task UTCID05_Handle_MultipleItems_ShouldMapAllItemsCorrectly()
+        {
+            // Arrange
+            var gr = new GoodsReceipt
+            {
+                ReceiptId = 500,
+                ReceiptNo = "GR-001",
+                Items = new List<GoodsReceiptItem>
+                {
+                    new GoodsReceiptItem
+                    {
+                        ReceiptItemId = 1,
+                        MaterialId = 50,
+                        UnitId = 2,
+                        Quantity = 10,
+                        Material = new MaterialCatalog { Code = "MAT-001", Name = "Cement" },
+                        Unit = new Unit { UnitName = "Bag" }
+                    },
+                    new GoodsReceiptItem
+                    {
+                        ReceiptItemId = 2,
+                        MaterialId = 51,
+                        UnitId = 2,
+                        Quantity = 15,
+                        Material = new MaterialCatalog { Code = "MAT-002", Name = "Sand" },
+                        Unit = new Unit { UnitName = "Bag" }
+                    }
+                }
+            };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { gr }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            var query = new GetGoodsReceiptDetailQuery(500);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.Items.Should().HaveCount(2);
+            result.Data.Items.Select(i => i.MaterialName).Should().ContainInOrder("Cement", "Sand");
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_NullPurchaseOrderOrSupplier_ShouldMapGracefully()
+        {
+            // Arrange
+            var gr = new GoodsReceipt
+            {
+                ReceiptId = 500,
+                ReceiptNo = "GR-001",
+                PurchaseOrder = null, // Null PO
+                Items = new List<GoodsReceiptItem>()
+            };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { gr }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            var query = new GetGoodsReceiptDetailQuery(500);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            result.Data.PONumber.Should().BeEmpty();
+            result.Data.SupplierName.Should().Be("N/A");
+        }
     }
 }

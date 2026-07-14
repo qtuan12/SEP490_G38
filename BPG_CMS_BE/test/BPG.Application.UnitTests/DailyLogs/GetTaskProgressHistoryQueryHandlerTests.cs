@@ -148,6 +148,68 @@ namespace BPG.Application.UnitTests.DailyLogs
             // Assert
             await act.Should().ThrowAsync<ForbiddenException>()
                 .WithMessage("Bạn không phải thành viên của dự án này.");
+            _mockMemberRepo.Verify(r => r.Query(), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID04_Handle_UserIsProjectMemberNotAdmin_ShouldReturnHistorySuccessfully()
+        {
+            // Arrange
+            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, isAdminOrTM: false); // Engineer
+
+            var project = new Project { ProjectId = 5 };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                Phase = new Phase { ProjectId = 5, Project = project }
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var members = new List<ProjectMember>
+            {
+                new ProjectMember { ProjectId = 5, UserId = 10 }
+            };
+            _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+
+            var progressLogs = new List<TaskProgressLog>
+            {
+                new TaskProgressLog { TaskId = 100, OldProgress = 20, NewProgress = 50, UpdateReason = "Poured slab", UpdatedAt = DateTime.UtcNow }
+            };
+            _mockProgressLogRepo.Setup(r => r.Query()).Returns(progressLogs.AsQueryable().BuildMock());
+
+            var query = new GetTaskProgressHistoryQuery(100);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Should().HaveCount(1);
+            _mockMemberRepo.Verify(r => r.Query(), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID05_Handle_NoProgressHistoryExists_ShouldReturnEmptyList()
+        {
+            // Arrange
+            SetupCurrentUser(10, BPG.Domain.Constants.UserRole.Admin, isAdminOrTM: true);
+
+            var project = new Project { ProjectId = 5 };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                Phase = new Phase { Project = project }
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+            _mockProgressLogRepo.Setup(r => r.Query()).Returns(new List<TaskProgressLog>().AsQueryable().BuildMock());
+
+            var query = new GetTaskProgressHistoryQuery(100);
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Should().BeEmpty();
         }
     }
 }

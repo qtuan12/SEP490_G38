@@ -251,5 +251,116 @@ namespace BPG.Application.UnitTests.MaterialReturns
             result.Items.Count.Should().Be(1);
             result.Items[0].MaterialReturnId.Should().Be(1);
         }
+
+        [Fact]
+        public async Task UTCID07_Handle_SearchWithSpaces_ShouldTrimAndReturnMatchingList()
+        {
+            // Arrange
+            var returns = GetMockReturnsList();
+            _mockReturnRepo.Setup(r => r.Query()).Returns(returns.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetMaterialReturnsQuery
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                Search = "   excess   " // spaces to trim
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().ContainSingle().Which.MaterialReturnId.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task UTCID08_Handle_CombinedFilter_ShouldReturnMatchingList()
+        {
+            // Arrange
+            var returns = GetMockReturnsList();
+            _mockReturnRepo.Setup(r => r.Query()).Returns(returns.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetMaterialReturnsQuery
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                ProjectId = 5,
+                Search = "PTRA-001"
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().ContainSingle().Which.MaterialReturnId.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task UTCID09_Handle_CreatorUserNotFound_ShouldReturnNAForCreatedByName()
+        {
+            // Arrange
+            var returns = GetMockReturnsList();
+            returns[0].CreatedBy = 999; // Non-existent user
+            _mockReturnRepo.Setup(r => r.Query()).Returns(returns.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetMaterialReturnsQuery { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items[0].CreatedByName.Should().Be("N/A");
+            _mockUserRepo.Verify(r => r.Query(), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID10_Handle_SearchNoMatch_ShouldReturnEmptyList()
+        {
+            // Arrange
+            var returns = GetMockReturnsList();
+            _mockReturnRepo.Setup(r => r.Query()).Returns(returns.AsQueryable().BuildMock());
+
+            var query = new GetMaterialReturnsQuery { Search = "NoMatchString" };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task UTCID11_Handle_NullOriginalIssuance_ShouldSkipOrHandleGracefully()
+        {
+            // Arrange
+            var returns = new List<MaterialReturn>
+            {
+                new MaterialReturn
+                {
+                    MaterialReturnId = 3,
+                    ReturnNo = "PTRA-003",
+                    OriginalIssuance = null // Null original issuance
+                }
+            };
+            _mockReturnRepo.Setup(r => r.Query()).Returns(returns.AsQueryable().BuildMock());
+
+            var query = new GetMaterialReturnsQuery { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().ContainSingle();
+            result.Items[0].OriginalIssuanceNo.Should().BeEmpty();
+        }
     }
 }

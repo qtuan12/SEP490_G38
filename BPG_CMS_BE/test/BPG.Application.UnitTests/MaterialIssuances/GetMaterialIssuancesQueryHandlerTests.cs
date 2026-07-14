@@ -191,5 +191,91 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             result.Items.Count.Should().Be(1);
             result.Items[0].MaterialIssuanceId.Should().Be(2);
         }
+
+        [Fact]
+        public async Task UTCID05_Handle_CombinedFilter_ShouldReturnCorrectResult()
+        {
+            // Arrange
+            var issuances = GetMockIssuancesList();
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(issuances.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetMaterialIssuancesQuery
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                ProjectId = 5,
+                Search = "Slab"
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().ContainSingle().Which.MaterialIssuanceId.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_SearchWithSpaces_ShouldReturnMatchingList()
+        {
+            // Arrange
+            var issuances = GetMockIssuancesList();
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(issuances.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetMaterialIssuancesQuery
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                Search = "   Pour Slab   " // spaces to trim
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().ContainSingle().Which.MaterialIssuanceId.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_CreatorUserNotFound_ShouldReturnNAForCreatedByName()
+        {
+            // Arrange
+            var issuances = GetMockIssuancesList();
+            issuances[0].CreatedBy = 999; // Non-existent user
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(issuances.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetMaterialIssuancesQuery { PageNumber = 1, PageSize = 10 };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items[0].CreatedByName.Should().Be("N/A");
+            _mockUserRepo.Verify(r => r.Query(), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID08_Handle_SearchNoMatch_ShouldReturnEmptyList()
+        {
+            // Arrange
+            var issuances = GetMockIssuancesList();
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(issuances.AsQueryable().BuildMock());
+
+            var query = new GetMaterialIssuancesQuery { Search = "NoMatchString" };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().BeEmpty();
+        }
     }
 }
