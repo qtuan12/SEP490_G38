@@ -10,6 +10,8 @@ using BPG.Domain.Exceptions;
 using FluentAssertions;
 using MockQueryable;
 using Moq;
+using BPG.Application.UnitTests.Helpers;
+using BPG.Application.DTOs.DailyLogs;
 
 namespace BPG.Application.UnitTests.Comments
 {
@@ -58,26 +60,11 @@ namespace BPG.Application.UnitTests.Comments
             );
         }
 
-        private void SetupCurrentUser(long userId, string role, bool isAuthenticated = true)
-        {
-            if (isAuthenticated)
-            {
-                _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(userId);
-                _mockCurrentUserService.Setup(s => s.IsInAnyRole(It.IsAny<string[]>()))
-                    .Returns((string[] roles) => roles.Contains(role));
-            }
-            else
-            {
-                _mockCurrentUserService.Setup(s => s.GetRequiredUserId())
-                    .Throws(new UnauthorizedAccessException("User is not authenticated."));
-            }
-        }
-
         [Fact]
         public async Task UTCID01_Handle_TechnicalManagerUser_ShouldAddCommentSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(userId: 11, role: BPG.Domain.Constants.UserRole.TechnicalManager);
+            _mockCurrentUserService.SetupUser(userId: 11, role: BPG.Domain.Constants.UserRole.TechnicalManager);
 
             var dailyLog = new DailyLog
             {
@@ -111,13 +98,17 @@ namespace BPG.Application.UnitTests.Comments
             // Assert
             result.Should().NotBeNull();
             result.AuthorRole.Should().Be(BPG.Domain.Constants.UserRole.TechnicalManager);
+
+            _mockCommentRepo.Verify(r => r.AddAsync(It.Is<Comment>(c => c.Content == "Great job!" && c.LogId == 100), It.IsAny<CancellationToken>()), Times.Once);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockRealtimeSender.Verify(s => s.SendToGroupAsync("Project_5", "ReceiveCommentAdded", It.IsAny<CommentDto>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
         public async Task UTCID02_Handle_ProjectMemberUser_ShouldAddCommentSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(userId: 12, role: BPG.Domain.Constants.UserRole.SiteEngineer); // Normal user
+            _mockCurrentUserService.SetupUser(userId: 12, role: BPG.Domain.Constants.UserRole.SiteEngineer); // Normal user
 
             var dailyLog = new DailyLog
             {
@@ -155,13 +146,17 @@ namespace BPG.Application.UnitTests.Comments
             // Assert
             result.Should().NotBeNull();
             result.AuthorName.Should().Be("SiteEngineer User");
+
+            _mockCommentRepo.Verify(r => r.AddAsync(It.Is<Comment>(c => c.Content == "Approved" && c.LogId == 100), It.IsAny<CancellationToken>()), Times.Once);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockRealtimeSender.Verify(s => s.SendToGroupAsync("Project_5", "ReceiveCommentAdded", It.IsAny<CommentDto>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
         public async Task UTCID03_Handle_DailyLogNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            SetupCurrentUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
             _mockDailyLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog>().AsQueryable().BuildMock());
 
             var command = new AddCommentCommand { LogId = 999, Content = "Content" };
@@ -172,13 +167,16 @@ namespace BPG.Application.UnitTests.Comments
             // Assert
             await act.Should().ThrowAsync<NotFoundException>()
                 .WithMessage("DailyLog với ID [999] không tồn tại.");
+
+            _mockCommentRepo.Verify(r => r.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Never);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
         public async Task UTCID04_Handle_NotMemberOrAdminTM_ShouldThrowForbiddenException()
         {
             // Arrange
-            SetupCurrentUser(userId: 12, role: BPG.Domain.Constants.UserRole.SiteEngineer); // Normal user
+            _mockCurrentUserService.SetupUser(userId: 12, role: BPG.Domain.Constants.UserRole.SiteEngineer); // Normal user
 
             var dailyLog = new DailyLog
             {
@@ -203,13 +201,16 @@ namespace BPG.Application.UnitTests.Comments
             // Assert
             await act.Should().ThrowAsync<ForbiddenException>()
                 .WithMessage("Bạn không phải thành viên của dự án này.");
+
+            _mockCommentRepo.Verify(r => r.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Never);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
         public async Task UTCID05_Handle_ContentBoundaryMaxLength_ShouldAddCommentSuccessfully()
         {
             // Arrange
-            SetupCurrentUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
 
             var dailyLog = new DailyLog
             {
@@ -243,13 +244,14 @@ namespace BPG.Application.UnitTests.Comments
 
             // Assert
             result.Content.Length.Should().Be(1000);
+            _mockCommentRepo.Verify(r => r.AddAsync(It.Is<Comment>(c => c.Content.Length == 1000), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
         public async Task UTCID06_Handle_OwnDailyLog_ShouldNotSendNotificationToCreator()
         {
             // Arrange
-            SetupCurrentUser(userId: 20, role: BPG.Domain.Constants.UserRole.SiteEngineer); // Creator of log is current user
+            _mockCurrentUserService.SetupUser(userId: 20, role: BPG.Domain.Constants.UserRole.SiteEngineer); // Creator of log is current user
 
             var dailyLog = new DailyLog
             {
@@ -291,13 +293,16 @@ namespace BPG.Application.UnitTests.Comments
                 It.IsAny<long?>(),
                 It.IsAny<CancellationToken>()
             ), Times.Never);
+
+            _mockCommentRepo.Verify(r => r.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Once);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
         public async Task UTCID07_Handle_OtherCommentersExist_ShouldSendNotificationToOtherCommenters()
         {
             // Arrange
-            SetupCurrentUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
 
             var dailyLog = new DailyLog
             {
@@ -370,7 +375,7 @@ namespace BPG.Application.UnitTests.Comments
         public async Task UTCID08_Handle_DuplicateCommenters_ShouldSendSingleNotificationPerUser()
         {
             // Arrange
-            SetupCurrentUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
 
             var dailyLog = new DailyLog
             {
@@ -447,7 +452,7 @@ namespace BPG.Application.UnitTests.Comments
         public async Task UTCID09_Handle_UserNotAuthenticated_ShouldThrowUnauthorizedAccessException()
         {
             // Arrange
-            SetupCurrentUser(userId: 0, role: "", isAuthenticated: false);
+            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Throws(new UnauthorizedAccessException("User is not authenticated."));
 
             var command = new AddCommentCommand { LogId = 100, Content = "Content" };
 
@@ -457,13 +462,16 @@ namespace BPG.Application.UnitTests.Comments
             // Assert
             await act.Should().ThrowAsync<UnauthorizedAccessException>()
                 .WithMessage("User is not authenticated.");
+
+            _mockCommentRepo.Verify(r => r.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Never);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
         public async Task UTCID10_Handle_SelfCommentWithOtherCommenters_ShouldNotNotifySelfButNotifyOthers()
         {
             // Arrange
-            SetupCurrentUser(userId: 20, role: BPG.Domain.Constants.UserRole.SiteEngineer); // Creator of log is 20, which is also current user
+            _mockCurrentUserService.SetupUser(userId: 20, role: BPG.Domain.Constants.UserRole.SiteEngineer); // Creator of log is 20, which is also current user
 
             var dailyLog = new DailyLog
             {
@@ -522,6 +530,62 @@ namespace BPG.Application.UnitTests.Comments
                 dailyLog.TaskId,
                 It.IsAny<CancellationToken>()
             ), Times.Once);
+        }
+
+        [Fact]
+        public async Task UTCID11_Handle_CommenterIsDifferentFromCreator_ShouldNotifyCreator()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
+
+            var dailyLog = new DailyLog
+            {
+                LogId = 100,
+                CreatedBy = 20, // Creator is User 20, Commenter is User 10
+                Task = new ProjectTask
+                {
+                    Name = "Brickwork",
+                    Phase = new Phase { ProjectId = 5 }
+                }
+            };
+            _mockDailyLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { dailyLog }.AsQueryable().BuildMock());
+
+            var authorUser = new User
+            {
+                UserId = 10,
+                FullName = "Admin User",
+                UserRoles = new List<BPG.Domain.Entities.UserRole>()
+            };
+            _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { authorUser }.AsQueryable().BuildMock());
+            _mockCommentRepo.Setup(r => r.Query()).Returns(new List<Comment>().AsQueryable().BuildMock());
+
+            var command = new AddCommentCommand { LogId = 100, Content = "Looks good!" };
+
+            // Act
+            await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            // 1. Log creator (20) should be notified exactly ONCE
+            _mockNotificationService.Verify(n => n.SendNotificationAsync(
+                20,
+                "Bình luận mới dưới nhật ký",
+                It.Is<string>(s => s.Contains("Admin User") && s.Contains("Brickwork")),
+                NotificationType.Progress,
+                NotificationReferenceType.Task,
+                dailyLog.TaskId,
+                It.IsAny<CancellationToken>()
+            ), Times.Once);
+
+            // 2. Realtime message should be sent to the project group
+            _mockRealtimeSender.Verify(s => s.SendToGroupAsync(
+                "Project_5",
+                "ReceiveCommentAdded",
+                It.IsAny<CommentDto>(),
+                It.IsAny<CancellationToken>()
+            ), Times.Once);
+
+            // 3. SaveChangesAsync called
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
     }
 }

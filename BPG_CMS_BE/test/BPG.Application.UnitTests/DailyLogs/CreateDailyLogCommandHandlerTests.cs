@@ -548,5 +548,150 @@ namespace BPG.Application.UnitTests.DailyLogs
             await act.Should().ThrowAsync<Exception>().WithMessage("DB Error");
             _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
+
+        [Fact]
+        public async Task UTCID16_Handle_ValidRequest_ProgressIsZero_ShouldSucceed()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                ProgressPercent = 0,
+                Phase = new Phase { Project = project },
+                SubTasks = new List<ProjectTask>()
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var predecessor = new ProjectTask { TaskId = 99, ProgressPercent = 50, Status = BPG.Domain.Constants.TaskStatus.InProgress };
+            var dependency = new TaskDependency { TaskId = 100, PredecessorTaskId = 99, Predecessor = predecessor };
+            _mockDependencyRepo.Setup(r => r.Query()).Returns(new List<TaskDependency> { dependency }.AsQueryable().BuildMock());
+
+            var user = new User { UserId = 10, FullName = "Admin User", UserRoles = new List<BPG.Domain.Entities.UserRole>() };
+            _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { user }.AsQueryable().BuildMock());
+
+            var command = new CreateDailyLogCommand
+            {
+                TaskId = 100,
+                NewProgressPercent = 0,
+                Description = "Site inspection, no progress yet"
+            };
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            task.ProgressPercent.Should().Be(0);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        }
+
+        [Fact]
+        public async Task UTCID17_Handle_TaskIsAlreadyCompleted_ReportingLowerProgress_ShouldThrowBusinessException()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Normal user, not Admin/TM
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                ProgressPercent = 100,
+                Phase = new Phase { Project = project }
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            // Mock Assignee to pass the initial permission check
+            var assignee = new TaskAssignee { TaskId = 100, UserId = 10 };
+            _mockAssigneeRepo.Setup(r => r.Query()).Returns(new List<TaskAssignee> { assignee }.AsQueryable().BuildMock());
+
+            var command = new CreateDailyLogCommand
+            {
+                TaskId = 100,
+                NewProgressPercent = 80,
+                Description = "Attempting to decrease progress"
+            };
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<BusinessException>()
+                .WithMessage("Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
+        }
+
+        [Fact]
+        public async Task UTCID18_Handle_TaskIsAlreadyCompleted_ReportingSameProgress_ShouldSucceed()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                ProgressPercent = 100,
+                Phase = new Phase { Project = project },
+                SubTasks = new List<ProjectTask>()
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var user = new User { UserId = 10, FullName = "Admin User", UserRoles = new List<BPG.Domain.Entities.UserRole>() };
+            _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { user }.AsQueryable().BuildMock());
+
+            var command = new CreateDailyLogCommand
+            {
+                TaskId = 100,
+                NewProgressPercent = 100,
+                Description = "Re-reporting completed state"
+            };
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            task.ProgressPercent.Should().Be(100);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        }
+
+        [Fact]
+        public async Task UTCID19_Handle_MultiplePredecessorDependencies_ShouldThrowIfAnyPredecessorIncomplete()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                ProgressPercent = 0,
+                Phase = new Phase { Project = project }
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var predecessor1 = new ProjectTask { TaskId = 91, ProgressPercent = 100, Status = BPG.Domain.Constants.TaskStatus.Completed };
+            var predecessor2 = new ProjectTask { TaskId = 92, ProgressPercent = 50, Status = BPG.Domain.Constants.TaskStatus.InProgress, Name = "Unfinished Foundation Work" };
+            
+            var dependency1 = new TaskDependency { TaskId = 100, PredecessorTaskId = 91, Predecessor = predecessor1 };
+            var dependency2 = new TaskDependency { TaskId = 100, PredecessorTaskId = 92, Predecessor = predecessor2 };
+            _mockDependencyRepo.Setup(r => r.Query()).Returns(new List<TaskDependency> { dependency1, dependency2 }.AsQueryable().BuildMock());
+
+            var command = new CreateDailyLogCommand
+            {
+                TaskId = 100,
+                NewProgressPercent = 10,
+                Description = "Trying to progress despite incomplete predecessor"
+            };
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            await act.Should().ThrowAsync<BusinessException>()
+                .WithMessage("*Các công việc tiên quyết chưa hoàn thành: Unfinished Foundation Work*");
+        }
     }
 }
