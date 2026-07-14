@@ -47,7 +47,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
                 _unitOfWork.Repository<InventoryAdjustment>().Update(adjustment);
 
-                Incident rejIncident = null;
+                Incident? rejIncident = null;
                 if (!string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
                 {
                     var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
@@ -125,7 +125,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             adjustment.ApprovedBy = _currentUserService.GetRequiredUserId();
             adjustment.ApprovedAt = System.DateTime.UtcNow;
 
-            Incident appIncident = null;
+            Incident? appIncident = null;
             if (!string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
             {
                 var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
