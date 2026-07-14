@@ -4,11 +4,13 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { UploadCloud, X, AlertCircle } from 'lucide-react';
+import { UploadCloud, X, AlertCircle, Loader2 } from 'lucide-react';
 import { projectService } from '../../../services/projectService';
 import type { WBSTask, DailyLog, WBSPhase } from '../../../types/common';
 import { Modal, Button, Textarea } from '../../../components/ui';
 import { useAuth } from '../../../context/AuthContext';
+import { compressAndUploadFile } from '../../../utils/uploadHelper';
+import type { UploadedFileState } from '../../../utils/uploadHelper';
 
 const dailyLogSchema = z.object({
   progress: z.number().min(0).max(100),
@@ -48,10 +50,8 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const queryClient = useQueryClient();
   const isEditMode = !!editLog;
 
-  // Selected new files for upload
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  // Local object URLs for previewing new files
-  const [previews, setPreviews] = useState<string[]>([]);
+  // Selected new files with upload status
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   // Keep track of existing images in edit mode
   const [existingImages, setExistingImages] = useState<string[]>([]);
   // File dragging state
@@ -107,8 +107,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const progress = watch('progress');
 
   useEffect(() => {
-    setSelectedFiles([]);
-    setPreviews([]);
+    setUploadedFiles([]);
     
     if (isEditMode && editLog) {
       setExistingImages(editLog.images || []);
@@ -152,13 +151,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   };
 
   const addImages = (files: File[]) => {
-    const totalCurrentCount = existingImages.length + selectedFiles.length;
-    const remainingCount = 5 - totalCurrentCount;
-    if (remainingCount <= 0) {
-      toast.error('Đã đạt giới hạn tối đa 5 ảnh.');
-      return;
-    }
-
     // Kiểm tra dung lượng hình ảnh (tối đa 10MB mỗi file)
     const MAX_SIZE = 10 * 1024 * 1024;
     const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
@@ -167,21 +159,47 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       return;
     }
 
-    const validFiles = files.filter(f => f.type.startsWith('image/')).slice(0, remainingCount);
+    const validFiles = files.filter(f => f.type.startsWith('image/'));
     if (validFiles.length === 0) return;
 
-    const newFiles = [...selectedFiles, ...validFiles];
-    setSelectedFiles(newFiles);
+    validFiles.forEach(file => {
+      const tempId = Math.random().toString(36).substring(7);
+      const localUrl = URL.createObjectURL(file);
+      
+      const newFileState: UploadedFileState = {
+        id: tempId,
+        name: file.name,
+        url: localUrl,
+        status: 'uploading'
+      };
 
-    const urls = validFiles.map(file => URL.createObjectURL(file));
-    setPreviews(prev => [...prev, ...urls]);
+      setUploadedFiles(prev => [...prev, newFileState]);
+
+      compressAndUploadFile(
+        file,
+        'dailylogs',
+        (uploadedUrl) => {
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
+          );
+        },
+        () => {
+          toast.error(`Tải ảnh ${file.name} lên thất bại.`);
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
+          );
+        }
+      );
+    });
   };
 
-  const removeNewImage = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    setPreviews(prev => {
-      URL.revokeObjectURL(prev[index]);
-      return prev.filter((_, i) => i !== index);
+  const removeNewImage = (id: string) => {
+    setUploadedFiles(prev => {
+      const target = prev.find(f => f.id === id);
+      if (target && target.url && target.url.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter(f => f.id !== id);
     });
   };
 
@@ -191,14 +209,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
   const mutation = useMutation({
     mutationFn: async (data: DailyLogForm) => {
-      let finalImages: string[] = [];
+      // Collect successful URLs
+      const finalImages = uploadedFiles
+        .filter(f => f.status === 'success' && f.url)
+        .map(f => f.url!);
 
-      // 1. Upload new files to Cloudinary if any
-      if (selectedFiles.length > 0) {
-        finalImages = await projectService.uploadFiles(selectedFiles, 'dailylogs');
-      }
-
-      // 2. Merge with remaining existing images
       const allImages = [...existingImages, ...finalImages];
 
       if (isEditMode && editLog) {
@@ -239,10 +254,15 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   });
 
   const onSubmit = (data: DailyLogForm) => {
+    // Prevent submitting if any file is still uploading
+    if (uploadedFiles.some(f => f.status === 'uploading')) {
+      toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
+      return;
+    }
     mutation.mutate(data);
   };
 
-  const totalImagesCount = existingImages.length + selectedFiles.length;
+  const totalImagesCount = existingImages.length + uploadedFiles.length;
 
   return (
     <div className={`bg-[hsl(var(--bg-card))] rounded-md ${hideHeader ? '' : 'border border-[hsl(var(--border))] shadow-sm mt-4'} overflow-hidden animate-fade-in`}>
@@ -335,21 +355,19 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
           {/* Cloudinary Image Upload Box */}
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-600">Hình ảnh hiện trường thi công (Tối đa 5 ảnh)</label>
+            <label className="block text-sm font-medium mb-1.5 text-slate-600">Hình ảnh hiện trường thi công</label>
             
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => {
-                if (totalImagesCount < 5) {
+                if (!mutation.isPending) {
                   document.getElementById('log-image-input')?.click();
                 }
               }}
               className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
-                totalImagesCount >= 5 
-                  ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
-                  : dragging 
+                dragging 
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
               }`}
@@ -361,7 +379,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 multiple
                 className="hidden"
                 onChange={handleFileSelect}
-                disabled={totalImagesCount >= 5}
+                disabled={mutation.isPending}
               />
               
               {totalImagesCount > 0 ? (
@@ -386,15 +404,29 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                   ))}
 
                   {/* New Selected Images */}
-                  {previews.map((imgUrl, idx) => (
-                    <div key={`new-${idx}`} className="relative w-16 h-16 rounded shadow-sm border border-gray-200 group overflow-hidden">
-                      <img src={imgUrl} alt="new preview" className="w-full h-full object-cover border border-green-500" />
-                      <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">Mới</span>
+                  {uploadedFiles.map((file) => (
+                    <div key={file.id} className={`relative w-16 h-16 rounded shadow-sm border group overflow-hidden ${file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-gray-200'}`}>
+                      <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                      
+                      {file.status === 'uploading' && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <Loader2 size={12} className="animate-spin text-white" />
+                        </div>
+                      )}
+                      
+                      {file.status === 'error' && (
+                        <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                      )}
+                      
+                      {file.status === 'success' && (
+                        <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">Mới</span>
+                      )}
+                      
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          removeNewImage(idx);
+                          removeNewImage(file.id);
                         }}
                         className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                         title="Hủy chọn"
@@ -411,18 +443,18 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                     Kéo thả hình ảnh vào đây hoặc click để chọn ảnh
                   </p>
                   <span className="text-xs text-slate-500">
-                    Hỗ trợ định dạng hình ảnh tối đa 10MB (tối đa 5 ảnh)
+                    Hỗ trợ định dạng hình ảnh tối đa 10MB
                   </span>
                 </div>
               )}
 
-              {totalImagesCount > 0 && totalImagesCount < 5 && (
+              {totalImagesCount > 0 && (
                 <div className="mt-4 text-xs text-blue-600 font-semibold" onClick={e => e.stopPropagation()}>
                   <span
                     className="cursor-pointer hover:underline"
                     onClick={() => document.getElementById('log-image-input')?.click()}
                   >
-                    + Thêm ảnh khác ({totalImagesCount}/5)
+                    + Thêm ảnh khác (Đã chọn {totalImagesCount} ảnh)
                   </span>
                 </div>
               )}

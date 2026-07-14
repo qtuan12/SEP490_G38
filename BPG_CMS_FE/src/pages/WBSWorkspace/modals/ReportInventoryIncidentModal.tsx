@@ -5,9 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { incidentService } from '../../../services/incidentService';
-import { projectService } from '../../../services/projectService';
-import { UploadCloud, X, Package, Plus, Trash2, Search } from 'lucide-react';
+import { UploadCloud, X, Package, Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { compressAndUploadFile } from '../../../utils/uploadHelper';
+import type { UploadedFileState } from '../../../utils/uploadHelper';
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
 
@@ -47,8 +48,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   onSuccess,
   onError,
 }) => {
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const [dragging, setDragging] = useState(false);
 
   const [damagedMaterials, setDamagedMaterials] = useState<Array<CurrentInventory & { quantityLost: number }>>([]);
@@ -83,11 +83,13 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
       const dateStr = `${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ngày ${d.toLocaleDateString('vi-VN')}`;
       finalDesc += `\n\n**Ngày/Giờ phát hiện:** ${dateStr}`;
 
-      if (selectedFiles.length > 0) {
-        const uploadedUrls = await projectService.uploadFiles(selectedFiles, 'incidents');
-        if (uploadedUrls && uploadedUrls.length > 0) {
-          finalDesc += '\n\n**Hình ảnh đính kèm:**\n' + uploadedUrls.map((url, i) => `![Ảnh ${i + 1}](${url})`).join('\n');
-        }
+      // Collect successfully uploaded URLs
+      const successfulUrls = uploadedFiles
+        .filter(f => f.status === 'success' && f.url)
+        .map(f => f.url!);
+
+      if (successfulUrls.length > 0) {
+        finalDesc += '\n\n**Hình ảnh đính kèm:**\n' + successfulUrls.map((url, i) => `![Ảnh ${i + 1}](${url})`).join('\n');
       }
 
       let finalDamageDesc = '';
@@ -114,8 +116,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
     onSuccess: () => {
       onSuccess('Báo cáo sự cố vật tư đã được lưu và chuyển Kế toán xác minh.');
       reset();
-      setSelectedFiles([]);
-      setPreviews([]);
+      setUploadedFiles([]);
       onClose();
     },
     onError: (err: any) => {
@@ -124,6 +125,10 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   });
 
   const onSubmit = (data: any) => {
+    if (uploadedFiles.some(f => f.status === 'uploading')) {
+      toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
+      return;
+    }
     mutation.mutate(data);
   };
 
@@ -144,18 +149,51 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
     if (e.target.files && e.target.files.length > 0) addImages(Array.from(e.target.files));
   };
   const addImages = (files: File[]) => {
-    const remaining = 5 - selectedFiles.length;
+    const remaining = 5 - uploadedFiles.length;
     if (remaining <= 0) { toast.error('Đã đạt giới hạn tối đa 5 ảnh.'); return; }
     const MAX = 10 * 1024 * 1024;
     if (files.some(f => f.size > MAX)) { toast.error('Hình ảnh không được vượt quá 10MB.'); return; }
     const valid = files.filter(f => f.type.startsWith('image/')).slice(0, remaining);
     if (!valid.length) return;
-    setSelectedFiles(prev => [...prev, ...valid]);
-    setPreviews(prev => [...prev, ...valid.map(f => URL.createObjectURL(f))]);
+
+    valid.forEach(file => {
+      const tempId = Math.random().toString(36).substring(7);
+      const localUrl = URL.createObjectURL(file);
+
+      const newFileState: UploadedFileState = {
+        id: tempId,
+        name: file.name,
+        url: localUrl,
+        status: 'uploading'
+      };
+
+      setUploadedFiles(prev => [...prev, newFileState]);
+
+      compressAndUploadFile(
+        file,
+        'incidents',
+        (uploadedUrl) => {
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
+          );
+        },
+        () => {
+          toast.error(`Tải ảnh ${file.name} lên thất bại.`);
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
+          );
+        }
+      );
+    });
   };
-  const removeImage = (idx: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
-    setPreviews(prev => { URL.revokeObjectURL(prev[idx]); return prev.filter((_, i) => i !== idx); });
+  const removeImage = (id: string) => {
+    setUploadedFiles(prev => {
+      const target = prev.find(f => f.id === id);
+      if (target && target.url && target.url.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter(f => f.id !== id);
+    });
   };
 
   if (!isOpen) return null;
@@ -241,34 +279,41 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  onClick={() => { if (selectedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
+                  onClick={() => { if (uploadedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
                   style={{
                     border: `2px dashed ${dragging ? 'hsl(210, 70%, 45%)' : 'hsl(var(--border))'}`,
                     borderRadius: '8px',
                     padding: '16px',
                     textAlign: 'center',
-                    cursor: selectedFiles.length >= 5 ? 'not-allowed' : 'pointer',
+                    cursor: uploadedFiles.length >= 5 ? 'not-allowed' : 'pointer',
                     background: dragging ? 'hsl(210, 100%, 97%)' : 'hsl(var(--bg-card))',
-                    opacity: selectedFiles.length >= 5 ? 0.6 : 1,
+                    opacity: uploadedFiles.length >= 5 ? 0.6 : 1,
                     transition: 'all 0.2s',
                   }}
                 >
-                  <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={selectedFiles.length >= 5} />
+                  <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={uploadedFiles.length >= 5} />
                   <UploadCloud size={24} style={{ color: 'hsl(var(--text-secondary))', margin: '0 auto 6px' }} />
                   <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', margin: '0 0 4px' }}>
                     Kéo thả hoặc click để chọn ảnh
                   </p>
-                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Đã chọn {selectedFiles.length}/5 ảnh</span>
+                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Đã chọn {uploadedFiles.length}/5 ảnh</span>
                 </div>
-                {previews.length > 0 && (
+                {uploadedFiles.length > 0 && (
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-                    {previews.map((url, idx) => (
-                      <div key={idx} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
-                        <img src={url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {uploadedFiles.map((file) => (
+                      <div key={file.id} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: file.status === 'error' ? '1px solid #dc2626' : file.status === 'success' ? '1px solid #16a34a' : '1px solid hsl(var(--border))' }}>
+                        <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        
+                        {file.status === 'uploading' && (
+                          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Loader2 size={12} className="animate-spin" style={{ color: '#fff' }} />
+                          </div>
+                        )}
+                        
                         <button
                           type="button"
-                          onClick={e => { e.stopPropagation(); removeImage(idx); }}
-                          style={{ position: 'absolute', top: 2, right: 2, background: '#dc2626', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                          onClick={e => { e.stopPropagation(); removeImage(file.id); }}
+                          style={{ position: 'absolute', top: 2, right: 2, background: '#dc2626', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10 }}
                         >
                           <X size={10} color="white" />
                         </button>

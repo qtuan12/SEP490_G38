@@ -79,7 +79,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
         <>
           <Button variant="outline" onClick={onClose} disabled={submitting}>Hủy</Button>
           <Button variant="primary" onClick={handleSubmit} isLoading={submitting}>
-            Xác nhận trả NCC
+            Xác nhận trả nhà cung cấp
           </Button>
         </>
       }
@@ -108,7 +108,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
             disabled={submitting}
             className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">-- Chọn NCC (không bắt buộc) --</option>
+            <option value="">-- Chọn nhà cung cấp (không bắt buộc) --</option>
             {suppliers.map(s => (
               <option key={s.supplierId} value={s.supplierId}>{s.supplierName}</option>
             ))}

@@ -6,7 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
-import type {ProjectMember, WBSTask} from '../../../types/common';
+import type {ProjectMember, WBSTask, WBSPhase, Project} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
 const createTaskSchema = z.object({
@@ -30,6 +30,30 @@ const createTaskSchema = z.object({
 }, {
   message: 'Vui lòng nhập Tên đội thợ.',
   path: ['outsourcedTeamName']
+}).refine(data => {
+  if (data.isOutsourced && data.outsourcedTeamName?.trim()) {
+    return data.outsourcedTeamName.trim().length <= 100;
+  }
+  return true;
+}, {
+  message: 'Tên đội thợ không được vượt quá 100 ký tự.',
+  path: ['outsourcedTeamName']
+}).refine(data => {
+  if (data.isOutsourced) {
+    return !!data.outsourcedTeamContact?.trim();
+  }
+  return true;
+}, {
+  message: 'Vui lòng nhập số điện thoại liên hệ.',
+  path: ['outsourcedTeamContact']
+}).refine(data => {
+  if (data.isOutsourced && data.outsourcedTeamContact?.trim()) {
+    return /^0\d{9}$/.test(data.outsourcedTeamContact.trim());
+  }
+  return true;
+}, {
+  message: 'Số điện thoại phải bắt đầu bằng 0, gồm 10 chữ số và không chứa ký tự đặc biệt.',
+  path: ['outsourcedTeamContact']
 });
 
 type CreateTaskForm = z.infer<typeof createTaskSchema>;
@@ -43,6 +67,8 @@ interface CreateTaskModalProps {
   maxTaskOrder: number;
   members: ProjectMember[];
   tasks: WBSTask[];
+  phase?: WBSPhase;
+  project?: Project | null;
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
 }
@@ -56,6 +82,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   maxTaskOrder,
   members,
   tasks,
+  phase,
+  project,
   onSuccess
 }) => {
   const [selectedPredecessorIds, setSelectedPredecessorIds] = useState<string[]>([]);
@@ -108,7 +136,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const parentAncestors = getAncestors(parentTaskId);
   const potentialPredecessors = tasks.filter(t => 
     t.status !== 'obsolete' && 
-    !parentAncestors.has(t.id)
+    !parentAncestors.has(t.id) &&
+    t.phaseId?.toString() === phaseId.replace('ph-', '')
   );
 
   const filteredPredecessors = potentialPredecessors.filter(t =>
@@ -160,12 +189,21 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const onSubmit = (data: CreateTaskForm) => {
     if (selectedPredecessorIds.length > 0) {
       const taskStartDate = new Date(data.startDate);
+      taskStartDate.setHours(0,0,0,0);
+
       const invalidPredecessors = selectedPredecessorIds
         .map(id => potentialPredecessors.find(p => p.id === id))
-        .filter(p => p && taskStartDate < new Date(p.deadline));
+        .filter(p => {
+          if (!p) return false;
+          const pStartDate = new Date(p.startDate || '');
+          pStartDate.setHours(0,0,0,0);
+          // New task's start date must be >= predecessor's start date
+          return taskStartDate < pStartDate; 
+        });
 
       if (invalidPredecessors.length > 0) {
-        toast.error(`Ngày bắt đầu phải sau ngày kết thúc của "${invalidPredecessors[0]?.name}" (hoàn thành: ${invalidPredecessors[0]?.deadline}).`);
+        const p = invalidPredecessors[0]!;
+        toast.error(`Ngày bắt đầu không được trước ngày bắt đầu của "${p.name}" (${new Date(p.startDate || '').toLocaleDateString('vi-VN')}).`);
         return;
       }
     }
@@ -175,6 +213,29 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} width="xl" title={parentTaskId ? "Thêm Công việc con (Sub-Task)" : "Thêm Công việc mới"}>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 max-h-[85vh] overflow-y-auto p-2">
+        
+        {/* THÔNG TIN THỜI GIAN PHASE & PROJECT */}
+        {(project || phase) && (
+          <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex flex-col sm:flex-row gap-4 sm:gap-8 -mb-2">
+            {project && (
+              <div>
+                <p className="text-xs text-slate-500 mb-1">Thời gian dự án:</p>
+                <p className="text-sm font-medium text-slate-700">
+                  {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
+                </p>
+              </div>
+            )}
+            {phase && (
+              <div>
+                <p className="text-xs text-slate-500 mb-1">Thời gian Giai đoạn:</p>
+                <p className="text-sm font-medium text-slate-700">
+                  {phase.startDate ? new Date(phase.startDate).toLocaleDateString('vi-VN') : '---'} - {phase.endDate ? new Date(phase.endDate).toLocaleDateString('vi-VN') : (phase.deadline ? new Date(phase.deadline).toLocaleDateString('vi-VN') : '---')}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
           {/* CỘT TRÁI: Thông tin cơ bản */}
@@ -280,13 +341,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                       {errors.outsourcedTeamName && <p className="text-red-500 text-xs mt-1">{errors.outsourcedTeamName.message}</p>}
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1 text-slate-600">SĐT / Liên hệ</label>
+                      <label className="block text-xs font-medium mb-1 text-slate-600">SĐT / Liên hệ <span className="text-red-500">*</span></label>
                       <input 
                         type="text" 
                         placeholder="0912..." 
                         {...register('outsourcedTeamContact')}
-                        className="w-full text-sm px-3 py-2 rounded-md border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-blue-500"
+                        className={`w-full text-sm px-3 py-2 rounded-md border ${errors.outsourcedTeamContact ? 'border-red-500' : 'border-slate-300'} bg-white text-slate-900 focus:outline-none focus:border-blue-500`}
                       />
+                      {errors.outsourcedTeamContact && <p className="text-red-500 text-xs mt-1">{errors.outsourcedTeamContact.message}</p>}
                     </div>
                   </div>
                 )}
@@ -323,9 +385,21 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                             setSelectedPredecessorIds(selectedPredecessorIds.filter(id => id !== t.id));
                           }
                         }}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 flex-shrink-0 cursor-pointer"
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 flex-shrink-0 cursor-pointer mt-0.5"
                       />
-                      <span className="truncate">{t.name}</span> 
+                      <div className="flex flex-col truncate flex-1 gap-0.5">
+                        <span className="truncate">{t.name}</span> 
+                        {t.startDate && t.deadline && (
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            {new Date(t.startDate).toLocaleDateString('vi-VN')} - {new Date(t.deadline).toLocaleDateString('vi-VN')}
+                          </span>
+                        )}
+                        {!t.startDate && t.deadline && (
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            Deadline: {new Date(t.deadline).toLocaleDateString('vi-VN')}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs text-slate-400 ml-auto whitespace-nowrap">({t.progress}%)</span>
                     </label>
                   ))

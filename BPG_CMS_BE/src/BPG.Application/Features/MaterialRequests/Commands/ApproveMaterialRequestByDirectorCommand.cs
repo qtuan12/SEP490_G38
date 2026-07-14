@@ -20,11 +20,16 @@ namespace BPG.Application.Features.MaterialRequests.Commands
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly INotificationService _notificationService;
 
-        public ApproveMaterialRequestByDirectorCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public ApproveMaterialRequestByDirectorCommandHandler(
+            IUnitOfWork uow, 
+            ICurrentUserService currentUserService,
+            INotificationService notificationService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<bool>> Handle(ApproveMaterialRequestByDirectorCommand request, CancellationToken cancellationToken)
@@ -33,6 +38,8 @@ namespace BPG.Application.Features.MaterialRequests.Commands
 
             var mr = await _uow.Repository<MaterialRequest>().Query()
                 .Include(x => x.Items)
+                .Include(x => x.Phase)
+                    .ThenInclude(p => p.Project)
                 .FirstOrDefaultAsync(x => x.RequestId == request.RequestId, cancellationToken);
 
             if (mr == null)
@@ -60,6 +67,40 @@ namespace BPG.Application.Features.MaterialRequests.Commands
 
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
+
+                // Gửi thông báo realtime
+                try
+                {
+                    var directorUser = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+                    var directorName = directorUser?.FullName ?? "Giám đốc";
+
+                    // 1. Thông báo cho Project Leader (người tạo)
+                    if (mr.CreatedBy.HasValue)
+                    {
+                        await _notificationService.SendNotificationAsync(
+                            mr.CreatedBy.Value,
+                            "Yêu cầu vượt định mức đã được duyệt",
+                            $"Yêu cầu vượt định mức cho giai đoạn '{mr.Phase?.Name}' của bạn đã được Giám đốc '{directorName}' phê duyệt.",
+                            NotificationType.Procurement,
+                            NotificationReferenceType.MaterialRequest,
+                            mr.RequestId,
+                            cancellationToken);
+                    }
+
+                    // 2. Thông báo cho bộ phận Kế toán
+                    await _notificationService.SendNotificationToRoleAsync(
+                        BPG.Domain.Constants.UserRole.Accountant,
+                        "Yêu cầu vượt định mức đã được duyệt",
+                        $"Giám đốc '{directorName}' đã phê duyệt yêu cầu vượt định mức giai đoạn '{mr.Phase?.Name}' thuộc dự án '{mr.Phase?.Project?.Name}'",
+                        NotificationType.Procurement,
+                        NotificationReferenceType.MaterialRequest,
+                        mr.RequestId,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error sending notification: {ex.Message}");
+                }
 
                 return ApiResponse<bool>.SuccessResult(true, "Giám đốc phê duyệt yêu cầu vật tư thành công.");
             }

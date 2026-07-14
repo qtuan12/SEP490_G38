@@ -383,10 +383,8 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
-            <h3 className="text-[1.15rem] font-semibold m-0">Cơ cấu phân rã công việc</h3>
-            <p className="text-[0.8rem] text-[hsl(var(--text-muted))] mt-1 mb-0">
-              Số thứ tự được hiển thị trước tên · Nhấn ▲▼ để sắp xếp lại · Click <strong className="font-bold">⋮</strong> để đổi tên / xóa
-            </p>
+            <h3 className="text-[1.15rem] font-semibold m-0">Cơ cấu phân rã công việc (WBS)</h3>
+
           </div>
           <div className="flex gap-2 flex-wrap">
             <button

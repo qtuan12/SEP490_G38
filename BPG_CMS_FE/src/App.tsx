@@ -71,7 +71,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // If not authorized for this specific route, send to dashboard
+    // If not authorized for this specific route, send to dashboard (or users if admin)
+    if (user.role === 'admin') {
+      return <Navigate to="/users" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -80,7 +83,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
 
 // Route wrapper for redirecting authenticated users away from Login page
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -91,6 +94,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   if (isAuthenticated) {
+    if (user?.role === 'admin') {
+      return <Navigate to="/users" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -262,7 +268,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/phases/:phaseId/boq" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseBOQ />
                   </ProtectedRoute>
                 } 

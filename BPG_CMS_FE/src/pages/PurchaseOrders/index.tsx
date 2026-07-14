@@ -9,7 +9,7 @@ import { Search, ShoppingCart, AlertCircle, Loader2, Plus } from 'lucide-react';
 const PO_STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
   { label: 'Nháp', value: 'Draft' },
-  { label: 'Đã gửi NCC', value: 'Sent' },
+  { label: 'Đã gửi nhà cung cấp', value: 'Sent' },
   { label: 'Nhập kho một phần', value: 'PartiallyReceived' },
   { label: 'Đã nhập đủ', value: 'FullyReceived' },
   { label: 'Đã đóng', value: 'Closed' },
@@ -17,7 +17,7 @@ const PO_STATUS_OPTIONS = [
 
 const statusLabel: Record<string, string> = {
   Draft: 'Nháp',
-  Sent: 'Đã gửi NCC',
+  Sent: 'Đã gửi nhà cung cấp',
   PartiallyReceived: 'Nhập kho một phần',
   FullyReceived: 'Đã nhập đủ',
   Closed: 'Đã đóng',

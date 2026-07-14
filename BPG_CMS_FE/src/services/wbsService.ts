@@ -79,7 +79,10 @@ export const wbsService = {
             assignedTo: (taskDto as any).assignedTo || undefined,
             assignedName: (taskDto as any).assignedName || undefined,
             weight: taskDto.weight !== undefined ? taskDto.weight : undefined,
-            predecessorTaskIds: taskDto.predecessorTaskIds || undefined
+            predecessorTaskIds: taskDto.predecessorTaskIds || undefined,
+            isOutsourced: taskDto.isOutsourced || false,
+            outsourcedTeamName: taskDto.outsourcedTeamName || undefined,
+            outsourcedTeamContact: taskDto.outsourcedTeamContact || undefined
           });
 
           if (taskDto.subTasks && taskDto.subTasks.length > 0) {
@@ -114,8 +117,12 @@ export const wbsService = {
     return res.data;
   },
   createTask: async (phaseId: number, data: any): Promise<number> => {
-    const res = await apiClient.post<ApiResponse<number>>(`/tasks/phases/${phaseId}`, data);
-    return res.data;
+    const res = await apiClient.post<any>(`/tasks/phases/${phaseId}`, data);
+    const resultData = res.data !== undefined ? res.data : res;
+    if (typeof resultData === 'object' && resultData !== null) {
+      return resultData.taskId || resultData.id || resultData;
+    }
+    return resultData;
   },
   updateTask: async (taskId: number, data: any): Promise<void> => {
     await apiClient.put(`/tasks/${taskId}`, data);
@@ -132,8 +139,11 @@ export const wbsService = {
   markTaskObsolete: async (taskId: number, data: { taskId: number, obsoleteReason: string }): Promise<void> => {
     await apiClient.put(`/tasks/${taskId}/obsolete`, data);
   },
+  restoreTask: async (taskId: number): Promise<void> => {
+    await apiClient.put(`/tasks/${taskId}/restore`);
+  },
   addTaskDependency: async (taskId: number, predecessorTaskId: number): Promise<void> => {
-    await apiClient.post(`/tasks/${taskId}/dependencies/${predecessorTaskId}`, {});
+    await apiClient.request(`/tasks/${taskId}/dependencies/${predecessorTaskId}`, { method: 'POST' });
   },
   removeTaskDependency: async (taskId: number, predecessorTaskId: number): Promise<void> => {
     await apiClient.delete(`/tasks/${taskId}/dependencies/${predecessorTaskId}`);

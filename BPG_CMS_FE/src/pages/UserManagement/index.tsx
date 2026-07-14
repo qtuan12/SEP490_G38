@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { userService } from '../../services/userService';
-import type { PaginatedUsers } from '../../services/userService';
 import type { UserProfile } from '../../services/authService';
 import { CreateUserModal } from './modals/CreateUserModal';
 import { EditUserModal } from './modals/EditUserModal';
-import { ConfirmDialog, Button, Input, Select, Badge, DataTable, Pagination } from '../../components/ui';
+import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination } from '../../components/ui';
 import {
   Search,
   UserPlus,
@@ -21,7 +20,7 @@ import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils
 const PAGE_SIZE = 20;
 
 export const UserManagement: React.FC = () => {
-  const [result, setResult] = useState<PaginatedUsers | null>(null);
+  const [allUsers, setAllUsers] = useState<UserProfile[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -38,39 +37,48 @@ export const UserManagement: React.FC = () => {
 
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
-  const loadUsers = useCallback(async (page = pageNumber) => {
+  const loadAllUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await userService.getUsers({
-        pageNumber: page,
-        pageSize: PAGE_SIZE,
-        search: searchTerm || undefined,
-        role: roleFilter || undefined,
+        pageNumber: 1,
+        pageSize: 1000,
       });
-      setResult(data);
+      setAllUsers(data.items);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách người dùng.');
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, roleFilter, pageNumber]);
+  }, []);
 
   useEffect(() => {
-    loadUsers(pageNumber);
-  }, [pageNumber]);
+    loadAllUsers();
+  }, [loadAllUsers]);
 
-  // Khi thay đổi search/filter thì reset về trang 1
-  const handleSearch = () => {
-    setPageNumber(1);
-    loadUsers(1);
-  };
+  const filteredUsers = React.useMemo(() => {
+    if (!allUsers) return [];
+    return allUsers.filter(user => {
+      const matchSearch = !searchTerm || 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchRole = !roleFilter || user.role === roleFilter;
+      return matchSearch && matchRole;
+    });
+  }, [allUsers, searchTerm, roleFilter]);
+
+  const totalCount = filteredUsers.length;
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+  const paginatedUsers = React.useMemo(() => {
+    const startIndex = (pageNumber - 1) * PAGE_SIZE;
+    return filteredUsers.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredUsers, pageNumber]);
 
   const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setRoleFilter(e.target.value);
     setPageNumber(1);
-    // trigger load sau khi state cập nhật
-    setTimeout(() => loadUsers(1), 0);
   };
 
   const showSuccess = (message: string) => {
@@ -85,7 +93,7 @@ export const UserManagement: React.FC = () => {
       setIsDeleteOpen(false);
       showSuccess(`Đã xoá tài khoản ${selectedUser.name} khỏi hệ thống.`);
       setSelectedUser(null);
-      loadUsers(pageNumber);
+      loadAllUsers();
     } catch (err: any) {
       setError(err.message || 'Không thể xoá tài khoản.');
     }
@@ -95,7 +103,7 @@ export const UserManagement: React.FC = () => {
     try {
       const updated = await userService.toggleUserStatus(id);
       showSuccess(`Đã ${updated.status === 'active' ? 'mở khoá' : 'khoá'} tài khoản ${name}.`);
-      loadUsers(pageNumber);
+      loadAllUsers();
     } catch (err: any) {
       setError(err.message || 'Không thể thay đổi trạng thái tài khoản.');
     }
@@ -179,9 +187,6 @@ export const UserManagement: React.FC = () => {
     }
   ];
 
-  const totalPages = result?.totalPages ?? 1;
-  const totalCount = result?.totalCount ?? 0;
-
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
 
@@ -205,95 +210,98 @@ export const UserManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Control Actions Panel */}
-      <div className="glass-panel p-5 sm:px-6 flex justify-between items-center flex-wrap gap-4">
-        <div className="flex gap-3 flex-1 min-w-[280px] flex-wrap">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
-            <Input
-              type="text"
-              placeholder="Tìm kiếm thành viên..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="pl-9 h-10"
-            />
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col gap-4">
+        {/* Filters & Actions bar */}
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div className="flex items-center gap-3 flex-grow max-w-2xl">
+            <div className="relative flex-grow">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm thành viên..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPageNumber(1);
+                }}
+                className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="w-48 shrink-0">
+              <Select
+                value={roleFilter}
+                onChange={handleRoleChange}
+                className="h-10"
+                options={[
+                  { label: 'Tất cả Vai trò', value: '' },
+                  { label: 'Admin', value: 'admin' },
+                  { label: 'TP Kỹ Thuật', value: 'technicalmanager' },
+                  { label: 'Nhân viên kỹ thuật', value: 'siteengineer' },
+                  { label: 'Kế Toán', value: 'accountant' },
+                  { label: 'Giám Đốc', value: 'director' },
+                ]}
+              />
+            </div>
           </div>
-          <Select
-            value={roleFilter}
-            onChange={handleRoleChange}
-            className="w-44 h-10"
-            options={[
-              { label: 'Tất cả Vai trò', value: '' },
-              { label: 'Admin', value: 'admin' },
-              { label: 'TP Kỹ Thuật', value: 'technicalmanager' },
-              { label: 'Nhân viên kỹ thuật', value: 'siteengineer' },
-              { label: 'Kế Toán', value: 'accountant' },
-              { label: 'Giám Đốc', value: 'director' },
-            ]}
-          />
-          <Button variant="secondary" onClick={handleSearch} className="h-10">
-            Tìm kiếm
+
+          <Button
+            variant="primary"
+            onClick={() => { setError(null); setIsCreateOpen(true); }}
+            className="h-10 font-semibold flex items-center gap-1.5"
+          >
+            <UserPlus size={18} />
+            <span>Thêm Thành viên</span>
           </Button>
         </div>
 
-        <Button
-          variant="primary"
-          onClick={() => { setError(null); setIsCreateOpen(true); }}
-          className="h-10 font-semibold"
-        >
-          <UserPlus size={18} />
-          <span>Thêm Thành viên</span>
-        </Button>
+        {/* Table */}
+        {loading ? (
+          <div className="flex justify-center items-center h-[200px] gap-2.5">
+            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
+            <span className="text-[hsl(var(--text-secondary))]">Đang tải dữ liệu...</span>
+          </div>
+        ) : (
+          <div className="animate-fade-in flex flex-col gap-4">
+            <DataTable
+              columns={columns}
+              data={paginatedUsers}
+              keyExtractor={(item) => item.id}
+              emptyMessage="Không tìm thấy thành viên nào trùng khớp."
+            />
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-1 mt-4">
+                <span className="text-sm text-[hsl(var(--text-secondary))]">
+                  Tổng {totalCount} thành viên
+                </span>
+                <Pagination
+                  currentPage={pageNumber}
+                  totalPages={totalPages}
+                  onPageChange={setPageNumber}
+                  className="mt-0"
+                />
+              </div>
+            )}
+
+            {totalPages <= 1 && totalCount > 0 && (
+              <p className="text-sm text-[hsl(var(--text-muted))] px-1 mt-4">Tổng {totalCount} thành viên</p>
+            )}
+          </div>
+        )}
       </div>
-
-      {/* Table */}
-      {loading ? (
-        <div className="flex justify-center items-center h-[200px] gap-2.5">
-          <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-          <span className="text-[hsl(var(--text-secondary))]">Đang tải dữ liệu...</span>
-        </div>
-      ) : (
-        <div className="animate-fade-in flex flex-col gap-4">
-          <DataTable
-            columns={columns}
-            data={result?.items ?? []}
-            keyExtractor={(item) => item.id}
-            emptyMessage="Không tìm thấy thành viên nào trùng khớp."
-          />
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-1 mt-4">
-              <span className="text-sm text-[hsl(var(--text-secondary))]">
-                Tổng {totalCount} thành viên
-              </span>
-              <Pagination
-                currentPage={pageNumber}
-                totalPages={totalPages}
-                onPageChange={setPageNumber}
-                className="mt-0"
-              />
-            </div>
-          )}
-
-          {totalPages <= 1 && totalCount > 0 && (
-            <p className="text-sm text-[hsl(var(--text-muted))] px-1 mt-4">Tổng {totalCount} thành viên</p>
-          )}
-        </div>
-      )}
 
       <CreateUserModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={(msg) => { showSuccess(msg); setPageNumber(1); loadUsers(1); }}
+        onSuccess={(msg) => { showSuccess(msg); setPageNumber(1); loadAllUsers(); }}
       />
 
       <EditUserModal
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
         user={selectedUser}
-        onSuccess={(msg) => { showSuccess(msg); setSelectedUser(null); loadUsers(pageNumber); }}
+        onSuccess={(msg) => { showSuccess(msg); setSelectedUser(null); loadAllUsers(); }}
       />
 
       <ConfirmDialog

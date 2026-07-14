@@ -6,6 +6,7 @@ using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -18,72 +19,96 @@ namespace BPG.Application.Features.Notifications.Handlers
         private readonly IUnitOfWork _uow;
         private readonly IRealtimeNotificationSender _realtimeSender;
         private readonly IMapper _mapper;
+        private readonly ILogger<SendNotificationCommandHandler> _logger;
 
-        public SendNotificationCommandHandler(IUnitOfWork uow, IRealtimeNotificationSender realtimeSender, IMapper mapper)
+        public SendNotificationCommandHandler(
+            IUnitOfWork uow,
+            IRealtimeNotificationSender realtimeSender,
+            IMapper mapper,
+            ILogger<SendNotificationCommandHandler> logger)
         {
             _uow = uow;
             _realtimeSender = realtimeSender;
             _mapper = mapper;
+            _logger = logger;
         }
 
         public async Task Handle(SendNotificationCommand request, CancellationToken cancellationToken)
         {
-            var usersQuery = _uow.Repository<User>().Query().Where(u => u.IsActive && !u.IsDeleted);
-            List<User> targetUsers = new();
+            _logger.LogInformation("Đang gửi thông báo: Tiêu đề '{Title}' | Loại '{NotificationType}'", request.Title, request.NotificationType);
 
-            // 1. Xác định danh sách người nhận
-            if (request.SendToAll)
+            try
             {
-                targetUsers = await usersQuery.ToListAsync(cancellationToken);
-            }
-            else if (!string.IsNullOrWhiteSpace(request.RoleName))
-            {
-                targetUsers = await usersQuery
-                    .Include(u => u.UserRoles)
-                        .ThenInclude(ur => ur.Role)
-                    .Where(u => u.UserRoles.Any(ur => ur.Role.RoleName == request.RoleName))
-                    .ToListAsync(cancellationToken);
-            }
-            else if (request.UserId.HasValue)
-            {
-                var user = await _uow.Repository<User>().GetByIdAsync(request.UserId.Value, cancellationToken);
-                if (user != null && user.IsActive && !user.IsDeleted)
+                var usersQuery = _uow.Repository<User>().Query().Where(u => u.IsActive && !u.IsDeleted);
+                List<User> targetUsers = new();
+
+                // 1. Xác định danh sách người nhận
+                if (request.SendToAll)
                 {
-                    targetUsers.Add(user);
+                    targetUsers = await usersQuery.ToListAsync(cancellationToken);
+                }
+                else if (!string.IsNullOrWhiteSpace(request.RoleName))
+                {
+                    targetUsers = await usersQuery
+                        .Include(u => u.UserRoles)
+                            .ThenInclude(ur => ur.Role)
+                        .Where(u => u.UserRoles.Any(ur => ur.Role.RoleName == request.RoleName))
+                        .ToListAsync(cancellationToken);
+                }
+                else if (request.UserId.HasValue)
+                {
+                    var user = await _uow.Repository<User>().GetByIdAsync(request.UserId.Value, cancellationToken);
+                    if (user != null && user.IsActive && !user.IsDeleted)
+                    {
+                        targetUsers.Add(user);
+                    }
+                }
+
+                if (!targetUsers.Any())
+{
+    _logger.LogWarning("Không tìm thấy người dùng nhận thông báo hợp lệ cho request: {@Request}", request);
+    throw new Exception("Không tìm thấy người dùng nhận thông báo hợp lệ."); 
+}
+
+                _logger.LogInformation("Đã xác định {UserCount} người nhận thông báo.", targetUsers.Count);
+
+                // 2. Tạo thực thể Notification cho từng người nhận
+                var notifications = new List<Notification>();
+                foreach (var user in targetUsers)
+                {
+                    var notification = _mapper.Map<Notification>(request);
+                    notification.UserId = user.UserId;
+                    notifications.Add(notification);
+                }
+
+                // Lưu hàng loạt vào cơ sở dữ liệu
+                await _uow.Repository<Notification>().AddRangeAsync(notifications, cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation("Đã lưu {NotificationCount} thông báo vào database.", notifications.Count);
+
+                // 3. Gửi thông báo realtime qua SignalR
+                if (request.SendToAll)
+                {
+                    // Gửi một gói tin broadcast duy nhất cho tất cả clients đang kết nối để tối ưu hiệu năng
+                    var sampleDto = _mapper.Map<NotificationDto>(notifications.First());
+                    await _realtimeSender.SendNotificationToAllAsync(sampleDto, cancellationToken);
+                    _logger.LogInformation("Đã gửi thông báo broadcast thành công cho tất cả clients.");
+                }
+                else
+                {
+                    // Gửi realtime riêng cho từng user được nhắm tới
+                    foreach (var noti in notifications)
+                    {
+                        var dto = _mapper.Map<NotificationDto>(noti);
+                        await _realtimeSender.SendNotificationToUserAsync(noti.UserId.ToString(), dto, cancellationToken);
+                    }
+                    _logger.LogInformation("Đã gửi thông báo realtime thành công tới từng người dùng nhắm chọn.");
                 }
             }
-
-            if (!targetUsers.Any())
-                return;
-
-            // 2. Tạo thực thể Notification cho từng người nhận
-            var notifications = new List<Notification>();
-            foreach (var user in targetUsers)
+            catch (System.Exception ex)
             {
-                var notification = _mapper.Map<Notification>(request);
-                notification.UserId = user.UserId;
-                notifications.Add(notification);
-            }
-
-            // Lưu hàng loạt vào cơ sở dữ liệu
-            await _uow.Repository<Notification>().AddRangeAsync(notifications, cancellationToken);
-            await _uow.SaveChangesAsync(cancellationToken);
-
-            // 3. Gửi thông báo realtime qua SignalR
-            if (request.SendToAll)
-            {
-                // Gửi một gói tin broadcast duy nhất cho tất cả clients đang kết nối để tối ưu hiệu năng
-                var sampleDto = _mapper.Map<NotificationDto>(notifications.First());
-                await _realtimeSender.SendNotificationToAllAsync(sampleDto, cancellationToken);
-            }
-            else
-            {
-                // Gửi realtime riêng cho từng user được nhắm tới
-                foreach (var noti in notifications)
-                {
-                    var dto = _mapper.Map<NotificationDto>(noti);
-                    await _realtimeSender.SendNotificationToUserAsync(noti.UserId.ToString(), dto, cancellationToken);
-                }
+                _logger.LogError(ex, "Lỗi xảy ra trong quá trình xử lý gửi thông báo: {@Request}", request);
+                throw;
             }
         }
     }

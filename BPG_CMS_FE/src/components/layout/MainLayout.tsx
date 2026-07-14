@@ -34,7 +34,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   };
 
   const navItems: Array<{ name: string; path: string; icon: React.ReactNode; roles: string[]; disabled?: boolean }> = [
-    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
+    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, roles: ['admin', 'accountant'] },
     { name: 'Dự án', path: '/projects', icon: <Hammer size={20} />, roles: ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
@@ -165,10 +165,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     location.pathname === '/suppliers' ? 'Quản lý Nhà cung cấp' :
                       location.pathname === '/units' ? 'Quản lý Đơn vị tính' :
                         location.pathname === '/categories' ? 'Danh mục Vật tư' :
-                          location.pathname === '/materials' ? 'Kho Vật tư (Catalog)' :
-                            location.pathname === '/projects' ? 'Danh sách Dự án' :
+                          location.pathname === '/materials' ? 'Kho Vật tư' :
+                            location.pathname === '/projects' ? 'Danh sách Dự án WBS' :
                               location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
-                                location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
+                                location.pathname === '/system-config' ? 'Cấu hình Hệ thống' :
+                                  location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
               </h2>
             </div>
             <div className="flex items-center gap-4">

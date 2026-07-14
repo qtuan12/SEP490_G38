@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supplierService } from '../../services/supplierService';
 import { SupplierFormModal } from './modals/SupplierFormModal';
-import { ConfirmDialog, Button, Input, Select, Badge, DataTable, Pagination } from '../../components/ui';
+import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination } from '../../components/ui';
 import type { Supplier } from '../../types/supplier';
 import {
   Search,
@@ -220,71 +220,70 @@ export const SupplierManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Filters & Actions bar */}
-      <div className="glass-panel p-5 sm:px-6 flex justify-between items-center flex-wrap gap-4">
-        {/* Filters */}
-        <div className="flex gap-3 flex-1 min-w-[280px] flex-wrap">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
-            <Input
-              type="text"
-              placeholder="Tìm theo tên, liên hệ, khu vực..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 h-10"
-            />
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col gap-4">
+        {/* Filters & Actions bar */}
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div className="flex items-center gap-3 flex-grow max-w-xl">
+            <div className="relative flex-grow">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm theo tên, liên hệ, khu vực..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
+                className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="w-48 shrink-0">
+              <Select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="h-10"
+                options={[
+                  { label: 'Tất cả trạng thái', value: '' },
+                  { label: 'Đang hoạt động', value: 'Active' },
+                  { label: 'Tạm ngưng', value: 'Inactive' },
+                ]}
+              />
+            </div>
           </div>
-          <Select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            className="w-44 h-10"
-            options={[
-              { label: 'Tất cả trạng thái', value: '' },
-              { label: 'Đang hoạt động', value: 'Active' },
-              { label: 'Tạm ngưng', value: 'Inactive' },
-            ]}
-          />
+
+          <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
+            <Plus size={18} />
+            <span>Thêm Nhà cung cấp</span>
+          </Button>
         </div>
 
-        {/* Add button */}
-        <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold">
-          <Plus size={18} />
-          <span>Thêm Nhà cung cấp</span>
-        </Button>
-      </div>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-[200px] gap-2.5">
+            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
+            <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu nhà cung cấp...</span>
+          </div>
+        ) : (
+          <div className="animate-fade-in flex flex-col gap-4">
+            <DataTable
+              columns={columns}
+              data={data?.items || []}
+              keyExtractor={(item) => item.supplierId.toString()}
+              emptyMessage="Không tìm thấy nhà cung cấp nào phù hợp."
+            />
 
-      {/* Table Section */}
-      {isLoading ? (
-        <div className="flex justify-center items-center h-[250px] gap-2.5">
-          <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-          <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu nhà cung cấp...</span>
-        </div>
-      ) : (
-        <div className="animate-fade-in flex flex-col gap-4">
-          <DataTable
-            columns={columns}
-            data={data?.items || []}
-            keyExtractor={(item) => item.supplierId.toString()}
-            emptyMessage="Không tìm thấy nhà cung cấp nào phù hợp."
-          />
-
-          {data && data.totalCount > 0 && (
-            <div className="flex justify-end mt-2">
+            {data && data.totalCount > 0 && (
               <Pagination
                 currentPage={page}
                 totalPages={data.totalPages}
                 onPageChange={(p) => setPage(p)}
               />
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Supplier Create/Edit Modal */}
       <SupplierFormModal

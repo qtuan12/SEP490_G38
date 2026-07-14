@@ -324,7 +324,7 @@ export const projectService = {
   async activateProject(projectId: string): Promise<Project> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
-      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/activate`, {});
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/activate`);
       if (!res.success) throw new Error(res.message || 'Kích hoạt dự án thất bại');
       return this.getProjectById(projectId) as unknown as Project;
     }
@@ -364,7 +364,7 @@ export const projectService = {
   async resumeProject(projectId: string): Promise<Project> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
-      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/resume`, {});
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/resume`);
       if (!res.success) throw new Error(res.message || 'Tiếp tục dự án thất bại');
       return this.getProjectById(projectId) as unknown as Project;
     }
@@ -449,7 +449,7 @@ export const projectService = {
   async toggleLeader(projectId: string, userId: string): Promise<ProjectMember[]> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
-      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}/leader`, {});
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}/leader`);
       if (!res.success) throw new Error(res.message || 'Thay đổi quyền nhóm trưởng thất bại');
       projectDetailCache.delete(parsedId);
       return this.getMembers(projectId);

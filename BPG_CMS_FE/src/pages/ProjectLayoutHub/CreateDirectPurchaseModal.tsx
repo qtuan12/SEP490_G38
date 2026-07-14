@@ -4,8 +4,10 @@ import { Button } from '../../components/ui';
 import { directPurchaseService, type PhaseBOQItemDto } from '../../services/directPurchaseService';
 import { projectService } from '../../services/projectService';
 import type { WBSPhase } from '../../types/common';
-import { Plus, Trash2, Upload, X, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Upload, X, AlertTriangle, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { compressAndUploadFile } from '../../utils/uploadHelper';
+import type { UploadedFileState } from '../../utils/uploadHelper';
 
 interface Props {
   isOpen: boolean;
@@ -32,8 +34,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const [rows, setRows] = useState<ItemRow[]>([]);
   const [reason, setReason] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [invoiceFiles, setInvoiceFiles] = useState<File[]>([]);
-  const [invoicePreviews, setInvoicePreviews] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [purchaseDateError, setPurchaseDateError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,8 +46,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     setBoqItems([]);
     setRows([]);
     setReason('');
-    setInvoiceFiles([]);
-    setInvoicePreviews([]);
+    setUploadedFiles([]);
   }, [isOpen, projectId]);
 
   useEffect(() => {
@@ -89,22 +89,55 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     if (!files.length) return;
     const valid = files.filter(f => f.type.startsWith('image/'));
     if (valid.length < files.length) toast.error('Chỉ hỗ trợ file ảnh (jpg, png, ...)');
-    const newFiles = [...invoiceFiles, ...valid];
-    setInvoiceFiles(newFiles);
-    setInvoicePreviews(newFiles.map(f => URL.createObjectURL(f)));
+    if (!valid.length) return;
+
+    valid.forEach(file => {
+      const tempId = Math.random().toString(36).substring(7);
+      const localUrl = URL.createObjectURL(file);
+
+      const newFileState: UploadedFileState = {
+        id: tempId,
+        name: file.name,
+        url: localUrl,
+        status: 'uploading'
+      };
+
+      setUploadedFiles(prev => [...prev, newFileState]);
+
+      compressAndUploadFile(
+        file,
+        'direct-purchases/invoices',
+        (uploadedUrl) => {
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
+          );
+        },
+        () => {
+          toast.error(`Tải hóa đơn ${file.name} lên thất bại.`);
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
+          );
+        }
+      );
+    });
+
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const removeFile = (i: number) => {
-    const newFiles = invoiceFiles.filter((_, idx) => idx !== i);
-    setInvoiceFiles(newFiles);
-    setInvoicePreviews(newFiles.map(f => URL.createObjectURL(f)));
+  const removeFile = (id: string) => {
+    setUploadedFiles(prev => {
+      const target = prev.find(f => f.id === id);
+      if (target && target.url && target.url.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter(f => f.id !== id);
+    });
   };
 
   const validate = (): string | null => {
     if (!selectedPhaseId) return 'Vui lòng chọn giai đoạn.';
     if (!purchaseDate) return 'Vui lòng chọn ngày mua.';
-    if (invoiceFiles.length === 0) return 'Bắt buộc phải tải ảnh hóa đơn.';
+    if (uploadedFiles.length === 0) return 'Bắt buộc phải tải ảnh hóa đơn.';
     if (rows.length === 0) return 'Vui lòng thêm ít nhất một vật tư.';
     for (const r of rows) {
       if (!r.materialId) return 'Vui lòng chọn vật tư cho tất cả các dòng.';
@@ -123,9 +156,18 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     setPurchaseDateError(null);
     const err = validate();
     if (err) { toast.error(err); return; }
+
+    if (uploadedFiles.some(f => f.status === 'uploading')) {
+      toast.error('Vui lòng chờ hình ảnh hóa đơn tải lên hoàn tất.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const urls = await projectService.uploadFiles(invoiceFiles, 'direct-purchases/invoices');
+      const urls = uploadedFiles
+        .filter(f => f.status === 'success' && f.url)
+        .map(f => f.url!);
+        
       await directPurchaseService.create({
         projectId,
         phaseId: Number(selectedPhaseId),
@@ -349,12 +391,25 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             Ảnh hóa đơn <span style={{ color: 'hsl(var(--danger))' }}>*</span>
           </label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-start' }}>
-            {invoicePreviews.map((url, i) => (
-              <div key={i} style={{ position: 'relative', width: '80px', height: '80px' }}>
-                <img src={url} alt={`invoice-${i}`} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }} />
+            {uploadedFiles.map((file) => (
+              <div key={file.id} style={{ position: 'relative', width: '80px', height: '80px' }}>
+                <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: file.status === 'error' ? '1px solid #dc2626' : file.status === 'success' ? '1px solid #16a34a' : '1px solid hsl(var(--border))' }}>
+                  <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  
+                  {file.status === 'uploading' && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Loader2 size={16} className="animate-spin" style={{ color: '#fff' }} />
+                    </div>
+                  )}
+
+                  {file.status === 'error' && (
+                    <span style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#dc2626', color: '#fff', fontSize: '8px', textAlign: 'center', padding: '1px 0', fontWeight: 'bold' }}>Lỗi</span>
+                  )}
+                </div>
+                
                 <button
-                  onClick={() => removeFile(i)}
-                  style={{ position: 'absolute', top: '-6px', right: '-6px', background: 'hsl(var(--danger))', border: 'none', borderRadius: '50%', cursor: 'pointer', color: 'white', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  onClick={() => removeFile(file.id)}
+                  style={{ position: 'absolute', top: '-6px', right: '-6px', background: 'hsl(var(--danger))', border: 'none', borderRadius: '50%', cursor: 'pointer', color: 'white', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
                 >
                   <X size={10} />
                 </button>

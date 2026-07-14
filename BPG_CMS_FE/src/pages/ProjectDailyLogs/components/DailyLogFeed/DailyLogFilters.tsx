@@ -108,8 +108,7 @@ export const DailyLogFilters: React.FC<DailyLogFiltersProps> = ({
             type="date"
             value={startDateFilter}
             onChange={(e) => setStartDateFilter(e.target.value)}
-            className="h-[32px] text-xs py-1"
-            style={{ width: '135px' }}
+            className="h-[32px] text-xs py-1 w-[135px]"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -118,8 +117,7 @@ export const DailyLogFilters: React.FC<DailyLogFiltersProps> = ({
             type="date"
             value={endDateFilter}
             onChange={(e) => setEndDateFilter(e.target.value)}
-            className="h-[32px] text-xs py-1"
-            style={{ width: '135px' }}
+            className="h-[32px] text-xs py-1 w-[135px]"
           />
         </div>
         {(startDateFilter || endDateFilter) && (
