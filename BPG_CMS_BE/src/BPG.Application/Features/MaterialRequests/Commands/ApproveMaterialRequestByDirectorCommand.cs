@@ -82,7 +82,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                             "Yêu cầu vượt định mức đã được duyệt",
                             $"Yêu cầu vượt định mức cho giai đoạn '{mr.Phase?.Name}' của bạn đã được Giám đốc '{directorName}' phê duyệt.",
                             NotificationType.Procurement,
-                            NotificationReferenceType.MaterialRequest,
+                            $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
                             mr.RequestId,
                             cancellationToken);
                     }
@@ -93,7 +93,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                         "Yêu cầu vượt định mức đã được duyệt",
                         $"Giám đốc '{directorName}' đã phê duyệt yêu cầu vượt định mức giai đoạn '{mr.Phase?.Name}' thuộc dự án '{mr.Phase?.Project?.Name}'",
                         NotificationType.Procurement,
-                        NotificationReferenceType.MaterialRequest,
+                        $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
                         mr.RequestId,
                         cancellationToken);
                 }

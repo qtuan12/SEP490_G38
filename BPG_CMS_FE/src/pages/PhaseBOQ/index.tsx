@@ -114,7 +114,7 @@ export const PhaseBOQ: React.FC = () => {
   // Lắng nghe thay đổi từ SignalR
   useSignalREvent('ReceiveNotification', (noti: any) => {
     // Reload khi có thông báo liên quan tới MaterialRequest hoặc Project
-    if (noti?.referenceType === 'MaterialRequest' || noti?.referenceType === 'Project') {
+    if (noti?.referenceType === 'MaterialRequest' || noti?.referenceType === 'Project' || noti?.referenceType?.includes('/materialrequests') || noti?.referenceType?.includes('/boq')) {
       loadPhaseData();
       toast('Định mức & trạng thái yêu cầu vật tư của giai đoạn được cập nhật!', { icon: '📋' });
     }

@@ -143,6 +143,7 @@ export interface MaterialRequest {
   date: string;
   approvedBy?: string;
   rejectionReason?: string;
+  createdBy?: number;
 }
 
 

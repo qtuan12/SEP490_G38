@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { supplierService } from '../../services/supplierService';
@@ -31,10 +31,23 @@ const label: React.CSSProperties = {
 
 export const CreatePOPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryProjectId = searchParams.get('projectId');
+  const queryRequestId = searchParams.get('requestId');
 
   // Header state
   const [projectId, setProjectId] = useState(0);
   const [selectedRequestId, setSelectedRequestId] = useState(0);
+
+  // Tự động chọn Dự án nếu được truyền từ Tab Yêu cầu vật tư
+  useEffect(() => {
+    if (queryProjectId) {
+      const pId = Number(queryProjectId);
+      if (pId > 0 && pId !== projectId) {
+        setProjectId(pId);
+      }
+    }
+  }, [queryProjectId]);
   const [orderDate, setOrderDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [supplierId, setSupplierId] = useState(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -66,6 +79,17 @@ export const CreatePOPage: React.FC = () => {
   // useMemo giữ stable reference khi data là undefined (query bị disable)
   // tránh [] mới mỗi render gây infinite re-render loop trong useEffect bên dưới
   const approvedRequests = useMemo(() => approvedRequestsData ?? [], [approvedRequestsData]);
+
+  // Tự động chọn Phiếu yêu cầu sau khi danh sách yêu cầu được tải
+  useEffect(() => {
+    if (queryRequestId && approvedRequests.length > 0 && !selectedRequestId) {
+      const rId = Number(queryRequestId);
+      const exists = approvedRequests.some(r => r.requestId === rId);
+      if (exists) {
+        setSelectedRequestId(rId);
+      }
+    }
+  }, [queryRequestId, approvedRequests, selectedRequestId]);
 
   // Load items when the selected request changes
   useEffect(() => {

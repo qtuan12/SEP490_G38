@@ -30,6 +30,7 @@ import {
   ShoppingBag,
   FileSignature,
   AlertTriangle,
+  ClipboardList,
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
 import { SurplusWorkspace } from './SurplusWorkspace/SurplusWorkspace';
@@ -40,6 +41,7 @@ import { AdjustmentList } from './InventoryAdjustments/components/AdjustmentList
 import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
+import { ProjectMaterialRequestsTab } from './MaterialRequests/components/ProjectMaterialRequestsTab';
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
@@ -72,8 +74,8 @@ export const ProjectLayoutHub: React.FC = () => {
   const isAccountant = user?.role === 'accountant';
   const [isAssignedLeader, setIsAssignedLeader] = useState(false);
 
-  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'directpurchases';
-  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'directpurchases'];
+  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'directpurchases' | 'materialrequests';
+  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'directpurchases', 'materialrequests'];
 
   const [activeTab, setActiveTab] = useState<TabKey>(
     (searchParams.get('tab') as TabKey) || 'wbs'
@@ -439,6 +441,28 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
+          onClick={() => handleTabChange('materialrequests')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'materialrequests' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'materialrequests' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'materialrequests' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <ClipboardList size={18} />
+          <span>Yêu cầu vật tư</span>
+        </button>
+
+        <button
           onClick={() => handleTabChange('inventory')}
           style={{
             display: 'flex',
@@ -678,6 +702,7 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
+        {activeTab === 'materialrequests' && <ProjectMaterialRequestsTab projectId={Number(project.id)} />}
         {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
         {activeTab === 'inventoryadjustments' && <AdjustmentList projectId={Number(project.id)} />}
         {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}

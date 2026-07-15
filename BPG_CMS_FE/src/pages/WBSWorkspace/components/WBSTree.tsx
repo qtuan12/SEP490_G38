@@ -288,7 +288,7 @@ export const WBSTree = () => {
                                       style={menuItemStyle}
                                       onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
                                       onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                      onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/material-requests`); }}
+                                      onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}?tab=materialrequests&phaseId=${ph.id}`); }}
                                     >
                                       <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
                                       <span>{isFrozen ? 'Xem yêu cầu vật tư' : 'Yêu cầu vật tư'}</span>
