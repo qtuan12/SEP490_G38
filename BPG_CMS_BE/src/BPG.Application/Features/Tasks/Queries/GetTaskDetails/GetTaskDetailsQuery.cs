@@ -23,6 +23,7 @@ public class GetTaskDetailsQueryHandler : IRequestHandler<GetTaskDetailsQuery, A
     {
         var task = await _unitOfWork.Repository<ProjectTask>()
             .Query()
+            .Include(t => t.Phase)
             .Include(t => t.Assignees)
                 .ThenInclude(a => a.User)
             .Include(t => t.ProgressLogs)
@@ -36,6 +37,7 @@ public class GetTaskDetailsQueryHandler : IRequestHandler<GetTaskDetailsQuery, A
         {
             TaskId = task.TaskId,
             PhaseId = task.PhaseId,
+            ProjectId = task.Phase.ProjectId,
             ParentTaskId = task.ParentTaskId,
             Name = task.Name,
             Description = task.Description,

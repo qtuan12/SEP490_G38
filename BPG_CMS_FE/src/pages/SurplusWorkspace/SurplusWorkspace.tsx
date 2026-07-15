@@ -30,6 +30,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   const isAccountant = user?.role === 'accountant';
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
+  // isLeader = true nếu user là SiteEngineer VÀ được gán làm trưởng dự án trong bảng ProjectMembers
   useEffect(() => {
     const checkLeaderStatus = async () => {
       if (user?.role === 'siteengineer') {
@@ -47,6 +48,12 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
     };
     checkLeaderStatus();
   }, [projectId, user]);
+
+  // Quyền tạo đề xuất xử lý vật tư thừa:
+  // - Trưởng phòng kỹ thuật (TechnicalManager) hoặc Admin: luôn được tạo
+  // - Trưởng dự án (SiteEngineer có isLeader=true trong dự án): được tạo
+  // - Nhân viên kỹ thuật thường (SiteEngineer không phải leader): KHÔNG được tạo
+  const canCreateSurplusRequest = isTPKT || isLeader;
 
   const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>('outbound');
   const [view, setView] = useState<'list' | 'detail'>('list');
@@ -136,7 +143,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
             refreshKey={refreshKey}
             onViewDetail={handleViewDetail}
             onCreateRequest={() => setShowCreateBatch(true)}
-            isLeader={isLeader || isTPKT}
+            isLeader={canCreateSurplusRequest}
           />
         )}
 

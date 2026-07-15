@@ -13,6 +13,9 @@ const resolveNotificationUrl = (noti: any): string | null => {
   const titleOrContent = ((noti.title || '') + ' ' + (noti.content || '')).toLowerCase();
   
   if (!referenceType) return null;
+  if (referenceType === 'Project' && referenceId) {
+    return `/projects/${referenceId}`;
+  }
   if (referenceType === 'Task' && referenceId) {
     return `/tasks/${referenceId}`;
   }
@@ -127,7 +130,7 @@ export const NotificationsList: React.FC = () => {
                 key={noti.notificationId}
                 onClick={() => handleItemClick(noti)}
                 className={`flex items-start gap-4 px-5 py-4 border-b border-[hsl(var(--border))] border-l-[3px] transition-colors ${
-                  noti.referenceType === 'Task' ? 'cursor-pointer' : 'cursor-default'
+                  resolveNotificationUrl(noti) ? 'cursor-pointer' : 'cursor-default'
                 } ${
                   noti.isRead
                     ? 'border-l-transparent bg-transparent'
