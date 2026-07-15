@@ -5,13 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { wbsService } from '../../services/wbsService';
+import { incidentService } from '../../services/incidentService';
 import { useNotification } from '../../context/NotificationContext';
 import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
-import { AlertTriangle, FileText, BarChart2, History } from 'lucide-react';
-import { Button, ConfirmDialog } from '../../components/ui';
+import { FileText, BarChart2, History } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui';
 
 
 interface WBSWorkspaceProps {
@@ -28,17 +29,19 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { data: wbsDataAll, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['wbsDataAll', projectId],
     queryFn: async () => {
-      const [wbsData, allProjs, memberList, mr] = await Promise.all([
+      const [wbsData, allProjs, memberList, mr, incidentsList] = await Promise.all([
         wbsService.getWbsDataFlattened(projectId),
         projectService.getProjects(),
         projectService.getMembers(projectId),
-        projectService.getMaterialRequests(projectId)
+        projectService.getMaterialRequests(projectId),
+        incidentService.getIncidents(Number(projectId.replace('p-', '')))
       ]);
       return {
         wbsData,
         project: allProjs.find(p => p.id === projectId) || null,
         memberList,
-        materialRequests: mr
+        materialRequests: mr,
+        incidentsList
       };
     }
   });
@@ -212,7 +215,14 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return phaseTasks.every(t => t.progress === 100);
   };
 
-  const canEdit = isTPKTOrPL && project?.status !== 'paused' && project?.status !== 'done';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const incidentsList = wbsDataAll?.incidentsList || [];
+  const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
+
+  const canEdit = isTPKTOrPL && (
+    project?.status !== 'paused' ||
+    (isTPKT && hasApprovedEmergencyIncident)
+  ) && project?.status !== 'done';
 
   // ── Material Request Actions ─────────────────────────
   const handleApproveByLeader = async (requestId: string) => {
@@ -314,23 +324,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   };
 
 
-  const handleActivateProject = async () => {
-    setConfirmDialog({
-      isOpen: true,
-      title: 'Kích hoạt Dự án',
-      message: 'Kích hoạt dự án sẽ đưa vào vận hành thực tế. Bạn có chắc chắn WBS đã hoàn thiện chưa?',
-      isDanger: false,
-      onConfirm: async () => {
-        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-        try {
-          await projectService.activateProject(projectId);
-          handleSuccess('Dự án đã được Kích hoạt thành công!');
-        } catch (err: any) { handleError(err.message); }
-      }
-    });
-  };
-
-
 
 
   const contextValue = {
@@ -388,36 +381,10 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
           </div>
         )}
 
-        {/* Draft Status Banner */}
-        {project?.status === 'draft' && (
-          <div className="animate-fade-in flex items-center justify-between py-3.5 px-5 bg-[#fef3c7] border border-[#fde68a] rounded-sm text-[#92400e]">
-            <div>
-              <h4 className="m-0 mb-1 text-base flex items-center gap-2">
-                <AlertTriangle size={18} />
-                Dự án đang ở trạng thái BẢN NHÁP (DRAFT)
-              </h4>
-              <p className="m-0 text-[0.85rem]">
-                Hãy thêm thành viên, tạo cấu trúc WBS và đảm bảo Hạn chót công việc phải lớn hơn hoặc bằng Ngày bắt đầu dự án ({project.startDate}), sau đó bấm Kích hoạt để bắt đầu thi công.
-              </p>
-            </div>
-            {isTPKTOrPL && (
-              <Button
-                onClick={handleActivateProject}
-                variant="primary"
-                className="animate-pulse font-semibold py-2 px-5 ml-4 shrink-0"
-              >
-                🚀 Kích hoạt Dự án
-              </Button>
-            )}
-          </div>
-        )}
-
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
             <h3 className="text-[1.15rem] font-semibold m-0">Cơ cấu phân rã công việc (WBS)</h3>
-            <p className="text-[0.8rem] text-[hsl(var(--text-muted))] mt-1 mb-0">
-              Số thứ tự được hiển thị trước tên · Nhấn ▲▼ để sắp xếp lại · Click <strong className="font-bold">⋮</strong> để đổi tên / xóa
-            </p>
+
           </div>
           <div className="flex gap-2 flex-wrap">
             <button

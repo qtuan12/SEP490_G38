@@ -8,176 +8,207 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+// 1. Khởi tạo logger bootstrap tạm thời để log quá trình khởi động
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-builder.Services.AddControllers();
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddSignalR();
-builder.Services.AddScoped<BPG.Application.IServices.IRealtimeNotificationSender, BPG.Api.Hubs.RealtimeNotificationSender>();
-
-builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
-//cấu hình các đường linl của frontend dc phép truy cập backend
-builder.Services.AddCors(options =>
+try
 {
-    options.AddPolicy("AllowReactApp", policy =>
+    Log.Information("Ứng dụng BPG-CMS đang khởi động...");
+
+    var builder = WebApplication.CreateBuilder(args);
+
+    // 2. Ép hệ thống dùng Serilog đọc cấu hình từ appsettings
+    builder.Host.UseSerilog((context, services, configuration) => configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext());
+
+    builder.Services.AddControllers();
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddSignalR();
+    builder.Services.AddScoped<BPG.Application.IServices.IRealtimeNotificationSender, BPG.Api.Hubs.RealtimeNotificationSender>();
+
+    builder.Services.AddApplication();
+    builder.Services.AddInfrastructure(builder.Configuration);
+
+    // Cấu hình CORS của frontend truy cập backend
+    builder.Services.AddCors(options =>
     {
-        policy
-            .SetIsOriginAllowed(origin => true)
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
-});
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    var jwtKey = builder.Configuration["Jwt:Key"];
-
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwtKey!)
-        )
-    };
-
-    options.Events = new JwtBearerEvents
-    {
-        OnAuthenticationFailed = context =>
+        options.AddPolicy("AllowReactApp", policy =>
         {
-            Console.WriteLine($"[JWT Auth Failed] {context.Exception.Message}");
-            return Task.CompletedTask;
-        },
-        OnMessageReceived = context =>
-        {
-            var accessToken = context.Request.Query["access_token"];
-            var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
-            {
-                context.Token = accessToken;
-            }
-            return Task.CompletedTask;
-        }
-    };
-});
-
-builder.Services.AddAuthorization(options =>
-{
-    // Single roles
-    options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireAdmin, policy =>
-        policy.RequireRole(BPG.Domain.Constants.UserRole.Admin));
-    options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireDirector, policy =>
-        policy.RequireRole(BPG.Domain.Constants.UserRole.Director));
-    options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireTechnicalManager, policy =>
-        policy.RequireRole(BPG.Domain.Constants.UserRole.TechnicalManager));
-    options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireSiteEngineer, policy =>
-        policy.RequireRole(BPG.Domain.Constants.UserRole.SiteEngineer));
-    options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireAccountant, policy =>
-        policy.RequireRole(BPG.Domain.Constants.UserRole.Accountant));
-
-    // Compound roles
-    options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireManagerOrAbove, policy =>
-        policy.RequireRole(
-            BPG.Domain.Constants.UserRole.Admin,
-            BPG.Domain.Constants.UserRole.Director,
-            BPG.Domain.Constants.UserRole.TechnicalManager));
-
-    options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireFieldStaff, policy =>
-        policy.RequireRole(
-            BPG.Domain.Constants.UserRole.SiteEngineer,
-            BPG.Domain.Constants.UserRole.TechnicalManager,
-            BPG.Domain.Constants.UserRole.Admin,
-            BPG.Domain.Constants.UserRole.Director));
-
-    options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireProcurement, policy =>
-        policy.RequireRole(
-            BPG.Domain.Constants.UserRole.Admin,
-            BPG.Domain.Constants.UserRole.Director,
-            BPG.Domain.Constants.UserRole.Accountant));
-});
-
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "BPG Construction Management API", Version = "v1" });
-
-    // Cấu hình Bearer Token cho Swagger chuẩn xác để tự thêm prefix Bearer
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Description = "Nhập token JWT của bạn (không cần gõ chữ Bearer)",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT"
+            policy
+                .SetIsOriginAllowed(origin => true)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        });
     });
 
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    builder.Services.AddAuthentication(options =>
     {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        var jwtKey = builder.Configuration["Jwt:Key"];
+
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            new OpenApiSecurityScheme
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtKey!)
+            )
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Console.WriteLine($"[JWT Auth Failed] {context.Exception.Message}");
+                return Task.CompletedTask;
             },
-            new List<string>()
-        }
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
-});
 
-var app = builder.Build();
+    builder.Services.AddAuthorization(options =>
+    {
+        // Single roles
+        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireAdmin, policy =>
+            policy.RequireRole(BPG.Domain.Constants.UserRole.Admin));
+        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireDirector, policy =>
+            policy.RequireRole(BPG.Domain.Constants.UserRole.Director));
+        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireTechnicalManager, policy =>
+            policy.RequireRole(BPG.Domain.Constants.UserRole.TechnicalManager));
+        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireSiteEngineer, policy =>
+            policy.RequireRole(BPG.Domain.Constants.UserRole.SiteEngineer));
+        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireAccountant, policy =>
+            policy.RequireRole(BPG.Domain.Constants.UserRole.Accountant));
 
-app.UseMiddleware<ExceptionMiddleware>();
+        // Compound roles
+        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireManagerOrAbove, policy =>
+            policy.RequireRole(
+                BPG.Domain.Constants.UserRole.Admin,
+                BPG.Domain.Constants.UserRole.Director,
+                BPG.Domain.Constants.UserRole.TechnicalManager));
 
-if (args.Contains("--seed"))
-{
+        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireFieldStaff, policy =>
+            policy.RequireRole(
+                BPG.Domain.Constants.UserRole.SiteEngineer,
+                BPG.Domain.Constants.UserRole.TechnicalManager,
+                BPG.Domain.Constants.UserRole.Admin,
+                BPG.Domain.Constants.UserRole.Director));
+
+        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireProcurement, policy =>
+            policy.RequireRole(
+                BPG.Domain.Constants.UserRole.Admin,
+                BPG.Domain.Constants.UserRole.Director,
+                BPG.Domain.Constants.UserRole.Accountant));
+    });
+
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new OpenApiInfo { Title = "BPG Construction Management API", Version = "v1" });
+
+        c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Description = "Nhập token JWT của bạn (không cần gõ chữ Bearer)",
+            Name = "Authorization",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT"
+        });
+
+        c.AddSecurityRequirement(new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                new List<string>()
+            }
+        });
+    });
+
+    var app = builder.Build();
+
+    // 3. Đăng ký CorrelationIdMiddleware đầu tiên để tracking request-response
+    app.UseMiddleware<CorrelationIdMiddleware>();
+
+    // 4. Đăng ký ExceptionMiddleware
+    app.UseMiddleware<ExceptionMiddleware>();
+
+    // 5. Đăng ký Serilog Request Logging để ghi log request tự động
+    app.UseSerilogRequestLogging(options =>
+    {
+        options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} phản hồi {StatusCode} sau {Elapsed:0.0000} ms";
+    });
+
+    if (args.Contains("--seed"))
+    {
+        using (var scope = app.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Console.WriteLine("Applying migrations and seeding database...");
+            await DbSeeder.SeedAsync(context);
+            Console.WriteLine("Seeding completed successfully.");
+        }
+        
+        return;
+    }
+
     using (var scope = app.Services.CreateScope())
     {
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        Console.WriteLine("Applying migrations and seeding database...");
-        await DbSeeder.SeedAsync(context);
-        Console.WriteLine("Seeding completed successfully.");
+        await context.Database.MigrateAsync();
     }
-    
-    // Thoát ứng dụng sau khi seed xong
-    return;
-}
 
-using (var scope = app.Services.CreateScope())
+    app.UseSwagger();
+    app.UseSwaggerUI();
+
+    app.UseCors("AllowReactApp");
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapControllers();
+    app.MapHub<BPG.Api.Hubs.NotificationHub>("/hubs/notifications");
+
+    app.Run();
+}
+catch (Exception ex)
 {
-    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // Cập nhật cấu trúc database nếu có thay đổi (chỉ migrate, không seed data)
-    await context.Database.MigrateAsync();
+    Log.Fatal(ex, "Ứng dụng bị dừng đột ngột lúc khởi động!");
 }
-
-app.UseSwagger();
-app.UseSwaggerUI();
-
-// app.UseHttpsRedirection();
-
-app.UseCors("AllowReactApp");
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-app.MapHub<BPG.Api.Hubs.NotificationHub>("/hubs/notifications");
-
-app.Run();
+finally
+{
+    Log.CloseAndFlush();
+}

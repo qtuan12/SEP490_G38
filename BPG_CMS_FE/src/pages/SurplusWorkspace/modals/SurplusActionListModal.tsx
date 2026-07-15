@@ -10,6 +10,7 @@ import {
 import toast from 'react-hot-toast';
 import { DispatchTransferModal } from './DispatchTransferModal';
 import { ReceiveTransferModal } from './ReceiveTransferModal';
+import { useParams } from 'react-router-dom';
 
 interface SurplusActionListModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ interface SurplusActionListModalProps {
 export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
   isOpen, onClose, onRefresh, item, selectedActionId, selectedActionType, isTPKT, isLeader,
 }) => {
+  const { projectId } = useParams<{ projectId: string }>();
+  const currentProjectId = Number(projectId);
   const [data, setData] = useState<SurplusActionList | null>(null);
   const [loading, setLoading] = useState(false);
   const [actioning, setActioning] = useState<number | null>(null);
@@ -70,7 +73,7 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
     try {
       if (action === 'review-approve') await surplusService.reviewTransfer(transferId, true);
       else if (action === 'review-reject') await surplusService.reviewTransfer(transferId, false);
-      
+
       toast.success('Thao tác thành công!');
       await loadData();
       onRefresh();
@@ -107,7 +110,7 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
                   <div key={r.surplusReturnSupplierId} className="border border-purple-100 bg-purple-50 rounded-lg px-4 py-3 text-sm">
                     <div className="flex justify-between flex-wrap gap-2">
                       <span className="font-semibold text-slate-700">
-                        #{r.surplusReturnSupplierId} — {r.supplierName || 'NCC không xác định'}
+                        #{r.surplusReturnSupplierId} — {r.supplierName || 'Nhà cung cấp không xác định'}
                       </span>
                       <span className="text-slate-500">{formatDateVN(r.createdAt)}</span>
                     </div>
@@ -172,7 +175,7 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
                             </button>
                           </>
                         )}
-                        {t.status === 'Approved' && isLeader && (
+                        {t.status === 'Approved' && isLeader && t.fromProjectId === currentProjectId && (
                           <button
                             disabled={isActioning}
                             onClick={() => doTransferAction(t.surplusTransferId, 'dispatch')}
@@ -181,7 +184,7 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
                             {isActioning ? '...' : '🚚 Xác nhận đã gửi'}
                           </button>
                         )}
-                        {t.status === 'Dispatched' && isLeader && (
+                        {t.status === 'Dispatched' && isLeader && t.toProjectId === currentProjectId && (
                           <button
                             disabled={isActioning}
                             onClick={() => doTransferAction(t.surplusTransferId, 'receive')}

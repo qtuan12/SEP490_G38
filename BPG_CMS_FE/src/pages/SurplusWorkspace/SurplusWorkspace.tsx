@@ -4,6 +4,7 @@ import { RefreshCw, PackageX } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { projectService } from '../../services/projectService';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
 
 import { SurplusRequestListTab } from './components/SurplusRequestListTab';
 import { SurplusRequestDetailTab } from './components/SurplusRequestDetailTab';
@@ -61,6 +62,13 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
 
   const handleRefresh = () => setRefreshKey(k => k + 1);
 
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    if (noti?.referenceType === 'SurplusRequest') {
+      handleRefresh();
+      toast('Dữ liệu Vật tư thừa đã được cập nhật!', { icon: '🔄' });
+    }
+  });
+
   const handleViewDetail = (id: number) => {
     setSelectedBatchId(id);
     setView('detail');
@@ -85,7 +93,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
           <PackageX size={20} className="text-orange-500" />
           <span className="font-semibold text-slate-700 text-base">Quản lý Vật tư Thừa</span>
           {activeTab === 'outbound' && view === 'detail' && selectedBatchId && (
-            <span className="text-slate-400 text-sm">/ Batch #{selectedBatchId}</span>
+            <span className="text-slate-400 text-sm">/ Đề xuất #{selectedBatchId}</span>
           )}
         </div>
         <div className="flex items-center gap-4">
@@ -98,14 +106,16 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
             >
               Danh sách đề xuất
             </button>
-            <button
-              onClick={() => setActiveTab('inbound')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'inbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              Vật tư chuyển đến
-            </button>
+            {isLeader && (
+              <button
+                onClick={() => setActiveTab('inbound')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  activeTab === 'inbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Vật tư chuyển đến
+              </button>
+            )}
           </div>
           <Button
             variant="outline"
@@ -146,7 +156,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
           />
         )}
 
-        {activeTab === 'inbound' && (
+        {activeTab === 'inbound' && isLeader && (
           <IncomingTransfersTab projectId={projectId} />
         )}
       </div>

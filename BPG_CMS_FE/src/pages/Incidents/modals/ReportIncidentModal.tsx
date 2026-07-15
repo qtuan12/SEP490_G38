@@ -6,14 +6,22 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { incidentService } from '../../../services/incidentService';
 import { projectService } from '../../../services/projectService';
-import { UploadCloud, X, HardHat } from 'lucide-react';
+import { UploadCloud, X, HardHat, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { compressAndUploadFile } from '../../../utils/uploadHelper';
+import type { UploadedFileState } from '../../../utils/uploadHelper';
 
 // ─── Nhánh 1: Sự cố thi công ───────────────────────────────────────────────
 const schema = z.object({
   incidentType: z.literal('Construction'),
   description: z.string().min(5, 'Mô tả phải có ít nhất 5 ký tự'),
-  incidentDate: z.string().min(1, 'Vui lòng chọn ngày phát hiện'),
+  incidentDate: z.string()
+    .min(1, 'Vui lòng chọn ngày phát hiện')
+    .refine((val) => {
+      const selected = new Date(val);
+      const now = new Date();
+      return selected <= now;
+    }, 'Ngày/Giờ xảy ra không được vượt quá thời gian hiện tại'),
   responsibleParty: z.string().optional(),
   canceledVolume: z.string().optional(),
   estimatedDamage: z.string().optional(),
@@ -22,6 +30,16 @@ const schema = z.object({
   proposedAction: z.enum(['Tạo Rework Task', 'Giảm tiến độ task', 'Khác'], {
     message: 'Vui lòng chọn đề xuất xử lý'
   }),
+  customProposedAction: z.string().optional(),
+  isEmergency: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+  if (data.proposedAction === 'Khác' && (!data.customProposedAction || data.customProposedAction.trim() === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Vui lòng nhập đề xuất xử lý khác',
+      path: ['customProposedAction'],
+    });
+  }
 });
 
 type FormData = z.infer<typeof schema>;
@@ -64,8 +82,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   onSuccess,
   onError,
 }) => {
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const [dragging, setDragging] = useState(false);
 
   const { data: members = [] } = useQuery({
@@ -73,7 +90,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
     queryFn: () => projectService.getMembers(projectId),
     enabled: !!projectId && isOpen,
   });
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<any>({
+  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<any>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       incidentType: 'Construction',
@@ -85,6 +102,8 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       estimatedLaborDays: 0,
       estimatedDelayDays: 0,
       proposedAction: 'Tạo Rework Task',
+      customProposedAction: '',
+      isEmergency: false,
     },
   });
 
@@ -97,14 +116,16 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       const dateStr = `${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ngày ${d.toLocaleDateString('vi-VN')}`;
       finalDesc += `\n**Ngày/Giờ xảy ra:** ${dateStr}`;
       if (cData.responsibleParty) {
-        finalDesc += `\n**Người/Tổ đội phụ trách:** ${cData.responsibleParty}`;
+        finalDesc += `\n**Người chịu trách nhiệm:** ${cData.responsibleParty}`;
       }
 
-      if (selectedFiles.length > 0) {
-        const uploadedUrls = await projectService.uploadFiles(selectedFiles, 'incidents');
-        if (uploadedUrls && uploadedUrls.length > 0) {
-          finalDesc += '\n\n**Hình ảnh đính kèm:**\n' + uploadedUrls.map((url, i) => `![Ảnh ${i + 1}](${url})`).join('\n');
-        }
+      // Collect successfully uploaded URLs
+      const successfulUrls = uploadedFiles
+        .filter(f => f.status === 'success' && f.url)
+        .map(f => f.url!);
+
+      if (successfulUrls.length > 0) {
+        finalDesc += '\n\n**Hình ảnh đính kèm:**\n' + successfulUrls.map((url, i) => `![Ảnh ${i + 1}](${url})`).join('\n');
       }
 
       let finalDamageDesc = '';
@@ -124,14 +145,14 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
         estimatedMaterialLoss: 0,
         estimatedLaborDays: data.estimatedLaborDays ?? 0,
         estimatedDelayDays: data.estimatedDelayDays ?? 0,
-        proposedAction: (data as any).proposedAction,
+        proposedAction: (data as any).proposedAction === 'Khác' ? (data as any).customProposedAction : (data as any).proposedAction,
+        isEmergency: data.isEmergency ?? false,
       });
     },
     onSuccess: () => {
       onSuccess('Báo cáo sự cố thi công đã được lưu và chuyển lên TPKT thẩm định.');
       reset();
-      setSelectedFiles([]);
-      setPreviews([]);
+      setUploadedFiles([]);
       onClose();
     },
     onError: (err: any) => {
@@ -140,6 +161,10 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   });
 
   const onSubmit = (data: FormData) => {
+    if (uploadedFiles.some(f => f.status === 'uploading')) {
+      toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
+      return;
+    }
     mutation.mutate(data);
   };
 
@@ -160,18 +185,51 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
     if (e.target.files && e.target.files.length > 0) addImages(Array.from(e.target.files));
   };
   const addImages = (files: File[]) => {
-    const remaining = 5 - selectedFiles.length;
+    const remaining = 5 - uploadedFiles.length;
     if (remaining <= 0) { toast.error('Đã đạt giới hạn tối đa 5 ảnh.'); return; }
     const MAX = 10 * 1024 * 1024;
     if (files.some(f => f.size > MAX)) { toast.error('Hình ảnh không được vượt quá 10MB.'); return; }
     const valid = files.filter(f => f.type.startsWith('image/')).slice(0, remaining);
     if (!valid.length) return;
-    setSelectedFiles(prev => [...prev, ...valid]);
-    setPreviews(prev => [...prev, ...valid.map(f => URL.createObjectURL(f))]);
+
+    valid.forEach(file => {
+      const tempId = Math.random().toString(36).substring(7);
+      const localUrl = URL.createObjectURL(file);
+
+      const newFileState: UploadedFileState = {
+        id: tempId,
+        name: file.name,
+        url: localUrl,
+        status: 'uploading'
+      };
+
+      setUploadedFiles(prev => [...prev, newFileState]);
+
+      compressAndUploadFile(
+        file,
+        'incidents',
+        (uploadedUrl) => {
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
+          );
+        },
+        () => {
+          toast.error(`Tải ảnh ${file.name} lên thất bại.`);
+          setUploadedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
+          );
+        }
+      );
+    });
   };
-  const removeImage = (idx: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
-    setPreviews(prev => { URL.revokeObjectURL(prev[idx]); return prev.filter((_, i) => i !== idx); });
+  const removeImage = (id: string) => {
+    setUploadedFiles(prev => {
+      const target = prev.find(f => f.id === id);
+      if (target && target.url && target.url.startsWith('blob:')) {
+        URL.revokeObjectURL(target.url);
+      }
+      return prev.filter(f => f.id !== id);
+    });
   };
 
   if (!isOpen) return null;
@@ -228,6 +286,19 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 <input type="hidden" {...register('incidentType')} value="Construction" />
               </div>
 
+              {/* Sự cố khẩn cấp (Ngừng thi công) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.2)', borderRadius: '6px' }}>
+                <input
+                  type="checkbox"
+                  id="is-emergency"
+                  {...register('isEmergency')}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="is-emergency" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'hsl(var(--danger))', cursor: 'pointer', margin: 0 }}>
+                  ⚠️ Yêu cầu ngừng thi công khẩn cấp (Sự cố đặc biệt nghiêm trọng)
+                </label>
+              </div>
+
               {/* Mô tả sự cố */}
               <div>
                 <label htmlFor="report-desc" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
@@ -255,13 +326,14 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <input
                     type="datetime-local"
                     className="input"
+                    max={new Date().toISOString().slice(0, 16)}
                     {...register('incidentDate')}
                   />
                   {(errors as any).incidentDate && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).incidentDate?.message)}</span>}
                 </div>
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                    Người/Tổ đội phụ trách
+                    Người chịu trách nhiệm
                   </label>
                   <select
                     className="input"
@@ -287,34 +359,41 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  onClick={() => { if (selectedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
+                  onClick={() => { if (uploadedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
                   style={{
                     border: `2px dashed ${dragging ? branchCfg.color : 'hsl(var(--border))'}`,
                     borderRadius: '8px',
                     padding: '16px',
                     textAlign: 'center',
-                    cursor: selectedFiles.length >= 5 ? 'not-allowed' : 'pointer',
+                    cursor: uploadedFiles.length >= 5 ? 'not-allowed' : 'pointer',
                     background: dragging ? branchCfg.bg : 'hsl(var(--bg-card))',
-                    opacity: selectedFiles.length >= 5 ? 0.6 : 1,
+                    opacity: uploadedFiles.length >= 5 ? 0.6 : 1,
                     transition: 'all 0.2s',
                   }}
                 >
-                  <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={selectedFiles.length >= 5} />
+                  <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={uploadedFiles.length >= 5} />
                   <UploadCloud size={24} style={{ color: 'hsl(var(--text-secondary))', margin: '0 auto 6px' }} />
                   <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', margin: '0 0 4px' }}>
                     Kéo thả hoặc click để chọn ảnh
                   </p>
-                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Đã chọn {selectedFiles.length}/5 ảnh</span>
+                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Đã chọn {uploadedFiles.length}/5 ảnh</span>
                 </div>
-                {previews.length > 0 && (
+                {uploadedFiles.length > 0 && (
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-                    {previews.map((url, idx) => (
-                      <div key={idx} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
-                        <img src={url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {uploadedFiles.map((file) => (
+                      <div key={file.id} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: file.status === 'error' ? '1px solid #dc2626' : file.status === 'success' ? '1px solid #16a34a' : '1px solid hsl(var(--border))' }}>
+                        <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        
+                        {file.status === 'uploading' && (
+                          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Loader2 size={12} className="animate-spin" style={{ color: '#fff' }} />
+                          </div>
+                        )}
+                        
                         <button
                           type="button"
-                          onClick={e => { e.stopPropagation(); removeImage(idx); }}
-                          style={{ position: 'absolute', top: 2, right: 2, background: '#dc2626', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                          onClick={e => { e.stopPropagation(); removeImage(file.id); }}
+                          style={{ position: 'absolute', top: 2, right: 2, background: '#dc2626', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10 }}
                         >
                           <X size={10} color="white" />
                         </button>
@@ -388,6 +467,18 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                     <option value="Khác">Khác</option>
                   </select>
                   {(errors as any).proposedAction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).proposedAction?.message)}</span>}
+
+                  {watch('proposedAction') === 'Khác' && (
+                    <div style={{ marginTop: '8px' }}>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Nhập đề xuất xử lý khác..."
+                        {...register('customProposedAction')}
+                      />
+                      {(errors as any).customProposedAction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', display: 'block', marginTop: '4px' }}>{String((errors as any).customProposedAction?.message)}</span>}
+                    </div>
+                  )}
                 </div>
               </div>
 

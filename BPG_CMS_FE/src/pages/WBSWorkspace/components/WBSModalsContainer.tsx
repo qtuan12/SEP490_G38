@@ -138,6 +138,8 @@ export const WBSModalsContainer = () => {
           onClose={() => setIsCreatePhaseOpen(false)}
           projectId={projectId}
           maxPhaseOrder={phases.length + 1}
+          project={project}
+          phases={phases}
           onSuccess={handleSuccess}
           onError={handleError}
         />
@@ -225,6 +227,8 @@ export const WBSModalsContainer = () => {
         maxTaskOrder={tasks.filter(t => t.phaseId === selectedPhaseForTask && t.parentTaskId === parentTaskForNew).length + 1}
         members={members}
         tasks={tasks}
+        phase={phases.find(p => p.id === selectedPhaseForTask)}
+        project={project}
         onSuccess={handleSuccess}
         onError={handleError}
       />

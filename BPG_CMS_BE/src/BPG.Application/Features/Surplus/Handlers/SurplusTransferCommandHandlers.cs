@@ -52,6 +52,21 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
         if (request.TransferQuantity > (item.Quantity - item.ProcessedQuantity))
             throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng chuyển ({request.TransferQuantity}) vượt quá số lượng còn lại ({item.Quantity - item.ProcessedQuantity}).");
 
+        var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
+        var baseTransferQty = request.TransferQuantity / conversionRate;
+
+        // Reserve inventory in the sending project
+        var inv = await _uow.Repository<CurrentInventory>().Query()
+            .FirstOrDefaultAsync(ci => ci.ProjectId == fromProjectId && ci.MaterialId == item.MaterialId, ct)
+            ?? throw new BusinessException(ErrorCodes.InsufficientStock, $"Vật tư không tồn tại trong kho của dự án.");
+
+        if ((inv.Quantity - inv.ReservedQuantity) < baseTransferQty)
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho khả dụng để chuyển. Tồn kho khả dụng: {inv.Quantity - inv.ReservedQuantity}, Yêu cầu chuyển: {baseTransferQty} (base unit).");
+
+        inv.ReservedQuantity += baseTransferQty;
+        inv.LastUpdated = DateTime.UtcNow;
+        _uow.Repository<CurrentInventory>().Update(inv);
+
         var transfer = new SurplusTransfer
         {
             SurplusRequestItemId = request.SurplusRequestItemId,
@@ -143,6 +158,20 @@ public class ReviewSurplusTransferCommandHandler : IRequestHandler<ReviewSurplus
             var item = transfer.SurplusRequestItem;
             item.Status = item.ProcessedQuantity > 0 ? SurplusRequestItemStatus.Processing : SurplusRequestItemStatus.Pending;
             _uow.Repository<SurplusRequestItem>().Update(item);
+
+            // Release inventory hold
+            var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
+            var baseTransferQty = transfer.TransferQuantity / conversionRate;
+            
+            var inv = await _uow.Repository<CurrentInventory>().Query()
+                .FirstOrDefaultAsync(ci => ci.ProjectId == transfer.FromProjectId && ci.MaterialId == item.MaterialId, ct);
+            if (inv != null)
+            {
+                inv.ReservedQuantity -= baseTransferQty;
+                if (inv.ReservedQuantity < 0) inv.ReservedQuantity = 0;
+                inv.LastUpdated = DateTime.UtcNow;
+                _uow.Repository<CurrentInventory>().Update(inv);
+            }
         }
 
         await _uow.SaveChangesAsync(ct);
@@ -304,22 +333,33 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
 
         await _uow.SaveChangesAsync(ct);
 
+        var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
+        var baseTransferQty = transfer.TransferQuantity / conversionRate;
+
         // TransferOut: reduce from-project inventory
-        await _inventoryService.UpdateStockAsync(
+        var fromInv = await _inventoryService.UpdateStockAsync(
             transfer.FromProjectId,
             item.MaterialId,
-            -transfer.TransferQuantity,
+            -baseTransferQty,
             InventoryTransactionType.TransferOut,
             transfer.SurplusTransferId,
             EntityType.SurplusRequest,
             userId,
             ct);
 
+        // Decrease ReservedQuantity since the items actually left the warehouse
+        if (fromInv != null)
+        {
+            fromInv.ReservedQuantity -= baseTransferQty;
+            if (fromInv.ReservedQuantity < 0) fromInv.ReservedQuantity = 0;
+            _uow.Repository<CurrentInventory>().Update(fromInv);
+        }
+
         // TransferIn: add to to-project inventory
         await _inventoryService.UpdateStockAsync(
             transfer.ToProjectId,
             item.MaterialId,
-            transfer.TransferQuantity,
+            baseTransferQty,
             InventoryTransactionType.TransferIn,
             transfer.SurplusTransferId,
             EntityType.SurplusRequest,

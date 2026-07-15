@@ -29,7 +29,6 @@ import { NotificationsList } from './pages/Notifications';
 import { InventoryAdjustmentsPage } from './pages/InventoryAdjustments';
 import { BoqVsActualReport } from './pages/Reports/BoqVsActualReport';
 import { CostReferenceReport } from './pages/Reports/CostReferenceReport';
-import { ReportsHub } from './pages/ReportsHub';
 import { GlobalIncidents } from './pages/GlobalIncidents';
 import { MaterialControl } from './pages/MaterialControl';
 import { PurchaseOrderList } from './pages/PurchaseOrders';
@@ -37,6 +36,7 @@ import { CreatePOPage } from './pages/PurchaseOrders/CreatePOPage';
 import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
 import { SystemConfigPage } from './pages/SystemConfig';
 import { DirectPurchaseList } from './pages/DirectPurchases';
+import { ReportsHub } from './pages/ReportsHub';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -71,7 +71,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // If not authorized for this specific route, send to dashboard
+    // If not authorized for this specific route, send to dashboard (or users if admin)
+    if (user.role === 'admin') {
+      return <Navigate to="/users" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -80,7 +83,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
 
 // Route wrapper for redirecting authenticated users away from Login page
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -91,6 +94,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   if (isAuthenticated) {
+    if (user?.role === 'admin') {
+      return <Navigate to="/users" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -334,7 +340,7 @@ function App() {
               <Route 
                 path="/tasks/:taskId" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <TaskDetailSE />
                   </ProtectedRoute>
                 } 

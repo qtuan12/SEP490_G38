@@ -31,7 +31,7 @@ export const ObsoleteTaskForm: React.FC<ObsoleteTaskFormProps> = ({
       });
     },
     onSuccess: () => {
-      const msg = `Đã đánh dấu lỗi thời công việc: ${task.name}`;
+      const msg = `Đã tạm dừng thành công công việc: ${task.name}`;
       toast.success(msg);
       onSuccess(msg);
       setReason('');
@@ -67,7 +67,7 @@ export const ObsoleteTaskForm: React.FC<ObsoleteTaskFormProps> = ({
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
         <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={mutation.isPending}>Thoát</button>
         <button type="submit" className="btn" style={{ backgroundColor: 'hsl(var(--danger))', color: '#fff' }} disabled={mutation.isPending || !reason.trim()}>
-          {mutation.isPending ? 'Đang xử lý...' : 'Xác nhận hủy'}
+          {mutation.isPending ? 'Đang xử lý...' : 'Xác nhận'}
         </button>
       </div>
     </form>

@@ -5,7 +5,7 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using BPG.Application.Features.Wbs.DTOs;
+using BPG.Application.DTOs.Wbs;
 using BPG.Application.Features.Wbs.Queries;
 
 namespace BPG.Application.Features.Wbs.Handlers;
