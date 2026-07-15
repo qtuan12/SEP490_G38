@@ -75,10 +75,10 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
             }
 
             // 4. Kiểm tra ảnh chụp chứng minh nếu có validation bắt buộc (tối đa 5 ảnh)
-            if (request.Images != null && request.Images.Count > 5)
-            {
-                throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh chứng từ giao nhận.");
-            }
+            // if (request.Images != null && request.Images.Count > 5)
+            // {
+            //     throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh chứng từ giao nhận.");
+            // }
 
             // 5. Lấy tổng số lượng đã nhận của từng vật tư trong PO này từ trước đến nay
             var receivedQtyMap = await _uow.Repository<GoodsReceiptItem>().Query()
