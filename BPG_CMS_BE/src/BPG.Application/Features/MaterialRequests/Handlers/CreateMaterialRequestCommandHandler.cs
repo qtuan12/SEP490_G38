@@ -101,6 +101,12 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
                     throw new NotFoundException(nameof(BPG.Domain.Entities.Unit), item.Unit);
                 }
 
+                if (unit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Đơn vị tính '{unit.UnitName}' yêu cầu số lượng phải là số nguyên.");
+                }
+
                 // Xác định tỷ lệ quy đổi sang đơn vị cơ bản (Base Unit)
                 decimal conversionRate = 1.0m;
                 if (material.BaseUnitId != unit.UnitId)

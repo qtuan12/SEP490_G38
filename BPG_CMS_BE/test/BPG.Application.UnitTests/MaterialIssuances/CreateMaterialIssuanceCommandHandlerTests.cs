@@ -425,5 +425,51 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             await act.Should().ThrowAsync<Exception>().WithMessage("DB Error");
             _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
+
+        [Fact]
+        public async Task UTCID15_Handle_DiscreteUnitWithDecimalQuantity_ShouldThrowBusinessException()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                IsLocked = false,
+                Phase = new Phase { Project = project }
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var material = new MaterialCatalog 
+            { 
+                MaterialId = 50, 
+                Name = "Cái bay", 
+                BaseUnit = new Unit { UnitName = "Cái", IsDiscrete = true } 
+            };
+            var inventory = new CurrentInventory 
+            { 
+                ProjectId = 5, 
+                MaterialId = 50, 
+                Quantity = 100, 
+                ReservedQuantity = 10, 
+                Material = material 
+            };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
+
+            var items = new List<CreateMaterialIssuanceItemDto>
+            {
+                new CreateMaterialIssuanceItemDto(MaterialId: 50, UnitId: 1, Quantity: 20.5m, ConversionRate: 1)
+            };
+            var command = new CreateMaterialIssuanceCommand(TaskId: 100, Purpose: "Slab pouring", Items: items);
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            exception.Which.Message.Should().Contain("yêu cầu số lượng xuất phải là số nguyên");
+        }
     }
 }

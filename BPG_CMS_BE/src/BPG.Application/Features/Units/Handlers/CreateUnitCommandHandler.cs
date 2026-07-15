@@ -35,7 +35,8 @@ public class CreateUnitCommandHandler : IRequestHandler<CreateUnitCommand, UnitD
         var entity = new BPG.Domain.Entities.Unit
         {
             UnitCode = trimmedCode,
-            UnitName = request.UnitName.Trim()
+            UnitName = request.UnitName.Trim(),
+            IsDiscrete = request.IsDiscrete
         };
 
         await _uow.Repository<BPG.Domain.Entities.Unit>().AddAsync(entity);

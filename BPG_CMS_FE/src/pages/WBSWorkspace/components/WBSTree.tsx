@@ -291,7 +291,7 @@ export const WBSTree = () => {
                                       onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/material-requests`); }}
                                     >
                                       <FileText size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                      <span>{isFrozen ? 'Xem yêu cầu vật tư' : 'Yêu cầu vật tư Giai đoạn'}</span>
+                                      <span>{isFrozen ? 'Xem yêu cầu vật tư' : 'Yêu cầu vật tư'}</span>
                                     </div>
                                     {!isFrozen && isPL && (
                                       <div
@@ -301,7 +301,7 @@ export const WBSTree = () => {
                                         onClick={() => { setPhaseMenuId(null); setSelectedPhaseForMatReq(ph); setCreateMatReqType('emergency'); setIsPhaseMatReqOpen(true); }}
                                       >
                                         <AlertTriangle size={13} style={{ color: 'hsl(var(--warning))' }} />
-                                        <span style={{ color: 'hsl(var(--warning-hover))' }}>Mua ngoài khẩn cấp Giai đoạn</span>
+                                        <span style={{ color: 'hsl(var(--warning-hover))' }}>Mua ngoài khẩn cấp</span>
                                       </div>
                                     )}
                                   </>
@@ -329,7 +329,7 @@ export const WBSTree = () => {
                                         onClick={() => { setPhaseMenuId(null); setSelectedPhaseForInventoryIncident(ph); setIsReportInventoryIncidentOpen(true); }}
                                       >
                                         <AlertTriangle size={13} style={{ color: 'hsl(var(--warning))' }} />
-                                        <span>Báo cáo sự cố vật tư Giai đoạn</span>
+                                        <span>Báo cáo sự cố vật tư</span>
                                       </div>
                                     )}
 

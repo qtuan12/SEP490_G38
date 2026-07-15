@@ -30,6 +30,7 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
         var item = await _uow.Repository<SurplusRequestItem>().Query()
             .Include(i => i.SurplusRequest)
                 .ThenInclude(sr => sr.Project)
+            .Include(i => i.Unit)
             .FirstOrDefaultAsync(i => i.SurplusRequestItemId == request.SurplusRequestItemId, ct)
             ?? throw new NotFoundException(nameof(SurplusRequestItem), request.SurplusRequestItemId);
 
@@ -48,6 +49,9 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
             ?? throw new NotFoundException(nameof(Project), request.ToProjectId);
         if (toProject.Status != ProjectStatus.InProgress)
             throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án nhận phải đang hoạt động.");
+
+        if (item.Unit != null && item.Unit.IsDiscrete && request.TransferQuantity % 1 != 0)
+            throw new BusinessException(ErrorCodes.InvalidUnitQuantity, $"Đơn vị tính '{item.Unit.UnitName}' yêu cầu số lượng phải là số nguyên.");
 
         if (request.TransferQuantity > (item.Quantity - item.ProcessedQuantity))
             throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng chuyển ({request.TransferQuantity}) vượt quá số lượng còn lại ({item.Quantity - item.ProcessedQuantity}).");

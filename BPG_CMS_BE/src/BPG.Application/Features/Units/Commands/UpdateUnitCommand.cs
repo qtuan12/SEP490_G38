@@ -7,5 +7,6 @@ namespace BPG.Application.Features.Units.Commands;
 public record UpdateUnitCommand(
     int UnitId,
     string UnitCode,
-    string UnitName
+    string UnitName,
+    bool IsDiscrete
 ) : IRequest<UnitDto>;

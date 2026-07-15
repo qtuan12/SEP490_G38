@@ -27,7 +27,7 @@ public class UnitsController : BaseApiController
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] BPG.Application.Features.Units.DTOs.UpdateUnitRequest request, CancellationToken ct)
     {
-        var command = new UpdateUnitCommand(id, request.UnitCode, request.UnitName);
+        var command = new UpdateUnitCommand(id, request.UnitCode, request.UnitName, request.IsDiscrete);
         var result = await Mediator.Send(command, ct);
         return ApiOk(result, "Cập nhật đơn vị tính thành công.");
     }

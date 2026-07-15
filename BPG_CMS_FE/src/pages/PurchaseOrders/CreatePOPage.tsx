@@ -7,6 +7,7 @@ import { projectService } from '../../services/projectService';
 import { Button, Input, Select } from '../../components/ui';
 import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { isDiscreteUnit } from '../../utils/unitHelpers';
 
 interface POItem {
   materialId: number;
@@ -159,6 +160,9 @@ export const CreatePOPage: React.FC = () => {
       if (it.quantity <= 0) return setFormError(`Số lượng "${it.materialName}" phải lớn hơn 0.`);
       if (it.quantity > it.maxQuantity)
         return setFormError(`Số lượng "${it.materialName}" vượt quá số lượng yêu cầu (${it.maxQuantity}).`);
+      if (isDiscreteUnit(it.unitName) && it.quantity % 1 !== 0) {
+        return setFormError(`Đơn vị tính '${it.unitName}' của vật tư "${it.materialName}" yêu cầu số lượng phải là số nguyên.`);
+      }
     }
     mutation.mutate();
   };
@@ -374,7 +378,10 @@ export const CreatePOPage: React.FC = () => {
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-secondary))' }}>{it.unitName}</td>
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-muted))' }}>{it.maxQuantity}</td>
                     <td style={{ padding: '8px 10px' }}>
-                      <Input type="number" min={0.001} max={it.maxQuantity} step={0.001}
+                      <Input type="number" 
+                        min={isDiscreteUnit(it.unitName) ? 1 : 0.001} 
+                        max={it.maxQuantity} 
+                        step={isDiscreteUnit(it.unitName) ? 1 : 0.001}
                         value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))}
                         className="h-8" style={{ width: 110 }} />
                     </td>

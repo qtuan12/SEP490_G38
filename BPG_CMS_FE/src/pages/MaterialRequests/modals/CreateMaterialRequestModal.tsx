@@ -248,7 +248,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={task ? "Đề xuất Vật tư cho Công việc" : "Yêu cầu Vật tư cho Phase"}>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         <div className="text-sm bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100">
           {task ? (
             <span>Công việc: <strong>{task.name}</strong></span>

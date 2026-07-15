@@ -5,5 +5,6 @@ namespace BPG.Application.Features.Units.Commands;
 
 public record CreateUnitCommand(
     string UnitCode,
-    string UnitName
+    string UnitName,
+    bool IsDiscrete
 ) : IRequest<UnitDto>;
