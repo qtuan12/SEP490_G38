@@ -12,13 +12,13 @@ interface MaterialRequestDetailModalProps {
   request: MaterialRequest | null;
   isAccountant: boolean;
   isDirector: boolean;
-  user: any;
+  user?: any;
   isLeader?: boolean;
   handleVerifyRequestByAccountant: (id: string) => void;
   handleDisburseRequestByAccountant: (id: string) => void;
   handleApproveRequestByDirector: (id: string) => void;
   handleRejectRequest: (id: string) => void;
-  handleCancelRequest: (id: string) => void;
+  handleCancelRequest?: (id: string) => void;
 }
 
 export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProps> = ({
@@ -299,7 +299,8 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
 
             <div className="flex gap-2">
               {((request.status === 'pending_accountant' || request.status === 'pending_director') &&
-                (request.createdBy === user?.id || isLeader)) && (
+                (request.createdBy === user?.id || isLeader) &&
+                handleCancelRequest) && (
                 <Button
                   variant="danger"
                   onClick={() => {

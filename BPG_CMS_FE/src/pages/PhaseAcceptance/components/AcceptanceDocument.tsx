@@ -13,9 +13,7 @@ interface AcceptanceDocumentProps {
 export const AcceptanceDocument: React.FC<AcceptanceDocumentProps> = ({
   project,
   phase,
-  reportContent,
-  acceptanceDate = new Date().toISOString(),
-  creatorName = 'Người lập báo cáo'
+  reportContent
 }) => {
   return (
     <div
