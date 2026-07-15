@@ -27,6 +27,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         private readonly Mock<IGenericRepository<MaterialIssuance>> _mockIssuanceRepo;
         private readonly Mock<IGenericRepository<MaterialIssuanceItem>> _mockIssuanceItemRepo;
         private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
+        private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
         private readonly Mock<IInventoryService> _mockInventoryService;
         private readonly CreateMaterialIssuanceCommandHandler _handler;
@@ -38,6 +39,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             _mockIssuanceRepo = new Mock<IGenericRepository<MaterialIssuance>>();
             _mockIssuanceItemRepo = new Mock<IGenericRepository<MaterialIssuanceItem>>();
             _mockInventoryRepo = new Mock<IGenericRepository<CurrentInventory>>();
+            _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
             _mockInventoryService = new Mock<IInventoryService>();
 
@@ -45,12 +47,17 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             _mockUow.Setup(u => u.Repository<MaterialIssuance>()).Returns(_mockIssuanceRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialIssuanceItem>()).Returns(_mockIssuanceItemRepo.Object);
             _mockUow.Setup(u => u.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
+            _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
 
             // Default Query Mock setups
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask>().AsQueryable().BuildMock());
             _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance>().AsQueryable().BuildMock());
             _mockIssuanceItemRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuanceItem>().AsQueryable().BuildMock());
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory>().AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+
+            // By default, mock current user as office role to let other tests pass seamlessly
+            _mockCurrentUserService.Setup(s => s.IsInAnyRole(It.IsAny<string[]>())).Returns(true);
 
             // Default AddAsync setups
             _mockIssuanceRepo.Setup(r => r.AddAsync(It.IsAny<MaterialIssuance>(), It.IsAny<CancellationToken>()))
@@ -424,6 +431,49 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             // Assert
             await act.Should().ThrowAsync<Exception>().WithMessage("DB Error");
             _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Theory]
+        [InlineData(BPG.Domain.Constants.UserRole.TechnicalManager, false, true)] // TM - not leader -> succeeds
+        [InlineData(BPG.Domain.Constants.UserRole.SiteEngineer, true, true)]    // SiteEngineer - leader -> succeeds
+        [InlineData(BPG.Domain.Constants.UserRole.SiteEngineer, false, false)]  // SiteEngineer - not leader -> fails
+        public async Task UTCID15_Handle_PermissionCheck_ShouldBehaveBasedOnRoleAndLeadership(string role, bool isLeader, bool expectedSuccess)
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, role, hasRole: role == BPG.Domain.Constants.UserRole.TechnicalManager);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, IsLocked = false, Phase = new Phase { Project = project } };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var material = new MaterialCatalog { MaterialId = 50, Name = "Cement", BaseUnit = new Unit { UnitName = "Bag" } };
+            var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 10, ReservedQuantity = 0, Material = material };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
+
+            var members = isLeader 
+                ? new List<ProjectMember> { new ProjectMember { ProjectId = 5, UserId = 10, IsLeader = true } }
+                : new List<ProjectMember>();
+            _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+
+            var command = new CreateMaterialIssuanceCommand(100, "Purpose", new List<CreateMaterialIssuanceItemDto>
+            {
+                new CreateMaterialIssuanceItemDto(50, 1, 5, 1)
+            });
+
+            // Act
+            Func<Task<ApiResponse<long>>> act = () => _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            if (expectedSuccess)
+            {
+                var result = await act();
+                result.Success.Should().BeTrue();
+            }
+            else
+            {
+                await act.Should().ThrowAsync<ForbiddenException>()
+                    .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+            }
         }
     }
 }

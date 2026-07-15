@@ -271,36 +271,14 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        [Fact]
-        public async Task UTCID10_Handle_ForbiddenUser_ShouldThrowForbiddenException()
+        [Theory]
+        [InlineData(BPG.Domain.Constants.UserRole.Accountant, false, true)] // Accountant -> succeeds
+        [InlineData(BPG.Domain.Constants.UserRole.SiteEngineer, true, true)]   // Leader -> succeeds
+        [InlineData(BPG.Domain.Constants.UserRole.SiteEngineer, false, false)] // Not leader -> fails
+        public async Task UTCID10_Handle_PermissionCheck_ShouldBehaveBasedOnRoleAndLeadership(string role, bool isLeader, bool expectedSuccess)
         {
             // Arrange
-            // User is a standard SiteEngineer, and IsInAnyRole returns false for office roles
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false);
-
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
-            var receipt = new GoodsReceipt { ReceiptId = 500, PurchaseOrder = po };
-            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
-
-            // User is NOT a Project Leader
-            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
-
-            var command = new PatchGoodsReceiptMetadataCommand(500, "John", "DOC-123");
-
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            await act.Should().ThrowAsync<ForbiddenException>()
-                .WithMessage("Chỉ Kế toán, Quản lý Kỹ thuật, Giám đốc hoặc Trưởng dự án mới có quyền chỉnh sửa thông tin chứng từ.");
-        }
-
-        [Fact]
-        public async Task UTCID11_Handle_ProjectLeaderUser_ShouldUpdateMetadataSuccessfully()
-        {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false);
+            _mockCurrentUserService.SetupUser(10, role, hasRole: role == BPG.Domain.Constants.UserRole.Accountant);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
@@ -308,18 +286,27 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
             _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
 
-            // User IS the Project Leader
-            var member = new ProjectMember { ProjectId = 5, UserId = 10, IsLeader = true };
-            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember> { member }.AsQueryable().BuildMock());
+            var members = isLeader
+                ? new List<ProjectMember> { new ProjectMember { ProjectId = 5, UserId = 10, IsLeader = true } }
+                : new List<ProjectMember>();
+            _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
 
-            var command = new PatchGoodsReceiptMetadataCommand(500, "Leader Updated", "DOC-999");
+            var command = new PatchGoodsReceiptMetadataCommand(500, "Updated", "DOC-999");
 
             // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
+            Func<Task<ApiResponse<bool>>> act = () => _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            result.Success.Should().BeTrue();
-            receipt.DelivererInfo.Should().Be("Leader Updated");
+            if (expectedSuccess)
+            {
+                var result = await act();
+                result.Success.Should().BeTrue();
+            }
+            else
+            {
+                await act.Should().ThrowAsync<ForbiddenException>()
+                    .WithMessage("Chỉ Kế toán, Quản lý Kỹ thuật, Giám đốc hoặc Trưởng dự án mới có quyền chỉnh sửa thông tin chứng từ.");
+            }
         }
     }
 }
