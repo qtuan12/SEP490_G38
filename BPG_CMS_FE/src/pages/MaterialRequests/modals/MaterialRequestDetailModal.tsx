@@ -129,7 +129,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Chi tiết Yêu cầu Vật tư & Đối chiếu Định mức Giai đoạn"
+      title={`YCVT-${request.id.replace('mat-req-', '')} — Chi tiết Yêu cầu Vật tư & Đối chiếu Định mức Giai đoạn`}
       width="lg"
     >
       {loadingData ? (
