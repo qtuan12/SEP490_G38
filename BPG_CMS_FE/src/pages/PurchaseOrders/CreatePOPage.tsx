@@ -25,6 +25,13 @@ interface POItem {
 const fmt = (v: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
 
+// Chuyển yyyy-mm-dd (giá trị input date) sang dd-mm-yyyy để hiển thị
+const toDisplayDate = (isoDate: string) => {
+  if (!isoDate) return '';
+  const [y, m, d] = isoDate.split('-');
+  return `${d}-${m}-${y}`;
+};
+
 const label: React.CSSProperties = {
   fontSize: 13, fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: 4, display: 'block',
 };
@@ -69,6 +76,12 @@ export const CreatePOPage: React.FC = () => {
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers-active'],
     queryFn: () => supplierService.getSuppliers({ pageSize: 200, collaborationStatus: 'Active' }).then((r) => r.items),
+  });
+
+  // Mã đơn hàng dự kiến sẽ được backend sinh — chỉ hiển thị tham khảo, không cho chỉnh sửa
+  const { data: nextPoNumber } = useQuery({
+    queryKey: ['next-po-number', orderDate],
+    queryFn: () => inventoryService.getNextPoNumber(orderDate),
   });
 
   const { data: approvedRequestsData, isLoading: loadingRequests } = useQuery({
@@ -250,14 +263,32 @@ export const CreatePOPage: React.FC = () => {
             />
           </div>
           <div>
-            <label style={label}>Ngày đơn hàng <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-            <Input
-              type="date"
-              value={orderDate}
-              onChange={(e) => { setOrderDate(e.target.value); setOrderDateError(null); }}
+            <label style={label}>Mã đơn hàng <span style={{ fontWeight: 400, color: 'hsl(var(--text-muted))' }}>(dự kiến)</span></label>
+            <div
               className="h-10"
-              style={orderDateError ? { borderColor: 'hsl(var(--danger))' } : undefined}
-            />
+              style={{
+                display: 'flex', alignItems: 'center',
+                borderRadius: 6, padding: '0 12px', fontSize: 14, fontWeight: 600,
+                border: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--bg-muted, var(--bg-card)))', color: 'hsl(var(--text-secondary))',
+              }}
+            >
+              {nextPoNumber ?? '...'}
+            </div>
+          </div>
+          <div>
+            <label style={label}>Ngày đơn hàng <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+            <div
+              className="h-10"
+              style={{
+                display: 'flex', alignItems: 'center',
+                borderRadius: 6, padding: '0 12px', fontSize: 14,
+                border: `1px solid ${orderDateError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`,
+                background: 'hsl(var(--bg-muted, var(--bg-card)))', color: 'hsl(var(--text-secondary))',
+              }}
+            >
+              {toDisplayDate(orderDate)}
+            </div>
             {orderDateError && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{orderDateError}</p>
             )}
@@ -276,13 +307,27 @@ export const CreatePOPage: React.FC = () => {
           </div>
           <div>
             <label style={label}>Hạn giao hàng</label>
-            <Input
-              type="date"
-              value={expectedDeliveryDate}
-              onChange={(e) => { setExpectedDeliveryDate(e.target.value); setDeliveryDateError(null); }}
-              className="h-10"
-              style={deliveryDateError ? { borderColor: 'hsl(var(--danger))' } : undefined}
-            />
+            <div style={{ position: 'relative' }}>
+              <Input
+                type="date"
+                value={expectedDeliveryDate}
+                onChange={(e) => { setExpectedDeliveryDate(e.target.value); setDeliveryDateError(null); }}
+                className="h-10"
+                style={{
+                  color: 'transparent',
+                  ...(deliveryDateError ? { borderColor: 'hsl(var(--danger))' } : {}),
+                }}
+              />
+              <span
+                style={{
+                  position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                  fontSize: 14, pointerEvents: 'none',
+                  color: expectedDeliveryDate ? 'hsl(var(--text-primary))' : 'hsl(var(--text-muted))',
+                }}
+              >
+                {expectedDeliveryDate ? toDisplayDate(expectedDeliveryDate) : 'dd-mm-yyyy'}
+              </span>
+            </div>
             {deliveryDateError && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{deliveryDateError}</p>
             )}

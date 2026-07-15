@@ -243,6 +243,15 @@ export const inventoryService = {
     );
   },
 
+  // Xem trước mã PO sẽ được sinh cho ngày chỉ định (chỉ tham khảo, không đảm bảo tuyệt đối)
+  getNextPoNumber: async (orderDate: string): Promise<string> => {
+    return unwrap(
+      await apiClient.get<ApiResponse<string>>('/purchaseorders/next-number', {
+        params: { orderDate },
+      })
+    );
+  },
+
   // Cancel PO
   cancelPurchaseOrder: async (poId: number, reason: string): Promise<boolean> => {
     return unwrap(
