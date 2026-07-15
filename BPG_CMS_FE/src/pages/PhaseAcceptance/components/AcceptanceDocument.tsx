@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { Project, WBSPhase } from '../../../types/common';
 import MDEditor from '@uiw/react-md-editor';
 
@@ -17,13 +17,6 @@ export const AcceptanceDocument: React.FC<AcceptanceDocumentProps> = ({
   acceptanceDate = new Date().toISOString(),
   creatorName = 'Người lập báo cáo'
 }) => {
-  const [repAName, setRepAName] = useState('');
-  const [repARole, setRepARole] = useState('');
-  const [repBName, setRepBName] = useState('');
-  const [repBRole, setRepBRole] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [conclusion1, setConclusion1] = useState('');
-  const [conclusion2, setConclusion2] = useState('');
   return (
     <div
       id="printable-acceptance-doc"
@@ -67,98 +60,13 @@ export const AcceptanceDocument: React.FC<AcceptanceDocumentProps> = ({
         <p style={{ margin: 0 }}><strong>- Địa điểm xây dựng:</strong> {project.address}</p>
       </div>
 
-      {/* Sections */}
+      {/* Render the full saved report content (containing sections 2, 3, 4, 5) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <div>
-          <p style={{ margin: '0 0 5px 0' }}><strong>2. Thành phần trực tiếp nghiệm thu:</strong></p>
-          <div style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            <p style={{ margin: 0 }}><strong>● Đại diện Ban quản lý Dự án (hoặc nhà thầu Tư vấn giám sát):</strong></p>
-            <p style={{ margin: '0 0 0 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span>- Ông/Bà:</span>
-              <input
-                type="text"
-                value={repAName}
-                onChange={(e) => setRepAName(e.target.value)}
-                placeholder=""
-                style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1.5, fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
-              />
-              <span>Chức vụ:</span>
-              <input
-                type="text"
-                value={repARole}
-                onChange={(e) => setRepARole(e.target.value)}
-                placeholder=""
-                style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1, fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
-              />
-            </p>
-            <p style={{ margin: '10px 0 0 0' }}><strong>● Đại diện Nhà thầu thi công:</strong></p>
-            <p style={{ margin: '0 0 0 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span>- Ông/Bà:</span>
-              <input
-                type="text"
-                value={repBName}
-                onChange={(e) => setRepBName(e.target.value)}
-                placeholder=""
-                style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1.5, fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
-              />
-              <span>Chức vụ:</span>
-              <input
-                type="text"
-                value={repBRole}
-                onChange={(e) => setRepBRole(e.target.value)}
-                placeholder=""
-                style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1, fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
-              />
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <p style={{ margin: '0 0 5px 0' }}><strong>3. Thời gian nghiệm thu:</strong></p>
-          <div style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-            <p style={{ margin: 0 }}>Bắt đầu: {acceptanceDate}</p>
-            <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span>Kết thúc:</span>
-              <input
-                type="text"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                placeholder=""
-                style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1, maxWidth: '400px', fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
-              />
-            </p>
-            <p style={{ margin: 0 }}>Tại công trình: {project.address}</p>
-          </div>
-        </div>
-
-        <div>
-          <p style={{ margin: '0 0 10px 0' }}><strong>4. Đánh giá công việc xây dựng đã thực hiện:</strong></p>
-          <div data-color-mode="light" style={{ paddingLeft: '20px' }}>
-            <MDEditor.Markdown
-              source={reportContent}
-              style={{ padding: 0, fontSize: '14pt', fontFamily: '"Times New Roman", Times, serif', backgroundColor: 'transparent', color: '#000000' }}
-            />
-          </div>
-        </div>
-
-        <div>
-          <p style={{ margin: '0 0 10px 0' }}><strong>5. Kết luận:</strong></p>
-          <div style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <input
-              type="text"
-              value={conclusion1}
-              onChange={(e) => setConclusion1(e.target.value)}
-              placeholder=""
-              style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', width: '100%', fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
-            />
-            <input
-              type="text"
-              value={conclusion2}
-              onChange={(e) => setConclusion2(e.target.value)}
-              placeholder=""
-              style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', width: '100%', fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
-            />
-          </div>
+        <div data-color-mode="light">
+          <MDEditor.Markdown
+            source={reportContent}
+            style={{ padding: 0, fontSize: '14pt', fontFamily: '"Times New Roman", Times, serif', backgroundColor: 'transparent', color: '#000000' }}
+          />
         </div>
       </div>
 
@@ -169,22 +77,12 @@ export const AcceptanceDocument: React.FC<AcceptanceDocumentProps> = ({
           <span style={{ fontStyle: 'italic', display: 'block', marginTop: '5px' }}>
             (Ký, ghi rõ họ tên)
           </span>
-          <br /><br /><br /><br />
-          <strong style={{ display: 'block' }}>{creatorName}</strong>
         </div>
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
           <strong style={{ display: 'block', textTransform: 'uppercase' }}>ĐẠI DIỆN NHÀ THẦU THI CÔNG</strong>
           <span style={{ fontStyle: 'italic', display: 'block', marginTop: '5px' }}>
             (Ký, đóng dấu, ghi rõ họ tên)
           </span>
-          <br /><br /><br />
-          <input
-            type="text"
-            value={repBName}
-            onChange={(e) => setRepBName(e.target.value)}
-            placeholder=""
-            style={{ border: 'none', outline: 'none', textAlign: 'center', width: '80%', fontWeight: 'bold', fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
-          />
         </div>
       </div>
 

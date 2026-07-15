@@ -269,7 +269,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/phases/:phaseId/acceptance" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseAcceptance />
                   </ProtectedRoute>
                 } 
@@ -388,7 +388,7 @@ function App() {
               <Route
                 path="/phase-acceptances"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'director']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseAcceptances />
                   </ProtectedRoute>
                 }
