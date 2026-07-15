@@ -29,8 +29,10 @@ public class GetProcurementReportQueryHandler
             .Include(p => p.Items)
             .Include(p => p.Request).ThenInclude(r => r!.Phase)
             .Where(p =>
-                (p.ProjectId == request.ProjectId) ||
-                (p.Request != null && p.Request.Phase!.ProjectId == request.ProjectId))
+                ((p.ProjectId == request.ProjectId) ||
+                 (p.Request != null && p.Request.Phase!.ProjectId == request.ProjectId))
+                && p.RequestId != null // Exclude POs auto-generated from Direct Purchases
+                && p.Status != "Draft" && p.Status != "Cancelled") // Only active POs
             .OrderByDescending(p => p.OrderDate)
             .ToListAsync(cancellationToken);
 
@@ -39,7 +41,7 @@ public class GetProcurementReportQueryHandler
             .Query()
             .Include(d => d.Requester)
             .Include(d => d.Items)
-            .Where(d => d.ProjectId == request.ProjectId)
+            .Where(d => d.ProjectId == request.ProjectId && d.Status == "Approved") // Only approved direct purchases
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync(cancellationToken);
 
