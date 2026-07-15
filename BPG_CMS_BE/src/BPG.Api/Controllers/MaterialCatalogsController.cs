@@ -1,11 +1,11 @@
 using BPG.Application.Features.MaterialCatalogs.Commands;
-using BPG.Application.Features.MaterialCatalogs.DTOs;
+using BPG.Application.DTOs.MaterialCatalogs;
 using BPG.Application.Features.MaterialCatalogs.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BPG.Application.Features.MaterialConversions.Queries;
 using BPG.Application.Features.MaterialConversions.Commands;
-using BPG.Application.Features.MaterialConversions.DTOs;
+using BPG.Application.DTOs.MaterialConversions;
 namespace BPG.Api.Controllers;
 
 [Authorize]

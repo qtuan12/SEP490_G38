@@ -1,7 +1,7 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using BPG.Application.Common.Models;
-using BPG.Application.Features.Units.DTOs;
+using BPG.Application.DTOs.Units;
 using BPG.Application.Features.Units.Queries;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;

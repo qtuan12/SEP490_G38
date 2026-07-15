@@ -2,7 +2,7 @@ using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
-using BPG.Application.Features.MaterialCategories.DTOs;
+using BPG.Application.DTOs.MaterialCategories;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;

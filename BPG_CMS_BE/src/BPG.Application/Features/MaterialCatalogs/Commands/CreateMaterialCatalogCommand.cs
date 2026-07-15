@@ -1,4 +1,4 @@
-using BPG.Application.Features.MaterialCatalogs.DTOs;
+using BPG.Application.DTOs.MaterialCatalogs;
 using FluentValidation;
 using MediatR;
 

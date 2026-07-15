@@ -1,6 +1,6 @@
 using BPG.Application.Common.Models;
 
-namespace BPG.Application.Features.MaterialCategories.DTOs;
+namespace BPG.Application.DTOs.MaterialCategories;
 
 public class MaterialCategoryDto
 {

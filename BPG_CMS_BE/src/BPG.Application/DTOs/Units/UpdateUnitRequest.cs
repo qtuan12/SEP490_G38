@@ -1,10 +1,7 @@
-using System;
+namespace BPG.Application.DTOs.Units;
 
-namespace BPG.Application.Features.Units.DTOs;
-
-public class UnitDto
+public class UpdateUnitRequest
 {
-    public int UnitId { get; set; }
     public string UnitCode { get; set; } = string.Empty;
     public string UnitName { get; set; } = string.Empty;
     public bool IsDiscrete { get; set; }
