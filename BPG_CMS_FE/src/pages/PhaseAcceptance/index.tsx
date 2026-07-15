@@ -265,6 +265,7 @@ export const PhaseAcceptance: React.FC = () => {
           ) : (
             <AcceptanceForm 
               phase={phase!} 
+              project={project}
               allCompleted={allCompleted} 
               onSuccess={(msg) => { setSuccess(msg); setTimeout(() => setSuccess(null), 4000); }} 
               onError={(msg) => setError(msg)} 

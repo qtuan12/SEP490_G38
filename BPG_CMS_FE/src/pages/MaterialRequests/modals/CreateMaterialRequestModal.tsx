@@ -229,7 +229,6 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
       const msg = variables.type === 'emergency'
         ? 'Đã lập phiếu mua ngoài khẩn cấp! Hệ thống tự động sinh PO & Phiếu nhập kho, tăng tồn kho ảo tức thì.'
         : (isOverBOQ ? 'Đã gửi yêu cầu vật tư VƯỢT ĐỊNH MỨC (Chờ Giám đốc).' : 'Đã gửi yêu cầu vật tư (Chờ Kế toán).');
-      toast.success(msg);
       onSuccess(msg);
       queryClient.invalidateQueries({ queryKey: ['materialRequests'] });
       onClose();
