@@ -1,9 +1,10 @@
-using BPG.Application.Features.Units.DTOs;
+using BPG.Application.DTOs.Units;
 using MediatR;
 
 namespace BPG.Application.Features.Units.Commands;
 
 public record CreateUnitCommand(
     string UnitCode,
-    string UnitName
+    string UnitName,
+    bool IsDiscrete
 ) : IRequest<UnitDto>;

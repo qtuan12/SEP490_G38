@@ -1,4 +1,4 @@
-namespace BPG.Application.Features.PhaseAcceptances.DTOs;
+namespace BPG.Application.DTOs.PhaseAcceptances;
 
 public class CancelAcceptanceRequest
 {

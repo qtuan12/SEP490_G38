@@ -81,7 +81,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                              ri.Request.Status != MaterialRequestStatus.Cancelled &&
                              !ri.Request.IsDeleted)
                 .GroupBy(ri => ri.MaterialId)
-                .Select(g => new { MaterialId = g.Key, TotalBase = g.Sum(ri => ri.Quantity * ri.ConversionRate) })
+                .Select(g => new { MaterialId = g.Key, TotalBase = g.Sum(ri => ri.Quantity / (ri.ConversionRate == 0 ? 1m : ri.ConversionRate)) })
                 .ToListAsync(ct);
 
             var dpConsumedMap = await _uow.Repository<DirectPurchaseItem>().Query()
@@ -90,7 +90,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                              di.DirectPurchaseRequest.Status != DirectPurchaseStatus.Rejected &&
                              !di.DirectPurchaseRequest.IsDeleted)
                 .GroupBy(di => di.MaterialId)
-                .Select(g => new { MaterialId = g.Key, TotalBase = g.Sum(di => di.Quantity * di.ConversionRate) })
+                .Select(g => new { MaterialId = g.Key, TotalBase = g.Sum(di => di.Quantity / (di.ConversionRate == 0 ? 1m : di.ConversionRate)) })
                 .ToListAsync(ct);
 
             var mrMap = mrConsumedMap.ToDictionary(x => x.MaterialId, x => x.TotalBase);
@@ -99,14 +99,14 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             foreach (var item in request.Items)
             {
                 var boq = boqItems.First(b => b.MaterialId == item.MaterialId);
-                decimal boqLimitInBase = boq.Quantity * boq.ConversionRate;
+                decimal boqLimitInBase = boq.Quantity / (boq.ConversionRate == 0 ? 1m : boq.ConversionRate);
                 decimal consumedInBase = (mrMap.TryGetValue(item.MaterialId, out var mr) ? mr : 0)
                                        + (dpMap.TryGetValue(item.MaterialId, out var dp) ? dp : 0);
-                decimal newQtyInBase = item.Quantity * boq.ConversionRate;
+                decimal newQtyInBase = item.Quantity / (boq.ConversionRate == 0 ? 1m : boq.ConversionRate);
 
                 if (consumedInBase + newQtyInBase > boqLimitInBase)
                 {
-                    decimal remainingInUnit = (boqLimitInBase - consumedInBase) / boq.ConversionRate;
+                    decimal remainingInUnit = (boqLimitInBase - consumedInBase) * (boq.ConversionRate == 0 ? 1m : boq.ConversionRate);
                     throw new BusinessException("EXCEEDS_BOQ",
                         $"Vật tư '{boq.Material?.Name ?? item.MaterialId.ToString()}' vượt định mức BOQ. " +
                         $"Số lượng còn được phép mua: {Math.Max(0, remainingInUnit):0.###} {boq.Unit?.UnitName}. " +

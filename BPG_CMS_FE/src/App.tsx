@@ -23,7 +23,6 @@ import { MaterialManagement } from './pages/MasterData/Materials';
 import { GanttChart } from './pages/GanttChart';
 import { ProjectDrawing } from './pages/ProjectDrawing';
 import { ProjectDailyLogs } from './pages/ProjectDailyLogs';
-import { PhaseMaterialRequests } from './pages/MaterialRequests';
 import { NotificationProvider } from './context/NotificationContext';
 import { NotificationsList } from './pages/Notifications';
 import { InventoryAdjustmentsPage } from './pages/InventoryAdjustments';
@@ -256,14 +255,7 @@ function App() {
                 } 
               />
 
-              <Route 
-                path="/projects/:projectId/phases/:phaseId/material-requests" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <PhaseMaterialRequests />
-                  </ProtectedRoute>
-                } 
-              />
+
 
               <Route 
                 path="/projects/:projectId/phases/:phaseId/boq" 
@@ -277,7 +269,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/phases/:phaseId/acceptance" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseAcceptance />
                   </ProtectedRoute>
                 } 
@@ -396,7 +388,7 @@ function App() {
               <Route
                 path="/phase-acceptances"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'director']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseAcceptances />
                   </ProtectedRoute>
                 }

@@ -1,4 +1,4 @@
-namespace BPG.Application.Features.MaterialConversions.DTOs;
+namespace BPG.Application.DTOs.MaterialConversions;
 
 public class MaterialConversionRequest
 {

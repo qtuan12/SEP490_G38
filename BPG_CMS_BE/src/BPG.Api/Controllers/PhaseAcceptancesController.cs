@@ -39,7 +39,7 @@ public class PhaseAcceptancesController : BaseApiController
     /// [TPKT] Hủy nghiệm thu (Trong vòng 7 ngày, bắt buộc lý do)
     /// </summary>
     [HttpPut("{id}/cancel")]
-    public async Task<IActionResult> CancelAcceptance(long id, [FromBody] BPG.Application.Features.PhaseAcceptances.DTOs.CancelAcceptanceRequest request, CancellationToken ct)
+    public async Task<IActionResult> CancelAcceptance(long id, [FromBody] BPG.Application.DTOs.PhaseAcceptances.CancelAcceptanceRequest request, CancellationToken ct)
     {
         var command = new BPG.Application.Features.PhaseAcceptances.Commands.CancelAcceptance.CancelAcceptanceCommand(id, request.CancellationReason);
         await Mediator.Send(command, ct);

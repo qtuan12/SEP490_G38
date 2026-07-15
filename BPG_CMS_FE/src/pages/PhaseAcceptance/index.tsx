@@ -99,7 +99,7 @@ export const PhaseAcceptance: React.FC = () => {
 
   // Realtime notification via SignalR
   useSignalREvent('ReceiveNotification', (noti: any) => {
-    if (noti?.referenceType === 'PhaseAcceptance' || noti?.referenceType === 'Project') {
+    if (noti?.referenceType === 'PhaseAcceptance' || noti?.referenceType === 'Project' || noti?.referenceType?.includes('/acceptance') || noti?.referenceType?.includes('/phases')) {
       loadData();
       toast('Thông tin nghiệm thu giai đoạn vừa được cập nhật!', { icon: '📝' });
     }
@@ -265,6 +265,7 @@ export const PhaseAcceptance: React.FC = () => {
           ) : (
             <AcceptanceForm 
               phase={phase!} 
+              project={project}
               allCompleted={allCompleted} 
               onSuccess={(msg) => { setSuccess(msg); setTimeout(() => setSuccess(null), 4000); }} 
               onError={(msg) => setError(msg)} 

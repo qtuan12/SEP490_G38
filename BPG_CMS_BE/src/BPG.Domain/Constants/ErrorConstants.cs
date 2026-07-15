@@ -25,6 +25,7 @@ public static class ErrorCodes
     public const string InvalidTransition = "BIZ_005";           // Chuyển trạng thái không hợp lệ
     public const string AlreadyApproved = "BIZ_006";             // Phiếu đã duyệt, không sửa được
     public const string StockFrozen = "BIZ_007";                 // Kho đang bị đóng băng (surplus pending)
+    public const string InvalidUnitQuantity = "BIZ_008";         // Số lượng không hợp lệ đối với ĐVT rời rạc
 
     // ==================== SYSTEM ====================
     public const string UploadFailed = "SYS_001";

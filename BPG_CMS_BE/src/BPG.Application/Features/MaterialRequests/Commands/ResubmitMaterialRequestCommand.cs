@@ -104,7 +104,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                     conversionRate = conversion.ConversionRate;
                 }
 
-                decimal qtyInBase = item.Quantity * conversionRate;
+                decimal qtyInBase = item.Quantity / (conversionRate == 0 ? 1m : conversionRate);
 
                 var boq = await _uow.Repository<BOQItem>().Query()
                     .FirstOrDefaultAsync(b => b.PhaseId == mr.Phase.PhaseId && b.MaterialId == material.MaterialId && !b.IsDeleted, cancellationToken);
@@ -117,7 +117,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 }
                 else
                 {
-                    decimal boqLimitInBase = boq.Quantity * boq.ConversionRate;
+                    decimal boqLimitInBase = boq.Quantity / (boq.ConversionRate == 0 ? 1m : boq.ConversionRate);
 
                     // Tính lũy kế số lượng đã yêu cầu ở các phiếu KHÁC (không tính phiếu đang resubmit này)
                     var totalRequestedBeforeInBase = await _uow.Repository<MaterialRequestItem>().Query()
@@ -127,7 +127,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                                      ri.Request.Status != MaterialRequestStatus.Rejected &&
                                      ri.Request.Status != MaterialRequestStatus.Cancelled &&
                                      !ri.Request.IsDeleted)
-                        .SumAsync(ri => ri.Quantity * ri.ConversionRate, cancellationToken);
+                        .SumAsync(ri => ri.Quantity / (ri.ConversionRate == 0 ? 1m : ri.ConversionRate), cancellationToken);
 
                     if (totalRequestedBeforeInBase + qtyInBase > boqLimitInBase)
                     {

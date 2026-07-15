@@ -34,7 +34,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             // 1. Load and validate the linked request
             var linkedRequest = await _uow.Repository<MaterialRequest>().Query()
                 .AsNoTracking()
-                .Include(r => r.Items).ThenInclude(i => i.Material)
+                .Include(r => r.Items).ThenInclude(i => i.Material).ThenInclude(m => m!.BaseUnit)
                 .Include(r => r.Phase)
                 .FirstOrDefaultAsync(r => r.RequestId == request.RequestId, cancellationToken)
                 ?? throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
@@ -125,6 +125,14 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                         $"Vật tư '{materialNames[item.MaterialId]}' vượt số lượng yêu cầu. " +
                         $"Đã yêu cầu {requestedQty}, đã đặt {alreadyOrdered} qua các đơn hàng trước, " +
                         $"chỉ còn được đặt tối đa {(remaining < 0 ? 0 : remaining)}.");
+
+                var reqItem = linkedRequest.Items.FirstOrDefault(ri => ri.MaterialId == item.MaterialId);
+                var material = reqItem?.Material;
+                if (material?.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng đặt hàng phải là số nguyên.");
+                }
             }
 
             // 3. Auto-generate or validate PONumber

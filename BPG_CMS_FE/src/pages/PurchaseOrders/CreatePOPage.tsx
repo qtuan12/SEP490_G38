@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { supplierService } from '../../services/supplierService';
@@ -7,6 +7,7 @@ import { projectService } from '../../services/projectService';
 import { Button, Input, Select } from '../../components/ui';
 import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { isDiscreteUnit } from '../../utils/unitHelpers';
 
 interface POItem {
   materialId: number;
@@ -30,10 +31,23 @@ const label: React.CSSProperties = {
 
 export const CreatePOPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryProjectId = searchParams.get('projectId');
+  const queryRequestId = searchParams.get('requestId');
 
   // Header state
   const [projectId, setProjectId] = useState(0);
   const [selectedRequestId, setSelectedRequestId] = useState(0);
+
+  // Tự động chọn Dự án nếu được truyền từ Tab Yêu cầu vật tư
+  useEffect(() => {
+    if (queryProjectId) {
+      const pId = Number(queryProjectId);
+      if (pId > 0 && pId !== projectId) {
+        setProjectId(pId);
+      }
+    }
+  }, [queryProjectId]);
   const [orderDate, setOrderDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [supplierId, setSupplierId] = useState(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -65,6 +79,17 @@ export const CreatePOPage: React.FC = () => {
   // useMemo giữ stable reference khi data là undefined (query bị disable)
   // tránh [] mới mỗi render gây infinite re-render loop trong useEffect bên dưới
   const approvedRequests = useMemo(() => approvedRequestsData ?? [], [approvedRequestsData]);
+
+  // Tự động chọn Phiếu yêu cầu sau khi danh sách yêu cầu được tải
+  useEffect(() => {
+    if (queryRequestId && approvedRequests.length > 0 && !selectedRequestId) {
+      const rId = Number(queryRequestId);
+      const exists = approvedRequests.some(r => r.requestId === rId);
+      if (exists) {
+        setSelectedRequestId(rId);
+      }
+    }
+  }, [queryRequestId, approvedRequests, selectedRequestId]);
 
   // Load items when the selected request changes
   useEffect(() => {
@@ -159,6 +184,9 @@ export const CreatePOPage: React.FC = () => {
       if (it.quantity <= 0) return setFormError(`Số lượng "${it.materialName}" phải lớn hơn 0.`);
       if (it.quantity > it.maxQuantity)
         return setFormError(`Số lượng "${it.materialName}" vượt quá số lượng yêu cầu (${it.maxQuantity}).`);
+      if (isDiscreteUnit(it.unitName) && it.quantity % 1 !== 0) {
+        return setFormError(`Đơn vị tính '${it.unitName}' của vật tư "${it.materialName}" yêu cầu số lượng phải là số nguyên.`);
+      }
     }
     mutation.mutate();
   };
@@ -374,7 +402,10 @@ export const CreatePOPage: React.FC = () => {
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-secondary))' }}>{it.unitName}</td>
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-muted))' }}>{it.maxQuantity}</td>
                     <td style={{ padding: '8px 10px' }}>
-                      <Input type="number" min={0.001} max={it.maxQuantity} step={0.001}
+                      <Input type="number" 
+                        min={isDiscreteUnit(it.unitName) ? 1 : 0.001} 
+                        max={it.maxQuantity} 
+                        step={isDiscreteUnit(it.unitName) ? 1 : 0.001}
                         value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))}
                         className="h-8" style={{ width: 110 }} />
                     </td>

@@ -6,6 +6,7 @@ import { projectService } from '../../../services/projectService';
 import type { CurrentInventory } from '../../../types/inventory';
 import type { IncidentReport } from '../../../types/common';
 import { incidentService } from '../../../services/incidentService';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
 interface Props {
   isOpen: boolean;
@@ -16,7 +17,7 @@ interface Props {
   incident?: IncidentReport; // Optional incident to link
 }
 
-export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, projectId, incident }) => {
+export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId, incident }) => {
   const [loading, setLoading] = useState(false);
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
   const [phases, setPhases] = useState<any[]>([]);
@@ -25,12 +26,14 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   const [description, setDescription] = useState('');
   const [phaseId, setPhaseId] = useState<number | ''>('');
   const [items, setItems] = useState<{ materialId: number; quantity: number }[]>([]);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('');
   const [selectedQuantity, setSelectedQuantity] = useState<number | ''>('');
 
   useEffect(() => {
     if (isOpen) {
+      setLocalError(null);
       loadData();
       if (incident) {
         setReason('Xử lý sự cố');
@@ -119,16 +122,22 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
     // Check if already exists
     if (items.some(x => x.materialId === Number(selectedMaterialId))) {
-      if (onError) onError('Vật tư này đã được chọn.');
+      setLocalError('Vật tư này đã được chọn.');
       return;
     }
 
     const currentInv = inventoryList.find(x => x.materialId === Number(selectedMaterialId));
     if (!currentInv || currentInv.quantity < Number(selectedQuantity)) {
-      alert('Số lượng giảm không được vượt quá số lượng tồn kho hiện tại.');
+      setLocalError('Số lượng giảm không được vượt quá số lượng tồn kho hiện tại.');
       return;
     }
 
+    if (currentInv && isDiscreteUnit(currentInv.unitName) && Number(selectedQuantity) % 1 !== 0) {
+      setLocalError(`Đơn vị '${currentInv.unitName}' yêu cầu số lượng phải là số nguyên.`);
+      return;
+    }
+
+    setLocalError(null);
     setItems([...items, { materialId: Number(selectedMaterialId), quantity: Number(selectedQuantity) }]);
     setSelectedMaterialId('');
     setSelectedQuantity('');
@@ -141,15 +150,16 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phaseId) {
-      if (onError) onError('Vui lòng chọn Giai đoạn (Phase).');
+      setLocalError('Vui lòng chọn Giai đoạn (Phase).');
       return;
     }
     if (items.length === 0) {
-      if (onError) onError('Vui lòng thêm ít nhất 1 vật tư.');
+      setLocalError('Vui lòng thêm ít nhất 1 vật tư.');
       return;
     }
 
     setLoading(true);
+    setLocalError(null);
     try {
       let originalIncidentDesc = incident ? incident.description : '';
       if (incident && incident.images && incident.images.length > 0) {
@@ -177,7 +187,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
       onSuccess();
     } catch (err: any) {
-      if (onError) onError(err.message || 'Lỗi khi tạo phiếu giảm tồn.');
+      setLocalError(err.message || 'Lỗi khi tạo phiếu giảm tồn.');
     } finally {
       setLoading(false);
     }
@@ -186,6 +196,12 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Tạo Phiếu Giảm Tồn Kho (Theo Giai đoạn)" width="lg">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {localError && (
+          <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg animate-fade-in">
+            {localError}
+          </div>
+        )}
+
         <FormItem label="Lý do điều chỉnh (*)">
           <input
             type="text"
@@ -316,8 +332,14 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                 <FormItem label="Số lượng giảm">
                   <input
                     type="number"
-                    min="0.01"
-                    step="0.01"
+                    min={(() => {
+                      const sel = inventoryList.find(x => x.materialId === Number(selectedMaterialId));
+                      return sel && isDiscreteUnit(sel.unitName) ? "1" : "0.01";
+                    })()}
+                    step={(() => {
+                      const sel = inventoryList.find(x => x.materialId === Number(selectedMaterialId));
+                      return sel && isDiscreteUnit(sel.unitName) ? "1" : "any";
+                    })()}
                     className="w-full px-3 py-2 border rounded-lg"
                     value={selectedQuantity}
                     onChange={e => setSelectedQuantity(Number(e.target.value))}

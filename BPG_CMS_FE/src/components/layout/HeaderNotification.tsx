@@ -33,6 +33,9 @@ const resolveNotificationUrl = (noti: any): string | null => {
 
       return `/projects/${projectId}?tab=${tab}`;
     }
+    if (referenceType.includes('/acceptance') && referenceId) {
+      return `${referenceType}?historyId=${referenceId}`;
+    }
     return referenceType;
   }
   return null;

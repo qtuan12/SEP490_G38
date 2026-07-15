@@ -3,6 +3,7 @@ import { Modal, Button, FormItem } from '../../../components/ui';
 import { inventoryAdjustmentService } from '../../../services/inventoryAdjustmentService';
 import { masterDataService } from '../../../services/masterDataService';
 import type { MaterialCatalog } from '../../../types/masterData';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
 interface Props {
   isOpen: boolean;
@@ -12,19 +13,21 @@ interface Props {
   projectId: number;
 }
 
-export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, projectId }) => {
+export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId }) => {
   const [loading, setLoading] = useState(false);
   const [materials, setMaterials] = useState<MaterialCatalog[]>([]);
   
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
   const [items, setItems] = useState<{ materialId: number; quantity: number }[]>([]);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('');
   const [selectedQuantity, setSelectedQuantity] = useState<number | ''>('');
 
   useEffect(() => {
     if (isOpen) {
+      setLocalError(null);
       loadMaterials();
     }
   }, [isOpen]);
@@ -39,14 +42,21 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   };
 
   const handleAddItem = () => {
-    if (!selectedMaterialId || !selectedQuantity || selectedQuantity <= 0) return;
+    if (!selectedMaterialId || !selectedQuantity || Number(selectedQuantity) <= 0) return;
     
     // Check if already exists
     if (items.some(x => x.materialId === Number(selectedMaterialId))) {
-      if (onError) onError('Vật tư này đã được chọn.');
+      setLocalError('Vật tư này đã được chọn.');
       return;
     }
 
+    const selectedMaterial = materials.find(x => x.materialId === Number(selectedMaterialId));
+    if (selectedMaterial && isDiscreteUnit(selectedMaterial.baseUnitName) && Number(selectedQuantity) % 1 !== 0) {
+      setLocalError(`Đơn vị '${selectedMaterial.baseUnitName}' yêu cầu số lượng phải là số nguyên.`);
+      return;
+    }
+
+    setLocalError(null);
     setItems([...items, { materialId: Number(selectedMaterialId), quantity: Number(selectedQuantity) }]);
     setSelectedMaterialId('');
     setSelectedQuantity('');
@@ -59,11 +69,12 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) {
-      if (onError) onError('Vui lòng thêm ít nhất 1 vật tư.');
+      setLocalError('Vui lòng thêm ít nhất 1 vật tư.');
       return;
     }
 
     setLoading(true);
+    setLocalError(null);
     try {
       await inventoryAdjustmentService.createIncrease(projectId, {
         reason,
@@ -72,7 +83,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       });
       onSuccess();
     } catch (err: any) {
-      if (onError) onError(err.message || 'Lỗi khi tạo phiếu tăng tồn.');
+      setLocalError(err.message || 'Lỗi khi tạo phiếu tăng tồn.');
     } finally {
       setLoading(false);
     }
@@ -81,6 +92,12 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Tạo Phiếu Tăng Tồn Kho (Auto Duyệt)" width="lg">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {localError && (
+          <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg animate-fade-in">
+            {localError}
+          </div>
+        )}
+
         <FormItem label="Lý do điều chỉnh (*)">
           <input 
             type="text" 
@@ -113,7 +130,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                 >
                   <option value="">-- Chọn vật tư --</option>
                   {materials.map(m => (
-                    <option key={m.materialId} value={m.materialId}>{m.code} - {m.name}</option>
+                    <option key={m.materialId} value={m.materialId}>{m.code} - {m.name} ({m.baseUnitName})</option>
                   ))}
                 </select>
               </FormItem>
@@ -122,8 +139,14 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
               <FormItem label="Số lượng tăng">
                 <input 
                   type="number" 
-                  min="0.01" 
-                  step="0.01" 
+                  min={(() => {
+                    const sel = materials.find(m => m.materialId === Number(selectedMaterialId));
+                    return sel && isDiscreteUnit(sel.baseUnitName) ? "1" : "0.01";
+                  })()} 
+                  step={(() => {
+                    const sel = materials.find(m => m.materialId === Number(selectedMaterialId));
+                    return sel && isDiscreteUnit(sel.baseUnitName) ? "1" : "any";
+                  })()} 
                   className="w-full px-3 py-2 border rounded-lg"
                   value={selectedQuantity}
                   onChange={e => setSelectedQuantity(Number(e.target.value))}

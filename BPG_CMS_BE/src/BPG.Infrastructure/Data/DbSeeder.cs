@@ -122,16 +122,16 @@ public static class DbSeeder
         {
             units = new List<Unit>
             {
-                new() { UnitCode = "BAO",   UnitName = "Bao (50kg)" },
-                new() { UnitCode = "KG",    UnitName = "Kilôgam" },
-                new() { UnitCode = "TAN",   UnitName = "Tấn" },
-                new() { UnitCode = "M3",    UnitName = "Mét khối" },
-                new() { UnitCode = "M2",    UnitName = "Mét vuông" },
-                new() { UnitCode = "MET",   UnitName = "Mét dài" },
-                new() { UnitCode = "CAI",   UnitName = "Cái" },
-                new() { UnitCode = "BO",    UnitName = "Bộ" },
-                new() { UnitCode = "CUON",  UnitName = "Cuộn" },
-                new() { UnitCode = "THUNG", UnitName = "Thùng" },
+                new() { UnitCode = "BAO",   UnitName = "Bao (50kg)", IsDiscrete = true },
+                new() { UnitCode = "KG",    UnitName = "Kilôgam", IsDiscrete = false },
+                new() { UnitCode = "TAN",   UnitName = "Tấn", IsDiscrete = false },
+                new() { UnitCode = "M3",    UnitName = "Mét khối", IsDiscrete = false },
+                new() { UnitCode = "M2",    UnitName = "Mét vuông", IsDiscrete = false },
+                new() { UnitCode = "MET",   UnitName = "Mét dài", IsDiscrete = false },
+                new() { UnitCode = "CAI",   UnitName = "Cái", IsDiscrete = true },
+                new() { UnitCode = "BO",    UnitName = "Bộ", IsDiscrete = true },
+                new() { UnitCode = "CUON",  UnitName = "Cuộn", IsDiscrete = true },
+                new() { UnitCode = "THUNG", UnitName = "Thùng", IsDiscrete = true },
             };
             context.Units.AddRange(units);
             await context.SaveChangesAsync();
