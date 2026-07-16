@@ -100,7 +100,7 @@ export interface IncidentReport {
   reviewerName?: string;
   incidentType: 'Construction' | 'InventoryLoss' | 'InventoryDamage' | 'Delay' | 'Safety' | 'Other';
   description: string;
-  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'WaitingDirector' | 'Approved' | 'Rejected' | 'Closed';
+  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'WaitingDirector' | 'Approved' | 'Rejected' | 'Closed' | 'WaitingStopApproval' | 'WaitingRecoveryPlan' | 'WaitingDirectorApproval';
   damageDescription?: string;
   estimatedMaterialLoss?: number;
   estimatedLaborDays?: number;
@@ -108,6 +108,10 @@ export interface IncidentReport {
   proposedAction?: string;
   handlingInstruction?: string;
   reworkTaskId?: string;
+
+  isEmergency?: boolean;
+  recoveryPlanText?: string;
+  recoveryEstimateCost?: number;
 
   // Custom fields for frontend
   date: string;
@@ -139,6 +143,7 @@ export interface MaterialRequest {
   date: string;
   approvedBy?: string;
   rejectionReason?: string;
+  createdBy?: number;
 }
 
 

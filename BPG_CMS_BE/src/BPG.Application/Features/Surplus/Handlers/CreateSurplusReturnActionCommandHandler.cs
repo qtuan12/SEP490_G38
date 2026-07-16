@@ -37,11 +37,15 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
         var item = await _uow.Repository<SurplusRequestItem>().Query()
             .Include(i => i.SurplusRequest)
                 .ThenInclude(sr => sr.Project)
+            .Include(i => i.Unit)
             .FirstOrDefaultAsync(i => i.SurplusRequestItemId == request.SurplusRequestItemId, ct)
             ?? throw new NotFoundException(nameof(SurplusRequestItem), request.SurplusRequestItemId);
 
         if (item.SurplusRequest.Status == SurplusRequestStatus.Processed)
             throw new BusinessException(ErrorCodes.AlreadyApproved, "Batch đã hoàn tất, không thể thêm action mới.");
+
+        if (item.Unit != null && item.Unit.IsDiscrete && request.ReturnQuantity % 1 != 0)
+            throw new BusinessException(ErrorCodes.InvalidUnitQuantity, $"Đơn vị tính '{item.Unit.UnitName}' yêu cầu số lượng phải là số nguyên.");
 
         if (request.ReturnQuantity > (item.Quantity - item.ProcessedQuantity))
             throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng trả ({request.ReturnQuantity}) vượt quá số lượng còn lại ({item.Quantity - item.ProcessedQuantity}).");

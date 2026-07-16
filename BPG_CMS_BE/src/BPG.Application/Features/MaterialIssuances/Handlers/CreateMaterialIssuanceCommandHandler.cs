@@ -101,6 +101,12 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                         $"Vật tư ID {item.MaterialId} không tồn tại trong kho của dự án.");
                 }
 
+                if (inv.Material.BaseUnit != null && inv.Material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Đơn vị tính '{inv.Material.BaseUnit.UnitName}' của vật tư [{inv.Material.Name}] yêu cầu số lượng xuất phải là số nguyên.");
+                }
+
                 // Chuyển đổi số lượng xuất ra đơn vị cơ bản
                 decimal conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1;
                 decimal requiredBaseQty = item.Quantity / conversionRate;

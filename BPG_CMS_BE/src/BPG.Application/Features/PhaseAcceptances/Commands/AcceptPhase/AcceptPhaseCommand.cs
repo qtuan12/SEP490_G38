@@ -133,7 +133,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
                 "Nghiệm thu hoàn thành giai đoạn",
                 $"Giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' đã được nghiệm thu và hoàn thành.",
                 NotificationType.Progress,
-                NotificationReferenceType.PhaseAcceptance,
+                $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/acceptance",
                 acceptance.AcceptanceId,
                 ct);
 
@@ -147,7 +147,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
                     "Nghiệm thu hoàn thành giai đoạn",
                     $"Giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' đã được nghiệm thu.",
                     NotificationType.Progress,
-                    NotificationReferenceType.PhaseAcceptance,
+                    $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/acceptance",
                     acceptance.AcceptanceId,
                     ct);
             }

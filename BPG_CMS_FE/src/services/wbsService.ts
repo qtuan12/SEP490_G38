@@ -79,7 +79,10 @@ export const wbsService = {
             assignedTo: (taskDto as any).assignedTo || undefined,
             assignedName: (taskDto as any).assignedName || undefined,
             weight: taskDto.weight !== undefined ? taskDto.weight : undefined,
-            predecessorTaskIds: taskDto.predecessorTaskIds || undefined
+            predecessorTaskIds: taskDto.predecessorTaskIds || undefined,
+            isOutsourced: taskDto.isOutsourced || false,
+            outsourcedTeamName: taskDto.outsourcedTeamName || undefined,
+            outsourcedTeamContact: taskDto.outsourcedTeamContact || undefined
           });
 
           if (taskDto.subTasks && taskDto.subTasks.length > 0) {
@@ -135,6 +138,9 @@ export const wbsService = {
   },
   markTaskObsolete: async (taskId: number, data: { taskId: number, obsoleteReason: string }): Promise<void> => {
     await apiClient.put(`/tasks/${taskId}/obsolete`, data);
+  },
+  restoreTask: async (taskId: number): Promise<void> => {
+    await apiClient.put(`/tasks/${taskId}/restore`);
   },
   addTaskDependency: async (taskId: number, predecessorTaskId: number): Promise<void> => {
     await apiClient.request(`/tasks/${taskId}/dependencies/${predecessorTaskId}`, { method: 'POST' });

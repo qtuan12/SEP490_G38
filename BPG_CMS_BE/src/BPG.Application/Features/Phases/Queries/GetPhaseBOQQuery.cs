@@ -3,25 +3,11 @@ using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.DTOs.Phases;
 
 namespace BPG.Application.Features.Phases.Queries
 {
     public record GetPhaseBOQQuery(long PhaseId) : IRequest<List<PhaseBOQItemDto>>;
-
-    public class PhaseBOQItemDto
-    {
-        public long BOQItemId { get; set; }
-        public long MaterialId { get; set; }
-        public string MaterialCode { get; set; } = string.Empty;
-        public string MaterialName { get; set; } = string.Empty;
-        public string? MaterialSpec { get; set; }
-        public int UnitId { get; set; }
-        public string UnitName { get; set; } = string.Empty;
-        public decimal BOQQuantity { get; set; }
-        public decimal ConversionRate { get; set; }
-        public decimal AlreadyConsumed { get; set; }
-        public decimal RemainingQuantity { get; set; }
-    }
 
     public class GetPhaseBOQQueryHandler : IRequestHandler<GetPhaseBOQQuery, List<PhaseBOQItemDto>>
     {
@@ -50,7 +36,7 @@ namespace BPG.Application.Features.Phases.Queries
                              ri.Request.Status != MaterialRequestStatus.Cancelled &&
                              !ri.Request.IsDeleted)
                 .GroupBy(ri => ri.MaterialId)
-                .Select(g => new { MaterialId = g.Key, TotalBase = g.Sum(ri => ri.Quantity * ri.ConversionRate) })
+                .Select(g => new { MaterialId = g.Key, TotalBase = g.Sum(ri => ri.Quantity / (ri.ConversionRate == 0 ? 1m : ri.ConversionRate)) })
                 .ToListAsync(ct);
 
             // Sum from existing direct purchase items (non-rejected)
@@ -60,7 +46,7 @@ namespace BPG.Application.Features.Phases.Queries
                              di.DirectPurchaseRequest.Status != DirectPurchaseStatus.Rejected &&
                              !di.DirectPurchaseRequest.IsDeleted)
                 .GroupBy(di => di.MaterialId)
-                .Select(g => new { MaterialId = g.Key, TotalBase = g.Sum(di => di.Quantity * di.ConversionRate) })
+                .Select(g => new { MaterialId = g.Key, TotalBase = g.Sum(di => di.Quantity / (di.ConversionRate == 0 ? 1m : di.ConversionRate)) })
                 .ToListAsync(ct);
 
             var mrMap = mrConsumedMap.ToDictionary(x => x.MaterialId, x => x.TotalBase);
@@ -68,15 +54,15 @@ namespace BPG.Application.Features.Phases.Queries
 
             return boqItems.Select(b =>
             {
-                decimal boqLimitInBase = b.Quantity * b.ConversionRate;
+                decimal boqLimitInBase = b.Quantity / (b.ConversionRate == 0 ? 1m : b.ConversionRate);
                 decimal consumedInBase = (mrMap.TryGetValue(b.MaterialId, out var mr) ? mr : 0)
                                        + (dpMap.TryGetValue(b.MaterialId, out var dp) ? dp : 0);
                 decimal remainingInBase = Math.Max(0, boqLimitInBase - consumedInBase);
 
                 // Convert back to BOQ unit for display
-                decimal cr = b.ConversionRate > 0 ? b.ConversionRate : 1;
-                decimal consumed = consumedInBase / cr;
-                decimal remaining = remainingInBase / cr;
+                decimal cr = b.ConversionRate == 0 ? 1m : b.ConversionRate;
+                decimal consumed = consumedInBase * cr;
+                decimal remaining = remainingInBase * cr;
 
                 return new PhaseBOQItemDto
                 {

@@ -6,6 +6,7 @@ import { projectService } from '../../../services/projectService';
 import type { CurrentInventory } from '../../../types/inventory';
 import type { IncidentReport } from '../../../types/common';
 import { incidentService } from '../../../services/incidentService';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
 interface Props {
   isOpen: boolean;
@@ -16,25 +17,27 @@ interface Props {
   incident?: IncidentReport; // Optional incident to link
 }
 
-export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, projectId, incident }) => {
+export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId, incident }) => {
   const [loading, setLoading] = useState(false);
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
   const [phases, setPhases] = useState<any[]>([]);
-  
+
   const [reason, setReason] = useState('Incident');
   const [description, setDescription] = useState('');
   const [phaseId, setPhaseId] = useState<number | ''>('');
   const [items, setItems] = useState<{ materialId: number; quantity: number }[]>([]);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('');
   const [selectedQuantity, setSelectedQuantity] = useState<number | ''>('');
 
   useEffect(() => {
     if (isOpen) {
+      setLocalError(null);
       loadData();
       if (incident) {
         setReason('Xử lý sự cố');
-        setDescription(`Phiếu giảm kho xử lý sự cố`);
+        setDescription('');
         setPhaseId(incident.phaseId ? Number(incident.phaseId) : '');
       } else {
         setReason('');
@@ -64,10 +67,10 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     parsedDesc = parsedDesc.replace(/\*\*Ngày\/Giờ phát hiện:\*\*([^\r\n]+)/g, '');
     parsedDesc = parsedDesc.replace(/\*\*Người làm chứng\/Liên đới:\*\*([^\r\n]+)/g, '');
     parsedDesc = parsedDesc.replace(/\*\*Vị trí kho\/Lô hàng:\*\*([^\r\n]+)/g, '');
-    
+
     parsedDesc = parsedDesc.replace('--- Thông tin sự cố gốc ---', '');
     parsedDesc = parsedDesc.replace(/\[System\] Liên kết sự cố #\d+/g, '');
-    parsedDesc = parsedDesc.trim();
+    parsedDesc = parsedDesc.split('\n').filter(l => !l.startsWith('![')).join('\n').trim();
   }
 
   const loadData = async () => {
@@ -90,7 +93,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
               const materialCode = parts[1];
               const qtyStr = parts[4].replace(/\*/g, ''); // remove **
               const qty = parseFloat(qtyStr);
-              
+
               if (materialCode && !isNaN(qty) && qty > 0) {
                 const invItem = invData.find((x: CurrentInventory) => x.materialCode === materialCode);
                 if (invItem) {
@@ -102,7 +105,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
             }
           }
         }
-        
+
         if (newItems.length > 0) {
           // If items is empty, populate it automatically. We check items.length to not override user choices if they re-open?
           // Actually, we should just set it since this runs on load.
@@ -116,19 +119,25 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   const handleAddItem = () => {
     if (!selectedMaterialId || !selectedQuantity || selectedQuantity <= 0) return;
-    
+
     // Check if already exists
     if (items.some(x => x.materialId === Number(selectedMaterialId))) {
-      if (onError) onError('Vật tư này đã được chọn.');
+      setLocalError('Vật tư này đã được chọn.');
       return;
     }
 
     const currentInv = inventoryList.find(x => x.materialId === Number(selectedMaterialId));
     if (!currentInv || currentInv.quantity < Number(selectedQuantity)) {
-      alert('Số lượng giảm không được vượt quá số lượng tồn kho hiện tại.');
+      setLocalError('Số lượng giảm không được vượt quá số lượng tồn kho hiện tại.');
       return;
     }
 
+    if (currentInv && isDiscreteUnit(currentInv.unitName) && Number(selectedQuantity) % 1 !== 0) {
+      setLocalError(`Đơn vị '${currentInv.unitName}' yêu cầu số lượng phải là số nguyên.`);
+      return;
+    }
+
+    setLocalError(null);
     setItems([...items, { materialId: Number(selectedMaterialId), quantity: Number(selectedQuantity) }]);
     setSelectedMaterialId('');
     setSelectedQuantity('');
@@ -141,18 +150,24 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phaseId) {
-      if (onError) onError('Vui lòng chọn Giai đoạn (Phase).');
+      setLocalError('Vui lòng chọn Giai đoạn (Phase).');
       return;
     }
     if (items.length === 0) {
-      if (onError) onError('Vui lòng thêm ít nhất 1 vật tư.');
+      setLocalError('Vui lòng thêm ít nhất 1 vật tư.');
       return;
     }
 
     setLoading(true);
+    setLocalError(null);
     try {
-      const finalDesc = incident 
-        ? `${description}\n\n--- Thông tin sự cố gốc ---\n${incident.description}\n\n[System] Liên kết sự cố #${incident.id}` 
+      let originalIncidentDesc = incident ? incident.description : '';
+      if (incident && incident.images && incident.images.length > 0) {
+        originalIncidentDesc += '\n\n**Hình ảnh đính kèm:**\n' + incident.images.map((url, i) => `![Ảnh ${i + 1}](${url})`).join('\n');
+      }
+
+      const finalDesc = incident
+        ? `${description}\n\n--- Thông tin sự cố gốc ---\n${originalIncidentDesc}\n\n[System] Liên kết sự cố #${incident.id}`
         : description;
 
       await inventoryAdjustmentService.createDecrease(projectId, {
@@ -161,7 +176,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         phaseId: Number(phaseId),
         items
       });
-      
+
       if (incident) {
         await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
           incidentId: Number(incident.id || (incident as any).incidentId),
@@ -172,7 +187,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
       onSuccess();
     } catch (err: any) {
-      if (onError) onError(err.message || 'Lỗi khi tạo phiếu giảm tồn.');
+      setLocalError(err.message || 'Lỗi khi tạo phiếu giảm tồn.');
     } finally {
       setLoading(false);
     }
@@ -181,19 +196,25 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Tạo Phiếu Giảm Tồn Kho (Theo Giai đoạn)" width="lg">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {localError && (
+          <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg animate-fade-in">
+            {localError}
+          </div>
+        )}
+
         <FormItem label="Lý do điều chỉnh (*)">
-          <input 
-            type="text" 
-            required 
+          <input
+            type="text"
+            required
             className="w-full px-3 py-2 border rounded-lg"
-            value={reason} 
-            onChange={e => setReason(e.target.value)} 
+            value={reason}
+            onChange={e => setReason(e.target.value)}
             placeholder="VD: Hư hỏng vật tư do thời tiết..."
           />
         </FormItem>
 
         <FormItem label="Giai đoạn liên quan (*)">
-          <select 
+          <select
             required
             className={`w-full px-3 py-2 border rounded-lg ${incident ? 'bg-gray-100 cursor-not-allowed text-gray-600 font-medium appearance-none' : ''}`}
             value={phaseId}
@@ -212,10 +233,10 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         </FormItem>
 
         <FormItem label="Mô tả / Ghi chú của bạn">
-          <textarea 
-            className="w-full px-3 py-2 border rounded-lg" 
-            value={description} 
-            onChange={e => setDescription(e.target.value)} 
+          <textarea
+            className="w-full px-3 py-2 border rounded-lg"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
             rows={2}
           />
         </FormItem>
@@ -225,42 +246,59 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
             <h4 className="font-semibold text-sm text-gray-900 border-b border-gray-300 pb-3">
               Thông tin sự cố đính kèm
             </h4>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="flex flex-col gap-1">
-                <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Người báo cáo</span>
-                <strong className="text-gray-900">{incident.reporterName || 'N/A'}</strong>
+
+            <div style={{ display: 'grid', gridTemplateColumns: incident.images && incident.images.length > 0 ? '1.8fr 1fr' : '1fr', gap: '20px' }}>
+              <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Người báo cáo</span>
+                    <strong className="text-gray-900">{incident.reporterName || 'N/A'}</strong>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Ngày báo cáo</span>
+                    <strong className="text-gray-900">{incident.date || 'N/A'}</strong>
+                  </div>
+
+                  {incidentTime && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Thời gian phát hiện</span>
+                      <strong className="text-gray-900">{incidentTime}</strong>
+                    </div>
+                  )}
+                  {location && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Vị trí / Lô hàng</span>
+                      <strong className="text-gray-900">{location}</strong>
+                    </div>
+                  )}
+                  {witness && (
+                    <div className="flex flex-col gap-1 col-span-2">
+                      <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Người làm chứng / Liên đới</span>
+                      <strong className="text-gray-900">{witness}</strong>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Mô tả sự cố</span>
+                  <div className="bg-white p-3 rounded-xl border border-gray-300 text-gray-800 whitespace-pre-wrap leading-relaxed text-sm">
+                    {parsedDesc || 'Không có mô tả chi tiết'}
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Ngày báo cáo</span>
-                <strong className="text-gray-900">{incident.date || 'N/A'}</strong>
-              </div>
-              
-              {incidentTime && (
-                <div className="flex flex-col gap-1">
-                  <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Thời gian phát hiện</span>
-                  <strong className="text-gray-900">{incidentTime}</strong>
+
+              {incident.images && incident.images.length > 0 && (
+                <div className="border-l border-gray-300 pl-5 flex flex-col gap-2">
+                  <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Hình ảnh đính kèm</span>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    {incident.images.map((img, idx) => (
+                      <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="block aspect-square rounded-lg overflow-hidden border border-gray-300 hover:border-blue-500 transition-all">
+                        <img src={img} alt={`Ảnh đính kèm ${idx + 1}`} className="w-full h-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
-              {location && (
-                <div className="flex flex-col gap-1">
-                  <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Vị trí / Lô hàng</span>
-                  <strong className="text-gray-900">{location}</strong>
-                </div>
-              )}
-              {witness && (
-                <div className="flex flex-col gap-1 col-span-2">
-                  <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Người làm chứng / Liên đới</span>
-                  <strong className="text-gray-900">{witness}</strong>
-                </div>
-              )}
-              
-              <div className="col-span-2 flex flex-col gap-2 mt-1">
-                <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Mô tả sự cố</span>
-                <div className="bg-white p-3 rounded-xl border border-gray-300 text-gray-800 whitespace-pre-wrap leading-relaxed">
-                  {parsedDesc || 'Không có mô tả chi tiết'}
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -273,7 +311,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
             <div className="flex gap-2 items-end">
               <div className="flex-1">
                 <FormItem label="Vật tư">
-                  <select 
+                  <select
                     className="w-full px-3 py-2 border rounded-lg"
                     value={selectedMaterialId}
                     onChange={e => {
@@ -292,13 +330,19 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
               </div>
               <div className="w-32">
                 <FormItem label="Số lượng giảm">
-                  <input 
-                    type="number" 
-                    min="0.01" 
-                    step="0.01"
-                    className="w-full px-3 py-2 border rounded-lg" 
-                    value={selectedQuantity} 
-                    onChange={e => setSelectedQuantity(Number(e.target.value))} 
+                  <input
+                    type="number"
+                    min={(() => {
+                      const sel = inventoryList.find(x => x.materialId === Number(selectedMaterialId));
+                      return sel && isDiscreteUnit(sel.unitName) ? "1" : "0.01";
+                    })()}
+                    step={(() => {
+                      const sel = inventoryList.find(x => x.materialId === Number(selectedMaterialId));
+                      return sel && isDiscreteUnit(sel.unitName) ? "1" : "any";
+                    })()}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={selectedQuantity}
+                    onChange={e => setSelectedQuantity(Number(e.target.value))}
                   />
                 </FormItem>
               </div>
@@ -314,18 +358,24 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                 <tr>
                   <th className="px-4 py-3 text-left font-medium">Mã VT</th>
                   <th className="px-4 py-3 text-left font-medium">Tên vật tư</th>
+                  <th className="px-4 py-3 text-center font-medium">Tồn kho trước giảm</th>
                   <th className="px-4 py-3 text-center font-medium">S.Lượng Giảm</th>
+                  <th className="px-4 py-3 text-center font-medium">Tồn kho sau giảm</th>
                   {!incident && <th className="px-4 py-3 text-center font-medium w-16">Thao tác</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {items.map(item => {
                   const invItem = inventoryList.find(x => x.materialId === item.materialId);
+                  const currentQty = invItem?.quantity ?? 0;
+                  const remainingQty = Math.max(0, currentQty - item.quantity);
                   return (
                     <tr key={item.materialId}>
                       <td className="px-4 py-3 text-gray-500">{invItem?.materialCode}</td>
                       <td className="px-4 py-3 text-gray-900">{invItem?.materialName}</td>
+                      <td className="px-4 py-3 text-center text-gray-700">{currentQty} {invItem?.unitName}</td>
                       <td className="px-4 py-3 text-center font-semibold text-red-600">-{item.quantity} {invItem?.unitName}</td>
+                      <td className="px-4 py-3 text-center font-bold text-gray-900">{remainingQty} {invItem?.unitName}</td>
                       {!incident && (
                         <td className="px-4 py-3 text-center">
                           <button type="button" className="text-red-500 hover:text-red-700" onClick={() => handleRemoveItem(item.materialId)}>
@@ -338,7 +388,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                 })}
                 {items.length === 0 && (
                   <tr>
-                    <td colSpan={!incident ? 4 : 3} className="text-center text-gray-500 py-3">Chưa có vật tư nào</td>
+                    <td colSpan={!incident ? 6 : 5} className="text-center text-gray-500 py-3">Chưa có vật tư nào</td>
                   </tr>
                 )}
               </tbody>

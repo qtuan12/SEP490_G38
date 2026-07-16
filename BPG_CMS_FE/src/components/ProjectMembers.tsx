@@ -60,6 +60,10 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         const leaderMap = new Map<string, string>();
         allMembersArrays.forEach((mems, index) => {
           const project = allProjects[index];
+          const statusLower = (project.status || '').toLowerCase();
+          if (statusLower === 'completed' || statusLower === 'closed') {
+            return;
+          }
           mems.forEach(m => {
             if (m.isLeader) {
               leaderMap.set(m.userId, project.name);

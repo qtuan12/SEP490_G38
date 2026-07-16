@@ -10,6 +10,7 @@ import type { Unit } from '../../../../types/unit';
 const unitSchema = z.object({
   unitCode: z.string().min(1, 'Mã đơn vị không được để trống').max(20, 'Mã đơn vị quá dài'),
   unitName: z.string().min(1, 'Tên đơn vị không được để trống').max(50, 'Tên đơn vị quá dài'),
+  isDiscrete: z.boolean(),
 });
 
 type UnitFormData = z.infer<typeof unitSchema>;
@@ -34,18 +35,9 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({ isOpen, onClose, u
     defaultValues: {
       unitCode: '',
       unitName: '',
+      isDiscrete: false,
     },
   });
-
-  useEffect(() => {
-    if (isOpen) {
-      if (unit) {
-        reset({ unitCode: unit.unitCode, unitName: unit.unitName });
-      } else {
-        reset({ unitCode: '', unitName: '' });
-      }
-    }
-  }, [isOpen, unit, reset]);
 
   const mutation = useMutation({
     mutationFn: async (data: UnitFormData) => {
@@ -61,6 +53,17 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({ isOpen, onClose, u
       onClose();
     },
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      mutation.reset();
+      if (unit) {
+        reset({ unitCode: unit.unitCode, unitName: unit.unitName, isDiscrete: unit.isDiscrete });
+      } else {
+        reset({ unitCode: '', unitName: '', isDiscrete: false });
+      }
+    }
+  }, [isOpen, unit, reset]);
 
   const onSubmit = (data: UnitFormData) => {
     mutation.mutate(data);
@@ -80,7 +83,7 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({ isOpen, onClose, u
         </div>
       }
     >
-      <form id="unit-form" onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <form id="unit-form" onSubmit={handleSubmit(onSubmit)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {mutation.isError && (
           <div style={{ padding: '12px', fontSize: '0.875rem', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger)/0.1)', borderRadius: '4px', border: '1px solid hsl(var(--danger)/0.2)' }}>
             {(mutation.error as any)?.message || 'Có lỗi xảy ra khi lưu đơn vị tính.'}
@@ -102,6 +105,19 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({ isOpen, onClose, u
             disabled={isSubmitting || mutation.isPending}
           />
         </FormItem>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+          <input
+            id="isDiscrete"
+            type="checkbox"
+            {...register('isDiscrete')}
+            disabled={isSubmitting || mutation.isPending}
+            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+          />
+          <label htmlFor="isDiscrete" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)', cursor: 'pointer' }}>
+            Đơn vị tính nguyên thể (Chỉ cho phép số nguyên)
+          </label>
+        </div>
       </form>
     </Modal>
   );

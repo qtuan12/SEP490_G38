@@ -229,7 +229,6 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
       const msg = variables.type === 'emergency'
         ? 'Đã lập phiếu mua ngoài khẩn cấp! Hệ thống tự động sinh PO & Phiếu nhập kho, tăng tồn kho ảo tức thì.'
         : (isOverBOQ ? 'Đã gửi yêu cầu vật tư VƯỢT ĐỊNH MỨC (Chờ Giám đốc).' : 'Đã gửi yêu cầu vật tư (Chờ Kế toán).');
-      toast.success(msg);
       onSuccess(msg);
       queryClient.invalidateQueries({ queryKey: ['materialRequests'] });
       onClose();
@@ -249,7 +248,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={task ? "Đề xuất Vật tư cho Công việc" : "Yêu cầu Vật tư cho Phase"}>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         <div className="text-sm bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100">
           {task ? (
             <span>Công việc: <strong>{task.name}</strong></span>

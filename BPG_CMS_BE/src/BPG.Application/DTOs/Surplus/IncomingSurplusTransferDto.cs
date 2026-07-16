@@ -1,4 +1,4 @@
-namespace BPG.Application.Features.Surplus.DTOs;
+namespace BPG.Application.DTOs.Surplus;
 
 public class IncomingSurplusTransferDto : SurplusTransferDto
 {

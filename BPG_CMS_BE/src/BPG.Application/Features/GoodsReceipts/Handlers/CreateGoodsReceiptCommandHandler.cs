@@ -48,6 +48,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                         .ThenInclude(ph => ph!.Project)
                 .Include(p => p.Items)
                     .ThenInclude(pi => pi!.Material)
+                        .ThenInclude(m => m!.BaseUnit)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken);
 
             if (po == null)
@@ -101,6 +102,12 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 {
                     throw new BusinessException("ERR_INVALID_QUANTITY", 
                         $"Số lượng nhận của vật tư [{poItem.Material.Name}] phải lớn hơn 0.");
+                }
+
+                if (poItem.Material.BaseUnit != null && poItem.Material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Đơn vị tính '{poItem.Material.BaseUnit.UnitName}' của vật tư [{poItem.Material.Name}] yêu cầu số lượng nhận phải là số nguyên.");
                 }
 
                 receivedQtyMap.TryGetValue(item.MaterialId, out decimal totalReceivedBefore);

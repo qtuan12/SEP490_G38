@@ -320,7 +320,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                       </td>
                       <td className="px-4 py-3.5 text-right text-slate-500">
                         {item.reservedQuantity > 0 ? (
-                          <span className="text-rose-600 font-medium">-{formatQty(item.reservedQuantity)}</span>
+                          <span className="text-rose-600 font-medium">{formatQty(item.reservedQuantity)}</span>
                         ) : (
                           '0'
                         )}{' '}

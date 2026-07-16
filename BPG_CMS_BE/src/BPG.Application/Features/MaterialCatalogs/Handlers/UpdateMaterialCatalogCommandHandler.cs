@@ -1,6 +1,6 @@
 using AutoMapper;
 using BPG.Application.Features.MaterialCatalogs.Commands;
-using BPG.Application.Features.MaterialCatalogs.DTOs;
+using BPG.Application.DTOs.MaterialCatalogs;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;

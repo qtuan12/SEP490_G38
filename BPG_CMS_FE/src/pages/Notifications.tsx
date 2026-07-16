@@ -7,6 +7,45 @@ import { formatDate } from '../utils/dateHelpers';
 
 const PAGE_SIZE = 10;
 
+const resolveNotificationUrl = (noti: any): string | null => {
+  const referenceType = noti.referenceType;
+  const referenceId = noti.referenceId;
+  const titleOrContent = ((noti.title || '') + ' ' + (noti.content || '')).toLowerCase();
+  
+  if (!referenceType) return null;
+  if (referenceType === 'Project' && referenceId) {
+    return `/projects/${referenceId}`;
+  }
+  if (referenceType === 'Task' && referenceId) {
+    return `/tasks/${referenceId}`;
+  }
+  if (referenceType.startsWith('/')) {
+    const projectWorkspaceRegex = /^\/projects\/(\d+)\/workspace\/([a-zA-Z0-9_-]+)/i;
+    const match = referenceType.match(projectWorkspaceRegex);
+    if (match) {
+      const projectId = match[1];
+      let tab = match[2].toLowerCase();
+      
+      // If it's incidents workspace link, check if it's a material/inventory incident
+      if (tab === 'incidents' && (titleOrContent.includes('vật tư') || titleOrContent.includes('tồn kho') || titleOrContent.includes('thất thoát') || titleOrContent.includes('hàng hóa'))) {
+        tab = 'inventoryincidents';
+      }
+      
+      if (projectId === '0') {
+        if (tab === 'inventoryadjustments') return '/inventory-adjustments';
+        if (tab === 'inventoryincidents') return '/materials-control';
+      }
+
+      return `/projects/${projectId}?tab=${tab}`;
+    }
+    if (referenceType.includes('/acceptance') && referenceId) {
+      return `${referenceType}?historyId=${referenceId}`;
+    }
+    return referenceType;
+  }
+  return null;
+};
+
 export const NotificationsList: React.FC = () => {
   const { notifications, unreadCount, totalCount, markAsRead, markAllAsRead, isLoading, fetchNotifications } = useNotification();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
@@ -24,8 +63,9 @@ export const NotificationsList: React.FC = () => {
     if (!noti.isRead) {
       await markAsRead(noti.notificationId);
     }
-    if (noti.referenceType === 'Task' && noti.referenceId) {
-      navigate(`/tasks/${noti.referenceId}`);
+    const url = resolveNotificationUrl(noti);
+    if (url) {
+      navigate(url);
     }
   };
 
@@ -90,7 +130,7 @@ export const NotificationsList: React.FC = () => {
                 key={noti.notificationId}
                 onClick={() => handleItemClick(noti)}
                 className={`flex items-start gap-4 px-5 py-4 border-b border-[hsl(var(--border))] border-l-[3px] transition-colors ${
-                  noti.referenceType === 'Task' ? 'cursor-pointer' : 'cursor-default'
+                  resolveNotificationUrl(noti) ? 'cursor-pointer' : 'cursor-default'
                 } ${
                   noti.isRead
                     ? 'border-l-transparent bg-transparent'

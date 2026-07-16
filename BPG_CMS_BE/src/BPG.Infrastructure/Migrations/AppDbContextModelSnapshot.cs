@@ -542,6 +542,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsEmergency")
+                        .HasColumnType("bit");
+
                     b.Property<long?>("PhaseId")
                         .HasColumnType("bigint");
 
@@ -549,6 +552,13 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<string>("ProposedAction")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("RecoveryEstimateCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("RecoveryPlanText")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<long>("ReportedBy")
@@ -2162,6 +2172,9 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDiscrete")
                         .HasColumnType("bit");
 
                     b.Property<string>("UnitCode")

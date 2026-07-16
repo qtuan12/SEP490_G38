@@ -55,9 +55,9 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             }
 
             mr.Status = MaterialRequestStatus.Cancelled;
-            mr.Reason = string.IsNullOrWhiteSpace(request.Reason) 
-                ? $"{mr.Reason} (Người lập tự hủy)" 
-                : $"{mr.Reason} (Tự hủy: {request.Reason})";
+            mr.AccountantNote = string.IsNullOrWhiteSpace(request.Reason) 
+                ? "Hủy yêu cầu" 
+                : request.Reason.Trim();
             mr.UpdatedAt = DateTime.UtcNow;
             mr.UpdatedBy = currentUserId;
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, FormItem, Input } from '../../../components/ui';
 import { AlertCircle } from 'lucide-react';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 import { surplusService } from '../../../services/surplusService';
 import { supplierService } from '../../../services/supplierService';
 import type { SurplusRequestItem } from '../../../types/surplus';
@@ -47,6 +48,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
     const qty = parseFloat(returnQty);
     if (isNaN(qty) || qty <= 0) { setError('Số lượng phải lớn hơn 0.'); return; }
     if (qty > remaining) { setError(`Số lượng không được vượt quá còn lại (${remaining} ${item.unitName}).`); return; }
+    if (isDiscreteUnit(item.unitName) && qty % 1 !== 0) { setError(`Đơn vị '${item.unitName}' yêu cầu số lượng phải là số nguyên.`); return; }
     if (files.length === 0) { setError('Bắt buộc phải tải lên ít nhất 1 file minh chứng.'); return; }
 
     setError(null);
@@ -119,8 +121,8 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
           <FormItem label="Số lượng trả" required>
             <Input
               type="number"
-              step="any"
-              min={0}
+              step={isDiscreteUnit(item.unitName) ? "1" : "any"}
+              min={isDiscreteUnit(item.unitName) ? "1" : "0"}
               max={remaining}
               value={returnQty}
               onChange={e => setReturnQty(e.target.value)}
