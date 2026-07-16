@@ -10,6 +10,7 @@ namespace BPG.Application.Features.Notifications.Commands
         bool SendToAll = false,
         string? RoleName = null,
         string? ReferenceType = null,
-        long? ReferenceId = null
+        long? ReferenceId = null,
+        long? ExcludeUserId = null
     ) : IRequest;
 }
