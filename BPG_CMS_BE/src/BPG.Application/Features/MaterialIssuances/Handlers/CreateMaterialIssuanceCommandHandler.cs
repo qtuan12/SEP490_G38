@@ -58,7 +58,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
             }
 
             // 1.5 Kiểm tra quyền: Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án (Leader) mới được phép tạo yêu cầu xuất dùng vật tư
-            bool isOfficeRole = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager || BPG.Domain.Constants.UserRole.Accountant);
+            bool isOfficeRole = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
 
             if (!isOfficeRole)
             {
