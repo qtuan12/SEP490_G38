@@ -17,6 +17,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using BPG.Application.UnitTests.Helpers;
+using static BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.UnitTests.MaterialReturns
 {
@@ -27,6 +28,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         private readonly Mock<IGenericRepository<MaterialReturn>> _mockReturnRepo;
         private readonly Mock<IGenericRepository<MaterialReturnItem>> _mockReturnItemRepo;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
+        private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<IInventoryService> _mockInventoryService;
         private readonly CreateMaterialReturnCommandHandler _handler;
 
@@ -37,13 +39,16 @@ namespace BPG.Application.UnitTests.MaterialReturns
             _mockReturnRepo = new Mock<IGenericRepository<MaterialReturn>>();
             _mockReturnItemRepo = new Mock<IGenericRepository<MaterialReturnItem>>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
+            _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockInventoryService = new Mock<IInventoryService>();
 
             _mockUow.Setup(u => u.Repository<MaterialIssuance>()).Returns(_mockIssuanceRepo.Object);
+            _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialReturn>()).Returns(_mockReturnRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialReturnItem>()).Returns(_mockReturnItemRepo.Object);
 
             // Default Query Mock setups
+            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
             _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance>().AsQueryable().BuildMock());
             _mockReturnRepo.Setup(r => r.Query()).Returns(new List<MaterialReturn>().AsQueryable().BuildMock());
             _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
@@ -66,7 +71,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID01_Handle_ValidRequest_ShouldCreateMaterialReturnSuccessfully()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
@@ -110,7 +115,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID02_Handle_EmptyItemsList_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>());
 
             // Act
@@ -125,7 +130,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID03_Handle_OriginalIssuanceNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var command = new CreateMaterialReturnCommand(999, "Reason", new List<ReturnItemDto>
             {
                 new ReturnItemDto(50, 1, 5)
@@ -143,7 +148,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID04_Handle_ProjectNotFound_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var issuance = new MaterialIssuance
             {
                 MaterialIssuanceId = 500,
@@ -168,7 +173,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID05_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Inactive
             var issuance = new MaterialIssuance
             {
@@ -194,7 +199,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID06_Handle_MaterialNotInOriginalIssuance_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -226,7 +231,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID07_Handle_InvalidQuantityLessThanZero_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -257,7 +262,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID08_Handle_ReturnQuantityExceedsIssued_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -289,7 +294,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID09_Handle_CumulativeReturnQuantityExceedsIssued_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -334,7 +339,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID10_Handle_ValidCumulativeReturn_ShouldSucceed()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -378,7 +383,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID11_Handle_ConversionRateApplied_ShouldAddCorrectBaseQty()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -411,7 +416,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         public async Task UTCID12_Handle_ExceptionDuringStockUpdate_ShouldRollbackTransactionAndThrow()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var issuance = new MaterialIssuance
             {
@@ -441,5 +446,209 @@ namespace BPG.Application.UnitTests.MaterialReturns
             await act.Should().ThrowAsync<Exception>().WithMessage("DB Connection Timeout");
             _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
-    }
+
+      [Fact]
+public async Task UTCID13_Handle_TechnicalManagerUser_ShouldCreateMaterialReturnSuccessfully()
+{
+    // Arrange
+    _mockCurrentUserService.SetupUser(10, TechnicalManager);
+
+    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+    var issuance = new MaterialIssuance
+    {
+        MaterialIssuanceId = 500,
+        Task = task,
+        Items = new List<MaterialIssuanceItem>
+        {
+            new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+        }
+    };
+    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+    _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+
+    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+    {
+        new ReturnItemDto(50, 1, 5, 1)
+    });
+
+    // Act
+    var result = await _handler.Handle(command, CancellationToken.None);
+
+    // Assert
+    result.Success.Should().BeTrue();
+}
+
+[Fact]
+public async Task UTCID14_Handle_ProjectLeaderUser_ShouldCreateMaterialReturnSuccessfully()
+{
+    // Arrange
+    _mockCurrentUserService.SetupUser(10, SiteEngineer, hasRole: false);
+
+    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+    var issuance = new MaterialIssuance
+    {
+        MaterialIssuanceId = 500,
+        Task = task,
+        Items = new List<MaterialIssuanceItem>
+        {
+            new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+        }
+    };
+    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+
+    var members = new List<ProjectMember> { new ProjectMember { ProjectId = 5, UserId = 10, IsLeader = true } };
+    _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+
+    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+    {
+        new ReturnItemDto(50, 1, 5, 1)
+    });
+
+    // Act
+    var result = await _handler.Handle(command, CancellationToken.None);
+
+    // Assert
+    result.Success.Should().BeTrue();
+}
+
+[Fact]
+public async Task UTCID15_Handle_SiteEngineerNotLeader_ShouldThrowForbiddenException()
+{
+    // Arrange
+    _mockCurrentUserService.SetupUser(10, SiteEngineer, hasRole: false);
+
+    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+    var issuance = new MaterialIssuance
+    {
+        MaterialIssuanceId = 500,
+        Task = task,
+        Items = new List<MaterialIssuanceItem>
+        {
+            new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+        }
+    };
+    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+    _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+
+    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+    {
+        new ReturnItemDto(50, 1, 5, 1)
+    });
+
+    // Act
+    Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+    // Assert
+    await act.Should().ThrowAsync<ForbiddenException>()
+        .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+}
+
+[Fact]
+public async Task UTCID16_Handle_AccountantUser_ShouldThrowForbiddenException()
+{
+    // Arrange
+    _mockCurrentUserService.SetupUser(10, Accountant, hasRole: false);
+
+    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+    var issuance = new MaterialIssuance
+    {
+        MaterialIssuanceId = 500,
+        Task = task,
+        Items = new List<MaterialIssuanceItem>
+        {
+            new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+        }
+    };
+    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+    _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+
+    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+    {
+        new ReturnItemDto(50, 1, 5, 1)
+    });
+
+    // Act
+    Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+    // Assert
+    await act.Should().ThrowAsync<ForbiddenException>()
+        .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+}
+
+[Fact]
+public async Task UTCID17_Handle_AdminUser_ShouldThrowForbiddenException()
+{
+    // Arrange
+    _mockCurrentUserService.SetupUser(10, Admin, hasRole: false);
+
+    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+    var issuance = new MaterialIssuance
+    {
+        MaterialIssuanceId = 500,
+        Task = task,
+        Items = new List<MaterialIssuanceItem>
+        {
+            new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+        }
+    };
+    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+    _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+
+    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+    {
+        new ReturnItemDto(50, 1, 5, 1)
+    });
+
+    // Act
+    Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+    // Assert
+    await act.Should().ThrowAsync<ForbiddenException>()
+        .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+}
+
+[Fact]
+public async Task UTCID18_Handle_DirectorUser_ShouldThrowForbiddenException()
+{
+    // Arrange
+    _mockCurrentUserService.SetupUser(10, Director, hasRole: false);
+
+    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+    var issuance = new MaterialIssuance
+    {
+        MaterialIssuanceId = 500,
+        Task = task,
+        Items = new List<MaterialIssuanceItem>
+        {
+            new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+        }
+    };
+    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+    _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+
+    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+    {
+        new ReturnItemDto(50, 1, 5, 1)
+    });
+
+    // Act
+    Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+    // Assert
+    await act.Should().ThrowAsync<ForbiddenException>()
+        .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+}
+}
 }

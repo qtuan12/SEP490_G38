@@ -38,12 +38,12 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
             if (!_currentUserService.IsInAnyRole(
                     BPG.Domain.Constants.UserRole.TechnicalManager,
                     BPG.Domain.Constants.UserRole.Accountant,
-                    BPG.Domain.Constants.UserRole.Admin))
+                    BPG.Domain.Constants.UserRole.Director))
             {
                 throw new BusinessException(
                     "ERR_INSUFFICIENT_PERMISSION",
                     "Bạn không có quyền hủy phiếu nhập kho đã được ghi nhận. " +
-                    "Chỉ Quản lý Kỹ thuật, Kế toán hoặc Quản trị viên mới có thể thực hiện thao tác này.");
+                    "Chỉ Quản lý Kỹ thuật, Kế toán hoặc Giám đốc mới có thể thực hiện thao tác này.");
             }
 
             // 1. Tìm phiếu nhập kho kèm chi tiết

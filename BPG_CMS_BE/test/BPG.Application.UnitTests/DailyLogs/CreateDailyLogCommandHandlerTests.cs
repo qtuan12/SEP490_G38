@@ -108,7 +108,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID01_Handle_ValidRequest_LeafTask_ShouldCreateDailyLogSuccessfully()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
@@ -156,7 +156,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID02_Handle_ProgressPercent100_ShouldSetStatusToCompleted()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
@@ -192,7 +192,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID03_Handle_TaskNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
             var command = new CreateDailyLogCommand { TaskId = 999, NewProgressPercent = 50 };
 
             // Act
@@ -207,7 +207,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID04_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Inactive
             var task = new ProjectTask
@@ -231,7 +231,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID05_Handle_TaskIsLocked_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
@@ -257,7 +257,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID06_Handle_AncestorTaskIsLocked_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var parentTask = new ProjectTask { TaskId = 90, Name = "Structure Parent", IsLocked = true }; // Parent locked!
@@ -286,7 +286,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID07_Handle_TaskHasSubtasks_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var subtask = new ProjectTask { TaskId = 101, IsDeleted = false };
@@ -312,7 +312,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID08_Handle_PredecessorNotCompleted_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
@@ -378,7 +378,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID10_Handle_DecreaseProgressByAdminWithoutReason_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true); // User is Admin
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true); // User is Admin
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
@@ -439,30 +439,42 @@ namespace BPG.Application.UnitTests.DailyLogs
             task.ProgressPercent.Should().Be(30);
         }
 
-        [Fact]
-        public async Task UTCID12_Handle_MaxImagesExceeded_ShouldThrowBusinessException()
-        {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+ [Fact]
+public async Task UTCID12_Handle_MultipleImages_ShouldSucceed()
+{
+    // Arrange
+    _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var task = new ProjectTask
-            {
-                TaskId = 100,
-                Phase = new Phase { Project = project }
-            };
-            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+    var task = new ProjectTask
+    {
+        TaskId = 100,
+        Phase = new Phase { Project = project }
+    };
+    _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
 
-            var tooManyImages = new List<string> { "1", "2", "3", "4", "5", "6" }; // 6 images
-            var command = new CreateDailyLogCommand { TaskId = 100, NewProgressPercent = 50, Images = tooManyImages };
+    var user = new User { UserId = 10, FullName = "Admin User" };
+    _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { user }.AsQueryable().BuildMock());
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+    var images = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8" }; // 8 images
+    var command = new CreateDailyLogCommand 
+    { 
+        TaskId = 100, 
+        NewProgressPercent = 50, 
+        Description = "Multiple images test",
+        Images = images 
+    };
 
-            // Assert
-            await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Tối đa chỉ được đính kèm 5 hình ảnh hiện trường thi công.");
-        }
+    // Act
+    var result = await _handler.Handle(command, CancellationToken.None);
+
+    // Assert
+    result.Should().NotBeNull();
+    _mockAttachmentRepo.Verify(r => r.AddRangeAsync(
+        It.Is<IEnumerable<Attachment>>(l => l.Count() == 8), 
+        It.IsAny<CancellationToken>()
+    ), Times.Once);
+}
 
         [Fact]
         public async Task UTCID13_Handle_InsufficientPermission_ShouldThrowForbiddenException()
@@ -488,46 +500,12 @@ namespace BPG.Application.UnitTests.DailyLogs
             await act.Should().ThrowAsync<ForbiddenException>()
                 .WithMessage("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
         }
-
+  
         [Fact]
-        public async Task UTCID14_Handle_Exactly5Images_ShouldSucceed()
+        public async Task UTCID14_Handle_ExceptionDuringUpdate_ShouldRollbackAndThrow()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
-
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var task = new ProjectTask
-            {
-                TaskId = 100,
-                Phase = new Phase { Project = project }
-            };
-            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
-
-            var user = new User { UserId = 10, FullName = "Admin User", UserRoles = new List<BPG.Domain.Entities.UserRole>() };
-            _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { user }.AsQueryable().BuildMock());
-
-            var fiveImages = new List<string> { "img1.jpg", "img2.jpg", "img3.jpg", "img4.jpg", "img5.jpg" };
-            var command = new CreateDailyLogCommand
-            {
-                TaskId = 100,
-                NewProgressPercent = 50,
-                Description = "Completed 50%",
-                Images = fiveImages
-            };
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Should().NotBeNull();
-            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(It.Is<IEnumerable<Attachment>>(l => l.Count() == 5), It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        [Fact]
-        public async Task UTCID15_Handle_ExceptionDuringUpdate_ShouldRollbackAndThrow()
-        {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
@@ -550,10 +528,10 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID16_Handle_ValidRequest_ProgressIsZero_ShouldSucceed()
+        public async Task UTCID15_Handle_ValidRequest_ProgressIsZero_ShouldSucceed()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
@@ -589,7 +567,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID17_Handle_TaskIsAlreadyCompleted_ReportingLowerProgress_ShouldThrowBusinessException()
+        public async Task UTCID16_Handle_TaskIsAlreadyCompleted_ReportingLowerProgress_ShouldThrowBusinessException()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Normal user, not Admin/TM
@@ -623,10 +601,10 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID18_Handle_TaskIsAlreadyCompleted_ReportingSameProgress_ShouldSucceed()
+        public async Task UTCID17_Handle_TaskIsAlreadyCompleted_ReportingSameProgress_ShouldSucceed()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask
@@ -658,10 +636,10 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID19_Handle_MultiplePredecessorDependencies_ShouldThrowIfAnyPredecessorIncomplete()
+        public async Task UTCID18Handle_MultiplePredecessorDependencies_ShouldThrowIfAnyPredecessorIncomplete()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
             var task = new ProjectTask

@@ -156,7 +156,7 @@ namespace BPG.Application.UnitTests.Comments
         public async Task UTCID03_Handle_DailyLogNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.TechnicalManager);
             _mockDailyLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog>().AsQueryable().BuildMock());
 
             var command = new AddCommentCommand { LogId = 999, Content = "Content" };
@@ -210,7 +210,7 @@ namespace BPG.Application.UnitTests.Comments
         public async Task UTCID05_Handle_ContentBoundaryMaxLength_ShouldAddCommentSuccessfully()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Accountant);
 
             var dailyLog = new DailyLog
             {
@@ -302,7 +302,7 @@ namespace BPG.Application.UnitTests.Comments
         public async Task UTCID07_Handle_OtherCommentersExist_ShouldSendNotificationToOtherCommenters()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.TechnicalManager);
 
             var dailyLog = new DailyLog
             {
@@ -375,7 +375,7 @@ namespace BPG.Application.UnitTests.Comments
         public async Task UTCID08_Handle_DuplicateCommenters_ShouldSendSingleNotificationPerUser()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Director);
 
             var dailyLog = new DailyLog
             {
@@ -536,7 +536,7 @@ namespace BPG.Application.UnitTests.Comments
         public async Task UTCID11_Handle_CommenterIsDifferentFromCreator_ShouldNotifyCreator()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Admin);
+            _mockCurrentUserService.SetupUser(userId: 10, role: BPG.Domain.Constants.UserRole.Accountant);
 
             var dailyLog = new DailyLog
             {
