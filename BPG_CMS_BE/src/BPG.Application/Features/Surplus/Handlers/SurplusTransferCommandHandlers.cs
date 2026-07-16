@@ -147,6 +147,7 @@ public class ReviewSurplusTransferCommandHandler : IRequestHandler<ReviewSurplus
         var transfer = await _uow.Repository<SurplusTransfer>().Query()
             .Include(t => t.SurplusRequestItem)
                 .ThenInclude(i => i.SurplusRequest)
+            .Include(t => t.FromProject)
             .FirstOrDefaultAsync(t => t.SurplusTransferId == request.SurplusTransferId, ct)
             ?? throw new NotFoundException(nameof(SurplusTransfer), request.SurplusTransferId);
 
@@ -188,6 +189,10 @@ public class ReviewSurplusTransferCommandHandler : IRequestHandler<ReviewSurplus
             ? $"Đề xuất chuyển kho [{transfer.SurplusTransferId}] đã được TPKT phê duyệt. Hãy tiến hành vận chuyển."
             : $"Đề xuất chuyển kho [{transfer.SurplusTransferId}] đã bị từ chối bởi TPKT.";
 
+        var accountantReviewMsg = request.IsApproved
+            ? $"Trưởng phòng kỹ thuật đã phê duyệt yêu cầu chuyển vật tư của dự án [{transfer.FromProject.Name}]."
+            : $"Trưởng phòng kỹ thuật đã từ chối yêu cầu chuyển vật tư của dự án [{transfer.FromProject.Name}].";
+
         // 1. Thông báo đến Leader dự án nguồn (trừ người phê duyệt)
         var senderLeader = await _uow.Repository<ProjectMember>().Query()
             .Where(m => m.ProjectId == transfer.FromProjectId && m.IsLeader && m.UserId != userId)
@@ -204,7 +209,7 @@ public class ReviewSurplusTransferCommandHandler : IRequestHandler<ReviewSurplus
         // 2. Thông báo đến Kế toán (trừ người phê duyệt)
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.Accountant,
-            reviewTitle, reviewMsg,
+            reviewTitle, accountantReviewMsg,
             NotificationType.Procurement,
             excludeUserId: userId,
             NotificationReferenceType.SurplusRequest,
@@ -272,6 +277,7 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
         // Thông báo xác nhận đã gửi
         var dispatchTitle = "Vật tư chuyển kho đang trên đường";
         var dispatchMsg = string.Format(NotificationTemplates.SurplusTransferDispatched, transfer.SurplusTransferId);
+        var dispatchMsgForManager = string.Format(NotificationTemplates.SurplusTransferDispatchedForManager, transfer.SurplusTransferId);
 
         // 1. Thông báo đến Leader dự án đích (trừ người dispatch)
         var receiverLeader = await _uow.Repository<ProjectMember>().Query()
@@ -289,7 +295,7 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
         // 2. Thông báo đến Trưởng phòng kỹ thuật (trừ người dispatch)
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.TechnicalManager,
-            dispatchTitle, dispatchMsg,
+            dispatchTitle, dispatchMsgForManager,
             NotificationType.Procurement,
             excludeUserId: userId,
             NotificationReferenceType.SurplusRequest,
@@ -299,7 +305,7 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
         // 3. Thông báo đến Kế toán (trừ người dispatch)
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.Accountant,
-            dispatchTitle, dispatchMsg,
+            dispatchTitle, dispatchMsgForManager,
             NotificationType.Procurement,
             excludeUserId: userId,
             NotificationReferenceType.SurplusRequest,
