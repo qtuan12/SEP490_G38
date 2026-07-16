@@ -25,6 +25,7 @@ public class AssignTaskCommandHandler : IRequestHandler<AssignTaskCommand, ApiRe
         var task = await _unitOfWork.Repository<ProjectTask>()
             .Query()
             .Include(t => t.Assignees)
+            .Include(t => t.Phase)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)

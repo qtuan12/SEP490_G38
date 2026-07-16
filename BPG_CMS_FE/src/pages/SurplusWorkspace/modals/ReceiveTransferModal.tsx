@@ -41,7 +41,7 @@ export const ReceiveTransferModal: React.FC<ReceiveTransferModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Xác nhận đã nhận (Receive)"
+      title="Xác nhận đã nhận"
       width="md"
       footer={
         <div className="flex justify-end gap-3 w-full">

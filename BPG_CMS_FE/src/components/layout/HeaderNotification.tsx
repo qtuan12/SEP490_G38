@@ -11,6 +11,9 @@ const resolveNotificationUrl = (noti: any): string | null => {
   const titleOrContent = ((noti.title || '') + ' ' + (noti.content || '')).toLowerCase();
   
   if (!referenceType) return null;
+  if (referenceType === 'Project' && referenceId) {
+    return `/projects/${referenceId}`;
+  }
   if (referenceType === 'Task' && referenceId) {
     return `/tasks/${referenceId}`;
   }

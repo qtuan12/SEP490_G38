@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { projectService } from '../../services/projectService';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { useNotification } from '../../context/NotificationContext';
 
 import { SurplusRequestListTab } from './components/SurplusRequestListTab';
 import { SurplusRequestDetailTab } from './components/SurplusRequestDetailTab';
@@ -25,11 +26,13 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   projectName,
 }) => {
   const { user } = useAuth();
+  const { connection } = useNotification();
   const [isLeader, setIsLeader] = useState(false);
   
   const isAccountant = user?.role === 'accountant';
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
+  // isLeader = true nếu user là SiteEngineer VÀ được gán làm trưởng dự án trong bảng ProjectMembers
   useEffect(() => {
     const checkLeaderStatus = async () => {
       if (user?.role === 'siteengineer') {
@@ -48,6 +51,12 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
     checkLeaderStatus();
   }, [projectId, user]);
 
+  // Quyền tạo đề xuất xử lý vật tư thừa:
+  // - Trưởng phòng kỹ thuật (TechnicalManager) hoặc Admin: luôn được tạo
+  // - Trưởng dự án (SiteEngineer có isLeader=true trong dự án): được tạo
+  // - Nhân viên kỹ thuật thường (SiteEngineer không phải leader): KHÔNG được tạo
+  const canCreateSurplusRequest = isTPKT || isLeader;
+
   const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>('outbound');
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
@@ -62,10 +71,33 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
 
   const handleRefresh = () => setRefreshKey(k => k + 1);
 
+  // ── Join/Leave SignalR project group khi mở tab Xử lý Vật tư thừa ──
+  useEffect(() => {
+    if (!connection) return;
+    const numericProjectId = Number(projectId);
+
+    connection.invoke('JoinProjectGroup', numericProjectId)
+      .catch(err => console.error('SurplusWorkspace: JoinProjectGroup error', err));
+
+    const handleSurplusUpdated = (_payload: any) => {
+      handleRefresh();
+      toast('Dữ liệu Vật tư thừa đã được cập nhật!', { icon: '🔄' });
+    };
+
+    connection.on('SurplusUpdated', handleSurplusUpdated);
+
+    return () => {
+      connection.off('SurplusUpdated', handleSurplusUpdated);
+      connection.invoke('LeaveProjectGroup', numericProjectId)
+        .catch(err => console.error('SurplusWorkspace: LeaveProjectGroup error', err));
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection, projectId]);
+
+  // ── Giữ lại listener ReceiveNotification cho các user có notification cá nhân ──
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'SurplusRequest') {
       handleRefresh();
-      toast('Dữ liệu Vật tư thừa đã được cập nhật!', { icon: '🔄' });
     }
   });
 
@@ -136,7 +168,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
             refreshKey={refreshKey}
             onViewDetail={handleViewDetail}
             onCreateRequest={() => setShowCreateBatch(true)}
-            isLeader={isLeader || isTPKT}
+            isLeader={canCreateSurplusRequest}
           />
         )}
 

@@ -64,11 +64,19 @@ namespace BPG.Application.Features.Notifications.Handlers
                     }
                 }
 
+                // Loại bỏ người thực hiện hành động khỏi danh sách nhận thông báo
+                if (request.ExcludeUserId.HasValue)
+                {
+                    targetUsers = targetUsers.Where(u => u.UserId != request.ExcludeUserId.Value).ToList();
+                }
+
+
                 if (!targetUsers.Any())
-{
-    _logger.LogWarning("Không tìm thấy người dùng nhận thông báo hợp lệ cho request: {@Request}", request);
-    throw new Exception("Không tìm thấy người dùng nhận thông báo hợp lệ."); 
-}
+                {
+                    _logger.LogWarning("Không tìm thấy người dùng nhận thông báo hợp lệ cho request: {@Request}", request);
+                    return;
+                }
+
 
                 _logger.LogInformation("Đã xác định {UserCount} người nhận thông báo.", targetUsers.Count);
 

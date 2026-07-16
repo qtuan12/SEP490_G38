@@ -345,7 +345,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <button 
               onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
               className="btn btn-outline" 
-              style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))' }}
+              style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--primary))', color: 'hsl(var(--primary))' }}
             >
               <FileText size={15} />
               <span>Xem Nhật ký thi công</span>
@@ -391,7 +391,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <button 
               onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
               className="btn btn-outline" 
-              style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))' }}
+              style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--primary))', color: 'hsl(var(--primary))', backgroundColor: 'hsl(var(--primary-glow))' }}
             >
               <FileText size={15} />
               <span>Xem Nhật ký thi công</span>
@@ -399,7 +399,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <button 
               onClick={() => onReportIncidentOpen()} 
               className="btn btn-outline" 
-              style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', borderColor: 'hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
+              style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
             >
               <AlertCircle size={15} />
               <span>Báo cáo Sự cố</span>
@@ -432,7 +432,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <button 
               onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
               className="btn btn-outline" 
-              style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))' }}
+              style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--primary))', color: 'hsl(var(--primary))' }}
             >
               <FileText size={15} />
               <span>Xem Nhật ký thi công</span>
