@@ -1,6 +1,6 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
-using BPG.Application.Features.MaterialConversions.DTOs;
+using BPG.Application.DTOs.MaterialConversions;
 using BPG.Application.Features.MaterialConversions.Queries;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;

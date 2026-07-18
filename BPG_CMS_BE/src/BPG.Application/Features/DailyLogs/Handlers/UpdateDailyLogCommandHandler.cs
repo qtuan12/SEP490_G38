@@ -56,9 +56,9 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = log.Task.Phase.Project;
 
-            // 2. Kiểm tra quyền chỉnh sửa (Chỉ Admin, TM, Project Leader hoặc Kỹ sư được gán vào công việc mới được sửa nhật ký)
-            bool isAdminOrTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isAdminOrTM)
+            // 2. Kiểm tra quyền chỉnh sửa (Chỉ TM, Project Leader hoặc Kỹ sư được gán vào công việc mới được sửa nhật ký)
+            bool isTM = _currentUserService.IsInAnyRole( BPG.Domain.Constants.UserRole.TechnicalManager);
+            if (!isTM)
             {
                 // Kiểm tra xem User có phải là Project Leader của dự án này không
                 var isLeader = await _uow.Repository<ProjectMember>().Query()
@@ -86,6 +86,51 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã được nghiệm thu và khóa tiến độ, không thể chỉnh sửa nhật ký thi công.");
             }
 
+            // Kiểm tra xem công việc hoặc các cấp cha/ancestor có bị khóa (đã nghiệm thu)
+            // hoặc bị obsolete (loại bỏ) không — nhất quán với luồng Create.
+            var tempTask = log.Task;
+            while (tempTask != null)
+            {
+                if (tempTask.IsLocked)
+                {
+                    throw new BusinessException("ERR_TASK_LOCKED",
+                        $"Không thể chỉnh sửa nhật ký vì công việc hoặc cấp cha [{tempTask.Name}] đã được nghiệm thu và khóa.");
+                }
+
+                if (tempTask.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
+                {
+                    throw new BusinessException("ERR_TASK_OBSOLETE",
+                        $"Không thể chỉnh sửa nhật ký vì công việc hoặc cấp cha [{tempTask.Name}] đã bị loại bỏ (obsolete).");
+                }
+
+                if (tempTask.ParentTaskId.HasValue)
+                {
+                    tempTask = await _uow.Repository<ProjectTask>().Query()
+                        .FirstOrDefaultAsync(t => t.TaskId == tempTask.ParentTaskId.Value, cancellationToken);
+                }
+                else
+                {
+                    tempTask = null;
+                }
+            }
+
+            // Giới han thời gian sửa: chỉ cho phép sửa trong khoảng thời gian cấu hình
+            // (SystemConfig: DailyLogEditWindowHours, mặc định 24h) kể từ lúc tạo.
+            // Quá thời han, nhật ký bị khóa chỉnh sửa để tránh sửa lại nội dung cũ.
+            var editWindowConfig = await _uow.Repository<SystemConfig>().Query()
+                .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.DailyLogEditWindowHours, cancellationToken);
+            int editWindowHours = editWindowConfig != null && int.TryParse(editWindowConfig.ConfigValue, out var parsedHours) && parsedHours > 0
+                ? parsedHours
+                : 24;
+
+            var editDeadline = log.CreatedAt.AddHours(editWindowHours);
+            if (DateTime.UtcNow > editDeadline)
+            {
+                throw new BusinessException("ERR_EDIT_WINDOW_EXPIRED",
+                    $"Nhật ký thi công chỉ được phép chỉnh sửa trong vòng {editWindowHours} giờ kể từ lúc tạo (cấu hình bởi Quản trị viên). Quá thời han, vui lòng tạo nhật ký mới hoặc liên hệ Quản trị viên.");
+            }
+
+
             // Kiểm tra số lượng hình ảnh
             if (request.Images != null && request.Images.Count > 5)
             {
@@ -97,8 +142,10 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             try
             {
-                // 4. Cập nhật mô tả nhật ký thi công
+                // 4. Cập nhật mô tả nhật ký thi công + đánh dấu đã chỉnh sửa (audit)
                 log.Description = request.Description;
+                log.IsEdited = true;
+                log.LastEditedAt = DateTime.UtcNow;
                 _uow.Repository<DailyLog>().Update(log);
 
                 // 5. Cập nhật Attachments (hình ảnh)
@@ -163,6 +210,8 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.CreatorName = creator?.FullName ?? string.Empty;
                 dto.Images = newUrls;
                 dto.OldProgressPercent = progressLog?.OldProgress ?? 0;
+                dto.EditWindowHours = editWindowHours;
+                dto.CanEdit = true; // vừa chỉnh sửa thành công => vẫn trong cửa sổ
 
                 // Gửi realtime cho client dòng thời gian dự án
                 await _realtimeSender.SendToGroupAsync($"Project_{project.ProjectId}", "ReceiveDailyLogUpdated", dto, cancellationToken);

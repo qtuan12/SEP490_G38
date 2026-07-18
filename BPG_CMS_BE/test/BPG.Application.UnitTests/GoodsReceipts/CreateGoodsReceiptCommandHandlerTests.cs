@@ -301,40 +301,41 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 .WithMessage("*Không thể nhập kho cho đơn hàng có trạng thái*");
         }
 
-        [Fact]
-        public async Task UTCID08_Handle_MaxImagesExceeded_ShouldThrowBusinessException()
+      [Fact]
+public async Task UTCID08_Handle_MultipleImages_ShouldCreateGoodsReceiptSuccessfully()
+{
+    // Arrange
+    _mockCurrentUserService.SetupUser(10);
+    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+    var po = new PurchaseOrder
+    {
+        POId = 100,
+        Status = PurchaseOrderStatus.Sent,
+        Request = new MaterialRequest { Phase = new Phase { Project = project } },
+        Items = new List<PurchaseOrderItem>
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
-
-            var tooManyImages = new List<string> { "1", "2", "3", "4", "5", "6" }; // 6 images
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5)
-            }, tooManyImages);
-
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Tối đa chỉ được đính kèm 5 hình ảnh chứng từ giao nhận.");
+            new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } }
         }
+    };
+    _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+
+    var images = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8" }; // 8 images
+    var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
+    {
+        new CreateGoodsReceiptItemDto(50, 1, 5)
+    }, images);
+
+    // Act
+    var result = await _handler.Handle(command, CancellationToken.None);
+
+    // Assert
+    result.Should().NotBeNull();
+    result.Success.Should().BeTrue();
+    _mockAttachmentRepo.Verify(r => r.AddRangeAsync(
+        It.Is<IEnumerable<Attachment>>(l => l.Count() == 8), 
+        It.IsAny<CancellationToken>()
+    ), Times.Once);
+}
 
         [Fact]
         public async Task UTCID09_Handle_MaterialNotInPO_ShouldThrowBusinessException()
@@ -454,43 +455,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         }
 
         [Fact]
-        public async Task UTCID12_Handle_Exactly5Images_ShouldCreateGoodsReceiptSuccessfully()
-        {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
-
-            var fiveImages = new List<string> { "img1", "img2", "img3", "img4", "img5" };
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5)
-            }, fiveImages);
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(It.Is<IEnumerable<Attachment>>(l => l.Count() == 5), It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        [Fact]
-        public async Task UTCID13_Handle_MultipleItemsOneInvalid_ShouldThrowBusinessException()
+        public async Task UTCID12_Handle_MultipleItemsOneInvalid_ShouldThrowBusinessException()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(10);
@@ -527,7 +492,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         }
 
         [Fact]
-        public async Task UTCID14_Handle_POWithMultipleItemsPartiallyReceived_ShouldUpdatePOStatusToPartiallyReceived()
+        public async Task UTCID13_Handle_POWithMultipleItemsPartiallyReceived_ShouldUpdatePOStatusToPartiallyReceived()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(10);
@@ -564,7 +529,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         }
 
         [Fact]
-        public async Task UTCID15_Handle_ExceptionDuringStockUpdate_ShouldRollbackTransactionAndThrow()
+        public async Task UTCID14_Handle_ExceptionDuringStockUpdate_ShouldRollbackTransactionAndThrow()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(10);

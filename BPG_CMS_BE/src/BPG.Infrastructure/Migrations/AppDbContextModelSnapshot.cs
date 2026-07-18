@@ -270,6 +270,12 @@ namespace BPG.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsEdited")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastEditedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateOnly>("LogDate")
                         .HasColumnType("date");
 
@@ -2172,6 +2178,9 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDiscrete")
                         .HasColumnType("bit");
 
                     b.Property<string>("UnitCode")

@@ -10,5 +10,6 @@ namespace BPG.Application.Features.DirectPurchases.Queries
         public string? Status { get; set; }
         public string? AuditStatus { get; set; }
         public long? RequestedBy { get; set; }
+        public string? SearchTerm { get; set; }
     }
 }

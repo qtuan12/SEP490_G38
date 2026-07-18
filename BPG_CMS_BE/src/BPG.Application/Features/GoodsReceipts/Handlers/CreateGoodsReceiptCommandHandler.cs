@@ -48,6 +48,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                         .ThenInclude(ph => ph!.Project)
                 .Include(p => p.Items)
                     .ThenInclude(pi => pi!.Material)
+                        .ThenInclude(m => m!.BaseUnit)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken);
 
             if (po == null)
@@ -75,10 +76,10 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
             }
 
             // 4. Kiểm tra ảnh chụp chứng minh nếu có validation bắt buộc (tối đa 5 ảnh)
-            if (request.Images != null && request.Images.Count > 5)
-            {
-                throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh chứng từ giao nhận.");
-            }
+            // if (request.Images != null && request.Images.Count > 5)
+            // {
+            //     throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh chứng từ giao nhận.");
+            // }
 
             // 5. Lấy tổng số lượng đã nhận của từng vật tư trong PO này từ trước đến nay
             var receivedQtyMap = await _uow.Repository<GoodsReceiptItem>().Query()
@@ -101,6 +102,12 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 {
                     throw new BusinessException("ERR_INVALID_QUANTITY", 
                         $"Số lượng nhận của vật tư [{poItem.Material.Name}] phải lớn hơn 0.");
+                }
+
+                if (poItem.Material.BaseUnit != null && poItem.Material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Đơn vị tính '{poItem.Material.BaseUnit.UnitName}' của vật tư [{poItem.Material.Name}] yêu cầu số lượng nhận phải là số nguyên.");
                 }
 
                 receivedQtyMap.TryGetValue(item.MaterialId, out decimal totalReceivedBefore);

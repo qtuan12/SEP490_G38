@@ -57,6 +57,20 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với công việc này.");
             }
 
+            // 1.5 Kiểm tra quyền: Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án (Leader) mới được phép tạo yêu cầu xuất dùng vật tư
+            bool isOfficeRole = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
+
+            if (!isOfficeRole)
+            {
+                var isLeader = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
+
+                if (!isLeader)
+                {
+                    throw new ForbiddenException("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+                }
+            }
+
             // 2. Kiểm tra trạng thái dự án
             if (project.Status != ProjectStatus.InProgress)
             {
@@ -85,6 +99,12 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 {
                     throw new BusinessException("ERR_NO_INVENTORY", 
                         $"Vật tư ID {item.MaterialId} không tồn tại trong kho của dự án.");
+                }
+
+                if (inv.Material.BaseUnit != null && inv.Material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Đơn vị tính '{inv.Material.BaseUnit.UnitName}' của vật tư [{inv.Material.Name}] yêu cầu số lượng xuất phải là số nguyên.");
                 }
 
                 // Chuyển đổi số lượng xuất ra đơn vị cơ bản

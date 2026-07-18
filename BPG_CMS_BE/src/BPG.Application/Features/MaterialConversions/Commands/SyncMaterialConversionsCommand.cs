@@ -1,4 +1,4 @@
-using BPG.Application.Features.MaterialConversions.DTOs;
+using BPG.Application.DTOs.MaterialConversions;
 using MediatR;
 using System.Collections.Generic;
 

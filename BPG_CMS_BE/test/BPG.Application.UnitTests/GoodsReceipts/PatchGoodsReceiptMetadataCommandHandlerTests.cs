@@ -25,6 +25,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<GoodsReceipt>> _mockGrRepo;
         private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
+        private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
         private readonly PatchGoodsReceiptMetadataCommandHandler _handler;
 
@@ -33,10 +34,18 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockUow = new Mock<IUnitOfWork>();
             _mockGrRepo = new Mock<IGenericRepository<GoodsReceipt>>();
             _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
+            _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
 
             _mockUow.Setup(u => u.Repository<GoodsReceipt>()).Returns(_mockGrRepo.Object);
             _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
+            _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
+
+            // Default mock query
+            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+
+            // By default, mock current user as office role to let other tests pass seamlessly
+            _mockCurrentUserService.Setup(s => s.IsInAnyRole(It.IsAny<string[]>())).Returns(true);
 
             _handler = new PatchGoodsReceiptMetadataCommandHandler(
                 _mockUow.Object,
@@ -260,6 +269,44 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             // Assert
             await act.Should().ThrowAsync<Exception>().WithMessage("DB Error");
             _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Theory]
+        [InlineData(BPG.Domain.Constants.UserRole.Accountant, false, true)] // Accountant -> succeeds
+        [InlineData(BPG.Domain.Constants.UserRole.SiteEngineer, true, true)]   // Leader -> succeeds
+        [InlineData(BPG.Domain.Constants.UserRole.SiteEngineer, false, false)] // Not leader -> fails
+        public async Task UTCID10_Handle_PermissionCheck_ShouldBehaveBasedOnRoleAndLeadership(string role, bool isLeader, bool expectedSuccess)
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, role, hasRole: role == BPG.Domain.Constants.UserRole.Accountant);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
+            var receipt = new GoodsReceipt { ReceiptId = 500, PurchaseOrder = po };
+            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            var members = isLeader
+                ? new List<ProjectMember> { new ProjectMember { ProjectId = 5, UserId = 10, IsLeader = true } }
+                : new List<ProjectMember>();
+            _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+
+            var command = new PatchGoodsReceiptMetadataCommand(500, "Updated", "DOC-999");
+
+            // Act
+            Func<Task<ApiResponse<bool>>> act = () => _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            if (expectedSuccess)
+            {
+                var result = await act();
+                result.Success.Should().BeTrue();
+            }
+            else
+            {
+                await act.Should().ThrowAsync<ForbiddenException>()
+                    .WithMessage("Chỉ Kế toán, Quản lý Kỹ thuật, Giám đốc hoặc Trưởng dự án mới có quyền chỉnh sửa thông tin chứng từ.");
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { supplierService } from '../../services/supplierService';
@@ -7,6 +7,7 @@ import { projectService } from '../../services/projectService';
 import { Button, Input, Select } from '../../components/ui';
 import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { isDiscreteUnit } from '../../utils/unitHelpers';
 
 interface POItem {
   materialId: number;
@@ -24,17 +25,37 @@ interface POItem {
 const fmt = (v: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
 
+// Chuyển yyyy-mm-dd (giá trị input date) sang dd-mm-yyyy để hiển thị
+const toDisplayDate = (isoDate: string) => {
+  if (!isoDate) return '';
+  const [y, m, d] = isoDate.split('-');
+  return `${d}-${m}-${y}`;
+};
+
 const label: React.CSSProperties = {
   fontSize: 13, fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: 4, display: 'block',
 };
 
 export const CreatePOPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryProjectId = searchParams.get('projectId');
+  const queryRequestId = searchParams.get('requestId');
 
   // Header state
   const [projectId, setProjectId] = useState(0);
   const [selectedRequestId, setSelectedRequestId] = useState(0);
-  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Tự động chọn Dự án nếu được truyền từ Tab Yêu cầu vật tư
+  useEffect(() => {
+    if (queryProjectId) {
+      const pId = Number(queryProjectId);
+      if (pId > 0 && pId !== projectId) {
+        setProjectId(pId);
+      }
+    }
+  }, [queryProjectId]);
+  const [orderDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [supplierId, setSupplierId] = useState(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
@@ -57,6 +78,12 @@ export const CreatePOPage: React.FC = () => {
     queryFn: () => supplierService.getSuppliers({ pageSize: 200, collaborationStatus: 'Active' }).then((r) => r.items),
   });
 
+  // Mã đơn hàng dự kiến sẽ được backend sinh — chỉ hiển thị tham khảo, không cho chỉnh sửa
+  const { data: nextPoNumber } = useQuery({
+    queryKey: ['next-po-number', orderDate],
+    queryFn: () => inventoryService.getNextPoNumber(orderDate),
+  });
+
   const { data: approvedRequestsData, isLoading: loadingRequests } = useQuery({
     queryKey: ['approved-requests-po', projectId],
     queryFn: () => inventoryService.getApprovedRequestsForPO(projectId),
@@ -65,6 +92,17 @@ export const CreatePOPage: React.FC = () => {
   // useMemo giữ stable reference khi data là undefined (query bị disable)
   // tránh [] mới mỗi render gây infinite re-render loop trong useEffect bên dưới
   const approvedRequests = useMemo(() => approvedRequestsData ?? [], [approvedRequestsData]);
+
+  // Tự động chọn Phiếu yêu cầu sau khi danh sách yêu cầu được tải
+  useEffect(() => {
+    if (queryRequestId && approvedRequests.length > 0 && !selectedRequestId) {
+      const rId = Number(queryRequestId);
+      const exists = approvedRequests.some(r => r.requestId === rId);
+      if (exists) {
+        setSelectedRequestId(rId);
+      }
+    }
+  }, [queryRequestId, approvedRequests, selectedRequestId]);
 
   // Load items when the selected request changes
   useEffect(() => {
@@ -159,6 +197,9 @@ export const CreatePOPage: React.FC = () => {
       if (it.quantity <= 0) return setFormError(`Số lượng "${it.materialName}" phải lớn hơn 0.`);
       if (it.quantity > it.maxQuantity)
         return setFormError(`Số lượng "${it.materialName}" vượt quá số lượng yêu cầu (${it.maxQuantity}).`);
+      if (isDiscreteUnit(it.unitName) && it.quantity % 1 !== 0) {
+        return setFormError(`Đơn vị tính '${it.unitName}' của vật tư "${it.materialName}" yêu cầu số lượng phải là số nguyên.`);
+      }
     }
     mutation.mutate();
   };
@@ -222,14 +263,32 @@ export const CreatePOPage: React.FC = () => {
             />
           </div>
           <div>
-            <label style={label}>Ngày đơn hàng <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-            <Input
-              type="date"
-              value={orderDate}
-              onChange={(e) => { setOrderDate(e.target.value); setOrderDateError(null); }}
+            <label style={label}>Mã đơn hàng <span style={{ fontWeight: 400, color: 'hsl(var(--text-muted))' }}>(dự kiến)</span></label>
+            <div
               className="h-10"
-              style={orderDateError ? { borderColor: 'hsl(var(--danger))' } : undefined}
-            />
+              style={{
+                display: 'flex', alignItems: 'center',
+                borderRadius: 6, padding: '0 12px', fontSize: 14, fontWeight: 600,
+                border: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--bg-muted, var(--bg-card)))', color: 'hsl(var(--text-secondary))',
+              }}
+            >
+              {nextPoNumber ?? '...'}
+            </div>
+          </div>
+          <div>
+            <label style={label}>Ngày đơn hàng <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+            <div
+              className="h-10"
+              style={{
+                display: 'flex', alignItems: 'center',
+                borderRadius: 6, padding: '0 12px', fontSize: 14,
+                border: `1px solid ${orderDateError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`,
+                background: 'hsl(var(--bg-muted, var(--bg-card)))', color: 'hsl(var(--text-secondary))',
+              }}
+            >
+              {toDisplayDate(orderDate)}
+            </div>
             {orderDateError && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{orderDateError}</p>
             )}
@@ -248,13 +307,27 @@ export const CreatePOPage: React.FC = () => {
           </div>
           <div>
             <label style={label}>Hạn giao hàng</label>
-            <Input
-              type="date"
-              value={expectedDeliveryDate}
-              onChange={(e) => { setExpectedDeliveryDate(e.target.value); setDeliveryDateError(null); }}
-              className="h-10"
-              style={deliveryDateError ? { borderColor: 'hsl(var(--danger))' } : undefined}
-            />
+            <div style={{ position: 'relative' }}>
+              <Input
+                type="date"
+                value={expectedDeliveryDate}
+                onChange={(e) => { setExpectedDeliveryDate(e.target.value); setDeliveryDateError(null); }}
+                className="h-10"
+                style={{
+                  color: 'transparent',
+                  ...(deliveryDateError ? { borderColor: 'hsl(var(--danger))' } : {}),
+                }}
+              />
+              <span
+                style={{
+                  position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                  fontSize: 14, pointerEvents: 'none',
+                  color: expectedDeliveryDate ? 'hsl(var(--text-primary))' : 'hsl(var(--text-muted))',
+                }}
+              >
+                {expectedDeliveryDate ? toDisplayDate(expectedDeliveryDate) : 'dd-mm-yyyy'}
+              </span>
+            </div>
             {deliveryDateError && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{deliveryDateError}</p>
             )}
@@ -374,7 +447,10 @@ export const CreatePOPage: React.FC = () => {
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-secondary))' }}>{it.unitName}</td>
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-muted))' }}>{it.maxQuantity}</td>
                     <td style={{ padding: '8px 10px' }}>
-                      <Input type="number" min={0.001} max={it.maxQuantity} step={0.001}
+                      <Input type="number" 
+                        min={isDiscreteUnit(it.unitName) ? 1 : 0.001} 
+                        max={it.maxQuantity} 
+                        step={isDiscreteUnit(it.unitName) ? 1 : 0.001}
                         value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))}
                         className="h-8" style={{ width: 110 }} />
                     </td>

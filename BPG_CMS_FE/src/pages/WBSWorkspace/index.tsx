@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { wbsService } from '../../services/wbsService';
@@ -11,7 +11,7 @@ import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
-import { FileText, BarChart2, History } from 'lucide-react';
+import { FileText, BarChart2 } from 'lucide-react';
 import { ConfirmDialog } from '../../components/ui';
 
 
@@ -25,6 +25,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { connection } = useNotification();
 
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: wbsDataAll, isLoading: loading, error: queryError } = useQuery({
     queryKey: ['wbsDataAll', projectId],
@@ -161,6 +162,20 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
       });
     }
   }, [wbsDataAll?.wbsData.phases]);
+
+  // Support opening task detail from URL
+  useEffect(() => {
+    const queryTaskId = searchParams.get('taskId');
+    if (queryTaskId && tasks.length > 0) {
+      const taskExists = tasks.some(t => t.id === queryTaskId);
+      if (taskExists) {
+        setSelectedTaskId(queryTaskId);
+        setIsDetailOpen(true);
+        searchParams.delete('taskId');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [searchParams, tasks, setSearchParams]);
 
   useEffect(() => {
     if (!connection) return;
@@ -404,13 +419,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
               <BarChart2 size={15} />
               <span>Xem Biểu đồ công việc</span>
             </button>
-            <button
-              onClick={() => navigate(`/projects/${projectId}/logs`)}
-              className="flex items-center gap-2 py-2 px-4 shrink-0 border border-[hsl(var(--primary)/0.4)] rounded-sm bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] cursor-pointer text-[0.85rem] font-semibold transition-all duration-150 hover:bg-[hsl(var(--primary))] hover:text-white"
-            >
-              <History size={15} />
-              <span>Xem Nhật ký thi công</span>
-            </button>
+
           </div>
         </div>
 

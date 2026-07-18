@@ -5,11 +5,19 @@ const DISCRETE_UNITS = [
 
 /**
  * Kiểm tra xem Đơn vị tính có thuộc nhóm số nguyên (Discrete Units) không.
- * So khớp không phân biệt chữ hoa/thường và khoảng trắng.
+ * Hỗ trợ nhận vào string (tên ĐVT) hoặc object chứa thuộc tính isDiscrete.
  */
-export const isDiscreteUnit = (unitName?: string): boolean => {
-  if (!unitName) return false;
-  const normalized = unitName.toLowerCase().trim();
+export const isDiscreteUnit = (unit?: string | { isDiscrete?: boolean; unitName?: string; name?: string }): boolean => {
+  if (!unit) return false;
+
+  if (typeof unit === 'object') {
+    if (typeof unit.isDiscrete === 'boolean') {
+      return unit.isDiscrete;
+    }
+    return isDiscreteUnit(unit.unitName || unit.name);
+  }
+
+  const normalized = unit.toLowerCase().trim();
   // Kiểm tra tên ĐVT có khớp hoàn toàn hoặc chứa ĐVT số nguyên trong ngoặc đơn
   return DISCRETE_UNITS.some(u => 
     normalized === u || 

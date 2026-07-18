@@ -110,6 +110,17 @@ export const UnitManagement: React.FC = () => {
       ),
     },
     {
+      key: 'isDiscrete',
+      header: 'Loại Đơn vị',
+      render: (unit: Unit) => (
+        unit.isDiscrete ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">Số nguyên</span>
+        ) : (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-500/10 text-slate-600 border border-slate-500/20">Số thập phân</span>
+        )
+      ),
+    },
+    {
       key: 'actions',
       header: 'Hành động',
       render: (unit: Unit) => (

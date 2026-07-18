@@ -13,6 +13,7 @@ public record TaskDetailsDto
 {
     public long TaskId { get; set; }
     public long PhaseId { get; set; }
+    public long ProjectId { get; set; }
     public long? ParentTaskId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }

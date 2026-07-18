@@ -27,6 +27,8 @@ public static class SystemConfigKeys
     public const string IncidentReviewDeadlineDays = "IncidentReviewDeadlineDays";         // Thời hạn TPKT phải xử lý incident (ngày)
     public const string AutoReleaseReservedStockDays = "AutoReleaseReservedStockDays";     // Tự động nhả stock đã đóng băng nếu surplus không xử lý sau N ngày
 
+    public const string DailyLogEditWindowHours = "DailyLogEditWindowHours";   // Số giờ được phép chỉnh sửa nhật ký thi công kể từ lúc tạo
+
     // ==================== TÍCH HỢP & GỬI EMAIL ====================
     public const string SmtpServer = "SmtpServer";                 // SMTP server
     public const string SmtpPort = "SmtpPort";                     // SMTP port

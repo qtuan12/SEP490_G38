@@ -173,7 +173,9 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       content: l.description,
       weather: '',
       images: l.images || [],
-      comments: (l.comments || []).map(mapRawComment)
+      comments: (l.comments || []).map(mapRawComment),
+      canEdit: l.canEdit,
+      editWindowHours: l.editWindowHours
     });
 
     // Event handlers

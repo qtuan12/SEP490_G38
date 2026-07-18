@@ -57,9 +57,9 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = task.Phase.Project;
 
-            // 2. Kiểm tra quyền của User (Chỉ Admin, TM, Project Leader hoặc Assigned Engineer mới được tạo daily log)
-            bool isAdminOrTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isAdminOrTM)
+            // 2. Kiểm tra quyền của User (Chỉ TM, Project Leader hoặc Assigned Engineer mới được tạo daily log)
+            bool isTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
+            if (!isTM)
             {
                 // Kiểm tra xem User có phải là Project Leader của dự án này không
                 var isLeader = await _uow.Repository<ProjectMember>().Query()
@@ -100,11 +100,6 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 }
             }
 
-            // Kiểm tra số lượng hình ảnh
-            if (request.Images != null && request.Images.Count > 5)
-            {
-                throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh hiện trường thi công.");
-            }
 
             // 4. Kiểm tra xem Task có phải là Task cha (có subtasks) không
             if (task.SubTasks != null && task.SubTasks.Any(s => !s.IsDeleted))
@@ -156,7 +151,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             byte oldProgress = task.ProgressPercent;
             if (request.NewProgressPercent < oldProgress)
             {
-                if (!isAdminOrTM)
+                if (!isTM)
                 {
                     throw new BusinessException("ERR_DECREASE_PROGRESS_FORBIDDEN", 
                         "Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
@@ -255,6 +250,16 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.CreatorName = creator?.FullName ?? string.Empty;
                 dto.Images = request.Images ?? new List<string>();
                 dto.OldProgressPercent = oldProgress;
+
+                // Vừa tạo luôn nằm trong cửa sổ chỉnh sửa; lấy config để FE biết giới hạn
+                var editWindowConfig = await _uow.Repository<SystemConfig>().Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.DailyLogEditWindowHours, cancellationToken);
+                int editWindowHours = editWindowConfig != null && int.TryParse(editWindowConfig.ConfigValue, out var parsedHours) && parsedHours > 0
+                    ? parsedHours
+                    : 24;
+                dto.EditWindowHours = editWindowHours;
+                dto.CanEdit = true;
 
                 // 10. Gửi thông báo đến những người liên quan
                 await SendNotificationsAsync(task, creator?.FullName ?? "Kỹ sư", request.NewProgressPercent, cancellationToken);

@@ -95,6 +95,14 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 var logIds = dtos.Select(d => d.LogId).ToList();
                 var taskIds = dtos.Select(d => d.TaskId).Distinct().ToList();
 
+                // Lấy cấu hình số giờ được phép chỉnh sửa nhật ký (mặc định 24h)
+                var editWindowConfig = await _uow.Repository<SystemConfig>().Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.DailyLogEditWindowHours, cancellationToken);
+                int editWindowHours = editWindowConfig != null && int.TryParse(editWindowConfig.ConfigValue, out var parsedHours) && parsedHours > 0
+                    ? parsedHours
+                    : 24;
+
                 // Lấy tất cả progress logs của các Task này
                 var progressLogs = await _uow.Repository<TaskProgressLog>().Query()
                     .AsNoTracking()
@@ -125,6 +133,10 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                         .FirstOrDefault();
 
                     dto.OldProgressPercent = matchingLog?.OldProgress ?? 0;
+                    dto.EditWindowHours = editWindowHours;
+
+                    // CanEdit = still within the editable window (kept in sync with Update handler)
+                    dto.CanEdit = DateTime.UtcNow <= dto.CreatedAt.AddHours(editWindowHours);
                 }
             }
 

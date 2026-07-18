@@ -99,7 +99,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                                 "Yêu cầu vật tư đã được phê duyệt",
                                 $"Yêu cầu vật tư cho giai đoạn '{mr.Phase?.Name}' của bạn đã được Kế toán '{accountantName}' phê duyệt.",
                                 NotificationType.Procurement,
-                                NotificationReferenceType.MaterialRequest,
+                                $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
                                 mr.RequestId,
                                 cancellationToken);
                         }
@@ -112,7 +112,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                             "Yêu cầu vượt định mức chờ duyệt",
                             $"Kế toán '{accountantName}' vừa trình Giám đốc một yêu cầu vật tư vượt định mức giai đoạn '{mr.Phase?.Name}' thuộc dự án '{mr.Phase?.Project?.Name}'.",
                             NotificationType.Procurement,
-                            NotificationReferenceType.MaterialRequest,
+                            $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
                             mr.RequestId,
                             cancellationToken);
                     }

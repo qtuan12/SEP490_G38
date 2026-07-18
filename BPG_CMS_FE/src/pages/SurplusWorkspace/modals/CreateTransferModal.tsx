@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, FormItem, Input, Select } from '../../../components/ui';
 import { AlertCircle } from 'lucide-react';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 import { surplusService } from '../../../services/surplusService';
 import { projectService } from '../../../services/projectService';
 import type { SurplusRequestItem } from '../../../types/surplus';
@@ -50,6 +51,7 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
     const qty = parseFloat(transferQty);
     if (isNaN(qty) || qty <= 0) { setError('Số lượng phải lớn hơn 0.'); return; }
     if (qty > remaining) { setError(`Số lượng không được vượt quá còn lại (${remaining} ${item.unitName}).`); return; }
+    if (isDiscreteUnit(item.unitName) && qty % 1 !== 0) { setError(`Đơn vị tính '${item.unitName}' yêu cầu số lượng phải là số nguyên.`); return; }
 
     setError(null);
     setSubmitting(true);
@@ -117,8 +119,8 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
         <FormItem label="Số lượng chuyển" required>
           <Input
             type="number"
-            step="any"
-            min={0}
+            step={isDiscreteUnit(item.unitName) ? "1" : "any"}
+            min={isDiscreteUnit(item.unitName) ? "1" : "0"}
             max={remaining}
             value={transferQty}
             onChange={e => setTransferQty(e.target.value)}

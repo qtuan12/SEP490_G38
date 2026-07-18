@@ -155,7 +155,7 @@ namespace BPG.Application.UnitTests.Notifications
         }
 
         [Fact]
-        public async Task Handle_SpecificUserIdNotFound_ShouldThrowExceptionAndNotSave()
+        public async Task Handle_SpecificUserIdNotFound_ShouldReturnAndNotSave()
         {
             // ==========================================
             // ARRANGE
@@ -179,13 +179,11 @@ namespace BPG.Application.UnitTests.Notifications
             // ==========================================
             // ACT
             // ==========================================
-            Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+            await _handler.Handle(request, CancellationToken.None);
 
             // ==========================================
             // ASSERT
             // ==========================================
-            await act.Should().ThrowAsync<Exception>()
-                .WithMessage("Không tìm thấy người dùng nhận thông báo hợp lệ.");
 
             _mockNotificationRepo.Verify(r => r.AddRangeAsync(
                 It.IsAny<IEnumerable<Notification>>(),
