@@ -27,6 +27,7 @@ export interface GetDirectPurchaseRequestsParams {
   status?: string;
   auditStatus?: string;
   requestedBy?: number;
+  searchTerm?: string;
 }
 
 export interface PhaseBOQItemDto {
@@ -115,6 +116,7 @@ export const directPurchaseService = {
     if (params.status) query.set('status', params.status);
     if (params.auditStatus) query.set('auditStatus', params.auditStatus);
     if (params.requestedBy) query.set('requestedBy', String(params.requestedBy));
+    if (params.searchTerm) query.set('searchTerm', params.searchTerm);
     return unwrapPaged(
       await apiClient.get<ApiPagedResponse<DirectPurchaseRequestDto>>(`/directpurchases?${query.toString()}`)
     );
