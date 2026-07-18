@@ -251,6 +251,16 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.Images = request.Images ?? new List<string>();
                 dto.OldProgressPercent = oldProgress;
 
+                // Vừa tạo luôn nằm trong cửa sổ chỉnh sửa; lấy config để FE biết giới hạn
+                var editWindowConfig = await _uow.Repository<SystemConfig>().Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.DailyLogEditWindowHours, cancellationToken);
+                int editWindowHours = editWindowConfig != null && int.TryParse(editWindowConfig.ConfigValue, out var parsedHours) && parsedHours > 0
+                    ? parsedHours
+                    : 24;
+                dto.EditWindowHours = editWindowHours;
+                dto.CanEdit = true;
+
                 // 10. Gửi thông báo đến những người liên quan
                 await SendNotificationsAsync(task, creator?.FullName ?? "Kỹ sư", request.NewProgressPercent, cancellationToken);
 
