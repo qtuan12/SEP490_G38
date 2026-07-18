@@ -55,7 +55,7 @@ export const MaterialControl: React.FC = () => {
 
   // ─── SignalR: tự động reload khi có notification liên quan đến yêu cầu vật tư ───
   useSignalREvent('ReceiveNotification', (noti: any) => {
-    if (noti?.referenceType === 'MaterialRequest') {
+    if (noti?.referenceType === 'MaterialRequest' || noti?.referenceType?.includes('/materialrequests')) {
       fetchMaterialRequests();
       toast('Danh sách yêu cầu vật tư vừa được cập nhật!', { icon: '📋' });
     }

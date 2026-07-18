@@ -1,4 +1,4 @@
-namespace BPG.Application.Features.MaterialCatalogs.DTOs;
+namespace BPG.Application.DTOs.MaterialCatalogs;
 
 public class MaterialCatalogDto
 {

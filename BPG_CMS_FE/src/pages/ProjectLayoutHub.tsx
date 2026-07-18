@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { projectService } from '../services/projectService';
+import { incidentService } from '../services/incidentService';
 import type { Project } from '../types/common';
 import { ProjectMembers } from '../components/ProjectMembers';
 import { WBSWorkspace } from './WBSWorkspace';
@@ -26,19 +28,41 @@ import {
   PackageMinus,
   ShoppingCart,
   ShoppingBag,
+  FileSignature,
+  AlertTriangle,
+  ClipboardList,
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
 import { SurplusWorkspace } from './SurplusWorkspace/SurplusWorkspace';
 import { ProjectIncidents } from './ProjectIncidents';
 import { ProjectPOTab } from './ProjectLayoutHub/ProjectPOTab';
 import { ProjectDirectPurchaseTab } from './ProjectLayoutHub/ProjectDirectPurchaseTab';
+import { AdjustmentList } from './InventoryAdjustments/components/AdjustmentList';
+import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
+import { ProjectMaterialRequestsTab } from './MaterialRequests/components/ProjectMaterialRequestsTab';
+
+const cleanPauseReason = (reason: string): string => {
+  if (!reason) return "";
+  return reason
+    .replace(/!\[.*?\]\(.*?\)/g, "")
+    .replace(/\*\*Hình ảnh đính kèm:?\*\*/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+};
 
 export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  const { data: incidents } = useQuery({
+    queryKey: ['projectIncidents', projectId],
+    queryFn: () => incidentService.getIncidents(Number(projectId?.replace('p-', ''))),
+    enabled: !!projectId
+  });
+  const hasApprovedEmergencyIncident = incidents?.some(i => i.isEmergency && i.status === 'Approved') ?? false;
 
   const { user } = useAuth();
   const { connection } = useNotification();
@@ -50,8 +74,8 @@ export const ProjectLayoutHub: React.FC = () => {
   const isAccountant = user?.role === 'accountant';
   const [isAssignedLeader, setIsAssignedLeader] = useState(false);
 
-  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'incidents' | 'surplus' | 'purchaseorders' | 'directpurchases';
-  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'incidents', 'surplus', 'purchaseorders', 'directpurchases'];
+  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'directpurchases' | 'materialrequests';
+  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'directpurchases', 'materialrequests'];
 
   const [activeTab, setActiveTab] = useState<TabKey>(
     (searchParams.get('tab') as TabKey) || 'wbs'
@@ -226,7 +250,7 @@ export const ProjectLayoutHub: React.FC = () => {
               <div style={{ marginTop: '12px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', borderLeft: '4px solid hsl(var(--warning))', color: 'hsl(var(--warning))', fontSize: '0.9rem', borderRadius: '4px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                 <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
                 <div>
-                  <strong>Lý do tạm dừng:</strong> {project.pauseReason}
+                  <strong>Lý do tạm dừng:</strong> {cleanPauseReason(project.pauseReason)}
                   {project.pausedAt && <span style={{ marginLeft: '8px', fontSize: '0.85em', opacity: 0.8 }}>(Thời gian: {new Date(project.pausedAt).toLocaleString('vi-VN')})</span>}
                 </div>
               </div>
@@ -246,7 +270,7 @@ export const ProjectLayoutHub: React.FC = () => {
             )}
 
             {/* Nút Sửa chỉ dành cho TPKT/Admin */}
-            {isTPKT && project.status !== 'done' && (
+            {isTPKT && project.status !== 'done' && project.status !== 'paused' && (
               <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Edit3 size={16} /> Sửa
               </button>
@@ -417,6 +441,28 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
+          onClick={() => handleTabChange('materialrequests')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'materialrequests' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'materialrequests' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'materialrequests' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <ClipboardList size={18} />
+          <span>Yêu cầu vật tư</span>
+        </button>
+
+        <button
           onClick={() => handleTabChange('inventory')}
           style={{
             display: 'flex',
@@ -439,6 +485,28 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
+          onClick={() => handleTabChange('inventoryadjustments')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'inventoryadjustments' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'inventoryadjustments' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'inventoryadjustments' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <FileSignature size={18} />
+          <span>Kiểm kê vật tư</span>
+        </button>
+
+        <button
           onClick={() => handleTabChange('incidents')}
           style={{
             display: 'flex',
@@ -458,6 +526,28 @@ export const ProjectLayoutHub: React.FC = () => {
         >
           <AlertCircle size={18} />
           <span>Sự cố thi công</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('inventoryincidents')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'inventoryincidents' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'inventoryincidents' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'inventoryincidents' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <AlertTriangle size={18} />
+          <span>Sự cố vật tư</span>
         </button>
 
         <button
@@ -531,16 +621,93 @@ export const ProjectLayoutHub: React.FC = () => {
       </div>
 
       {/* Tab Contents */}
+      {project.status === 'paused' && activeTab !== 'incidents' && !(activeTab === 'wbs' && isTPKT && hasApprovedEmergencyIncident) && (
+        <div style={{
+          padding: '12px 16px',
+          background: 'hsl(var(--warning-glow))',
+          border: '1px solid hsl(var(--warning)/0.3)',
+          borderRadius: '8px',
+          color: 'hsl(var(--warning))',
+          marginTop: '16px',
+          marginBottom: '6px',
+          fontSize: '0.88rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <AlertCircle size={16} style={{ flexShrink: 0 }} />
+          <span>
+            <strong>Dự án đang tạm dừng thi công.</strong> Tất cả thao tác tạo lập, chỉnh sửa và phê duyệt trên phân hệ này đã bị khóa (chỉ được xem). Vui lòng chuyển sang tab <strong>Sự cố thi công</strong> để lập báo cáo hoặc xử lý sự cố.
+          </span>
+        </div>
+      )}
+
+      {project.status === 'paused' && activeTab === 'wbs' && isTPKT && hasApprovedEmergencyIncident && (
+        <div style={{
+          padding: '12px 16px',
+          background: 'hsl(var(--success-glow))',
+          border: '1px solid hsl(var(--success)/0.3)',
+          borderRadius: '8px',
+          color: 'hsl(var(--success))',
+          marginTop: '16px',
+          marginBottom: '6px',
+          fontSize: '0.88rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <CheckCircle size={16} style={{ flexShrink: 0, color: 'hsl(var(--success))' }} />
+          <span>
+            <strong>Báo cáo khắc phục sự cố đã được phê duyệt.</strong> Phân hệ Kế hoạch thi công đã được mở khóa riêng cho Trưởng phòng Kỹ thuật để tạo các Giai đoạn (Phase) hoặc Công việc (Task) khắc phục mới. Sau khi lập xong kế hoạch, vui lòng nhấn nút <strong>"Tiếp tục Dự án"</strong> ở góc trên bên phải để kích hoạt dự án thi công lại.
+          </span>
+        </div>
+      )}
+
+      {project.status === 'paused' && (
+        <style>{`
+          .paused-project-readonly-container form:not(.search-form):not(.filter-form) {
+            pointer-events: none !important;
+            opacity: 0.7 !important;
+          }
+          .paused-project-readonly-container input:not([placeholder*="Tìm"]):not([placeholder*="search"]):not([type="search"]),
+          .paused-project-readonly-container textarea,
+          .paused-project-readonly-container select:not(.filter-select):not(.limit-select) {
+            pointer-events: none !important;
+            opacity: 0.65 !important;
+            background-color: rgba(0, 0, 0, 0.05) !important;
+          }
+          .paused-project-readonly-container button.btn-primary,
+          .paused-project-readonly-container button[variant="primary"],
+          .paused-project-readonly-container button:has(.lucide-plus),
+          .paused-project-readonly-container button:has(.lucide-trash2),
+          .paused-project-readonly-container button:has(.lucide-edit),
+          .paused-project-readonly-container button:has(.lucide-edit2),
+          .paused-project-readonly-container button:has(.lucide-upload-cloud),
+          .paused-project-readonly-container button:has(svg[class*="lucide-plus"]),
+          .paused-project-readonly-container button:has(svg[class*="lucide-trash"]),
+          .paused-project-readonly-container button:has(svg[class*="lucide-edit"]),
+          .paused-project-readonly-container a.btn-primary,
+          .paused-project-readonly-container .btn-primary {
+            pointer-events: none !important;
+            opacity: 0.4 !important;
+            cursor: not-allowed !important;
+          }
+        `}</style>
+      )}
+
       <div
-        className="animate-fade-in"
+        className={`animate-fade-in ${project.status === 'paused' && activeTab !== 'incidents' && !(activeTab === 'wbs' && isTPKT && hasApprovedEmergencyIncident) ? 'paused-project-readonly-container' : ''}`}
         style={{ marginTop: '10px' }}
       >
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
+        {activeTab === 'materialrequests' && <ProjectMaterialRequestsTab projectId={Number(project.id)} />}
         {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
+        {activeTab === 'inventoryadjustments' && <AdjustmentList projectId={Number(project.id)} />}
         {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} />}
+        {activeTab === 'inventoryincidents' && <GlobalInventoryIncidents projectId={Number(project.id)} />}
         {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} />}
         {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
       </div>

@@ -112,8 +112,13 @@ export const AssignEngineerForm: React.FC<AssignEngineerFormProps> = ({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto', border: '1px solid hsl(var(--border-light))', borderRadius: 'var(--radius-md)', padding: '12px', backgroundColor: 'hsl(var(--bg-card))' }}>
-                {members.length > 0 ? members.filter(m => m.userRole === 'Site Engineer' || m.userRole === 'SiteEngineer' || m.userRole.toLowerCase() === 'siteengineer' || m.userRole === 'Nhân viên kỹ thuật').map(m => {
+                {members.length > 0 ? members.map(m => {
                   const isChecked = selectedUserIds.includes(m.userId);
+                  let displayRole = m.userRole;
+                  if (m.isLeader) displayRole = 'Trưởng dự án';
+                  else if (m.userRole === 'TechnicalManager' || m.userRole === 'Technical Manager') displayRole = 'Trưởng phòng kỹ thuật';
+                  else if (m.userRole === 'SiteEngineer' || m.userRole === 'Site Engineer' || m.userRole?.toLowerCase() === 'siteengineer') displayRole = 'Nhân viên kỹ thuật';
+                  
                   return (
                     <label key={m.userId} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: '12px', cursor: 'pointer', fontWeight: 500, fontSize: '0.9rem', padding: '10px 16px', borderRadius: 'var(--radius-md)', backgroundColor: isChecked ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-body))', border: isChecked ? '1px solid hsl(var(--primary))' : '1px solid hsl(var(--border-light))', transition: 'all 0.2s', margin: 0 }}>
                       <input
@@ -125,7 +130,7 @@ export const AssignEngineerForm: React.FC<AssignEngineerFormProps> = ({
                       />
                       <span style={{ color: 'hsl(var(--text-primary))', flex: 1, textAlign: 'left', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '6px' }}>
                         <span>{m.userName}</span>
-                        <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.85rem', fontWeight: 400 }}>- {m.userRole}</span>
+                        <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.85rem', fontWeight: 400 }}>- {displayRole}</span>
                       </span>
                     </label>
                   );

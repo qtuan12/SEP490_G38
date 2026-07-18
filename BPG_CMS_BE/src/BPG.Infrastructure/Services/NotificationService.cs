@@ -77,5 +77,28 @@ namespace BPG.Infrastructure.Services
                 ReferenceId: referenceId
             ), ct);
         }
+
+        public async Task SendNotificationToRoleAsync(
+            string roleName,
+            string title,
+            string content,
+            string notificationType,
+            long excludeUserId,
+            string? referenceType = null,
+            long? referenceId = null,
+            CancellationToken ct = default)
+        {
+            await _mediator.Send(new SendNotificationCommand(
+                UserId: null,
+                Title: title,
+                Content: content,
+                NotificationType: notificationType,
+                SendToAll: false,
+                RoleName: roleName,
+                ReferenceType: referenceType,
+                ReferenceId: referenceId,
+                ExcludeUserId: excludeUserId
+            ), ct);
+        }
     }
 }

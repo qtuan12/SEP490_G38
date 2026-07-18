@@ -1,6 +1,6 @@
 using BPG.Application.Features.MaterialCategories.Commands;
 using BPG.Application.Features.MaterialCategories.Queries;
-using BPG.Application.Features.MaterialCategories.DTOs;
+using BPG.Application.DTOs.MaterialCategories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

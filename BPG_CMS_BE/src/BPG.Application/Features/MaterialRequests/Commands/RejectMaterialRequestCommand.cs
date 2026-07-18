@@ -86,7 +86,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                         "Yêu cầu vật tư bị từ chối",
                         $"Yêu cầu vật tư cho giai đoạn '{mr.Phase?.Name}' của bạn đã bị từ chối bởi '{rejectUserName}'. Lý do: {request.Reason}",
                         NotificationType.Procurement,
-                        NotificationReferenceType.MaterialRequest,
+                        $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
                         mr.RequestId,
                         cancellationToken);
                 }

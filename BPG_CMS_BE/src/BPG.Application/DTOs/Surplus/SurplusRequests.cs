@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;
 
-namespace BPG.Api.DTOs.Surplus;
+namespace BPG.Application.DTOs.Surplus;
 
 public record CreateSurplusRequestBody(string? Reason);
 

@@ -194,8 +194,8 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
                 "Cập nhật định mức vật tư",
                 $"Định mức vật tư giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' vừa được cập nhật bởi '{userName}'.",
                 NotificationType.Procurement,
-                NotificationReferenceType.Project,
-                phase.ProjectId,
+                $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/boq",
+                phase.PhaseId,
                 cancellationToken);
 
             // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án
@@ -208,8 +208,8 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
                     "Cập nhật định mức vật tư",
                     $"Định mức vật tư giai đoạn '{phase.Name}' vừa được cập nhật bởi '{userName}'.",
                     NotificationType.Procurement,
-                    NotificationReferenceType.Project,
-                    phase.ProjectId,
+                    $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/boq",
+                    phase.PhaseId,
                     cancellationToken);
             }
         }

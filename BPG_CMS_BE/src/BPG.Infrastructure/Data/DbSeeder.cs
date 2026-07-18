@@ -122,16 +122,16 @@ public static class DbSeeder
         {
             units = new List<Unit>
             {
-                new() { UnitCode = "BAO",   UnitName = "Bao (50kg)" },
-                new() { UnitCode = "KG",    UnitName = "Kilôgam" },
-                new() { UnitCode = "TAN",   UnitName = "Tấn" },
-                new() { UnitCode = "M3",    UnitName = "Mét khối" },
-                new() { UnitCode = "M2",    UnitName = "Mét vuông" },
-                new() { UnitCode = "MET",   UnitName = "Mét dài" },
-                new() { UnitCode = "CAI",   UnitName = "Cái" },
-                new() { UnitCode = "BO",    UnitName = "Bộ" },
-                new() { UnitCode = "CUON",  UnitName = "Cuộn" },
-                new() { UnitCode = "THUNG", UnitName = "Thùng" },
+                new() { UnitCode = "BAO",   UnitName = "Bao (50kg)", IsDiscrete = true },
+                new() { UnitCode = "KG",    UnitName = "Kilôgam", IsDiscrete = false },
+                new() { UnitCode = "TAN",   UnitName = "Tấn", IsDiscrete = false },
+                new() { UnitCode = "M3",    UnitName = "Mét khối", IsDiscrete = false },
+                new() { UnitCode = "M2",    UnitName = "Mét vuông", IsDiscrete = false },
+                new() { UnitCode = "MET",   UnitName = "Mét dài", IsDiscrete = false },
+                new() { UnitCode = "CAI",   UnitName = "Cái", IsDiscrete = true },
+                new() { UnitCode = "BO",    UnitName = "Bộ", IsDiscrete = true },
+                new() { UnitCode = "CUON",  UnitName = "Cuộn", IsDiscrete = true },
+                new() { UnitCode = "THUNG", UnitName = "Thùng", IsDiscrete = true },
             };
             context.Units.AddRange(units);
             await context.SaveChangesAsync();
@@ -361,6 +361,7 @@ public static class DbSeeder
                 var taskNames = new[] { "Nhiệm vụ 1", "Nhiệm vụ 2", "Nhiệm vụ 3" };
                 var createdTasks = new List<ProjectTask>();
 
+                int taskIdx = 0;
                 foreach (var tName in taskNames)
                 {
                     string taskStatus;
@@ -380,15 +381,38 @@ public static class DbSeeder
                         taskStatus = "New";        // Draft phase → chưa giao
                     }
 
+                    var tStartDate = phase.StartDate.Value;
+                    var tEndDate = phase.EndDate.Value;
+                    var tProgress = (byte)pd.Pct;
+
+                    // Customize task dates and progress for active phases to seed warning data
+                    if (isPhaseActive)
+                    {
+                        if (taskIdx == 0)
+                        {
+                            // Task 1: Overdue (Red warning)
+                            tStartDate = today.AddDays(-20);
+                            tEndDate = today.AddDays(-5);
+                            tProgress = 40;
+                        }
+                        else if (taskIdx == 1)
+                        {
+                            // Task 2: Slow progress (Yellow warning)
+                            tStartDate = today.AddDays(-10);
+                            tEndDate = today.AddDays(10);
+                            tProgress = 15; // expected ~50%, actual 15% -> Yellow
+                        }
+                    }
+
                     var task = new ProjectTask
                     {
                         PhaseId         = phase.PhaseId,
                         Name            = $"{pd.Ten} - {tName}",
                         OrderIndex      = 1,
-                        StartDate       = phase.StartDate.Value,
-                        EndDate         = phase.EndDate.Value,
+                        StartDate       = tStartDate,
+                        EndDate         = tEndDate,
                         Status          = taskStatus,
-                        ProgressPercent = (byte)pd.Pct,
+                        ProgressPercent = tProgress,
                         IsLocked        = isLocked,
                         CreatedAt       = DateTime.UtcNow,
                         CreatedBy       = tpkt.UserId
@@ -397,13 +421,14 @@ public static class DbSeeder
                     await context.SaveChangesAsync();
 
                     // Assign engineer khi task đã/đang được thực hiện
-                    if (pd.Pct > 0)
+                    if (tProgress > 0)
                     {
                         context.TaskAssignees.Add(new TaskAssignee { TaskId = task.TaskId, UserId = ksA.UserId, AssignedAt = DateTime.UtcNow });
                         await context.SaveChangesAsync();
                     }
 
                     createdTasks.Add(task);
+                    taskIdx++;
                 }
 
                 // ── DAILY LOGS + TASK PROGRESS LOGS + COMMENTS ───────────────

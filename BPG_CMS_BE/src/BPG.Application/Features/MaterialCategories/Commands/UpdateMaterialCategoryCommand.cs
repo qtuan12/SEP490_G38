@@ -1,5 +1,5 @@
 using AutoMapper;
-using BPG.Application.Features.MaterialCategories.DTOs;
+using BPG.Application.DTOs.MaterialCategories;
 using BPG.Application.IRepositories;
 using BPG.Domain.Exceptions;
 using BPG.Domain.Entities;

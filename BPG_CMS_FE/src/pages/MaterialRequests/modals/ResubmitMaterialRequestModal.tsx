@@ -162,7 +162,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Sửa & Gửi lại Yêu cầu cấp Vật tư">
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-600">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <div className="text-sm">

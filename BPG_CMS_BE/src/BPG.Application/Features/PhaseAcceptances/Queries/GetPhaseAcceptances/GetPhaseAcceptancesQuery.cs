@@ -1,6 +1,6 @@
 using AutoMapper;
 using BPG.Application.Common.Models;
-using BPG.Application.Features.PhaseAcceptances.DTOs;
+using BPG.Application.DTOs.PhaseAcceptances;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;

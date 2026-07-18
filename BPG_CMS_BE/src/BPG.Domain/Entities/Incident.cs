@@ -18,6 +18,9 @@ public class Incident : BaseEntity
     public long? ReworkTaskId { get; set; }
     public string? HandlingInstruction { get; set; }
     public long? PhaseId { get; set; }
+    public bool IsEmergency { get; set; } = false;
+    public string? RecoveryPlanText { get; set; }
+    public decimal? RecoveryEstimateCost { get; set; }
 
     public Project Project { get; set; } = null!;
     public ProjectTask? Task { get; set; }

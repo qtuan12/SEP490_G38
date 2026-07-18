@@ -22,7 +22,8 @@ public record CreateAndAssessIncidentCommand(
     decimal? EstimatedMaterialLoss,
     decimal? EstimatedLaborDays,
     int? EstimatedDelayDays,
-    string? ProposedAction
+    string? ProposedAction,
+    bool IsEmergency = false
 ) : IRequest<ApiResponse<IncidentDto>>;
 
 public class CreateAndAssessIncidentCommandValidator : AbstractValidator<CreateAndAssessIncidentCommand>
@@ -35,7 +36,7 @@ public class CreateAndAssessIncidentCommandValidator : AbstractValidator<CreateA
 
         RuleFor(v => v.TaskId)
             .NotNull()
-            .When(v => v.IncidentType == "Construction")
+            .When(v => v.IncidentType == "Construction" && !v.IsEmergency)
             .WithMessage("Sự cố thi công yêu cầu TaskId.");
 
         RuleFor(v => v.PhaseId)
@@ -126,9 +127,8 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             EstimatedLaborDays = request.EstimatedLaborDays,
             EstimatedDelayDays = request.EstimatedDelayDays,
             ProposedAction = request.ProposedAction,
-            // Nhánh 1 (thi công): chờ TPKT thẩm định
-            // Nhánh 2 (kho):      chờ Kế toán xác minh
-            Status = isInventoryIncident ? "WaitingAccountant" : "WaitingReview",
+            IsEmergency = request.IsEmergency,
+            Status = request.IsEmergency ? "WaitingStopApproval" : (isInventoryIncident ? "WaitingAccountant" : "WaitingReview"),
         };
 
         await _unitOfWork.Repository<Incident>().AddAsync(incident);
@@ -154,13 +154,34 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         }
         else
         {
-            await _notificationService.SendNotificationToRoleAsync(
-                BPG.Domain.Constants.UserRole.TechnicalManager,
-                "Báo cáo sự cố mới",
-                $"Có một sự cố thi công mới tại dự án {project.Name} đang chờ Trưởng phòng Kỹ thuật thẩm định.",
-                "IncidentReported",
-                $"/projects/{project.ProjectId}/workspace/incidents"
-            );
+            if (request.IsEmergency)
+            {
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.TechnicalManager,
+                    "Yêu cầu dừng thi công khẩn cấp",
+                    $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng. Vui lòng thẩm định ngay!",
+                    "IncidentReported",
+                    $"/projects/{project.ProjectId}/workspace/incidents"
+                );
+
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.Director,
+                    "Yêu cầu dừng thi công khẩn cấp",
+                    $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng.",
+                    "IncidentReported",
+                    $"/projects/{project.ProjectId}/workspace/incidents"
+                );
+            }
+            else
+            {
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.TechnicalManager,
+                    "Báo cáo sự cố mới",
+                    $"Có một sự cố thi công mới tại dự án {project.Name} đang chờ Trưởng phòng Kỹ thuật thẩm định.",
+                    "IncidentReported",
+                    $"/projects/{project.ProjectId}/workspace/incidents"
+                );
+            }
         }
 
         var dto = _mapper.Map<IncidentDto>(incident);

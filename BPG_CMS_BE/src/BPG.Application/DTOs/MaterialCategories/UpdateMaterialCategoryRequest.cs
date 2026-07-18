@@ -1,4 +1,4 @@
-namespace BPG.Application.Features.MaterialCategories.DTOs;
+namespace BPG.Application.DTOs.MaterialCategories;
 
 public class UpdateMaterialCategoryRequest
 {

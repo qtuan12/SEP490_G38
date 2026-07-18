@@ -1559,6 +1559,8 @@ export const projectService = {
       date: item.createdAt ? item.createdAt.replace('T', ' ').slice(0, 16) : '',
       isOverBOQ: item.boqCheckStatus === 'OverBOQ',
       type: 'normal',
+      createdBy: item.createdBy,
+      rejectionReason: item.accountantNote || item.approvalNote || '',
       status: this.mapBackendStatusToFrontend(item.status),
       items: (item.items || []).map((it: any) => ({
         name: it.materialName,

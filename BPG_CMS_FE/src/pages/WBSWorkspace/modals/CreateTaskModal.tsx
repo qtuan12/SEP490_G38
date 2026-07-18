@@ -114,12 +114,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     }
   }, [isOpen, reset]);
 
-  const engineers = members.filter(m => 
-    m.userRole === 'Site Engineer' || 
-    m.userRole === 'SiteEngineer' || 
-    m.userRole.toLowerCase() === 'siteengineer' || 
-    m.userRole === 'Nhân viên kỹ thuật'
-  );
+  const engineers = members;
 
   // Tìm tất cả tổ tiên (ancestor) của parentTaskId để tránh vòng lặp khóa tiến độ
   const getAncestors = (startId: string | undefined): Set<string> => {
@@ -195,15 +190,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         .map(id => potentialPredecessors.find(p => p.id === id))
         .filter(p => {
           if (!p) return false;
-          const pDeadline = new Date(p.deadline);
-          pDeadline.setHours(0,0,0,0);
-          // New task's start date must be STRICTLY AFTER predecessor's deadline
-          return taskStartDate <= pDeadline; 
+          const pStartDate = new Date(p.startDate || '');
+          pStartDate.setHours(0,0,0,0);
+          // New task's start date must be >= predecessor's start date
+          return taskStartDate < pStartDate; 
         });
 
       if (invalidPredecessors.length > 0) {
         const p = invalidPredecessors[0]!;
-        toast.error(`Ngày bắt đầu phải sau ngày kết thúc của "${p.name}" (hoàn thành: ${new Date(p.deadline).toLocaleDateString('vi-VN')}).`);
+        toast.error(`Ngày bắt đầu không được trước ngày bắt đầu của "${p.name}" (${new Date(p.startDate || '').toLocaleDateString('vi-VN')}).`);
         return;
       }
     }
@@ -310,11 +305,18 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   className="w-full text-sm px-3 py-2.5 rounded-md border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
                 >
                   <option value="">-- Chưa phân công --</option>
-                  {engineers.map(e => (
-                    <option key={e.userId} value={e.userId}>
-                      {e.userName} ({e.isLeader ? 'Trưởng dự án' : 'Nhân viên kỹ thuật'})
-                    </option>
-                  ))}
+                  {engineers.map(e => {
+                    let displayRole = e.userRole;
+                    if (e.isLeader) displayRole = 'Trưởng dự án';
+                    else if (e.userRole === 'TechnicalManager' || e.userRole === 'Technical Manager') displayRole = 'Trưởng phòng kỹ thuật';
+                    else if (e.userRole === 'SiteEngineer' || e.userRole === 'Site Engineer' || e.userRole?.toLowerCase() === 'siteengineer') displayRole = 'Nhân viên kỹ thuật';
+                    
+                    return (
+                      <option key={e.userId} value={e.userId}>
+                        {e.userName} - {displayRole}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

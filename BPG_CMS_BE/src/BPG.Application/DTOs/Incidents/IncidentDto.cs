@@ -23,6 +23,9 @@ public record IncidentDto
     public string? ProposedAction { get; init; }
     public long? ReworkTaskId { get; init; }
     public string? HandlingInstruction { get; init; }
+    public bool IsEmergency { get; init; }
+    public string? RecoveryPlanText { get; init; }
+    public decimal? RecoveryEstimateCost { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
 }

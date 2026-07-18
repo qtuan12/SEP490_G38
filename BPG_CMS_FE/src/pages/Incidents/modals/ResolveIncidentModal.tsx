@@ -119,6 +119,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
           reworkTaskName,
           reworkTaskStartDate,
           reworkTaskEndDate,
+          reworkAssigneeId: data.reworkAssigneeId ? Number(data.reworkAssigneeId) : undefined,
           decreaseProgressTo,
           decreaseProgressReason: data.reduceProgressReason,
           handlingInstruction: data.handlingInstruction

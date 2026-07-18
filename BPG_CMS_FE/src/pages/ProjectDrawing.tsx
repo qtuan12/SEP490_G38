@@ -156,7 +156,7 @@ export const ProjectDrawing: React.FC = () => {
               fontSize: '0.85rem', fontWeight: 500,
             }}
           >
-            <ArrowLeft size={15} /><span>Quay lại WBS</span>
+            <ArrowLeft size={15} /><span>Quay lại dự án</span>
           </button>
           <div>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>

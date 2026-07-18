@@ -1,9 +1,12 @@
 using BPG.Application.Features.Projects.Commands;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,10 +15,12 @@ namespace BPG.Application.Features.Projects.Handlers;
 public class ResumeProjectCommandHandler : IRequestHandler<ResumeProjectCommand, bool>
 {
     private readonly IUnitOfWork _uow;
+    private readonly INotificationService _notificationService;
 
-    public ResumeProjectCommandHandler(IUnitOfWork uow)
+    public ResumeProjectCommandHandler(IUnitOfWork uow, INotificationService notificationService)
     {
         _uow = uow;
+        _notificationService = notificationService;
     }
 
     public async Task<bool> Handle(ResumeProjectCommand request, CancellationToken cancellationToken)
@@ -33,6 +38,32 @@ public class ResumeProjectCommandHandler : IRequestHandler<ResumeProjectCommand,
 
         _uow.Repository<Project>().Update(project);
         await _uow.SaveChangesAsync(cancellationToken);
+
+        // Fetch and notify all project members
+        var projectMembers = await _uow.Repository<ProjectMember>()
+            .Query()
+            .Where(pm => pm.ProjectId == project.ProjectId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var pm in projectMembers)
+        {
+            await _notificationService.SendNotificationAsync(
+                pm.UserId,
+                "Dự án đã được kích hoạt lại",
+                $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
+                "ProjectResumed",
+                $"/projects/{project.ProjectId}/workspace/incidents"
+            );
+        }
+
+        // Notify Director as well
+        await _notificationService.SendNotificationToRoleAsync(
+            BPG.Domain.Constants.UserRole.Director,
+            "Dự án đã được kích hoạt lại",
+            $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
+            "ProjectResumed",
+            $"/projects/{project.ProjectId}/workspace/incidents"
+        );
 
         return true;
     }

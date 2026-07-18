@@ -15,7 +15,13 @@ import type { CurrentInventory } from '../../../types/inventory';
 const schema = z.object({
   incidentType: z.enum(['InventoryLoss', 'InventoryDamage']),
   description: z.string().min(5, 'Mô tả sự cố phải có ít nhất 5 ký tự'),
-  incidentDate: z.string().min(1, 'Vui lòng chọn ngày phát hiện'),
+  incidentDate: z.string()
+    .min(1, 'Vui lòng chọn ngày phát hiện')
+    .refine((val) => {
+      const selected = new Date(val);
+      const now = new Date();
+      return selected <= now;
+    }, 'Ngày/Giờ phát hiện không được vượt quá thời gian hiện tại'),
   estimatedLaborDays: z.coerce.number().optional().default(0),
   estimatedDelayDays: z.coerce.number().optional().default(0),
 });
@@ -218,16 +224,23 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
             <h4 style={{ margin: '0 0 4px 0', fontSize: '0.82rem', fontWeight: 700, color: 'hsl(var(--primary))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Phần 1: Thông tin Sự cố
             </h4>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
                   Loại sự cố vật tư <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
-                <select className="input" {...register('incidentType')}>
-                  <option value="InventoryLoss">📦 Thất thoát vật tư </option>
-                  <option value="InventoryDamage">🔴 Hư hại vật tư </option>
-                </select>
+                <div style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: 'hsl(var(--bg-card))',
+                  border: '1px solid hsl(var(--border))',
+                  fontSize: '0.9rem',
+                  color: 'hsl(210, 70%, 45%)',
+                  fontWeight: 600,
+                }}>
+                  📦 Sự cố Vật tư Kho
+                </div>
+                <input type="hidden" {...register('incidentType')} value="InventoryLoss" />
               </div>
 
               <div>
@@ -252,6 +265,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 <input
                   type="datetime-local"
                   className="input"
+                  max={new Date().toISOString().slice(0, 16)}
                   {...register('incidentDate')}
                 />
                 {(errors as any).incidentDate && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).incidentDate?.message)}</span>}

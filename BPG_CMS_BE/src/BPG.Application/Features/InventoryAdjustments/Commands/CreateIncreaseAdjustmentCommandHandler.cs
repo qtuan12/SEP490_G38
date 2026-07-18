@@ -50,8 +50,16 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             foreach (var item in request.Items)
             {
-                var material = await _unitOfWork.Repository<MaterialCatalog>().GetByIdAsync(item.MaterialId);
+                var material = await _unitOfWork.Repository<MaterialCatalog>().Query()
+                    .Include(m => m.BaseUnit)
+                    .FirstOrDefaultAsync(m => m.MaterialId == item.MaterialId, cancellationToken);
                 if (material == null) throw new NotFoundException(nameof(MaterialCatalog), item.MaterialId);
+
+                if (material.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng phải là số nguyên.");
+                }
 
                 adjustment.Items.Add(new AdjustmentItem
                 {
@@ -110,13 +118,12 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             }
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Gửi thông báo DB xác nhận phiếu tăng tồn cho Kế toán
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Accountant,
                 "Phiếu điều chỉnh tăng tồn đã được tạo",
                 $"Một phiếu tăng tồn kho mới (#{adjustment.AdjustmentId}) đã được tạo và tự động phê duyệt. Tồn kho dự án đã được cập nhật.",
                 BPG.Domain.Constants.NotificationType.Procurement,
-                BPG.Domain.Constants.NotificationReferenceType.InventoryAdjustment,
+                $"/projects/{request.ProjectId}/workspace/inventoryadjustments",
                 adjustment.AdjustmentId,
                 cancellationToken
             );
