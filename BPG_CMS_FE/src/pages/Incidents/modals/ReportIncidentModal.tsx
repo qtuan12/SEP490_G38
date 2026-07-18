@@ -11,6 +11,12 @@ import { toast } from 'react-hot-toast';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
 
+const getLocalISOString = () => {
+  const now = new Date();
+  const tzOffset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+};
+
 // ─── Nhánh 1: Sự cố thi công ───────────────────────────────────────────────
 const schema = z.object({
   incidentType: z.literal('Construction'),
@@ -95,7 +101,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
     defaultValues: {
       incidentType: 'Construction',
       description: '',
-      incidentDate: new Date().toISOString().slice(0, 16),
+      incidentDate: getLocalISOString(),
       responsibleParty: '',
       canceledVolume: '',
       estimatedDamage: '',
@@ -286,18 +292,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 <input type="hidden" {...register('incidentType')} value="Construction" />
               </div>
 
-              {/* Sự cố khẩn cấp (Ngừng thi công) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', background: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.2)', borderRadius: '6px' }}>
-                <input
-                  type="checkbox"
-                  id="is-emergency"
-                  {...register('isEmergency')}
-                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                />
-                <label htmlFor="is-emergency" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'hsl(var(--danger))', cursor: 'pointer', margin: 0 }}>
-                  ⚠️ Yêu cầu ngừng thi công khẩn cấp (Sự cố đặc biệt nghiêm trọng)
-                </label>
-              </div>
+
 
               {/* Mô tả sự cố */}
               <div>
@@ -326,7 +321,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <input
                     type="datetime-local"
                     className="input"
-                    max={new Date().toISOString().slice(0, 16)}
+                    max={getLocalISOString()}
                     {...register('incidentDate')}
                   />
                   {(errors as any).incidentDate && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).incidentDate?.message)}</span>}

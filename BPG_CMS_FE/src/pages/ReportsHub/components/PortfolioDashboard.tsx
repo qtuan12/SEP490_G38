@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { projectService } from '../../../services/projectService';
 import type { DashboardMetricsDto, DashboardWarningDto } from '../../../types/common';
 import { Loader2, AlertTriangle, Briefcase, TrendingUp } from 'lucide-react';
-import { 
+import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts';
@@ -19,12 +19,12 @@ export const PortfolioDashboard: React.FC = () => {
       projectService.getDashboardMetrics(),
       projectService.getDashboardWarnings()
     ])
-    .then(([metricsData, warningsData]) => {
-      setMetrics(metricsData);
-      setWarnings(warningsData);
-    })
-    .catch(err => console.error('Error loading portfolio data:', err))
-    .finally(() => setLoading(false));
+      .then(([metricsData, warningsData]) => {
+        setMetrics(metricsData);
+        setWarnings(warningsData);
+      })
+      .catch(err => console.error('Error loading portfolio data:', err))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
@@ -61,7 +61,7 @@ export const PortfolioDashboard: React.FC = () => {
       <div className="flex items-center gap-3 border-b border-[hsl(var(--border))] pb-4">
         <Briefcase className="text-[hsl(var(--primary))]" size={28} />
         <div>
-          <h2 className="text-xl font-bold">Tổng quan Toàn bộ Dự án (Portfolio)</h2>
+          <h2 className="text-xl font-bold">Tổng quan Toàn bộ Dự án </h2>
           <p className="text-sm text-[hsl(var(--text-secondary))]">Bức tranh toàn cảnh về sức khỏe của tất cả các dự án trong hệ thống.</p>
         </div>
       </div>
@@ -112,8 +112,8 @@ export const PortfolioDashboard: React.FC = () => {
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
                   <XAxis type="number" domain={[0, 100]} tickFormatter={(val) => `${val}%`} />
-                  <YAxis dataKey="name" type="category" width={120} tick={{fontSize: 12}} />
-                  <RechartsTooltip formatter={(value) => [`${value}%`, 'Tiến độ']} cursor={{fill: 'hsl(var(--bg-main))'}} />
+                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
+                  <RechartsTooltip formatter={(value) => [`${value}%`, 'Tiến độ']} cursor={{ fill: 'hsl(var(--bg-main))' }} />
                   <Bar dataKey="progress" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={20}>
                     {progressData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.progress >= 80 ? 'hsl(var(--success))' : entry.progress >= 40 ? 'hsl(var(--primary))' : 'hsl(var(--warning))'} />
@@ -144,11 +144,10 @@ export const PortfolioDashboard: React.FC = () => {
             {warnings.map((w, idx) => (
               <div
                 key={idx}
-                className={`flex items-start justify-between gap-3 p-4 border rounded-md cursor-pointer hover:shadow-md transition-shadow ${
-                  w.warningType === 'Critical' ? 'bg-[hsl(var(--danger)/0.1)] border-[hsl(var(--danger)/0.4)] text-[hsl(var(--danger))]' :
+                className={`flex items-start justify-between gap-3 p-4 border rounded-md cursor-pointer hover:shadow-md transition-shadow ${w.warningType === 'Critical' ? 'bg-[hsl(var(--danger)/0.1)] border-[hsl(var(--danger)/0.4)] text-[hsl(var(--danger))]' :
                   w.warningType === 'Red' ? 'bg-red-50 border-red-200 text-red-700' :
-                  'bg-yellow-50 border-yellow-200 text-yellow-700'
-                }`}
+                    'bg-yellow-50 border-yellow-200 text-yellow-700'
+                  }`}
                 onClick={() => navigate(`/projects/${w.projectId}/tasks/${w.taskId}`)}
               >
                 <div className="flex items-start gap-3">

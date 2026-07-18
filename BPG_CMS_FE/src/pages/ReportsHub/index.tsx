@@ -111,7 +111,7 @@ export const ReportsHub: React.FC = () => {
           <div className="md:col-span-3 flex flex-col gap-2 bg-[hsl(var(--bg-main))] p-3 rounded-md border border-[hsl(var(--border))] h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar shadow-sm animate-fade-in">
             <div className="sticky top-0 bg-[hsl(var(--bg-main))] pb-2 border-b border-[hsl(var(--border))] z-10 mb-2 flex justify-between items-center">
               <h3 className="font-semibold text-sm uppercase tracking-wider text-[hsl(var(--text-secondary))] px-2">Chọn Dự án</h3>
-              <button 
+              <button
                 onClick={() => setIsSidebarOpen(false)}
                 className="text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-primary))] p-1 rounded-md hover:bg-[hsl(var(--bg-muted))]"
                 title="Thu gọn danh sách"
@@ -120,41 +120,41 @@ export const ReportsHub: React.FC = () => {
               </button>
             </div>
 
-          <button
-            onClick={() => handleProjectSelect('all')}
-            className={`text-left p-3 rounded-md transition-colors flex items-center gap-3 border ${selectedProjectId === 'all'
-              ? 'bg-[hsl(var(--primary-glow))] border-[hsl(var(--primary))] text-[hsl(var(--primary-hover))] shadow-sm font-bold'
-              : 'border-transparent hover:bg-[hsl(var(--bg-muted))] text-[hsl(var(--text-primary))]'
-            }`}
-          >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${selectedProjectId === 'all' ? 'bg-[hsl(var(--primary))] text-white' : 'bg-[hsl(var(--border))] text-[hsl(var(--text-muted))]'}`}>
-              <LayoutDashboard size={16} />
-            </div>
-            <div>
-              <div className="text-[0.9rem]">Tất cả dự án (Portfolio)</div>
-              <div className="text-xs font-normal opacity-70">Báo cáo Tổng hợp</div>
-            </div>
-          </button>
-
-          <div className="my-1 border-t border-[hsl(var(--border))]"></div>
-
-          {projects.map(p => (
             <button
-              key={p.id}
-              onClick={() => handleProjectSelect(p.id.toString())}
-              className={`text-left p-3 rounded-md transition-colors flex items-center gap-3 border ${selectedProjectId === p.id.toString()
-                ? 'bg-white border-[hsl(var(--border))] shadow-sm font-semibold text-[hsl(var(--primary-hover))]'
+              onClick={() => handleProjectSelect('all')}
+              className={`text-left p-3 rounded-md transition-colors flex items-center gap-3 border ${selectedProjectId === 'all'
+                ? 'bg-[hsl(var(--primary-glow))] border-[hsl(var(--primary))] text-[hsl(var(--primary-hover))] shadow-sm font-bold'
                 : 'border-transparent hover:bg-[hsl(var(--bg-muted))] text-[hsl(var(--text-primary))]'
-              }`}
+                }`}
             >
-              <div className={`w-2 h-2 rounded-full shrink-0 ${getStatusColor(p.status)}`}></div>
-              <div className="overflow-hidden">
-                <div className="text-[0.88rem] truncate">{p.name}</div>
-                <div className="text-[0.7rem] uppercase font-semibold text-[hsl(var(--text-muted))] mt-0.5">{getStatusLabel(p.status)}</div>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${selectedProjectId === 'all' ? 'bg-[hsl(var(--primary))] text-white' : 'bg-[hsl(var(--border))] text-[hsl(var(--text-muted))]'}`}>
+                <LayoutDashboard size={16} />
+              </div>
+              <div>
+                <div className="text-[0.9rem]">Tất cả dự án </div>
+                <div className="text-xs font-normal opacity-70">Báo cáo Tổng hợp</div>
               </div>
             </button>
-          ))}
-        </div>
+
+            <div className="my-1 border-t border-[hsl(var(--border))]"></div>
+
+            {projects.map(p => (
+              <button
+                key={p.id}
+                onClick={() => handleProjectSelect(p.id.toString())}
+                className={`text-left p-3 rounded-md transition-colors flex items-center gap-3 border ${selectedProjectId === p.id.toString()
+                  ? 'bg-white border-[hsl(var(--border))] shadow-sm font-semibold text-[hsl(var(--primary-hover))]'
+                  : 'border-transparent hover:bg-[hsl(var(--bg-muted))] text-[hsl(var(--text-primary))]'
+                  }`}
+              >
+                <div className={`w-2 h-2 rounded-full shrink-0 ${getStatusColor(p.status)}`}></div>
+                <div className="overflow-hidden">
+                  <div className="text-[0.88rem] truncate">{p.name}</div>
+                  <div className="text-[0.7rem] uppercase font-semibold text-[hsl(var(--text-muted))] mt-0.5">{getStatusLabel(p.status)}</div>
+                </div>
+              </button>
+            ))}
+          </div>
         )}
 
         {/* Right Content: Detail View */}
@@ -162,8 +162,8 @@ export const ReportsHub: React.FC = () => {
           {/* Tabs */}
           <div className="flex border-b border-[hsl(var(--border))] overflow-x-auto custom-scrollbar mb-4 bg-[hsl(var(--bg-main))] rounded-t-md px-2 pt-2 items-center">
             {!isSidebarOpen && (
-              <button 
-                onClick={() => setIsSidebarOpen(true)} 
+              <button
+                onClick={() => setIsSidebarOpen(true)}
                 className="mr-2 p-2 rounded-md hover:bg-[hsl(var(--bg-muted))] text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-primary))]"
                 title="Mở rộng danh sách dự án"
               >
