@@ -55,7 +55,7 @@ export const CreatePOPage: React.FC = () => {
       }
     }
   }, [queryProjectId]);
-  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [orderDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [supplierId, setSupplierId] = useState(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
