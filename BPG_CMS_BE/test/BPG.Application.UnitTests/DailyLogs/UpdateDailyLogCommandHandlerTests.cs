@@ -285,18 +285,18 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
         _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
         _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
 
-        var images = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8" }; // 8 images
-    var command = new UpdateDailyLogCommand { LogId = 800, Description = "Multiple images", Images = images };
+        var images = new List<string> { "1", "2", "3", "4", "5" }; // 5 images (within limit)
+        var command = new UpdateDailyLogCommand { LogId = 800, Description = "Multiple images", Images = images };
 
-    // Act
-    var result = await _handler.Handle(command, CancellationToken.None);
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
 
-    // Assert
-    result.Should().NotBeNull();
-    _mockAttachmentRepo.Verify(r => r.AddRangeAsync(
-        It.Is<IEnumerable<Attachment>>(l => l.Count() == 8), 
-        It.IsAny<CancellationToken>()
-    ), Times.Once);
+        // Assert
+        result.Should().NotBeNull();
+        _mockAttachmentRepo.Verify(r => r.AddRangeAsync(
+            It.Is<IEnumerable<Attachment>>(l => l.Count() == 5),
+            It.IsAny<CancellationToken>()
+        ), Times.Once);
 }
 
         [Fact]
