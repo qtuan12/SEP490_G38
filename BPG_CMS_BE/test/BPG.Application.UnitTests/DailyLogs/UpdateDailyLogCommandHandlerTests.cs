@@ -35,6 +35,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
         private readonly Mock<IGenericRepository<TaskProgressLog>> _mockProgressLogRepo;
+        private readonly Mock<IGenericRepository<SystemConfig>> _mockConfigRepo;
 
         private readonly UpdateDailyLogCommandHandler _handler;
 
@@ -51,6 +52,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             _mockUserRepo = new Mock<IGenericRepository<User>>();
             _mockProgressLogRepo = new Mock<IGenericRepository<TaskProgressLog>>();
+            _mockConfigRepo = new Mock<IGenericRepository<SystemConfig>>();
 
             _mockUow.Setup(u => u.Repository<DailyLog>()).Returns(_mockLogRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
@@ -58,6 +60,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.Repository<TaskProgressLog>()).Returns(_mockProgressLogRepo.Object);
+            _mockUow.Setup(u => u.Repository<SystemConfig>()).Returns(_mockConfigRepo.Object);
 
             // Default mock setups
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog>().AsQueryable().BuildMock());
@@ -66,6 +69,10 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
             _mockUserRepo.Setup(r => r.Query()).Returns(new List<User>().AsQueryable().BuildMock());
             _mockProgressLogRepo.Setup(r => r.Query()).Returns(new List<TaskProgressLog>().AsQueryable().BuildMock());
+            _mockConfigRepo.Setup(r => r.Query()).Returns(new List<SystemConfig>
+            {
+                new SystemConfig { ConfigKey = SystemConfigKeys.DailyLogEditWindowHours, ConfigValue = "24" }
+            }.AsQueryable().BuildMock());
 
             // Default mapper setup
             _mockMapper.Setup(m => m.Map<DailyLogDto>(It.IsAny<DailyLog>()))
@@ -141,6 +148,10 @@ namespace BPG.Application.UnitTests.DailyLogs
             result.OldProgressPercent.Should().Be(20); // Mapped correctly
 
             log.Description.Should().Be("Updated description with new details");
+            log.IsEdited.Should().BeTrue();
+            log.LastEditedAt.Should().NotBeNull();
+            result.EditWindowHours.Should().Be(24);
+            result.CanEdit.Should().BeTrue(); // just edited -> still editable
 
             _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
             _mockLogRepo.Verify(r => r.Update(log), Times.Once);
@@ -261,19 +272,20 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
     _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
     var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-    var log = new DailyLog
-    {
-        LogId = 800,
-        Task = new ProjectTask
+        var log = new DailyLog
         {
-            IsLocked = false,
-            Phase = new Phase { Project = project }
-        }
-    };
-    _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
-    _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+            LogId = 800,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-10),
+            Task = new ProjectTask
+            {
+                IsLocked = false,
+                Phase = new Phase { Project = project }
+            }
+        };
+        _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
+        _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
 
-    var images = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8" }; // 8 images
+        var images = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8" }; // 8 images
     var command = new UpdateDailyLogCommand { LogId = 800, Description = "Multiple images", Images = images };
 
     // Act
@@ -298,6 +310,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
             {
                 LogId = 800,
                 TaskId = 100,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-10),
                 Task = new ProjectTask
                 {
                     TaskId = 100,
@@ -321,6 +334,8 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
 
             // Assert
             result.Should().NotBeNull();
+            result.EditWindowHours.Should().Be(24);
+            result.CanEdit.Should().BeTrue();
             _mockAssigneeRepo.Verify(r => r.Query(), Times.Once);
         }
 
@@ -334,6 +349,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
             var log = new DailyLog
             {
                 LogId = 800,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-10),
                 Task = new ProjectTask
                 {
                     IsLocked = false,
@@ -367,6 +383,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
             var log = new DailyLog
             {
                 LogId = 800,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-10),
                 Task = new ProjectTask
                 {
                     IsLocked = false,
@@ -441,6 +458,8 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
             result.OldProgressPercent.Should().Be(40);
             result.NewProgressPercent.Should().Be(50);
             result.Images.Should().ContainSingle(img => img == "new_photo1.jpg");
+            result.EditWindowHours.Should().Be(24);
+            result.CanEdit.Should().BeTrue();
 
             // Verify that Uow calls were made
             _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);

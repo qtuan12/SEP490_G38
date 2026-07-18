@@ -27,6 +27,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
         private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
         private readonly Mock<IGenericRepository<TaskProgressLog>> _mockProgressLogRepo;
+        private readonly Mock<IGenericRepository<SystemConfig>> _mockConfigRepo;
 
         private readonly GetDailyLogsQueryHandler _handler;
 
@@ -39,17 +40,23 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
             _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             _mockProgressLogRepo = new Mock<IGenericRepository<TaskProgressLog>>();
+            _mockConfigRepo = new Mock<IGenericRepository<SystemConfig>>();
 
             _mockUow.Setup(u => u.Repository<DailyLog>()).Returns(_mockLogRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectTask>()).Returns(_mockTaskRepo.Object);
             _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
             _mockUow.Setup(u => u.Repository<TaskProgressLog>()).Returns(_mockProgressLogRepo.Object);
+            _mockUow.Setup(u => u.Repository<SystemConfig>()).Returns(_mockConfigRepo.Object);
 
             // Default mock setups
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog>().AsQueryable().BuildMock());
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask>().AsQueryable().BuildMock());
             _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
             _mockProgressLogRepo.Setup(r => r.Query()).Returns(new List<TaskProgressLog>().AsQueryable().BuildMock());
+            _mockConfigRepo.Setup(r => r.Query()).Returns(new List<SystemConfig>
+            {
+                new SystemConfig { ConfigKey = SystemConfigKeys.DailyLogEditWindowHours, ConfigValue = "24" }
+            }.AsQueryable().BuildMock());
 
             // Default mapper setup
             _mockMapper.Setup(m => m.Map<List<DailyLogDto>>(It.IsAny<List<DailyLog>>()))
@@ -141,6 +148,12 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             result.Items[1].LogId.Should().Be(1);
             result.Items[1].OldProgressPercent.Should().Be(20);
+
+            // Recent logs (created within last 2h) must be editable with the default 24h window
+            result.Items[0].EditWindowHours.Should().Be(24);
+            result.Items[0].CanEdit.Should().BeTrue();
+            result.Items[1].EditWindowHours.Should().Be(24);
+            result.Items[1].CanEdit.Should().BeTrue();
         }
 
         [Fact]

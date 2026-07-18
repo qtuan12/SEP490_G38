@@ -39,6 +39,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
         private readonly Mock<IGenericRepository<TaskProgressLog>> _mockProgressLogRepo;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
+        private readonly Mock<IGenericRepository<SystemConfig>> _mockConfigRepo;
 
         private readonly CreateDailyLogCommandHandler _handler;
 
@@ -58,6 +59,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             _mockProgressLogRepo = new Mock<IGenericRepository<TaskProgressLog>>();
             _mockUserRepo = new Mock<IGenericRepository<User>>();
+            _mockConfigRepo = new Mock<IGenericRepository<SystemConfig>>();
 
             _mockUow.Setup(u => u.Repository<ProjectTask>()).Returns(_mockTaskRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
@@ -67,6 +69,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
             _mockUow.Setup(u => u.Repository<TaskProgressLog>()).Returns(_mockProgressLogRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
+            _mockUow.Setup(u => u.Repository<SystemConfig>()).Returns(_mockConfigRepo.Object);
 
             // Default Query returns empty mockable lists
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask>().AsQueryable().BuildMock());
@@ -77,6 +80,12 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
             _mockProgressLogRepo.Setup(r => r.Query()).Returns(new List<TaskProgressLog>().AsQueryable().BuildMock());
             _mockUserRepo.Setup(r => r.Query()).Returns(new List<User>().AsQueryable().BuildMock());
+
+            // Default SystemConfig: edit window = 24h
+            _mockConfigRepo.Setup(r => r.Query()).Returns(new List<SystemConfig>
+            {
+                new SystemConfig { ConfigKey = SystemConfigKeys.DailyLogEditWindowHours, ConfigValue = "24" }
+            }.AsQueryable().BuildMock());
 
             // Default AddAsync setups
             _mockLogRepo.Setup(r => r.AddAsync(It.IsAny<DailyLog>(), It.IsAny<CancellationToken>()))
@@ -140,6 +149,8 @@ namespace BPG.Application.UnitTests.DailyLogs
             result.Should().NotBeNull();
             result.LogId.Should().Be(800);
             result.NewProgressPercent.Should().Be(50);
+            result.EditWindowHours.Should().Be(24);
+            result.CanEdit.Should().BeTrue();
 
             task.ProgressPercent.Should().Be(50);
             task.Status.Should().Be(BPG.Domain.Constants.TaskStatus.InProgress);
@@ -436,11 +447,13 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             // Assert
             result.Should().NotBeNull();
+            result.EditWindowHours.Should().Be(24);
+            result.CanEdit.Should().BeTrue();
             task.ProgressPercent.Should().Be(30);
         }
 
- [Fact]
-public async Task UTCID12_Handle_MultipleImages_ShouldSucceed()
+        [Fact]
+        public async Task UTCID12_Handle_MultipleImages_ShouldSucceed()
 {
     // Arrange
     _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
@@ -468,9 +481,11 @@ public async Task UTCID12_Handle_MultipleImages_ShouldSucceed()
     // Act
     var result = await _handler.Handle(command, CancellationToken.None);
 
-    // Assert
-    result.Should().NotBeNull();
-    _mockAttachmentRepo.Verify(r => r.AddRangeAsync(
+            // Assert
+            result.Should().NotBeNull();
+            result.EditWindowHours.Should().Be(24);
+            result.CanEdit.Should().BeTrue();
+            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(
         It.Is<IEnumerable<Attachment>>(l => l.Count() == 8), 
         It.IsAny<CancellationToken>()
     ), Times.Once);
@@ -562,6 +577,8 @@ public async Task UTCID12_Handle_MultipleImages_ShouldSucceed()
 
             // Assert
             result.Should().NotBeNull();
+            result.EditWindowHours.Should().Be(24);
+            result.CanEdit.Should().BeTrue();
             task.ProgressPercent.Should().Be(0);
             _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
         }
@@ -631,6 +648,8 @@ public async Task UTCID12_Handle_MultipleImages_ShouldSucceed()
 
             // Assert
             result.Should().NotBeNull();
+            result.EditWindowHours.Should().Be(24);
+            result.CanEdit.Should().BeTrue();
             task.ProgressPercent.Should().Be(100);
             _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
         }
