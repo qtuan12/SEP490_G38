@@ -29,7 +29,6 @@ import {
   ShoppingCart,
   ShoppingBag,
   FileSignature,
-  AlertTriangle,
   ClipboardList,
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
@@ -41,6 +40,7 @@ import { AdjustmentList } from './InventoryAdjustments/components/AdjustmentList
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { ProjectMaterialRequestsTab } from './MaterialRequests/components/ProjectMaterialRequestsTab';
+import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
