@@ -4,6 +4,7 @@ using BPG.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BPG.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260718023619_AddDailyLogEditAudit")]
+    partial class AddDailyLogEditAudit
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -548,6 +551,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsEmergency")
+                        .HasColumnType("bit");
+
                     b.Property<long?>("PhaseId")
                         .HasColumnType("bigint");
 
@@ -555,6 +561,13 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<string>("ProposedAction")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("RecoveryEstimateCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("RecoveryPlanText")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<long>("ReportedBy")
@@ -2168,6 +2181,9 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDiscrete")
                         .HasColumnType("bit");
 
                     b.Property<string>("UnitCode")

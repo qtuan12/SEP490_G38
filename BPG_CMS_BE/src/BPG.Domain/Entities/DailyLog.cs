@@ -10,6 +10,10 @@ public class DailyLog
     public long CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    // Audit: đánh dấu nhật ký đã bị chỉnh sửa (chỉ cho phép sửa trong 24h đầu)
+    public bool IsEdited { get; set; } = false;
+    public DateTime? LastEditedAt { get; set; }
+
     public ProjectTask Task { get; set; } = null!;
     public User Creator { get; set; } = null!;
     public ICollection<Comment> Comments { get; set; } = new List<Comment>();

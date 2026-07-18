@@ -900,7 +900,9 @@ export const projectService = {
         content: l.description,
         weather: '',
         images: l.images || [],
-        comments: (l.comments || []).map(mapComment)
+        comments: (l.comments || []).map(mapComment),
+        canEdit: l.canEdit,
+        editWindowHours: l.editWindowHours
       }));
 
       return {

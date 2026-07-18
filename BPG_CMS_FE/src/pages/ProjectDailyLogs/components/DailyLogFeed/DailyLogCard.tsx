@@ -158,7 +158,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                     </Badge>
                   );
                 })()}
-                {canEditLog && (
+                {(canEditLog && log.canEdit !== false) && (
                   <button
                     onClick={() => onEditLog(log)}
                     className="text-slate-400 hover:text-blue-600 transition-colors p-1"

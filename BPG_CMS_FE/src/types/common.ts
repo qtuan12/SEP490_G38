@@ -205,6 +205,8 @@ export interface DailyLog {
   weather: string;
   images: string[]; // array of base64 or mock URLs
   comments: DailyLogComment[];
+  canEdit?: boolean; // server-computed: still within the editable window
+  editWindowHours?: number; // resolved edit window (hours) for UI hints
 }
 
 export interface TaskProgressLog {
