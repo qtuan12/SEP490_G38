@@ -115,6 +115,7 @@ export interface IncidentReport {
 
   // Custom fields for frontend
   date: string;
+  createdAt?: string;
   images: string[];
   comments?: DailyLogComment[];
   revisionComment?: string;

@@ -29,7 +29,6 @@ import {
   ShoppingCart,
   ShoppingBag,
   FileSignature,
-  AlertTriangle,
   ClipboardList,
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
@@ -38,10 +37,10 @@ import { ProjectIncidents } from './ProjectIncidents';
 import { ProjectPOTab } from './ProjectLayoutHub/ProjectPOTab';
 import { ProjectDirectPurchaseTab } from './ProjectLayoutHub/ProjectDirectPurchaseTab';
 import { AdjustmentList } from './InventoryAdjustments/components/AdjustmentList';
-import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { ProjectMaterialRequestsTab } from './MaterialRequests/components/ProjectMaterialRequestsTab';
+import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
@@ -78,11 +77,18 @@ export const ProjectLayoutHub: React.FC = () => {
   const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'directpurchases', 'materialrequests'];
 
   const [activeTab, setActiveTab] = useState<TabKey>(
-    (searchParams.get('tab') as TabKey) || 'wbs'
+    (() => {
+      const tab = searchParams.get('tab') as TabKey;
+      if (tab === 'inventoryincidents') return 'incidents';
+      return tab || 'wbs';
+    })()
   );
 
   useEffect(() => {
-    const tab = searchParams.get('tab');
+    let tab = searchParams.get('tab');
+    if (tab === 'inventoryincidents') {
+      tab = 'incidents';
+    }
     if (tab && (TAB_KEYS as string[]).includes(tab)) {
       setActiveTab(tab as TabKey);
     }
@@ -525,29 +531,7 @@ export const ProjectLayoutHub: React.FC = () => {
           }}
         >
           <AlertCircle size={18} />
-          <span>Sự cố thi công</span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('inventoryincidents')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 18px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'inventoryincidents' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
-            color: activeTab === 'inventoryincidents' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-            fontWeight: activeTab === 'inventoryincidents' ? 600 : 500,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'all var(--transition-fast)'
-          }}
-        >
-          <AlertTriangle size={18} />
-          <span>Sự cố vật tư</span>
+          <span>Sự cố</span>
         </button>
 
         <button
