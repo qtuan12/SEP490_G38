@@ -76,7 +76,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID01_Handle_ValidId_ShouldReturnHistory()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5 };
             var task = new ProjectTask
@@ -108,7 +108,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID02_Handle_TaskNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
             var query = new GetTaskProgressHistoryQuery(999);
 
             // Act
@@ -188,7 +188,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID05_Handle_NoProgressHistoryExists_ShouldReturnEmptyList()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Admin, hasRole: true);
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5 };
             var task = new ProjectTask

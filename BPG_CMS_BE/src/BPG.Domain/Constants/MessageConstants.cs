@@ -34,6 +34,7 @@ public static class NotificationTemplates
     // ==================== VẬT TƯ DƯ THỪA ====================
     public const string SurplusRequestSubmitted   = "Yêu cầu xử lý vật tư dư [{0}] tại dự án [{1}] đang chờ phân công.";
     public const string SurplusTransferDispatched = "Vật tư chuyển kho [{0}] đã được vận chuyển. Chuẩn bị tiếp nhận.";
+    public const string SurplusTransferDispatchedForManager = "Dự án này đã xác nhận gửi hàng vật tư chuyển kho [{0}].";
     public const string SurplusTransferReceived   = "Vật tư chuyển kho [{0}] đã được nhận. Kho đích đã cập nhật.";
 
     // ==================== ĐIỀU CHỈNH KHO ====================

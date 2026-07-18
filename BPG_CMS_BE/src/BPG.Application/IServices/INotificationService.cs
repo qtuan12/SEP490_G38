@@ -46,5 +46,19 @@ namespace BPG.Application.IServices
             string? referenceType = null,
             long? referenceId = null,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Gửi thông báo đến toàn bộ người dùng thuộc một Vai Trò (Role) cụ thể,
+        /// loại trừ người dùng chỉ định (thường là người thực hiện hành động).
+        /// </summary>
+        Task SendNotificationToRoleAsync(
+            string roleName,
+            string title,
+            string content,
+            string notificationType,
+            long excludeUserId,
+            string? referenceType = null,
+            long? referenceId = null,
+            CancellationToken ct = default);
     }
 }

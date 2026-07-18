@@ -56,9 +56,9 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = log.Task.Phase.Project;
 
-            // 2. Kiểm tra quyền chỉnh sửa (Chỉ Admin, TM, Project Leader hoặc Kỹ sư được gán vào công việc mới được sửa nhật ký)
-            bool isAdminOrTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isAdminOrTM)
+            // 2. Kiểm tra quyền chỉnh sửa (Chỉ TM, Project Leader hoặc Kỹ sư được gán vào công việc mới được sửa nhật ký)
+            bool isTM = _currentUserService.IsInAnyRole( BPG.Domain.Constants.UserRole.TechnicalManager);
+            if (!isTM)
             {
                 // Kiểm tra xem User có phải là Project Leader của dự án này không
                 var isLeader = await _uow.Repository<ProjectMember>().Query()
@@ -84,12 +84,6 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             if (log.Task.IsLocked)
             {
                 throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã được nghiệm thu và khóa tiến độ, không thể chỉnh sửa nhật ký thi công.");
-            }
-
-            // Kiểm tra số lượng hình ảnh
-            if (request.Images != null && request.Images.Count > 5)
-            {
-                throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh hiện trường thi công.");
             }
 
             // Bắt đầu một transaction để lưu trữ đồng bộ
