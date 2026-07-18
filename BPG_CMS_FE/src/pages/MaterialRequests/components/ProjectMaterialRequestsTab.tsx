@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { projectService } from '../../../services/projectService';
+import { inventoryService } from '../../../services/inventoryService';
 import type { MaterialRequest, WBSPhase } from '../../../types/common';
 import { MaterialRequestDetailModal } from '../modals/MaterialRequestDetailModal';
 import { Badge, Button, Pagination } from '../../../components/ui';
@@ -29,6 +30,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const urlPhaseId = searchParams.get('phaseId');
+  const urlRequestId = searchParams.get('requestId');
 
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
@@ -53,9 +55,48 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     }
   }, [urlPhaseId]);
 
+  // Auto-mở modal chi tiết khi được điều hướng đến từ nơi khác (VD: link liên kết trong PO) kèm requestId
+  // MaterialRequest.id có định dạng "mat-req-{requestId}" nên không so sánh trực tiếp với id số trên URL
+  useEffect(() => {
+    if (urlRequestId && requests.length > 0) {
+      const req = requests.find((r) => r.id === `mat-req-${urlRequestId}`);
+      if (req) {
+        setSelectedRequest(req);
+        setIsDetailOpen(true);
+      }
+    }
+  }, [urlRequestId, requests]);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+
+  // Kiểm tra điều kiện trước khi điều hướng sang trang tạo PO cho một yêu cầu vật tư
+  const [checkingPORequestId, setCheckingPORequestId] = useState<string | null>(null);
+
+  const handleCreatePOClick = async (req: MaterialRequest) => {
+    const numericId = req.id.replace('mat-req-', '');
+    setCheckingPORequestId(req.id);
+    try {
+      const approvedRequests = await inventoryService.getApprovedRequestsForPO(projectId);
+      const target = approvedRequests.find((r) => r.requestId === Number(numericId));
+
+      if (!target) {
+        toast.error('Yêu cầu này không còn ở trạng thái có thể tạo đơn mua hàng (có thể đã bị thay đổi hoặc hủy).', { position: 'top-center' });
+        return;
+      }
+      const hasRemaining = target.items.some((it) => it.remainingQuantity > 0);
+      if (!hasRemaining) {
+        toast.error('Yêu cầu này đã được đặt đủ số lượng qua các đơn hàng trước, không còn vật tư nào để tạo đơn hàng mới.', { position: 'top-center' });
+        return;
+      }
+      navigate(`/purchase-orders/new?projectId=${projectId}&requestId=${numericId}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Không thể kiểm tra điều kiện tạo đơn mua hàng.', { position: 'top-center' });
+    } finally {
+      setCheckingPORequestId(null);
+    }
+  };
 
   // Modals state
   const [selectedRequest, setSelectedRequest] = useState<MaterialRequest | null>(null);
@@ -370,6 +411,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           <table className="w-full text-sm text-left border-collapse">
             <thead>
               <tr className="bg-[hsl(var(--bg-main)/0.5)] border-b border-[hsl(var(--border))] text-xs font-semibold text-[hsl(var(--text-secondary))] uppercase">
+                <th className="px-4 py-3">Số yêu cầu</th>
                 <th className="px-4 py-3">Ngày yêu cầu</th>
                 <th className="px-4 py-3">Giai đoạn / Công việc</th>
                 <th className="px-4 py-3">Người yêu cầu</th>
@@ -382,6 +424,9 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
             <tbody className="divide-y divide-[hsl(var(--border-light))]">
               {paginatedRequests.map(req => (
                 <tr key={req.id} className="hover:bg-[hsl(var(--bg-main)/0.3)] transition-colors">
+                  <td className="px-4 py-3.5 whitespace-nowrap font-semibold text-[hsl(var(--primary))]">
+                    YCVT-{req.id.replace('mat-req-', '')}
+                  </td>
                   <td className="px-4 py-3.5 whitespace-nowrap text-[hsl(var(--text-secondary))]">
                     {formatDate(req.date)}
                   </td>
@@ -434,20 +479,18 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                         <span>Chi tiết</span>
                       </Button>
 
-                      {/* Tạo PO: Chỉ hiển thị cho Kế toán với các yêu cầu đã Approved */}
-                      {isAccountant && req.status === 'approved' && (
+                      {/* Tạo PO: chỉ hiển thị cho Kế toán (không tính Admin) với các yêu cầu đã Approved */}
+                      {user?.role === 'accountant' && req.status === 'approved' && (
                         <Button
                           variant="primary"
                           size="sm"
-                          onClick={() => {
-                            const numericId = req.id.replace('mat-req-', '');
-                            navigate(`/purchase-orders/new?projectId=${projectId}&requestId=${numericId}`);
-                          }}
+                          disabled={checkingPORequestId === req.id}
+                          onClick={() => handleCreatePOClick(req)}
                           className="py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-[hsl(var(--primary))] text-white border-none hover:bg-[hsl(var(--primary-hover))]"
                           title="Tạo đơn mua hàng cho yêu cầu này"
                         >
                           <ShoppingCart size={13} />
-                          <span>Tạo PO</span>
+                          <span>{checkingPORequestId === req.id ? 'Đang kiểm tra...' : 'Tạo PO'}</span>
                         </Button>
                       )}
                     </div>

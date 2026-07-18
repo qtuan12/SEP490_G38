@@ -36,6 +36,14 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             if (request.RequestedBy.HasValue)
                 query = query.Where(r => r.RequestedBy == request.RequestedBy.Value);
 
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+            {
+                var term = request.SearchTerm.ToLower();
+                query = query.Where(r =>
+                    r.Reason.ToLower().Contains(term) ||
+                    r.DirectPurchaseId.ToString().Contains(term));
+            }
+
             var totalCount = await query.CountAsync(ct);
 
             var items = await query

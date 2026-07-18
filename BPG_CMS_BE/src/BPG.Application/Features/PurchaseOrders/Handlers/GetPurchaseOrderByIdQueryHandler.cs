@@ -2,11 +2,13 @@ using BPG.Application.Common.Models;
 using BPG.Application.DTOs.PurchaseOrders;
 using BPG.Application.Features.PurchaseOrders.Queries;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using UserRole = BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
@@ -14,8 +16,13 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
         : IRequestHandler<GetPurchaseOrderByIdQuery, ApiResponse<PurchaseOrderDetailDto>>
     {
         private readonly IUnitOfWork _uow;
+        private readonly ICurrentUserService _currentUserService;
 
-        public GetPurchaseOrderByIdQueryHandler(IUnitOfWork uow) => _uow = uow;
+        public GetPurchaseOrderByIdQueryHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        {
+            _uow = uow;
+            _currentUserService = currentUserService;
+        }
 
         public async Task<ApiResponse<PurchaseOrderDetailDto>> Handle(
             GetPurchaseOrderByIdQuery request, CancellationToken cancellationToken)
@@ -28,6 +35,17 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .Include(p => p.Request).ThenInclude(mr => mr!.Phase)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
                 ?? throw new NotFoundException(nameof(PurchaseOrder), request.POId);
+
+            // SiteEngineer chỉ được xem PO thuộc dự án mình được phân công.
+            if (_currentUserService.IsInRole(UserRole.SiteEngineer))
+            {
+                var effectiveProjectId = po.ProjectId ?? po.Request?.Phase?.ProjectId;
+                var currentUserId = _currentUserService.GetRequiredUserId();
+                var isMember = effectiveProjectId.HasValue && await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(m => m.ProjectId == effectiveProjectId.Value && m.UserId == currentUserId, cancellationToken);
+                if (!isMember)
+                    throw new ForbiddenException("Bạn không được phân công vào dự án này nên không có quyền xem đơn hàng.");
+            }
 
             // Project name
             string projectName = string.Empty;
