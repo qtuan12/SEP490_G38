@@ -28,7 +28,6 @@ public class ProjectAuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
     // Vai trò được phép xem toàn bộ dự án mà không cần là thành viên.
     private static readonly string[] FullAccessRoles =
     {
-        RoleConstants.Admin,
         RoleConstants.Director,
         RoleConstants.TechnicalManager,
         RoleConstants.Accountant
