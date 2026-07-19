@@ -17,7 +17,7 @@ interface DailyLogCardProps {
 
 const formatCommentDate = (dateStr: string): string => {
   if (!dateStr) return '';
-  const normalized = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+  const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr.replace(' ', 'T') + 'Z');
   const d = new Date(normalized);
   if (isNaN(d.getTime())) return dateStr;
   const day = String(d.getDate()).padStart(2, '0');
@@ -168,9 +168,19 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                   </button>
                 )}
               </div>
-              <span className="text-[0.7rem] text-[hsl(var(--text-muted))] flex items-center gap-1 mt-0.5">
+              <span className="text-[0.7rem] text-[hsl(var(--text-muted))] flex items-center gap-1.5 mt-0.5 flex-wrap">
                 <Clock size={11} />
-                {log.date.split(' ')[1] || ''}
+                <span>{log.date.includes(' ') ? log.date.split(' ')[1] : ''}</span>
+                {log.isEdited && (
+                  <span
+                    className="inline-flex items-center gap-0.5 text-amber-600 font-medium cursor-help"
+                    title={log.lastEditedAt ? `Đã chỉnh sửa lúc: ${formatCommentDate(log.lastEditedAt)}` : 'Đã chỉnh sửa'}
+                  >
+                    <span>•</span>
+                    <Edit2 size={9} className="shrink-0" />
+                    <span>Đã chỉnh sửa</span>
+                  </span>
+                )}
               </span>
             </div>
           </div>

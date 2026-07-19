@@ -213,6 +213,8 @@ export interface DailyLog {
   comments: DailyLogComment[];
   canEdit?: boolean; // server-computed: still within the editable window
   editWindowHours?: number; // resolved edit window (hours) for UI hints
+  isEdited?: boolean;
+  lastEditedAt?: string;
 }
 
 export interface TaskProgressLog {
