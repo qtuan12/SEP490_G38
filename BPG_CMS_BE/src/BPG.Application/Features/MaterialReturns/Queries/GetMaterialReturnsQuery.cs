@@ -2,8 +2,10 @@ using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialReturns;
 using BPG.Application.Common.Interfaces;
 using BPG.Application.IRepositories;
+using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,11 +20,26 @@ namespace BPG.Application.Features.MaterialReturns.Queries
         /// </summary>
         public long? IssuanceId { get; set; }
 
-        public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+        public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
-            if (ProjectId == null)
+            if (ProjectId != null)
+                return ProjectId.Value;
+
+            // FE xem lịch sử hoàn trả của 1 phiếu xuất (modal chi tiết phiếu xuất)
+            // mà không truyền ProjectId → suy luận ProjectId từ graph Issuance → Task → Phase.
+            if (IssuanceId == null)
                 throw new NotFoundException("ProjectId");
-            return Task.FromResult(ProjectId.Value);
+
+            var issuance = await unitOfWork.Repository<MaterialIssuance>()
+                .Query()
+                .Include(i => i.Task)
+                .ThenInclude(t => t.Phase)
+                .FirstOrDefaultAsync(i => i.MaterialIssuanceId == IssuanceId.Value, cancellationToken);
+
+            if (issuance?.Task?.Phase == null)
+                throw new NotFoundException("ProjectId");
+
+            return issuance.Task.Phase.ProjectId;
         }
     }
 }
