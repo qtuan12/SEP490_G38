@@ -1,9 +1,11 @@
 using MediatR;
+using BPG.Application.Common.Interfaces;
 using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialRequests;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,11 +14,18 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Queries
 {
-    public class GetMaterialRequestsQuery : PaginationRequest, IRequest<PagedList<MaterialRequestDto>>
+    public class GetMaterialRequestsQuery : PaginationRequest, IRequest<PagedList<MaterialRequestDto>>, IProjectRequirement
     {
         public long? ProjectId { get; set; }
         public long? PhaseId { get; set; }
         public string? Status { get; set; }
+
+        public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+        {
+            if (ProjectId == null)
+                throw new NotFoundException("ProjectId");
+            return Task.FromResult(ProjectId.Value);
+        }
     }
 
     public class GetMaterialRequestsQueryHandler : IRequestHandler<GetMaterialRequestsQuery, PagedList<MaterialRequestDto>>

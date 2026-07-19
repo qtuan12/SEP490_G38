@@ -30,6 +30,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<IInventoryService> _mockInventoryService;
+        private readonly Mock<IRealtimeNotificationSender> _mockRealtimeSender;
         private readonly CreateMaterialReturnCommandHandler _handler;
 
         public CreateMaterialReturnCommandHandlerTests()
@@ -41,6 +42,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
             _mockCurrentUserService = new Mock<ICurrentUserService>();
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockInventoryService = new Mock<IInventoryService>();
+            _mockRealtimeSender = new Mock<IRealtimeNotificationSender>();
 
             _mockUow.Setup(u => u.Repository<MaterialIssuance>()).Returns(_mockIssuanceRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
@@ -61,7 +63,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
             _handler = new CreateMaterialReturnCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
-                _mockInventoryService.Object
+                _mockInventoryService.Object,
+                _mockRealtimeSender.Object
             );
         }
 

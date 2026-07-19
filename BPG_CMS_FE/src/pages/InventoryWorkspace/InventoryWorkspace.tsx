@@ -3,6 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { Button, LoadingSpinner } from '../../components/ui';
 import { inventoryService } from '../../services/inventoryService';
 import type { CurrentInventory } from '../../types/inventory';
+import { useNotification } from '../../context/NotificationContext';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
+
+const PROJECT_ZERO = 0;
 
 // Import các sub-components được bóc tách
 import { InventoryOverviewCards } from './components/InventoryOverviewCards';
@@ -30,6 +34,7 @@ interface InventoryWorkspaceProps {
 
 export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectId }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { connection } = useNotification();
   const [activeSubTab, setActiveSubTab] = useState<'current' | 'receipts' | 'issuances' | 'ledger'>(
     (searchParams.get('subTab') as any) || 'current'
   );
@@ -94,6 +99,37 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const handleRefreshAll = () => {
     setRefreshKey(prev => prev + 1);
   };
+
+  // Realtime: tham gia group dự án + group toàn cục (Project_0) để nhận cập nhật kho
+  useEffect(() => {
+    if (!connection) return;
+
+    const joinGroups = () => {
+      connection.invoke('JoinProjectGroup', Number(projectId)).catch((e) =>
+        console.error('[SignalR] JoinProjectGroup error:', e)
+      );
+      connection.invoke('JoinProjectGroup', PROJECT_ZERO).catch((e) =>
+        console.error('[SignalR] JoinProjectGroup (global) error:', e)
+      );
+    };
+
+    if (connection.state === 'Connected') {
+      joinGroups();
+    }
+    connection.onreconnected(joinGroups);
+
+    return () => {
+      if (connection.state === 'Connected') {
+        connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
+        connection.invoke('LeaveProjectGroup', PROJECT_ZERO).catch(console.error);
+      }
+    };
+  }, [connection, projectId]);
+
+  // Realtime: khi có biến động kho từ SignalR, làm mới toàn bộ workspace
+  useSignalREvent('GoodsReceiptChanged', () => handleRefreshAll());
+  useSignalREvent('MaterialIssuanceChanged', () => handleRefreshAll());
+  useSignalREvent('MaterialReturnChanged', () => handleRefreshAll());
 
   const handleCreateReceiptSuccess = () => {
     setIsCreateReceiptOpen(false);
