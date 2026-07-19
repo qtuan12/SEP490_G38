@@ -30,6 +30,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
         private readonly Mock<IInventoryService> _mockInventoryService;
+        private readonly Mock<IRealtimeNotificationSender> _mockRealtimeSender;
         private readonly CreateGoodsReceiptCommandHandler _handler;
 
         public CreateGoodsReceiptCommandHandlerTests()
@@ -41,6 +42,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
             _mockInventoryService = new Mock<IInventoryService>();
+            _mockRealtimeSender = new Mock<IRealtimeNotificationSender>();
 
             _mockUow.Setup(u => u.Repository<PurchaseOrder>()).Returns(_mockPoRepo.Object);
             _mockUow.Setup(u => u.Repository<GoodsReceipt>()).Returns(_mockGrRepo.Object);
@@ -61,7 +63,8 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _handler = new CreateGoodsReceiptCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
-                _mockInventoryService.Object
+                _mockInventoryService.Object,
+                _mockRealtimeSender.Object
             );
         }
 
