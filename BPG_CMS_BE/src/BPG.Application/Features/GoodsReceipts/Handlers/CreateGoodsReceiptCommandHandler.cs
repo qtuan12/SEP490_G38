@@ -21,15 +21,18 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
         private readonly IInventoryService _inventoryService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
 
         public CreateGoodsReceiptCommandHandler(
             IUnitOfWork uow, 
             ICurrentUserService currentUserService,
-            IInventoryService inventoryService)
+            IInventoryService inventoryService,
+            IRealtimeNotificationSender realtimeSender)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _inventoryService = inventoryService;
+            _realtimeSender = realtimeSender;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateGoodsReceiptCommand request, CancellationToken cancellationToken)
@@ -219,6 +222,20 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
 
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
+
+                // Realtime: broadcast to members viewing this project's inventory workspace
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + project.ProjectId,
+                    HubMethodNames.GoodsReceiptChanged,
+                    goodsReceipt.ReceiptId,
+                    cancellationToken);
+
+                // Realtime: broadcast to members viewing global inventory (Project_0)
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + 0,
+                    HubMethodNames.GoodsReceiptChanged,
+                    goodsReceipt.ReceiptId,
+                    cancellationToken);
 
                 return ApiResponse<long>.SuccessResult(goodsReceipt.ReceiptId, "Tạo phiếu nhập kho thành công.");
             }

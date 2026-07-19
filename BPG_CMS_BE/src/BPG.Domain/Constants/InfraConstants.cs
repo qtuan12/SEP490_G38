@@ -18,6 +18,10 @@ public static class HubMethodNames
     public const string InventoryAdjustmentCreated = "InventoryAdjustmentCreated"; // Phiếu điều chỉnh kho mới
     public const string InventoryAdjustmentUpdated = "InventoryAdjustmentUpdated"; // Phiếu điều chỉnh kho được cập nhật
 
+    public const string GoodsReceiptChanged = "GoodsReceiptChanged";       // Nhập kho thay đổi (tạo/hủy phiếu)
+    public const string MaterialIssuanceChanged = "MaterialIssuanceChanged"; // Xuất dùng thay đổi
+    public const string MaterialReturnChanged = "MaterialReturnChanged";  // Hoàn trả vật tư thay đổi
+
     // ==================== HUB GROUP PREFIXES ====================
     // Dùng: Groups.AddToGroupAsync(connectionId, HubMethodNames.GroupProject + projectId)
     public const string GroupProject = "Project_"; // + projectId → "Project_123" (phải khớp với NotificationHub: $"Project_{projectId}")
