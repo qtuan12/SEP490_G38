@@ -6,7 +6,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { MiniMarkdown } from '../../../components/ui/MiniMarkdown';
 import { CreateRecoveryPlanModal } from './CreateRecoveryPlanModal';
 import type { IncidentReport, WBSPhase } from '../../../types/common';
-import { ArrowRight, AlertCircle, CheckCircle, HardHat, Package, MapPin, Clock, Users, BarChart3 } from 'lucide-react';
+import { ArrowRight, AlertCircle, CheckCircle, HardHat, Package, MapPin, Clock, Users, BarChart3, FileText } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
 interface IncidentDetailModalProps {
@@ -461,6 +461,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     const fullHtml = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <title>Báo cáo khắc phục thiệt hại - Sự cố #${incident.id}</title>
         <style>
           body {
@@ -505,7 +506,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           h3 { font-size: 12pt; }
           p, li {
             margin: 0 0 8px 0;
-            text-align: justify;
+            text-align: left;
           }
           .signature-table {
             width: 100%;
@@ -889,12 +890,22 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   <>
                     <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
                       <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><Users size={12} />Nhân công khắc phục</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{incident.estimatedLaborDays} ngày công</strong>
+                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{incident.estimatedLaborDays || 0} ngày công</strong>
                     </div>
                     <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
                       <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} />Trễ tiến độ dự kiến</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{incident.estimatedDelayDays} ngày</strong>
+                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
+                        {incident.estimatedDelayDays && incident.estimatedDelayDays > 0 ? `${incident.estimatedDelayDays} ngày` : 'Chưa xác định'}
+                      </strong>
                     </div>
+                    {incident.isEmergency && (
+                      <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><BarChart3 size={12} />Ước tính thiệt hại vật tư</div>
+                        <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
+                          {incident.estimatedMaterialLoss ? incident.estimatedMaterialLoss.toLocaleString('vi-VN') + ' VNĐ' : 'Chưa xác định'}
+                        </strong>
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -994,148 +1005,211 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                     Tổng dự toán: {incident.recoveryEstimateCost.toLocaleString('vi-VN')} VNĐ
                   </span>
                 )}
-                <button
-                  type="button"
-                  onClick={handleExportPdf}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: '0.72rem',
-                    fontWeight: 600,
-                    color: '#fff',
-                    background: 'hsl(var(--primary))',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  🖨️ Xuất PDF
-                </button>
-                <button
-                  type="button"
-                  onClick={handleExportWord}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: '0.72rem',
-                    fontWeight: 600,
-                    color: '#fff',
-                    background: 'hsl(210, 70%, 45%)',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  📝 Xuất Word
-                </button>
+                {parsedDoc?.isImported ? (
+                  <a
+                    href={parsedDoc.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: '#fff',
+                      background: 'hsl(210, 70%, 45%)',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    📥 Tải kế hoạch Word
+                  </a>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleExportPdf}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        color: '#fff',
+                        background: 'hsl(var(--primary))',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      🖨️ Xuất PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportWord}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        color: '#fff',
+                        background: 'hsl(210, 70%, 45%)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      📝 Xuất Word
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
             {parsedDoc ? (
-              <div style={{ padding: '24px 30px', background: '#fff', borderTop: '1px solid hsl(var(--border))', color: '#000', fontFamily: '"Times New Roman", Times, serif', fontSize: '1.05rem', lineHeight: '1.6', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)' }}>
-                {/* Official Heading */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', fontSize: '0.85rem', lineHeight: '1.4', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
-                  <div style={{ textAlign: 'center', width: '45%' }}>
-                    <strong>CÔNG TY CỔ PHẦN XÂY DỰNG BPG</strong><br/>
-                    Ban Quản lý Dự án: {incident.projectName || 'Dự án CMS'}<br/>
-                    ---
+              parsedDoc.isImported ? (
+                <div style={{ padding: '30px 40px', background: '#fff', borderTop: '1px solid hsl(var(--border))', color: '#000', textAlign: 'center' }}>
+                  <div style={{ fontSize: '3rem', color: '#2b6cb0', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                    <FileText size={48} />
                   </div>
-                  <div style={{ textAlign: 'center', width: '50%' }}>
-                    <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
-                    <strong>Độc lập - Tự do - Hạnh phúc</strong><br/>
-                    ---
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.3rem', margin: '20px 0 5px 0', textTransform: 'uppercase' }}>
-                  BÁO CÁO SỰ CỐ CÔNG TRÌNH XÂY DỰNG
-                </div>
-                <div style={{ textAlign: 'center', fontStyle: 'italic', fontSize: '0.9rem', marginBottom: '24px', color: 'hsl(var(--text-muted))' }}>
-                  (Lập và lưu trữ trên hệ thống hợp đồng số CMS)
-                </div>
-
-                {/* Document Fields */}
-                <div style={{ textAlign: 'justify' }}>
-                  <p style={{ margin: '12px 0 6px 0' }}><strong>1. Thông tin công trình</strong></p>
-                  <div style={{ paddingLeft: '14px' }}>
-                    <p style={{ margin: '4px 0' }}>- Tên công trình: <strong>{parsedDoc.tenCongTrinh || '.......................................'}</strong></p>
-                    <p style={{ margin: '4px 0' }}>- Địa chỉ công trình: <strong>{parsedDoc.diaChiCongTrinh || '.......................................'}</strong></p>
-                    <p style={{ margin: '4px 0' }}>- Chủ đầu tư: <strong>{parsedDoc.chuDauTu || '.......................................'}</strong></p>
-                    <p style={{ margin: '4px 0' }}>- Nhà thầu thi công: <strong>{parsedDoc.nhaThauThiCong || '.......................................'}</strong></p>
-                    <p style={{ margin: '4px 0' }}>- Đơn vị tư vấn giám sát: <strong>{parsedDoc.donViGiamSat || '.......................................'}</strong></p>
-                  </div>
-
-                  <p style={{ margin: '16px 0 6px 0' }}><strong>2. Thời gian xảy ra sự cố</strong></p>
-                  <div style={{ paddingLeft: '14px' }}>
-                    <p style={{ margin: '4px 0' }}>- Ngày, giờ xảy ra: <strong>{parsedDoc.thoiGianXayRa || '.......................................'}</strong></p>
-                  </div>
-
-                  <p style={{ margin: '16px 0 6px 0' }}><strong>3. Mô tả sự cố</strong></p>
-                  <div style={{ paddingLeft: '14px' }}>
-                    <p style={{ margin: '4px 0' }}>- Loại sự cố: <strong>{parsedDoc.loaiSuCo || '.......................................'}</strong></p>
-                    <p style={{ margin: '4px 0' }}>- Mô tả chi tiết: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.moTaChiTiet || '.......................................'}</span></p>
-                    <p style={{ margin: '4px 0' }}>- Nguyên nhân ban đầu (nếu có): <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.nguyenNhanBanDau || '.......................................'}</span></p>
-                  </div>
-
-                  <p style={{ margin: '16px 0 6px 0' }}><strong>4. Thiệt hại do sự cố (nếu có)</strong></p>
-                  <div style={{ paddingLeft: '14px' }}>
-                    <p style={{ margin: '4px 0' }}>- Thiệt hại về con người: <strong>{parsedDoc.thietHaiConNguoi || '.......................................'}</strong></p>
-                    <p style={{ margin: '4px 0' }}>- Thiệt hại về vật chất: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.thietHaiVatChat || '.......................................'}</span></p>
-                    <p style={{ margin: '4px 0' }}>- Thiệt hại khác: <strong>{parsedDoc.thietHaiKhac || '.......................................'}</strong></p>
-                  </div>
-
-                  <p style={{ margin: '16px 0 6px 0' }}><strong>5. Biện pháp khắc phục ban đầu</strong></p>
-                  <div style={{ paddingLeft: '14px' }}>
-                    <p style={{ margin: '4px 0' }}>- Các hành động đã thực hiện: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.bienPhapDaThucHien || '.......................................'}</span></p>
-                    <p style={{ margin: '4px 0' }}>- Đề xuất hướng xử lý tiếp theo: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.deXuatHuongXuLy || '.......................................'}</span></p>
-                  </div>
-
-                  <p style={{ margin: '16px 0 6px 0' }}><strong>6. Các bên liên quan chứng kiến sự cố</strong></p>
-                  <div style={{ paddingLeft: '14px' }}>
-                    <p style={{ margin: '4px 0' }}>- Họ và tên: <strong>{parsedDoc.chungKienHoTen || '.......................................'}</strong></p>
-                    <p style={{ margin: '4px 0' }}>- Liên hệ: <strong>{parsedDoc.chungKienLienHe || '.......................................'}</strong></p>
-                  </div>
-
-                  <p style={{ margin: '16px 0 6px 0' }}><strong>7. Ý kiến của các bên</strong></p>
-                  <div style={{ paddingLeft: '14px' }}>
-                    <p style={{ margin: '4px 0' }}>- Chủ đầu tư: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienChuDauTu || '.......................................'}</span></p>
-                    <p style={{ margin: '4px 0' }}>- Nhà thầu thi công: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienNhaThau || '.......................................'}</span></p>
-                    <p style={{ margin: '4px 0' }}>- Tư vấn giám sát (nếu có): <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienGiamSat || '.......................................'}</span></p>
-                  </div>
-
-                  <p style={{ margin: '16px 0 6px 0' }}><strong>8. Kết luận và cam kết</strong></p>
-                  <p style={{ paddingLeft: '14px', margin: '4px 0' }}>Chúng tôi cam kết thông tin trong báo cáo là chính xác và sẽ phối hợp thực hiện các biện pháp khắc phục theo quy định.</p>
-                </div>
-
-                {/* Signature block preview */}
-                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '36px', marginBottom: '16px', textTransform: 'uppercase' }}>
-                  ĐẠI DIỆN CÁC BÊN THAM GIA LẬP BIÊN BẢN
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '0.82rem', textAlign: 'center', marginTop: '10px' }}>
-                  <div>
-                    <strong>Đại diện chủ đầu tư</strong><br/>
-                    <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
-                    <div style={{ height: '50px' }}></div>
-                    <span>.......................................</span>
-                  </div>
-                  <div>
-                    <strong>Đại diện nhà thầu thi công</strong><br/>
-                    <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
-                    <div style={{ height: '50px' }}></div>
-                    <strong>{incident.reviewerName || 'Lê Minh Tuấn'}</strong>
-                  </div>
-                  <div>
-                    <strong>Đại diện tư vấn giám sát (nếu có)</strong><br/>
-                    <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
-                    <div style={{ height: '50px' }}></div>
-                    <span>.......................................</span>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '8px', color: '#2b6cb0' }}>
+                    Kế hoạch khắc phục sự cố đã được nhập từ Word
+                  </h3>
+                  <p style={{ color: '#4a5568', fontSize: '0.9rem', marginBottom: '20px' }}>
+                    Tên file: <strong>{parsedDoc.fileName}</strong>
+                  </p>
+                  <a
+                    href={parsedDoc.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      backgroundColor: '#3182ce',
+                      color: '#fff',
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      fontSize: '0.9rem',
+                      textDecoration: 'none',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    📥 Tải xuống File Kế hoạch (.doc / .docx)
+                  </a>
+                  <div style={{ marginTop: '24px', borderTop: '1px dashed #e2e8f0', paddingTop: '16px', fontSize: '0.8rem', color: '#718096' }}>
+                    * Vui lòng tải xuống tệp tin ở trên để xem xét kỹ nội dung phương án và ngân sách khắc phục.
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ padding: '24px 30px', background: '#fff', borderTop: '1px solid hsl(var(--border))', color: '#000', fontFamily: '"Times New Roman", Times, serif', fontSize: '1.05rem', lineHeight: '1.6', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)' }}>
+                  {/* Official Heading */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', fontSize: '0.85rem', lineHeight: '1.4', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
+                    <div style={{ textAlign: 'center', width: '45%' }}>
+                      <strong>CÔNG TY CỔ PHẦN XÂY DỰNG BPG</strong><br/>
+                      Ban Quản lý Dự án: {incident.projectName || 'Dự án CMS'}<br/>
+                      ---
+                    </div>
+                    <div style={{ textAlign: 'center', width: '50%' }}>
+                      <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
+                      <strong>Độc lập - Tự do - Hạnh phúc</strong><br/>
+                      ---
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.3rem', margin: '20px 0 5px 0', textTransform: 'uppercase' }}>
+                    BÁO CÁO SỰ CỐ CÔNG TRÌNH XÂY DỰNG
+                  </div>
+                  <div style={{ textAlign: 'center', fontStyle: 'italic', fontSize: '0.9rem', marginBottom: '24px', color: 'hsl(var(--text-muted))' }}>
+                    (Lập và lưu trữ trên hệ thống hợp đồng số CMS)
+                  </div>
+
+                  {/* Document Fields */}
+                  <div style={{ textAlign: 'justify' }}>
+                    <p style={{ margin: '12px 0 6px 0' }}><strong>1. Thông tin công trình</strong></p>
+                    <div style={{ paddingLeft: '14px' }}>
+                      <p style={{ margin: '4px 0' }}>- Tên công trình: <strong>{parsedDoc.tenCongTrinh || '.......................................'}</strong></p>
+                      <p style={{ margin: '4px 0' }}>- Địa chỉ công trình: <strong>{parsedDoc.diaChiCongTrinh || '.......................................'}</strong></p>
+                      <p style={{ margin: '4px 0' }}>- Chủ đầu tư: <strong>{parsedDoc.chuDauTu || '.......................................'}</strong></p>
+                      <p style={{ margin: '4px 0' }}>- Nhà thầu thi công: <strong>{parsedDoc.nhaThauThiCong || '.......................................'}</strong></p>
+                      <p style={{ margin: '4px 0' }}>- Đơn vị tư vấn giám sát: <strong>{parsedDoc.donViGiamSat || '.......................................'}</strong></p>
+                    </div>
+
+                    <p style={{ margin: '16px 0 6px 0' }}><strong>2. Thời gian xảy ra sự cố</strong></p>
+                    <div style={{ paddingLeft: '14px' }}>
+                      <p style={{ margin: '4px 0' }}>- Ngày, giờ xảy ra: <strong>{parsedDoc.thoiGianXayRa || '.......................................'}</strong></p>
+                    </div>
+
+                    <p style={{ margin: '16px 0 6px 0' }}><strong>3. Mô tả sự cố</strong></p>
+                    <div style={{ paddingLeft: '14px' }}>
+                      <p style={{ margin: '4px 0' }}>- Loại sự cố: <strong>{parsedDoc.loaiSuCo || '.......................................'}</strong></p>
+                      <p style={{ margin: '4px 0' }}>- Mô tả chi tiết: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.moTaChiTiet || '.......................................'}</span></p>
+                      <p style={{ margin: '4px 0' }}>- Nguyên nhân ban đầu (nếu có): <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.nguyenNhanBanDau || '.......................................'}</span></p>
+                    </div>
+
+                    <p style={{ margin: '16px 0 6px 0' }}><strong>4. Thiệt hại do sự cố (nếu có)</strong></p>
+                    <div style={{ paddingLeft: '14px' }}>
+                      <p style={{ margin: '4px 0' }}>- Thiệt hại về con người: <strong>{parsedDoc.thietHaiConNguoi || '.......................................'}</strong></p>
+                      <p style={{ margin: '4px 0' }}>- Thiệt hại về vật chất: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.thietHaiVatChat || '.......................................'}</span></p>
+                      <p style={{ margin: '4px 0' }}>- Thiệt hại khác: <strong>{parsedDoc.thietHaiKhac || '.......................................'}</strong></p>
+                    </div>
+
+                    <p style={{ margin: '16px 0 6px 0' }}><strong>5. Biện pháp khắc phục ban đầu</strong></p>
+                    <div style={{ paddingLeft: '14px' }}>
+                      <p style={{ margin: '4px 0' }}>- Các hành động đã thực hiện: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.bienPhapDaThucHien || '.......................................'}</span></p>
+                      <p style={{ margin: '4px 0' }}>- Đề xuất hướng xử lý tiếp theo: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.deXuatHuongXuLy || '.......................................'}</span></p>
+                    </div>
+
+                    <p style={{ margin: '16px 0 6px 0' }}><strong>6. Các bên liên quan chứng kiến sự cố</strong></p>
+                    <div style={{ paddingLeft: '14px' }}>
+                      <p style={{ margin: '4px 0' }}>- Họ và tên: <strong>{parsedDoc.chungKienHoTen || '.......................................'}</strong></p>
+                      <p style={{ margin: '4px 0' }}>- Liên hệ: <strong>{parsedDoc.chungKienLienHe || '.......................................'}</strong></p>
+                    </div>
+
+                    <p style={{ margin: '16px 0 6px 0' }}><strong>7. Ý kiến của các bên</strong></p>
+                    <div style={{ paddingLeft: '14px' }}>
+                      <p style={{ margin: '4px 0' }}>- Chủ đầu tư: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienChuDauTu || '.......................................'}</span></p>
+                      <p style={{ margin: '4px 0' }}>- Nhà thầu thi công: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienNhaThau || '.......................................'}</span></p>
+                      <p style={{ margin: '4px 0' }}>- Tư vấn giám sát (nếu có): <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienGiamSat || '.......................................'}</span></p>
+                    </div>
+
+                    <p style={{ margin: '16px 0 6px 0' }}><strong>8. Kết luận và cam kết</strong></p>
+                    <p style={{ paddingLeft: '14px', margin: '4px 0' }}>Chúng tôi cam kết thông tin trong báo cáo là chính xác và sẽ phối hợp thực hiện các biện pháp khắc phục theo quy định.</p>
+                  </div>
+
+                  {/* Signature block preview */}
+                  <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '36px', marginBottom: '16px', textTransform: 'uppercase' }}>
+                    ĐẠI DIỆN CÁC BÊN THAM GIA LẬP BIÊN BẢN
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '0.82rem', textAlign: 'center', marginTop: '10px' }}>
+                    <div>
+                      <strong>Đại diện chủ đầu tư</strong><br/>
+                      <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
+                      <div style={{ height: '50px' }}></div>
+                      <span>.......................................</span>
+                    </div>
+                    <div>
+                      <strong>Đại diện nhà thầu thi công</strong><br/>
+                      <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
+                      <div style={{ height: '50px' }}></div>
+                      <strong>{incident.reviewerName || 'Lê Minh Tuấn'}</strong>
+                    </div>
+                    <div>
+                      <strong>Đại diện tư vấn giám sát (nếu có)</strong><br/>
+                      <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
+                      <div style={{ height: '50px' }}></div>
+                      <span>.......................................</span>
+                    </div>
+                  </div>
+                </div>
+              )
             ) : (
               <div style={{ padding: '14px', maxHeight: '350px', overflowY: 'auto', background: 'hsl(var(--bg-card))', borderTop: '1px solid hsl(var(--border))' }}>
                 <div style={{ color: 'hsl(var(--text-primary))', fontSize: '0.85rem' }} className="markdown-body">
@@ -1311,8 +1385,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       <CreateRecoveryPlanModal
         isOpen={isPlanModalOpen}
         onClose={() => setIsPlanModalOpen(false)}
-        incidentId={Number(incident.id)}
-        projectName={incident.projectName}
+        incident={incident}
         onSuccess={() => {
           if (onSuccessAction) onSuccessAction('Đã nộp báo cáo khắc phục');
           onClose();

@@ -95,8 +95,17 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
                     throw new BusinessException("ERR_FORBIDDEN", "Chỉ có TP Kỹ thuật hoặc Admin mới có quyền phê duyệt dừng thi công.");
 
+                var currentUser = await _unitOfWork.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+                var currentUserName = currentUser?.FullName ?? "Hệ thống";
+                var newReason = "Tạm dừng thi công do sự cố đặc biệt nghiêm trọng: " + incident.Description;
+
                 incident.Project.Status = ProjectStatus.Paused;
-                incident.Project.PauseReason = "Tạm dừng thi công do sự cố đặc biệt nghiêm trọng: " + incident.Description;
+                incident.Project.PauseReason = AppendStatusHistory(
+                    incident.Project.PauseReason,
+                    "pause",
+                    newReason,
+                    DateTime.UtcNow,
+                    currentUserName);
                 incident.Project.PausedAt = DateTime.UtcNow;
                 _unitOfWork.Repository<Project>().Update(incident.Project);
 
@@ -506,6 +515,12 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             updatedIncident.IncidentId,
             cancellationToken);
 
+        await _realtimeSender.SendToGroupAsync(
+            BPG.Domain.Constants.HubMethodNames.GroupProject + updatedIncident.ProjectId,
+            BPG.Domain.Constants.HubMethodNames.ProjectUpdated,
+            updatedIncident.ProjectId,
+            cancellationToken);
+
         // Realtime: broadcast to all members viewing global incidents (Project_0)
         await _realtimeSender.SendToGroupAsync(
             BPG.Domain.Constants.HubMethodNames.GroupProject + 0,
@@ -513,6 +528,60 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             updatedIncident.IncidentId,
             cancellationToken);
 
+        await _realtimeSender.SendToGroupAsync(
+            BPG.Domain.Constants.HubMethodNames.GroupProject + 0,
+            BPG.Domain.Constants.HubMethodNames.ProjectUpdated,
+            updatedIncident.ProjectId,
+            cancellationToken);
+
         return ApiResponse<IncidentDto>.SuccessResult(_mapper.Map<IncidentDto>(updatedIncident), "Sự cố đã được xác nhận và xử lý.");
+    }
+
+    private string AppendStatusHistory(string? currentReason, string type, string? reason, DateTime timestamp, string userName)
+    {
+        List<StatusHistoryItem> historyList;
+        if (!string.IsNullOrEmpty(currentReason) && currentReason.Trim().StartsWith("["))
+        {
+            try
+            {
+                historyList = System.Text.Json.JsonSerializer.Deserialize<List<StatusHistoryItem>>(currentReason) ?? new List<StatusHistoryItem>();
+            }
+            catch
+            {
+                historyList = new List<StatusHistoryItem>();
+            }
+        }
+        else
+        {
+            historyList = new List<StatusHistoryItem>();
+            if (!string.IsNullOrEmpty(currentReason))
+            {
+                historyList.Add(new StatusHistoryItem
+                {
+                    Type = "pause",
+                    Reason = currentReason,
+                    Timestamp = DateTime.UtcNow,
+                    User = "Hệ thống"
+                });
+            }
+        }
+
+        historyList.Add(new StatusHistoryItem
+        {
+            Type = type,
+            Reason = reason,
+            Timestamp = timestamp,
+            User = userName
+        });
+
+        return System.Text.Json.JsonSerializer.Serialize(historyList);
+    }
+
+    private class StatusHistoryItem
+    {
+        public string Type { get; set; } = string.Empty;
+        public string? Reason { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string User { get; set; } = string.Empty;
     }
 }

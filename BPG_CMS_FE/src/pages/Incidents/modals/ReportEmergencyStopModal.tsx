@@ -23,6 +23,8 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
   onSuccess,
 }) => {
   const [description, setDescription] = useState('');
+  const [damageDescription, setDamageDescription] = useState('');
+  const [estimatedMaterialLoss, setEstimatedMaterialLoss] = useState<number>(0);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -43,7 +45,8 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
         incidentType: 'Construction',
         description: finalDesc,
         isEmergency: true,
-        estimatedMaterialLoss: 0,
+        damageDescription: damageDescription.trim(),
+        estimatedMaterialLoss: Number(estimatedMaterialLoss) || 0,
         estimatedLaborDays: 0,
         estimatedDelayDays: 0,
       });
@@ -51,6 +54,8 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
     onSuccess: () => {
       onSuccess('Yêu cầu ngừng thi công khẩn cấp đã được gửi thành công lên TPKT.');
       setDescription('');
+      setDamageDescription('');
+      setEstimatedMaterialLoss(0);
       setSelectedFiles([]);
       setPreviews([]);
       onClose();
@@ -111,6 +116,10 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
       toast.error('Vui lòng nhập lý do và mô tả sự cố.');
       return;
     }
+    if (!damageDescription.trim()) {
+      toast.error('Vui lòng nhập khai báo thiệt hại chi tiết.');
+      return;
+    }
     mutation.mutate();
   };
 
@@ -143,6 +152,26 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
           />
         </FormItem>
 
+        <FormItem label="Khai báo thiệt hại chi tiết" required>
+          <textarea
+            className="input"
+            rows={3}
+            value={damageDescription}
+            onChange={(e) => setDamageDescription(e.target.value)}
+            placeholder="Liệt kê chi tiết các hạng mục, kết cấu, thiết bị bị hư hỏng hoặc cuốn trôi..."
+          />
+        </FormItem>
+
+        <FormItem label="Ước tính thiệt hại vật tư sơ bộ (VNĐ)">
+          <input
+            className="input"
+            type="number"
+            value={estimatedMaterialLoss === 0 ? '' : estimatedMaterialLoss}
+            onChange={(e) => setEstimatedMaterialLoss(Number(e.target.value))}
+            placeholder="Ví dụ: 50000000 (để trống nếu chưa thể ước tính sơ bộ)"
+          />
+        </FormItem>
+
         <FormItem label="Hình ảnh hiện trường sự cố">
           <div
             onDragOver={handleDragOver}
@@ -166,9 +195,9 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
             <input
               type="file"
               id="report-emergency-file"
+              style={{ display: 'none' }}
               multiple
               accept="image/*"
-              style={{ display: 'none' }}
               onChange={handleFileSelect}
             />
           </div>
@@ -213,7 +242,7 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
             variant="primary"
             onClick={handleSubmit}
             isLoading={mutation.isPending}
-            disabled={!description.trim() || mutation.isPending}
+            disabled={!description.trim() || !damageDescription.trim() || mutation.isPending}
             style={{ background: 'hsl(0, 72%, 45%)' }}
           >
             Gửi yêu cầu dừng dự án khẩn cấp
