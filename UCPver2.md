@@ -113,21 +113,21 @@ Description
 Allows authorized users to record incoming material deliveries at the construction site against a pending Đơn mua hàng (PO), updating actual stock, purchase order status, and writing thẻ kho (lịch sử giao dịch vật tư) card logs.
 
 Trigger
-The user requests to create a new nhập kho (goods receipt).
+The user requests to create a new nhập kho (goods receipt) from the Site Inventory workspace, or clicks the "Nhập kho" action button next to a pending Đơn mua hàng (PO) on the Purchase Orders list tab.
 
 Pre-condition
 PRE-1. The user is logged in.
 PRE-2. The selected project is in "Đang thực hiện (InProgress)" status.
-PRE-3. There is at least one Đơn mua hàng (Đơn mua hàng (PO)) in "Đã gửi (Sent)" or "Đã nhận một phần (PartiallyReceived)" status associated with the project.
+PRE-3. There is at least one Đơn mua hàng (PO) in "Đã gửi (Sent)" or "Đã nhận một phần (PartiallyReceived)" status associated with the project.
 
 Post-Condition
 POST-1. The nhập kho (goods receipt) is saved in approved status (immediate stock booking).
 POST-2. Actual stock quantities of the received materials are increased in kho ảo trực tuyến của công trình.
-POST-3. The associated Đơn mua hàng (Đơn mua hàng (PO)) status is updated to "Đã nhận một phần (PartiallyReceived)" or "Đã nhận đủ (FullyReceived)".
+POST-3. The associated Đơn mua hàng (PO) status is updated to "Đã nhận một phần (PartiallyReceived)" or "Đã nhận đủ (FullyReceived)".
 POST-4. Inventory thẻ kho (lịch sử giao dịch vật tư) logs are written.
 
 Normal flow
-1. The user opens the nhập kho (goods receipt) creation wizard. (See A1.1)
+1. The user opens the nhập kho (goods receipt) creation wizard. (See A1.1, A1.2)
 2. The system verifies user privileges and displays Đơn mua hàng (PO) in "Đã gửi (Sent)" or "Đã nhận một phần (PartiallyReceived)" status.
 3. The user selects a Đơn mua hàng (PO).
 4. The system displays purchase order items, including material information, ordered quantity, received quantity, and remaining quantity.
@@ -142,6 +142,12 @@ Alternative flow
 A1.1: Discard Changes (Step 1)
 1. The user cancels the receipt creation before saving.
 2. The system discards all entered inputs and exits.
+
+A1.2: Trigger from Purchase Order List (Step 1)
+1. The user clicks "Nhập kho" next to a specific Đơn mua hàng (PO) on the Purchase Orders list tab.
+2. The system redirects the user to the Site Inventory workspace under the Nhập kho (Goods Receipt) tab with that specific Đơn mua hàng (PO) automatically searched/filtered.
+3. The system automatically opens the goods receipt creation wizard and pre-selects the corresponding Đơn mua hàng (PO) with all its remaining material quantities auto-filled.
+4. The use case resumes at Step 4 of the Normal Flow.
 
 A5.1: Partial Shipment Receipt (Step 5)
 1. The user enters quantities for some items, leaving others blank or as 0.
