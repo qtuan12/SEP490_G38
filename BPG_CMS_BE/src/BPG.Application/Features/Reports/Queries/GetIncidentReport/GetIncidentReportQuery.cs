@@ -1,3 +1,4 @@
+using BPG.Application.Common.Interfaces;
 using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
@@ -7,7 +8,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetIncidentReport;
 
-public record GetIncidentReportQuery(long ProjectId) : IRequest<ApiResponse<IncidentReportDto>>;
+public record GetIncidentReportQuery(long ProjectId)
+    : IRequest<ApiResponse<IncidentReportDto>>, IProjectRequirement
+{
+    public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+        => Task.FromResult(ProjectId);
+}
+
 
 public class GetIncidentReportQueryHandler
     : IRequestHandler<GetIncidentReportQuery, ApiResponse<IncidentReportDto>>

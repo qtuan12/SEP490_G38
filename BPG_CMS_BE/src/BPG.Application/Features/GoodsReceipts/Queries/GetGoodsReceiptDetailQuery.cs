@@ -4,6 +4,7 @@ using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
+using BPG.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -13,7 +14,21 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.GoodsReceipts.Queries
 {
-    public record GetGoodsReceiptDetailQuery(long ReceiptId) : IRequest<ApiResponse<GoodsReceiptDetailDto>>;
+    public record GetGoodsReceiptDetailQuery(long ReceiptId) : IRequest<ApiResponse<GoodsReceiptDetailDto>>, IProjectRequirement
+    {
+        public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+        {
+            var projectId = await unitOfWork.Repository<GoodsReceipt>().Query()
+                .Where(g => g.ReceiptId == ReceiptId)
+                .Select(g => g.PurchaseOrder.ProjectId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (projectId == null)
+                throw new NotFoundException(nameof(GoodsReceipt), ReceiptId);
+
+            return projectId.Value;
+        }
+    }
 
     public class GoodsReceiptDetailDto
     {
