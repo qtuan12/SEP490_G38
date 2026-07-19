@@ -19,6 +19,7 @@ namespace BPG.Application
             {
                 cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
                 cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+                cfg.AddOpenBehavior(typeof(ProjectAuthorizationBehavior<,>));
                 cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
             });
 
