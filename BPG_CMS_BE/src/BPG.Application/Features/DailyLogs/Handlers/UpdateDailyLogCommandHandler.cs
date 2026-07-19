@@ -130,13 +130,6 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     $"Nhật ký thi công chỉ được phép chỉnh sửa trong vòng {editWindowHours} giờ kể từ lúc tạo (cấu hình bởi Quản trị viên). Quá thời han, vui lòng tạo nhật ký mới hoặc liên hệ Quản trị viên.");
             }
 
-
-            // Kiểm tra số lượng hình ảnh
-            if (request.Images != null && request.Images.Count > 5)
-            {
-                throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh hiện trường thi công.");
-            }
-
             // Bắt đầu một transaction để lưu trữ đồng bộ
             await _uow.BeginTransactionAsync(cancellationToken);
 
