@@ -3,6 +3,7 @@ import { Modal, Button, Input, FormItem } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import type { MaterialIssuanceDetail, MaterialIssuanceItemDetail, MaterialReturn } from '../../../types/inventory';
+import { useAuth } from '../../../context/AuthContext';
 import {
   Calendar,
   User,
@@ -236,6 +237,10 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
   // Determine if there is any returnable item remaining
   const isAnyItemReturnable = returnItems.some(item => item.maxReturnableQty > 0);
 
+  const { user: currentUser } = useAuth();
+  const userRole = currentUser?.role?.toLowerCase() || '';
+  const canReturnMaterial = userRole === 'admin' || userRole === 'technicalmanager' || userRole === 'siteengineer' || userRole === 'projectleader';
+
   return (
     <Modal
       isOpen={isOpen}
@@ -258,18 +263,20 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
               Quay lại chi tiết
             </Button>
           ) : (
-            <Button
-              variant="outline"
-              onClick={() => setIsReturning(true)}
-              disabled={loading || !detail || !isAnyItemReturnable}
-              className={`flex items-center gap-1.5 transition-all duration-200
-                ${isAnyItemReturnable 
-                  ? 'border-amber-500 text-amber-600 hover:bg-amber-50' 
-                  : 'border-slate-200 text-slate-400 cursor-not-allowed'}`}
-            >
-              <RotateCcw size={15} />
-              Hoàn trả vật tư thừa
-            </Button>
+            canReturnMaterial ? (
+              <Button
+                variant="outline"
+                onClick={() => setIsReturning(true)}
+                disabled={loading || !detail || !isAnyItemReturnable}
+                className={`flex items-center gap-1.5 transition-all duration-200
+                  ${isAnyItemReturnable 
+                    ? 'border-amber-500 text-amber-600 hover:bg-amber-50' 
+                    : 'border-slate-200 text-slate-400 cursor-not-allowed'}`}
+              >
+                <RotateCcw size={15} />
+                Hoàn trả vật tư thừa
+              </Button>
+            ) : <div />
           )}
 
           <div className="flex gap-2">
