@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, FormItem } from '../../../components/ui';
 import { inventoryAdjustmentService } from '../../../services/inventoryAdjustmentService';
 import { masterDataService } from '../../../services/masterDataService';
+import { projectService } from '../../../services/projectService';
 import type { MaterialCatalog } from '../../../types/masterData';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
@@ -16,9 +17,11 @@ interface Props {
 export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId }) => {
   const [loading, setLoading] = useState(false);
   const [materials, setMaterials] = useState<MaterialCatalog[]>([]);
+  const [phases, setPhases] = useState<any[]>([]);
   
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
+  const [phaseId, setPhaseId] = useState<number | ''>('');
   const [items, setItems] = useState<{ materialId: number; quantity: number }[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -29,8 +32,22 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     if (isOpen) {
       setLocalError(null);
       loadMaterials();
+      loadPhases();
+      setReason('');
+      setDescription('');
+      setPhaseId('');
+      setItems([]);
     }
   }, [isOpen]);
+
+  const loadPhases = async () => {
+    try {
+      const phaseData = await projectService.getPhases(projectId.toString());
+      setPhases(phaseData || []);
+    } catch (err) {
+      console.error('Failed to load phases:', err);
+    }
+  };
 
   const loadMaterials = async () => {
     try {
@@ -68,6 +85,10 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!phaseId) {
+      setLocalError('Vui lòng chọn giai đoạn.');
+      return;
+    }
     if (items.length === 0) {
       setLocalError('Vui lòng thêm ít nhất 1 vật tư.');
       return;
@@ -77,6 +98,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     setLocalError(null);
     try {
       await inventoryAdjustmentService.createIncrease(projectId, {
+        phaseId: Number(phaseId),
         reason,
         description,
         items
@@ -97,6 +119,23 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
             {localError}
           </div>
         )}
+
+        <FormItem label="Chọn giai đoạn (*)">
+          <select
+            required
+            className="w-full px-3 py-2 border rounded-lg"
+            value={phaseId}
+            onChange={e => setPhaseId(Number(e.target.value))}
+          >
+            <option value="">-- Chọn giai đoạn --</option>
+            {phases.map(ph => {
+              const numId = typeof ph.id === 'string' ? parseInt(ph.id.replace('ph-', '')) || ph.id : ph.id;
+              return (
+                <option key={ph.id} value={numId}>{ph.name}</option>
+              );
+            })}
+          </select>
+        </FormItem>
 
         <FormItem label="Lý do điều chỉnh (*)">
           <input 

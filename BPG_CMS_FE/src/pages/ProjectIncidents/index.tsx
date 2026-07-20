@@ -18,9 +18,10 @@ import { useSignalREvent } from '../../hooks/useSignalREvent';
 
 interface Props {
   projectId: string;
+  projectName?: string;
 }
 
-export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
+export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) => {
   const { user } = useAuth();
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
@@ -28,6 +29,17 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loading, setLoading] = useState(true);
   const { connection } = useNotification();
+  const [projName, setProjName] = useState(projectName || '');
+
+  useEffect(() => {
+    if (!projectName && projectId) {
+      projectService.getProjectById(projectId).then(res => {
+        if (res?.name) setProjName(res.name);
+      }).catch(console.error);
+    } else if (projectName) {
+      setProjName(projectName);
+    }
+  }, [projectId, projectName]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,6 +89,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
         return {
           id: dto.incidentId.toString(),
           projectId: dto.projectId.toString(),
+          projectName: dto.projectName || projName || '',
           taskId: dto.taskId?.toString() || '',
           taskName: '', // Need to map below
           phaseId: dto.phaseId?.toString() || '',
@@ -583,6 +596,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId }) => {
         isOpen={isEmergencyModalOpen}
         onClose={() => setIsEmergencyModalOpen(false)}
         projectId={projectId}
+        projectName={projName}
         onSuccess={handleSuccess}
       />
 

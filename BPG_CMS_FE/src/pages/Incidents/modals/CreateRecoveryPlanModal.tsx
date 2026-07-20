@@ -4,7 +4,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { Button, FormItem } from '../../../components/ui';
 import { incidentService } from '../../../services/incidentService';
 import { projectService } from '../../../services/projectService';
-import { UploadCloud, X, FileText } from 'lucide-react';
+import { Download, FileText, UploadCloud, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import type { IncidentReport } from '../../../types/common';
 
@@ -22,42 +22,215 @@ export const CreateRecoveryPlanModal: React.FC<CreateRecoveryPlanModalProps> = (
   onSuccess
 }) => {
   const queryClient = useQueryClient();
+  
+  const [maKeHoach, setMaKeHoach] = useState('');
   const [cost, setCost] = useState<number>(0);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && incident) {
+      setMaKeHoach(`KH-INC-${incident.id}`);
       setCost(0);
-      setSelectedFile(null);
-      setDragging(false);
+      setSelectedFiles([]);
     }
-  }, [isOpen]);
+  }, [isOpen, incident]);
+
+  const downloadTemplate = () => {
+    const htmlContent = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset="utf-8">
+        <title>Mẫu Kế hoạch khắc phục sự cố</title>
+        <style>
+          body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            line-height: 1.6;
+          }
+          .title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 16pt;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 15px;
+          }
+          table, th, td {
+            border: 1px solid black;
+          }
+          th, td {
+            padding: 8px;
+            text-align: left;
+          }
+          .signatures {
+            width: 100%;
+            margin-top: 50px;
+          }
+          .signatures td {
+            border: none;
+            text-align: center;
+            width: 25%;
+            font-size: 11pt;
+            vertical-align: top;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="title">KẾ HOẠCH KHẮC PHỤC SỰ CỐ</div>
+        <p>Mã kế hoạch: KH-INC-${incident.id} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Liên kết báo cáo: INC-${incident.id}</p>
+        <p>Mục tiêu: ............................................................................................................................................</p>
+        
+        <p><strong>Kế hoạch thực hiện:</strong></p>
+        <table>
+          <thead>
+            <tr style="background-color: #f2f2f2;">
+              <th style="width: 40px; text-align: center;">STT</th>
+              <th>Công việc</th>
+              <th style="width: 130px;">Người phụ trách</th>
+              <th style="width: 80px; text-align: center;">Thời hạn</th>
+              <th style="width: 100px;">Kết quả</th>
+              <th style="width: 100px;">Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="text-align: center;">1</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td style="text-align: center;">2</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td style="text-align: center;">3</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>Chi phí dự kiến: .....................................................................................................................................</p>
+        <p>Điều kiện nghiệm thu: ............................................................................................................................</p>
+
+        <table class="signatures">
+          <tr>
+            <td>
+              <strong>Người lập</strong><br/>
+              <span style="font-style: italic; font-size: 10pt;">(Ký, ghi rõ họ tên)</span>
+              <div style="height: 60px;"></div>
+              <strong>${incident.reviewerName || 'Trưởng phòng Kỹ thuật'}</strong>
+            </td>
+            <td>
+              <strong>TP Kỹ thuật</strong><br/>
+              <span style="font-style: italic; font-size: 10pt;">(Ký, ghi rõ họ tên)</span>
+              <div style="height: 60px;"></div>
+              <strong>${incident.reviewerName || 'Trưởng phòng Kỹ thuật'}</strong>
+            </td>
+            <td>
+              <strong>Ban QLDA</strong><br/>
+              <span style="font-style: italic; font-size: 10pt;">(Ký, ghi rõ họ tên)</span>
+              <div style="height: 60px;"></div>
+              <strong>.......................................</strong>
+            </td>
+            <td>
+              <strong>Chủ đầu tư</strong><br/>
+              <span style="font-style: italic; font-size: 10pt;">(Ký, ghi rõ họ tên)</span>
+              <div style="height: 60px;"></div>
+              <strong>.......................................</strong>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+    const blob = new Blob(['\ufeff' + htmlContent], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Mau_Ke_Hoach_Khac_Phuc_Incident_${incident.id}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(true);
+  };
+
+  const handleDragLeave = () => setDragging(false);
+
+  const addFiles = (files: File[]) => {
+    const validFiles: File[] = [];
+    const allowedExtensions = ['doc', 'docx', 'pdf', 'xls', 'xlsx', 'zip', 'rar', 'png', 'jpg', 'jpeg'];
+    for (const file of files) {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (allowedExtensions.includes(ext || '')) {
+        validFiles.push(file);
+      } else {
+        toast.error(`Tệp ${file.name} không hỗ trợ (chỉ nhận Word, Excel, PDF, tệp nén, ảnh).`);
+      }
+    }
+    if (validFiles.length > 0) {
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      addFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      addFiles(Array.from(e.target.files));
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!selectedFile) {
-        throw new Error('Vui lòng chọn hoặc tải lên tệp kế hoạch khắc phục Word.');
-      }
-
-      // Upload file to server
-      const uploadedUrls = await projectService.uploadFiles([selectedFile], 'incidents');
-      const fileUrl = uploadedUrls && uploadedUrls.length > 0 ? uploadedUrls[0] : '';
+      if (selectedFiles.length === 0) throw new Error('Vui lòng chọn tệp kế hoạch khắc phục.');
       
-      if (!fileUrl) {
-        throw new Error('Lỗi khi tải tệp kế hoạch lên hệ thống.');
+      const uploadedUrls = await projectService.uploadFiles(selectedFiles, 'incidents');
+      if (!uploadedUrls || uploadedUrls.length !== selectedFiles.length) {
+        throw new Error('Lỗi khi tải tệp lên máy chủ.');
       }
-
-      const docData = {
-        fileUrl,
-        fileName: selectedFile.name,
+      
+      const planData = {
+        maKeHoach: maKeHoach.trim(),
+        lienKetBaoCao: `INC-${incident.id}`,
+        files: selectedFiles.map((file, idx) => ({
+          fileName: file.name,
+          fileUrl: uploadedUrls[idx]
+        })),
         isImported: true
       };
 
       return incidentService.confirmIncident(Number(incident.id), {
         incidentId: Number(incident.id),
         createReworkTask: false,
-        recoveryPlanText: JSON.stringify(docData),
+        recoveryPlanText: JSON.stringify(planData),
         recoveryEstimateCost: cost,
       });
     },
@@ -73,253 +246,17 @@ export const CreateRecoveryPlanModal: React.FC<CreateRecoveryPlanModalProps> = (
     }
   });
 
-  const handleDownloadTemplate = () => {
-    // Prefill data
-    let dateStr = '...................................................';
-    if (incident.createdAt) {
-      const dateObj = new Date(incident.createdAt);
-      if (!isNaN(dateObj.getTime())) {
-        dateStr = `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')} ngày ${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`;
-      }
-    } else if (incident.date) {
-      dateStr = incident.date;
-    }
-
-    // Clean up description image references
-    const descWithoutImages = incident.description?.split('\n').filter(l => !l.startsWith('![')).join('\n').trim() || 'Chưa có mô tả chi tiết';
-
-    const templateHtml = `
-      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-        <title>Kế hoạch khắc phục sự cố - Dự án ${incident.projectName || ''}</title>
-        <style>
-          body {
-            font-family: 'Times New Roman', Times, serif;
-            font-size: 13pt;
-            line-height: 1.5;
-            margin: 1in;
-          }
-          .header-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-          }
-          .header-table td {
-            border: none;
-            vertical-align: top;
-            font-size: 11pt;
-            line-height: 1.3;
-          }
-          .title {
-            text-align: center;
-            font-weight: bold;
-            font-size: 16pt;
-            margin-top: 30px;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-          }
-          .subtitle {
-            text-align: center;
-            font-style: italic;
-            font-size: 12pt;
-            margin-bottom: 30px;
-          }
-          h1, h2, h3 {
-            font-family: 'Times New Roman', Times, serif;
-            margin-top: 15px;
-            margin-bottom: 5px;
-            font-weight: bold;
-          }
-          h1 { font-size: 14pt; text-transform: uppercase; }
-          h2 { font-size: 13pt; }
-          h3 { font-size: 12pt; }
-          p, li {
-            margin: 0 0 8px 0;
-            text-align: left;
-          }
-          .signature-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 50px;
-          }
-          .signature-table td {
-            border: none;
-            text-align: center;
-            width: 33%;
-            font-size: 11pt;
-            vertical-align: top;
-          }
-          .signature-title {
-            font-weight: bold;
-          }
-          .signature-space {
-            height: 80px;
-          }
-        </style>
-      </head>
-      <body>
-        <table class="header-table">
-          <tr>
-            <td style="text-align: center; width: 45%;">
-              <strong>CÔNG TY CỔ PHẦN XÂY DỰNG BPG</strong><br/>
-              Ban Quản lý Dự án: ${incident.projectName || 'Dự án CMS'}<br/>
-              -----------------------
-            </td>
-            <td style="text-align: center; width: 55%;">
-              <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
-              <strong>Độc lập - Tự do - Hạnh phúc</strong><br/>
-              -------------------------<br/>
-              <span style="font-style: italic; font-size: 11pt;">Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</span>
-            </td>
-          </tr>
-        </table>
-        
-        <div class="title">BÁO CÁO SỰ CỐ CÔNG TRÌNH XÂY DỰNG & KẾ HOẠCH KHẮC PHỤC</div>
-        <div class="subtitle">(Tài liệu lập và lưu giữ trên hệ thống CMS)</div>
-        
-        <div style="text-align: left;">
-          <p><strong>1. Thông tin công trình</strong></p>
-          <div style="padding-left: 14px;">
-            <p style="margin: 4px 0; text-align: left;">- Tên công trình: <strong>${incident.projectName || '...................................................'}</strong></p>
-            <p>- Địa chỉ công trình: <strong>...........................................................................</strong></p>
-            <p>- Chủ đầu tư: <strong>...........................................................................</strong></p>
-            <p>- Nhà thầu thi công: <strong>Công ty Cổ phần Xây dựng BPG</strong></p>
-            <p>- Đơn vị tư vấn giám sát: <strong>...........................................................................</strong></p>
-          </div>
-
-          <p><strong>2. Thời gian xảy ra sự cố</strong></p>
-          <div style="padding-left: 14px;">
-            <p>- Ngày, giờ xảy ra: <strong>${dateStr}</strong></p>
-          </div>
-
-          <p><strong>3. Mô tả sự cố</strong></p>
-          <div style="padding-left: 14px;">
-            <p>- Loại sự cố: <strong>Sự cố ngừng thi công khẩn cấp</strong></p>
-            <p>- Mô tả chi tiết: <br/><strong>${descWithoutImages.replace(/\n/g, '<br/>')}</strong></p>
-            <p>- Nguyên nhân ban đầu (nếu có): <br/><strong>...........................................................................</strong></p>
-          </div>
-
-          <p><strong>4. Thiệt hại do sự cố (Khai báo bởi Project Leader)</strong></p>
-          <div style="padding-left: 14px;">
-            <p>- Thiệt hại về con người: <strong>Không có thiệt hại về người.</strong></p>
-            <p>- Thiệt hại về vật chất: <br/><strong>${(incident.damageDescription || 'Chưa khai báo chi tiết').replace(/\n/g, '<br/>')}</strong></p>
-            <p>- Thiệt hại ước tính (vật tư/tiền): <strong>${incident.estimatedMaterialLoss ? incident.estimatedMaterialLoss.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</strong></p>
-          </div>
-
-          <p><strong>5. Biện pháp khắc phục và đề xuất lâu dài (TPKT bổ sung)</strong></p>
-          <div style="padding-left: 14px;">
-            <p>- Các hành động khẩn cấp đã thực hiện: <br/><strong>[TPKT Điền thông tin vào đây...]</strong></p>
-            <p>- Đề xuất hướng xử lý lâu dài: <br/><strong>[TPKT Điền kế hoạch khắc phục chi tiết vào đây...]</strong></p>
-          </div>
-
-          <p><strong>6. Các bên liên quan chứng kiến sự cố</strong></p>
-          <div style="padding-left: 14px;">
-            <p>- Họ và tên: <strong>...........................................................................</strong></p>
-            <p>- Liên hệ (SĐT / Email): <strong>...........................................................................</strong></p>
-          </div>
-
-          <p><strong>7. Ý kiến của các bên</strong></p>
-          <div style="padding-left: 14px;">
-            <p>- Ý kiến của Chủ đầu tư: <br/><strong>...........................................................................</strong></p>
-            <p>- Ý kiến của Nhà thầu: <br/><strong>...........................................................................</strong></p>
-            <p>- Ý kiến của Tư vấn giám sát: <br/><strong>...........................................................................</strong></p>
-          </div>
-
-          <p><strong>8. Kết luận và cam kết</strong></p>
-          <div style="padding-left: 14px;">
-            <p>Chúng tôi cam kết thông tin trong báo cáo là chính xác và sẽ phối hợp thực hiện các biện pháp khắc phục theo quy định.</p>
-          </div>
-        </div>
-
-        <div style="text-align: center; font-weight: bold; font-size: 12pt; margin-top: 40px; margin-bottom: 20px; text-transform: uppercase;">
-          ĐẠI DIỆN CÁC BÊN THAM GIA LẬP BIÊN BẢN
-        </div>
-        <table class="signature-table">
-          <tr>
-            <td>
-              <span class="signature-title">Đại diện chủ đầu tư</span><br/>
-              <span style="font-style: italic; font-size: 10pt;">(Họ tên, chữ ký)</span>
-              <div class="signature-space"></div>
-              <strong>.......................................</strong>
-            </td>
-            <td>
-              <span class="signature-title">Đại diện nhà thầu thi công</span><br/>
-              <span style="font-style: italic; font-size: 10pt;">(Họ tên, chữ ký)</span>
-              <div class="signature-space"></div>
-              <strong>Trưởng phòng Kỹ thuật</strong>
-            </td>
-            <td>
-              <span class="signature-title">Đại diện tư vấn giám sát (nếu có)</span><br/>
-              <span style="font-style: italic; font-size: 10pt;">(Họ tên, chữ ký)</span>
-              <div class="signature-space"></div>
-              <strong>.......................................</strong>
-            </td>
-          </tr>
-        </table>
-      </body>
-      </html>
-    `;
-
-    const blob = new Blob(['\ufeff' + templateHtml], { type: 'application/msword;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Mau_Ke_hoach_khac_phuc_Incident_${incident.id}.doc`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast.success('Đang tải bản mẫu kế hoạch khắc phục Word...');
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(true);
-  };
-
-  const handleDragLeave = () => setDragging(false);
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFile(e.target.files[0]);
-    }
-  };
-
-  const handleFile = (file: File) => {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'doc' && ext !== 'docx') {
-      toast.error('Chỉ hỗ trợ tệp định dạng Word (.doc hoặc .docx).');
+  const handleSubmit = () => {
+    if (!maKeHoach.trim()) {
+      toast.error('Vui lòng nhập mã kế hoạch.');
       return;
     }
-    const MAX = 20 * 1024 * 1024; // 20MB
-    if (file.size > MAX) {
-      toast.error('Kích thước tệp không được vượt quá 20MB.');
-      return;
-    }
-    setSelectedFile(file);
-    toast.success(`Đã nhận file: ${file.name}`);
-  };
-
-  const removeFile = () => {
-    setSelectedFile(null);
-  };
-
-  const handleSubmitReport = () => {
-    if (!selectedFile) {
-      toast.error('Vui lòng tải lên tệp kế hoạch Word (.doc/.docx) để import vào hệ thống.');
+    if (selectedFiles.length === 0) {
+      toast.error('Vui lòng tải lên ít nhất một tệp kế hoạch khắc phục.');
       return;
     }
     if (cost <= 0) {
-      toast.error('Vui lòng nhập ngân sách dự toán khắc phục sự cố.');
+      toast.error('Vui lòng nhập ngân sách chi phí dự kiến khắc phục.');
       return;
     }
     mutation.mutate();
@@ -328,106 +265,149 @@ export const CreateRecoveryPlanModal: React.FC<CreateRecoveryPlanModalProps> = (
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="📋 Lập Báo cáo & Kế hoạch Khắc phục Sự cố" width="lg">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <Modal isOpen={isOpen} onClose={onClose} title="📋 Lập Kế hoạch Khắc phục Sự cố & Dự toán chi phí" width="md">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         
         {/* Banner */}
-        <div style={{ padding: '12px 16px', background: 'hsl(var(--primary-glow))', borderRadius: '8px', border: '1px solid hsl(var(--primary)/0.2)' }}>
-          <strong style={{ color: 'hsl(var(--primary))', fontSize: '0.88rem', display: 'block' }}>
-            Quy trình lập kế hoạch khắc phục sự cố khẩn cấp
+        <div style={{ padding: '10px 14px', background: 'hsl(var(--primary-glow))', borderRadius: '8px', border: '1px solid hsl(var(--primary)/0.2)' }}>
+          <strong style={{ color: 'hsl(var(--primary))', fontSize: '0.85rem', display: 'block' }}>
+            LẬP KẾ HOẠCH KHẮC PHỤC QUA TỆP WORD
           </strong>
-          <span style={{ fontSize: '0.78rem', color: 'hsl(var(--text-secondary))' }}>
-            Bước 1: Tải bản mẫu pre-fill thông tin thiệt hại hiện trường. <br/>
-            Bước 2: Hoàn thành phương án khắc phục trên Word và upload (import) lại hệ thống.
+          <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>
+            Bạn có thể tải tệp mẫu về điều chỉnh trực tiếp trên Word, sau đó tải tệp đã hoàn thành lên đây để trình duyệt.
           </span>
         </div>
 
-        {/* Step 1: Download template */}
-        <div style={{ padding: '14px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'hsl(var(--text-primary))', marginBottom: '6px' }}>
-            1. Tải bản mẫu từ hệ thống
-          </div>
-          <p style={{ fontSize: '0.78rem', color: 'hsl(var(--text-secondary))', marginBottom: '12px' }}>
-            Bản mẫu sẽ tự động điền các thông tin về dự án, mô tả sự cố khẩn cấp và các hạng mục thiệt hại do Project Leader khai báo.
-          </p>
-          <Button variant="outline" onClick={handleDownloadTemplate} style={{ width: '100%', borderColor: 'hsl(var(--primary)/0.5)', color: 'hsl(var(--primary))' }}>
-            📝 Tải bản mẫu Word (.doc)
+        {/* Action: Download Template */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 0' }}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={downloadTemplate}
+            className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+            style={{ width: '100%', paddingTop: '10px', paddingBottom: '10px', display: 'flex', justifyContent: 'center', fontWeight: 600 }}
+          >
+            <Download size={16} /> Tải xuống Mẫu Kế hoạch (.doc)
           </Button>
         </div>
 
-        {/* Step 2: Upload file */}
-        <FormItem label="2. Tải lên tệp kế hoạch khắc phục (Word)" required>
-          {!selectedFile ? (
+        {/* Inputs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <FormItem label="Mã kế hoạch (*)" required>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border rounded-lg"
+                value={maKeHoach}
+                onChange={(e) => setMaKeHoach(e.target.value)}
+                placeholder="KH-INC-001"
+              />
+            </FormItem>
+            <FormItem label="Liên kết báo cáo sự cố">
+              <input
+                type="text"
+                disabled
+                className="w-full px-3 py-2 border rounded-lg bg-slate-100 cursor-not-allowed"
+                value={`INC-${incident.id}`}
+              />
+            </FormItem>
+          </div>
+
+          <FormItem label="Chi phí dự kiến khắc phục (VNĐ) (*)" required>
+            <input
+              className="w-full px-3 py-2 border rounded-lg"
+              type="number"
+              value={cost === 0 ? '' : cost}
+              onChange={(e) => setCost(Number(e.target.value))}
+              placeholder="VD: 15000000"
+            />
+          </FormItem>
+
+          {/* Drag & Drop File Upload Area */}
+          <FormItem label="Các tệp tài liệu kế hoạch khắc phục sự cố (*)" required>
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               style={{
-                border: `2px dashed ${dragging ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+                border: dragging ? '2px dashed hsl(var(--primary))' : '2px dashed hsl(var(--border))',
                 borderRadius: '8px',
-                padding: '24px 20px',
+                padding: '24px 16px',
                 textAlign: 'center',
+                backgroundColor: dragging ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-muted)/0.3)',
                 cursor: 'pointer',
-                background: dragging ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-card))',
                 transition: 'all 0.2s ease',
               }}
-              onClick={() => document.getElementById('recovery-import-file')?.click()}
+              onClick={() => document.getElementById('file-upload-recovery')?.click()}
             >
-              <UploadCloud size={36} style={{ margin: '0 auto 8px', color: 'hsl(var(--text-muted))' }} />
-              <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', margin: 0 }}>
-                Kéo thả file Word vào đây hoặc click để chọn tệp (.doc, .docx)
-              </p>
               <input
                 type="file"
-                id="recovery-import-file"
-                accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                id="file-upload-recovery"
                 style={{ display: 'none' }}
-                onChange={handleFileSelect}
+                accept=".doc,.docx,.pdf,.xls,.xlsx,.zip,.rar,image/*"
+                multiple
+                onChange={handleFileChange}
               />
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'hsl(var(--success-glow))', border: '1px solid hsl(var(--success)/0.3)', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <FileText size={24} style={{ color: 'hsl(var(--success))' }} />
-                <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--text-primary))' }}>{selectedFile.name}</div>
-                  <div style={{ fontSize: '0.72rem', color: 'hsl(var(--text-secondary))' }}>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</div>
-                </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <UploadCloud size={32} style={{ color: 'hsl(var(--text-muted))' }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'hsl(var(--text-primary))' }}>
+                  Kéo thả hoặc Click để chọn nhiều tệp
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>
+                  Hỗ trợ: Word, Excel, PDF, tệp nén hoặc ảnh
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={removeFile}
-                style={{ padding: '4px', background: 'rgba(0,0,0,0.05)', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <X size={14} style={{ color: 'hsl(var(--text-secondary))' }} />
-              </button>
             </div>
-          )}
-        </FormItem>
 
-        {/* Cost input */}
-        <FormItem label="3. Tổng kinh phí khắc phục dự toán (VNĐ)" required>
-          <input
-            className="input"
-            type="number"
-            value={cost === 0 ? '' : cost}
-            onChange={(e) => setCost(Number(e.target.value))}
-            placeholder="Ví dụ: 150000000"
-          />
-        </FormItem>
+            {selectedFiles.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>
+                  Danh sách tệp tin đã chọn ({selectedFiles.length}):
+                </span>
+                {selectedFiles.map((file, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'hsl(var(--bg-main))', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                      <FileText size={18} style={{ color: '#2b6cb0', flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--text-primary))', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {file.name}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', flexShrink: 0 }}>
+                        ({(file.size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
+                      }}
+                      style={{ color: 'red', display: 'flex', padding: '4px', borderRadius: '4px' }}
+                      className="hover:bg-red-50"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </FormItem>
+
+        </div>
 
         {/* Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px', borderTop: '1px solid hsl(var(--border))', paddingTop: '12px' }}>
           <Button variant="outline" onClick={onClose} disabled={mutation.isPending}>
             Hủy
           </Button>
           <Button
             variant="primary"
-            onClick={handleSubmitReport}
+            onClick={handleSubmit}
             isLoading={mutation.isPending}
-            disabled={!selectedFile || cost <= 0 || mutation.isPending}
+            disabled={mutation.isPending}
           >
-            Nộp kế hoạch trình Giám đốc
+            Trình kế hoạch lên Giám đốc
           </Button>
         </div>
       </div>

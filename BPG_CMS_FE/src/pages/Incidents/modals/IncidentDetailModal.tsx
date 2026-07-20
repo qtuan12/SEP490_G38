@@ -178,6 +178,27 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     }
   });
 
+  const directorApproveInventoryMutation = useMutation({
+    mutationFn: () =>
+      incidentService.confirmIncident(Number(incident.id), {
+        incidentId: Number(incident.id),
+        createReworkTask: false,
+        handlingInstruction: 'Giám đốc phê duyệt điều chỉnh giảm tồn kho vật tư bị thiệt hại.',
+      }),
+    onSuccess: () => {
+      toast.success('Đã phê duyệt phiếu giảm tồn kho thành công.');
+      if (onSuccessAction) onSuccessAction('Phê duyệt giảm tồn kho');
+      else {
+        queryClient.invalidateQueries({ queryKey: ['incidents'] });
+        queryClient.invalidateQueries({ queryKey: ['globalIncidents'] });
+      }
+      onClose();
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Lỗi khi phê duyệt giảm tồn kho.');
+    }
+  });
+
   // Helper convert markdown to HTML for PDF/Word export
   const convertMarkdownToHtml = (md: string): string => {
     let html = md
@@ -245,6 +266,46 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     if (incident.recoveryPlanText.startsWith('{')) {
       try {
         const doc = JSON.parse(incident.recoveryPlanText);
+        if (doc.maKeHoach) {
+          const stepsHtml = doc.keHoachThucHien?.map((step: any) => `
+            <tr>
+              <td style="border: 1px solid #000; padding: 6px; text-align: center;">${step.stt}</td>
+              <td style="border: 1px solid #000; padding: 6px;">${step.congViec}</td>
+              <td style="border: 1px solid #000; padding: 6px;">${step.nguoiPhuTrach}</td>
+              <td style="border: 1px solid #000; padding: 6px; text-align: center;">${step.thoiHan}</td>
+              <td style="border: 1px solid #000; padding: 6px;">${step.ketQua}</td>
+              <td style="border: 1px solid #000; padding: 6px;">${step.ghiChu || ''}</td>
+            </tr>
+          `).join('') || '';
+
+          return `
+            <div style="font-size: 13pt;">
+              <p><strong>Mục tiêu:</strong> ${doc.mucTieu || ''}</p>
+              
+              <p style="margin-top: 15px; font-weight: bold;">Kế hoạch thực hiện:</p>
+              <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 11pt; margin-bottom: 15px;">
+                <thead>
+                  <tr style="background: #f2f2f2;">
+                    <th style="border: 1px solid #000; padding: 6px; width: 40px; text-align: center;">STT</th>
+                    <th style="border: 1px solid #000; padding: 6px;">Công việc</th>
+                    <th style="border: 1px solid #000; padding: 6px; width: 130px;">Người phụ trách</th>
+                    <th style="border: 1px solid #000; padding: 6px; width: 80px; text-align: center;">Thời hạn</th>
+                    <th style="border: 1px solid #000; padding: 6px;">Kết quả</th>
+                    <th style="border: 1px solid #000; padding: 6px;">Ghi chú</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${stepsHtml}
+                </tbody>
+              </table>
+
+              <p><strong>Chi phí dự kiến:</strong> ${incident.recoveryEstimateCost ? incident.recoveryEstimateCost.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</p>
+              
+              <p style="margin-top: 15px;"><strong>Điều kiện nghiệm thu:</strong> ${doc.dieuKienNghiemThu || ''}</p>
+            </div>
+          `;
+        }
+
         return `
           <div style="margin-top: 15px; font-size: 13pt;">
             <p style="margin-top: 15px; font-weight: bold;">1. Thông tin công trình</p>
@@ -306,6 +367,260 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     }
     return convertMarkdownToHtml(incident.recoveryPlanText);
   };
+
+  const getIncidentReportHtml = () => {
+    if (!isDescriptionJson) return '';
+
+    let tableHtml = '';
+    if (parsedDescJson.thietHaiTaiSan && parsedDescJson.thietHaiTaiSan.startsWith('[')) {
+      try {
+        const items = JSON.parse(parsedDescJson.thietHaiTaiSan);
+        const total = items.reduce((sum: number, it: any) => sum + (it.chiPhiSoBo || 0), 0);
+        tableHtml = `
+          <table style="width:100%;border-collapse:collapse;margin:8px 0 10px 0;font-size:12pt;">
+            <thead>
+              <tr style="background-color:#f2f2f2;">
+                <th style="border:1px solid #000;padding:5px 8px;width:45px;text-align:center;font-weight:bold;">STT</th>
+                <th style="border:1px solid #000;padding:5px 8px;text-align:left;font-weight:bold;">Tên vật liệu / tài sản hỏng</th>
+                <th style="border:1px solid #000;padding:5px 8px;width:160px;text-align:right;font-weight:bold;">Ước tính chi phí sơ bộ (VNĐ)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((it: any, idx: number) => `
+                <tr>
+                  <td style="border:1px solid #000;padding:5px 8px;text-align:center;">${idx + 1}</td>
+                  <td style="border:1px solid #000;padding:5px 8px;">${it.tenVatLieu || ''}</td>
+                  <td style="border:1px solid #000;padding:5px 8px;text-align:right;">${it.chiPhiSoBo ? it.chiPhiSoBo.toLocaleString('vi-VN') : '0'}</td>
+                </tr>
+              `).join('')}
+              <tr style="font-weight:bold;">
+                <td colspan="2" style="border:1px solid #000;padding:5px 8px;text-align:right;font-weight:bold;">Tổng thiệt hại:</td>
+                <td style="border:1px solid #000;padding:5px 8px;text-align:right;color:red;font-weight:bold;">${total.toLocaleString('vi-VN')} VNĐ</td>
+              </tr>
+            </tbody>
+          </table>
+        `;
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      tableHtml = `
+        <p style="margin:4px 0;">- Tài sản/Vật tư: <strong>${parsedDescJson.thietHaiTaiSan || '.......................................'}</strong></p>
+        <p style="margin:4px 0;">- Ước tính chi phí: <strong>${incident.estimatedMaterialLoss ? incident.estimatedMaterialLoss.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</strong></p>
+      `;
+    }
+
+    const today = new Date();
+    const dateStr = `Ngày ${today.getDate()} tháng ${today.getMonth() + 1} năm ${today.getFullYear()}`;
+
+    return `
+      <div style="font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:1.5;color:#000;width:100%;">
+
+        <!-- TIÊU ĐỀ ĐÔI -->
+        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;">
+          <tr>
+            <td style="width:45%;text-align:center;vertical-align:top;font-size:12pt;font-family:'Times New Roman',Times,serif;border:none;padding:0;">
+              <strong>CÔNG TY CỔ PHẦN XÂY DỰNG BPG</strong><br/>
+              Ban Quản lý Dự án: ${incident.projectName || parsedDescJson.congTrinh || 'Dự án BPG'}<br/>
+              <span style="display:inline-block;width:120px;border-bottom:1px solid #000;margin-top:4px;">&nbsp;</span>
+            </td>
+            <td style="width:55%;text-align:center;vertical-align:top;font-size:12pt;font-family:'Times New Roman',Times,serif;border:none;padding:0;">
+              <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
+              <strong>Độc lập - Tự do - Hạnh phúc</strong><br/>
+              <span style="display:inline-block;width:180px;border-bottom:1px solid #000;margin-top:4px;">&nbsp;</span><br/>
+              <em style="font-size:11pt;">${dateStr}</em>
+            </td>
+          </tr>
+        </table>
+
+        <!-- TIÊU ĐỀ BIÊN BẢN -->
+        <p style="text-align:center;font-weight:bold;font-size:15pt;margin:20px 0 4px 0;text-transform:uppercase;font-family:'Times New Roman',Times,serif;">
+          BIÊN BẢN BÁO CÁO SỰ CỐ CÔNG TRÌNH
+        </p>
+
+        <!-- SỐ BIÊN BẢN / NGÀY LẬP -->
+        <table style="width:100%;border-collapse:collapse;margin:0 0 18px 0;border:none;">
+          <tr>
+            <td style="width:50%;text-align:center;font-style:italic;font-size:11pt;border:none;padding:2px 0;">
+              Số biên bản: ${parsedDescJson.soBienBan || '.......................'}
+            </td>
+            <td style="width:50%;text-align:center;font-style:italic;font-size:11pt;border:none;padding:2px 0;">
+              Ngày lập: ${parsedDescJson.ngayLap || '.......................'}
+            </td>
+          </tr>
+        </table>
+
+        <!-- I. THÔNG TIN CHUNG -->
+        <p style="margin:12px 0 4px 0;font-size:12pt;"><strong>I. THÔNG TIN CHUNG</strong></p>
+        <p style="margin:3px 0 3px 15px;font-size:12pt;">- Dự án: <strong>${incident.projectName || parsedDescJson.congTrinh || '.......................................'}</strong></p>
+        <p style="margin:3px 0 3px 15px;font-size:12pt;">- Hạng mục: <strong>${parsedDescJson.hangMuc || '.......................................'}</strong></p>
+        <p style="margin:3px 0 3px 15px;font-size:12pt;">- Người báo cáo: <strong>${incident.reporterName || '.......................................'}</strong> &nbsp;&nbsp;&nbsp; Chức vụ: <strong>${parsedDescJson.chucVu || 'Trưởng nhóm (Project Leader)'}</strong></p>
+
+        <!-- II. THÔNG TIN SỰ CỐ -->
+        <p style="margin:12px 0 4px 0;font-size:12pt;"><strong>II. THÔNG TIN SỰ CỐ</strong></p>
+        <p style="margin:3px 0 3px 15px;font-size:12pt;">- Thời gian xảy ra: <strong>${parsedDescJson.thoiGianXayRa || '.......................................'}</strong></p>
+        <p style="margin:3px 0 3px 15px;font-size:12pt;">- Địa điểm: <strong>${parsedDescJson.diaDiem || '.......................................'}</strong></p>
+        <p style="margin:3px 0 3px 15px;font-size:12pt;">- Loại sự cố: <strong>${parsedDescJson.loaiSuCo || '.......................................'}</strong> &nbsp;&nbsp;&nbsp; Mức độ: <strong>${parsedDescJson.mucDo || 'Khẩn cấp'}</strong></p>
+
+        <!-- III. MÔ TẢ SỰ CỐ -->
+        <p style="margin:12px 0 4px 0;font-size:12pt;"><strong>III. MÔ TẢ SỰ CỐ</strong></p>
+        <p style="margin:3px 0 12px 15px;font-size:12pt;text-align:justify;line-height:1.6;">
+          ${parsedDescJson.moTaSuCo || '.......................................................................................................................'}
+        </p>
+
+        <!-- IV. THIỆT HẠI -->
+        <p style="margin:12px 0 4px 0;font-size:12pt;"><strong>IV. THIỆT HẠI</strong></p>
+        <p style="margin:3px 0 3px 15px;font-size:12pt;">- Con người: <strong>${parsedDescJson.thietHaiConNguoi || 'Không có'}</strong></p>
+        <p style="margin:3px 0 3px 15px;font-size:12pt;">- Tiến độ: <strong>${parsedDescJson.thietHaiTienDo || '.......................................'}</strong></p>
+        <div style="margin:6px 0 10px 0;">${tableHtml}</div>
+
+        <!-- V. NGUYÊN NHÂN BAN ĐẦU -->
+        <p style="margin:12px 0 4px 0;font-size:12pt;"><strong>V. NGUYÊN NHÂN BAN ĐẦU</strong></p>
+        <p style="margin:3px 0 12px 15px;font-size:12pt;text-align:justify;line-height:1.6;">
+          ${parsedDescJson.nguyenNhanBanDau || '.......................................................................................................................'}
+        </p>
+
+        <!-- VI. BIỆN PHÁP KHẮC PHỤC -->
+        <p style="margin:12px 0 4px 0;font-size:12pt;"><strong>VI. BIỆN PHÁP KHẮC PHỤC KHẨN CẤP ĐÃ THỰC HIỆN</strong></p>
+        <p style="margin:3px 0 12px 15px;font-size:12pt;text-align:justify;line-height:1.6;">
+          ${parsedDescJson.bienPhapKhanCap || '.......................................................................................................................'}
+        </p>
+
+        <!-- CHỮ KÝ -->
+        <table style="width:100%;border-collapse:collapse;margin-top:40px;border:none;">
+          <tr>
+            <td style="text-align:center;width:25%;border:none;font-size:12pt;vertical-align:top;padding:0 4px;">
+              <strong>Người lập</strong><br/>
+              <em style="font-size:10pt;">(Ký, ghi rõ họ tên)</em>
+              <div style="height:55px;"></div>
+              <strong>${incident.reporterName || '.......................'}</strong>
+            </td>
+            <td style="text-align:center;width:25%;border:none;font-size:12pt;vertical-align:top;padding:0 4px;">
+              <strong>TPKT</strong><br/>
+              <em style="font-size:10pt;">(Ký, ghi rõ họ tên)</em>
+              <div style="height:55px;"></div>
+              <strong>${incident.status !== 'WaitingStopApproval' && incident.reviewerName ? incident.reviewerName : '.......................'}</strong>
+            </td>
+            <td style="text-align:center;width:25%;border:none;font-size:12pt;vertical-align:top;padding:0 4px;">
+              <strong>Ban QLDA</strong><br/>
+              <em style="font-size:10pt;">(Ký, ghi rõ họ tên)</em>
+              <div style="height:55px;"></div>
+              <strong>.......................<br/></strong>
+            </td>
+            <td style="text-align:center;width:25%;border:none;font-size:12pt;vertical-align:top;padding:0 4px;">
+              <strong>Chủ đầu tư</strong><br/>
+              <em style="font-size:10pt;">(Ký, ghi rõ họ tên)</em>
+              <div style="height:55px;"></div>
+              <strong>.......................<br/></strong>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `;
+  };
+
+  const handleExportReportPdf = () => {
+    const reportHtml = getIncidentReportHtml();
+    if (!reportHtml) return;
+    const printContent = `
+      <html>
+      <head>
+        <title>Biên bản báo cáo sự cố công trình - Sự cố #${incident.id}</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 20mm;
+          }
+          body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            line-height: 1.5;
+            color: #000;
+            background: #fff;
+            padding: 0;
+            margin: 0;
+          }
+        </style>
+      </head>
+      <body>
+        ${reportHtml}
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+    } else {
+      toast.error('Vui lòng cho phép trình duyệt mở popup để in.');
+    }
+  };
+
+  const handleExportReportWord = () => {
+    const reportHtml = getIncidentReportHtml();
+    if (!reportHtml) return;
+    const fullHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office'
+            xmlns:w='urn:schemas-microsoft-com:office:word'
+            xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <title>Biên bản báo cáo sự cố công trình - Sự cố #${incident.id}</title>
+        <!--[if gte mso 9]>
+        <xml>
+          <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+          </w:WordDocument>
+        </xml>
+        <![endif]-->
+        <style>
+          @page WordSection1 {
+            size: 21cm 29.7cm;
+            margin: 2.5cm 2cm 2.5cm 3cm;
+            mso-header-margin: 1cm;
+            mso-footer-margin: 1cm;
+          }
+          div.WordSection1 { page: WordSection1; }
+          body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+          }
+          table { border-collapse: collapse; }
+          td, th { vertical-align: top; }
+          p { margin: 0; padding: 0; }
+        </style>
+      </head>
+      <body>
+        <div class="WordSection1">
+          ${reportHtml}
+        </div>
+      </body>
+      </html>
+    `;
+    const blob = new Blob(['\ufeff' + fullHtml], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Bien_Ban_Bao_Cao_Su_Co_${incident.id}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+
 
   const handleExportPdf = () => {
     if (!incident.recoveryPlanText) return;
@@ -381,16 +696,20 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       <body>
         <table class="header-table">
           <tr>
-            <td style="text-align: center; width: 45%;">
+            <td style="text-align: center; width: 45%; border: none; font-size: 11pt; line-height: 1.4; font-family: 'Times New Roman'; vertical-align: top;">
               <strong>CÔNG TY CỔ PHẦN XÂY DỰNG BPG</strong><br/>
-              Ban Quản lý Dự án: ${incident.projectName || 'Dự án CMS'}<br/>
-              -----------------------
+              Ban Quản lý Dự án: ${incident.projectName || 'Dự án BPG'}<br/>
+              <table align="center" style="width: 100px; border-collapse: collapse; border: none; margin-top: 3px;">
+                <tr><td style="border-top: 1px solid black; line-height: 1px; font-size: 1px; height: 1px;">&nbsp;</td></tr>
+              </table>
             </td>
-            <td style="text-align: center; width: 55%;">
+            <td style="text-align: center; width: 55%; border: none; font-size: 11pt; line-height: 1.4; font-family: 'Times New Roman'; vertical-align: top;">
               <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
               <strong>Độc lập - Tự do - Hạnh phúc</strong><br/>
-              -------------------------<br/>
-              <span style="font-style: italic; font-size: 11pt;">Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</span>
+              <table align="center" style="width: 150px; border-collapse: collapse; border: none; margin-top: 3px; margin-bottom: 6px;">
+                <tr><td style="border-top: 1px solid black; line-height: 1px; font-size: 1px; height: 1px;">&nbsp;</td></tr>
+              </table>
+              <span style="font-style: italic; font-size: 11pt; display: block; text-align: center;">Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</span>
             </td>
           </tr>
         </table>
@@ -531,16 +850,20 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       <body>
         <table class="header-table">
           <tr>
-            <td style="text-align: center; width: 45%;">
+            <td style="text-align: center; width: 45%; border: none; font-size: 11pt; line-height: 1.4; font-family: 'Times New Roman'; vertical-align: top;">
               <strong>CÔNG TY CỔ PHẦN XÂY DỰNG BPG</strong><br/>
-              Ban Quản lý Dự án: ${incident.projectName || 'Dự án CMS'}<br/>
-              -----------------------
+              Ban Quản lý Dự án: ${incident.projectName || 'Dự án BPG'}<br/>
+              <table align="center" style="width: 100px; border-collapse: collapse; border: none; margin-top: 3px;">
+                <tr><td style="border-top: 1px solid black; line-height: 1px; font-size: 1px; height: 1px;">&nbsp;</td></tr>
+              </table>
             </td>
-            <td style="text-align: center; width: 55%;">
+            <td style="text-align: center; width: 55%; border: none; font-size: 11pt; line-height: 1.4; font-family: 'Times New Roman'; vertical-align: top;">
               <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
               <strong>Độc lập - Tự do - Hạnh phúc</strong><br/>
-              -------------------------<br/>
-              <span style="font-style: italic; font-size: 11pt;">Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</span>
+              <table align="center" style="width: 150px; border-collapse: collapse; border: none; margin-top: 3px; margin-bottom: 6px;">
+                <tr><td style="border-top: 1px solid black; line-height: 1px; font-size: 1px; height: 1px;">&nbsp;</td></tr>
+              </table>
+              <span style="font-style: italic; font-size: 11pt; display: block; text-align: center;">Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}</span>
             </td>
           </tr>
         </table>
@@ -617,13 +940,25 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   const isInventoryIncident = incidentType === 'InventoryLoss' || incidentType === 'InventoryDamage';
   const isConstruction = !isInventoryIncident;
 
+  // Check if description is JSON
+  let isDescriptionJson = false;
+  let parsedDescJson: any = null;
+  if (incident.description && incident.description.startsWith('{')) {
+    try {
+      parsedDescJson = JSON.parse(incident.description);
+      isDescriptionJson = true;
+    } catch (e) {
+      console.error('Error parsing description JSON', e);
+    }
+  }
+
   // Extract images from description (they were embedded as ![alt](url))
-  const imageLines = (incident.description || '').split('\n').filter(l => l.startsWith('!['));
-  const descWithoutImages = incident.description?.split('\n').filter(l => !l.startsWith('![')).join('\n').trim();
+  const imageLines = isDescriptionJson ? [] : (incident.description || '').split('\n').filter(l => l.startsWith('!['));
+  const descWithoutImages = isDescriptionJson ? '' : incident.description?.split('\n').filter(l => !l.startsWith('![')).join('\n').trim();
   const { mainDesc: mainDescClean, meta: descMetaClean } = extractMetaFromDesc(descWithoutImages || '');
 
   // Do the same for damageDescription
-  const { mainDesc: damageDescClean, meta: damageMetaClean } = extractMetaFromDesc(incident.damageDescription || '');
+  const { mainDesc: damageDescClean, meta: damageMetaClean } = extractMetaFromDesc(isDescriptionJson ? (parsedDescJson.thietHaiTaiSan || '') : (incident.damageDescription || ''));
 
   interface DamagedItem {
     code: string;
@@ -655,7 +990,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     const match = l.match(/!\[.*?\]\((.*?)\)/);
     return match ? match[1] : null;
   }).filter(Boolean) as string[];
-  const displayImages = (incident.images && incident.images.length > 0) ? incident.images : extractedImages;
+  const displayImages = (incident.images && incident.images.length > 0)
+    ? incident.images
+    : (isDescriptionJson ? (parsedDescJson?.imageUrls || []) : extractedImages);
 
   const statusColor = {
     WaitingReview: { label: 'Chờ TPKT Thẩm định', color: 'hsl(38, 92%, 50%)', bg: 'hsl(38, 100%, 96%)' },
@@ -773,66 +1110,229 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
 
         {/* ── BƯỚC 1: Thông tin sự cố ─────────────────────────────── */}
         <div style={{ border: `1px solid ${meta.border}`, borderRadius: '10px', overflow: 'hidden' }}>
-          {/* Header */}
           <div style={{ padding: '10px 14px', background: meta.bg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: meta.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Bước 1: Báo cáo Sự cố (Trưởng nhóm dự án)
             </span>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-              {incident.reporterName} · {incident.date}
-            </span>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {isDescriptionJson && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleExportReportPdf}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      color: '#fff',
+                      background: 'hsl(var(--primary))',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    🖨️ In Báo cáo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportReportWord}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      color: '#fff',
+                      background: 'hsl(210, 70%, 45%)',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    📝 Xuất Word
+                  </button>
+                </>
+              )}
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
+                {incident.reporterName} · {incident.date}
+              </span>
+            </div>
           </div>
 
           <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Project & Task info */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingBottom: '6px', borderBottom: '1px dashed hsl(var(--border))' }}>
-              <div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Dự án</span>
-                <p style={{ margin: '2px 0 0', fontWeight: 600, fontSize: '0.9rem', color: 'hsl(var(--primary))' }}>
-                  {incident.projectName || `Dự án #${incident.projectId}`}
-                </p>
-              </div>
-              <div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Công việc / Giai đoạn</span>
-                <p style={{ margin: '2px 0 0', fontWeight: 600, fontSize: '0.9rem' }}>
-                  {isInventoryIncident ? (incident.phaseName || 'Không xác định') : (incident.taskName || 'Không xác định')}
-                </p>
-              </div>
-            </div>
-
-            {/* Meta info grid (extracted from description) */}
-            {Object.keys(descMetaClean).length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
-                {Object.entries(descMetaClean).map(([key, val]) => {
-                  const icons: Record<string, React.ReactNode> = {
-                    'Vị trí chi tiết': <MapPin size={12} />,
-                    'Vị trí kho/Lô hàng': <MapPin size={12} />,
-                    'Ngày/Giờ xảy ra': <Clock size={12} />,
-                    'Ngày/Giờ phát hiện': <Clock size={12} />,
-                    'Người chịu trách nhiệm': <Users size={12} />,
-                    'Người làm chứng/Liên đới': <Users size={12} />,
-                  };
-                  return (
-                    <div key={key} style={{ padding: '8px 10px', background: 'hsl(var(--bg-muted))', borderRadius: '6px', borderLeft: `3px solid ${meta.color}` }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '3px' }}>
-                        {icons[key] ?? null}
-                        {key}
-                      </div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>{val}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Main description */}
-            {mainDescClean && (
-              <div style={{ marginTop: '2px' }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Mô tả diễn biến sự cố</span>
-                <div style={{ marginTop: '2px', color: 'hsl(var(--text-primary))', fontSize: '0.85rem' }} className="[&>p:last-child]:mb-0 [&>p]:mt-1">
-                  <MiniMarkdown content={mainDescClean} />
+            {isDescriptionJson ? (
+              <div style={{
+                padding: '20px 24px',
+                background: '#fff',
+                color: '#000',
+                fontFamily: '"Times New Roman", Times, serif',
+                fontSize: '1.05rem',
+                lineHeight: '1.6',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                marginTop: '4px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontSize: '0.85rem', lineHeight: '1.4', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
+                  <div style={{ textAlign: 'center', width: '45%' }}>
+                    <strong>CÔNG TY CỔ PHẦN XÂY DỰNG BPG</strong><br />
+                    Ban Quản lý Dự án: {incident.projectName || 'Dự án BPG'}<br />
+                    ---
+                  </div>
+                  <div style={{ textAlign: 'center', width: '50%' }}>
+                    <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br />
+                    <strong>Độc lập - Tự do - Hạnh phúc</strong><br />
+                    ---
+                  </div>
                 </div>
+
+                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.3rem', margin: '20px 0 5px 0', textTransform: 'uppercase' }}>
+                  BIÊN BẢN BÁO CÁO SỰ CỐ CÔNG TRÌNH
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '0.9rem', fontStyle: 'italic', marginBottom: '20px' }}>
+                  <span>Số biên bản: {parsedDescJson.soBienBan}</span>
+                  <span>Ngày lập: {parsedDescJson.ngayLap}</span>
+                </div>
+
+                <div style={{ textAlign: 'justify' }}>
+                  <p><strong>I. THÔNG TIN CHUNG</strong></p>
+                  <div style={{ paddingLeft: '14px', marginBottom: '10px' }}>
+                    <p style={{ margin: '4px 0' }}>- Dự án: <strong>{incident.projectName || '.......................................'}</strong></p>
+                    <p style={{ margin: '4px 0' }}>- Công trình: <strong>{parsedDescJson.congTrinh || '.......................................'}</strong></p>
+                    <p style={{ margin: '4px 0' }}>- Hạng mục: <strong>{parsedDescJson.hangMuc || '.......................................'}</strong></p>
+                    <p style={{ margin: '4px 0' }}>- Người báo cáo: <strong>{incident.reporterName || '.......................................'}</strong> &nbsp;&nbsp;&nbsp;&nbsp; Chức vụ: <strong>Trưởng nhóm (Project Leader)</strong></p>
+                  </div>
+
+                  <p><strong>II. THÔNG TIN SỰ CỐ</strong></p>
+                  <div style={{ paddingLeft: '14px', marginBottom: '10px' }}>
+                    <p style={{ margin: '4px 0' }}>- Thời gian xảy ra: <strong>{parsedDescJson.thoiGianXayRa || '.......................................'}</strong></p>
+                    <p style={{ margin: '4px 0' }}>- Địa điểm: <strong>{parsedDescJson.diaDiem || '.......................................'}</strong></p>
+                    <p style={{ margin: '4px 0' }}>- Loại sự cố: <strong>{parsedDescJson.loaiSuCo || '.......................................'}</strong> &nbsp;&nbsp;&nbsp;&nbsp; Mức độ: <strong>{parsedDescJson.mucDo || 'Khẩn cấp'}</strong></p>
+                  </div>
+
+                  <p><strong>III. MÔ TẢ SỰ CỐ</strong></p>
+                  <div style={{ paddingLeft: '14px', whiteSpace: 'pre-wrap', background: '#fcfcfc', border: '1px solid #f0f0f0', borderRadius: '4px', padding: '10px', marginBottom: '10px' }}>
+                    {parsedDescJson.moTaSuCo}
+                  </div>
+
+                  <p><strong>IV. THIỆT HẠI</strong></p>
+                  <div style={{ paddingLeft: '14px', marginBottom: '10px' }}>
+                    <p style={{ margin: '4px 0' }}>- Con người: <strong>{parsedDescJson.thietHaiConNguoi || 'Không có'}</strong></p>
+                    <p style={{ margin: '4px 0' }}>- Tiến độ: <strong>{parsedDescJson.thietHaiTienDo || '.......................................'}</strong></p>
+                    {parsedDescJson.thietHaiTaiSan && parsedDescJson.thietHaiTaiSan.startsWith('[') ? (
+                      (() => {
+                        try {
+                          const items = JSON.parse(parsedDescJson.thietHaiTaiSan);
+                          const total = items.reduce((sum: number, it: any) => sum + (it.chiPhiSoBo || 0), 0);
+                          return (
+                            <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+                              <p style={{ margin: '4px 0' }}>- Chi tiết thiệt hại vật tư & chi phí ước tính sơ bộ:</p>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: '0.85rem', marginTop: '4px' }}>
+                                <thead>
+                                  <tr style={{ background: '#f2f2f2' }}>
+                                    <th style={{ border: '1px solid #000', padding: '6px', width: '50px', textAlign: 'center' }}>STT</th>
+                                    <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left' }}>Tên vật liệu / tài sản hỏng</th>
+                                    <th style={{ border: '1px solid #000', padding: '6px', width: '180px', textAlign: 'right' }}>Ước tính chi phí sơ bộ (VNĐ)</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {items.map((it: any, idx: number) => (
+                                    <tr key={idx}>
+                                      <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>{it.stt}</td>
+                                      <td style={{ border: '1px solid #000', padding: '6px' }}>{it.tenVatLieu}</td>
+                                      <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>{it.chiPhiSoBo ? it.chiPhiSoBo.toLocaleString('vi-VN') : '0'}</td>
+                                    </tr>
+                                  ))}
+                                  <tr style={{ fontWeight: 'bold', background: '#f9f9f9' }}>
+                                    <td colSpan={2} style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>Tổng thiệt hại:</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', color: 'red' }}>{total.toLocaleString('vi-VN')} VNĐ</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        } catch (e) {
+                          console.error(e);
+                        }
+                        return null;
+                      })()
+                    ) : (
+                      <>
+                        <p style={{ margin: '4px 0' }}>- Tài sản/Vật tư: <strong>{parsedDescJson.thietHaiTaiSan || '.......................................'}</strong></p>
+                        <p style={{ margin: '4px 0' }}>- Ước tính chi phí: <strong>{incident.estimatedMaterialLoss ? incident.estimatedMaterialLoss.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</strong></p>
+                      </>
+                    )}
+                  </div>
+
+                  <p><strong>V. NGUYÊN NHÂN BAN ĐẦU</strong></p>
+                  <div style={{ paddingLeft: '14px', whiteSpace: 'pre-wrap', background: '#fcfcfc', border: '1px solid #f0f0f0', borderRadius: '4px', padding: '10px', marginBottom: '10px' }}>
+                    {parsedDescJson.nguyenNhanBanDau}
+                  </div>
+
+                  <p><strong>VI. BIỆN PHÁP KHẨN CẤP ĐÃ THỰC HIỆN</strong></p>
+                  <div style={{ paddingLeft: '14px', whiteSpace: 'pre-wrap', background: '#fcfcfc', border: '1px solid #f0f0f0', borderRadius: '4px', padding: '10px' }}>
+                    {parsedDescJson.bienPhapKhanCap}
+                  </div>
+                </div>
+
               </div>
+            ) : (
+              <>
+                {/* Project & Task info */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', paddingBottom: '6px', borderBottom: '1px dashed hsl(var(--border))' }}>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Dự án</span>
+                    <p style={{ margin: '2px 0 0', fontWeight: 600, fontSize: '0.9rem', color: 'hsl(var(--primary))' }}>
+                      {incident.projectName || `Dự án #${incident.projectId}`}
+                    </p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Công việc / Giai đoạn</span>
+                    <p style={{ margin: '2px 0 0', fontWeight: 600, fontSize: '0.9rem' }}>
+                      {isInventoryIncident ? (incident.phaseName || 'Không xác định') : (incident.taskName || 'Không xác định')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Meta info grid (extracted from description) */}
+                {Object.keys(descMetaClean).length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
+                    {Object.entries(descMetaClean).map(([key, val]) => {
+                      const icons: Record<string, React.ReactNode> = {
+                        'Vị trí chi tiết': <MapPin size={12} />,
+                        'Vị trí kho/Lô hàng': <MapPin size={12} />,
+                        'Ngày/Giờ xảy ra': <Clock size={12} />,
+                        'Ngày/Giờ phát hiện': <Clock size={12} />,
+                        'Người chịu trách nhiệm': <Users size={12} />,
+                        'Người làm chứng/Liên đới': <Users size={12} />,
+                      };
+                      return (
+                        <div key={key} style={{ padding: '8px 10px', background: 'hsl(var(--bg-muted))', borderRadius: '6px', borderLeft: `3px solid ${meta.color}` }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '3px' }}>
+                            {icons[key] ?? null}
+                            {key}
+                          </div>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>{val}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Main description */}
+                {mainDescClean && (
+                  <div style={{ marginTop: '2px' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>Mô tả diễn biến sự cố</span>
+                    <div style={{ marginTop: '2px', color: 'hsl(var(--text-primary))', fontSize: '0.85rem' }} className="[&>p:last-child]:mb-0 [&>p]:mt-1">
+                      <MiniMarkdown content={mainDescClean} />
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Images */}
@@ -886,27 +1386,13 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
             <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {/* Unified Stats & Meta Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
-                {isConstruction && (
-                  <>
-                    <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><Users size={12} />Nhân công khắc phục</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{incident.estimatedLaborDays || 0} ngày công</strong>
-                    </div>
-                    <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12} />Trễ tiến độ dự kiến</div>
-                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
-                        {incident.estimatedDelayDays && incident.estimatedDelayDays > 0 ? `${incident.estimatedDelayDays} ngày` : 'Chưa xác định'}
-                      </strong>
-                    </div>
-                    {incident.isEmergency && (
-                      <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-                        <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><BarChart3 size={12} />Ước tính thiệt hại vật tư</div>
-                        <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
-                          {incident.estimatedMaterialLoss ? incident.estimatedMaterialLoss.toLocaleString('vi-VN') + ' VNĐ' : 'Chưa xác định'}
-                        </strong>
-                      </div>
-                    )}
-                  </>
+                {isConstruction && incident.isEmergency && (
+                  <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><BarChart3 size={12} />Ước tính thiệt hại vật tư</div>
+                    <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
+                      {incident.estimatedMaterialLoss ? incident.estimatedMaterialLoss.toLocaleString('vi-VN') + ' VNĐ' : 'Chưa xác định'}
+                    </strong>
+                  </div>
                 )}
 
                 {Object.entries(damageMetaClean).map(([key, val]) => (
@@ -982,9 +1468,47 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               {/* Damage description as Markdown (only for construction incidents or if there is extra text) */}
               {damageDescClean && !isInventoryIncident && (
                 <div style={{ marginTop: '2px' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Ghi chú thiệt hại bổ sung</span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>
+                    {damageDescClean.startsWith('[') ? 'Danh sách tài sản/vật tư bị thiệt hại' : 'Ghi chú thiệt hại bổ sung'}
+                  </span>
                   <div style={{ color: 'hsl(var(--text-primary))', fontSize: '0.85rem' }} className="[&>p:last-child]:mb-0 [&>p]:mt-1">
-                    <MiniMarkdown content={damageDescClean} />
+                    {damageDescClean.startsWith('[') ? (
+                      (() => {
+                        try {
+                          const items = JSON.parse(damageDescClean);
+                          const total = items.reduce((sum: number, it: any) => sum + (it.chiPhiSoBo || 0), 0);
+                          return (
+                            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid hsl(var(--border))', fontSize: '0.8rem', marginTop: '6px', borderRadius: '6px', overflow: 'hidden' }}>
+                              <thead>
+                                <tr style={{ background: 'hsl(var(--bg-muted))', textAlign: 'left', borderBottom: '1px solid hsl(var(--border))' }}>
+                                  <th style={{ padding: '6px 10px', width: '50px', textAlign: 'center', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>STT</th>
+                                  <th style={{ padding: '6px 10px', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Tên vật liệu / tài sản hỏng</th>
+                                  <th style={{ padding: '6px 10px', width: '180px', textAlign: 'right', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Ước tính chi phí sơ bộ</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {items.map((it: any, idx: number) => (
+                                  <tr key={idx} style={{ borderBottom: idx < items.length - 1 ? '1px solid hsl(var(--border))' : 'none' }}>
+                                    <td style={{ padding: '6px 10px', textAlign: 'center', color: 'hsl(var(--text-secondary))' }}>{it.stt}</td>
+                                    <td style={{ padding: '6px 10px', color: 'hsl(var(--text-primary))' }}>{it.tenVatLieu}</td>
+                                    <td style={{ padding: '6px 10px', textAlign: 'right', color: 'hsl(var(--text-primary))', fontWeight: 600 }}>{it.chiPhiSoBo ? it.chiPhiSoBo.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</td>
+                                  </tr>
+                                ))}
+                                <tr style={{ background: 'hsl(var(--bg-muted))', fontWeight: 700 }}>
+                                  <td colSpan={2} style={{ padding: '8px 10px', textAlign: 'right', color: 'hsl(var(--text-secondary))' }}>Tổng thiệt hại:</td>
+                                  <td style={{ padding: '8px 10px', textAlign: 'right', color: 'red' }}>{total.toLocaleString('vi-VN')} VNĐ</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          );
+                        } catch (e) {
+                          console.error(e);
+                        }
+                        return <MiniMarkdown content={damageDescClean} />;
+                      })()
+                    ) : (
+                      <MiniMarkdown content={damageDescClean} />
+                    )}
                   </div>
                 </div>
               )}
@@ -993,7 +1517,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         )}
 
         {/* ── BƯỚC THÊM: Báo cáo khắc phục (báo cáo.md) ─────────────────────────── */}
-        {incident.recoveryPlanText && (
+        {incident.recoveryPlanText && (isTPKT || isDirector) && (
           <div style={{ border: '1px solid hsl(var(--primary) / 0.4)', borderRadius: '10px', overflow: 'hidden' }}>
             <div style={{ padding: '10px 14px', background: 'hsl(var(--primary-glow))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--primary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -1006,27 +1530,51 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   </span>
                 )}
                 {parsedDoc?.isImported ? (
-                  <a
-                    href={parsedDoc.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      color: '#fff',
-                      background: 'hsl(210, 70%, 45%)',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      textDecoration: 'none'
-                    }}
-                  >
-                    📥 Tải kế hoạch Word
-                  </a>
+                  parsedDoc.files && parsedDoc.files.length > 0 ? (
+                    <a
+                      href={parsedDoc.files[0].fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        color: '#fff',
+                        background: 'hsl(210, 70%, 45%)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        textDecoration: 'none'
+                      }}
+                    >
+                      📥 Tải tài liệu (${parsedDoc.files.length} tệp)
+                    </a>
+                  ) : (
+                    <a
+                      href={parsedDoc.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        color: '#fff',
+                        background: 'hsl(210, 70%, 45%)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        textDecoration: 'none'
+                      }}
+                    >
+                      📥 Tải kế hoạch Word
+                    </a>
+                  )
                 ) : (
                   <>
                     <button
@@ -1079,135 +1627,246 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                     <FileText size={48} />
                   </div>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '8px', color: '#2b6cb0' }}>
-                    Kế hoạch khắc phục sự cố đã được nhập từ Word
+                    Kế hoạch khắc phục sự cố đã được nhập từ tài liệu đính kèm
                   </h3>
-                  <p style={{ color: '#4a5568', fontSize: '0.9rem', marginBottom: '20px' }}>
-                    Tên file: <strong>{parsedDoc.fileName}</strong>
-                  </p>
-                  <a
-                    href={parsedDoc.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      backgroundColor: '#3182ce',
-                      color: '#fff',
-                      padding: '10px 20px',
-                      borderRadius: '6px',
-                      fontWeight: 'bold',
-                      fontSize: '0.9rem',
-                      textDecoration: 'none',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}
-                  >
-                    📥 Tải xuống File Kế hoạch (.doc / .docx)
-                  </a>
+
+                  {parsedDoc.files && parsedDoc.files.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', marginTop: '16px' }}>
+                      <p style={{ color: '#4a5568', fontSize: '0.9rem', marginBottom: '4px' }}>
+                        Danh sách tài liệu đính kèm ({parsedDoc.files.length} tệp):
+                      </p>
+                      {parsedDoc.files.map((file: any, idx: number) => (
+                        <a
+                          key={idx}
+                          href={file.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            backgroundColor: '#3182ce',
+                            color: '#fff',
+                            padding: '8px 16px',
+                            borderRadius: '6px',
+                            fontWeight: 'bold',
+                            fontSize: '0.85rem',
+                            textDecoration: 'none',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                            maxWidth: '350px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                          title={file.fileName}
+                        >
+                          📥 Tải xuống: {file.fileName}
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ color: '#4a5568', fontSize: '0.9rem', marginBottom: '20px' }}>
+                        Tên file: <strong>{parsedDoc.fileName}</strong>
+                      </p>
+                      <a
+                        href={parsedDoc.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          backgroundColor: '#3182ce',
+                          color: '#fff',
+                          padding: '10px 20px',
+                          borderRadius: '6px',
+                          fontWeight: 'bold',
+                          fontSize: '0.9rem',
+                          textDecoration: 'none',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        📥 Tải xuống File Kế hoạch (.doc / .docx)
+                      </a>
+                    </>
+                  )}
+
                   <div style={{ marginTop: '24px', borderTop: '1px dashed #e2e8f0', paddingTop: '16px', fontSize: '0.8rem', color: '#718096' }}>
-                    * Vui lòng tải xuống tệp tin ở trên để xem xét kỹ nội dung phương án và ngân sách khắc phục.
+                    * Vui lòng tải xuống các tệp tin ở trên để xem xét kỹ nội dung phương án và ngân sách khắc phục.
                   </div>
                 </div>
               ) : (
                 <div style={{ padding: '24px 30px', background: '#fff', borderTop: '1px solid hsl(var(--border))', color: '#000', fontFamily: '"Times New Roman", Times, serif', fontSize: '1.05rem', lineHeight: '1.6', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)' }}>
-                  {/* Official Heading */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', fontSize: '0.85rem', lineHeight: '1.4', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
-                    <div style={{ textAlign: 'center', width: '45%' }}>
-                      <strong>CÔNG TY CỔ PHẦN XÂY DỰNG BPG</strong><br/>
-                      Ban Quản lý Dự án: {incident.projectName || 'Dự án CMS'}<br/>
-                      ---
-                    </div>
-                    <div style={{ textAlign: 'center', width: '50%' }}>
-                      <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
-                      <strong>Độc lập - Tự do - Hạnh phúc</strong><br/>
-                      ---
-                    </div>
-                  </div>
+                  {parsedDoc.maKeHoach ? (
+                    <div style={{ textAlign: 'justify' }}>
+                      {/* Official Heading */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', fontSize: '0.85rem', lineHeight: '1.4', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
+                        <div style={{ textAlign: 'center', width: '45%' }}>
+                          <strong>CÔNG TY CỔ PHẦN XÂY DỰNG BPG</strong><br />
+                          Ban Quản lý Dự án: {incident.projectName || 'Dự án BPG'}<br />
+                          ---
+                        </div>
+                        <div style={{ textAlign: 'center', width: '50%' }}>
+                          <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br />
+                          <strong>Độc lập - Tự do - Hạnh phúc</strong><br />
+                          ---
+                        </div>
+                      </div>
 
-                  <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.3rem', margin: '20px 0 5px 0', textTransform: 'uppercase' }}>
-                    BÁO CÁO SỰ CỐ CÔNG TRÌNH XÂY DỰNG
-                  </div>
-                  <div style={{ textAlign: 'center', fontStyle: 'italic', fontSize: '0.9rem', marginBottom: '24px', color: 'hsl(var(--text-muted))' }}>
-                    (Lập và lưu trữ trên hệ thống hợp đồng số CMS)
-                  </div>
+                      <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.3rem', margin: '20px 0 5px 0', textTransform: 'uppercase' }}>
+                        KẾ HOẠCH KHẮC PHỤC SỰ CỐ
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '0.9rem', fontStyle: 'italic', marginBottom: '24px' }}>
+                        <span>Mã kế hoạch: {parsedDoc.maKeHoach}</span>
+                        <span>Liên kết báo cáo: {parsedDoc.lienKetBaoCao}</span>
+                      </div>
 
-                  {/* Document Fields */}
-                  <div style={{ textAlign: 'justify' }}>
-                    <p style={{ margin: '12px 0 6px 0' }}><strong>1. Thông tin công trình</strong></p>
-                    <div style={{ paddingLeft: '14px' }}>
-                      <p style={{ margin: '4px 0' }}>- Tên công trình: <strong>{parsedDoc.tenCongTrinh || '.......................................'}</strong></p>
-                      <p style={{ margin: '4px 0' }}>- Địa chỉ công trình: <strong>{parsedDoc.diaChiCongTrinh || '.......................................'}</strong></p>
-                      <p style={{ margin: '4px 0' }}>- Chủ đầu tư: <strong>{parsedDoc.chuDauTu || '.......................................'}</strong></p>
-                      <p style={{ margin: '4px 0' }}>- Nhà thầu thi công: <strong>{parsedDoc.nhaThauThiCong || '.......................................'}</strong></p>
-                      <p style={{ margin: '4px 0' }}>- Đơn vị tư vấn giám sát: <strong>{parsedDoc.donViGiamSat || '.......................................'}</strong></p>
-                    </div>
+                      <p style={{ margin: '12px 0 6px 0' }}><strong>1. Mục tiêu khắc phục</strong></p>
+                      <div style={{ paddingLeft: '14px', whiteSpace: 'pre-wrap', background: '#fcfcfc', border: '1px solid #f0f0f0', borderRadius: '4px', padding: '10px', marginBottom: '14px', fontSize: '0.95rem' }}>
+                        {parsedDoc.mucTieu}
+                      </div>
 
-                    <p style={{ margin: '16px 0 6px 0' }}><strong>2. Thời gian xảy ra sự cố</strong></p>
-                    <div style={{ paddingLeft: '14px' }}>
-                      <p style={{ margin: '4px 0' }}>- Ngày, giờ xảy ra: <strong>{parsedDoc.thoiGianXayRa || '.......................................'}</strong></p>
-                    </div>
+                      <p style={{ margin: '16px 0 6px 0' }}><strong>2. Kế hoạch thực hiện chi tiết</strong></p>
+                      <div style={{ paddingLeft: '0px', marginTop: '6px', marginBottom: '14px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', fontSize: '0.85rem' }}>
+                          <thead>
+                            <tr style={{ background: '#f2f2f2' }}>
+                              <th style={{ border: '1px solid #000', padding: '6px', width: '40px', textAlign: 'center' }}>STT</th>
+                              <th style={{ border: '1px solid #000', padding: '6px' }}>Công việc</th>
+                              <th style={{ border: '1px solid #000', padding: '6px', width: '130px' }}>Người phụ trách</th>
+                              <th style={{ border: '1px solid #000', padding: '6px', width: '80px', textAlign: 'center' }}>Thời hạn</th>
+                              <th style={{ border: '1px solid #000', padding: '6px' }}>Kết quả</th>
+                              <th style={{ border: '1px solid #000', padding: '6px' }}>Ghi chú</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {parsedDoc.keHoachThucHien?.map((step: any, idx: number) => (
+                              <tr key={idx}>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>{step.stt}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px' }}>{step.congViec}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px' }}>{step.nguoiPhuTrach}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>{step.thoiHan}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px' }}>{step.ketQua}</td>
+                                <td style={{ border: '1px solid #000', padding: '6px' }}>{step.ghiChu}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
 
-                    <p style={{ margin: '16px 0 6px 0' }}><strong>3. Mô tả sự cố</strong></p>
-                    <div style={{ paddingLeft: '14px' }}>
-                      <p style={{ margin: '4px 0' }}>- Loại sự cố: <strong>{parsedDoc.loaiSuCo || '.......................................'}</strong></p>
-                      <p style={{ margin: '4px 0' }}>- Mô tả chi tiết: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.moTaChiTiet || '.......................................'}</span></p>
-                      <p style={{ margin: '4px 0' }}>- Nguyên nhân ban đầu (nếu có): <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.nguyenNhanBanDau || '.......................................'}</span></p>
-                    </div>
+                      <p style={{ margin: '16px 0 6px 0' }}><strong>3. Chi phí dự kiến khắc phục</strong></p>
+                      <div style={{ paddingLeft: '14px', marginBottom: '14px' }}>
+                        - Tổng dự toán chi phí khắc phục: <strong>{incident.recoveryEstimateCost ? incident.recoveryEstimateCost.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</strong>
+                      </div>
 
-                    <p style={{ margin: '16px 0 6px 0' }}><strong>4. Thiệt hại do sự cố (nếu có)</strong></p>
-                    <div style={{ paddingLeft: '14px' }}>
-                      <p style={{ margin: '4px 0' }}>- Thiệt hại về con người: <strong>{parsedDoc.thietHaiConNguoi || '.......................................'}</strong></p>
-                      <p style={{ margin: '4px 0' }}>- Thiệt hại về vật chất: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.thietHaiVatChat || '.......................................'}</span></p>
-                      <p style={{ margin: '4px 0' }}>- Thiệt hại khác: <strong>{parsedDoc.thietHaiKhac || '.......................................'}</strong></p>
-                    </div>
+                      <p style={{ margin: '16px 0 6px 0' }}><strong>4. Điều kiện nghiệm thu hoàn thành</strong></p>
+                      <div style={{ paddingLeft: '14px', whiteSpace: 'pre-wrap', background: '#fcfcfc', border: '1px solid #f0f0f0', borderRadius: '4px', padding: '10px' }}>
+                        {parsedDoc.dieuKienNghiemThu}
+                      </div>
 
-                    <p style={{ margin: '16px 0 6px 0' }}><strong>5. Biện pháp khắc phục ban đầu</strong></p>
-                    <div style={{ paddingLeft: '14px' }}>
-                      <p style={{ margin: '4px 0' }}>- Các hành động đã thực hiện: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.bienPhapDaThucHien || '.......................................'}</span></p>
-                      <p style={{ margin: '4px 0' }}>- Đề xuất hướng xử lý tiếp theo: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.deXuatHuongXuLy || '.......................................'}</span></p>
                     </div>
+                  ) : (
+                    <>
+                      {/* Official Heading */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', fontSize: '0.85rem', lineHeight: '1.4', borderBottom: '1px solid #eee', paddingBottom: '12px' }}>
+                        <div style={{ textAlign: 'center', width: '45%' }}>
+                          <strong>CÔNG TY CỔ PHẦN XÂY DỰNG BPG</strong><br />
+                          Ban Quản lý Dự án: {incident.projectName || 'Dự án CMS'}<br />
+                          ---
+                        </div>
+                        <div style={{ textAlign: 'center', width: '50%' }}>
+                          <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br />
+                          <strong>Độc lập - Tự do - Hạnh phúc</strong><br />
+                          ---
+                        </div>
+                      </div>
 
-                    <p style={{ margin: '16px 0 6px 0' }}><strong>6. Các bên liên quan chứng kiến sự cố</strong></p>
-                    <div style={{ paddingLeft: '14px' }}>
-                      <p style={{ margin: '4px 0' }}>- Họ và tên: <strong>{parsedDoc.chungKienHoTen || '.......................................'}</strong></p>
-                      <p style={{ margin: '4px 0' }}>- Liên hệ: <strong>{parsedDoc.chungKienLienHe || '.......................................'}</strong></p>
-                    </div>
+                      <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.3rem', margin: '20px 0 5px 0', textTransform: 'uppercase' }}>
+                        BÁO CÁO SỰ CỐ CÔNG TRÌNH XÂY DỰNG
+                      </div>
+                      <div style={{ textAlign: 'center', fontStyle: 'italic', fontSize: '0.9rem', marginBottom: '24px', color: 'hsl(var(--text-muted))' }}>
+                        (Lập và lưu trữ trên hệ thống hợp đồng số CMS)
+                      </div>
 
-                    <p style={{ margin: '16px 0 6px 0' }}><strong>7. Ý kiến của các bên</strong></p>
-                    <div style={{ paddingLeft: '14px' }}>
-                      <p style={{ margin: '4px 0' }}>- Chủ đầu tư: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienChuDauTu || '.......................................'}</span></p>
-                      <p style={{ margin: '4px 0' }}>- Nhà thầu thi công: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienNhaThau || '.......................................'}</span></p>
-                      <p style={{ margin: '4px 0' }}>- Tư vấn giám sát (nếu có): <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienGiamSat || '.......................................'}</span></p>
-                    </div>
+                      <div style={{ textAlign: 'justify' }}>
+                        <p style={{ margin: '12px 0 6px 0' }}><strong>1. Thông tin công trình</strong></p>
+                        <div style={{ paddingLeft: '14px' }}>
+                          <p style={{ margin: '4px 0' }}>- Tên công trình: <strong>{parsedDoc.tenCongTrinh || '.......................................'}</strong></p>
+                          <p style={{ margin: '4px 0' }}>- Địa chỉ công trình: <strong>{parsedDoc.diaChiCongTrinh || '.......................................'}</strong></p>
+                          <p style={{ margin: '4px 0' }}>- Chủ đầu tư: <strong>{parsedDoc.chuDauTu || '.......................................'}</strong></p>
+                          <p style={{ margin: '4px 0' }}>- Nhà thầu thi công: <strong>{parsedDoc.nhaThauThiCong || '.......................................'}</strong></p>
+                          <p style={{ margin: '4px 0' }}>- Đơn vị tư vấn giám sát: <strong>{parsedDoc.donViGiamSat || '.......................................'}</strong></p>
+                        </div>
 
-                    <p style={{ margin: '16px 0 6px 0' }}><strong>8. Kết luận và cam kết</strong></p>
-                    <p style={{ paddingLeft: '14px', margin: '4px 0' }}>Chúng tôi cam kết thông tin trong báo cáo là chính xác và sẽ phối hợp thực hiện các biện pháp khắc phục theo quy định.</p>
-                  </div>
+                        <p style={{ margin: '16px 0 6px 0' }}><strong>2. Thời gian xảy ra sự cố</strong></p>
+                        <div style={{ paddingLeft: '14px' }}>
+                          <p style={{ margin: '4px 0' }}>- Ngày, giờ xảy ra: <strong>{parsedDoc.thoiGianXayRa || '.......................................'}</strong></p>
+                        </div>
 
-                  {/* Signature block preview */}
-                  <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '36px', marginBottom: '16px', textTransform: 'uppercase' }}>
-                    ĐẠI DIỆN CÁC BÊN THAM GIA LẬP BIÊN BẢN
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '0.82rem', textAlign: 'center', marginTop: '10px' }}>
-                    <div>
-                      <strong>Đại diện chủ đầu tư</strong><br/>
-                      <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
-                      <div style={{ height: '50px' }}></div>
-                      <span>.......................................</span>
-                    </div>
-                    <div>
-                      <strong>Đại diện nhà thầu thi công</strong><br/>
-                      <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
-                      <div style={{ height: '50px' }}></div>
-                      <strong>{incident.reviewerName || 'Lê Minh Tuấn'}</strong>
-                    </div>
-                    <div>
-                      <strong>Đại diện tư vấn giám sát (nếu có)</strong><br/>
-                      <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
-                      <div style={{ height: '50px' }}></div>
-                      <span>.......................................</span>
-                    </div>
-                  </div>
+                        <p style={{ margin: '16px 0 6px 0' }}><strong>3. Mô tả sự cố</strong></p>
+                        <div style={{ paddingLeft: '14px' }}>
+                          <p style={{ margin: '4px 0' }}>- Loại sự cố: <strong>{parsedDoc.loaiSuCo || '.......................................'}</strong></p>
+                          <p style={{ margin: '4px 0' }}>- Mô tả chi tiết: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.moTaChiTiet || '.......................................'}</span></p>
+                          <p style={{ margin: '4px 0' }}>- Nguyên nhân ban đầu (nếu có): <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.nguyenNhanBanDau || '.......................................'}</span></p>
+                        </div>
+
+                        <p style={{ margin: '16px 0 6px 0' }}><strong>4. Thiệt hại do sự cố (nếu có)</strong></p>
+                        <div style={{ paddingLeft: '14px' }}>
+                          <p style={{ margin: '4px 0' }}>- Thiệt hại về con người: <strong>{parsedDoc.thietHaiConNguoi || '.......................................'}</strong></p>
+                          <p style={{ margin: '4px 0' }}>- Thiệt hại về vật chất: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.thietHaiVatChat || '.......................................'}</span></p>
+                          <p style={{ margin: '4px 0' }}>- Thiệt hại khác: <strong>{parsedDoc.thietHaiKhac || '.......................................'}</strong></p>
+                        </div>
+
+                        <p style={{ margin: '16px 0 6px 0' }}><strong>5. Biện pháp khắc phục ban đầu</strong></p>
+                        <div style={{ paddingLeft: '14px' }}>
+                          <p style={{ margin: '4px 0' }}>- Các hành động đã thực hiện: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.bienPhapDaThucHien || '.......................................'}</span></p>
+                          <p style={{ margin: '4px 0' }}>- Đề xuất hướng xử lý tiếp theo: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.deXuatHuongXuLy || '.......................................'}</span></p>
+                        </div>
+
+                        <p style={{ margin: '16px 0 6px 0' }}><strong>6. Các bên liên quan chứng kiến sự cố</strong></p>
+                        <div style={{ paddingLeft: '14px' }}>
+                          <p style={{ margin: '4px 0' }}>- Họ và tên: <strong>{parsedDoc.chungKienHoTen || '.......................................'}</strong></p>
+                          <p style={{ margin: '4px 0' }}>- Liên hệ: <strong>{parsedDoc.chungKienLienHe || '.......................................'}</strong></p>
+                        </div>
+
+                        <p style={{ margin: '16px 0 6px 0' }}><strong>7. Ý kiến của các bên</strong></p>
+                        <div style={{ paddingLeft: '14px' }}>
+                          <p style={{ margin: '4px 0' }}>- Chủ đầu tư: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienChuDauTu || '.......................................'}</span></p>
+                          <p style={{ margin: '4px 0' }}>- Nhà thầu thi công: <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienNhaThau || '.......................................'}</span></p>
+                          <p style={{ margin: '4px 0' }}>- Tư vấn giám sát (nếu có): <span style={{ fontWeight: 600, display: 'block', paddingLeft: '10px', color: '#333', whiteSpace: 'pre-wrap' }}>{parsedDoc.yKienGiamSat || '.......................................'}</span></p>
+                        </div>
+
+                        <p style={{ margin: '16px 0 6px 0' }}><strong>8. Kết luận và cam kết</strong></p>
+                        <p style={{ paddingLeft: '14px', margin: '4px 0' }}>Chúng tôi cam kết thông tin trong báo cáo là chính xác và sẽ phối hợp thực hiện các biện pháp khắc phục theo quy định.</p>
+                      </div>
+
+                      {/* Signature block preview */}
+                      <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '36px', marginBottom: '16px', textTransform: 'uppercase' }}>
+                        ĐẠI DIỆN CÁC BÊN THAM GIA LẬP BIÊN BẢN
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '0.82rem', textAlign: 'center', marginTop: '10px' }}>
+                        <div>
+                          <strong>Đại diện chủ đầu tư</strong><br />
+                          <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
+                          <div style={{ height: '50px' }}></div>
+                          <span>.......................................</span>
+                        </div>
+                        <div>
+                          <strong>Đại diện nhà thầu thi công</strong><br />
+                          <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
+                          <div style={{ height: '50px' }}></div>
+                          <strong>{incident.reviewerName || 'Lê Minh Tuấn'}</strong>
+                        </div>
+                        <div>
+                          <strong>Đại diện tư vấn giám sát (nếu có)</strong><br />
+                          <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#666' }}>(Họ tên, chữ ký)</span>
+                          <div style={{ height: '50px' }}></div>
+                          <span>.......................................</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )
             ) : (
@@ -1238,11 +1897,11 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         )}
 
         {/* ── Handling Instruction ─────────────────────────────────────── */}
-        {incident.status !== 'Assessing' && incident.status !== 'Rejected' && (
+        {incident.status !== 'Assessing' && incident.status !== 'Rejected' && (isTPKT || isDirector) && (
           <div style={{ border: '1px solid hsl(var(--border))', borderRadius: '10px', overflow: 'hidden' }}>
             <div style={{ padding: '10px 14px', background: 'hsl(var(--bg-muted))' }}>
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {isInventoryIncident ? 'Ghi chú / Hướng dẫn xử lý' : 'Hướng dẫn xử lý (Từ cấp quản lý)'}
+                {isInventoryIncident ? 'Ghi chú / Hướng dẫn xử lý' : 'Hướng dẫn xử lý'}
               </span>
             </div>
             <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1316,6 +1975,44 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               </button>
               <button onClick={onResolveClick} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(210, 70%, 45%)' }}>
                 📦 Xác minh &amp; Tạo Phiếu (Kế toán)
+              </button>
+            </div>
+          )
+        )}
+
+        {/* Giám đốc phê duyệt phiếu giảm tồn cho sự cố vật tư */}
+        {isInventoryIncident && incident.status === 'WaitingDirector' && isDirector && (
+          isRejecting ? (
+            <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                className="input"
+                rows={3}
+                placeholder="Nhập lý do từ chối chi tiết..."
+              />
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setIsRejecting(false)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem' }} disabled={rejectMutation.isPending}>
+                  Hủy
+                </button>
+                <button onClick={() => rejectMutation.mutate()} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'hsl(var(--danger))' }} disabled={!rejectReason.trim() || rejectMutation.isPending}>
+                  {rejectMutation.isPending ? 'Đang xử lý...' : 'Xác nhận Từ chối'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
+              <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))' }}>
+                ❌ Từ chối
+              </button>
+              <button
+                onClick={() => directorApproveInventoryMutation.mutate()}
+                className="btn btn-primary"
+                style={{ minWidth: '240px', fontSize: '0.85rem', padding: '10px', background: 'hsl(142, 71%, 40%)' }}
+                disabled={directorApproveInventoryMutation.isPending}
+              >
+                {directorApproveInventoryMutation.isPending ? 'Đang xử lý...' : '🏗 Phê duyệt Giảm tồn (Giám đốc)'}
               </button>
             </div>
           )

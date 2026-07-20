@@ -46,7 +46,7 @@ import { GlobalInventoryIncidents } from './InventoryAdjustments/components/Glob
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
-  
+
   // If it's a JSON array representation of history, get the last pause entry's reason
   if (reason.trim().startsWith('[')) {
     try {
@@ -55,6 +55,34 @@ const cleanPauseReason = (reason: string): string => {
       reason = lastPause?.reason || "Tạm dừng dự án";
     } catch {
       // Fallback
+    }
+  }
+
+  // Remove repetitive prefix if present
+  const redundantPrefix = "Tạm dừng thi công do sự cố đặc biệt nghiêm trọng:";
+  if (reason.startsWith(redundantPrefix)) {
+    reason = reason.substring(redundantPrefix.length).trim();
+  }
+
+  // Parse JSON if embedded in reason to only show a clean summary
+  if (reason.includes('{') && reason.includes('}')) {
+    const startIndex = reason.indexOf('{');
+    const endIndex = reason.lastIndexOf('}');
+    if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+      try {
+        const jsonStr = reason.substring(startIndex, endIndex + 1);
+        const parsed = JSON.parse(jsonStr);
+        const loaiSuCo = parsed.loaiSuCo || parsed.incidentType || "";
+        const moTaSuCo = parsed.moTaSuCo || parsed.description || "";
+
+        if (moTaSuCo) {
+          reason = moTaSuCo;
+        } else if (loaiSuCo) {
+          reason = loaiSuCo;
+        }
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 
@@ -370,10 +398,10 @@ export const ProjectLayoutHub: React.FC = () => {
               const history = parseStatusHistory(project.pauseReason);
               const lastPause = [...history].reverse().find(h => h.type === 'pause');
               const pauseUser = lastPause?.user || "Hệ thống";
-              const pauseTime = lastPause?.timestamp 
-                ? new Date(lastPause.timestamp).toLocaleString('vi-VN') 
+              const pauseTime = lastPause?.timestamp
+                ? new Date(lastPause.timestamp).toLocaleString('vi-VN')
                 : (project.pausedAt ? new Date(project.pausedAt).toLocaleString('vi-VN') : null);
-              
+
               return (
                 <div style={{ marginTop: '12px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', borderLeft: '4px solid hsl(var(--warning))', color: 'hsl(var(--warning))', fontSize: '0.9rem', borderRadius: '4px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                   <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
@@ -403,8 +431,8 @@ export const ProjectLayoutHub: React.FC = () => {
               </>
             )}
 
-            {/* Nút Sửa chỉ dành cho TPKT/Admin */}
-            {isTPKT && project.status !== 'done' && project.status !== 'paused' && (
+            {/* Nút Sửa chỉ dành cho TPKT */}
+            {user?.role === 'technicalmanager' && project.status !== 'done' && project.status !== 'paused' && (
               <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Edit3 size={16} /> Sửa
               </button>
@@ -420,18 +448,20 @@ export const ProjectLayoutHub: React.FC = () => {
                 )}
                 {project.status === 'inprogress' && (
                   <>
-                    <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
-                      <Pause size={16} /> Tạm dừng
-                    </button>
-                    <button 
-                      onClick={() => handleStatusChange('done')} 
+                    {(user?.role === 'technicalmanager' || user?.role === 'director' || user?.role === 'admin') && (
+                      <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
+                        <Pause size={16} /> Tạm dừng
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleStatusChange('done')}
                       disabled={project.progress < 100}
-                      className="btn" 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '6px', 
-                        backgroundColor: project.progress < 100 ? 'hsl(var(--text-muted))' : 'hsl(var(--success))', 
+                      className="btn"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        backgroundColor: project.progress < 100 ? 'hsl(var(--text-muted))' : 'hsl(var(--success))',
                         color: 'white',
                         cursor: project.progress < 100 ? 'not-allowed' : 'pointer',
                         opacity: project.progress < 100 ? 0.7 : 1
@@ -442,7 +472,7 @@ export const ProjectLayoutHub: React.FC = () => {
                     </button>
                   </>
                 )}
-                {project.status === 'paused' && (
+                {project.status === 'paused' && (user?.role === 'technicalmanager' || user?.role === 'director' || user?.role === 'admin') && (
                   <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Play size={16} /> Tiếp tục Dự án
                   </button>
@@ -749,7 +779,7 @@ export const ProjectLayoutHub: React.FC = () => {
         }}>
           <AlertCircle size={16} style={{ flexShrink: 0 }} />
           <span>
-            <strong>Dự án đang tạm dừng thi công.</strong> Tất cả thao tác tạo lập, chỉnh sửa và phê duyệt trên phân hệ này đã bị khóa (chỉ được xem). Vui lòng chuyển sang tab <strong>Sự cố thi công</strong> để lập báo cáo hoặc xử lý sự cố.
+            <strong>Dự án đang tạm dừng thi công.</strong> Tất cả thao tác tạo lập, chỉnh sửa và phê duyệt trên phân hệ này đã bị khóa (chỉ được xem). Vui lòng chuyển sang <strong>Sự cố thi công</strong> để lập báo cáo hoặc xử lý sự cố.
           </span>
         </div>
       )}
@@ -818,7 +848,7 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
         {activeTab === 'inventoryadjustments' && <AdjustmentList projectId={Number(project.id)} />}
         {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}
-        {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} />}
+        {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} projectName={project.name} />}
         {activeTab === 'inventoryincidents' && <GlobalInventoryIncidents projectId={Number(project.id)} />}
         {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
         {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
@@ -888,7 +918,7 @@ export const ProjectLayoutHub: React.FC = () => {
               {parseStatusHistory(project.pauseReason).map((item, index) => {
                 const isPause = item.type === 'pause';
                 const formattedDate = item.timestamp ? new Date(item.timestamp).toLocaleString('vi-VN') : 'Không rõ thời gian';
-                
+
                 return (
                   <div key={index} style={{ position: 'relative' }}>
                     {/* Timeline dot */}

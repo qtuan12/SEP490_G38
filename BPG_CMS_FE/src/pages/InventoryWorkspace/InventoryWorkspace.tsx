@@ -148,6 +148,8 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   useSignalREvent('GoodsReceiptChanged', () => handleRefreshAll());
   useSignalREvent('MaterialIssuanceChanged', () => handleRefreshAll());
   useSignalREvent('MaterialReturnChanged', () => handleRefreshAll());
+  useSignalREvent('InventoryAdjustmentCreated', () => handleRefreshAll());
+  useSignalREvent('InventoryAdjustmentUpdated', () => handleRefreshAll());
 
   const handleCreateReceiptSuccess = () => {
     setIsCreateReceiptOpen(false);

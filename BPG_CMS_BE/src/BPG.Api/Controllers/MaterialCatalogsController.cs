@@ -8,7 +8,7 @@ using BPG.Application.Features.MaterialConversions.Commands;
 using BPG.Application.DTOs.MaterialConversions;
 namespace BPG.Api.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize]
 public class MaterialCatalogsController : BaseApiController
 {
     [HttpGet]
@@ -19,6 +19,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateMaterialCatalogRequest request, CancellationToken ct)
     {
         var command = new CreateMaterialCatalogCommand(
@@ -34,6 +35,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateMaterialCatalogRequest request, CancellationToken ct)
     {
         var command = new UpdateMaterialCatalogCommand(
@@ -50,6 +52,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await Mediator.Send(new DeleteMaterialCatalogCommand(id), ct);
@@ -64,6 +67,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpPut("{id}/conversions")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SyncConversions(long id, [FromBody] List<MaterialConversionRequest> request, CancellationToken ct)
     {
         await Mediator.Send(new SyncMaterialConversionsCommand(id, request), ct);

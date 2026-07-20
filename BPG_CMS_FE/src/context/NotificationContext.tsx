@@ -10,6 +10,7 @@ interface NotificationContextType {
   unreadCount: number;
   totalCount: number;
   isLoading: boolean;
+  hasEmergencyUnread: boolean;
   fetchNotifications: (page?: number, size?: number) => Promise<void>;
   markAsRead: (notificationId: number) => Promise<void>;
   markAllAsRead: () => Promise<void>;
@@ -18,6 +19,8 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+
+
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -25,6 +28,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [connection, setConnection] = useState<HubConnection | null>(null);
+  const [hasEmergencyUnread, setHasEmergencyUnread] = useState(false);
 
   const connectionRef = useRef<HubConnection | null>(null);
   
@@ -41,6 +45,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setNotifications(result.items);
       setTotalCount(result.totalCount);
       setUnreadCount(result.items.filter(n => !n.isRead).length);
+      // Kiểm tra nếu có thông báo khẩn cấp chưa đọc
+      setHasEmergencyUnread(result.items.some(n => !n.isRead && n.notificationType === 'EmergencyStop'));
     } catch (error) {
       console.error('Lỗi khi lấy thông báo:', error);
     } finally {
@@ -52,9 +58,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const markAsRead = async (notificationId: number) => {
     try {
       await notificationService.markAsRead(notificationId, false);
-      setNotifications(prev =>
-        prev.map(n => (n.notificationId === notificationId ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
-      );
+      setNotifications(prev => {
+        const updated = prev.map(n => (n.notificationId === notificationId ? { ...n, isRead: true, readAt: new Date().toISOString() } : n));
+        // Cập nhật trạng thái khẩn cấp
+        setHasEmergencyUnread(updated.some(n => !n.isRead && n.notificationType === 'EmergencyStop'));
+        return updated;
+      });
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Lỗi khi đánh dấu đã đọc:', error);
@@ -70,6 +79,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         prev.map(n => ({ ...n, isRead: true, readAt: new Date().toISOString() }))
       );
       setUnreadCount(0);
+      setHasEmergencyUnread(false);
       toast.success('Đã đánh dấu đọc tất cả thông báo.');
     } catch (error) {
       console.error('Lỗi khi đánh dấu đọc tất cả:', error);
@@ -84,6 +94,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } else {
       setNotifications([]);
       setUnreadCount(0);
+      setHasEmergencyUnread(false);
     }
   }, [isAuthenticated, fetchNotifications]);
 
@@ -112,6 +123,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       console.log('Nhận thông báo realtime:', noti);
       setNotifications(prev => [noti, ...prev]);
       setUnreadCount(prev => prev + 1);
+
+      if (noti.notificationType === 'EmergencyStop') {
+        // Cập nhật trạng thái khẩn cấp — chuông đỏ nhấp nháy trên header
+        setHasEmergencyUnread(true);
+      } else {
+        toast(noti.title, { duration: 4000 });
+      }
     });
 
     connection
@@ -140,6 +158,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         unreadCount,
         totalCount,
         isLoading,
+        hasEmergencyUnread,
         fetchNotifications,
         markAsRead,
         markAllAsRead,

@@ -58,6 +58,24 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
         incident.ReviewedBy = currentUserId;
         incident.HandlingInstruction = request.Reason; // Lưu lý do vào HandlingInstruction
 
+        var isInventoryIncident = incident.IncidentType == "InventoryLoss" || incident.IncidentType == "InventoryDamage";
+        if (isInventoryIncident)
+        {
+            var adjustment = await _unitOfWork.Repository<InventoryAdjustment>().Query()
+                .Where(a => a.ProjectId == incident.ProjectId && a.PhaseId == incident.PhaseId && a.Status == InventoryAdjustmentStatus.Pending)
+                .OrderBy(a => a.AdjustmentId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (adjustment != null)
+            {
+                adjustment.Status = InventoryAdjustmentStatus.Rejected;
+                adjustment.RejectedReason = request.Reason;
+                adjustment.ApprovedBy = currentUserId;
+                adjustment.ApprovedAt = System.DateTime.UtcNow;
+                _unitOfWork.Repository<InventoryAdjustment>().Update(adjustment);
+            }
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var updatedIncident = await _unitOfWork.Repository<Incident>()
