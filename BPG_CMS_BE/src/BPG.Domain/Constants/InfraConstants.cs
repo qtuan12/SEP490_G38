@@ -15,6 +15,7 @@ public static class HubMethodNames
 
     public const string IncidentCreated = "IncidentCreated";               // Báo cáo sự cố mới
     public const string IncidentUpdated = "IncidentUpdated";               // Trạng thái sự cố cập nhật
+    public const string ProjectUpdated = "ProjectUpdated";                 // Trạng thái dự án cập nhật
     public const string InventoryAdjustmentCreated = "InventoryAdjustmentCreated"; // Phiếu điều chỉnh kho mới
     public const string InventoryAdjustmentUpdated = "InventoryAdjustmentUpdated"; // Phiếu điều chỉnh kho được cập nhật
 

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
-  Shield,
+
   Layers,
   AlertTriangle,
   ClipboardList,
@@ -24,6 +24,7 @@ import {
 import { userService } from '../../services/userService';
 import { projectService } from '../../services/projectService';
 import { reportService } from '../../services/reportService';
+import { getRoleLabel } from '../../utils/roleHelpers';
 
 import type { Project, MaterialRequest } from '../../types/common';
 import { useNavigate } from 'react-router-dom';
@@ -458,7 +459,7 @@ export const Dashboard: React.FC = () => {
   const renderTechnicalManagerDashboard = () => {
     const statsTechManager = [
       { title: 'Dự án đang chạy', value: metrics ? metrics.activeProjects.toString() : '...', change: `Tổng số: ${metrics?.totalProjects || 0}`, isPositive: true, icon: <Layers size={24} />, color: 'hsl(var(--primary))' },
-      { title: 'Cảnh báo tiến độ WBS', value: warnings.length.toString(), change: `Cần rà soát kỹ thuật`, isPositive: false, icon: <AlertTriangle size={24} />, color: 'hsl(var(--danger))' },
+      { title: 'Cảnh báo tiến độ ', value: warnings.length.toString(), change: `Cần rà soát kỹ thuật`, isPositive: false, icon: <AlertTriangle size={24} />, color: 'hsl(var(--danger))' },
       { title: 'Dự án tạm dừng', value: metrics ? metrics.pausedProjects.toString() : '...', change: `Nguy cơ đình trệ`, isPositive: true, icon: <ClipboardList size={24} />, color: 'hsl(var(--warning))' },
       { title: 'Nhân viên kỹ thuật', value: userCount.toString(), change: 'Cập nhật hệ thống', isPositive: true, icon: <Users size={24} />, color: 'hsl(var(--primary-hover))' },
     ];
@@ -950,14 +951,11 @@ export const Dashboard: React.FC = () => {
             Chào mừng trở lại, <span className="text-[hsl(var(--primary-hover))]">{user?.name}</span>!
           </h2>
           <p className="text-[hsl(var(--text-secondary))] max-w-[600px] leading-relaxed">
-            Bạn đang truy cập hệ thống với vai trò <strong className="text-[hsl(var(--text-primary))]">{user?.role.toUpperCase()}</strong>.
+            Bạn đang truy cập hệ thống với vai trò <strong className="text-[hsl(var(--text-primary))]">{getRoleLabel(user?.role || '').toUpperCase()}</strong>.
             Mọi hành động kiểm soát tiến độ & vật tư đều được lưu nhật ký hệ thống tự động.
           </p>
         </div>
-        <div className="inline-flex items-center gap-2 py-2 px-4 bg-[hsl(var(--bg-main))] rounded-sm border border-[hsl(var(--border))] text-[0.85rem]">
-          <Shield size={16} className="text-[hsl(var(--success))]" />
-          <span>Hệ thống bảo mật & ghi log hoạt động (Active)</span>
-        </div>
+
       </div>
 
       {/* Conditional Role Dashboard Renderer */}

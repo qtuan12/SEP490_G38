@@ -405,11 +405,11 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 {damagedMaterials.length > 0 ? (
                   <div style={{ maxHeight: '160px', overflowY: 'auto', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                      <thead style={{ background: 'hsl(var(--bg-muted))', textAlign: 'left', position: 'sticky', top: 0, zIndex: 1 }}>
+                      <thead style={{ textAlign: 'left' }}>
                         <tr>
-                          <th style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))' }}>Vật tư</th>
-                          <th style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))' }}>SL Lỗi/Mất</th>
-                          <th style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))', width: '40px' }}></th>
+                          <th style={{ position: 'sticky', top: 0, zIndex: 1, padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))' }}>Vật tư</th>
+                          <th style={{ position: 'sticky', top: 0, zIndex: 1, padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))' }}>SL Lỗi/Mất</th>
+                          <th style={{ position: 'sticky', top: 0, zIndex: 1, padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))', width: '40px' }}></th>
                         </tr>
                       </thead>
                       <tbody>

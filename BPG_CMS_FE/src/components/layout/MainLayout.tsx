@@ -168,16 +168,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                       location.pathname === '/units' ? 'Quản lý Đơn vị tính' :
                         location.pathname === '/categories' ? 'Danh mục Vật tư' :
                           location.pathname === '/materials' ? 'Kho Vật tư' :
-                            location.pathname === '/projects' ? 'Danh sách Dự án WBS' :
+                            location.pathname === '/projects' ? 'Danh sách Dự án' :
                               location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
                                 location.pathname === '/system-config' ? 'Cấu hình Hệ thống' :
                                   location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
               </h2>
             </div>
             <div className="flex items-center gap-4">
-              <div className="hidden md:flex text-sm gap-1 text-[hsl(var(--text-secondary))]">
-                Dự án: <strong className="text-[hsl(var(--text-primary))]">BPG Construction (MVP)</strong>
-              </div>
+
               <HeaderNotification />
             </div>
           </div>

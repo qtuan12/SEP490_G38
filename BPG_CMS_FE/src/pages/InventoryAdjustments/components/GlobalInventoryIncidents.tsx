@@ -137,6 +137,15 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
     loadData();
   });
 
+  useEffect(() => {
+    if (selectedIncident && isDetailOpen) {
+      const updated = incidents.find(i => i.id === selectedIncident.id);
+      if (updated) {
+        setSelectedIncident(updated);
+      }
+    }
+  }, [incidents, selectedIncident, isDetailOpen]);
+
   const handleError = (msg: string) => {
     setError(msg);
     setTimeout(() => setError(null), 4000);

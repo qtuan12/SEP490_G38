@@ -158,17 +158,17 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             {
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.TechnicalManager,
-                    "Yêu cầu dừng thi công khẩn cấp",
+                    "🚨 Yêu cầu dừng thi công khẩn cấp",
                     $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng. Vui lòng thẩm định ngay!",
-                    "IncidentReported",
+                    "EmergencyStop",
                     $"/projects/{project.ProjectId}/workspace/incidents"
                 );
 
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.Director,
-                    "Yêu cầu dừng thi công khẩn cấp",
+                    "🚨 Yêu cầu dừng thi công khẩn cấp",
                     $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng.",
-                    "IncidentReported",
+                    "EmergencyStop",
                     $"/projects/{project.ProjectId}/workspace/incidents"
                 );
             }
