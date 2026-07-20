@@ -5,9 +5,13 @@ import { KeyRound, Mail, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
 
 const getRoleDashboard = (role: string): string => {
-  switch (role) {
+  const normRole = role?.toLowerCase() || '';
+  switch (normRole) {
+    case 'admin':
+      return '/users';
     case 'technicalmanager':
     case 'siteengineer':
+    case 'projectleader':
       return '/projects';
     default:
       return '/dashboard';
