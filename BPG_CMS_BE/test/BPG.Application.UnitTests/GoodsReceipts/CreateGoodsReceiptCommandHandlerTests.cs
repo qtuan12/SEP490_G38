@@ -404,10 +404,10 @@ public async Task UTCID08_Handle_MultipleImages_ShouldCreateGoodsReceiptSuccessf
             };
             _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
 
-            // Quantity is 0
+            // Quantity is -1
             var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
             {
-                new CreateGoodsReceiptItemDto(50, 1, 0)
+                new CreateGoodsReceiptItemDto(50, 1, -1)
             });
 
             // Act
@@ -415,7 +415,7 @@ public async Task UTCID08_Handle_MultipleImages_ShouldCreateGoodsReceiptSuccessf
 
             // Assert
             await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Số lượng nhận của vật tư [Cement] phải lớn hơn 0.");
+                .WithMessage("Số lượng nhận của vật tư [Cement] phải lớn hơn hoặc bằng 0.");
         }
 
         [Fact]
@@ -490,7 +490,7 @@ public async Task UTCID08_Handle_MultipleImages_ShouldCreateGoodsReceiptSuccessf
             var items = new List<CreateGoodsReceiptItemDto>
             {
                 new CreateGoodsReceiptItemDto(50, 1, 5),
-                new CreateGoodsReceiptItemDto(51, 1, 0) // Invalid: Qty = 0
+                new CreateGoodsReceiptItemDto(51, 1, -1) // Invalid: Qty = -1
             };
             var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", items);
 
@@ -499,7 +499,7 @@ public async Task UTCID08_Handle_MultipleImages_ShouldCreateGoodsReceiptSuccessf
 
             // Assert
             await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Số lượng nhận của vật tư [Sand] phải lớn hơn 0.");
+                .WithMessage("Số lượng nhận của vật tư [Sand] phải lớn hơn hoặc bằng 0.");
         }
 
         [Fact]
@@ -661,6 +661,68 @@ public async Task UTCID08_Handle_MultipleImages_ShouldCreateGoodsReceiptSuccessf
             // Assert
             result.Should().NotBeNull();
             result.Data.Should().Be(500);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        }
+
+        [Fact]
+        public async Task UTCID21_Handle_MultipleItemsOneZeroQuantity_ShouldSkipZeroQuantityItemAndSucceed()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder
+            {
+                POId = 100,
+                Status = PurchaseOrderStatus.Sent,
+                Request = new MaterialRequest
+                {
+                    Phase = new Phase { Project = project }
+                },
+                Items = new List<PurchaseOrderItem>
+                {
+                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } },
+                    new PurchaseOrderItem { MaterialId = 51, Quantity = 10, Material = new MaterialCatalog { Name = "Sand" } }
+                }
+            };
+            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+
+            // Sand has 0 quantity (meaning not received in this delivery, to be delivered later)
+            var items = new List<CreateGoodsReceiptItemDto>
+            {
+                new CreateGoodsReceiptItemDto(50, 1, 5),
+                new CreateGoodsReceiptItemDto(51, 1, 0)
+            };
+            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", items);
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Success.Should().BeTrue();
+            
+            // Should call UpdateStockAsync ONLY for Cement (MaterialId = 50), not Sand (MaterialId = 51)
+            _mockInventoryService.Verify(s => s.UpdateStockAsync(
+                project.ProjectId,
+                50,
+                It.IsAny<decimal>(),
+                InventoryTransactionType.GoodsReceipt,
+                It.IsAny<long>(),
+                EntityType.GoodsReceipt,
+                10,
+                It.IsAny<CancellationToken>()), Times.Once);
+
+            _mockInventoryService.Verify(s => s.UpdateStockAsync(
+                project.ProjectId,
+                51,
+                It.IsAny<decimal>(),
+                It.IsAny<byte>(),
+                It.IsAny<long>(),
+                It.IsAny<string>(),
+                It.IsAny<long>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+
             _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
         }
     }

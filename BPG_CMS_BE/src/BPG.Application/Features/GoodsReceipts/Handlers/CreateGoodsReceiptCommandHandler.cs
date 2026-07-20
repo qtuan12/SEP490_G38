@@ -106,6 +106,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 .ToDictionaryAsync(g => g.MaterialId, g => g.TotalReceived, cancellationToken);
 
             // 6. Bắt đầu validate chi tiết từng vật tư nhận đợt này
+            var validItems = new List<CreateGoodsReceiptItemDto>();
             foreach (var item in request.Items)
             {
                 var poItem = po.Items.FirstOrDefault(pi => pi.MaterialId == item.MaterialId);
@@ -115,10 +116,15 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                         $"Vật tư ID {item.MaterialId} không tồn tại trong đơn hàng PO này.");
                 }
 
-                if (item.Quantity <= 0)
+                if (item.Quantity < 0)
                 {
                     throw new BusinessException("ERR_INVALID_QUANTITY", 
-                        $"Số lượng nhận của vật tư [{poItem.Material.Name}] phải lớn hơn 0.");
+                        $"Số lượng nhận của vật tư [{poItem.Material.Name}] phải lớn hơn hoặc bằng 0.");
+                }
+
+                if (item.Quantity == 0)
+                {
+                    continue; // Bỏ qua vật tư không nhận đợt này (giao bù sau)
                 }
 
                 if (poItem.Material.BaseUnit != null && poItem.Material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
@@ -135,6 +141,13 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     throw new BusinessException("ERR_QUANTITY_EXCEEDED", 
                         $"Số lượng nhận ({item.Quantity}) vượt quá số lượng còn lại cần giao của PO cho vật tư [{poItem.Material.Name}] (còn thiếu {remainingQty}).");
                 }
+
+                validItems.Add(item);
+            }
+
+            if (!validItems.Any())
+            {
+                throw new BusinessException("ERR_EMPTY_ITEMS", "Danh sách vật tư nhận thực tế phải chứa ít nhất một vật tư có số lượng lớn hơn 0.");
             }
 
             // 7. Bắt đầu transaction để ghi nhận nhập kho
@@ -163,7 +176,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 var goodsReceiptItems = new List<GoodsReceiptItem>();
 
                 // Xử lý từng vật tư nhận
-                foreach (var item in request.Items)
+                foreach (var item in validItems)
                 {
                     var poItem = po.Items.First(pi => pi.MaterialId == item.MaterialId);
                     
