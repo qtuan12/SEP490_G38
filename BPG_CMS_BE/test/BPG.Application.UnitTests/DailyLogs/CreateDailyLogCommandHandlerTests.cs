@@ -690,5 +690,69 @@ namespace BPG.Application.UnitTests.DailyLogs
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("*Các công việc tiên quyết chưa hoàn thành: Unfinished Foundation Work*");
         }
+
+        [Fact]
+        public async Task UTCID20_Handle_SubtaskDecreaseProgress_ShouldDecreaseParentProgressAndCreateParentDailyLog()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            
+            // Parent task has 80% progress
+            var parentTask = new ProjectTask
+            {
+                TaskId = 90,
+                ProgressPercent = 80,
+                Phase = new Phase { Project = project },
+                SubTasks = new List<ProjectTask>()
+            };
+
+            // Child task currently has 80% progress, and belongs to the parent task
+            var childTask = new ProjectTask
+            {
+                TaskId = 100,
+                ParentTaskId = 90,
+                ProgressPercent = 80,
+                Phase = new Phase { Project = project },
+                SubTasks = new List<ProjectTask>()
+            };
+            
+            parentTask.SubTasks.Add(childTask);
+
+            // Mock repo query to return both tasks
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { parentTask, childTask }.AsQueryable().BuildMock());
+
+            var user = new User { UserId = 10, FullName = "TM User", UserRoles = new List<BPG.Domain.Entities.UserRole>() };
+            _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { user }.AsQueryable().BuildMock());
+
+            // Capture DailyLogs added to verify that both child and parent logs are created
+            var capturedLogs = new List<DailyLog>();
+            _mockLogRepo.Setup(r => r.AddAsync(It.IsAny<DailyLog>(), It.IsAny<CancellationToken>()))
+                .Callback<DailyLog, CancellationToken>((log, ct) => capturedLogs.Add(log))
+                .Returns(Task.CompletedTask);
+
+            var command = new CreateDailyLogCommand
+            {
+                TaskId = 100,
+                NewProgressPercent = 50, // Decreased from 80% to 50%
+                Description = "Decreasing child task progress"
+            };
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            childTask.ProgressPercent.Should().Be(50);
+            parentTask.ProgressPercent.Should().Be(50); // Rolled up parent task progress should be updated to 50% (average of child task)
+            
+            // Should capture two DailyLog entries: one for child task (100) and one for parent task (90)
+            capturedLogs.Should().HaveCount(2);
+            capturedLogs.Any(l => l.TaskId == 100 && l.NewProgressPercent == 50).Should().BeTrue();
+            capturedLogs.Any(l => l.TaskId == 90 && l.NewProgressPercent == 50 && l.Description.Contains("Tiến độ giảm tự động")).Should().BeTrue();
+
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        }
     }
 }

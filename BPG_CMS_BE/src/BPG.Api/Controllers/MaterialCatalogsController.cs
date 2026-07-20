@@ -8,7 +8,7 @@ using BPG.Application.Features.MaterialConversions.Commands;
 using BPG.Application.DTOs.MaterialConversions;
 namespace BPG.Api.Controllers;
 
-[Authorize]
+[Authorize(Roles = "Admin")]
 public class MaterialCatalogsController : BaseApiController
 {
     [HttpGet]

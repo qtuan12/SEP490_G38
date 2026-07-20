@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BPG.Api.Controllers;
 
-[Authorize]
+[Authorize(Roles = "Admin")]
 public class MaterialCategoriesController : BaseApiController
 {
     [HttpGet]

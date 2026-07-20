@@ -1,17 +1,23 @@
 using AutoMapper;
+using BPG.Application.Common.Interfaces;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.PhaseAcceptances;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BPG.Application.Features.PhaseAcceptances.Queries.GetPhaseAcceptances;
 
-public class GetPhaseAcceptancesQuery : PaginationRequest, IRequest<PagedList<PhaseAcceptanceDto>>
+public class GetPhaseAcceptancesQuery : PaginationRequest, IRequest<PagedList<PhaseAcceptanceDto>>, IProjectRequirement
 {
     public long? ProjectId { get; set; }
     public long? PhaseId { get; set; }
+
+    public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+        => Task.FromResult(ProjectId ?? 0);
 }
 
 public class GetPhaseAcceptancesQueryHandler : IRequestHandler<GetPhaseAcceptancesQuery, PagedList<PhaseAcceptanceDto>>

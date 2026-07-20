@@ -17,7 +17,7 @@ interface DailyLogCardProps {
 
 const formatCommentDate = (dateStr: string): string => {
   if (!dateStr) return '';
-  const normalized = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+  const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr.replace(' ', 'T') + 'Z');
   const d = new Date(normalized);
   if (isNaN(d.getTime())) return dateStr;
   const day = String(d.getDate()).padStart(2, '0');
@@ -46,11 +46,33 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
   const isIncident = log.progressTo < log.progressFrom;
   const delta = log.progressTo - log.progressFrom;
 
+  const searchParams = new URLSearchParams(window.location.search);
+  const highlightedLogId = searchParams.get('logId');
+  const isHighlighted = highlightedLogId === log.id.toString();
+
+  // Scroll into view if this card is highlighted
+  React.useEffect(() => {
+    if (isHighlighted) {
+      const element = document.getElementById(`daily-log-${log.id}`);
+      if (element) {
+        const timeout = setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 400);
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, [isHighlighted, log.id]);
+
   // Determine node border/glow style
   let cardStyle: React.CSSProperties = {
     padding: '20px',
-    border: isIncident ? '1.5px solid hsl(var(--danger) / 0.3)' : '1px solid hsl(var(--border))',
-    boxShadow: isIncident ? '0 4px 12px hsl(var(--danger-glow))' : 'var(--shadow-sm)'
+    border: isHighlighted
+      ? '2px solid hsl(var(--primary))'
+      : (isIncident ? '1.5px solid hsl(var(--danger) / 0.3)' : '1px solid hsl(var(--border))'),
+    boxShadow: isHighlighted
+      ? '0 0 20px hsl(var(--primary) / 0.35)'
+      : (isIncident ? '0 4px 12px hsl(var(--danger-glow))' : 'var(--shadow-sm)'),
+    transition: 'all 0.4s ease-in-out'
   };
 
   // Determine timeline indicator color class
@@ -121,7 +143,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
   };
 
   return (
-    <div className="timeline-item animate-fade-in text-left">
+    <div id={`daily-log-${log.id}`} className="timeline-item animate-fade-in text-left">
       {/* Circle Node on Timeline Track */}
       <div className={`timeline-node ${nodeClass}`} />
 
@@ -168,9 +190,19 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                   </button>
                 )}
               </div>
-              <span className="text-[0.7rem] text-[hsl(var(--text-muted))] flex items-center gap-1 mt-0.5">
+              <span className="text-[0.7rem] text-[hsl(var(--text-muted))] flex items-center gap-1.5 mt-0.5 flex-wrap">
                 <Clock size={11} />
-                {log.date.split(' ')[1] || ''}
+                <span>{log.date.includes(' ') ? log.date.split(' ')[1] : ''}</span>
+                {log.isEdited && (
+                  <span
+                    className="inline-flex items-center gap-0.5 text-amber-600 font-medium cursor-help"
+                    title={log.lastEditedAt ? `Đã chỉnh sửa lúc: ${formatCommentDate(log.lastEditedAt)}` : 'Đã chỉnh sửa'}
+                  >
+                    <span>•</span>
+                    <Edit2 size={9} className="shrink-0" />
+                    <span>Đã chỉnh sửa</span>
+                  </span>
+                )}
               </span>
             </div>
           </div>

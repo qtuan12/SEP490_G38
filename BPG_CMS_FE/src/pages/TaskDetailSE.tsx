@@ -11,8 +11,27 @@ export const TaskDetailSE: React.FC = () => {
     const fetchAndRedirect = async () => {
       if (!taskId) return;
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5160';
-        const response = await fetch(`${apiUrl}/api/tasks/${taskId}`, {
+        const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
+        if (USE_MOCK_API) {
+          const tasksData = localStorage.getItem('bpg_wbs_tasks');
+          const allTasks = tasksData ? JSON.parse(tasksData) : [];
+          const cleanTaskId = String(taskId).replace(/^t-/, '');
+          const matchedTask = allTasks.find((t: any) => String(t.id).replace(/^t-/, '') === cleanTaskId);
+          if (matchedTask) {
+            const projectId = matchedTask.projectId || 1;
+            navigate(`/projects/${projectId}?tab=wbs&taskId=${cleanTaskId}`, { replace: true });
+            return;
+          }
+          throw new Error('Không tìm thấy công việc (Mock).');
+        }
+
+        // Real API Mode: Resolve base API URL (remove trailing /api from config if exists)
+        let baseApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5160/api';
+        if (baseApiUrl.endsWith('/api')) {
+          baseApiUrl = baseApiUrl.substring(0, baseApiUrl.length - 4);
+        }
+
+        const response = await fetch(`${baseApiUrl}/api/tasks/${taskId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('bpg_token')}`
           }
@@ -30,7 +49,7 @@ export const TaskDetailSE: React.FC = () => {
                 return;
             }
             
-            const phaseRes = await fetch(`${apiUrl}/api/phases/${task.phaseId}`, {
+            const phaseRes = await fetch(`${baseApiUrl}/api/phases/${task.phaseId}`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('bpg_token')}` }
             });
             if (phaseRes.ok) {

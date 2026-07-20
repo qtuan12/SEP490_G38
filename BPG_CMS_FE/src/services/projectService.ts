@@ -28,6 +28,23 @@ const getStorage = <T>(key: string, defaults: T[]): T[] => {
   return JSON.parse(data);
 };
 
+const formatToLocalTime = (dateStr?: string): string => {
+  if (!dateStr) return '';
+  try {
+    const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr.replace(' ', 'T') + 'Z');
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) return dateStr;
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+  } catch {
+    return dateStr.replace('T', ' ').slice(0, 16);
+  }
+};
+
 const setStorage = <T>(key: string, data: T[]) => {
   localStorage.setItem(key, JSON.stringify(data));
 };
@@ -884,7 +901,7 @@ export const projectService = {
         userName: c.authorName,
         role: c.authorRole,
         content: c.content,
-        date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+        date: c.createdAt ? formatToLocalTime(c.createdAt) : ''
       });
 
       const items = (res.data?.items || []).map((l: any) => ({
@@ -896,13 +913,15 @@ export const projectService = {
         engineerName: l.creatorName,
         progressFrom: l.oldProgressPercent,
         progressTo: l.newProgressPercent,
-        date: l.createdAt ? l.createdAt.slice(0, 16).replace('T', ' ') : l.logDate,
+        date: l.createdAt ? formatToLocalTime(l.createdAt) : l.logDate,
         content: l.description,
         weather: '',
         images: l.images || [],
         comments: (l.comments || []).map(mapComment),
         canEdit: l.canEdit,
-        editWindowHours: l.editWindowHours
+        editWindowHours: l.editWindowHours,
+        isEdited: l.isEdited,
+        lastEditedAt: l.lastEditedAt
       }));
 
       return {
@@ -975,7 +994,7 @@ export const projectService = {
         userName: c.authorName,
         role: c.authorRole,
         content: c.content,
-        date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+        date: c.createdAt ? formatToLocalTime(c.createdAt) : ''
       });
 
       // Synchronize task progress in localStorage WBS so frontend stays in sync
@@ -985,7 +1004,7 @@ export const projectService = {
         const task = allTasks[taskIdx];
         const type = logData.progressTo < task.progress ? 'progress_decrease' : 'progress_increase';
         const historyEntry: TaskHistory = {
-          date: l.createdAt ? l.createdAt.slice(0, 16).replace('T', ' ') : l.logDate,
+          date: l.createdAt ? formatToLocalTime(l.createdAt) : l.logDate,
           oldProgress: task.progress,
           newProgress: logData.progressTo,
           reason: `Cập nhật tiến độ (API): ${logData.content}`,
@@ -1013,11 +1032,13 @@ export const projectService = {
         engineerName: l.creatorName,
         progressFrom: l.oldProgressPercent,
         progressTo: l.newProgressPercent,
-        date: l.createdAt ? l.createdAt.slice(0, 16).replace('T', ' ') : l.logDate,
+        date: l.createdAt ? formatToLocalTime(l.createdAt) : l.logDate,
         content: l.description,
         weather: '',
         images: l.images || [],
-        comments: (l.comments || []).map(mapComment)
+        comments: (l.comments || []).map(mapComment),
+        isEdited: l.isEdited,
+        lastEditedAt: l.lastEditedAt
       };
     }
 
@@ -1109,7 +1130,7 @@ export const projectService = {
         userName: c.authorName,
         role: c.authorRole,
         content: c.content,
-        date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+        date: c.createdAt ? formatToLocalTime(c.createdAt) : ''
       });
 
       return {
@@ -1121,11 +1142,13 @@ export const projectService = {
         engineerName: l.creatorName,
         progressFrom: l.oldProgressPercent,
         progressTo: l.newProgressPercent,
-        date: l.createdAt ? l.createdAt.slice(0, 16).replace('T', ' ') : l.logDate,
+        date: l.createdAt ? formatToLocalTime(l.createdAt) : l.logDate,
         content: l.description,
         weather: '',
         images: l.images || [],
-        comments: (l.comments || []).map(mapComment)
+        comments: (l.comments || []).map(mapComment),
+        isEdited: l.isEdited,
+        lastEditedAt: l.lastEditedAt
       };
     }
 
@@ -1556,7 +1579,7 @@ export const projectService = {
       phaseName: item.phaseName,
       requesterName: item.createdByName || 'PL',
       reason: item.reason,
-      date: item.createdAt ? item.createdAt.replace('T', ' ').slice(0, 16) : '',
+      date: item.createdAt ? formatToLocalTime(item.createdAt) : '',
       isOverBOQ: item.boqCheckStatus === 'OverBOQ',
       type: 'normal',
       createdBy: item.createdBy,
