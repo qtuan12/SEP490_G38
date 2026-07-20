@@ -20,10 +20,10 @@ namespace BPG.Application.Features.GoodsReceipts.Queries
         {
             var projectId = await unitOfWork.Repository<GoodsReceipt>().Query()
                 .Where(g => g.ReceiptId == ReceiptId)
-                .Select(g => g.PurchaseOrder.ProjectId)
+                .Select(g => (long?)(g.PurchaseOrder.ProjectId ?? g.PurchaseOrder.Request.Phase.ProjectId))
                 .FirstOrDefaultAsync(cancellationToken);
 
-            if (projectId == null)
+            if (!projectId.HasValue || projectId.Value <= 0)
                 throw new NotFoundException(nameof(GoodsReceipt), ReceiptId);
 
             return projectId.Value;

@@ -10,10 +10,12 @@ namespace BPG.Infrastructure.Services;
 public class ProgressRollupService : IProgressRollupService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ProgressRollupService(IUnitOfWork unitOfWork)
+    public ProgressRollupService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
     }
 
     public async Task RecalculateParentTaskProgressAsync(long parentTaskId, long? triggeringChildTaskId = null, CancellationToken ct = default)
@@ -129,6 +131,26 @@ public class ProgressRollupService : IProgressRollupService
                 };
                 
                 await _unitOfWork.Repository<TaskProgressLog>().AddAsync(log, ct);
+                
+                if (newProgress < parentTask.ProgressPercent)
+                {
+                    var triggerTask = triggeringChildTaskId.HasValue
+                        ? allTasks.FirstOrDefault(t => t.TaskId == triggeringChildTaskId.Value)
+                        : null;
+
+                    var dailyLog = new DailyLog
+                    {
+                        TaskId = parentTask.TaskId,
+                        LogDate = DateOnly.FromDateTime(DateTime.Today),
+                        NewProgressPercent = newProgress,
+                        Description = triggerTask != null
+                            ? $"Tiến độ giảm tự động từ {parentTask.ProgressPercent}% xuống {newProgress}% do ảnh hưởng bởi thay đổi tiến độ của công việc con '{triggerTask.Name}'."
+                            : $"Tiến độ giảm tự động từ {parentTask.ProgressPercent}% xuống {newProgress}% do ảnh hưởng bởi thay đổi tiến độ của công việc con.",
+                        CreatedBy = _currentUserService.UserId ?? 1,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _unitOfWork.Repository<DailyLog>().AddAsync(dailyLog, ct);
+                }
                 
                 parentTask.ProgressPercent = newProgress;
                 

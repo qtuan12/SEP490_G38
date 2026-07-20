@@ -344,8 +344,8 @@ namespace BPG.Application.UnitTests.Comments
                 "Bình luận mới dưới nhật ký",
                 It.IsAny<string>(),
                 NotificationType.Progress,
-                NotificationReferenceType.Task,
-                dailyLog.TaskId,
+                It.Is<string>(s => s.StartsWith("/projects/")),
+                dailyLog.LogId,
                 It.IsAny<CancellationToken>()
             ), Times.Once);
 
@@ -355,8 +355,8 @@ namespace BPG.Application.UnitTests.Comments
                 "Hoạt động bình luận mới",
                 It.IsAny<string>(),
                 NotificationType.Progress,
-                NotificationReferenceType.Task,
-                dailyLog.TaskId,
+                It.Is<string>(s => s.StartsWith("/projects/")),
+                dailyLog.LogId,
                 It.IsAny<CancellationToken>()
             ), Times.Once);
 
@@ -365,8 +365,8 @@ namespace BPG.Application.UnitTests.Comments
                 "Hoạt động bình luận mới",
                 It.IsAny<string>(),
                 NotificationType.Progress,
-                NotificationReferenceType.Task,
-                dailyLog.TaskId,
+                It.Is<string>(s => s.StartsWith("/projects/")),
+                dailyLog.LogId,
                 It.IsAny<CancellationToken>()
             ), Times.Once);
         }
@@ -420,8 +420,8 @@ namespace BPG.Application.UnitTests.Comments
                 "Hoạt động bình luận mới",
                 It.IsAny<string>(),
                 NotificationType.Progress,
-                NotificationReferenceType.Task,
-                dailyLog.TaskId,
+                It.Is<string>(s => s.StartsWith("/projects/")),
+                dailyLog.LogId,
                 It.IsAny<CancellationToken>()
             ), Times.Once);
 
@@ -526,8 +526,8 @@ namespace BPG.Application.UnitTests.Comments
                 "Hoạt động bình luận mới",
                 It.IsAny<string>(),
                 NotificationType.Progress,
-                NotificationReferenceType.Task,
-                dailyLog.TaskId,
+                It.Is<string>(s => s.StartsWith("/projects/")),
+                dailyLog.LogId,
                 It.IsAny<CancellationToken>()
             ), Times.Once);
         }
@@ -571,8 +571,8 @@ namespace BPG.Application.UnitTests.Comments
                 "Bình luận mới dưới nhật ký",
                 It.Is<string>(s => s.Contains("Admin User") && s.Contains("Brickwork")),
                 NotificationType.Progress,
-                NotificationReferenceType.Task,
-                dailyLog.TaskId,
+                It.Is<string>(s => s.StartsWith("/projects/")),
+                dailyLog.LogId,
                 It.IsAny<CancellationToken>()
             ), Times.Once);
 

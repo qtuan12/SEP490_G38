@@ -324,6 +324,20 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                         UpdatedAt = DateTime.UtcNow
                     };
                     await _uow.Repository<TaskProgressLog>().AddAsync(parentProgressLog, cancellationToken);
+
+                    if (newParentProgress < oldParentProgress)
+                    {
+                        var dailyLog = new DailyLog
+                        {
+                            TaskId = parent.TaskId,
+                            LogDate = DateOnly.FromDateTime(DateTime.Today),
+                            NewProgressPercent = newParentProgress,
+                            Description = $"Tiến độ giảm tự động từ {oldParentProgress}% xuống {newParentProgress}% do ảnh hưởng bởi thay đổi tiến độ của công việc con '{current.Name}'.",
+                            CreatedBy = userId,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _uow.Repository<DailyLog>().AddAsync(dailyLog, cancellationToken);
+                    }
                 }
 
                 current = parent;
