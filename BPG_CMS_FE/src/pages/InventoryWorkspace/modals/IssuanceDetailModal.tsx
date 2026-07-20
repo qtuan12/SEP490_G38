@@ -22,6 +22,7 @@ interface IssuanceDetailModalProps {
   onClose: () => void;
   issuanceId: number | null;
   projectId?: number;
+  isAssignedLeader?: boolean;
   onSuccess?: () => void; // Triggered when a return succeeds, to refresh parent lists
 }
 
@@ -41,6 +42,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
   isOpen,
   onClose,
   issuanceId,
+  isAssignedLeader,
   onSuccess
 }) => {
   const [loading, setLoading] = useState(false);
@@ -239,7 +241,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
 
   const { user: currentUser } = useAuth();
   const userRole = currentUser?.role?.toLowerCase() || '';
-  const canReturnMaterial = userRole === 'admin' || userRole === 'technicalmanager' || userRole === 'siteengineer' || userRole === 'projectleader';
+  const canReturnMaterial = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin';
 
   return (
     <Modal

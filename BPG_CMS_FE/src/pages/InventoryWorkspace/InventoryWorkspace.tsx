@@ -93,7 +93,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
   const userRole = user?.role?.toLowerCase() || '';
   const canCreateReceipt = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin';
-  const canCreateIssuance = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin' || userRole === 'siteengineer';
+  const canCreateIssuance = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin';
 
   // Tải thông tin kho hiện tại để làm dữ liệu thống kê
   useEffect(() => {
@@ -340,6 +340,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           isOpen={selectedReceiptId !== null}
           onClose={() => setSelectedReceiptId(null)}
           receiptId={selectedReceiptId}
+          isAssignedLeader={isAssignedLeader}
           onSuccess={handleRefreshAll}
         />
       )}
@@ -359,6 +360,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           onClose={() => setSelectedIssuanceId(null)}
           issuanceId={selectedIssuanceId}
           projectId={projectId}
+          isAssignedLeader={isAssignedLeader}
           onSuccess={() => setRefreshKey(prev => prev + 1)}
         />
       )}
