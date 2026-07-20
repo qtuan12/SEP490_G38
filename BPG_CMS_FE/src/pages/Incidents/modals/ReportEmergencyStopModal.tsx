@@ -6,7 +6,7 @@ import { incidentService } from '../../../services/incidentService';
 import { projectService } from '../../../services/projectService';
 import { UploadCloud, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import type { WBSPhase, WBSTask } from '../../../types/common';
+
 
 interface ReportEmergencyStopModalProps {
   isOpen: boolean;

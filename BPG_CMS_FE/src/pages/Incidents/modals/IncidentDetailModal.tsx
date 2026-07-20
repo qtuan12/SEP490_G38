@@ -1344,7 +1344,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   gridTemplateColumns: displayImages.length === 1 ? '1fr' : displayImages.length === 2 ? '1fr 1fr' : 'repeat(auto-fill, minmax(160px, 1fr))',
                   gap: '10px'
                 }}>
-                  {displayImages.map((img, idx) => (
+                  {displayImages.map((img: string, idx: number) => (
                     <a key={idx} href={img} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%' }}>
                       <img src={img} alt={`Ảnh ${idx + 1}`}
                         style={{
