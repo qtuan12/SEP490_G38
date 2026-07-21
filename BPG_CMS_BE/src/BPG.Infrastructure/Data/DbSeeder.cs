@@ -172,9 +172,11 @@ public static class DbSeeder
         if (!await context.SystemConfigs.AnyAsync())
         {
             context.SystemConfigs.AddRange(
-                new SystemConfig { ConfigKey = "NguongTonKhoThap",    ConfigValue = "10",  DataType = "decimal", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "HanHuyPhieuNgay",     ConfigValue = "7",   DataType = "int",     CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "PhanTramTreKyVong",    ConfigValue = "15",  DataType = "decimal", CreatedAt = DateTime.UtcNow }
+                new SystemConfig { ConfigKey = "NguongTonKhoThap", ConfigValue = "10", DataType = "number", DisplayName = "Ngưỡng tồn kho thấp", Description = "Số lượng tồn kho tối thiểu. Khi tồn kho thấp hơn ngưỡng này, hệ thống sẽ cảnh báo.", Unit = "đơn vị", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "HanHuyPhieuNgay", ConfigValue = "7", DataType = "number", DisplayName = "Hạn hủy phiếu nhập kho", Description = "Số ngày tối đa kể từ khi tạo phiếu nhập kho mà người dùng có thể hủy phiếu.", Unit = "ngày", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "DailyLogEditWindowHours", ConfigValue = "24", DataType = "number", DisplayName = "Giờ được sửa nhật ký thi công", Description = "Số giờ kể từ lúc tạo mà kỹ sư còn được phép chỉnh sửa nhật ký thi công.", Unit = "giờ", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "BPG CMS", DataType = "string", DisplayName = "Tên công ty", Description = "Tên công ty hiển thị trên sidebar và trang đăng nhập.", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "CompanyLogoUrl", ConfigValue = "/logo.png", DataType = "string", DisplayName = "Logo công ty", Description = "URL logo hiển thị trên sidebar và trang đăng nhập.", CreatedAt = DateTime.UtcNow }
             );
             await context.SaveChangesAsync();
         }

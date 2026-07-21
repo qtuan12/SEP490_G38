@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useCompany } from '../../context/CompanyContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -22,6 +23,7 @@ import { HeaderNotification } from './HeaderNotification';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
+  const { companyName, companyLogoUrl } = useCompany();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -74,14 +76,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="flex items-center gap-3 justify-center">
             {!isCollapsed && (
               <img
-                src="/logo.png"
-                alt="BPG Logo"
+                src={companyLogoUrl}
+                alt={`${companyName} Logo`}
                 className="h-10 w-10 object-contain rounded-sm"
               />
             )}
             {!isCollapsed && (
               <div className="overflow-hidden whitespace-nowrap">
-                <h1 className="text-xl font-bold tracking-wider">BPG CMS</h1>
+                <h1 className="text-xl font-bold tracking-wider">{companyName}</h1>
                 <span className="text-[11px] text-[hsl(var(--text-muted))] uppercase font-semibold">Construction MVP</span>
               </div>
             )}
