@@ -11,6 +11,7 @@ export interface WBSContextType {
   user: any;
   isTPKTOrPL: boolean;
   isPL: boolean;
+  isTPKT: boolean;
   canEdit: boolean;
 
   expandedPhases: Record<string, boolean>;

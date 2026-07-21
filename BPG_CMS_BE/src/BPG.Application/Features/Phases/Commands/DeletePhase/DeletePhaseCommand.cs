@@ -4,10 +4,22 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.Common.Interfaces;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BPG.Application.Features.Phases.Commands.DeletePhase;
 
-public record DeletePhaseCommand(long PhaseId) : IRequest<ApiResponse>;
+public record DeletePhaseCommand(long PhaseId) : IRequest<ApiResponse>, IRequireTechnicalManager
+{
+    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+    {
+        var phase = await unitOfWork.Repository<Phase>().Query()
+            .FirstOrDefaultAsync(p => p.PhaseId == PhaseId, cancellationToken);
+        if (phase == null) throw new NotFoundException("Phase", PhaseId);
+        return phase.ProjectId;
+    }
+}
 
 public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, ApiResponse>
 {
