@@ -20,15 +20,18 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
         private readonly IInventoryService _inventoryService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
 
         public CreateMaterialIssuanceCommandHandler(
             IUnitOfWork uow, 
             ICurrentUserService currentUserService,
-            IInventoryService inventoryService)
+            IInventoryService inventoryService,
+            IRealtimeNotificationSender realtimeSender)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _inventoryService = inventoryService;
+            _realtimeSender = realtimeSender;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateMaterialIssuanceCommand request, CancellationToken cancellationToken)
@@ -176,6 +179,20 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 await _uow.Repository<MaterialIssuanceItem>().AddRangeAsync(issuanceItems, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
+
+                // Realtime: broadcast to members viewing this project's inventory workspace
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + project.ProjectId,
+                    HubMethodNames.MaterialIssuanceChanged,
+                    issuance.MaterialIssuanceId,
+                    cancellationToken);
+
+                // Realtime: broadcast to members viewing global inventory (Project_0)
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + 0,
+                    HubMethodNames.MaterialIssuanceChanged,
+                    issuance.MaterialIssuanceId,
+                    cancellationToken);
 
                 return ApiResponse<long>.SuccessResult(issuance.MaterialIssuanceId, "Tạo phiếu xuất kho thành công.");
             }

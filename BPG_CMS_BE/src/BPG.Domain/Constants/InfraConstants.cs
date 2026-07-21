@@ -15,8 +15,13 @@ public static class HubMethodNames
 
     public const string IncidentCreated = "IncidentCreated";               // Báo cáo sự cố mới
     public const string IncidentUpdated = "IncidentUpdated";               // Trạng thái sự cố cập nhật
+    public const string ProjectUpdated = "ProjectUpdated";                 // Trạng thái dự án cập nhật
     public const string InventoryAdjustmentCreated = "InventoryAdjustmentCreated"; // Phiếu điều chỉnh kho mới
     public const string InventoryAdjustmentUpdated = "InventoryAdjustmentUpdated"; // Phiếu điều chỉnh kho được cập nhật
+
+    public const string GoodsReceiptChanged = "GoodsReceiptChanged";       // Nhập kho thay đổi (tạo/hủy phiếu)
+    public const string MaterialIssuanceChanged = "MaterialIssuanceChanged"; // Xuất dùng thay đổi
+    public const string MaterialReturnChanged = "MaterialReturnChanged";  // Hoàn trả vật tư thay đổi
 
     // ==================== HUB GROUP PREFIXES ====================
     // Dùng: Groups.AddToGroupAsync(connectionId, HubMethodNames.GroupProject + projectId)

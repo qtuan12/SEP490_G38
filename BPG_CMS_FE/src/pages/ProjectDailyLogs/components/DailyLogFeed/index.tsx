@@ -16,7 +16,8 @@ const PAGE_SIZE = 4;
 const formatDateTime = (dateStr?: string) => {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr);
+    const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr.replace(' ', 'T') + 'Z');
+    const d = new Date(normalized);
     if (isNaN(d.getTime())) return dateStr;
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -24,6 +25,23 @@ const formatDateTime = (dateStr?: string) => {
     const hours = String(d.getHours()).padStart(2, '0');
     const minutes = String(d.getMinutes()).padStart(2, '0');
     return `${day}/${month}/${year} ${hours}:${minutes}`;
+  } catch {
+    return dateStr.replace('T', ' ').slice(0, 16);
+  }
+};
+
+const formatToLocalTime = (dateStr?: string): string => {
+  if (!dateStr) return '';
+  try {
+    const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr.replace(' ', 'T') + 'Z');
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) return dateStr;
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
   } catch {
     return dateStr.replace('T', ' ').slice(0, 16);
   }
@@ -169,13 +187,15 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       engineerName: l.creatorName,
       progressFrom: l.oldProgressPercent,
       progressTo: l.newProgressPercent,
-      date: l.createdAt ? l.createdAt.slice(0, 16).replace('T', ' ') : l.logDate,
+      date: l.createdAt ? formatToLocalTime(l.createdAt) : l.logDate,
       content: l.description,
       weather: '',
       images: l.images || [],
       comments: (l.comments || []).map(mapRawComment),
       canEdit: l.canEdit,
-      editWindowHours: l.editWindowHours
+      editWindowHours: l.editWindowHours,
+      isEdited: l.isEdited,
+      lastEditedAt: l.lastEditedAt
     });
 
     // Event handlers

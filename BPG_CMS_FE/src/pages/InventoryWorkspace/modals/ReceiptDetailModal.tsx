@@ -27,6 +27,7 @@ interface ReceiptDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   receiptId: number | null;
+  isAssignedLeader?: boolean;
   onSuccess?: () => void;
 }
 
@@ -34,6 +35,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
   isOpen,
   onClose,
   receiptId,
+  isAssignedLeader,
   onSuccess
 }) => {
   const { user: currentUser } = useAuth();
@@ -209,6 +211,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
   // Check role for Cancel permission (Manager roles and Admin)
   const isManagerOrAdmin = currentUser && ['admin', 'technicalmanager', 'accountant', 'director'].includes(currentUser.role.toLowerCase());
   const canCancel = isManagerOrAdmin && detail?.status !== 'Cancelled';
+  const canEdit = isAssignedLeader || (currentUser && ['admin', 'technicalmanager', 'accountant', 'director'].includes(currentUser.role.toLowerCase()));
 
   return (
     <>
@@ -246,7 +249,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                 </>
               ) : (
                 <>
-                  {detail?.status !== 'Cancelled' && (
+                  {detail?.status !== 'Cancelled' && canEdit && (
                     <Button variant="outline" onClick={() => setIsEditing(true)} disabled={loading} className="flex items-center gap-1.5">
                       <Edit3 size={15} />
                       <span>Sửa thông tin</span>

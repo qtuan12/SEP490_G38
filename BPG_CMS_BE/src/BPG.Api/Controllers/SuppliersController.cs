@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Api.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public class SuppliersController : BaseApiController
     {
         [HttpGet]

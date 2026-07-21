@@ -27,13 +27,6 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     return num.toLocaleString('vi-VN', { maximumFractionDigits: 3 });
   };
 
-  // Định dạng đơn giá và thành tiền tiền tệ Việt Nam
-  const formatPrice = (num: number): string => {
-    if (num === undefined || num === null || num === 0) return '0 VNĐ';
-    const rounded = Math.round(num);
-    return rounded.toLocaleString('vi-VN') + ' VNĐ';
-  };
-
   // Xác định trạng thái cảnh báo của từng vật tư
   const getItemStatus = (item: CurrentInventory): 'over_boq' | 'approaching' | 'low_stock' | 'stable' => {
     const available = item.availableQuantity;
@@ -82,8 +75,6 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
       'Tạm khóa (Reserved)',
       'Tồn khả dụng',
       'Đơn vị tính',
-      'Đơn giá mua trung bình',
-      'Tổng giá trị tồn kho',
       'Cập nhật cuối',
       'Cảnh báo'
     ];
@@ -104,8 +95,6 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
         item.reservedQuantity,
         item.availableQuantity,
         `"${item.unitName}"`,
-        item.avgUnitPrice || 0,
-        item.stockValue || 0,
         item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'Chưa cập nhật',
         `"${statusLabel}"`
       ];
@@ -278,7 +267,6 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
               <th className="px-4 py-3 text-right">Tồn thực tế</th>
               <th className="px-4 py-3 text-right">Tạm khóa</th>
               <th className="px-4 py-3 text-right">Khả dụng</th>
-              <th className="px-4 py-3 text-right" title="Giá trị tồn kho tính theo phương pháp bình quân gia quyền di động (Moving Weighted Average) từ các đơn mua hàng thực tế">Giá trị tồn (Ước tính)</th>
               <th className="px-4 py-3 text-center">Cập nhật cuối</th>
               <th className="px-4 py-3 text-center">Cảnh báo tồn kho</th>
             </tr>
@@ -286,7 +274,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           <tbody className="divide-y divide-slate-200 bg-white">
             {filteredInventory.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                   Không tìm thấy vật tư nào phù hợp với bộ lọc trong kho dự án.
                 </td>
               </tr>
@@ -328,16 +316,6 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                       </td>
                       <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
                         {formatQty(item.availableQuantity)} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
-                      </td>
-                      <td className="px-4 py-3.5 text-right text-xs">
-                        {item.stockValue > 0 ? (
-                          <>
-                            <div className="font-bold text-blue-600">{formatPrice(item.stockValue)}</div>
-                            <div className="text-[9px] text-slate-400" title="Đơn giá bình quân gia quyền di động">Giá BQGQ: {formatPrice(item.avgUnitPrice)}</div>
-                          </>
-                        ) : (
-                          <span className="text-slate-400 italic text-[10px]">Chưa có giá nhập</span>
-                        )}
                       </td>
                       <td className="px-4 py-3.5 text-center text-xs text-slate-500">
                         {item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString('vi-VN', {

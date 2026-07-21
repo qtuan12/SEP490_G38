@@ -6,7 +6,6 @@ import {
   Users,
   LogOut,
   Hammer,
-  Boxes,
   Menu,
   FileText,
   Truck,
@@ -36,18 +35,21 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navItems: Array<{ name: string; path: string; icon: React.ReactNode; roles: string[]; disabled?: boolean }> = [
     { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
+    { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
+    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: [] },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Dự án', path: '/projects', icon: <Hammer size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
-    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Danh mục Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Vật tư', path: '/materials', icon: <Package size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Kiểm soát Vật tư', path: '/materials-control', icon: <Boxes size={20} />, roles: ['admin', 'technicalmanager', 'director', 'accountant'] },
-    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: ['accountant'] },
-    { name: 'Báo cáo', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant'] },
+    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin'] },
+    { name: 'Danh mục Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin'] },
+    { name: 'Kho Vật tư', path: '/materials', icon: <Package size={20} />, roles: ['admin'] },
+    { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant', 'technicalmanager'] },
     { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, roles: ['admin'] },
   ];
 
-  const filteredNavItems = navItems.filter(item => user && item.roles.includes(user.role));
+  const filteredNavItems = navItems.filter(item => {
+    if (!user || !user.role) return false;
+    const userRole = user.role.toLowerCase();
+    return item.roles.map(r => r.toLowerCase()).includes(userRole);
+  });
 
 
 
@@ -166,16 +168,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                       location.pathname === '/units' ? 'Quản lý Đơn vị tính' :
                         location.pathname === '/categories' ? 'Danh mục Vật tư' :
                           location.pathname === '/materials' ? 'Kho Vật tư' :
-                            location.pathname === '/projects' ? 'Danh sách Dự án WBS' :
+                            location.pathname === '/projects' ? 'Danh sách Dự án' :
                               location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
                                 location.pathname === '/system-config' ? 'Cấu hình Hệ thống' :
                                   location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
               </h2>
             </div>
             <div className="flex items-center gap-4">
-              <div className="hidden md:flex text-sm gap-1 text-[hsl(var(--text-secondary))]">
-                Dự án: <strong className="text-[hsl(var(--text-primary))]">BPG Construction (MVP)</strong>
-              </div>
+
               <HeaderNotification />
             </div>
           </div>

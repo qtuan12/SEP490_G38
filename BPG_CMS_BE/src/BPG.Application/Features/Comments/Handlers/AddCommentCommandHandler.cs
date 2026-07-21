@@ -95,8 +95,8 @@ namespace BPG.Application.Features.Comments.Handlers
                     "Bình luận mới dưới nhật ký",
                     $"[{author?.FullName ?? "Ai đó"}] đã bình luận dưới nhật ký thi công của bạn cho công việc [{dailyLog.Task.Name}].",
                     NotificationType.Progress,
-                    NotificationReferenceType.Task,
-                    dailyLog.TaskId,
+                    $"/projects/{dailyLog.Task.Phase.ProjectId}/tasks/{dailyLog.TaskId}/logs?logId={dailyLog.LogId}",
+                    dailyLog.LogId,
                     cancellationToken
                 );
             }
@@ -115,8 +115,8 @@ namespace BPG.Application.Features.Comments.Handlers
                     "Hoạt động bình luận mới",
                     $"[{author?.FullName ?? "Ai đó"}] cũng đã bình luận về nhật ký thi công cho công việc [{dailyLog.Task.Name}] mà bạn quan tâm.",
                     NotificationType.Progress,
-                    NotificationReferenceType.Task,
-                    dailyLog.TaskId,
+                    $"/projects/{dailyLog.Task.Phase.ProjectId}/tasks/{dailyLog.TaskId}/logs?logId={dailyLog.LogId}",
+                    dailyLog.LogId,
                     cancellationToken
                 );
             }
