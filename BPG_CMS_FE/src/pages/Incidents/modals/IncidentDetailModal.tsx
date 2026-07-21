@@ -4,9 +4,9 @@ import { toast } from 'react-hot-toast';
 import { incidentService } from '../../../services/incidentService';
 import { Modal } from '../../../components/ui/Modal';
 import { MiniMarkdown } from '../../../components/ui/MiniMarkdown';
-import { CreateRecoveryPlanModal } from './CreateRecoveryPlanModal';
+import { CreateRecoveryPlanForm } from './CreateRecoveryPlanModal';
 import type { IncidentReport, WBSPhase } from '../../../types/common';
-import { ArrowRight, AlertCircle, CheckCircle, HardHat, Package, MapPin, Clock, Users, BarChart3, FileText } from 'lucide-react';
+import { ArrowRight, ArrowLeft, AlertCircle, CheckCircle, HardHat, Package, MapPin, Clock, Users, BarChart3, FileText } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
 interface IncidentDetailModalProps {
@@ -406,7 +406,6 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     } else {
       tableHtml = `
         <p style="margin:4px 0;">- Tài sản/Vật tư: <strong>${parsedDescJson.thietHaiTaiSan || '.......................................'}</strong></p>
-        <p style="margin:4px 0;">- Ước tính chi phí: <strong>${incident.estimatedMaterialLoss ? incident.estimatedMaterialLoss.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</strong></p>
       `;
     }
 
@@ -434,27 +433,15 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         </table>
 
         <!-- TIÊU ĐỀ BIÊN BẢN -->
-        <p style="text-align:center;font-weight:bold;font-size:15pt;margin:20px 0 4px 0;text-transform:uppercase;font-family:'Times New Roman',Times,serif;">
+        <p style="text-align:center;font-weight:bold;font-size:15pt;margin:20px 0 15px 0;text-transform:uppercase;font-family:'Times New Roman',Times,serif;">
           BIÊN BẢN BÁO CÁO SỰ CỐ CÔNG TRÌNH
         </p>
-
-        <!-- SỐ BIÊN BẢN / NGÀY LẬP -->
-        <table style="width:100%;border-collapse:collapse;margin:0 0 18px 0;border:none;">
-          <tr>
-            <td style="width:50%;text-align:center;font-style:italic;font-size:11pt;border:none;padding:2px 0;">
-              Số biên bản: ${parsedDescJson.soBienBan || '.......................'}
-            </td>
-            <td style="width:50%;text-align:center;font-style:italic;font-size:11pt;border:none;padding:2px 0;">
-              Ngày lập: ${parsedDescJson.ngayLap || '.......................'}
-            </td>
-          </tr>
-        </table>
 
         <!-- I. THÔNG TIN CHUNG -->
         <p style="margin:12px 0 4px 0;font-size:12pt;"><strong>I. THÔNG TIN CHUNG</strong></p>
         <p style="margin:3px 0 3px 15px;font-size:12pt;">- Dự án: <strong>${incident.projectName || parsedDescJson.congTrinh || '.......................................'}</strong></p>
         <p style="margin:3px 0 3px 15px;font-size:12pt;">- Hạng mục: <strong>${parsedDescJson.hangMuc || '.......................................'}</strong></p>
-        <p style="margin:3px 0 3px 15px;font-size:12pt;">- Người báo cáo: <strong>${incident.reporterName || '.......................................'}</strong> &nbsp;&nbsp;&nbsp; Chức vụ: <strong>${parsedDescJson.chucVu || 'Trưởng nhóm (Project Leader)'}</strong></p>
+        <p style="margin:3px 0 3px 15px;font-size:12pt;">- Người báo cáo: <strong>${incident.reporterName || '.......................................'}</strong> &nbsp;&nbsp;&nbsp; Chức vụ: <strong>${(parsedDescJson.chucVu || 'Trưởng nhóm').replace(/\s*\(Project Leader\)/gi, '')}</strong></p>
 
         <!-- II. THÔNG TIN SỰ CỐ -->
         <p style="margin:12px 0 4px 0;font-size:12pt;"><strong>II. THÔNG TIN SỰ CỐ</strong></p>
@@ -1016,32 +1003,15 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   const isAccountant = roleLabel === 'accountant' || roleLabel === 'admin';
   const isDirector = roleLabel === 'director' || roleLabel === 'admin';
 
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} width="lg"
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ padding: '6px', borderRadius: '8px', background: meta.bg, border: `1px solid ${meta.border}` }}>
-            <TypeIcon size={16} color={meta.color} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.72rem', fontWeight: 600, color: meta.color, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{meta.label}</div>
-            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'hsl(var(--text-primary))' }}>Chi tiết Sự cố #{incident.id}</div>
-          </div>
-          <div style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 700, background: statusColor.bg, color: statusColor.color }}>
-            {statusColor.label}
-          </div>
+  const incidentDetailsJSX = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Phase info */}
+      {phase && (
+        <div style={{ fontSize: '0.78rem', color: 'hsl(var(--text-muted))', background: 'hsl(var(--bg-muted))', padding: '8px 12px', borderRadius: '6px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <BarChart3 size={13} />
+          <span>Phase: <strong>{phase.name}</strong> · Hạn: <strong style={{ color: 'hsl(var(--primary))' }}>{phase.deadline || 'Không có'}</strong></span>
         </div>
-      }
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-        {/* Phase info */}
-        {phase && (
-          <div style={{ fontSize: '0.78rem', color: 'hsl(var(--text-muted))', background: 'hsl(var(--bg-muted))', padding: '8px 12px', borderRadius: '6px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <BarChart3 size={13} />
-            <span>Phase: <strong>{phase.name}</strong> · Hạn: <strong style={{ color: 'hsl(var(--primary))' }}>{phase.deadline || 'Không có'}</strong></span>
-          </div>
-        )}
+      )}
 
         {/* Progress tracker */}
         {incident.isEmergency ? (
@@ -1190,12 +1160,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   </div>
                 </div>
 
-                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.3rem', margin: '20px 0 5px 0', textTransform: 'uppercase' }}>
+                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.3rem', margin: '20px 0 15px 0', textTransform: 'uppercase' }}>
                   BIÊN BẢN BÁO CÁO SỰ CỐ CÔNG TRÌNH
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '0.9rem', fontStyle: 'italic', marginBottom: '20px' }}>
-                  <span>Số biên bản: {parsedDescJson.soBienBan}</span>
-                  <span>Ngày lập: {parsedDescJson.ngayLap}</span>
                 </div>
 
                 <div style={{ textAlign: 'justify' }}>
@@ -1204,7 +1170,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                     <p style={{ margin: '4px 0' }}>- Dự án: <strong>{incident.projectName || '.......................................'}</strong></p>
                     <p style={{ margin: '4px 0' }}>- Công trình: <strong>{parsedDescJson.congTrinh || '.......................................'}</strong></p>
                     <p style={{ margin: '4px 0' }}>- Hạng mục: <strong>{parsedDescJson.hangMuc || '.......................................'}</strong></p>
-                    <p style={{ margin: '4px 0' }}>- Người báo cáo: <strong>{incident.reporterName || '.......................................'}</strong> &nbsp;&nbsp;&nbsp;&nbsp; Chức vụ: <strong>Trưởng nhóm (Project Leader)</strong></p>
+                    <p style={{ margin: '4px 0' }}>- Người báo cáo: <strong>{incident.reporterName || '.......................................'}</strong> &nbsp;&nbsp;&nbsp;&nbsp; Chức vụ: <strong>{(parsedDescJson.chucVu || 'Trưởng nhóm').replace(/\s*\(Project Leader\)/gi, '')}</strong></p>
                   </div>
 
                   <p><strong>II. THÔNG TIN SỰ CỐ</strong></p>
@@ -1263,7 +1229,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                     ) : (
                       <>
                         <p style={{ margin: '4px 0' }}>- Tài sản/Vật tư: <strong>{parsedDescJson.thietHaiTaiSan || '.......................................'}</strong></p>
-                        <p style={{ margin: '4px 0' }}>- Ước tính chi phí: <strong>{incident.estimatedMaterialLoss ? incident.estimatedMaterialLoss.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</strong></p>
+
                       </>
                     )}
                   </div>
@@ -1388,7 +1354,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
                 {isConstruction && incident.isEmergency && (
                   <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><BarChart3 size={12} />Ước tính thiệt hại vật tư</div>
+
                     <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
                       {incident.estimatedMaterialLoss ? incident.estimatedMaterialLoss.toLocaleString('vi-VN') + ' VNĐ' : 'Chưa xác định'}
                     </strong>
@@ -2076,18 +2042,83 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
             </div>
           )
         )}
+    </div>
+  );
 
-      </div>
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      width={isPlanModalOpen ? 'full' : 'lg'}
+      maxWidth={isPlanModalOpen ? '1180px' : undefined}
+      title={
+        isPlanModalOpen ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+            <div style={{ padding: '6px', borderRadius: '8px', background: meta.bg, border: `1px solid ${meta.border}` }}>
+              <TypeIcon size={16} color={meta.color} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 600, color: meta.color, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                LẬP KẾ HOẠCH KHẮC PHỤC SỰ CỐ (MÀN HÌNH KÉP)
+              </div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
+                {incident.projectName || 'Dự án BPG'} · Sự cố #{incident.id}
+              </div>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setIsPlanModalOpen(false)}
+                className="btn btn-outline"
+                style={{ fontSize: '0.78rem', padding: '4px 10px' }}
+                title="Quay lại chỉ xem chi tiết 1 cột"
+              >
+                <ArrowLeft size={14} style={{ marginRight: '4px' }} /> Thu gọn 1 Cột
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ padding: '6px', borderRadius: '8px', background: meta.bg, border: `1px solid ${meta.border}` }}>
+              <TypeIcon size={16} color={meta.color} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 600, color: meta.color, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{meta.label}</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'hsl(var(--text-primary))' }}>Chi tiết Sự cố #{incident.id}</div>
+            </div>
+            <div style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 700, background: statusColor.bg, color: statusColor.color }}>
+              {statusColor.label}
+            </div>
+          </div>
+        )
+      }
+    >
+      {isPlanModalOpen ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '20px', alignItems: 'start' }}>
+          {/* Cột trái: Tham khảo chi tiết sự cố */}
+          <div style={{ maxHeight: '74vh', overflowY: 'auto', paddingRight: '12px' }} className="custom-scrollbar">
+            <div style={{ padding: '8px 12px', marginBottom: '16px', background: 'hsl(var(--primary-glow))', borderRadius: '8px', border: '1px solid hsl(var(--primary)/0.2)', fontSize: '0.8rem', fontWeight: 700, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>📌 THÔNG TIN SỰ CỐ &amp; THIỆT HẠI (CỘT THAM KHẢO)</span>
+            </div>
+            {incidentDetailsJSX}
+          </div>
 
-      <CreateRecoveryPlanModal
-        isOpen={isPlanModalOpen}
-        onClose={() => setIsPlanModalOpen(false)}
-        incident={incident}
-        onSuccess={() => {
-          if (onSuccessAction) onSuccessAction('Đã nộp báo cáo khắc phục');
-          onClose();
-        }}
-      />
+          {/* Cột phải: Form Lập kế hoạch khắc phục */}
+          <div style={{ maxHeight: '74vh', overflowY: 'auto', paddingLeft: '16px', borderLeft: '1px solid hsl(var(--border))' }} className="custom-scrollbar">
+            <CreateRecoveryPlanForm
+              incident={incident}
+              onSuccess={(msg) => {
+                if (onSuccessAction) onSuccessAction('Đã nộp báo cáo khắc phục');
+                setIsPlanModalOpen(false);
+                onClose();
+              }}
+              onCancel={() => setIsPlanModalOpen(false)}
+            />
+          </div>
+        </div>
+      ) : (
+        incidentDetailsJSX
+      )}
     </Modal>
   );
 };

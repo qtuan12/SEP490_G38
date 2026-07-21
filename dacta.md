@@ -57,7 +57,7 @@ Leader Project
 
 - Xem Dashboard tiến độ cá nhân/dự án.
 
-- Tiếp nhận báo cáo sự cố từ Site Engineer, kiểm tra sơ bộ, điền thiệt hại và trình TPKT.
+- Tiếp nhận báo cáo sự cố từ Site Engineer,  bộ, điền thiệt hại và trình TPKT.
 
 
 - Tạo Yêu cầu vật tư (chọn vật tư, số lượng, lý do).

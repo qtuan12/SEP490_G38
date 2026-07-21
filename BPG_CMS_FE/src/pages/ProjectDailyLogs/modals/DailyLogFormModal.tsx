@@ -66,11 +66,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
     return tasks.find(t => String(t.id).replace(/^t-/, '') === String(activeId).replace(/^t-/, ''));
   }, [task, taskId, tasks, editLog]);
 
+  const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
   const minProgress = currentTask ? currentTask.progress : 0;
-  const isProgressDisabled = !currentTask || currentTask.progress === 100;
+  const isProgressDisabled = !currentTask || (!isTMOrAdmin && currentTask.progress === 100);
 
   const schema = React.useMemo(() => {
-    const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
     const minVal = isTMOrAdmin ? 0 : minProgress;
     return z.object({
       progress: z.number()
@@ -94,7 +94,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       message: 'Vui lòng nhập chi tiết diễn biến thi công (tối thiểu 5 ký tự).',
       path: ['content']
     });
-  }, [minProgress, user?.role]);
+  }, [minProgress, isTMOrAdmin]);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<DailyLogForm>({
     resolver: zodResolver(schema),
@@ -290,21 +290,22 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                     valueAsNumber: true,
                     onChange: (e) => {
                       const val = Number(e.target.value);
-                      const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
                       if (!isTMOrAdmin && val < minProgress) {
                         setValue('progress', minProgress);
                       }
                     }
                   })}
-                  min={user?.role === 'admin' || user?.role === 'technicalmanager' ? 0 : minProgress}
+                  min={isTMOrAdmin ? 0 : minProgress}
                   max={100}
-                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={isProgressDisabled}
                 />
                 <span className="text-xs text-slate-500 whitespace-nowrap">100%</span>
               </div>
               <span className="text-xs text-slate-500 block mt-1.5">
-                * Khóa cứng chiều lùi: Bạn chỉ có thể kéo tiến độ tiến lên hoặc giữ nguyên.
+                {isTMOrAdmin
+                  ? '* Quyền TPKT: Bạn có thể điều chỉnh giảm tiến độ nếu cần (yêu cầu nhập lý do giảm).'
+                  : '* Khóa cứng chiều lùi: Bạn chỉ có thể kéo tiến độ tiến lên hoặc giữ nguyên.'}
               </span>
               {errors.progress && <p className="text-red-500 text-xs mt-1">{errors.progress.message}</p>}
             </div>
