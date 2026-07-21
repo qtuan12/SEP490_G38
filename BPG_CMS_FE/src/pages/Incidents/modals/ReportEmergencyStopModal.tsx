@@ -24,30 +24,20 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
   onSuccess,
 }) => {
   const [soBienBan, setSoBienBan] = useState(() => `BB-INC-${Date.now().toString().slice(-6)}`);
-  const [ngayLap, setNgayLap] = useState(() => {
-    const today = new Date();
-    return `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
-  });
-  
+
+
   const [hangMuc, setHangMuc] = useState('');
   const [thoiGianXayRa, setThoiGianXayRa] = useState('');
   const [diaDiem, setDiaDiem] = useState('');
   const [loaiSuCo, setLoaiSuCo] = useState('Sự cố ngừng thi công khẩn cấp');
   const [mucDo, setMucDo] = useState('Khẩn cấp');
-  
+
   const [moTaSuCo, setMoTaSuCo] = useState('');
   const [thietHaiConNguoi, setThietHaiConNguoi] = useState('Không có');
   const [thietHaiTienDo, setThietHaiTienDo] = useState('Tạm dừng thi công toàn dự án');
-  
-  interface MaterialDamage {
-    stt: number;
-    tenVatLieu: string;
-    chiPhiSoBo: number;
-  }
-  const [damagedMaterials, setDamagedMaterials] = useState<MaterialDamage[]>([
-    { stt: 1, tenVatLieu: '', chiPhiSoBo: 0 }
-  ]);
-  
+
+  const [thietHaiTaiSanText, setThietHaiTaiSanText] = useState('');
+
   const [nguyenNhanBanDau, setNguyenNhanBanDau] = useState('');
   const [bienPhapKhanCap, setBienPhapKhanCap] = useState('');
 
@@ -55,41 +45,11 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
   const [previews, setPreviews] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
 
-  const addMaterialRow = () => {
-    setDamagedMaterials(prev => [
-      ...prev,
-      { stt: prev.length + 1, tenVatLieu: '', chiPhiSoBo: 0 }
-    ]);
-  };
-
-  const removeMaterialRow = (idx: number) => {
-    if (damagedMaterials.length === 1) {
-      setDamagedMaterials([{ stt: 1, tenVatLieu: '', chiPhiSoBo: 0 }]);
-      return;
-    }
-    const updated = damagedMaterials.filter((_, i) => i !== idx).map((item, i) => ({
-      ...item,
-      stt: i + 1
-    }));
-    setDamagedMaterials(updated);
-  };
-
-  const handleMaterialChange = (idx: number, field: 'tenVatLieu' | 'chiPhiSoBo', value: any) => {
-    const updated = [...damagedMaterials];
-    updated[idx] = {
-      ...updated[idx],
-      [field]: field === 'chiPhiSoBo' ? (Number(value) || 0) : value
-    };
-    setDamagedMaterials(updated);
-  };
-
-  const totalCost = damagedMaterials.reduce((sum, item) => sum + item.chiPhiSoBo, 0);
-
   const mutation = useMutation({
     mutationFn: async () => {
       let finalDescJson: any = {
         soBienBan: soBienBan.trim(),
-        ngayLap: ngayLap.trim(),
+
         congTrinh: projectName.trim(),
         hangMuc: hangMuc.trim(),
         thoiGianXayRa: thoiGianXayRa.trim(),
@@ -98,7 +58,7 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
         mucDo,
         moTaSuCo: moTaSuCo.trim(),
         thietHaiConNguoi: thietHaiConNguoi.trim(),
-        thietHaiTaiSan: JSON.stringify(damagedMaterials),
+        thietHaiTaiSan: thietHaiTaiSanText.trim(),
         thietHaiTienDo: thietHaiTienDo.trim(),
         nguyenNhanBanDau: nguyenNhanBanDau.trim(),
         bienPhapKhanCap: bienPhapKhanCap.trim(),
@@ -117,8 +77,8 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
         incidentType: 'Construction',
         description: JSON.stringify(finalDescJson),
         isEmergency: true,
-        damageDescription: JSON.stringify(damagedMaterials),
-        estimatedMaterialLoss: totalCost,
+        damageDescription: thietHaiTaiSanText.trim(),
+        estimatedMaterialLoss: undefined,
         estimatedLaborDays: 0,
         estimatedDelayDays: 0,
       });
@@ -131,7 +91,7 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
       setDiaDiem('');
       setMoTaSuCo('');
       setThietHaiConNguoi('Không có');
-      setDamagedMaterials([{ stt: 1, tenVatLieu: '', chiPhiSoBo: 0 }]);
+      setThietHaiTaiSanText('');
       setThietHaiTienDo('Tạm dừng thi công toàn dự án');
       setNguyenNhanBanDau('');
       setBienPhapKhanCap('');
@@ -207,9 +167,8 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
       toast.error('Vui lòng nhập mô tả sự cố.');
       return;
     }
-    const hasInvalidMaterial = damagedMaterials.some(item => !item.tenVatLieu.trim());
-    if (hasInvalidMaterial) {
-      toast.error('Vui lòng nhập đầy đủ tên vật liệu/tài sản bị thiệt hại.');
+    if (!thietHaiTaiSanText.trim()) {
+      toast.error('Vui lòng nhập mô tả thiệt hại về tài sản/vật tư.');
       return;
     }
     if (!nguyenNhanBanDau.trim()) {
@@ -244,32 +203,12 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
 
         {/* Scrollable Form Container */}
         <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '8px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <FormItem label="Số biên bản (*)" required>
-              <input
-                type="text"
-                className="w-full px-3 py-2 border rounded-lg"
-                value={soBienBan}
-                onChange={(e) => setSoBienBan(e.target.value)}
-                placeholder="VD: BB-INC-001"
-              />
-            </FormItem>
-            <FormItem label="Ngày lập (*)" required>
-              <input
-                type="text"
-                className="w-full px-3 py-2 border rounded-lg"
-                value={ngayLap}
-                onChange={(e) => setNgayLap(e.target.value)}
-                placeholder="Ngày/Tháng/Năm"
-              />
-            </FormItem>
-          </div>
+
 
           <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'hsl(var(--text-primary))', borderBottom: '1px solid hsl(var(--border))', paddingBottom: '4px' }}>
             I. THÔNG TIN CHUNG
           </div>
-          
+
           <FormItem label="Dự án">
             <input
               type="text"
@@ -303,17 +242,16 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
                 placeholder="VD: 14:30 ngày 20/07/2026"
               />
             </FormItem>
+
             <FormItem label="Mức độ sự cố (*)" required>
-              <select
+              <input
+                type="text"
                 className="w-full px-3 py-2 border rounded-lg"
                 value={mucDo}
                 onChange={(e) => setMucDo(e.target.value)}
-              >
-                <option value="Thấp">Thấp</option>
-                <option value="TB">Trung bình</option>
-                <option value="Cao">Cao</option>
-                <option value="Khẩn cấp">Khẩn cấp</option>
-              </select>
+
+                defaultValue="Khẩn cấp"
+              />
             </FormItem>
           </div>
 
@@ -374,93 +312,22 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
           </div>
 
           <div style={{ marginTop: '10px', marginBottom: '14px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-              Danh sách tài sản/vật tư bị thiệt hại (*)
-            </span>
-            <div style={{ border: '1px solid hsl(var(--border))', borderRadius: '8px', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                <thead>
-                  <tr style={{ background: 'hsl(var(--bg-muted))', borderBottom: '1px solid hsl(var(--border))' }}>
-                    <th style={{ padding: '8px 10px', width: '50px', textAlign: 'center', color: 'hsl(var(--text-muted))', fontWeight: 600 }}>STT</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'left', color: 'hsl(var(--text-muted))', fontWeight: 600 }}>Tên vật liệu / Tài sản hỏng</th>
-                    <th style={{ padding: '8px 10px', width: '200px', textAlign: 'right', color: 'hsl(var(--text-muted))', fontWeight: 600 }}>Ước tính chi phí sơ bộ (VNĐ)</th>
-                    <th style={{ padding: '8px 10px', width: '70px', textAlign: 'center', color: 'hsl(var(--text-muted))', fontWeight: 600 }}>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {damagedMaterials.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid hsl(var(--border))' }}>
-                      <td style={{ padding: '6px 10px', textAlign: 'center', color: 'hsl(var(--text-secondary))' }}>
-                        {item.stt}
-                      </td>
-                      <td style={{ padding: '6px 10px' }}>
-                        <input
-                          type="text"
-                          className="w-full px-2 py-1 border rounded"
-                          style={{ fontSize: '0.85rem' }}
-                          value={item.tenVatLieu}
-                          onChange={(e) => handleMaterialChange(idx, 'tenVatLieu', e.target.value)}
-                          placeholder="Tên vật tư, hạng mục bị hỏng..."
-                        />
-                      </td>
-                      <td style={{ padding: '6px 10px' }}>
-                        <input
-                          type="number"
-                          className="w-full px-2 py-1 border rounded text-right"
-                          style={{ fontSize: '0.85rem' }}
-                          value={item.chiPhiSoBo === 0 ? '' : item.chiPhiSoBo}
-                          onChange={(e) => handleMaterialChange(idx, 'chiPhiSoBo', e.target.value)}
-                          placeholder="0"
-                        />
-                      </td>
-                      <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => removeMaterialRow(idx)}
-                          style={{
-                            color: 'hsl(var(--destructive))',
-                            padding: '4px',
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer'
-                          }}
-                          title="Xóa dòng"
-                        >
-                          <X size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  <tr style={{ background: 'hsl(var(--bg-muted))', fontWeight: 600 }}>
-                    <td colSpan={2} style={{ padding: '10px', textAlign: 'right', color: 'hsl(var(--text-secondary))' }}>
-                      Tổng thiệt hại:
-                    </td>
-                    <td style={{ padding: '10px', textAlign: 'right', color: 'hsl(var(--destructive))', fontSize: '0.9rem', fontWeight: 700 }}>
-                      {totalCost.toLocaleString('vi-VN')} VNĐ
-                    </td>
-                    <td></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <button
-              type="button"
-              onClick={addMaterialRow}
-              style={{
-                marginTop: '8px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                color: 'hsl(var(--primary))',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer'
-              }}
+            <FormItem
+              label={
+                <span>
+                  Thiệt hại tài sản/vật tư <span className="text-red-500 font-bold" style={{ fontSize: '1.25rem', verticalAlign: 'middle', marginLeft: '2px' }}>*</span>
+                </span>
+              }
+              required={false}
             >
-              ➕ Thêm vật liệu / tài sản hỏng
-            </button>
+              <textarea
+                className="w-full px-3 py-2 border rounded-lg"
+                style={{ minHeight: '120px', fontSize: '0.85rem' }}
+                value={thietHaiTaiSanText}
+                onChange={(e) => setThietHaiTaiSanText(e.target.value)}
+                placeholder="VD: Hỏng 5 máy khoan cầm tay, vỡ 2 tấm kính cường lực..."
+              />
+            </FormItem>
           </div>
 
           <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'hsl(var(--text-primary))', borderBottom: '1px solid hsl(var(--border))', paddingBottom: '4px', marginTop: '6px' }}>
