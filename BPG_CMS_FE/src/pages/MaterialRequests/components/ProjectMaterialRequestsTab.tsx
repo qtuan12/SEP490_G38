@@ -112,7 +112,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
   const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
   const isDirector = user?.role === 'director' || user?.role === 'admin';
-  const canCreateRequest = user?.role === 'admin' || user?.role === 'projectleader' || user?.role === 'siteengineer' || user?.role === 'technicalmanager';
+  const canCreateRequest = isLeader || user?.role === 'admin' || user?.role === 'projectleader';
 
   const fetchData = async () => {
     setLoading(true);
@@ -129,8 +129,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       setIsLeader(
         (currentMember ? currentMember.isLeader : false) ||
         user?.role === 'projectleader' ||
-        user?.role === 'admin' ||
-        user?.role === 'technicalmanager'
+        user?.role === 'admin'
       );
     } catch (err) {
       console.error('Error fetching material requests tab data:', err);
@@ -153,7 +152,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       setPromptPhaseId(phases[0].id);
       setIsCreatePromptOpen(true);
     } else {
-      toast.error('Dự án chưa có giai đoạn (Phase) nào để yêu cầu vật tư.');
+      toast.error('Dự án chưa có giai đoạn nào để yêu cầu vật tư.');
     }
   };
 
@@ -623,7 +622,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
         >
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-500">Chọn Giai đoạn (Phase) (*)</label>
+              <label className="text-xs font-semibold text-slate-500">Chọn Giai đoạn (*)</label>
               <select
                 className="w-full px-3 py-2 border border-[hsl(var(--border))] rounded-lg text-sm bg-white"
                 value={promptPhaseId}

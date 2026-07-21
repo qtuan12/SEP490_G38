@@ -154,7 +154,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
               </div>
               <div className="flex items-center gap-2 text-slate-600 text-sm">
                 <Layers size={16} className="text-slate-400" />
-                <span>Giai đoạn (Phase):</span>
+                <span>Giai đoạn:</span>
                 <strong className="text-slate-800 font-semibold">{request.phaseName || 'N/A'}</strong>
               </div>
             </div>

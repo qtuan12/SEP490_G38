@@ -8,7 +8,7 @@ using BPG.Application.Features.MaterialConversions.Commands;
 using BPG.Application.DTOs.MaterialConversions;
 namespace BPG.Api.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize]
 public class MaterialCatalogsController : BaseApiController
 {
     [HttpGet]
@@ -18,6 +18,7 @@ public class MaterialCatalogsController : BaseApiController
         return ApiPagedOk(result);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateMaterialCatalogRequest request, CancellationToken ct)
     {
@@ -33,6 +34,7 @@ public class MaterialCatalogsController : BaseApiController
         return ApiOk(result, "Tạo vật tư thành công.");
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateMaterialCatalogRequest request, CancellationToken ct)
     {
@@ -49,6 +51,7 @@ public class MaterialCatalogsController : BaseApiController
         return ApiOk(result, "Cập nhật vật tư thành công.");
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
@@ -63,6 +66,7 @@ public class MaterialCatalogsController : BaseApiController
         return ApiOk(result);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}/conversions")]
     public async Task<IActionResult> SyncConversions(long id, [FromBody] List<MaterialConversionRequest> request, CancellationToken ct)
     {

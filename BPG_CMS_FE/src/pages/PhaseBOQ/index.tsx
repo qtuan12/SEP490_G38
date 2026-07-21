@@ -55,7 +55,7 @@ export const PhaseBOQ: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const canEdit = user && ['admin', 'technicalmanager', 'projectleader'].includes(user.role);
+  const canEdit = user && ['admin', 'technicalmanager'].includes(user.role);
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
@@ -249,7 +249,7 @@ export const PhaseBOQ: React.FC = () => {
           <ArrowLeft size={16} />
           <span>Quay lại không gian dự án</span>
         </button>
-        <h1 className="text-[1.75rem] font-extrabold m-0">Cập nhật Bảng vật tư định mức</h1>
+        <h1 className="text-[1.75rem] font-extrabold m-0">Bảng định mức vật tư</h1>
         <p className="text-[0.875rem] text-[hsl(var(--text-secondary))] m-0">
           Dự án: <strong className="font-semibold">{project.name}</strong> &rarr; Giai đoạn: <strong className="font-semibold">{phase.name}</strong>
         </p>

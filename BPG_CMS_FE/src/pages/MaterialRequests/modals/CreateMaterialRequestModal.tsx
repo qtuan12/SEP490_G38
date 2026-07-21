@@ -247,7 +247,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={task ? "Đề xuất Vật tư cho Công việc" : "Yêu cầu Vật tư cho Phase"}>
+    <Modal isOpen={isOpen} onClose={onClose} title={task ? "Đề xuất Vật tư cho Công việc" : "Yêu cầu Vật tư cho Giai đoạn"}>
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         <div className="text-sm bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100">
           {task ? (
@@ -325,12 +325,12 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
                 <button
                   type="button"
-                  disabled={fields.length === 1}
                   onClick={async () => {
                     remove(idx);
                     await trigger('items');
                   }}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-md"
+                  title="Xóa vật tư"
                 >
                   <Trash2 size={18} />
                 </button>
