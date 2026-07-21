@@ -7,10 +7,18 @@ import { Modal } from '../../../components/ui/Modal';
 import { Button, Input, Select, FormItem } from '../../../components/ui';
 import { userService } from '../../../services/userService';
 import type { UserProfile } from '../../../services/authService';
+import { validateFullName, validatePhoneNumber } from '../../../utils/profileValidation';
 
 const schema = z.object({
-  name: z.string().min(2, 'Họ và Tên phải có ít nhất 2 ký tự'),
+  name: z.string().superRefine((val, ctx) => {
+    const error = validateFullName(val);
+    if (error) ctx.addIssue({ code: 'custom', message: error });
+  }),
   email: z.string().email('Địa chỉ email không hợp lệ'),
+  phoneNumber: z.string().optional().superRefine((val, ctx) => {
+    const error = validatePhoneNumber(val ?? '');
+    if (error) ctx.addIssue({ code: 'custom', message: error });
+  }),
   role: z.enum(['admin', 'director', 'technicalmanager', 'projectleader', 'siteengineer', 'accountant']),
 });
 
@@ -33,6 +41,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, o
       reset({
         name: user.name,
         email: user.email,
+        phoneNumber: user.phoneNumber ?? '',
         role: user.role,
       });
     }
@@ -74,6 +83,10 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, o
 
         <FormItem label="Địa chỉ Email" required error={errors.email?.message}>
           <Input type="email" {...register('email')} error={!!errors.email} />
+        </FormItem>
+
+        <FormItem label="Số điện thoại" error={errors.phoneNumber?.message}>
+          <Input type="tel" placeholder="Ví dụ: 0912345678" {...register('phoneNumber')} error={!!errors.phoneNumber} />
         </FormItem>
 
         <FormItem label="Vai trò hệ thống" error={errors.role?.message}>

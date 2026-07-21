@@ -6,6 +6,7 @@ namespace BPG.Application.Features.Users.Commands
     public record CreateUserCommand(
         string Name,
         string Email,
-        string Role
+        string Role,
+        string? PhoneNumber = null
     ) : IRequest<UserDto>;
 }
