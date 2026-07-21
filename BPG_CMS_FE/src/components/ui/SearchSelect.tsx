@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 
 export interface SearchSelectOption {
   label: string;
@@ -33,65 +33,58 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   const [coords, setCoords] = useState({ top: 0, left: 0, width: 0, bottom: 0 });
   
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Tìm option hiện tại tương ứng với value
   const selectedOption = options.find(opt => opt.value === value);
 
-  // Đồng bộ searchQuery khi value thay đổi từ ngoài hoặc khi component mount
+  // Focus ô tìm kiếm khi vừa mở dropdown
   useEffect(() => {
-    if (selectedOption) {
-      setSearchQuery(selectedOption.label);
-    } else {
+    if (isOpen) {
       setSearchQuery('');
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
     }
-  }, [value, selectedOption]);
+  }, [isOpen]);
 
   // Click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      // Tránh đóng dropdown khi click vào chính container (input/chevron) HOẶC click vào chính dropdown Portal
       if (
         (containerRef.current && containerRef.current.contains(target)) ||
         (dropdownRef.current && dropdownRef.current.contains(target))
       ) {
         return;
       }
-      
       setIsOpen(false);
-      // Khôi phục lại searchQuery theo option đang chọn thực tế
-      if (selectedOption) {
-        setSearchQuery(selectedOption.label);
-      } else {
-        setSearchQuery('');
-      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedOption]);
+  }, []);
 
-  // Lấy và cập nhật tọa độ của input để đặt vị trí cho Portal dropdown
+  // Lấy và cập nhật tọa độ của trigger button để đặt vị trí cho Portal dropdown
   const updateCoords = () => {
-    if (inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect();
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
       setCoords({
         top: rect.bottom,
         left: rect.left,
-        width: rect.width,
+        width: Math.max(rect.width, 240), // Đảm bảo độ rộng tối thiểu 240px cho ô search
         bottom: rect.top
       });
     }
   };
 
-  // Theo dõi sự kiện scroll/resize để đóng hoặc cập nhật vị trí dropdown
+  // Theo dõi sự kiện scroll/resize để cập nhật hoặc đóng dropdown
   useEffect(() => {
     if (isOpen) {
       updateCoords();
       
       const handleScrollOrResize = (event: Event) => {
-        // Nếu sự kiện scroll xảy ra bên trong chính dropdown Portal, thì bỏ qua không đóng
         if (
           event.type === 'scroll' &&
           dropdownRef.current &&
@@ -99,11 +92,9 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
         ) {
           return;
         }
-        // Đóng dropdown khi scroll/resize ở ngoài để tránh lệch layout
         setIsOpen(false);
       };
 
-      // Đăng ký sự kiện scroll ở dạng capture để bắt được sự kiện scroll từ Modal body
       window.addEventListener('scroll', handleScrollOrResize, true);
       window.addEventListener('resize', handleScrollOrResize);
       
@@ -116,11 +107,10 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
 
   // Tính toán hướng hiển thị khi mở dropdown
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect();
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      // Nếu khoảng trống phía dưới ít hơn 220px và khoảng trống phía trên đủ rộng, thì mở lên trên
-      if (spaceBelow < 220 && rect.top > 220) {
+      if (spaceBelow < 260 && rect.top > 260) {
         setPlacement('top');
       } else {
         setPlacement('bottom');
@@ -144,8 +134,6 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
     border: '1px solid #cbd5e1', // border-slate-300
     borderRadius: '0.375rem',
     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-    maxHeight: '240px',
-    overflowY: 'auto',
     ...(placement === 'top' 
       ? { bottom: `${window.innerHeight - coords.bottom + 4}px` } 
       : { top: `${coords.top + 4}px` }
@@ -154,87 +142,91 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
 
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
-      <div className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setIsOpen(true);
-            // Nếu người dùng xóa sạch input, ta kích hoạt onChange rỗng để component cha nhận biết
-            if (e.target.value === '') {
-              onChange('');
-            }
-          }}
-          onFocus={() => setIsOpen(true)}
-          disabled={disabled}
-          placeholder={placeholder}
-          className={`block w-full rounded-md shadow-sm sm:text-sm pl-3 pr-12 py-2 border bg-white focus:outline-none transition-colors
-            ${disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}
-            ${error 
-              ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500' 
-              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
-        />
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()} // Ngăn sự kiện blur của input làm đóng dropdown trước khi click kịp ghi nhận
-          onClick={() => {
-            if (!disabled) {
-              setIsOpen(prev => !prev);
-              updateCoords();
-            }
-          }}
-          disabled={disabled}
-          className="absolute right-0 top-0 bottom-0 px-3.5 flex items-center justify-center text-slate-400 hover:text-slate-600 focus:outline-none disabled:cursor-not-allowed cursor-pointer"
-        >
-          <ChevronDown size={16} className={`transition-transform duration-200 ${isOpen ? 'transform rotate-180 text-blue-500' : ''}`} />
-        </button>
-      </div>
+      {/* Trigger Button: Hiển thị giá trị đã chọn cố định, rất sạch sẽ */}
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => {
+          if (!disabled) {
+            setIsOpen(prev => !prev);
+            updateCoords();
+          }
+        }}
+        disabled={disabled}
+        className={`flex items-center justify-between w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border bg-white text-left focus:outline-none transition-colors cursor-pointer
+          ${disabled ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:border-slate-400'}
+          ${error 
+            ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500' 
+            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+      >
+        <span className={`block truncate ${selectedOption ? 'text-slate-900 font-medium' : 'text-slate-400'}`}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <ChevronDown size={16} className={`ml-2 shrink-0 text-slate-400 transition-transform duration-200 ${isOpen ? 'transform rotate-180 text-blue-500' : ''}`} />
+      </button>
 
+      {/* Popover Dropdown với Ô Tìm kiếm riêng ở trên cùng */}
       {isOpen && !disabled && createPortal(
-        <div ref={dropdownRef} style={dropdownStyle} className="search-select-dropdown">
-          {/* Tùy chỉnh scrollbar cho dropdown */}
+        <div ref={dropdownRef} style={dropdownStyle} className="search-select-dropdown overflow-hidden flex flex-col">
           <style>{`
-            .search-select-dropdown::-webkit-scrollbar {
+            .search-select-dropdown-list::-webkit-scrollbar {
               width: 6px;
             }
-            .search-select-dropdown::-webkit-scrollbar-track {
+            .search-select-dropdown-list::-webkit-scrollbar-track {
               background: #f1f5f9;
               border-radius: 4px;
             }
-            .search-select-dropdown::-webkit-scrollbar-thumb {
+            .search-select-dropdown-list::-webkit-scrollbar-thumb {
               background: #cbd5e1;
               border-radius: 4px;
             }
-            .search-select-dropdown::-webkit-scrollbar-thumb:hover {
+            .search-select-dropdown-list::-webkit-scrollbar-thumb:hover {
               background: #94a3b8;
             }
           `}</style>
-          {filteredOptions.length > 0 ? (
-            filteredOptions.map((opt) => (
-              <div
-                key={opt.value}
-                onMouseDown={(e) => {
-                  e.preventDefault(); // Ngăn sự kiện blur của input làm đóng dropdown trước khi click kịp ghi nhận
-                  onChange(opt.value);
-                  setSearchQuery(opt.label);
-                  setIsOpen(false);
-                }}
-                className={`px-3 py-2 hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-100 last:border-0 text-left
-                  ${value === opt.value ? 'bg-blue-50 text-blue-900 font-medium' : 'text-slate-800'}`}
-              >
-                <div className="text-xs">{opt.label}</div>
-                {opt.sublabel && (
-                  <div className="text-[10px] text-slate-400 mt-0.5">{opt.sublabel}</div>
-                )}
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-2.5 text-xs text-slate-400 italic text-center">
-              Không tìm thấy kết quả
+
+          {/* Search Header: Ô tìm kiếm đính kèm biểu tượng 🔍 */}
+          <div className="p-2 border-b border-slate-100 bg-slate-50/80 sticky top-0 z-10">
+            <div className="relative flex items-center">
+              <Search size={14} className="absolute left-2.5 text-slate-400 pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm theo tên vật tư..."
+                className="w-full text-xs pl-8 pr-2.5 py-1.5 border border-slate-200 rounded bg-white text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
+              />
             </div>
-          )}
+          </div>
+
+          {/* Scrollable Items List */}
+          <div className="search-select-dropdown-list max-h-[200px] overflow-y-auto">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => (
+                <div
+                  key={opt.value}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange(opt.value);
+                    setIsOpen(false);
+                    setSearchQuery('');
+                  }}
+                  className={`px-3 py-2 hover:bg-blue-50/80 cursor-pointer transition-colors border-b border-slate-100 last:border-0 text-left
+                    ${value === opt.value ? 'bg-blue-50 text-blue-900 font-semibold' : 'text-slate-800'}`}
+                >
+                  <div className="text-xs">{opt.label}</div>
+                  {opt.sublabel && (
+                    <div className="text-[10px] text-slate-400 mt-0.5">{opt.sublabel}</div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-3 text-xs text-slate-400 italic text-center">
+                Không tìm thấy vật tư phù hợp
+              </div>
+            )}
+          </div>
         </div>,
         document.body
       )}

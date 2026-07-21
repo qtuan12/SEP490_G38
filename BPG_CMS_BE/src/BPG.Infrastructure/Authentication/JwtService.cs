@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using BPG.Application.IServices;
 using BPG.Domain.Entities;
@@ -17,11 +18,15 @@ public class JwtService : IJwtService
         _configuration = configuration;
     }
 
+    public int RefreshTokenExpiryDays =>
+        int.TryParse(_configuration["Jwt:RefreshTokenExpiryDays"], out var days) ? days : 7;
+
     public string GenerateToken(User user)
     {
         var jwtKey = _configuration["Jwt:Key"];
         var jwtIssuer = _configuration["Jwt:Issuer"];
         var jwtAudience = _configuration["Jwt:Audience"];
+        var expiryMinutes = int.TryParse(_configuration["Jwt:AccessTokenExpiryMinutes"], out var minutes) ? minutes : 15;
 
         var claims = new List<Claim>
         {
@@ -44,10 +49,22 @@ public class JwtService : IJwtService
             issuer: jwtIssuer,
             audience: jwtAudience,
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(8),
+            expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
             signingCredentials: credentials
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public string GenerateRefreshToken()
+    {
+        var randomBytes = RandomNumberGenerator.GetBytes(64);
+        return Convert.ToBase64String(randomBytes);
+    }
+
+    public string HashToken(string token)
+    {
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(hashBytes);
     }
 }

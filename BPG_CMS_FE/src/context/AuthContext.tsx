@@ -35,10 +35,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else {
             // Role cũ hoặc không hợp lệ → clear session
             localStorage.removeItem('bpg_token');
+            localStorage.removeItem('bpg_refresh_token');
             localStorage.removeItem('bpg_user');
           }
         } catch {
           localStorage.removeItem('bpg_token');
+          localStorage.removeItem('bpg_refresh_token');
           localStorage.removeItem('bpg_user');
         }
       }
@@ -54,10 +56,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(response.token);
       setUser(response.user);
       localStorage.setItem('bpg_token', response.token);
+      localStorage.setItem('bpg_refresh_token', response.refreshToken);
       localStorage.setItem('bpg_user', JSON.stringify(response.user));
       return response.user;
     } catch (error) {
       localStorage.removeItem('bpg_token');
+      localStorage.removeItem('bpg_refresh_token');
       localStorage.removeItem('bpg_user');
       setUser(null);
       setToken(null);
@@ -70,6 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
     setUser(null);
     localStorage.removeItem('bpg_token');
+    localStorage.removeItem('bpg_refresh_token');
     localStorage.removeItem('bpg_user');
   };
 

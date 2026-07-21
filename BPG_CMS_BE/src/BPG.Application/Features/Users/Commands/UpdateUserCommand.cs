@@ -7,6 +7,7 @@ namespace BPG.Application.Features.Users.Commands
         long Id,
         string? Name,
         string? Email,
-        string? Role
+        string? Role,
+        string? PhoneNumber = null
     ) : IRequest<UserDto>;
 }

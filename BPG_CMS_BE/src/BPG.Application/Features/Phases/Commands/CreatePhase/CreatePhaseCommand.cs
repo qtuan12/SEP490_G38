@@ -5,6 +5,9 @@ using BPG.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.Common.Interfaces;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BPG.Application.Features.Phases.Commands.CreatePhase;
 
@@ -15,7 +18,11 @@ public record CreatePhaseCommand(
     int OrderIndex,
     DateOnly? StartDate,
     DateOnly? EndDate
-) : IRequest<ApiResponse<long>>;
+) : IRequest<ApiResponse<long>>, IRequireTechnicalManager
+{
+    public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+        => Task.FromResult(ProjectId);
+}
 
 public class CreatePhaseCommandValidator : AbstractValidator<CreatePhaseCommand>
 {

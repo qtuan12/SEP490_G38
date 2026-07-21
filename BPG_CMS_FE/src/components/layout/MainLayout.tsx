@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useCompany } from '../../context/CompanyContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -22,6 +23,7 @@ import { HeaderNotification } from './HeaderNotification';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
+  const { companyName, companyLogoUrl } = useCompany();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -33,15 +35,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   };
 
   const navItems: Array<{ name: string; path: string; icon: React.ReactNode; roles: string[]; disabled?: boolean }> = [
-    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
+    { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
     { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: [] },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, roles: ['admin', 'accountant'] },
     { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin'] },
-    { name: 'Danh mục Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin'] },
-    { name: 'Kho Vật tư', path: '/materials', icon: <Package size={20} />, roles: ['admin'] },
-    { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, roles: ['admin', 'accountant'] },
+    { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin'] },
+    { name: 'Danh sách Vật tư', path: '/materials', icon: <Package size={20} />, roles: ['admin'] },
+    { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant', 'technicalmanager'] },
     { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, roles: ['admin'] },
   ];
 
@@ -74,14 +76,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="flex items-center gap-3 justify-center">
             {!isCollapsed && (
               <img
-                src="/logo.png"
-                alt="BPG Logo"
+                src={companyLogoUrl}
+                alt={`${companyName} Logo`}
                 className="h-10 w-10 object-contain rounded-sm"
               />
             )}
             {!isCollapsed && (
               <div className="overflow-hidden whitespace-nowrap">
-                <h1 className="text-xl font-bold tracking-wider">BPG CMS</h1>
+                <h1 className="text-xl font-bold tracking-wider">{companyName}</h1>
                 <span className="text-[11px] text-[hsl(var(--text-muted))] uppercase font-semibold">Construction MVP</span>
               </div>
             )}

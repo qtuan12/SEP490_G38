@@ -6,6 +6,7 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using RoleConstants = BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.Common.Behaviors;
@@ -25,14 +26,6 @@ namespace BPG.Application.Common.Behaviors;
 public class ProjectAuthorizationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
-    // Vai trò được phép xem toàn bộ dự án mà không cần là thành viên.
-    private static readonly string[] FullAccessRoles =
-    {
-        RoleConstants.Director,
-        RoleConstants.TechnicalManager,
-        RoleConstants.Accountant
-    };
-
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -51,21 +44,63 @@ public class ProjectAuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
         {
             var projectId = await projectRequest.GetProjectIdAsync(_unitOfWork, cancellationToken);
 
-            if (projectId <= 0)
-            {
-                // Không xác định được dự án -> không cấp quyền (fail-closed).
-                throw new ForbiddenException("Không xác định được dự án để kiểm tra quyền truy cập.");
-            }
-
             var currentUserId = _currentUserService.UserId;
             if (currentUserId == null)
                 throw new UnauthorizedException();
 
-            // 1. Nhóm quyền cao: cho qua luôn, không check thành viên.
-            if (_currentUserService.IsInAnyRole(FullAccessRoles))
-                return await next();
+            bool isDirector = _currentUserService.IsInRole(RoleConstants.Director);
+            bool isTechnicalManager = _currentUserService.IsInRole(RoleConstants.TechnicalManager);
+            bool isAccountant = _currentUserService.IsInRole(RoleConstants.Accountant);
 
-            // 2. Các vai trò còn lại: phải là thành viên của dự án mới được xem.
+            // 1. Kiểm tra các nhóm quyền chuyên biệt (Marker Interfaces)
+            if (request is IRequireTechnicalManager && !isTechnicalManager && !isDirector)
+            {
+                throw new ForbiddenException("Chỉ Trưởng phòng kỹ thuật hoặc Giám đốc mới có quyền thực hiện chức năng này.");
+            }
+
+            if (request is IRequireAccountant && !isAccountant && !isDirector)
+            {
+                throw new ForbiddenException("Chỉ Kế toán hoặc Giám đốc mới có quyền thực hiện chức năng này.");
+            }
+
+            if (request is IRequireProjectLeader)
+            {
+                if (isDirector || isTechnicalManager)
+                {
+                    return await next();
+                }
+
+                if (projectId <= 0)
+                {
+                    throw new ForbiddenException("Không xác định được dự án để kiểm tra quyền truy cập.");
+                }
+
+                var leaderMember = await _unitOfWork.Repository<ProjectMember>().Query().FirstOrDefaultAsync(
+                    m => m.ProjectId == projectId && m.UserId == currentUserId.Value,
+                    cancellationToken);
+
+                if (leaderMember == null || !leaderMember.IsLeader)
+                {
+                    throw new ForbiddenException("Chỉ Trưởng dự án mới có quyền thực hiện chức năng này.");
+                }
+
+                return await next();
+            }
+
+            // 2. Nhóm quyền cao: cho qua luôn, kể cả khi không giới hạn theo 1 dự án cụ thể
+            //    (projectId <= 0 nghĩa là request muốn xem dữ liệu của TẤT CẢ dự án).
+            if (isDirector || isTechnicalManager || isAccountant)
+            {
+                return await next();
+            }
+
+            // 3. Các vai trò còn lại: phải là thành viên của dự án mới được truy cập
+            if (projectId <= 0)
+            {
+                // Role không có full-access mà không xác định được dự án -> không cấp quyền (fail-closed).
+                throw new ForbiddenException("Không xác định được dự án để kiểm tra quyền truy cập.");
+            }
+
             var isMember = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
                 m => m.ProjectId == projectId && m.UserId == currentUserId.Value,
                 cancellationToken);

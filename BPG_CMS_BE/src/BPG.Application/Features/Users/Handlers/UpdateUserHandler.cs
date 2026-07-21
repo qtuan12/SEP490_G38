@@ -26,6 +26,7 @@ public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserDto>
 
         var newFullName = user.FullName;
         var newEmail = user.Email;
+        var newPhoneNumber = user.PhoneNumber;
 
         if (!string.IsNullOrWhiteSpace(cmd.Email) &&
             !cmd.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase))
@@ -40,8 +41,15 @@ public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserDto>
         if (!string.IsNullOrWhiteSpace(cmd.Name))
             newFullName = cmd.Name;
 
+        if (cmd.PhoneNumber != null)
+        {
+            newPhoneNumber = string.IsNullOrWhiteSpace(cmd.PhoneNumber)
+                ? null
+                : cmd.PhoneNumber.Replace(" ", "").Replace("-", "").Trim();
+        }
+
         await _uow.ExecuteSqlAsync(
-            $"UPDATE Users SET FullName = {newFullName}, Email = {newEmail}, UpdatedAt = {DateTime.UtcNow} WHERE UserId = {cmd.Id}",
+            $"UPDATE Users SET FullName = {newFullName}, Email = {newEmail}, PhoneNumber = {newPhoneNumber}, UpdatedAt = {DateTime.UtcNow} WHERE UserId = {cmd.Id}",
             ct);
 
         string roleName = string.Empty;
@@ -77,6 +85,7 @@ public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserDto>
             Id = user.UserId.ToString(),
             Name = newFullName,
             Email = newEmail,
+            PhoneNumber = newPhoneNumber,
             Role = roleName.ToLower(),
             Status = UserDto.GetStatus(user)
         };
