@@ -306,15 +306,15 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       case 'approved_by_leader':
         return <Badge variant="info"><CheckCircle size={12} className="mr-1" /> Đã tổng hợp</Badge>;
       case 'pending_accountant':
-        return <Badge variant="warning"><Clock size={12} className="mr-1" /> Chờ Kế toán</Badge>;
+        return <Badge variant="warning"><Clock size={12} className="mr-1" /> Chờ phê duyệt</Badge>;
       case 'pending_disbursement':
-        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]"><Clock size={12} className="mr-1" /> Chờ Tạm ứng</Badge>;
+        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]"><Clock size={12} className="mr-1" /> Chờ tạm ứng</Badge>;
       case 'pending_director':
-        return <Badge variant="warning"><Clock size={12} className="mr-1" /> Chờ Giám đốc</Badge>;
+        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]"><Clock size={12} className="mr-1" /> Chờ duyệt vượt định mức</Badge>;
       case 'approved':
-        return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> Đã duyệt</Badge>;
+        return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> Đã phê duyệt</Badge>;
       case 'rejected':
-        return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Từ chối</Badge>;
+        return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Bị từ chối</Badge>;
       case 'cancelled':
         return <Badge variant="default"><XCircle size={12} className="mr-1" /> Đã hủy</Badge>;
       default:
@@ -328,7 +328,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     } else if (req.isOverBOQ) {
       return <Badge variant="danger" className="text-[0.68rem] py-0.5 px-2 normal-case">Vượt định mức</Badge>;
     } else {
-      return <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.68rem]">Trong định mức</span>;
+      return <Badge variant="default" className="text-[0.68rem] py-0.5 px-2 normal-case">Trong định mức</Badge>;
     }
   };
 
@@ -381,10 +381,10 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
               onChange={e => setStatusFilter(e.target.value)}
             >
               <option value="">Tất cả Trạng thái</option>
-              <option value="pending_accountant">Chờ Kế toán</option>
-              <option value="pending_director">Chờ Giám đốc</option>
-              <option value="approved">Đã duyệt</option>
-              <option value="rejected">Từ chối</option>
+              <option value="pending_accountant">Chờ phê duyệt</option>
+              <option value="pending_director">Chờ duyệt vượt định mức</option>
+              <option value="approved">Đã phê duyệt</option>
+              <option value="rejected">Bị từ chối</option>
               <option value="cancelled">Đã hủy</option>
             </select>
           </div>

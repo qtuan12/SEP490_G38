@@ -262,12 +262,12 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                 </div>
                 <button
                   type="button"
-                  disabled={fields.length === 1}
                   onClick={async () => {
                     remove(idx);
                     await trigger('items');
                   }}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-md"
+                  title="Xóa vật tư"
                 >
                   <Trash2 size={18} />
                 </button>
