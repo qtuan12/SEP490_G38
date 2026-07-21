@@ -153,6 +153,15 @@ export const GlobalIncidents: React.FC = () => {
     loadData();
   });
 
+  useEffect(() => {
+    if (selectedIncident && isDetailOpen) {
+      const updated = incidents.find(i => i.id === selectedIncident.id);
+      if (updated) {
+        setSelectedIncident(updated);
+      }
+    }
+  }, [incidents, selectedIncident, isDetailOpen]);
+
   const handleSuccess = (msg?: string) => {
     if (msg) {
       setSuccess(msg);

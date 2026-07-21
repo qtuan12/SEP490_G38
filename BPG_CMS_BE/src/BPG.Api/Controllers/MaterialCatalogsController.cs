@@ -20,6 +20,7 @@ public class MaterialCatalogsController : BaseApiController
 
     [Authorize(Roles = "Admin")]
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateMaterialCatalogRequest request, CancellationToken ct)
     {
         var command = new CreateMaterialCatalogCommand(
@@ -36,6 +37,7 @@ public class MaterialCatalogsController : BaseApiController
 
     [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateMaterialCatalogRequest request, CancellationToken ct)
     {
         var command = new UpdateMaterialCatalogCommand(
@@ -53,6 +55,7 @@ public class MaterialCatalogsController : BaseApiController
 
     [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await Mediator.Send(new DeleteMaterialCatalogCommand(id), ct);
@@ -68,6 +71,7 @@ public class MaterialCatalogsController : BaseApiController
 
     [Authorize(Roles = "Admin")]
     [HttpPut("{id}/conversions")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SyncConversions(long id, [FromBody] List<MaterialConversionRequest> request, CancellationToken ct)
     {
         await Mediator.Send(new SyncMaterialConversionsCommand(id, request), ct);

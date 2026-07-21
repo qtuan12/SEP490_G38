@@ -95,8 +95,17 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
                     throw new BusinessException("ERR_FORBIDDEN", "Chỉ có TP Kỹ thuật hoặc Admin mới có quyền phê duyệt dừng thi công.");
 
+                var currentUser = await _unitOfWork.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+                var currentUserName = currentUser?.FullName ?? "Hệ thống";
+                var newReason = "Tạm dừng thi công do sự cố đặc biệt nghiêm trọng: " + incident.Description;
+
                 incident.Project.Status = ProjectStatus.Paused;
-                incident.Project.PauseReason = "Tạm dừng thi công do sự cố đặc biệt nghiêm trọng: " + incident.Description;
+                incident.Project.PauseReason = AppendStatusHistory(
+                    incident.Project.PauseReason,
+                    "pause",
+                    newReason,
+                    DateTime.UtcNow,
+                    currentUserName);
                 incident.Project.PausedAt = DateTime.UtcNow;
                 _unitOfWork.Repository<Project>().Update(incident.Project);
 
@@ -457,6 +466,52 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         incident.HandlingInstruction = request.HandlingInstruction;
                     }
 
+                    // Tìm phiếu giảm tồn kho liên kết đang chờ duyệt
+                    var adjustment = await _unitOfWork.Repository<InventoryAdjustment>().Query()
+                        .Include(a => a.Items)
+                        .Where(a => a.ProjectId == incident.ProjectId && a.PhaseId == incident.PhaseId && a.Status == InventoryAdjustmentStatus.Pending)
+                        .OrderBy(a => a.AdjustmentId)
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    if (adjustment != null)
+                    {
+                        // Phê duyệt phiếu giảm tồn kho
+                        adjustment.Status = InventoryAdjustmentStatus.Approved;
+                        adjustment.ApprovedBy = currentUserId;
+                        adjustment.ApprovedAt = System.DateTime.UtcNow;
+                        _unitOfWork.Repository<InventoryAdjustment>().Update(adjustment);
+
+                        // Trừ kho và ghi log Thẻ kho (InventoryTransaction) cho từng vật tư
+                        foreach (var item in adjustment.Items)
+                        {
+                            var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
+                                .FirstOrDefaultAsync(x => x.ProjectId == adjustment.ProjectId && x.MaterialId == item.MaterialId, cancellationToken);
+
+                            if (currentInventory == null || currentInventory.Quantity < item.Quantity)
+                            {
+                                throw new BusinessException("ERR_INSUFFICIENT_STOCK", $"Không đủ tồn kho cho vật tư ID {item.MaterialId}");
+                            }
+
+                            currentInventory.Quantity -= item.Quantity;
+                            currentInventory.LastUpdated = System.DateTime.UtcNow;
+                            _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
+
+                            var transaction = new InventoryTransaction
+                            {
+                                ProjectId = adjustment.ProjectId,
+                                MaterialId = item.MaterialId,
+                                TransactionType = 9, // IncidentLoss (Giảm tồn do sự cố)
+                                QuantityChange = -item.Quantity, // Âm
+                                BalanceAfter = currentInventory.Quantity,
+                                ReferenceId = adjustment.AdjustmentId,
+                                ReferenceType = EntityType.InventoryAdjustment,
+                                CreatedBy = currentUserId,
+                                CreatedAt = System.DateTime.UtcNow
+                            };
+                            await _unitOfWork.Repository<InventoryTransaction>().AddAsync(transaction);
+                        }
+                    }
+
                     await _notificationService.SendNotificationAsync(
                         incident.ReportedBy,
                         "Báo cáo sự cố đã được phê duyệt",
@@ -506,6 +561,12 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             updatedIncident.IncidentId,
             cancellationToken);
 
+        await _realtimeSender.SendToGroupAsync(
+            BPG.Domain.Constants.HubMethodNames.GroupProject + updatedIncident.ProjectId,
+            BPG.Domain.Constants.HubMethodNames.ProjectUpdated,
+            updatedIncident.ProjectId,
+            cancellationToken);
+
         // Realtime: broadcast to all members viewing global incidents (Project_0)
         await _realtimeSender.SendToGroupAsync(
             BPG.Domain.Constants.HubMethodNames.GroupProject + 0,
@@ -513,6 +574,60 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             updatedIncident.IncidentId,
             cancellationToken);
 
+        await _realtimeSender.SendToGroupAsync(
+            BPG.Domain.Constants.HubMethodNames.GroupProject + 0,
+            BPG.Domain.Constants.HubMethodNames.ProjectUpdated,
+            updatedIncident.ProjectId,
+            cancellationToken);
+
         return ApiResponse<IncidentDto>.SuccessResult(_mapper.Map<IncidentDto>(updatedIncident), "Sự cố đã được xác nhận và xử lý.");
+    }
+
+    private string AppendStatusHistory(string? currentReason, string type, string? reason, DateTime timestamp, string userName)
+    {
+        List<StatusHistoryItem> historyList;
+        if (!string.IsNullOrEmpty(currentReason) && currentReason.Trim().StartsWith("["))
+        {
+            try
+            {
+                historyList = System.Text.Json.JsonSerializer.Deserialize<List<StatusHistoryItem>>(currentReason) ?? new List<StatusHistoryItem>();
+            }
+            catch
+            {
+                historyList = new List<StatusHistoryItem>();
+            }
+        }
+        else
+        {
+            historyList = new List<StatusHistoryItem>();
+            if (!string.IsNullOrEmpty(currentReason))
+            {
+                historyList.Add(new StatusHistoryItem
+                {
+                    Type = "pause",
+                    Reason = currentReason,
+                    Timestamp = DateTime.UtcNow,
+                    User = "Hệ thống"
+                });
+            }
+        }
+
+        historyList.Add(new StatusHistoryItem
+        {
+            Type = type,
+            Reason = reason,
+            Timestamp = timestamp,
+            User = userName
+        });
+
+        return System.Text.Json.JsonSerializer.Serialize(historyList);
+    }
+
+    private class StatusHistoryItem
+    {
+        public string Type { get; set; } = string.Empty;
+        public string? Reason { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string User { get; set; } = string.Empty;
     }
 }
