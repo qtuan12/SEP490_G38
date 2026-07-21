@@ -69,7 +69,12 @@ try
 
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(jwtKey!)
-            )
+            ),
+
+            // Mặc định ASP.NET Core cho phép lệch 5 phút sau khi token hết hạn mới bị từ chối,
+            // khiến access token ngắn hạn (15 phút) thực tế sống lâu hơn dự kiến. Bỏ dung sai này
+            // để token hết hạn đúng thời điểm cấu hình, ép FE phải refresh đúng lúc.
+            ClockSkew = TimeSpan.Zero
         };
 
         options.Events = new JwtBearerEvents

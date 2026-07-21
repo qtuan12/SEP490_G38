@@ -23,6 +23,7 @@ export interface UserDetailProfile {
 
 export interface LoginResponse {
   token: string;
+  refreshToken: string;
   user: UserProfile;
 }
 
@@ -89,6 +90,7 @@ export const authService = {
 
       return {
         token: mockToken,
+        refreshToken: `mock-refresh-token-for-${mockUser.id}`,
         user: {
           id: mockUser.id,
           name: mockUser.name,
@@ -109,6 +111,7 @@ export const authService = {
         email: string;
         role: string;
         accessToken: string;
+        refreshToken: string;
       };
     }
 
@@ -121,6 +124,7 @@ export const authService = {
     const { data } = response;
     return {
       token: data.accessToken,
+      refreshToken: data.refreshToken,
       user: {
         id: String(data.userId),
         name: data.fullName,
@@ -237,7 +241,8 @@ export const authService = {
 
   logout(): void {
     if (!USE_MOCK_API) {
-      apiClient.post('/auth/logout', {}).catch(() => {});
+      const refreshToken = localStorage.getItem('bpg_refresh_token');
+      apiClient.post('/auth/logout', { refreshToken }).catch(() => {});
     }
   }
 };
