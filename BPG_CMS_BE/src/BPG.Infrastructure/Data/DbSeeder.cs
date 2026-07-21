@@ -710,10 +710,10 @@ public static class DbSeeder
             PhaseId        = phase.PhaseId,
             Reason         = "Xin cấp vật tư bổ sung phục vụ đổ bê tông dầm sàn",
             Status         = "Approved",
-            BOQCheckStatus = "WithinBOQ",
+            BOQCheckStatus = "OverBOQ",
             CheckedBy      = ketoan.UserId,
             ApprovedBy     = gd.UserId,
-            AccountantNote = "Hợp lệ, tạo PO bổ sung",
+            AccountantNote = "Vượt định mức. Đã giải trình hợp lệ và được Giám đốc duyệt.",
             CreatedAt      = DateTime.UtcNow.AddDays(-5),
             CreatedBy      = leader.UserId
         };
@@ -738,6 +738,7 @@ public static class DbSeeder
         foreach (var mat in catalogs.Take(3))
         {
             decimal qty = mat.Name.Contains("Thép") ? 2000 : 100;
+            bool isItemOver = mat.Name.Contains("Thép");
             context.MaterialRequestItems.Add(new MaterialRequestItem
             {
                 RequestId      = mr2.RequestId,
@@ -745,7 +746,7 @@ public static class DbSeeder
                 UnitId         = mat.BaseUnitId,
                 Quantity       = qty,
                 ConversionRate = 1,
-                IsOverBOQ      = false
+                IsOverBOQ      = isItemOver
             });
             context.PurchaseOrderItems.Add(new PurchaseOrderItem
             {

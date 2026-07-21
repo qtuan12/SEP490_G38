@@ -114,7 +114,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   const handleMaterialChange = (index: number, name: string) => {
     const mat = allCatalogs.find(m => m.name === name);
     if (mat) {
-      setValue(`items.${index}.unit`, mat.baseUnitName || '');
+      setValue(`items.${index}.unit`, mat.baseUnitName || '', { shouldValidate: true, shouldTouch: true, shouldDirty: true });
     }
   };
 
@@ -233,7 +233,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                     onChange={async (selName) => {
                       setValue(`items.${idx}.name`, selName, { shouldValidate: true });
                       handleMaterialChange(idx, selName);
-                      await trigger('items');
+                      await trigger(`items.${idx}.unit`);
                     }}
                     placeholder="-- Chọn vật tư --"
                     error={!!errors.items?.[idx]?.name}

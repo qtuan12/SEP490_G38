@@ -171,7 +171,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
     }
 
     setMaterialUnits(prev => ({ ...prev, [name]: units }));
-    setValue(`items.${idx}.unit`, baseUnit);
+    setValue(`items.${idx}.unit`, baseUnit, { shouldValidate: true, shouldTouch: true, shouldDirty: true });
   };
 
   const getUsedQuantity = (materialName: string) => {
@@ -289,8 +289,8 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
                     value={watchedItems[idx]?.name || ''}
                     onChange={async (selName) => {
                       setValue(`items.${idx}.name`, selName, { shouldValidate: true });
-                      handleMaterialChange(idx, selName);
-                      await trigger('items');
+                      await handleMaterialChange(idx, selName);
+                      await trigger(`items.${idx}.unit`);
                     }}
                     placeholder="-- Chọn vật tư --"
                     error={!!errors.items?.[idx]?.name}
