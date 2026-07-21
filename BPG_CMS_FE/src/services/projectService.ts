@@ -578,7 +578,7 @@ export const projectService = {
     const idx = allPhases.findIndex(p => p.id === phaseId);
     if (idx === -1) throw new Error('Không tìm thấy giai đoạn.');
     if (allPhases[idx].status === 'frozen') {
-      throw new Error('Giai đoạn đã đóng băng nghiệm thu, không thể cập nhật BOQ.');
+      throw new Error('Giai đoạn đã nghiệm thu, không thể cập nhật định mức vật tư.');
     }
     const mockMaterials: PhaseMaterialItem[] = materials.map(m => ({
       materialId: m.materialId,

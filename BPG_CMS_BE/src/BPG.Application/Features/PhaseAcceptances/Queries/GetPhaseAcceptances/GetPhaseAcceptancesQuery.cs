@@ -16,8 +16,26 @@ public class GetPhaseAcceptancesQuery : PaginationRequest, IRequest<PagedList<Ph
     public long? ProjectId { get; set; }
     public long? PhaseId { get; set; }
 
-    public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-        => Task.FromResult(ProjectId ?? 0);
+    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+    {
+        if (ProjectId.HasValue && ProjectId.Value > 0)
+        {
+            return ProjectId.Value;
+        }
+
+        if (PhaseId.HasValue && PhaseId.Value > 0)
+        {
+            var phase = await unitOfWork.Repository<Phase>().Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PhaseId == PhaseId.Value, cancellationToken);
+            if (phase != null)
+            {
+                return phase.ProjectId;
+            }
+        }
+
+        return 0;
+    }
 }
 
 public class GetPhaseAcceptancesQueryHandler : IRequestHandler<GetPhaseAcceptancesQuery, PagedList<PhaseAcceptanceDto>>
