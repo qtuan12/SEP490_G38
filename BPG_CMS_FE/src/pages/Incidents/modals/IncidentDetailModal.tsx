@@ -2107,7 +2107,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           <div style={{ maxHeight: '74vh', overflowY: 'auto', paddingLeft: '16px', borderLeft: '1px solid hsl(var(--border))' }} className="custom-scrollbar">
             <CreateRecoveryPlanForm
               incident={incident}
-              onSuccess={(msg) => {
+              onSuccess={() => {
                 if (onSuccessAction) onSuccessAction('Đã nộp báo cáo khắc phục');
                 setIsPlanModalOpen(false);
                 onClose();
