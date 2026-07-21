@@ -81,11 +81,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     switch (status) {
       case 'pending_leader': return <span className="badge badge-warning">Chờ Leader</span>;
       case 'approved_by_leader': return <span className="badge badge-info">Đã tổng hợp</span>;
-      case 'pending_accountant': return <span className="badge badge-warning">Chờ Kế toán</span>;
-      case 'pending_disbursement': return <span className="badge badge-warning">Chờ Tạm ứng</span>;
-      case 'pending_director': return <span className="badge badge-warning">Chờ Giám đốc</span>;
-      case 'approved': return <span className="badge badge-success">Đã duyệt</span>;
-      case 'rejected': return <span className="badge badge-danger">Từ chối</span>;
+      case 'pending_accountant': return <span className="badge badge-warning">Chờ phê duyệt</span>;
+      case 'pending_disbursement': return <span className="badge badge-warning">Chờ tạm ứng</span>;
+      case 'pending_director': return <span className="badge badge-warning">Chờ duyệt vượt định mức</span>;
+      case 'approved': return <span className="badge badge-success">Đã phê duyệt</span>;
+      case 'rejected': return <span className="badge badge-danger">Bị từ chối</span>;
       default: return <span className="badge badge-secondary">{status}</span>;
     }
   };

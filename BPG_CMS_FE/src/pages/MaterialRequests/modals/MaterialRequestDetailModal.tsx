@@ -107,17 +107,17 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
   const getStatusBadge = (status: MaterialRequest['status']) => {
     switch (status) {
       case 'pending_accountant':
-        return <Badge variant="warning">Đang kiểm tra</Badge>;
+        return <Badge variant="warning">Chờ phê duyệt</Badge>;
       case 'pending_director':
-        return <Badge variant="default">Chờ duyệt</Badge>;
+        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Chờ duyệt vượt định mức</Badge>;
       case 'pending_disbursement':
-        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Chờ Giải ngân</Badge>;
+        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Chờ tạm ứng</Badge>;
       case 'disbursed':
-        return <Badge variant="success">Đã giải ngân</Badge>;
+        return <Badge variant="success">Đã tạm ứng</Badge>;
       case 'approved':
-        return <Badge variant="success">Đã duyệt</Badge>;
+        return <Badge variant="success">Đã phê duyệt</Badge>;
       case 'rejected':
-        return <Badge variant="danger">Đã từ chối</Badge>;
+        return <Badge variant="danger">Bị từ chối</Badge>;
       case 'cancelled':
         return <Badge variant="default">Đã hủy</Badge>;
       default:
@@ -129,7 +129,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`YCVT-${request.id.replace('mat-req-', '')} — Chi tiết Yêu cầu Vật tư & Đối chiếu Định mức Giai đoạn`}
+      title={`${request.id.toUpperCase().replace('MAT-REQ-', 'YCVT-')} — Chi tiết Yêu cầu Vật tư & Đối chiếu Định mức Giai đoạn`}
       width="lg"
     >
       {loadingData ? (
@@ -154,7 +154,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
               </div>
               <div className="flex items-center gap-2 text-slate-600 text-sm">
                 <Layers size={16} className="text-slate-400" />
-                <span>Giai đoạn (Phase):</span>
+                <span>Giai đoạn:</span>
                 <strong className="text-slate-800 font-semibold">{request.phaseName || 'N/A'}</strong>
               </div>
             </div>
@@ -301,17 +301,17 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
               {((request.status === 'pending_accountant' || request.status === 'pending_director') &&
                 (request.createdBy === user?.id || isLeader) &&
                 handleCancelRequest) && (
-                <Button
-                  variant="danger"
-                  onClick={() => {
-                    onClose();
-                    handleCancelRequest(request.id);
-                  }}
-                  className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-1.5 px-3.5 text-xs font-semibold"
-                >
-                  Hủy yêu cầu
-                </Button>
-              )}
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      onClose();
+                      handleCancelRequest(request.id);
+                    }}
+                    className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-1.5 px-3.5 text-xs font-semibold"
+                  >
+                    Hủy yêu cầu
+                  </Button>
+                )}
 
               {request.status === 'pending_accountant' && isAccountant && (
                 <>

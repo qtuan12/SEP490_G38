@@ -48,7 +48,7 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
         // 2. Verify Phase is not frozen
         if (phase.Status == "frozen" || phase.Status == "Approved")
         {
-            throw new BusinessException("ERR_PHASE_FROZEN", "Giai đoạn đã đóng băng nghiệm thu, không thể cập nhật BOQ.");
+            throw new BusinessException("ERR_PHASE_FROZEN", "Giai đoạn đã nghiệm thu, không thể cập nhật định mức vật tư.");
         }
 
         // 3. Fetch all existing BOQItems of the Phase (including soft-deleted ones)

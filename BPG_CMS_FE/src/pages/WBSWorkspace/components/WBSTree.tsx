@@ -286,7 +286,7 @@ export const WBSTree = () => {
                                 </>
                               )}
 
-                              {project?.status !== 'draft' && !isFrozen && canEdit && (
+                              {project?.status !== 'draft' && (
                                 <div
                                   style={menuItemStyle}
                                   onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
@@ -294,7 +294,7 @@ export const WBSTree = () => {
                                   onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/boq`); }}
                                 >
                                   <Box size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                  <span>Bảng định mức vật tư</span>
+                                  <span>{isFrozen ? 'Bảng định mức vật tư' : 'Bảng định mức vật tư'}</span>
                                 </div>
                               )}
 
