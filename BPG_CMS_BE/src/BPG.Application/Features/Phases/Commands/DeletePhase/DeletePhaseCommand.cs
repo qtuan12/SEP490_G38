@@ -28,6 +28,11 @@ public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, Api
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
 
+        if (phase.Status == BPG.Domain.Constants.PhaseStatus.Approved)
+        {
+            throw new BusinessException("ERR_PHASE_APPROVED", "Không thể xóa phase đã nghiệm thu.");
+        }
+
         if (phase.Tasks.Any(t => t.ProgressPercent > 0))
         {
             throw new BusinessException("ERR_PHASE_HAS_IN_PROGRESS_TASKS", "Không thể xóa phase vì đã có task đang được thực hiện (tiến độ > 0%).");
