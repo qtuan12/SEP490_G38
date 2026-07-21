@@ -52,19 +52,20 @@ public class ProjectAuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
         {
             var projectId = await projectRequest.GetProjectIdAsync(_unitOfWork, cancellationToken);
 
-            if (projectId <= 0)
-            {
-                // Không xác định được dự án -> không cấp quyền (fail-closed).
-                throw new ForbiddenException("Không xác định được dự án để kiểm tra quyền truy cập.");
-            }
-
             var currentUserId = _currentUserService.UserId;
             if (currentUserId == null)
                 throw new UnauthorizedException();
 
-            // 1. Nhóm quyền cao: cho qua luôn, không check thành viên.
+            // 1. Nhóm quyền cao: cho qua luôn, kể cả khi không giới hạn theo 1 dự án cụ thể
+            //    (projectId <= 0 nghĩa là request muốn xem dữ liệu của TẤT CẢ dự án).
             if (_currentUserService.IsInAnyRole(FullAccessRoles))
                 return await next();
+
+            if (projectId <= 0)
+            {
+                // Role không có full-access mà không xác định được dự án -> không cấp quyền (fail-closed).
+                throw new ForbiddenException("Không xác định được dự án để kiểm tra quyền truy cập.");
+            }
 
             // 2. Các vai trò còn lại: phải là thành viên của dự án mới được xem.
             var isMember = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
