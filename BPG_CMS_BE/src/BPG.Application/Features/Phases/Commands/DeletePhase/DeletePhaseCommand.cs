@@ -4,10 +4,22 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.Common.Interfaces;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BPG.Application.Features.Phases.Commands.DeletePhase;
 
-public record DeletePhaseCommand(long PhaseId) : IRequest<ApiResponse>;
+public record DeletePhaseCommand(long PhaseId) : IRequest<ApiResponse>, IRequireTechnicalManager
+{
+    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+    {
+        var phase = await unitOfWork.Repository<Phase>().Query()
+            .FirstOrDefaultAsync(p => p.PhaseId == PhaseId, cancellationToken);
+        if (phase == null) throw new NotFoundException("Phase", PhaseId);
+        return phase.ProjectId;
+    }
+}
 
 public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, ApiResponse>
 {
@@ -27,6 +39,11 @@ public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, Api
 
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
+
+        if (phase.Status == BPG.Domain.Constants.PhaseStatus.Approved)
+        {
+            throw new BusinessException("ERR_PHASE_APPROVED", "Không thể xóa phase đã nghiệm thu.");
+        }
 
         if (phase.Tasks.Any(t => t.ProgressPercent > 0))
         {
