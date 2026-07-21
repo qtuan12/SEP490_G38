@@ -342,7 +342,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const contextValue = {
-    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, canEdit, materialRequests,
+    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests,
     expandedPhases, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,

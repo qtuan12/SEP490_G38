@@ -4,6 +4,7 @@ import { projectService } from '../../services/projectService';
 import type { Project } from '../../types/common';
 import { CreateProjectModal } from './modals/CreateProjectModal';
 import { Button, Input, Select, Badge, Pagination } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../../components/ui/Modal';
 import type { BadgeVariant } from '../../components/ui';
 import {
@@ -22,6 +23,9 @@ import {
 
 export const ProjectList: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isTPKT = user?.role === 'technicalmanager';
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -164,17 +168,19 @@ export const ProjectList: React.FC = () => {
         </div>
 
         {/* Add Project Button */}
-        <Button
-          variant="primary"
-          onClick={() => {
-            setError(null);
-            setIsOpen(true);
-          }}
-          className="h-10 font-semibold"
-        >
-          <FolderPlus size={18} />
-          <span>Khởi tạo Dự án</span>
-        </Button>
+        {isTPKT && (
+          <Button
+            variant="primary"
+            onClick={() => {
+              setError(null);
+              setIsOpen(true);
+            }}
+            className="h-10 font-semibold"
+          >
+            <FolderPlus size={18} />
+            <span>Khởi tạo Dự án</span>
+          </Button>
+        )}
       </div>
 
       {/* Grid Projects Content */}
@@ -202,7 +208,7 @@ export const ProjectList: React.FC = () => {
                 <div className="flex justify-between items-start gap-2">
                   <h3 className="text-[1.1rem] font-bold leading-tight">{p.name}</h3>
                   <div className="flex items-center gap-2">
-                    {p.status === 'draft' && (
+                    {isTPKT && p.status === 'draft' && (
                       <button
                         onClick={(e) => openDeleteConfirm(e, p.id, p.name)}
                         className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors"

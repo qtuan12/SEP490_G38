@@ -93,7 +93,7 @@ namespace BPG.Application.UnitTests.Inventory
         }
 
         [Fact]
-        public async Task Handle_ValidRequest_ShouldCalculateAvgUnitPriceCorrectly()
+        public async Task Handle_ValidRequest_ShouldRetrieveSupplierNameCorrectly()
         {
             // Arrange
             long projectId = 5;
@@ -145,7 +145,6 @@ namespace BPG.Application.UnitTests.Inventory
             result.Should().NotBeNull();
             result.Success.Should().BeTrue();
             var dto = result.Data.First();
-            dto.AvgUnitPrice.Should().Be(120); // (10*100 + 20*130)/30 = 120
             dto.SupplierName.Should().Be("Supplier Alpha");
         }
 
@@ -292,33 +291,7 @@ namespace BPG.Application.UnitTests.Inventory
             result.Data.First().SafetyThreshold.Should().Be(10m); // Fallback threshold
         }
 
-        [Fact]
-        public async Task UTCID04_Handle_WeightedAveragePriceWithZeroQtyItems_ShouldNotDivideByZero()
-        {
-            // Arrange
-            long projectId = 5;
-            var phase = new Phase { PhaseId = 20, ProjectId = projectId, IsDeleted = false };
-            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
 
-            // PO item has Qty = 0 (Should be filtered out by where Quantity > 0 clause)
-            var po = new PurchaseOrder { POId = 1, Request = new MaterialRequest { Phase = phase } };
-            var poItem = new PurchaseOrderItem { POId = 1, MaterialId = 50, Quantity = 0, UnitPrice = 100, PurchaseOrder = po };
-            _mockPoItemRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrderItem> { poItem }.AsQueryable().BuildMock());
-
-            var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement" };
-            var unit = new Unit { UnitName = "Bag" };
-            var inventory = new CurrentInventory { ProjectId = projectId, MaterialId = 50, Material = material, Unit = unit };
-            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
-
-            var query = new GetCurrentInventoryQuery(projectId);
-
-            // Act
-            var result = await _handler.Handle(query, CancellationToken.None);
-
-            // Assert
-            result.Success.Should().BeTrue();
-            result.Data.First().AvgUnitPrice.Should().Be(0);
-        }
 
         [Fact]
         public async Task UTCID05_Handle_ConversionRateNotOne_ShouldDivideQuantityByConversionRate()

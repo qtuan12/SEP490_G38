@@ -35,6 +35,7 @@ export interface InventoryAdjustmentDto {
 }
 
 export interface CreateIncreaseAdjustmentCommand {
+  phaseId: number;
   reason: string;
   description?: string;
   items: { materialId: number; quantity: number }[];

@@ -5,6 +5,9 @@ using BPG.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Application.Common.Interfaces;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BPG.Application.Features.Phases.Commands.UpdatePhase;
 
@@ -14,8 +17,18 @@ public record UpdatePhaseCommand(
     string? Description,
     int OrderIndex,
     DateOnly? StartDate,
-    DateOnly? EndDate
-) : IRequest<ApiResponse>;
+    DateOnly? EndDate,
+    int Status
+) : IRequest<ApiResponse>, IRequireTechnicalManager
+{
+    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+    {
+        var phase = await unitOfWork.Repository<Phase>().Query()
+            .FirstOrDefaultAsync(p => p.PhaseId == PhaseId, cancellationToken);
+        if (phase == null) throw new NotFoundException("Phase", PhaseId);
+        return phase.ProjectId;
+    }
+}
 
 public class UpdatePhaseCommandValidator : AbstractValidator<UpdatePhaseCommand>
 {

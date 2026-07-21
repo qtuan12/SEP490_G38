@@ -20,7 +20,7 @@ const getAvatarColor = (userId: string) => {
 export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => { };
   const {
-    phases, tasks, isTPKTOrPL, isPL, canEdit, materialRequests, user, project,
+    phases, tasks, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, user, project,
     expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -180,27 +180,6 @@ export const WBSTree = () => {
                       </span>
                     )}
 
-                    {ph.materials && ph.materials.length > 0 && (
-                      <span
-                        style={{
-                          fontSize: '0.7rem',
-                          color: 'hsl(var(--primary))',
-                          backgroundColor: 'hsl(var(--primary-glow))',
-                          padding: '1px 5px',
-                          borderRadius: 'var(--radius-sm)',
-                          fontWeight: 'normal',
-                          cursor: 'help',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          border: '1px solid hsl(var(--primary) / 0.15)',
-                          whiteSpace: 'nowrap'
-                        }}
-                        title={ph.materials.map(m => `${m.name}: ${m.quantity} ${m.unit}`).join(', ')}
-                      >
-                        📦 {ph.materials.length} vật tư
-                      </span>
-                    )}
 
 
 
@@ -270,7 +249,7 @@ export const WBSTree = () => {
 
                           {showMenu && (
                             <div onClick={e => e.stopPropagation()} className="absolute top-[24px] z-[200] bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-md shadow-lg min-w-[160px] overflow-hidden left-0 sm:left-auto sm:right-0 py-1">
-                              {!isFrozen && phaseProgress === 0 && canEdit && (
+                              {!isFrozen && phaseProgress === 0 && canEdit && isTPKT && (
                                 <div
                                   style={menuItemStyle}
                                   onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
@@ -362,7 +341,7 @@ export const WBSTree = () => {
                               )}
 
 
-                              {!isFrozen && canEdit && (
+                              {!isFrozen && canEdit && isTPKT && (
                                 <div
                                   style={{ ...menuItemStyle, color: 'hsl(var(--danger))' }}
                                   onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--danger-glow))'}
@@ -665,7 +644,7 @@ export const WBSTree = () => {
             })}
 
             {/* ── Add Phase button (Modal trigger) ─────────── */}
-            {canEdit && (
+            {(canEdit && isTPKT) && (
               <div style={{ marginTop: '8px' }}>
                 <button
                   onClick={() => setIsCreatePhaseOpen(true)}

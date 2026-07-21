@@ -251,7 +251,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
       return items;
     }
 
-    const canReceive = isLeader && (po.status === 'Sent' || po.status === 'PartiallyReceived');
+    const canReceive = (isLeader || user?.role === 'technicalmanager') && (po.status === 'Sent' || po.status === 'PartiallyReceived');
     if (canReceive) {
       items.push({
         key: 'receive',
