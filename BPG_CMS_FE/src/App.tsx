@@ -298,7 +298,7 @@ function App() {
               <Route 
                 path="/reports" 
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
                     <ReportsHub />
                   </ProtectedRoute>
                 } 
@@ -316,7 +316,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/reports/boq" 
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
                     <BoqVsActualReport />
                   </ProtectedRoute>
                 } 
@@ -325,7 +325,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/reports/cost" 
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
                     <CostReferenceReport />
                   </ProtectedRoute>
                 } 

@@ -27,31 +27,41 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const { data: wbsDataAll, isLoading: loading, error: queryError } = useQuery({
-    queryKey: ['wbsDataAll', projectId],
-    queryFn: async () => {
-      const [wbsData, allProjs, memberList, mr, incidentsList] = await Promise.all([
-        wbsService.getWbsDataFlattened(projectId),
-        projectService.getProjects(),
-        projectService.getMembers(projectId),
-        projectService.getMaterialRequests(projectId),
-        incidentService.getIncidents(Number(projectId.replace('p-', '')))
-      ]);
-      return {
-        wbsData,
-        project: allProjs.find(p => p.id === projectId) || null,
-        memberList,
-        materialRequests: mr,
-        incidentsList
-      };
-    }
+  // The tree is the only blocking request for the WBS area. Supporting data is
+  // fetched independently so a slow material-request or incident endpoint does
+  // not keep the whole tree behind the loading state.
+  const { data: wbsData, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['wbsData', projectId],
+    queryFn: () => wbsService.getWbsDataFlattened(projectId),
+    staleTime: 30_000,
   });
 
-  const phases = wbsDataAll?.wbsData.phases || [];
-  const tasks = wbsDataAll?.wbsData.tasks || [];
-  const project = wbsDataAll?.project || null;
-  const members = wbsDataAll?.memberList || [];
-  const materialRequests = wbsDataAll?.materialRequests || [];
+  const { data: project = null } = useQuery({
+    queryKey: ['wbsProject', projectId],
+    queryFn: () => projectService.getProjectById(projectId),
+    staleTime: 60_000,
+  });
+
+  const { data: members = [] } = useQuery({
+    queryKey: ['wbsMembers', projectId],
+    queryFn: () => projectService.getMembers(projectId),
+    staleTime: 60_000,
+  });
+
+  const { data: materialRequests = [] } = useQuery({
+    queryKey: ['wbsMaterialRequests', projectId],
+    queryFn: () => projectService.getMaterialRequests(projectId),
+    staleTime: 30_000,
+  });
+
+  const { data: incidentsList = [] } = useQuery({
+    queryKey: ['wbsIncidents', projectId],
+    queryFn: () => incidentService.getIncidents(Number(projectId.replace('p-', ''))),
+    staleTime: 30_000,
+  });
+
+  const phases = wbsData?.phases || [];
+  const tasks = wbsData?.tasks || [];
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -151,17 +161,17 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   useEffect(() => {
-    if (wbsDataAll?.wbsData.phases) {
+    if (wbsData?.phases) {
       setExpandedPhases(prev => {
         if (Object.keys(prev).length === 0) {
           const expands: Record<string, boolean> = {};
-          wbsDataAll.wbsData.phases.forEach(p => { expands[p.id] = true; });
+          wbsData.phases.forEach(p => { expands[p.id] = true; });
           return expands;
         }
         return prev;
       });
     }
-  }, [wbsDataAll?.wbsData.phases]);
+  }, [wbsData?.phases]);
 
   // Support opening task detail from URL
   useEffect(() => {
@@ -187,7 +197,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
     const handleWbsUpdated = (payload: any) => {
       console.log('SignalR: WbsTreeUpdated', payload);
-      queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
     };
 
     connection.on('WbsTreeUpdated', handleWbsUpdated);
@@ -201,7 +211,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   }, [connection, projectId]);
 
   const loadWBSData = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+    await queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
   };
 
   const togglePhase = (phaseId: string) =>
@@ -210,7 +220,12 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const handleSuccess = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(null), 3000);
-    queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+    // Refresh supporting information in the background without blocking the tree.
+    queryClient.invalidateQueries({ queryKey: ['wbsProject', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['wbsMembers', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['wbsMaterialRequests', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['wbsIncidents', projectId] });
   };
   const handleError = (msg: string) => {
     setError(msg);
@@ -231,7 +246,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   };
 
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
-  const incidentsList = wbsDataAll?.incidentsList || [];
   const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
 
   const canEdit = isTPKTOrPL && (
@@ -398,7 +412,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
-            <h3 className="text-[1.15rem] font-semibold m-0">Cơ cấu phân rã công việc (WBS)</h3>
+            <h3 className="text-[1.15rem] font-semibold m-0">Cấu trúc công việc</h3>
 
           </div>
           <div className="flex gap-2 flex-wrap">

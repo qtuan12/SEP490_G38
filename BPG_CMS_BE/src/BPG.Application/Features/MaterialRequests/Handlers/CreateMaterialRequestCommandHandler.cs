@@ -58,7 +58,7 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
                 .AnyAsync(pm => pm.ProjectId == request.ProjectId && pm.UserId == currentUserId && pm.IsLeader, cancellationToken);
             if (!isLeader)
             {
-                throw new ForbiddenException("Chỉ có Chỉ huy trưởng (Project Leader) của dự án mới được phép lập đề xuất yêu cầu vật tư.");
+                throw new ForbiddenException("Chỉ có trưởng nhóm của dự án mới được phép lập đề xuất yêu cầu vật tư.");
             }
 
             // 2. Kiểm tra Phase tồn tại và thuộc dự án

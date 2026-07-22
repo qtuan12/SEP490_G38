@@ -182,9 +182,9 @@ export const ProjectLayoutHub: React.FC = () => {
   const [isPausing, setIsPausing] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
-  const fetchProjectDetails = async () => {
+  const fetchProjectDetails = async (isInitial = true) => {
     if (!projectId) return;
-    setLoading(true);
+    if (isInitial) setLoading(true);
     try {
       queryClient.invalidateQueries({ queryKey: ['projectIncidents', projectId] });
       const data = await projectService.getProjectById(projectId);
@@ -198,12 +198,12 @@ export const ProjectLayoutHub: React.FC = () => {
     } catch (err) {
       console.error('Error loading project details:', err);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProjectDetails();
+    fetchProjectDetails(true);
   }, [projectId]);
 
   useEffect(() => {
@@ -238,7 +238,7 @@ export const ProjectLayoutHub: React.FC = () => {
 
     const handleWbsUpdated = () => {
       console.log('ProjectLayoutHub received WbsTreeUpdated, reloading project details for progress...');
-      fetchProjectDetails();
+      fetchProjectDetails(false);
     };
 
     connection.on('WbsTreeUpdated', handleWbsUpdated);
@@ -250,57 +250,72 @@ export const ProjectLayoutHub: React.FC = () => {
 
   useSignalREvent('IncidentUpdated', () => {
     console.log('SignalR: IncidentUpdated received in ProjectLayoutHub, reloading project...');
-    fetchProjectDetails();
+    fetchProjectDetails(false);
   });
 
   useSignalREvent('ProjectUpdated', () => {
     console.log('SignalR: ProjectUpdated received in ProjectLayoutHub, reloading project...');
-    fetchProjectDetails();
+    fetchProjectDetails(false);
   });
 
   useSignalREvent('IncidentCreated', () => {
     console.log('SignalR: IncidentCreated received in ProjectLayoutHub, reloading project...');
-    fetchProjectDetails();
+    fetchProjectDetails(false);
   });
-
-  // Handle reload when tabs perform updates
-  // const handleTabUpdate = () => {
-  //   fetchProjectDetails();
-  // };
 
   const handleStatusChange = async (newStatus: 'inprogress' | 'paused' | 'done') => {
     if (!project) return;
     setStatusError(null);
+    const prevStatus = project.status;
+
     try {
       if (newStatus === 'inprogress') {
-        if (project.status === 'paused') {
+        // Optimistic update UI real-time
+        setProject(prev => prev ? { ...prev, status: 'inprogress' } : null);
+
+        if (prevStatus === 'paused') {
           await projectService.resumeProject(project.id);
         } else {
           await projectService.activateProject(project.id);
         }
-        fetchProjectDetails(); // reload
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+        fetchProjectDetails(false);
       } else if (newStatus === 'paused') {
         setPauseReason("");
         setIsPauseModalOpen(true);
       } else {
+        // Optimistic update UI real-time
+        setProject(prev => prev ? { ...prev, status: newStatus } : null);
         await projectService.updateProject(project.id, { status: newStatus });
-        fetchProjectDetails(); // reload
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+        fetchProjectDetails(false);
       }
     } catch (err: any) {
+      // Revert if error occurs
+      setProject(prev => prev ? { ...prev, status: prevStatus } : null);
       setStatusError(err.message || 'Có lỗi xảy ra khi đổi trạng thái');
     }
   };
 
   const handleConfirmPause = async () => {
     if (!project) return;
+    const prevStatus = project.status;
     setIsPausing(true);
     setStatusError(null);
+
+    // Optimistic update UI real-time immediately
+    setProject(prev => prev ? { ...prev, status: 'paused' } : null);
+    setIsPauseModalOpen(false);
+
     try {
       await projectService.pauseProject(project.id, pauseReason || "Tạm dừng dự án");
-      await fetchProjectDetails();
-      setIsPauseModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      await fetchProjectDetails(false);
     } catch (err: any) {
+      // Revert UI if API failed
+      setProject(prev => prev ? { ...prev, status: prevStatus } : null);
       setStatusError(err.message || 'Có lỗi xảy ra khi tạm dừng dự án');
+      setIsPauseModalOpen(true);
     } finally {
       setIsPausing(false);
     }
@@ -420,7 +435,7 @@ export const ProjectLayoutHub: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {(user?.role === 'director' || user?.role === 'accountant') && (
+            {(user?.role === 'admin' || user?.role === 'accountant') && (
               <>
                 <button onClick={() => navigate(`/projects/${projectId}/reports/boq`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Package size={16} /> Báo cáo BOQ
