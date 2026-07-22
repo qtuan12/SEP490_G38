@@ -6,7 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
-import type {WBSPhase} from '../../../types/common';
+import type { WBSPhase } from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
 const editPhaseSchema = z.object({
@@ -90,7 +90,7 @@ export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Chỉnh sửa Giai đoạn (Phase)">
+    <Modal isOpen={isOpen} onClose={onClose} title="Chỉnh sửa giai đoạn">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         <div>
           <label className="block text-sm font-medium mb-1.5 text-slate-600">
@@ -106,7 +106,7 @@ export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
 
         <div>
           <label className="block text-sm font-medium mb-1.5 text-slate-600">
-            Mô tả Phase
+            Mô tả giai đoạn
           </label>
           <textarea
             placeholder="Mô tả các yêu cầu chung cho Giai đoạn này..."
@@ -118,18 +118,18 @@ export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-600">Ngày bắt đầu dự kiến</label>
-            <input 
-              type="date" 
+            <label className="block text-sm font-medium mb-1.5 text-slate-600">Ngày bắt đầu</label>
+            <input
+              type="date"
               {...register('startDate')}
               className={`w-full text-sm px-3 py-2 rounded-md border ${errors.startDate ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
             />
             {errors.startDate && <p className="text-red-500 text-xs mt-1">{errors.startDate.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1.5 text-slate-600">Ngày kết thúc (Deadline)</label>
-            <input 
-              type="date" 
+            <label className="block text-sm font-medium mb-1.5 text-slate-600">Ngày kết thúc</label>
+            <input
+              type="date"
               {...register('endDate')}
               className={`w-full text-sm px-3 py-2 rounded-md border ${errors.endDate ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
             />

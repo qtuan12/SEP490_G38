@@ -43,7 +43,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           </div>
         </div>
       </div>
-      <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+      <div className="px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
         <Button
           variant={isDanger ? 'danger' : 'primary'}
           onClick={onConfirm}
