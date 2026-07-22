@@ -51,6 +51,11 @@ namespace BPG.Application.UnitTests.Tasks
             _mockUow.Setup(u => u.Repository<TaskDependency>()).Returns(_mockDependencyRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
 
+            // Technical Manager scenarios query the project leader for cross-notification.
+            // Use an async-capable empty query by default; individual tests can override it.
+            _mockMemberRepo.Setup(r => r.Query())
+                .Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+
             _handler = new MarkTaskObsoleteCommandHandler(
                 _mockUow.Object,
                 _mockRollupService.Object,
