@@ -454,42 +454,42 @@ namespace BPG.Application.UnitTests.DailyLogs
 
         [Fact]
         public async Task UTCID12_Handle_MultipleImages_ShouldSucceed()
-{
-    // Arrange
-    _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-    var task = new ProjectTask
-    {
-        TaskId = 100,
-        Phase = new Phase { Project = project }
-    };
-    _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                Phase = new Phase { Project = project }
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
 
-    var user = new User { UserId = 10, FullName = "Admin User" };
-    _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { user }.AsQueryable().BuildMock());
+            var user = new User { UserId = 10, FullName = "Admin User" };
+            _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { user }.AsQueryable().BuildMock());
 
-    var images = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8" }; // 8 images
-    var command = new CreateDailyLogCommand 
-    { 
-        TaskId = 100, 
-        NewProgressPercent = 50, 
-        Description = "Multiple images test",
-        Images = images 
-    };
+            var images = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8" }; // 8 images
+            var command = new CreateDailyLogCommand
+            {
+                TaskId = 100,
+                NewProgressPercent = 50,
+                Description = "Multiple images test",
+                Images = images
+            };
 
-    // Act
-    var result = await _handler.Handle(command, CancellationToken.None);
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
 
             // Assert
             result.Should().NotBeNull();
             result.EditWindowHours.Should().Be(24);
             result.CanEdit.Should().BeTrue();
             _mockAttachmentRepo.Verify(r => r.AddRangeAsync(
-        It.Is<IEnumerable<Attachment>>(l => l.Count() == 8), 
+        It.Is<IEnumerable<Attachment>>(l => l.Count() == 8),
         It.IsAny<CancellationToken>()
     ), Times.Once);
-}
+        }
 
         [Fact]
         public async Task UTCID13_Handle_InsufficientPermission_ShouldThrowForbiddenException()
@@ -515,7 +515,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             await act.Should().ThrowAsync<ForbiddenException>()
                 .WithMessage("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
         }
-  
+
         [Fact]
         public async Task UTCID14_Handle_ExceptionDuringUpdate_ShouldRollbackAndThrow()
         {
@@ -671,7 +671,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var predecessor1 = new ProjectTask { TaskId = 91, ProgressPercent = 100, Status = BPG.Domain.Constants.TaskStatus.Completed };
             var predecessor2 = new ProjectTask { TaskId = 92, ProgressPercent = 50, Status = BPG.Domain.Constants.TaskStatus.InProgress, Name = "Unfinished Foundation Work" };
-            
+
             var dependency1 = new TaskDependency { TaskId = 100, PredecessorTaskId = 91, Predecessor = predecessor1 };
             var dependency2 = new TaskDependency { TaskId = 100, PredecessorTaskId = 92, Predecessor = predecessor2 };
             _mockDependencyRepo.Setup(r => r.Query()).Returns(new List<TaskDependency> { dependency1, dependency2 }.AsQueryable().BuildMock());
@@ -698,7 +698,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
             var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            
+
             // Parent task has 80% progress
             var parentTask = new ProjectTask
             {
@@ -717,7 +717,7 @@ namespace BPG.Application.UnitTests.DailyLogs
                 Phase = new Phase { Project = project },
                 SubTasks = new List<ProjectTask>()
             };
-            
+
             parentTask.SubTasks.Add(childTask);
 
             // Mock repo query to return both tasks
@@ -746,7 +746,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             result.Should().NotBeNull();
             childTask.ProgressPercent.Should().Be(50);
             parentTask.ProgressPercent.Should().Be(50); // Rolled up parent task progress should be updated to 50% (average of child task)
-            
+
             // Should capture two DailyLog entries: one for child task (100) and one for parent task (90)
             capturedLogs.Should().HaveCount(2);
             capturedLogs.Any(l => l.TaskId == 100 && l.NewProgressPercent == 50).Should().BeTrue();

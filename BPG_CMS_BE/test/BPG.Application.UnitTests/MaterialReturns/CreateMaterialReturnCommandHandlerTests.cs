@@ -450,208 +450,208 @@ namespace BPG.Application.UnitTests.MaterialReturns
             _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
-      [Fact]
-public async Task UTCID13_Handle_TechnicalManagerUser_ShouldCreateMaterialReturnSuccessfully()
-{
-    // Arrange
-    _mockCurrentUserService.SetupUser(10, TechnicalManager);
+        [Fact]
+        public async Task UTCID13_Handle_TechnicalManagerUser_ShouldCreateMaterialReturnSuccessfully()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, TechnicalManager);
 
-    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
-    var issuance = new MaterialIssuance
-    {
-        MaterialIssuanceId = 500,
-        Task = task,
-        Items = new List<MaterialIssuanceItem>
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 500,
+                Task = task,
+                Items = new List<MaterialIssuanceItem>
         {
             new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
         }
-    };
-    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
-    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
-    _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
 
-    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+            var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
     {
         new ReturnItemDto(50, 1, 5, 1)
     });
 
-    // Act
-    var result = await _handler.Handle(command, CancellationToken.None);
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
 
-    // Assert
-    result.Success.Should().BeTrue();
-}
+            // Assert
+            result.Success.Should().BeTrue();
+        }
 
-[Fact]
-public async Task UTCID14_Handle_ProjectLeaderUser_ShouldCreateMaterialReturnSuccessfully()
-{
-    // Arrange
-    _mockCurrentUserService.SetupUser(10, SiteEngineer, hasRole: false);
+        [Fact]
+        public async Task UTCID14_Handle_ProjectLeaderUser_ShouldCreateMaterialReturnSuccessfully()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, SiteEngineer, hasRole: false);
 
-    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
-    var issuance = new MaterialIssuance
-    {
-        MaterialIssuanceId = 500,
-        Task = task,
-        Items = new List<MaterialIssuanceItem>
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 500,
+                Task = task,
+                Items = new List<MaterialIssuanceItem>
         {
             new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
         }
-    };
-    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
-    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
 
-    var members = new List<ProjectMember> { new ProjectMember { ProjectId = 5, UserId = 10, IsLeader = true } };
-    _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+            var members = new List<ProjectMember> { new ProjectMember { ProjectId = 5, UserId = 10, IsLeader = true } };
+            _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
 
-    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+            var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
     {
         new ReturnItemDto(50, 1, 5, 1)
     });
 
-    // Act
-    var result = await _handler.Handle(command, CancellationToken.None);
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
 
-    // Assert
-    result.Success.Should().BeTrue();
-}
+            // Assert
+            result.Success.Should().BeTrue();
+        }
 
-[Fact]
-public async Task UTCID15_Handle_SiteEngineerNotLeader_ShouldThrowForbiddenException()
-{
-    // Arrange
-    _mockCurrentUserService.SetupUser(10, SiteEngineer, hasRole: false);
+        [Fact]
+        public async Task UTCID15_Handle_SiteEngineerNotLeader_ShouldThrowForbiddenException()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, SiteEngineer, hasRole: false);
 
-    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
-    var issuance = new MaterialIssuance
-    {
-        MaterialIssuanceId = 500,
-        Task = task,
-        Items = new List<MaterialIssuanceItem>
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 500,
+                Task = task,
+                Items = new List<MaterialIssuanceItem>
         {
             new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
         }
-    };
-    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
-    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
-    _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
 
-    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+            var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
     {
         new ReturnItemDto(50, 1, 5, 1)
     });
 
-    // Act
-    Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
-    // Assert
-    await act.Should().ThrowAsync<ForbiddenException>()
-        .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
-}
+            // Assert
+            await act.Should().ThrowAsync<ForbiddenException>()
+                .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+        }
 
-[Fact]
-public async Task UTCID16_Handle_AccountantUser_ShouldThrowForbiddenException()
-{
-    // Arrange
-    _mockCurrentUserService.SetupUser(10, Accountant, hasRole: false);
+        [Fact]
+        public async Task UTCID16_Handle_AccountantUser_ShouldThrowForbiddenException()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, Accountant, hasRole: false);
 
-    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
-    var issuance = new MaterialIssuance
-    {
-        MaterialIssuanceId = 500,
-        Task = task,
-        Items = new List<MaterialIssuanceItem>
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 500,
+                Task = task,
+                Items = new List<MaterialIssuanceItem>
         {
             new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
         }
-    };
-    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
-    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
-    _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
 
-    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+            var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
     {
         new ReturnItemDto(50, 1, 5, 1)
     });
 
-    // Act
-    Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
-    // Assert
-    await act.Should().ThrowAsync<ForbiddenException>()
-        .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
-}
+            // Assert
+            await act.Should().ThrowAsync<ForbiddenException>()
+                .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+        }
 
-[Fact]
-public async Task UTCID17_Handle_AdminUser_ShouldThrowForbiddenException()
-{
-    // Arrange
-    _mockCurrentUserService.SetupUser(10, Admin, hasRole: false);
+        [Fact]
+        public async Task UTCID17_Handle_AdminUser_ShouldThrowForbiddenException()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, Admin, hasRole: false);
 
-    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
-    var issuance = new MaterialIssuance
-    {
-        MaterialIssuanceId = 500,
-        Task = task,
-        Items = new List<MaterialIssuanceItem>
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 500,
+                Task = task,
+                Items = new List<MaterialIssuanceItem>
         {
             new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
         }
-    };
-    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
-    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
-    _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
 
-    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+            var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
     {
         new ReturnItemDto(50, 1, 5, 1)
     });
 
-    // Act
-    Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
-    // Assert
-    await act.Should().ThrowAsync<ForbiddenException>()
-        .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
-}
+            // Assert
+            await act.Should().ThrowAsync<ForbiddenException>()
+                .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+        }
 
-[Fact]
-public async Task UTCID18_Handle_DirectorUser_ShouldThrowForbiddenException()
-{
-    // Arrange
-    _mockCurrentUserService.SetupUser(10, Director, hasRole: false);
+        [Fact]
+        public async Task UTCID18_Handle_DirectorUser_ShouldThrowForbiddenException()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10, Director, hasRole: false);
 
-    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-    var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
-    var issuance = new MaterialIssuance
-    {
-        MaterialIssuanceId = 500,
-        Task = task,
-        Items = new List<MaterialIssuanceItem>
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask { TaskId = 100, Phase = new Phase { Project = project } };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 500,
+                Task = task,
+                Items = new List<MaterialIssuanceItem>
         {
             new MaterialIssuanceItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
         }
-    };
-    _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
-    _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
-    _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+            };
+            _mockIssuanceRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuance> { issuance }.AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
 
-    var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
+            var command = new CreateMaterialReturnCommand(500, "Reason", new List<ReturnItemDto>
     {
         new ReturnItemDto(50, 1, 5, 1)
     });
 
-    // Act
-    Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
-    // Assert
-    await act.Should().ThrowAsync<ForbiddenException>()
-        .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
-}
-}
+            // Assert
+            await act.Should().ThrowAsync<ForbiddenException>()
+                .WithMessage("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+        }
+    }
 }

@@ -259,7 +259,51 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         }
 
         [Fact]
-        public async Task UTCID08_Handle_InsufficientStock_ShouldThrowBusinessException()
+        public async Task UTCID08_Handle_DiscreteBaseUnitWithFractionalQuantity_ShouldThrowBusinessException()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(10);
+            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var task = new ProjectTask
+            {
+                TaskId = 100,
+                IsLocked = false,
+                Phase = new Phase { Project = project }
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+
+            var material = new MaterialCatalog
+            {
+                MaterialId = 50,
+                Name = "Precast Panel",
+                BaseUnit = new Unit { UnitName = "Panel", IsDiscrete = true }
+            };
+            var inventory = new CurrentInventory
+            {
+                ProjectId = 5,
+                MaterialId = 50,
+                Quantity = 10,
+                ReservedQuantity = 0,
+                Material = material
+            };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
+
+            var command = new CreateMaterialIssuanceCommand(100, "Purpose", new List<CreateMaterialIssuanceItemDto>
+            {
+                new CreateMaterialIssuanceItemDto(50, 1, 1.5m)
+            });
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task UTCID09_Handle_InsufficientStock_ShouldThrowBusinessException()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(10);
@@ -453,7 +497,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 10, ReservedQuantity = 0, Material = material };
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
 
-            var members = isLeader 
+            var members = isLeader
                 ? new List<ProjectMember> { new ProjectMember { ProjectId = 5, UserId = 10, IsLeader = true } }
                 : new List<ProjectMember>();
             _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
