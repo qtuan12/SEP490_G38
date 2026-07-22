@@ -26,14 +26,6 @@ namespace BPG.Application.Common.Behaviors;
 public class ProjectAuthorizationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
-    // Vai trò được phép xem toàn bộ dự án mà không cần là thành viên.
-    private static readonly string[] FullAccessRoles =
-    {
-        RoleConstants.Director,
-        RoleConstants.TechnicalManager,
-        RoleConstants.Accountant
-    };
-
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -51,12 +43,6 @@ public class ProjectAuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
         if (request is IProjectRequirement projectRequest)
         {
             var projectId = await projectRequest.GetProjectIdAsync(_unitOfWork, cancellationToken);
-
-            if (projectId <= 0)
-            {
-                // Không xác định được dự án -> không cấp quyền (fail-closed).
-                throw new ForbiddenException("Không xác định được dự án để kiểm tra quyền truy cập.");
-            }
 
             var currentUserId = _currentUserService.UserId;
             if (currentUserId == null)
@@ -84,6 +70,11 @@ public class ProjectAuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
                     return await next();
                 }
 
+                if (projectId <= 0)
+                {
+                    throw new ForbiddenException("Không xác định được dự án để kiểm tra quyền truy cập.");
+                }
+
                 var leaderMember = await _unitOfWork.Repository<ProjectMember>().Query().FirstOrDefaultAsync(
                     m => m.ProjectId == projectId && m.UserId == currentUserId.Value,
                     cancellationToken);
@@ -96,13 +87,20 @@ public class ProjectAuthorizationBehavior<TRequest, TResponse> : IPipelineBehavi
                 return await next();
             }
 
-            // 2. Nhóm quyền cao: cho qua luôn, không check thành viên đối với các Query/Command thường
+            // 2. Nhóm quyền cao: cho qua luôn, kể cả khi không giới hạn theo 1 dự án cụ thể
+            //    (projectId <= 0 nghĩa là request muốn xem dữ liệu của TẤT CẢ dự án).
             if (isDirector || isTechnicalManager || isAccountant)
             {
                 return await next();
             }
 
             // 3. Các vai trò còn lại: phải là thành viên của dự án mới được truy cập
+            if (projectId <= 0)
+            {
+                // Role không có full-access mà không xác định được dự án -> không cấp quyền (fail-closed).
+                throw new ForbiddenException("Không xác định được dự án để kiểm tra quyền truy cập.");
+            }
+
             var isMember = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
                 m => m.ProjectId == projectId && m.UserId == currentUserId.Value,
                 cancellationToken);

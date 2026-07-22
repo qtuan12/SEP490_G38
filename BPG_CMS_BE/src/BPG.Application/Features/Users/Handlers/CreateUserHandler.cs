@@ -39,6 +39,9 @@ public class CreateUserHandler : IRequestHandler<CreateUserCommand, UserDto>
         {
             FullName = cmd.Name,
             Email = cmd.Email,
+            PhoneNumber = string.IsNullOrWhiteSpace(cmd.PhoneNumber)
+                ? null
+                : cmd.PhoneNumber.Replace(" ", "").Replace("-", "").Trim(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
             IsActive = true,
         };

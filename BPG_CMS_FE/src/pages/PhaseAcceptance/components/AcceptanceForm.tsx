@@ -71,14 +71,14 @@ export const AcceptanceForm: React.FC<AcceptanceFormProps> = ({
 ### 3. Thời gian nghiệm thu:
 * Bắt đầu: ${formatDateOnly(new Date().toISOString())}
 * Kết thúc: ${endTime || '........................'}
-* Tại công trình: ${project.address || 'Địa chỉ dự án'}
+* Tại công trình: ${project.address || ''}
 
 ### 4. Đánh giá công việc xây dựng đã thực hiện:
 ${data.reportContent}
 
 ### 5. Kết luận:
-- ${conclusion1 || 'Đồng ý nghiệm thu giai đoạn công việc xây dựng này.'}
-- ${conclusion2 || 'Cho phép chuyển sang triển khai công đoạn tiếp theo.'}`;
+- ${conclusion1 || '................................................................................'}
+${conclusion2 ? `- ${conclusion2}` : ''}`;
 
       await phaseAcceptanceService.acceptPhase({
         phaseId: Number(phase.id),
@@ -87,7 +87,7 @@ ${data.reportContent}
       return data;
     },
     onSuccess: () => {
-      onSuccess('Đã nghiệm thu giai đoạn và thành công!');
+      onSuccess('Đã nghiệm thu giai đoạn thành công!');
       onPhaseUpdated();
     },
     onError: (err: any) => {
@@ -163,7 +163,7 @@ ${data.reportContent}
                   type="text"
                   value={repAName}
                   onChange={(e) => setRepAName(e.target.value)}
-                  placeholder="Họ tên người giám sát"
+                  placeholder=""
                   style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1.5, fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
                 />
                 <span>Chức vụ:</span>
@@ -171,7 +171,7 @@ ${data.reportContent}
                   type="text"
                   value={repARole}
                   onChange={(e) => setRepARole(e.target.value)}
-                  placeholder="Chức vụ"
+                  placeholder=""
                   style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1, fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
                 />
               </p>
@@ -182,7 +182,7 @@ ${data.reportContent}
                   type="text"
                   value={repBName}
                   onChange={(e) => setRepBName(e.target.value)}
-                  placeholder="Họ tên chỉ huy trưởng"
+                  placeholder=""
                   style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1.5, fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
                 />
                 <span>Chức vụ:</span>
@@ -190,7 +190,7 @@ ${data.reportContent}
                   type="text"
                   value={repBRole}
                   onChange={(e) => setRepBRole(e.target.value)}
-                  placeholder="Chức vụ"
+                  placeholder=""
                   style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1, fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
                 />
               </p>
@@ -207,7 +207,7 @@ ${data.reportContent}
                   type="text"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  placeholder="Ví dụ: 17h00 ngày 11/07/2026"
+                  placeholder=""
                   style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1, maxWidth: '400px', fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
                 />
               </p>
@@ -250,7 +250,7 @@ ${data.reportContent}
                   type="text"
                   value={conclusion1}
                   onChange={(e) => setConclusion1(e.target.value)}
-                  placeholder="Đồng ý nghiệm thu giai đoạn công việc xây dựng này."
+                  placeholder=""
                   style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1, fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
                 />
               </div>
@@ -260,7 +260,7 @@ ${data.reportContent}
                   type="text"
                   value={conclusion2}
                   onChange={(e) => setConclusion2(e.target.value)}
-                  placeholder="Cho phép chuyển sang triển khai công đoạn tiếp theo."
+                  placeholder=""
                   style={{ border: 'none', borderBottom: '1.5px dotted #000', outline: 'none', flex: 1, fontFamily: '"Times New Roman", Times, serif', fontSize: '14pt', padding: '0 4px', backgroundColor: 'transparent', color: '#000000' }}
                 />
               </div>
@@ -282,6 +282,11 @@ ${data.reportContent}
               (Ký, đóng dấu, ghi rõ họ tên)
             </span>
           </div>
+          <br></br>
+          <br></br>
+          <br></br>
+          <br></br>
+          <br></br>
         </div>
       </div>
 

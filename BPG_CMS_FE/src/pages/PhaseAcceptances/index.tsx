@@ -149,7 +149,7 @@ export const PhaseAcceptances: React.FC = () => {
           </span>
         </div>
         <div className="flex flex-col gap-1 min-w-[220px]">
-          <span className="text-xs text-[hsl(var(--text-secondary))] font-semibold uppercase tracking-wider">Giai đoạn (Phase)</span>
+          <span className="text-xs text-[hsl(var(--text-secondary))] font-semibold uppercase tracking-wider">Giai đoạn</span>
           <span className="text-sm font-bold text-[hsl(var(--text-primary))] bg-slate-100/60 px-3 py-2 rounded-md border border-slate-200/50 block">
             {phasesLoading ? 'Đang tải...' : currentPhaseName || `ID: ${searchPhaseId}`}
           </span>

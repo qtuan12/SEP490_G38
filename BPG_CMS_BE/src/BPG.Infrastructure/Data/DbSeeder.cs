@@ -172,9 +172,11 @@ public static class DbSeeder
         if (!await context.SystemConfigs.AnyAsync())
         {
             context.SystemConfigs.AddRange(
-                new SystemConfig { ConfigKey = "NguongTonKhoThap",    ConfigValue = "10",  DataType = "decimal", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "HanHuyPhieuNgay",     ConfigValue = "7",   DataType = "int",     CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "PhanTramTreKyVong",    ConfigValue = "15",  DataType = "decimal", CreatedAt = DateTime.UtcNow }
+                new SystemConfig { ConfigKey = "NguongTonKhoThap", ConfigValue = "10", DataType = "number", DisplayName = "Ngưỡng tồn kho thấp", Description = "Số lượng tồn kho tối thiểu. Khi tồn kho thấp hơn ngưỡng này, hệ thống sẽ cảnh báo.", Unit = "đơn vị", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "HanHuyPhieuNgay", ConfigValue = "7", DataType = "number", DisplayName = "Hạn hủy phiếu nhập kho", Description = "Số ngày tối đa kể từ khi tạo phiếu nhập kho mà người dùng có thể hủy phiếu.", Unit = "ngày", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "DailyLogEditWindowHours", ConfigValue = "24", DataType = "number", DisplayName = "Giờ được sửa nhật ký thi công", Description = "Số giờ kể từ lúc tạo mà kỹ sư còn được phép chỉnh sửa nhật ký thi công.", Unit = "giờ", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "BPG CMS", DataType = "string", DisplayName = "Tên công ty", Description = "Tên công ty hiển thị trên sidebar và trang đăng nhập.", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "CompanyLogoUrl", ConfigValue = "/logo.png", DataType = "string", DisplayName = "Logo công ty", Description = "URL logo hiển thị trên sidebar và trang đăng nhập.", CreatedAt = DateTime.UtcNow }
             );
             await context.SaveChangesAsync();
         }
@@ -348,7 +350,30 @@ public static class DbSeeder
                         PhaseId        = phase.PhaseId,
                         AcceptedBy     = tpkt.UserId,
                         AcceptanceDate = DateTime.UtcNow.AddDays(-5),
-                        ReportContent  = "Nghiệm thu đạt yêu cầu kỹ thuật, hoàn thành đúng tiến độ.",
+                        ReportContent  = $@"### 2. Thành phần trực tiếp nghiệm thu:
+* **Đại diện Ban quản lý Dự án (hoặc nhà thầu Tư vấn giám sát):**
+  - Ông/Bà: Lê Minh Tuấn  Chức vụ: Trưởng phòng Kỹ thuật
+* **Đại diện Nhà thầu thi công:**
+  - Ông/Bà: Nguyễn Văn A  Chức vụ: Trưởng dự án
+
+### 3. Thời gian nghiệm thu:
+* Bắt đầu: {DateTime.UtcNow.AddDays(-5):dd/MM/yyyy}
+* Kết thúc: {DateTime.UtcNow.AddDays(-5):dd/MM/yyyy}
+* Tại công trình: Việt Nam
+
+### 4. Đánh giá công việc xây dựng đã thực hiện:
+- **Tài liệu căn cứ nghiệm thu:**
+  * Bản vẽ thiết kế thi công đã duyệt.
+  * Nhật ký thi công công trình.
+  * Các kết quả thí nghiệm, kiểm định chất lượng vật liệu (nếu có).
+
+- **Đánh giá về chất lượng:** Các hạng mục thuộc giai đoạn **{phase.Name}** đã được thi công đạt yêu cầu kỹ thuật theo đúng hồ sơ thiết kế và các tiêu chuẩn hiện hành.
+- **Đánh giá về khối lượng:** Hoàn thành toàn bộ khối lượng công việc theo đúng thiết kế của giai đoạn.
+- **Ý kiến khác:** Không.
+
+### 5. Kết luận:**
+- Đồng ý nghiệm thu giai đoạn công việc xây dựng này.
+- Cho phép chuyển sang triển khai công đoạn tiếp theo.",
                         IsCancelled    = false,
                         CreatedAt      = DateTime.UtcNow,
                         CreatedBy      = tpkt.UserId
@@ -710,10 +735,10 @@ public static class DbSeeder
             PhaseId        = phase.PhaseId,
             Reason         = "Xin cấp vật tư bổ sung phục vụ đổ bê tông dầm sàn",
             Status         = "Approved",
-            BOQCheckStatus = "WithinBOQ",
+            BOQCheckStatus = "OverBOQ",
             CheckedBy      = ketoan.UserId,
             ApprovedBy     = gd.UserId,
-            AccountantNote = "Hợp lệ, tạo PO bổ sung",
+            AccountantNote = "Vượt định mức. Đã giải trình hợp lệ và được Giám đốc duyệt.",
             CreatedAt      = DateTime.UtcNow.AddDays(-5),
             CreatedBy      = leader.UserId
         };
@@ -738,6 +763,7 @@ public static class DbSeeder
         foreach (var mat in catalogs.Take(3))
         {
             decimal qty = mat.Name.Contains("Thép") ? 2000 : 100;
+            bool isItemOver = mat.Name.Contains("Thép");
             context.MaterialRequestItems.Add(new MaterialRequestItem
             {
                 RequestId      = mr2.RequestId,
@@ -745,7 +771,7 @@ public static class DbSeeder
                 UnitId         = mat.BaseUnitId,
                 Quantity       = qty,
                 ConversionRate = 1,
-                IsOverBOQ      = false
+                IsOverBOQ      = isItemOver
             });
             context.PurchaseOrderItems.Add(new PurchaseOrderItem
             {

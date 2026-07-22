@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { CompanyProvider } from './context/CompanyContext';
 import { Layout } from './components/layout/MainLayout';
 import { Login } from './pages/Auth/Login';
 import { PhaseAcceptances } from './pages/PhaseAcceptances';
@@ -105,6 +106,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <CompanyProvider>
       <AuthProvider>
         <NotificationProvider>
           <Router>
@@ -296,7 +298,7 @@ function App() {
               <Route 
                 path="/reports" 
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
                     <ReportsHub />
                   </ProtectedRoute>
                 } 
@@ -314,7 +316,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/reports/boq" 
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
                     <BoqVsActualReport />
                   </ProtectedRoute>
                 } 
@@ -323,7 +325,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/reports/cost" 
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
                     <CostReferenceReport />
                   </ProtectedRoute>
                 } 
@@ -410,6 +412,7 @@ function App() {
           </Router>
         </NotificationProvider>
       </AuthProvider>
+      </CompanyProvider>
       <Toaster position="top-right" />
     </QueryClientProvider>
   );

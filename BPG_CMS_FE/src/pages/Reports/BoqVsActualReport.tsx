@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { reportService, type BoqVsActualItemDto } from '../../services/reportService';
 import { projectService } from '../../services/projectService';
-import type {Project} from '../../types/common';
+import type { Project } from '../../types/common';
 import { ArrowLeft, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
@@ -14,9 +14,9 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId }) => {
   const params = useParams<{ projectId: string }>();
   const projectId = embeddedProjectId || params.projectId;
   const navigate = useNavigate();
-  
+
   const [items, setItems] = useState<BoqVsActualItemDto[]>([]);
-  const [allProjectsData, setAllProjectsData] = useState<{name: string, exceedCount: number}[]>([]);
+  const [allProjectsData, setAllProjectsData] = useState<{ name: string, exceedCount: number }[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId }) => {
           const projs = await projectService.getProjects();
           const activeProjs = projs.filter(p => p.status !== 'draft');
           const reports = await Promise.all(activeProjs.map(p => reportService.getBoqVsActual(Number(p.id)).catch(() => null)));
-          
+
           const aggregated = activeProjs.map((p, idx) => {
             const r = reports[idx];
             return {
@@ -39,8 +39,8 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId }) => {
               exceedCount: r ? r.items.filter(i => i.isExceeding).length : 0
             };
           }).filter(x => x.exceedCount > 0);
-          
-          setAllProjectsData(aggregated.sort((a,b) => b.exceedCount - a.exceedCount));
+
+          setAllProjectsData(aggregated.sort((a, b) => b.exceedCount - a.exceedCount));
           setProject(null);
         } else {
           const [projs, report] = await Promise.all([
@@ -106,15 +106,15 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId }) => {
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
                   <XAxis type="number" allowDecimals={false} />
-                  <YAxis dataKey="name" type="category" width={150} tick={{fontSize: 12}} />
-                  <RechartsTooltip formatter={(value: any) => [`${value} mã vật tư`, 'Vượt định mức']} cursor={{fill: 'hsl(var(--bg-main))'}} />
+                  <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
+                  <RechartsTooltip formatter={(value: any) => [`${value} mã vật tư`, 'Vượt định mức']} cursor={{ fill: 'hsl(var(--bg-main))' }} />
                   <Bar dataKey="exceedCount" name="Mã vật tư vượt BOQ" fill="hsl(var(--danger))" radius={[0, 4, 4, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
             <div className="p-10 text-center text-[hsl(var(--success))] font-medium">
-              Tuyệt vời! Không có dự án nào có vật tư vượt định mức BOQ.
+              Không có dự án nào có vật tư vượt định mức.
             </div>
           )}
         </div>
@@ -137,7 +137,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId }) => {
                 <AlertTriangle size={24} />
               </div>
               <div>
-                <div className="text-sm font-semibold text-[hsl(var(--text-muted))]">VẬT TƯ VƯỢT ĐỊNH MỨC BOQ</div>
+                <div className="text-sm font-semibold text-[hsl(var(--text-muted))]">VẬT TƯ VƯỢT ĐỊNH MỨC</div>
                 <div className="text-2xl font-bold text-[hsl(var(--danger))]">{exceedingItemsCount}</div>
               </div>
             </div>
@@ -159,9 +159,9 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId }) => {
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" tick={{fontSize: 12}} />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                     <YAxis />
-                    <RechartsTooltip cursor={{fill: 'hsl(var(--bg-main))'}} />
+                    <RechartsTooltip cursor={{ fill: 'hsl(var(--bg-main))' }} />
                     <Legend />
                     <Bar dataKey="boq" name="Định mức (BOQ)" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="actual" name="Tổng tiêu thụ dự kiến" radius={[4, 4, 0, 0]}>

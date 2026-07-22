@@ -2,7 +2,6 @@ using BPG.Application.Common.Models;
 using BPG.Application.DTOs.PurchaseOrders;
 using BPG.Application.Common.Interfaces;
 using BPG.Application.IRepositories;
-using BPG.Domain.Exceptions;
 using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,11 +14,11 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
         public string? Status { get; set; }
         public string? PONumber { get; set; }
 
+        // Không truyền ProjectId → xem danh sách PO của TẤT CẢ dự án (chỉ role full-access
+        // trong ProjectAuthorizationBehavior mới được phép xem global, role khác vẫn bị chặn).
         public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
-            if (ProjectId == null)
-                throw new NotFoundException("ProjectId");
-            return Task.FromResult(ProjectId.Value);
+            return Task.FromResult(ProjectId ?? 0L);
         }
     }
 }

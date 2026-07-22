@@ -171,7 +171,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
     }
 
     setMaterialUnits(prev => ({ ...prev, [name]: units }));
-    setValue(`items.${idx}.unit`, baseUnit);
+    setValue(`items.${idx}.unit`, baseUnit, { shouldValidate: true, shouldTouch: true, shouldDirty: true });
   };
 
   const getUsedQuantity = (materialName: string) => {
@@ -228,7 +228,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
     onSuccess: (_, variables) => {
       const msg = variables.type === 'emergency'
         ? 'Đã lập phiếu mua ngoài khẩn cấp! Hệ thống tự động sinh PO & Phiếu nhập kho, tăng tồn kho ảo tức thì.'
-        : (isOverBOQ ? 'Đã gửi yêu cầu vật tư VƯỢT ĐỊNH MỨC (Chờ Giám đốc).' : 'Đã gửi yêu cầu vật tư (Chờ Kế toán).');
+        : (isOverBOQ ? 'Đã gửi yêu cầu vật tư vượt định mức, chờ phê duyệt.' : 'Đã gửi yêu cầu vật tư, chờ phê duyệt.');
       onSuccess(msg);
       queryClient.invalidateQueries({ queryKey: ['materialRequests'] });
       onClose();
@@ -247,7 +247,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={task ? "Đề xuất Vật tư cho Công việc" : "Yêu cầu Vật tư cho Phase"}>
+    <Modal isOpen={isOpen} onClose={onClose} title={task ? "Đề xuất Vật tư cho Công việc" : "Yêu cầu Vật tư cho Giai đoạn"}>
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         <div className="text-sm bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100">
           {task ? (
@@ -289,8 +289,8 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
                     value={watchedItems[idx]?.name || ''}
                     onChange={async (selName) => {
                       setValue(`items.${idx}.name`, selName, { shouldValidate: true });
-                      handleMaterialChange(idx, selName);
-                      await trigger('items');
+                      await handleMaterialChange(idx, selName);
+                      await trigger(`items.${idx}.unit`);
                     }}
                     placeholder="-- Chọn vật tư --"
                     error={!!errors.items?.[idx]?.name}
@@ -325,12 +325,12 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
                 <button
                   type="button"
-                  disabled={fields.length === 1}
                   onClick={async () => {
                     remove(idx);
                     await trigger('items');
                   }}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-md"
+                  title="Xóa vật tư"
                 >
                   <Trash2 size={18} />
                 </button>

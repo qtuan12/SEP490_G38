@@ -18,6 +18,25 @@ public class AuthController : BaseApiController
         return ApiOk(result, "Đăng nhập thành công");
     }
 
+    [HttpPost("refresh-token")]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return ApiOk(result, "Làm mới token thành công");
+    }
+
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenCommand command)
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!long.TryParse(userIdStr, out var userId))
+            throw new UnauthorizedException("Không xác định được người dùng.");
+
+        await Mediator.Send(new LogoutCommand(userId, command.RefreshToken));
+        return ApiOk("Đăng xuất thành công");
+    }
+
     [HttpGet("me")]
     [Authorize]
     public async Task<IActionResult> GetCurrentUser()

@@ -112,7 +112,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
   const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
   const isDirector = user?.role === 'director' || user?.role === 'admin';
-  const canCreateRequest = user?.role === 'admin' || user?.role === 'projectleader' || user?.role === 'siteengineer' || user?.role === 'technicalmanager';
+  const canCreateRequest = isLeader || user?.role === 'admin' || user?.role === 'projectleader';
 
   const fetchData = async () => {
     setLoading(true);
@@ -129,8 +129,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       setIsLeader(
         (currentMember ? currentMember.isLeader : false) ||
         user?.role === 'projectleader' ||
-        user?.role === 'admin' ||
-        user?.role === 'technicalmanager'
+        user?.role === 'admin'
       );
     } catch (err) {
       console.error('Error fetching material requests tab data:', err);
@@ -153,7 +152,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       setPromptPhaseId(phases[0].id);
       setIsCreatePromptOpen(true);
     } else {
-      toast.error('Dự án chưa có giai đoạn (Phase) nào để yêu cầu vật tư.');
+      toast.error('Dự án chưa có giai đoạn nào để yêu cầu vật tư.');
     }
   };
 
@@ -307,15 +306,15 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       case 'approved_by_leader':
         return <Badge variant="info"><CheckCircle size={12} className="mr-1" /> Đã tổng hợp</Badge>;
       case 'pending_accountant':
-        return <Badge variant="warning"><Clock size={12} className="mr-1" /> Chờ Kế toán</Badge>;
+        return <Badge variant="warning"><Clock size={12} className="mr-1" /> Chờ phê duyệt</Badge>;
       case 'pending_disbursement':
-        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]"><Clock size={12} className="mr-1" /> Chờ Tạm ứng</Badge>;
+        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]"><Clock size={12} className="mr-1" /> Chờ tạm ứng</Badge>;
       case 'pending_director':
-        return <Badge variant="warning"><Clock size={12} className="mr-1" /> Chờ Giám đốc</Badge>;
+        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]"><Clock size={12} className="mr-1" /> Chờ duyệt vượt định mức</Badge>;
       case 'approved':
-        return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> Đã duyệt</Badge>;
+        return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> Đã phê duyệt</Badge>;
       case 'rejected':
-        return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Từ chối</Badge>;
+        return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Bị từ chối</Badge>;
       case 'cancelled':
         return <Badge variant="default"><XCircle size={12} className="mr-1" /> Đã hủy</Badge>;
       default:
@@ -329,7 +328,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     } else if (req.isOverBOQ) {
       return <Badge variant="danger" className="text-[0.68rem] py-0.5 px-2 normal-case">Vượt định mức</Badge>;
     } else {
-      return <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.68rem]">Trong định mức</span>;
+      return <Badge variant="default" className="text-[0.68rem] py-0.5 px-2 normal-case">Trong định mức</Badge>;
     }
   };
 
@@ -382,10 +381,10 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
               onChange={e => setStatusFilter(e.target.value)}
             >
               <option value="">Tất cả Trạng thái</option>
-              <option value="pending_accountant">Chờ Kế toán</option>
-              <option value="pending_director">Chờ Giám đốc</option>
-              <option value="approved">Đã duyệt</option>
-              <option value="rejected">Từ chối</option>
+              <option value="pending_accountant">Chờ phê duyệt</option>
+              <option value="pending_director">Chờ duyệt vượt định mức</option>
+              <option value="approved">Đã phê duyệt</option>
+              <option value="rejected">Bị từ chối</option>
               <option value="cancelled">Đã hủy</option>
             </select>
           </div>
@@ -623,7 +622,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
         >
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-500">Chọn Giai đoạn (Phase) (*)</label>
+              <label className="text-xs font-semibold text-slate-500">Chọn Giai đoạn (*)</label>
               <select
                 className="w-full px-3 py-2 border border-[hsl(var(--border))] rounded-lg text-sm bg-white"
                 value={promptPhaseId}

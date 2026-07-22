@@ -619,7 +619,7 @@ export const Dashboard: React.FC = () => {
       { title: 'Tiến độ Công việc', value: `${projectExecData.completedTasks} / ${projectExecData.totalTasks}`, change: `${Math.round((projectExecData.completedTasks / Math.max(1, projectExecData.totalTasks)) * 100)}% Hoàn thành`, isPositive: true, icon: <CheckSquare size={24} />, color: 'hsl(var(--success))' },
       { title: 'Công việc trễ hạn (Đỏ)', value: projectExecData.delayedTasks.toString(), change: 'Cần giải quyết ngay', isPositive: false, icon: <AlertCircle size={24} />, color: 'hsl(var(--danger))' },
       { title: 'Công việc nguy cơ (Vàng)', value: projectExecData.atRiskTasks.toString(), change: 'Cần theo dõi tiến độ', isPositive: false, icon: <Clock size={24} />, color: 'hsl(var(--warning))' },
-      { title: 'Vật tư vượt định mức BOQ', value: projectExecData.materialsExceedingBOQ.toString(), change: 'Yêu cầu vượt BOQ', isPositive: false, icon: <Boxes size={24} />, color: 'hsl(346_84%_35%)' },
+      { title: 'Vật tư vượt định mức', value: projectExecData.materialsExceedingBOQ.toString(), change: 'Yêu cầu vượt BOQ', isPositive: false, icon: <Boxes size={24} />, color: 'hsl(346_84%_35%)' },
     ] : [];
 
     return (
@@ -797,7 +797,7 @@ export const Dashboard: React.FC = () => {
       { title: 'Tiến độ Dự án', value: `${projectExecData.completedTasks} / ${projectExecData.totalTasks}`, change: `${Math.round((projectExecData.completedTasks / Math.max(1, projectExecData.totalTasks)) * 100)}% Hoàn thành`, isPositive: true, icon: <CheckSquare size={24} />, color: 'hsl(var(--success))' },
       { title: 'Công việc trễ hạn', value: projectExecData.delayedTasks.toString(), change: 'Cần đẩy nhanh tiến độ', isPositive: false, icon: <AlertCircle size={24} />, color: 'hsl(var(--danger))' },
       { title: 'Công việc nguy cơ', value: projectExecData.atRiskTasks.toString(), change: 'Theo dõi kỹ thuật', isPositive: false, icon: <Clock size={24} />, color: 'hsl(var(--warning))' },
-      { title: 'Vật tư vượt định mức BOQ', value: projectExecData.materialsExceedingBOQ.toString(), change: 'Yêu cầu kiểm soát', isPositive: false, icon: <Boxes size={24} />, color: 'hsl(346_84%_35%)' },
+      { title: 'Vật tư vượt định mức', value: projectExecData.materialsExceedingBOQ.toString(), change: 'Yêu cầu kiểm soát', isPositive: false, icon: <Boxes size={24} />, color: 'hsl(346_84%_35%)' },
     ] : [];
 
     const numericProjectId = selectedProjectId.replace('p-', '');

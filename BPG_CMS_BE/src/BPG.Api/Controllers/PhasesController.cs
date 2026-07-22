@@ -44,7 +44,7 @@ public class PhasesController : BaseApiController
     }
 
     [HttpGet("{phaseId}/boq")]
-    [Authorize(Roles = "SiteEngineer,TechnicalManager,Admin")]
+    [Authorize(Roles = "SiteEngineer,TechnicalManager,ProjectLeader,Director,Accountant,Admin")]
     public async Task<IActionResult> GetPhaseBOQ([FromRoute] long projectId, [FromRoute] long phaseId, CancellationToken ct)
     {
         var result = await Mediator.Send(new GetPhaseBOQQuery(phaseId), ct);
