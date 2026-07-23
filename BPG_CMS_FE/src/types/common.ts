@@ -186,6 +186,7 @@ export interface WBSTask {
   isOutsourced?: boolean;
   outsourcedTeamName?: string;
   outsourcedTeamContact?: string;
+  obsoleteReason?: string;
 }
 
 export interface DailyLogComment {
