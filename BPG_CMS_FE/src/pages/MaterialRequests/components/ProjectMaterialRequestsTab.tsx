@@ -74,6 +74,10 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   // Kiểm tra điều kiện trước khi điều hướng sang trang tạo PO cho một yêu cầu vật tư
   const [checkingPORequestId, setCheckingPORequestId] = useState<string | null>(null);
 
+  // Map requestId (dạng số, string) -> có thể tạo PO hay không, dùng để tô màu nút "Tạo PO"
+  // trước khi người dùng bấm. undefined = chưa xác định (coi như có thể, tránh nháy màu khi đang tải).
+  const [poEligibility, setPoEligibility] = useState<Record<string, boolean>>({});
+
   const handleCreatePOClick = async (req: MaterialRequest) => {
     const numericId = req.id.replace('mat-req-', '');
     setCheckingPORequestId(req.id);
@@ -170,6 +174,32 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   useEffect(() => {
     fetchData();
   }, [projectId, user]);
+
+  // Kế toán mới cần biết trước yêu cầu nào còn tạo được PO, để tô màu nút phù hợp
+  useEffect(() => {
+    if (user?.role !== 'accountant') return;
+    const approvedRequests = requests.filter(r => r.status === 'approved');
+    if (approvedRequests.length === 0) return;
+
+    let cancelled = false;
+    inventoryService.getApprovedRequestsForPO(projectId)
+      .then(eligible => {
+        if (cancelled) return;
+        const map: Record<string, boolean> = {};
+        approvedRequests.forEach(req => {
+          const numericId = req.id.replace('mat-req-', '');
+          const target = eligible.find(r => r.requestId === Number(numericId));
+          map[numericId] = !!target && target.items.some(it => it.remainingQuantity > 0);
+        });
+        setPoEligibility(map);
+      })
+      .catch(() => {
+        // Không chặn giao diện nếu việc tra cứu trước thất bại — nút vẫn giữ màu mặc định,
+        // việc kiểm tra chính xác sẽ diễn ra khi người dùng bấm "Tạo PO".
+      });
+
+    return () => { cancelled = true; };
+  }, [requests, projectId, user]);
 
   // Realtime update via SignalR
   useSignalREvent('ReceiveNotification', (noti: any) => {
@@ -478,20 +508,30 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                         <span>Chi tiết</span>
                       </Button>
 
-                      {/* Tạo PO: chỉ hiển thị cho Kế toán (không tính Admin) với các yêu cầu đã Approved */}
-                      {user?.role === 'accountant' && req.status === 'approved' && (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          disabled={checkingPORequestId === req.id}
-                          onClick={() => handleCreatePOClick(req)}
-                          className="py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-[hsl(var(--primary))] text-white border-none hover:bg-[hsl(var(--primary-hover))]"
-                          title="Tạo đơn mua hàng cho yêu cầu này"
-                        >
-                          <ShoppingCart size={13} />
-                          <span>{checkingPORequestId === req.id ? 'Đang kiểm tra...' : 'Tạo PO'}</span>
-                        </Button>
-                      )}
+                      {/* Tạo PO: chỉ hiển thị cho Kế toán (không tính Admin) với các yêu cầu đã Approved.
+                          Yêu cầu không còn đủ điều kiện (đã đặt đủ vật tư qua PO khác...) vẫn hiện nút
+                          nhưng tô màu xám — bấm vào sẽ báo lý do không thể tạo thay vì bị ẩn mất. */}
+                      {user?.role === 'accountant' && req.status === 'approved' && (() => {
+                        const numericId = req.id.replace('mat-req-', '');
+                        const canCreatePO = poEligibility[numericId] !== false;
+                        return (
+                          <Button
+                            variant={canCreatePO ? 'primary' : 'secondary'}
+                            size="sm"
+                            disabled={checkingPORequestId === req.id}
+                            onClick={() => handleCreatePOClick(req)}
+                            className={
+                              canCreatePO
+                                ? 'py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-[hsl(var(--primary))] text-white border-none hover:bg-[hsl(var(--primary-hover))]'
+                                : 'py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-[hsl(var(--bg-main))] text-[hsl(var(--text-muted))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--border-light))]'
+                            }
+                            title={canCreatePO ? 'Tạo đơn mua hàng cho yêu cầu này' : 'Yêu cầu này hiện không thể tạo đơn mua hàng'}
+                          >
+                            <ShoppingCart size={13} />
+                            <span>{checkingPORequestId === req.id ? 'Đang kiểm tra...' : 'Tạo PO'}</span>
+                          </Button>
+                        );
+                      })()}
                     </div>
                   </td>
                 </tr>

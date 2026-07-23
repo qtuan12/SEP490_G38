@@ -30,6 +30,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             var po = await _uow.Repository<PurchaseOrder>().Query()
                 .AsNoTracking()
                 .Include(p => p.Supplier)
+                .Include(p => p.Project)
                 .Include(p => p.Items).ThenInclude(i => i.Material)
                 .Include(p => p.Items).ThenInclude(i => i.Unit)
                 .Include(p => p.Request).ThenInclude(mr => mr!.Phase)
@@ -45,18 +46,6 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     .AnyAsync(m => m.ProjectId == effectiveProjectId.Value && m.UserId == currentUserId, cancellationToken);
                 if (!isMember)
                     throw new ForbiddenException("Bạn không được phân công vào dự án này nên không có quyền xem đơn hàng.");
-            }
-
-            // Project name
-            string projectName = string.Empty;
-            if (po.ProjectId.HasValue)
-            {
-                var project = await _uow.Repository<Project>().Query()
-                    .AsNoTracking()
-                    .Where(p => p.ProjectId == po.ProjectId.Value)
-                    .Select(p => p.Name)
-                    .FirstOrDefaultAsync(cancellationToken);
-                projectName = project ?? string.Empty;
             }
 
             // TotalReceived per material from approved GR items
@@ -78,7 +67,6 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 OrderDate = po.OrderDate,
                 ExpectedDeliveryDate = po.ExpectedDeliveryDate,
                 DeliveryAddress = po.DeliveryAddress,
-                PaymentTerms = po.PaymentTerms,
                 Notes = po.Notes,
                 CancelledReason = po.CancelledReason,
                 ClosedReason = po.ClosedReason,
@@ -87,7 +75,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 SupplierName = po.Supplier?.SupplierName ?? string.Empty,
                 SupplierContactInfo = po.Supplier?.ContactInfo,
                 ProjectId = po.ProjectId,
-                ProjectName = projectName,
+                ProjectName = po.Project?.Name ?? string.Empty,
                 Items = po.Items.Select(i =>
                 {
                     receivedMap.TryGetValue(i.MaterialId, out var received);

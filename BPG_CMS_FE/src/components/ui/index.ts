@@ -4,6 +4,7 @@ export * from './Avatar';
 export * from './LoadingSpinner';
 export * from './Card';
 export * from './Input';
+export * from './DateInput';
 export * from './Textarea';
 export * from './Select';
 export * from './FormItem';

@@ -8,7 +8,6 @@ namespace BPG.Application.DTOs.PurchaseOrders
         public DateTime OrderDate { get; set; }
         public DateOnly? ExpectedDeliveryDate { get; set; }
         public string? DeliveryAddress { get; set; }
-        public string? PaymentTerms { get; set; }
         public string? Notes { get; set; }
         public string? CancelledReason { get; set; }
         public string? ClosedReason { get; set; }

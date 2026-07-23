@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { supplierService } from '../../services/supplierService';
@@ -41,6 +41,11 @@ export const CreatePOPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const queryProjectId = searchParams.get('projectId');
   const queryRequestId = searchParams.get('requestId');
+  // Được điều hướng kèm projectId (từ tab YCVT hoặc tab Đơn hàng trong dự án) → khóa dự án, không cho đổi.
+  const isProjectLocked = Boolean(queryProjectId);
+  // Kèm cả requestId (từ tab YCVT, bấm "Tạo PO" trên một yêu cầu cụ thể) → khóa luôn yêu cầu vật tư.
+  // Nếu chỉ có projectId (từ tab Đơn hàng), người dùng vẫn được chọn yêu cầu vật tư hợp lệ của dự án.
+  const isRequestLocked = Boolean(queryProjectId && queryRequestId);
 
   // Header state
   const [projectId, setProjectId] = useState(0);
@@ -73,6 +78,15 @@ export const CreatePOPage: React.FC = () => {
     queryFn: () => projectService.getProjects(),
   });
 
+  // Khi dự án bị khóa (không có dropdown để người dùng tự chọn), tự điền địa chỉ giao hàng
+  // ngay khi danh sách dự án tải xong — tương đương hành vi chọn dự án thủ công.
+  useEffect(() => {
+    if (isProjectLocked && projectId > 0 && !deliveryAddress && projectList.length > 0) {
+      const proj = projectList.find((p) => String(p.id) === String(projectId));
+      if (proj?.address) setDeliveryAddress(proj.address);
+    }
+  }, [isProjectLocked, projectId, projectList, deliveryAddress]);
+
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers-active'],
     queryFn: () => supplierService.getSuppliers({ pageSize: 200, collaborationStatus: 'Active' }).then((r) => r.items),
@@ -92,6 +106,13 @@ export const CreatePOPage: React.FC = () => {
   // useMemo giữ stable reference khi data là undefined (query bị disable)
   // tránh [] mới mỗi render gây infinite re-render loop trong useEffect bên dưới
   const approvedRequests = useMemo(() => approvedRequestsData ?? [], [approvedRequestsData]);
+
+  // Loại bỏ các yêu cầu đã được đặt đủ số lượng qua PO trước (không còn vật tư nào để tạo đơn mới)
+  // khỏi danh sách cho chọn — tránh người dùng chọn nhầm một yêu cầu không thể tạo được PO.
+  const selectableRequests = useMemo(
+    () => approvedRequests.filter((r) => r.items.some((it) => it.remainingQuantity > 0)),
+    [approvedRequests]
+  );
 
   // Tự động chọn Phiếu yêu cầu sau khi danh sách yêu cầu được tải
   useEffect(() => {
@@ -211,17 +232,18 @@ export const CreatePOPage: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1120, margin: '0 auto' }}>
       {/* Page title */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Link
-          to="/purchase-orders"
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
           style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             padding: 8, borderRadius: 6, border: '1px solid hsl(var(--border))',
             background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-secondary))',
-            cursor: 'pointer', textDecoration: 'none', transition: 'background 0.15s',
+            cursor: 'pointer', transition: 'background 0.15s',
           }}
         >
           <ArrowLeft size={18} />
-        </Link>
+        </button>
         <ShoppingCart size={22} style={{ color: 'hsl(var(--primary))' }} />
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
           Tạo Đơn Hàng
@@ -245,22 +267,36 @@ export const CreatePOPage: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px 20px' }}>
           <div>
             <label style={label}>Dự án <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-            <Select
-              value={projectId.toString()}
-              onChange={(e) => {
-                const pid = Number(e.target.value);
-                setProjectId(pid);
-                setSelectedRequestId(0);
-                // Tự động điền địa điểm giao hàng từ địa chỉ dự án
-                const proj = projectList.find((p) => String(p.id) === String(pid));
-                setDeliveryAddress(proj?.address ?? '');
-              }}
-              options={[
-                { label: '-- Chọn dự án --', value: '0' },
-                ...projectList.map((p) => ({ label: p.name, value: p.id })),
-              ]}
-              className="h-10"
-            />
+            {isProjectLocked ? (
+              <div
+                className="h-10"
+                style={{
+                  display: 'flex', alignItems: 'center',
+                  borderRadius: 6, padding: '0 12px', fontSize: 14, fontWeight: 600,
+                  border: '1px solid hsl(var(--border))',
+                  background: 'hsl(var(--bg-muted, var(--bg-card)))', color: 'hsl(var(--text-secondary))',
+                }}
+              >
+                {projectList.find((p) => String(p.id) === String(projectId))?.name ?? '...'}
+              </div>
+            ) : (
+              <Select
+                value={projectId.toString()}
+                onChange={(e) => {
+                  const pid = Number(e.target.value);
+                  setProjectId(pid);
+                  setSelectedRequestId(0);
+                  // Tự động điền địa điểm giao hàng từ địa chỉ dự án
+                  const proj = projectList.find((p) => String(p.id) === String(pid));
+                  setDeliveryAddress(proj?.address ?? '');
+                }}
+                options={[
+                  { label: '-- Chọn dự án --', value: '0' },
+                  ...projectList.map((p) => ({ label: p.name, value: p.id })),
+                ]}
+                className="h-10"
+              />
+            )}
           </div>
           <div>
             <label style={label}>Mã đơn hàng <span style={{ fontWeight: 400, color: 'hsl(var(--text-muted))' }}>(dự kiến)</span></label>
@@ -347,31 +383,43 @@ export const CreatePOPage: React.FC = () => {
       {projectId > 0 && (
         <div className="glass-panel p-6">
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
-            Chọn yêu cầu vật tư đã duyệt <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(mỗi đơn hàng thuộc một yêu cầu)</span>
+            {isRequestLocked ? (
+              <>Yêu cầu vật tư <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(đã chọn từ tab Yêu cầu vật tư)</span></>
+            ) : (
+              <>Chọn yêu cầu vật tư đã duyệt <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(mỗi đơn hàng thuộc một yêu cầu)</span></>
+            )}
           </h3>
           {loadingRequests ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'hsl(var(--text-muted))' }}>
               <Loader2 size={16} className="animate-spin" /> Đang tải...
             </div>
-          ) : approvedRequests.length === 0 ? (
+          ) : (isRequestLocked ? approvedRequests : selectableRequests).length === 0 ? (
             <p style={{ color: 'hsl(var(--text-muted))', margin: 0, fontSize: 14 }}>
-              Không có yêu cầu đã duyệt cho dự án này.
+              {isRequestLocked
+                ? 'Không có yêu cầu đã duyệt cho dự án này.'
+                : 'Không có yêu cầu nào có thể tạo đơn hàng (tất cả đã được đặt đủ số lượng qua các đơn hàng trước).'}
             </p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 10 }}>
-              {approvedRequests.map((req) => {
+              {(isRequestLocked
+                ? approvedRequests.filter((r) => String(r.requestId) === queryRequestId)
+                : selectableRequests
+              ).map((req) => {
                 const checked = selectedRequestId === req.requestId;
                 return (
                   <label key={req.requestId} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer',
+                    display: 'flex', alignItems: 'flex-start', gap: 12,
+                    cursor: isRequestLocked ? 'default' : 'pointer',
                     padding: '12px 14px', borderRadius: 8,
                     border: `1px solid ${checked ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
                     background: checked ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-card))',
                     boxShadow: checked ? '0 0 0 1px hsl(var(--primary))' : 'none',
                     transition: 'all 0.15s',
                   }}>
-                    <input type="radio" name="po-request" checked={checked} onChange={() => selectRequest(req.requestId)}
-                      style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2, accentColor: 'hsl(var(--primary))', cursor: 'pointer' }} />
+                    {!isRequestLocked && (
+                      <input type="radio" name="po-request" checked={checked} onChange={() => selectRequest(req.requestId)}
+                        style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2, accentColor: 'hsl(var(--primary))', cursor: 'pointer' }} />
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
                         <span style={{ fontWeight: 700, fontSize: 13, color: 'hsl(var(--text-primary))' }}>
@@ -487,17 +535,18 @@ export const CreatePOPage: React.FC = () => {
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingBottom: 24 }}>
-        <Link
-          to="/purchase-orders"
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
           style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             padding: '8px 16px', borderRadius: 6, border: '1px solid hsl(var(--border))',
             background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-secondary))',
-            fontSize: 14, fontWeight: 500, cursor: 'pointer', textDecoration: 'none', transition: 'background 0.15s',
+            fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.15s',
           }}
         >
           Hủy
-        </Link>
+        </button>
         <Button type="button" variant="primary" disabled={mutation.isPending} className="font-semibold" onClick={handleSubmit}>
           {mutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Đang lưu...</> : <><Plus size={16} /> Tạo đơn hàng</>}
         </Button>

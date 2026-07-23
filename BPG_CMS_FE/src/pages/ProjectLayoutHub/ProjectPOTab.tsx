@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import type { PurchaseOrderDto } from '../../services/inventoryService';
-import { Badge, Pagination, Button } from '../../components/ui';
-import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus, ChevronDown } from 'lucide-react';
+import { Badge, Pagination, Button, DateInput } from '../../components/ui';
+import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus, ChevronDown, SlidersHorizontal, X, Plus } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -146,6 +146,8 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
   const { user } = useAuth();
   const isAccountant = user?.role === 'accountant';
   const [statusFilter, setStatusFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
@@ -158,6 +160,48 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
     }, 500);
     return () => clearTimeout(timeout);
   }, [searchTerm]);
+
+  // Popup "Bộ lọc nâng cao" gom Trạng thái / Ngày đặt (không có lọc theo dự án vì tab này đã scoped theo dự án)
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [filterPos, setFilterPos] = useState<{ top: number; left: number } | null>(null);
+  const filterBtnRef = useRef<HTMLButtonElement>(null);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
+
+  const activeFilterCount = [statusFilter, dateFrom || dateTo].filter(Boolean).length;
+
+  useEffect(() => {
+    if (!isFilterOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        filterBtnRef.current && !filterBtnRef.current.contains(e.target as Node) &&
+        filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)
+      ) setIsFilterOpen(false);
+    };
+    const closePanel = () => setIsFilterOpen(false);
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', closePanel, true);
+    window.addEventListener('resize', closePanel);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', closePanel, true);
+      window.removeEventListener('resize', closePanel);
+    };
+  }, [isFilterOpen]);
+
+  const toggleFilterPanel = () => {
+    if (!isFilterOpen && filterBtnRef.current) {
+      const rect = filterBtnRef.current.getBoundingClientRect();
+      setFilterPos({ top: rect.bottom + 6, left: rect.left });
+    }
+    setIsFilterOpen(o => !o);
+  };
+
+  const handleClearAllFilters = () => {
+    setStatusFilter('');
+    setDateFrom('');
+    setDateTo('');
+    setPage(1);
+  };
 
   const [actionModal, setActionModal] = useState<{ type: 'cancel' | 'close'; po: PurchaseOrderDto } | null>(null);
   const [actionReason, setActionReason] = useState('');
@@ -190,12 +234,14 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
   });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['project-purchase-orders', projectId, page, statusFilter, debouncedSearchTerm],
+    queryKey: ['project-purchase-orders', projectId, page, statusFilter, debouncedSearchTerm, dateFrom, dateTo],
     queryFn: () =>
       inventoryService.getPurchaseOrders({
         projectId,
         status: statusFilter || undefined,
-        poNumber: debouncedSearchTerm || undefined,
+        search: debouncedSearchTerm || undefined,
+        orderDateFrom: dateFrom || undefined,
+        orderDateTo: dateTo || undefined,
         pageNumber: page,
         pageSize,
       }),
@@ -273,37 +319,126 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
       )}
 
       <div className="p-4 border-b border-[hsl(var(--border))] flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full lg:w-auto">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] pointer-events-none" size={16} />
             <input
               type="text"
-              placeholder="Tìm theo số đơn hàng..."
-              className="py-2 pl-9 pr-3 border border-[hsl(var(--border))] rounded-lg text-sm bg-transparent w-full sm:w-64"
+              placeholder="Tìm theo số đơn hàng, nhà cung cấp..."
+              className="py-2 pl-9 pr-3 border border-[hsl(var(--border))] rounded-lg text-sm bg-transparent w-full"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="relative w-full sm:w-auto">
-            <select
-              className="appearance-none pl-3 pr-9 py-2 border border-[hsl(var(--border))] rounded-lg text-sm bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] w-full sm:w-56"
-              value={statusFilter}
-              onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            >
-              {PO_STATUS_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] pointer-events-none" size={14} />
-          </div>
+
+          <button
+            ref={filterBtnRef}
+            type="button"
+            onClick={toggleFilterPanel}
+            className={`relative flex items-center gap-1.5 py-2 px-3 border rounded-lg text-sm font-medium transition-colors ${
+              isFilterOpen || activeFilterCount > 0
+                ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))] bg-[hsl(var(--primary-glow))]'
+                : 'border-[hsl(var(--border))] text-[hsl(var(--text-secondary))] bg-[hsl(var(--bg-card))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]'
+            }`}
+          >
+            <SlidersHorizontal size={15} />
+            Bộ lọc nâng cao
+            {activeFilterCount > 0 && (
+              <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[hsl(var(--primary))] text-white text-[11px] font-semibold">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
         </div>
 
-        {data && (
-          <span className="text-[13px] text-[hsl(var(--text-muted))] whitespace-nowrap">
-            {data.totalCount} đơn mua hàng
-          </span>
-        )}
+        <div className="flex items-center gap-4">
+          {data && (
+            <span className="text-[13px] text-[hsl(var(--text-muted))] whitespace-nowrap">
+              {data.totalCount} đơn mua hàng
+            </span>
+          )}
+          {isAccountant && (
+            <Button
+              variant="primary"
+              onClick={() => navigate(`/purchase-orders/new?projectId=${projectId}`)}
+              className="flex items-center gap-1.5 text-sm"
+            >
+              <Plus size={16} /> Tạo đơn hàng
+            </Button>
+          )}
+        </div>
       </div>
+
+      {isFilterOpen && filterPos && createPortal(
+        <div
+          ref={filterPanelRef}
+          style={{ position: 'fixed', top: filterPos.top, left: filterPos.left }}
+          className="z-[1000] w-[336px] bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-xl shadow-lg p-4 flex flex-col gap-4"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-[hsl(var(--text-primary))]">Bộ lọc nâng cao</span>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen(false)}
+              className="p-1 rounded text-[hsl(var(--text-muted))] hover:text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--bg-main))]"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-semibold text-[hsl(var(--text-secondary))] uppercase tracking-wide">Trạng thái</label>
+            <div className="relative">
+              <select
+                className="appearance-none pl-3 pr-9 py-2 border border-[hsl(var(--border))] rounded-lg text-sm bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] w-full"
+                value={statusFilter}
+                onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
+              >
+                {PO_STATUS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] pointer-events-none" size={14} />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-semibold text-[hsl(var(--text-secondary))] uppercase tracking-wide">Ngày đặt</label>
+            <div className="flex items-center gap-2">
+              <DateInput
+                className="w-[136px] shrink-0"
+                value={dateFrom}
+                max={dateTo || undefined}
+                onChange={(v) => { setDateFrom(v); setPage(1); }}
+                title="Từ ngày đặt"
+              />
+              <span className="text-[hsl(var(--text-muted))] text-sm shrink-0">–</span>
+              <DateInput
+                className="w-[136px] shrink-0"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(v) => { setDateTo(v); setPage(1); }}
+                title="Đến ngày đặt"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-[hsl(var(--border))]">
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              disabled={activeFilterCount === 0}
+              className="text-[13px] font-medium text-[hsl(var(--text-muted))] hover:text-[hsl(var(--danger))] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Xóa tất cả bộ lọc
+            </button>
+            <Button variant="primary" size="sm" onClick={() => setIsFilterOpen(false)} className="text-[13px] py-1.5 px-3">
+              Xong
+            </Button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <div className="overflow-x-auto">
         <table className={`w-full min-w-[860px] table-fixed text-sm text-left ${isLoading ? 'opacity-50' : ''}`}>
