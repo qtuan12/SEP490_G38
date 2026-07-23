@@ -59,8 +59,21 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             if (!string.IsNullOrEmpty(request.Status))
                 query = query.Where(po => po.Status == request.Status);
 
-            if (!string.IsNullOrEmpty(request.PONumber))
-                query = query.Where(po => po.PONumber.Contains(request.PONumber));
+            if (!string.IsNullOrEmpty(request.Search))
+                query = query.Where(po => po.PONumber.Contains(request.Search) ||
+                    (po.Supplier != null && po.Supplier.SupplierName.Contains(request.Search)));
+
+            if (request.OrderDateFrom.HasValue)
+            {
+                var from = request.OrderDateFrom.Value.ToDateTime(TimeOnly.MinValue);
+                query = query.Where(po => po.OrderDate >= from);
+            }
+
+            if (request.OrderDateTo.HasValue)
+            {
+                var to = request.OrderDateTo.Value.ToDateTime(TimeOnly.MaxValue);
+                query = query.Where(po => po.OrderDate <= to);
+            }
 
             var totalCount = await query.CountAsync(cancellationToken);
 

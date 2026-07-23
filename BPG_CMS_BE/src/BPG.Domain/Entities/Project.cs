@@ -14,4 +14,5 @@ public class Project : BaseEntity
 
     public ICollection<ProjectMember> Members { get; set; } = new List<ProjectMember>();
     public ICollection<Phase> Phases { get; set; } = new List<Phase>();
+    public ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
 }

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Calendar, Clock } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
 import { Modal } from '../../../../src/components/ui/Modal';
 import type { Project, WBSPhase } from '../../../types/common';
@@ -135,22 +135,35 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         
         {/* THÔNG TIN THỜI GIAN DỰ ÁN VÀ GIAI ĐOẠN TRƯỚC */}
-        <div className="flex flex-col gap-2 -mb-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 -mb-1">
           {project && (
-            <div className="bg-blue-50/50 p-3 rounded-lg border border-blue-100 flex flex-col">
-              <p className="text-xs text-slate-500 mb-1">Thời gian dự án:</p>
-              <p className="text-sm font-medium text-slate-700">
-                {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
-              </p>
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3.5 rounded-xl border border-indigo-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+              <div className="bg-white/80 p-2 rounded-lg text-indigo-600 shadow-sm border border-indigo-50">
+                <Calendar size={18} className="stroke-[1.75]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 mb-1">Thời gian dự án</p>
+                <p className="text-[13px] font-semibold text-slate-700 truncate">
+                  {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
+                </p>
+              </div>
             </div>
           )}
           
           {latestPhase && (
-            <div className="bg-orange-50/50 p-3 rounded-lg border border-orange-100 flex flex-col">
-              <p className="text-xs text-slate-500 mb-1">Giai đoạn trước nhất ({latestPhase.name}):</p>
-              <p className="text-sm font-medium text-slate-700">
-                {latestPhase.startDate ? new Date(latestPhase.startDate).toLocaleDateString('vi-VN') : 'N/A'} - {latestDateStr ? new Date(latestDateStr).toLocaleDateString('vi-VN') : 'N/A'}
-              </p>
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-3.5 rounded-xl border border-amber-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+              <div className="bg-white/80 p-2 rounded-lg text-amber-600 shadow-sm border border-amber-50">
+                <Clock size={18} className="stroke-[1.75]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="mb-1 truncate" title={`Giai đoạn trước nhất (${latestPhase.name})`}>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-amber-600/70 mr-1">Kế tiếp:</span>
+                  <span className="text-[12px] font-bold text-amber-700">{latestPhase.name}</span>
+                </div>
+                <p className="text-[13px] font-semibold text-slate-700 truncate">
+                  {latestPhase.startDate ? new Date(latestPhase.startDate).toLocaleDateString('vi-VN') : 'N/A'} - {latestDateStr ? new Date(latestDateStr).toLocaleDateString('vi-VN') : 'N/A'}
+                </p>
+              </div>
             </div>
           )}
         </div>

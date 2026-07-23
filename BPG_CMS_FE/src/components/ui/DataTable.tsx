@@ -7,6 +7,7 @@ export interface ColumnDef<T> {
   header: string;
   render?: (item: T) => React.ReactNode;
   width?: string;
+  align?: 'left' | 'center' | 'right';
 }
 
 export interface DataTableProps<T> {
@@ -44,7 +45,9 @@ export function DataTable<T>({
                 <th
                   key={col.key}
                   scope="col"
-                  className="px-4 py-3 text-slate-500 font-semibold uppercase whitespace-nowrap"
+                  className={`px-4 py-3 text-slate-500 font-semibold uppercase whitespace-nowrap ${
+                    col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
+                  }`}
                   style={{ width: col.width }}
                 >
                   {col.header}
@@ -74,7 +77,12 @@ export function DataTable<T>({
                   style={onRowClick ? { cursor: 'pointer' } : undefined}
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-3.5 text-sm text-slate-700 whitespace-normal break-words">
+                    <td
+                      key={col.key}
+                      className={`px-4 py-3.5 text-sm text-slate-700 whitespace-normal break-words ${
+                        col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
+                      }`}
+                    >
                       {col.render ? col.render(item) : (item as any)[col.key]}
                     </td>
                   ))}

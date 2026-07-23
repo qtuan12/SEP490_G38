@@ -103,9 +103,43 @@ public class MarkTaskObsoleteCommandHandler : IRequestHandler<MarkTaskObsoleteCo
         if (task.Phase != null)
         {
             await _realtimeSender.SendToGroupAsync($"Project_{task.Phase.ProjectId}", "WbsTreeUpdated", new { TaskId = task.TaskId }, ct);
+
+            // Gửi thông báo chéo giữa Trưởng phòng Kỹ thuật và Quản lý dự án
+            if (isTechnicalManager)
+            {
+                var projectLeaderId = await _unitOfWork.Repository<ProjectMember>().Query()
+                    .Where(m => m.ProjectId == task.Phase.ProjectId && m.IsLeader && m.UserId != currentUserId)
+                    .Select(m => m.UserId)
+                    .FirstOrDefaultAsync(ct);
+
+                if (projectLeaderId > 0)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        userId: projectLeaderId,
+                        title: "Công việc bị tạm dừng",
+                        content: $"Công việc '{task.Name}' đã bị tạm dừng bởi Trưởng phòng kỹ thuật. Lý do: {request.ObsoleteReason}.",
+                        notificationType: BPG.Domain.Constants.NotificationType.System,
+                        referenceType: BPG.Domain.Constants.NotificationReferenceType.Task,
+                        referenceId: task.TaskId,
+                        ct: ct);
+                }
+            }
+            else if (isProjectLeader)
+            {
+                await _notificationService.SendNotificationToRoleAsync(
+                    roleName: BPG.Domain.Constants.UserRole.TechnicalManager,
+                    title: "Công việc bị tạm dừng",
+                    content: $"Công việc '{task.Name}' đã bị tạm dừng bởi Quản lý dự án. Lý do: {request.ObsoleteReason}.",
+                    notificationType: BPG.Domain.Constants.NotificationType.System,
+                    excludeUserId: currentUserId,
+                    referenceType: BPG.Domain.Constants.NotificationReferenceType.Task,
+                    referenceId: task.TaskId,
+                    ct: ct);
+            }
         }
 
         await CascadeObsoleteDependentTasksAsync(task.TaskId, request.ObsoleteReason, userName, ct);
+        await CascadeObsoleteChildTasksAsync(task.TaskId, request.ObsoleteReason, userName, ct);
 
         return ApiResponse.SuccessResult("Đánh dấu task lỗi thời thành công.");
     }
@@ -169,6 +203,67 @@ public class MarkTaskObsoleteCommandHandler : IRequestHandler<MarkTaskObsoleteCo
 
                 // Recursively obsolete downstream dependent tasks
                 await CascadeObsoleteDependentTasksAsync(dependentTask.TaskId, obsoleteReason, userName, ct);
+                // Recursively obsolete child tasks
+                await CascadeObsoleteChildTasksAsync(dependentTask.TaskId, obsoleteReason, userName, ct);
+            }
+        }
+    }
+    private async Task CascadeObsoleteChildTasksAsync(long parentTaskId, string obsoleteReason, string userName, CancellationToken ct)
+    {
+        var childTaskIds = await _unitOfWork.Repository<ProjectTask>()
+            .Query()
+            .Where(t => t.ParentTaskId == parentTaskId && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+            .Select(t => t.TaskId)
+            .ToListAsync(ct);
+
+        foreach (var childTaskId in childTaskIds)
+        {
+            var childTask = await _unitOfWork.Repository<ProjectTask>()
+                .Query()
+                .Include(t => t.Assignees)
+                .Include(t => t.Phase)
+                .FirstOrDefaultAsync(t => t.TaskId == childTaskId, ct);
+
+            if (childTask != null && childTask.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+            {
+                var oldProgress = childTask.ProgressPercent;
+                childTask.Status = BPG.Domain.Constants.TaskStatus.Obsolete;
+                childTask.ObsoleteReason = $"Tự động tạm dừng do công việc cha bị dừng: {obsoleteReason}";
+
+                childTask.ProgressLogs.Add(new TaskProgressLog
+                {
+                    OldProgress = oldProgress,
+                    NewProgress = oldProgress,
+                    UpdateReason = $"Công việc bị tạm dừng, người dừng: hệ thống tự động (do task cha bị dừng bởi {userName}). Lý do: {obsoleteReason}",
+                    UpdatedAt = DateTime.UtcNow
+                });
+
+                _unitOfWork.Repository<ProjectTask>().Update(childTask);
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                // Note: No need to roll up progress to parent because parent is already obsolete!
+
+                foreach (var assignee in childTask.Assignees)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        userId: assignee.UserId,
+                        title: "Công việc bị tự động tạm dừng",
+                        content: $"Công việc '{childTask.Name}' đã tự động bị tạm dừng do công việc cha của nó bị tạm dừng.",
+                        notificationType: BPG.Domain.Constants.NotificationType.System,
+                        referenceType: BPG.Domain.Constants.NotificationReferenceType.Task,
+                        referenceId: childTask.TaskId,
+                        ct: ct);
+                }
+
+                if (childTask.Phase != null)
+                {
+                    await _realtimeSender.SendToGroupAsync($"Project_{childTask.Phase.ProjectId}", "WbsTreeUpdated", new { TaskId = childTask.TaskId }, ct);
+                }
+
+                // Recursively obsolete downstream dependent tasks
+                await CascadeObsoleteDependentTasksAsync(childTask.TaskId, obsoleteReason, userName, ct);
+                // Recursively obsolete child tasks
+                await CascadeObsoleteChildTasksAsync(childTask.TaskId, obsoleteReason, userName, ct);
             }
         }
     }
