@@ -153,8 +153,9 @@ export const UserManagement: React.FC = () => {
     {
       key: 'actions',
       header: 'Hành động',
+      align: 'center' as const,
       render: (user: UserProfile) => (
-        <div className="flex gap-2 justify-end">
+        <div className="flex gap-2 justify-center">
           <Button
             variant="secondary"
             className="p-2 h-auto"
