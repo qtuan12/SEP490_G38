@@ -151,7 +151,8 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 PredecessorTaskIds = node.Dependencies != null ? node.Dependencies.Select(d => d.PredecessorTaskId).ToList() : new(),
                 IsOutsourced = node.IsOutsourced,
                 OutsourcedTeamName = node.OutsourcedTeamName,
-                OutsourcedTeamContact = node.OutsourcedTeamContact
+                OutsourcedTeamContact = node.OutsourcedTeamContact,
+                ObsoleteReason = node.ObsoleteReason
             };
 
             var taskDeadline = node.EndDate.ToDateTime(new TimeOnly(23, 59, 59));

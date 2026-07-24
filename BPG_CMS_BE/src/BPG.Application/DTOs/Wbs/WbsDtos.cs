@@ -28,6 +28,7 @@ public record WbsTaskDto
     public bool IsOutsourced { get; set; }
     public string? OutsourcedTeamName { get; set; }
     public string? OutsourcedTeamContact { get; set; }
+    public string? ObsoleteReason { get; set; }
 
     public List<WbsTaskDto> SubTasks { get; set; } = new();
 }

@@ -378,13 +378,13 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                     {uploadedFiles.map((file) => (
                       <div key={file.id} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: file.status === 'error' ? '1px solid #dc2626' : file.status === 'success' ? '1px solid #16a34a' : '1px solid hsl(var(--border))' }}>
                         <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        
+
                         {file.status === 'uploading' && (
                           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Loader2 size={12} className="animate-spin" style={{ color: '#fff' }} />
                           </div>
                         )}
-                        
+
                         <button
                           type="button"
                           onClick={e => { e.stopPropagation(); removeImage(file.id); }}
@@ -457,8 +457,8 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                     Đề xuất xử lý <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                   </label>
                   <select className="input" {...register('proposedAction')}>
-                    <option value="Tạo Rework Task">Tạo Rework Task mới</option>
-                    <option value="Giảm tiến độ task">Giảm % tiến độ Task</option>
+                    <option value="Tạo Rework Task">Tạo công việc mới</option>
+                    <option value="Giảm tiến độ task">Giảm % tiến độ công việc</option>
                     <option value="Khác">Khác</option>
                   </select>
                   {(errors as any).proposedAction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).proposedAction?.message)}</span>}

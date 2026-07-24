@@ -283,6 +283,9 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const paginatedIncidents = filteredIncidents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role?.toLowerCase() === 'admin';
+  const hasActiveEmergencyStop = incidents.some(
+    i => i.isEmergency && ['WaitingStopApproval', 'WaitingRecoveryPlan', 'WaitingDirectorApproval'].includes(i.status)
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -342,7 +345,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
           <h4 className="text-[0.95rem] font-semibold text-[hsl(var(--text-secondary))]">
             Danh sách Báo cáo sự cố toàn dự án
           </h4>
-          {isPL && (
+          {isPL && !hasActiveEmergencyStop && (
             <Button
               onClick={() => setIsEmergencyModalOpen(true)}
               className="bg-[hsl(0_72%_45%)] hover:bg-[hsl(0_72%_35%)] text-white font-medium py-1.5 px-3 rounded text-[0.8rem] flex items-center gap-1.5"

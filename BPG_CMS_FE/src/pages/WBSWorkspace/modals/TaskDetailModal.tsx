@@ -339,11 +339,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', gap: '8px', backgroundColor: 'hsl(var(--danger-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--danger))' }}>
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
-                <span>Dự án đang là bản nháp không thể thao tác được</span>
+                <span>
+                  {project?.status === 'paused'
+                    ? 'Dự án đang bị tạm dừng thi công không thể thao tác được'
+                    : project?.status === 'done'
+                    ? 'Dự án đã hoàn thành không thể thao tác được'
+                    : 'Dự án đang là bản nháp không thể thao tác được'}
+                </span>
               </div>
-              <button
-                onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }}
-                className="btn btn-outline"
+              <button 
+                onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
+                className="btn btn-outline" 
                 style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--primary))', color: 'hsl(var(--primary))' }}
               >
                 <FileText size={15} />
@@ -380,24 +386,23 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 const isAssigned = user?.id && assignedIds.includes(user.id.toString());
                 return (isPL || isAssigned) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
               })() && (
-                  <>
-                    <button onClick={() => setActiveForm(activeForm === 'log' ? null : 'log')} className={`btn ${activeForm === 'log' ? 'btn-secondary' : 'btn-primary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }} disabled={isBlocked}>
-                      <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
-                    </button>
-
-                  </>
-                )}
-              <button
-                onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }}
-                className="btn btn-outline"
+                <>
+                  <button onClick={() => setActiveForm(activeForm === 'log' ? null : 'log')} className={`btn ${activeForm === 'log' ? 'btn-secondary' : 'btn-primary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }} disabled={isBlocked}>
+                    <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
+                  </button>
+                </>
+              )}
+              <button 
+                onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
+                className="btn btn-outline" 
                 style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--primary))', color: 'hsl(var(--primary))', backgroundColor: 'hsl(var(--primary-glow))' }}
               >
                 <FileText size={15} />
                 <span>Xem Nhật ký thi công</span>
               </button>
-              <button
-                onClick={() => onReportIncidentOpen()}
-                className="btn btn-outline"
+              <button 
+                onClick={() => onReportIncidentOpen()} 
+                className="btn btn-outline" 
                 style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
               >
                 <AlertCircle size={15} />
@@ -406,31 +411,56 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: 'hsl(var(--success-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--success) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--success))' }}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <CheckCircle size={16} style={{ flexShrink: 0 }} />
-                  <span>{selectedTask.status === 'obsolete' ? 'Công việc đã bị tạm dừng.' : 'Phase này đã được nghiệm thu và khóa tiến độ.'}</span>
-                </div>
-                {selectedTask.status !== 'obsolete' && (
-                  <button onClick={() => navigate(`/projects/${project?.id}/phases/${selectedTask.phaseId}/acceptance`)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'fit-content', marginTop: '4px', borderColor: 'hsl(var(--success))', color: 'hsl(var(--success))', backgroundColor: 'transparent' }}>
-                    Xem chi tiết & Hủy nghiệm thu
-                  </button>
-                )}
-              </div>
-              {selectedTask.status === 'obsolete' && isTPKTOrPL && (
-                <button
-                  onClick={() => setIsRestoreConfirmOpen(true)}
-                  className="btn"
-                  style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', backgroundColor: 'hsl(var(--success))', color: '#fff' }}
-                  disabled={restoreMutation.isPending}
-                >
-                  <RotateCcw size={15} />
-                  <span>{restoreMutation.isPending ? 'Đang xử lý...' : 'Khôi phục công việc'}</span>
-                </button>
-              )}
-              <button
-                onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }}
-                className="btn btn-outline"
+              {(() => {
+                const isCancelledByEmergencyIncident = selectedTask.status === 'obsolete' && (
+                  selectedTask.obsoleteReason?.includes('Sự cố khẩn cấp') || selectedTask.obsoleteReason?.includes('Sự cố')
+                );
+                return (
+                  <>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '8px', 
+                      backgroundColor: isCancelledByEmergencyIncident ? 'hsl(var(--danger-glow))' : 'hsl(var(--success-glow))', 
+                      padding: '12px', 
+                      borderRadius: 'var(--radius-sm)', 
+                      border: isCancelledByEmergencyIncident ? '1px solid hsl(var(--danger) / 0.2)' : '1px solid hsl(var(--success) / 0.2)', 
+                      fontSize: '0.85rem', 
+                      color: isCancelledByEmergencyIncident ? 'hsl(var(--danger))' : 'hsl(var(--success))' 
+                    }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {isCancelledByEmergencyIncident ? <AlertCircle size={16} style={{ flexShrink: 0 }} /> : <CheckCircle size={16} style={{ flexShrink: 0 }} />}
+                        <span>
+                          {selectedTask.status === 'obsolete' 
+                            ? (isCancelledByEmergencyIncident 
+                                ? 'Công việc đã bị hủy do sự cố khẩn cấp (theo phương án được Giám đốc phê duyệt) và không thể khôi phục.' 
+                                : 'Công việc đã bị tạm dừng.') 
+                            : 'Phase này đã được nghiệm thu và khóa tiến độ.'}
+                        </span>
+                      </div>
+                      {selectedTask.status !== 'obsolete' && (
+                        <button onClick={() => navigate(`/projects/${project?.id}/phases/${selectedTask.phaseId}/acceptance`)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'fit-content', marginTop: '4px', borderColor: 'hsl(var(--success))', color: 'hsl(var(--success))', backgroundColor: 'transparent' }}>
+                          Xem chi tiết & Hủy nghiệm thu
+                        </button>
+                      )}
+                    </div>
+                    {selectedTask.status === 'obsolete' && !isCancelledByEmergencyIncident && isTPKTOrPL && (
+                      <button 
+                        onClick={() => setIsRestoreConfirmOpen(true)} 
+                        className="btn" 
+                        style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', backgroundColor: 'hsl(var(--success))', color: '#fff' }}
+                        disabled={restoreMutation.isPending}
+                      >
+                        <RotateCcw size={15} />
+                        <span>{restoreMutation.isPending ? 'Đang xử lý...' : 'Khôi phục công việc'}</span>
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+              <button 
+                onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 
+                className="btn btn-outline" 
                 style={{ fontSize: '0.85rem', width: '100%', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--primary))', color: 'hsl(var(--primary))' }}
               >
                 <FileText size={15} />
@@ -438,8 +468,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </button>
             </div>
           )}
-
-
         </div>
 
         {/* Right Column: Inline Forms Container */}

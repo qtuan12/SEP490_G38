@@ -82,7 +82,8 @@ export const wbsService = {
             predecessorTaskIds: taskDto.predecessorTaskIds || undefined,
             isOutsourced: taskDto.isOutsourced || false,
             outsourcedTeamName: taskDto.outsourcedTeamName || undefined,
-            outsourcedTeamContact: taskDto.outsourcedTeamContact || undefined
+            outsourcedTeamContact: taskDto.outsourcedTeamContact || undefined,
+            obsoleteReason: taskDto.obsoleteReason || undefined
           });
 
           if (taskDto.subTasks && taskDto.subTasks.length > 0) {
