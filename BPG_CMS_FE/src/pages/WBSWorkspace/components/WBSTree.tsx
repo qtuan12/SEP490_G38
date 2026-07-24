@@ -230,7 +230,7 @@ export const WBSTree = () => {
                         {!isFrozen && canEdit && (
                           <button
                             onClick={e => { e.stopPropagation(); setExpandedPhases(prev => ({ ...prev, [ph.id]: true })); setSelectedPhaseForTask(ph.id); setParentTaskForNew(undefined); setParentDeadlineForNew(ph.deadline); setIsCreateTaskOpen(true); }}
-                            title="Thêm Task"
+                            title="Thêm công việc"
                             style={{ background: 'hsl(var(--primary))', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', padding: 0 }}
                           >
                             <FilePlus2 size={11} />
@@ -605,7 +605,7 @@ export const WBSTree = () => {
                                       onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
                                       onClick={() => { setTaskMenuId(null); setSelectedPhaseForTask(ph.id); setParentTaskForNew(t.id); setParentDeadlineForNew(t.deadline); setIsCreateTaskOpen(true); }}
                                     >
-                                      <FilePlus2 size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Thêm Task con</span>
+                                      <FilePlus2 size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Thêm Công việc con</span>
                                     </div>
 
                                     {isTPKTOrPL && (
@@ -623,7 +623,7 @@ export const WBSTree = () => {
                                           }
                                         }}
                                       >
-                                        <Trash2 size={12} /><span>{t.progress > 0 ? 'Tạm dừng công việc' : 'Xóa Task'}</span>
+                                        <Trash2 size={12} /><span>{t.progress > 0 ? 'Tạm dừng công việc' : 'Xóa Công việc'}</span>
                                       </div>
                                     )}
                                   </div>

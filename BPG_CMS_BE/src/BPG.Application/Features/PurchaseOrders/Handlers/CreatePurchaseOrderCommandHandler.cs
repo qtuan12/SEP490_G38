@@ -163,7 +163,6 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 OrderDate = request.OrderDate,
                 ExpectedDeliveryDate = request.ExpectedDeliveryDate,
                 DeliveryAddress = request.DeliveryAddress?.Trim(),
-                PaymentTerms = request.PaymentTerms?.Trim(),
                 Notes = request.Notes?.Trim(),
                 TotalAmount = totalAmount,
                 Status = PurchaseOrderStatus.Sent,

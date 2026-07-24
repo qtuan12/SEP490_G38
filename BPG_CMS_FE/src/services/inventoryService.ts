@@ -282,9 +282,11 @@ export const inventoryService = {
 
   // Get paginated PO list for Accountant
   getPurchaseOrders: async (params: {
-    poNumber?: string;
+    search?: string;
     status?: string;
     projectId?: number;
+    orderDateFrom?: string;
+    orderDateTo?: string;
     pageNumber?: number;
     pageSize?: number;
   }): Promise<PagedList<PurchaseOrderDto>> => {
@@ -292,9 +294,11 @@ export const inventoryService = {
       pageNumber: (params.pageNumber ?? 1).toString(),
       pageSize: (params.pageSize ?? 10).toString(),
     };
-    if (params.poNumber) q.poNumber = params.poNumber;
+    if (params.search) q.search = params.search;
     if (params.status) q.status = params.status;
     if (params.projectId) q.projectId = params.projectId.toString();
+    if (params.orderDateFrom) q.orderDateFrom = params.orderDateFrom;
+    if (params.orderDateTo) q.orderDateTo = params.orderDateTo;
     return unwrap(
       await apiClient.get<ApiResponse<PagedList<PurchaseOrderDto>>>('/purchaseorders', { params: q })
     );

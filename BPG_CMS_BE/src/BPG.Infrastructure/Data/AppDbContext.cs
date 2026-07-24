@@ -349,6 +349,12 @@ public class AppDbContext : DbContext
             .HasForeignKey(x => x.RequestId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<PurchaseOrder>()
+            .HasOne(x => x.Project)
+            .WithMany(x => x.PurchaseOrders)
+            .HasForeignKey(x => x.ProjectId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // PurchaseOrderRequest junction (many-to-many PO ↔ MaterialRequest)
         modelBuilder.Entity<PurchaseOrderRequest>()
