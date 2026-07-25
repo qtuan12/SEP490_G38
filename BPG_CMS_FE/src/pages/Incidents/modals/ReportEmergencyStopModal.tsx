@@ -16,6 +16,22 @@ interface ReportEmergencyStopModalProps {
   onSuccess: (msg: string) => void;
 }
 
+const getLocalISOString = () => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
+};
+
+const formatDisplayDateTime = (isoString: string) => {
+  if (!isoString) return '';
+  if (isoString.includes('T')) {
+    const [d, t] = isoString.split('T');
+    const [yyyy, mm, dd] = d.split('-');
+    return `${t} ngày ${dd}/${mm}/${yyyy}`;
+  }
+  return isoString;
+};
+
 export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> = ({
   isOpen,
   onClose,
@@ -25,9 +41,8 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
 }) => {
   const [soBienBan, setSoBienBan] = useState(() => `BB-INC-${Date.now().toString().slice(-6)}`);
 
-
   const [hangMuc, setHangMuc] = useState('');
-  const [thoiGianXayRa, setThoiGianXayRa] = useState('');
+  const [thoiGianXayRa, setThoiGianXayRa] = useState(getLocalISOString);
   const [diaDiem, setDiaDiem] = useState('');
   const [loaiSuCo, setLoaiSuCo] = useState('Sự cố ngừng thi công khẩn cấp');
   const [mucDo, setMucDo] = useState('Khẩn cấp');
@@ -52,7 +67,7 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
 
         congTrinh: projectName.trim(),
         hangMuc: hangMuc.trim(),
-        thoiGianXayRa: thoiGianXayRa.trim(),
+        thoiGianXayRa: formatDisplayDateTime(thoiGianXayRa.trim()),
         diaDiem: diaDiem.trim(),
         loaiSuCo: loaiSuCo.trim(),
         mucDo,
@@ -87,7 +102,7 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
       onSuccess('Biên bản báo cáo sự cố khẩn cấp đã được gửi thành công lên TPKT.');
       setSoBienBan(`BB-INC-${Date.now().toString().slice(-6)}`);
       setHangMuc('');
-      setThoiGianXayRa('');
+      setThoiGianXayRa(getLocalISOString());
       setDiaDiem('');
       setMoTaSuCo('');
       setThietHaiConNguoi('Không có');
@@ -235,11 +250,11 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <FormItem label="Thời gian xảy ra (*)" required>
               <input
-                type="text"
+                type="datetime-local"
                 className="w-full px-3 py-2 border rounded-lg"
                 value={thoiGianXayRa}
                 onChange={(e) => setThoiGianXayRa(e.target.value)}
-                placeholder="VD: 14:30 ngày 20/07/2026"
+                max={getLocalISOString()}
               />
             </FormItem>
 
@@ -251,6 +266,7 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
                 onChange={(e) => setMucDo(e.target.value)}
 
                 defaultValue="Khẩn cấp"
+                readOnly
               />
             </FormItem>
           </div>

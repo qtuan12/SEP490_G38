@@ -18,7 +18,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   const [loading, setLoading] = useState(false);
   const [materials, setMaterials] = useState<MaterialCatalog[]>([]);
   const [phases, setPhases] = useState<any[]>([]);
-  
+
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
   const [phaseId, setPhaseId] = useState<number | ''>('');
@@ -60,7 +60,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   const handleAddItem = () => {
     if (!selectedMaterialId || !selectedQuantity || Number(selectedQuantity) <= 0) return;
-    
+
     // Check if already exists
     if (items.some(x => x.materialId === Number(selectedMaterialId))) {
       setLocalError('Vật tư này đã được chọn.');
@@ -112,7 +112,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Tạo Phiếu Tăng Tồn Kho (Auto Duyệt)" width="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Tạo Phiếu Tăng Tồn Kho " width="lg">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {localError && (
           <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg animate-fade-in">
@@ -138,21 +138,21 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         </FormItem>
 
         <FormItem label="Lý do điều chỉnh (*)">
-          <input 
-            type="text" 
-            required 
-            className="w-full px-3 py-2 border rounded-lg" 
-            value={reason} 
-            onChange={e => setReason(e.target.value)} 
+          <input
+            type="text"
+            required
+            className="w-full px-3 py-2 border rounded-lg"
+            value={reason}
+            onChange={e => setReason(e.target.value)}
             placeholder="VD: Nhập thêm vật tư từ kho tổng..."
           />
         </FormItem>
 
         <FormItem label="Mô tả / Ghi chú">
-          <textarea 
-            className="w-full px-3 py-2 border rounded-lg" 
-            value={description} 
-            onChange={e => setDescription(e.target.value)} 
+          <textarea
+            className="w-full px-3 py-2 border rounded-lg"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
             rows={3}
           />
         </FormItem>
@@ -162,7 +162,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <FormItem label="Vật tư">
-                <select 
+                <select
                   className="w-full px-3 py-2 border rounded-lg"
                   value={selectedMaterialId}
                   onChange={e => setSelectedMaterialId(Number(e.target.value))}
@@ -176,16 +176,16 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
             </div>
             <div className="w-32">
               <FormItem label="Số lượng tăng">
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min={(() => {
                     const sel = materials.find(m => m.materialId === Number(selectedMaterialId));
                     return sel && isDiscreteUnit(sel.baseUnitName) ? "1" : "0.01";
-                  })()} 
+                  })()}
                   step={(() => {
                     const sel = materials.find(m => m.materialId === Number(selectedMaterialId));
                     return sel && isDiscreteUnit(sel.baseUnitName) ? "1" : "any";
-                  })()} 
+                  })()}
                   className="w-full px-3 py-2 border rounded-lg"
                   value={selectedQuantity}
                   onChange={e => setSelectedQuantity(Number(e.target.value))}

@@ -236,6 +236,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         }
 
                         incident.Task.Status = "Obsolete";
+                        incident.Task.ObsoleteReason = $"Tự động hủy (Obsolete) do Sự cố: {incident.Description}";
                         var log = new TaskProgressLog
                         {
                             TaskId = incident.Task.TaskId,
@@ -318,6 +319,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         incident.HandlingInstruction = request.HandlingInstruction;
                     }
 
+
                     await _notificationService.SendNotificationAsync(
                         incident.ReportedBy,
                         "Kế hoạch khắc phục sự cố đã được phê duyệt",
@@ -347,6 +349,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
                 // Mark old task as Obsolete
                 incident.Task.Status = "Obsolete";
+                incident.Task.ObsoleteReason = $"Tự động hủy (Obsolete) do Sự cố: {incident.Description}";
                 
                 // Log reason
                 var log = new TaskProgressLog
