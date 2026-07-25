@@ -59,7 +59,7 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
         var hasActiveBatch = await _uow.Repository<SurplusRequest>().Query()
             .AnyAsync(sr => sr.ProjectId == request.ProjectId && sr.Status == SurplusRequestStatus.Processing, ct);
         if (hasActiveBatch)
-            throw new BusinessException(ErrorCodes.DuplicateEntry, "Dự án đang có batch xử lý vật tư thừa chưa hoàn tất.");
+            throw new BusinessException(ErrorCodes.DuplicateEntry, "Dự án đang có đợt xử lý vật tư thừa chưa hoàn tất.");
 
         // Pull all inventory with quantity > 0
         var inventoryItems = await _uow.Repository<CurrentInventory>().Query()

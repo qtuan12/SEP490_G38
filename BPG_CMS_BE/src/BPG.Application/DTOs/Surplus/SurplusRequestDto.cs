@@ -30,6 +30,8 @@ public class SurplusRequestItemDto
     public string MaterialName { get; set; } = string.Empty;
     public int UnitId { get; set; }
     public string UnitName { get; set; } = string.Empty;
+    public long? SupplierId { get; set; }
+    public string? SupplierName { get; set; }
     public decimal Quantity { get; set; }
     public decimal ProcessedQuantity { get; set; }
     public string Status { get; set; } = string.Empty;

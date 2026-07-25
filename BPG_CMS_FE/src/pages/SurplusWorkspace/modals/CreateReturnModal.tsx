@@ -1,25 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, FormItem, Input } from '../../../components/ui';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
 import { surplusService } from '../../../services/surplusService';
-import { supplierService } from '../../../services/supplierService';
-import type { SurplusRequestItem } from '../../../types/surplus';
+import type { ProjectReceivedSupplier, SurplusRequestItem } from '../../../types/surplus';
 
 interface CreateReturnModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   item: SurplusRequestItem;
+  projectId: number;
 }
 
-interface Supplier { supplierId: number; supplierName: string; }
-
 export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
-  isOpen, onClose, onSuccess, item,
+  isOpen, onClose, onSuccess, item, projectId,
 }) => {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [suppliers, setSuppliers] = useState<ProjectReceivedSupplier[]>([]);
   const [supplierId, setSupplierId] = useState('');
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
+  const [supplierLoadFailed, setSupplierLoadFailed] = useState(false);
   const [returnQty, setReturnQty] = useState('');
   const [refundAmount, setRefundAmount] = useState('');
   const [note, setNote] = useState('');
@@ -31,20 +31,25 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setSuppliers([]); setSupplierId(''); setReturnQty('');
+      setSupplierId('');
+      setSuppliers([]);
+      setSupplierLoadFailed(false);
+      setReturnQty('');
       setRefundAmount(''); setNote(''); setError(null); setFiles([]);
-      loadSuppliers();
-    }
-  }, [isOpen]);
 
-  const loadSuppliers = async () => {
-    try {
-      const data = await supplierService.getSuppliers({ pageSize: 200 });
-      setSuppliers(data.items.map(s => ({ supplierId: s.supplierId, supplierName: s.supplierName })));
-    } catch { /* silent */ }
-  };
+      setLoadingSuppliers(true);
+      surplusService.getProjectReceivedSuppliers(projectId)
+        .then(setSuppliers)
+        .catch(() => {
+          setSupplierLoadFailed(true);
+          setError('Không thể tải danh sách nhà cung cấp của dự án. Vui lòng thử lại.');
+        })
+        .finally(() => setLoadingSuppliers(false));
+    }
+  }, [isOpen, projectId]);
 
   const handleSubmit = async () => {
+    if (!supplierId) { setError('Vui lòng chọn nhà cung cấp.'); return; }
     const qty = parseFloat(returnQty);
     if (isNaN(qty) || qty <= 0) { setError('Số lượng phải lớn hơn 0.'); return; }
     if (qty > remaining) { setError(`Số lượng không được vượt quá còn lại (${remaining} ${item.unitName}).`); return; }
@@ -55,7 +60,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
     setSubmitting(true);
     try {
       const formData = new FormData();
-      if (supplierId) formData.append('supplierId', supplierId);
+      formData.append('supplierId', supplierId);
       formData.append('returnQuantity', qty.toString());
       if (refundAmount) formData.append('refundAmount', refundAmount);
       if (note.trim()) formData.append('note', note.trim());
@@ -103,18 +108,39 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
           </p>
         </div>
 
-        <FormItem label="Nhà cung cấp">
-          <select
-            value={supplierId}
-            onChange={e => setSupplierId(e.target.value)}
-            disabled={submitting}
-            className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">-- Chọn nhà cung cấp (không bắt buộc) --</option>
-            {suppliers.map(s => (
-              <option key={s.supplierId} value={s.supplierId}>{s.supplierName}</option>
-            ))}
-          </select>
+        <FormItem label="Nhà cung cấp" required>
+          <div className="relative">
+            <select
+              value={supplierId}
+              onChange={e => setSupplierId(e.target.value)}
+              disabled={submitting || loadingSuppliers}
+              className="w-full appearance-auto rounded-lg border border-slate-300 bg-white px-3 py-2 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-50"
+            >
+              <option value="">
+                {loadingSuppliers
+                  ? 'Đang tải nhà cung cấp...'
+                  : supplierLoadFailed
+                    ? 'Không thể tải danh sách nhà cung cấp'
+                  : suppliers.length === 0
+                    ? 'Dự án chưa có nhà cung cấp đã nhập hàng'
+                    : '-- Chọn nhà cung cấp --'}
+              </option>
+              {suppliers.map(supplier => (
+                <option key={supplier.supplierId} value={supplier.supplierId}>
+                  {supplier.supplierName}
+                </option>
+              ))}
+            </select>
+            {loadingSuppliers && (
+              <Loader2
+                size={16}
+                className="pointer-events-none absolute right-8 top-2.5 animate-spin text-slate-400"
+              />
+            )}
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            Chỉ hiển thị nhà cung cấp đã có phiếu nhập kho được duyệt tại dự án này.
+          </p>
         </FormItem>
 
         <div className="grid grid-cols-2 gap-3">

@@ -4,6 +4,7 @@ import { RefreshCw, PackageX } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { projectService } from '../../services/projectService';
+import { surplusService } from '../../services/surplusService';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useNotification } from '../../context/NotificationContext';
 
@@ -61,6 +62,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isCheckingCreateEligibility, setIsCheckingCreateEligibility] = useState(false);
 
   // Modal states
   const [showCreateBatch, setShowCreateBatch] = useState(false);
@@ -109,6 +111,31 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   const handleBack = () => {
     setView('list');
     setSelectedBatchId(null);
+  };
+
+  const handleOpenCreateBatch = async () => {
+    if (isCheckingCreateEligibility) return;
+
+    setIsCheckingCreateEligibility(true);
+    try {
+      const activeRequests = await surplusService.getList({
+        projectId,
+        status: 'Processing',
+        pageNumber: 1,
+        pageSize: 1,
+      });
+
+      if (activeRequests.items.length > 0) {
+        toast.error('Dự án đang có đợt xử lý vật tư thừa chưa hoàn tất.');
+        return;
+      }
+
+      setShowCreateBatch(true);
+    } catch {
+      toast.error('Không thể kiểm tra trạng thái xử lý vật tư thừa. Vui lòng thử lại.');
+    } finally {
+      setIsCheckingCreateEligibility(false);
+    }
   };
 
   const handleActionSuccess = () => {
@@ -167,7 +194,8 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
             projectId={projectId}
             refreshKey={refreshKey}
             onViewDetail={handleViewDetail}
-            onCreateRequest={() => setShowCreateBatch(true)}
+            onCreateRequest={handleOpenCreateBatch}
+            isCheckingCreateEligibility={isCheckingCreateEligibility}
             isLeader={canCreateSurplusRequest}
           />
         )}
@@ -211,6 +239,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
           onClose={() => setReturnItem(null)}
           onSuccess={() => { handleActionSuccess(); setReturnItem(null); }}
           item={returnItem}
+          projectId={projectId}
         />
       )}
 

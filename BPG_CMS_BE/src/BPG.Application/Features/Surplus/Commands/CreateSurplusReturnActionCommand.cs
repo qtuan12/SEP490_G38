@@ -15,7 +15,7 @@ namespace BPG.Application.Features.Surplus.Commands;
 /// </summary>
 public record CreateSurplusReturnActionCommand(
     long SurplusRequestItemId,
-    long? SupplierId,
+    long SupplierId,
     decimal ReturnQuantity,
     decimal? RefundAmount,
     string? Note,

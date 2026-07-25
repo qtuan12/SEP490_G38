@@ -2,6 +2,7 @@ using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Surplus;
 using BPG.Application.Features.Surplus.Queries;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
@@ -12,8 +13,15 @@ namespace BPG.Application.Features.Surplus.Handlers;
 public class GetSurplusRequestDetailQueryHandler : IRequestHandler<GetSurplusRequestDetailQuery, ApiResponse<SurplusRequestDetailDto>>
 {
     private readonly IUnitOfWork _uow;
+    private readonly ISurplusMaterialSupplierService _supplierService;
 
-    public GetSurplusRequestDetailQueryHandler(IUnitOfWork uow) => _uow = uow;
+    public GetSurplusRequestDetailQueryHandler(
+        IUnitOfWork uow,
+        ISurplusMaterialSupplierService supplierService)
+    {
+        _uow = uow;
+        _supplierService = supplierService;
+    }
 
     public async Task<ApiResponse<SurplusRequestDetailDto>> Handle(GetSurplusRequestDetailQuery request, CancellationToken ct)
     {
@@ -41,6 +49,11 @@ public class GetSurplusRequestDetailQueryHandler : IRequestHandler<GetSurplusReq
             createdByName = creator?.FullName ?? "N/A";
         }
 
+        var suppliersByMaterial = await _supplierService.GetLatestApprovedSuppliersAsync(
+            sr.ProjectId,
+            sr.Items.Select(item => item.MaterialId).Distinct().ToArray(),
+            ct);
+
         var dto = new SurplusRequestDetailDto
         {
             SurplusRequestId = sr.SurplusRequestId,
@@ -52,8 +65,11 @@ public class GetSurplusRequestDetailQueryHandler : IRequestHandler<GetSurplusReq
             CreatedByName = createdByName,
             TotalItems = sr.Items.Count,
             ProcessedItems = sr.Items.Count(i => i.Status == Domain.Constants.SurplusRequestItemStatus.Completed),
-            Items = sr.Items.Select(i => new SurplusRequestItemDto
+            Items = sr.Items.Select(i =>
             {
+                suppliersByMaterial.TryGetValue(i.MaterialId, out var supplier);
+                return new SurplusRequestItemDto
+                {
                 SurplusRequestItemId = i.SurplusRequestItemId,
                 SurplusRequestId = i.SurplusRequestId,
                 MaterialId = i.MaterialId,
@@ -61,10 +77,13 @@ public class GetSurplusRequestDetailQueryHandler : IRequestHandler<GetSurplusReq
                 MaterialName = i.Material.Name,
                 UnitId = i.UnitId,
                 UnitName = i.Unit.UnitName,
+                SupplierId = supplier?.SupplierId,
+                SupplierName = supplier?.SupplierName,
                 Quantity = i.Quantity,
                 ProcessedQuantity = i.ProcessedQuantity,
                 Status = i.Status,
                 Actions = BuildActionSummaries(i)
+                };
             }).ToList()
         };
 
