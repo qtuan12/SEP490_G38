@@ -37,6 +37,7 @@ import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
 import { SystemConfigPage } from './pages/SystemConfig';
 import { DirectPurchaseList } from './pages/DirectPurchases';
 import { ReportsHub } from './pages/ReportsHub';
+import { FieldWorkbench } from './pages/FieldWorkbench';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -158,13 +159,22 @@ function App() {
                 } 
               />
 
-              <Route 
-                path="/notifications" 
+              <Route
+                path="/notifications"
                 element={
                   <ProtectedRoute>
                     <NotificationsList />
                   </ProtectedRoute>
-                } 
+                }
+              />
+
+              <Route
+                path="/field"
+                element={
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director']}>
+                    <FieldWorkbench />
+                  </ProtectedRoute>
+                }
               />
 
               <Route 
