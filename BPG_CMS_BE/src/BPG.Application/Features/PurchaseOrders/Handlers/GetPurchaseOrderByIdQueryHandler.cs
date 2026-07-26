@@ -40,10 +40,9 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             // SiteEngineer chỉ được xem PO thuộc dự án mình được phân công.
             if (_currentUserService.IsInRole(UserRole.SiteEngineer))
             {
-                var effectiveProjectId = po.ProjectId ?? po.Request?.Phase?.ProjectId;
                 var currentUserId = _currentUserService.GetRequiredUserId();
-                var isMember = effectiveProjectId.HasValue && await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == effectiveProjectId.Value && m.UserId == currentUserId, cancellationToken);
+                var isMember = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(m => m.ProjectId == po.ProjectId && m.UserId == currentUserId, cancellationToken);
                 if (!isMember)
                     throw new ForbiddenException("Bạn không được phân công vào dự án này nên không có quyền xem đơn hàng.");
             }

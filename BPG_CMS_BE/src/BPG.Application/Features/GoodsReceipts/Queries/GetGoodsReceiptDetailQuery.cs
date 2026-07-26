@@ -20,7 +20,7 @@ namespace BPG.Application.Features.GoodsReceipts.Queries
         {
             var projectId = await unitOfWork.Repository<GoodsReceipt>().Query()
                 .Where(g => g.ReceiptId == ReceiptId)
-                .Select(g => (long?)(g.PurchaseOrder.ProjectId ?? g.PurchaseOrder.Request.Phase.ProjectId))
+                .Select(g => (long?)g.PurchaseOrder.ProjectId)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (!projectId.HasValue || projectId.Value <= 0)
