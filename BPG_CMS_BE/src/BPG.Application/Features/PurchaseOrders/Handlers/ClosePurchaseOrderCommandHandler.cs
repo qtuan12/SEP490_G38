@@ -36,7 +36,6 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
         public async Task<bool> Handle(ClosePurchaseOrderCommand request, CancellationToken cancellationToken)
         {
             var po = await _uow.Repository<PurchaseOrder>().Query()
-                .Include(p => p.Request).ThenInclude(r => r!.Phase)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
                 ?? throw new NotFoundException(nameof(PurchaseOrder), request.POId);
 
@@ -52,28 +51,23 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
 
             await _uow.SaveChangesAsync(cancellationToken);
 
-            var projectId = po.ProjectId ?? po.Request?.Phase.ProjectId;
-            if (projectId.HasValue)
-                await _realtimeSender.SendToGroupAsync(
-                    $"Project_{projectId.Value}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
+            await _realtimeSender.SendToGroupAsync(
+                $"Project_{po.ProjectId}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
 
             // Thông báo cho trưởng dự án: vật tư chưa nhận đã được trả lại yêu cầu vật tư, có thể tạo đơn hàng khác.
             // Không cần báo lại vai trò Kế toán vì chỉ Kế toán mới có quyền thực hiện thao tác này.
-            if (projectId.HasValue)
-            {
-                var currentUserId = _currentUserService.UserId;
-                var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
-                    .Where(m => m.ProjectId == projectId.Value && m.IsLeader && m.UserId != currentUserId)
-                    .Select(m => m.UserId)
-                    .FirstOrDefaultAsync(cancellationToken);
+            var currentUserId = _currentUserService.UserId;
+            var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
+                .Where(m => m.ProjectId == po.ProjectId && m.IsLeader && m.UserId != currentUserId)
+                .Select(m => m.UserId)
+                .FirstOrDefaultAsync(cancellationToken);
 
-                if (projectLeaderId > 0)
-                    await _notificationService.SendNotificationAsync(
-                        projectLeaderId,
-                        "Đơn hàng đã được đóng",
-                        $"Đơn hàng {po.PONumber} đã được đóng. Phần vật tư chưa nhận được trả lại yêu cầu vật tư để tạo đơn hàng khác. Lý do: {po.ClosedReason}",
-                        NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
-            }
+            if (projectLeaderId > 0)
+                await _notificationService.SendNotificationAsync(
+                    projectLeaderId,
+                    "Đơn hàng đã được đóng",
+                    $"Đơn hàng {po.PONumber} đã được đóng. Phần vật tư chưa nhận được trả lại yêu cầu vật tư để tạo đơn hàng khác. Lý do: {po.ClosedReason}",
+                    NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
 
             return true;
         }

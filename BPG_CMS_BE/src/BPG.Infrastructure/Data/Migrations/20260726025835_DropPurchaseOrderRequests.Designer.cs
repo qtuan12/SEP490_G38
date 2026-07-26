@@ -4,16 +4,19 @@ using BPG.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace BPG.Infrastructure.Migrations
+namespace BPG.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260726025835_DropPurchaseOrderRequests")]
+    partial class DropPurchaseOrderRequests
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1517,7 +1520,7 @@ namespace BPG.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<long>("ProjectId")
+                    b.Property<long?>("ProjectId")
                         .HasColumnType("bigint");
 
                     b.Property<long?>("RequestId")
@@ -2867,8 +2870,7 @@ namespace BPG.Infrastructure.Migrations
                     b.HasOne("BPG.Domain.Entities.Project", "Project")
                         .WithMany("PurchaseOrders")
                         .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("BPG.Domain.Entities.MaterialRequest", "Request")
                         .WithMany()

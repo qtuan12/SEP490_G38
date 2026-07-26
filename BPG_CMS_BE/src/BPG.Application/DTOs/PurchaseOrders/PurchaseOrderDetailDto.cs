@@ -17,7 +17,7 @@ namespace BPG.Application.DTOs.PurchaseOrders
         public string SupplierName { get; set; } = string.Empty;
         public string? SupplierContactInfo { get; set; }
 
-        public long? ProjectId { get; set; }
+        public long ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
 
         public List<PODetailItemDto> Items { get; set; } = new();
