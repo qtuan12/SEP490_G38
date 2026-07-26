@@ -49,8 +49,21 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
         if (item.Unit != null && item.Unit.IsDiscrete && request.ReturnQuantity % 1 != 0)
             throw new BusinessException(ErrorCodes.InvalidUnitQuantity, $"Đơn vị tính '{item.Unit.UnitName}' yêu cầu số lượng phải là số nguyên.");
 
-        if (request.ReturnQuantity > (item.Quantity - item.ProcessedQuantity))
-            throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng trả ({request.ReturnQuantity}) vượt quá số lượng còn lại ({item.Quantity - item.ProcessedQuantity}).");
+        var pendingTransferQuantity = await _uow.Repository<SurplusTransfer>().Query()
+            .Where(t => t.SurplusRequestItemId == item.SurplusRequestItemId
+                && t.Status != SurplusTransferStatus.Rejected
+                && t.Status != SurplusTransferStatus.Received)
+            .SumAsync(t => (decimal?)t.TransferQuantity, ct) ?? 0m;
+        var remainingUncommittedQuantity = item.Quantity - item.ProcessedQuantity - pendingTransferQuantity;
+        if (request.ReturnQuantity > remainingUncommittedQuantity)
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng trả ({request.ReturnQuantity.ToString("G29")}) vượt quá số lượng chưa được phân bổ ({remainingUncommittedQuantity.ToString("G29")}).");
+
+        var inventory = await _uow.Repository<CurrentInventory>().Query()
+            .FirstOrDefaultAsync(ci => ci.ProjectId == item.SurplusRequest.ProjectId && ci.MaterialId == item.MaterialId, ct)
+            ?? throw new BusinessException(ErrorCodes.InsufficientStock, "Vật tư không tồn tại trong kho dự án.");
+        var availableQuantity = inventory.Quantity - inventory.ReservedQuantity;
+        if (request.ReturnQuantity > availableQuantity)
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho khả dụng để trả nhà cung cấp. Khả dụng: {availableQuantity.ToString("G29")}, yêu cầu: {request.ReturnQuantity.ToString("G29")}.");
 
         var approvedSuppliers = await _supplierService.GetApprovedSuppliersAsync(
             item.SurplusRequest.ProjectId,
@@ -70,7 +83,10 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
             Note = request.Note
         };
 
-        await _uow.Repository<SurplusReturnSupplier>().AddAsync(returnRecord, ct);
+        await _uow.BeginTransactionAsync(ct);
+        try
+        {
+            await _uow.Repository<SurplusReturnSupplier>().AddAsync(returnRecord, ct);
 
         // Update processed quantity & item status
         item.ProcessedQuantity += request.ReturnQuantity;
@@ -79,40 +95,47 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
             : SurplusRequestItemStatus.Processing;
         _uow.Repository<SurplusRequestItem>().Update(item);
 
-        await _uow.SaveChangesAsync(ct);
-
-        if (request.Attachments != null && request.Attachments.Any())
-        {
-            foreach (var file in request.Attachments)
-            {
-                var fileUrl = await _fileStorage.UploadFileAsync(file, "surplus_returns", ct);
-                var attachment = new Attachment
-                {
-                    EntityType = EntityType.SurplusReturnSupplier,
-                    EntityId = returnRecord.SurplusReturnSupplierId,
-                    AttachmentType = AttachmentType.SurplusEvidence,
-                    FileName = file.FileName,
-                    FileUrl = fileUrl,
-                    ContentType = file.ContentType,
-                    FileSizeBytes = file.Length
-                };
-                await _uow.Repository<Attachment>().AddAsync(attachment, ct);
-            }
             await _uow.SaveChangesAsync(ct);
-        }
+
+            if (request.Attachments != null && request.Attachments.Any())
+            {
+                foreach (var file in request.Attachments)
+                {
+                    var fileUrl = await _fileStorage.UploadFileAsync(file, "surplus_returns", ct);
+                    var attachment = new Attachment
+                    {
+                        EntityType = EntityType.SurplusReturnSupplier,
+                        EntityId = returnRecord.SurplusReturnSupplierId,
+                        AttachmentType = AttachmentType.SurplusEvidence,
+                        FileName = file.FileName,
+                        FileUrl = fileUrl,
+                        ContentType = file.ContentType,
+                        FileSizeBytes = file.Length
+                    };
+                    await _uow.Repository<Attachment>().AddAsync(attachment, ct);
+                }
+                await _uow.SaveChangesAsync(ct);
+            }
 
         // Reduce inventory and log transaction
-        await _inventoryService.UpdateStockAsync(
-            item.SurplusRequest.ProjectId,
-            item.MaterialId,
-            -request.ReturnQuantity,
-            InventoryTransactionType.ReturnToSupplier,
-            returnRecord.SurplusReturnSupplierId,
-            EntityType.SurplusRequest,
-            userId,
-            ct);
+            await _inventoryService.UpdateStockAsync(
+                item.SurplusRequest.ProjectId,
+                item.MaterialId,
+                -request.ReturnQuantity,
+                InventoryTransactionType.ReturnToSupplier,
+                returnRecord.SurplusReturnSupplierId,
+                EntityType.SurplusRequest,
+                userId,
+                ct);
 
-        await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
+            await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
+            await _uow.CommitTransactionAsync(ct);
+        }
+        catch
+        {
+            await _uow.RollbackTransactionAsync(ct);
+            throw;
+        }
 
         // Notifications
         var notiTitle = "Thông báo trả vật tư thừa cho NCC";

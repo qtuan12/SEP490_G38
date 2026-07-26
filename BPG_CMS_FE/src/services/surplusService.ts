@@ -43,6 +43,14 @@ export const surplusService = {
   createRequest: async (projectId: number, reason?: string): Promise<number> =>
     unwrap(await apiClient.post<ApiResponse<number>>(`/surplus/projects/${projectId}`, { reason })),
 
+  closeItem: async (surplusRequestItemId: number, reason: string): Promise<void> =>
+    unwrap(
+      await apiClient.put<ApiResponse<void>>(
+        `/surplus/items/${surplusRequestItemId}/close`,
+        { reason }
+      )
+    ),
+
   getProjectReceivedSuppliers: async (projectId: number): Promise<ProjectReceivedSupplier[]> =>
     unwrap(
       await apiClient.get<ApiResponse<ProjectReceivedSupplier[]>>(

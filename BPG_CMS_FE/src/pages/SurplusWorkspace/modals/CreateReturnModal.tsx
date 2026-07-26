@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Button, FormItem, Input } from '../../../components/ui';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
+import { getSurplusMaxActionQuantity } from '../../../utils/surplusHelpers';
 import { surplusService } from '../../../services/surplusService';
 import type { ProjectReceivedSupplier, SurplusRequestItem } from '../../../types/surplus';
 
@@ -28,6 +29,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
   const [files, setFiles] = useState<File[]>([]);
 
   const remaining = item.quantity - item.processedQuantity;
+  const maxReturnQuantity = getSurplusMaxActionQuantity(item);
 
   useEffect(() => {
     if (isOpen) {
@@ -52,7 +54,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
     if (!supplierId) { setError('Vui lòng chọn nhà cung cấp.'); return; }
     const qty = parseFloat(returnQty);
     if (isNaN(qty) || qty <= 0) { setError('Số lượng phải lớn hơn 0.'); return; }
-    if (qty > remaining) { setError(`Số lượng không được vượt quá còn lại (${remaining} ${item.unitName}).`); return; }
+    if (qty > maxReturnQuantity) { setError(`Số lượng trả tối đa là ${maxReturnQuantity} ${item.unitName} sau khi trừ phần đang tạm khóa.`); return; }
     if (isDiscreteUnit(item.unitName) && qty % 1 !== 0) { setError(`Đơn vị '${item.unitName}' yêu cầu số lượng phải là số nguyên.`); return; }
     if (files.length === 0) { setError('Bắt buộc phải tải lên ít nhất 1 file minh chứng.'); return; }
 
@@ -104,7 +106,9 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
           <span className="font-semibold text-slate-700">{item.materialName}</span>
           <span className="text-slate-500 ml-2">({item.materialCode})</span>
           <p className="text-slate-500 mt-1">
-            Còn lại có thể xử lý: <strong className="text-orange-600">{remaining} {item.unitName}</strong>
+            Còn lại trong đợt: <strong className="text-orange-600">{remaining} {item.unitName}</strong>
+            <span className="mx-2">•</span>
+            Có thể trả: <strong className="text-blue-600">{maxReturnQuantity} {item.unitName}</strong>
           </p>
         </div>
 
@@ -149,10 +153,10 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
               type="number"
               step={isDiscreteUnit(item.unitName) ? "1" : "any"}
               min={isDiscreteUnit(item.unitName) ? "1" : "0"}
-              max={remaining}
+              max={maxReturnQuantity}
               value={returnQty}
               onChange={e => setReturnQty(e.target.value)}
-              placeholder={`Tối đa ${remaining}`}
+              placeholder={`Tối đa ${maxReturnQuantity}`}
               disabled={submitting}
             />
           </FormItem>
