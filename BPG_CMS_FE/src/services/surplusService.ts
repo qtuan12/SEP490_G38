@@ -4,6 +4,7 @@ import type {
   SurplusRequest,
   SurplusRequestDetail,
   SurplusActionList,
+  ProjectReceivedSupplier,
 } from '../types/surplus';
 
 const unwrap = <T>(res: ApiResponse<T>): T => {
@@ -41,6 +42,13 @@ export const surplusService = {
   // ─── Create batch (Leader) ────────────────────────────────────────────────
   createRequest: async (projectId: number, reason?: string): Promise<number> =>
     unwrap(await apiClient.post<ApiResponse<number>>(`/surplus/projects/${projectId}`, { reason })),
+
+  getProjectReceivedSuppliers: async (projectId: number): Promise<ProjectReceivedSupplier[]> =>
+    unwrap(
+      await apiClient.get<ApiResponse<ProjectReceivedSupplier[]>>(
+        `/surplus/projects/${projectId}/received-suppliers`
+      )
+    ),
 
   // ─── Return to supplier (Accountant) ─────────────────────────────────────
   createReturn: async (

@@ -10,7 +10,7 @@ public record ReviewSurplusTransferBody(bool IsApproved);
 
 public class CreateSurplusReturnForm
 {
-    public long? SupplierId { get; set; }
+    public long SupplierId { get; set; }
     public decimal ReturnQuantity { get; set; }
     public decimal? RefundAmount { get; set; }
     public string? Note { get; set; }

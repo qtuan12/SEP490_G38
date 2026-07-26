@@ -20,14 +20,16 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
     private readonly IInventoryService _inventoryService;
     private readonly IFileStorageService _fileStorage;
     private readonly INotificationService _notificationService;
+    private readonly ISurplusMaterialSupplierService _supplierService;
 
-    public CreateSurplusReturnActionCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, IInventoryService inventoryService, IFileStorageService fileStorage, INotificationService notificationService)
+    public CreateSurplusReturnActionCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, IInventoryService inventoryService, IFileStorageService fileStorage, INotificationService notificationService, ISurplusMaterialSupplierService supplierService)
     {
         _uow = uow;
         _currentUser = currentUser;
         _inventoryService = inventoryService;
         _fileStorage = fileStorage;
         _notificationService = notificationService;
+        _supplierService = supplierService;
     }
 
     public async Task<ApiResponse<long>> Handle(CreateSurplusReturnActionCommand request, CancellationToken ct)
@@ -50,10 +52,19 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
         if (request.ReturnQuantity > (item.Quantity - item.ProcessedQuantity))
             throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng trả ({request.ReturnQuantity}) vượt quá số lượng còn lại ({item.Quantity - item.ProcessedQuantity}).");
 
+        var approvedSuppliers = await _supplierService.GetApprovedSuppliersAsync(
+            item.SurplusRequest.ProjectId,
+            ct);
+        var supplier = approvedSuppliers.FirstOrDefault(s => s.SupplierId == request.SupplierId);
+        if (supplier == null)
+            throw new BusinessException(
+                ErrorCodes.NotFound,
+                "Nhà cung cấp được chọn chưa có lịch sử nhập kho được duyệt tại dự án.");
+
         var returnRecord = new SurplusReturnSupplier
         {
             SurplusRequestItemId = request.SurplusRequestItemId,
-            SupplierId = request.SupplierId,
+            SupplierId = supplier.SupplierId,
             ReturnQuantity = request.ReturnQuantity,
             RefundAmount = request.RefundAmount,
             Note = request.Note

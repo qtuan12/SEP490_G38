@@ -70,8 +70,8 @@ export const CreateSurplusRequestModal: React.FC<CreateSurplusRequestModalProps>
           <p className="font-semibold mb-1">Dự án: {projectName}</p>
           <p>
             Hệ thống sẽ <strong>tự động lấy toàn bộ vật tư đang có trong kho</strong> (số lượng &gt; 0)
-            của dự án này để tạo batch xử lý. Bạn không thể tạo batch mới khi dự án đang có
-            batch chưa hoàn tất.
+            của dự án này để tạo đợt xử lý. Bạn không thể tạo đợt mới khi dự án đang có
+            đợt xử lý chưa hoàn tất.
           </p>
         </div>
 

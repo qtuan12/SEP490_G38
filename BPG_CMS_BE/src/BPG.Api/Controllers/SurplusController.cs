@@ -47,6 +47,14 @@ public class SurplusController : BaseApiController
     public async Task<IActionResult> GetIncomingTransfers(long projectId, CancellationToken ct)
         => ApiOk((await Mediator.Send(new GetIncomingTransfersQuery(projectId), ct)).Data);
 
+    /// <summary>
+    /// Danh sách nhà cung cấp đã có phiếu nhập kho được duyệt tại dự án.
+    /// </summary>
+    [HttpGet("projects/{projectId:long}/received-suppliers")]
+    [Authorize(Roles = $"{UserRole.Accountant},{UserRole.Admin}")]
+    public async Task<IActionResult> GetReceivedSuppliers(long projectId, CancellationToken ct)
+        => ApiOk((await Mediator.Send(new GetProjectReceivedSuppliersQuery(projectId), ct)).Data);
+
     // ============================================================
     // CREATE BATCH
     // ============================================================

@@ -54,7 +54,7 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
             throw new BusinessException(ErrorCodes.InvalidUnitQuantity, $"Đơn vị tính '{item.Unit.UnitName}' yêu cầu số lượng phải là số nguyên.");
 
         if (request.TransferQuantity > (item.Quantity - item.ProcessedQuantity))
-            throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng chuyển ({request.TransferQuantity}) vượt quá số lượng còn lại ({item.Quantity - item.ProcessedQuantity}).");
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng chuyển ({request.TransferQuantity.ToString("G29")}) vượt quá số lượng còn lại ({(item.Quantity - item.ProcessedQuantity).ToString("G29")}).");
 
         var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
         var baseTransferQty = request.TransferQuantity / conversionRate;
@@ -65,7 +65,7 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
             ?? throw new BusinessException(ErrorCodes.InsufficientStock, $"Vật tư không tồn tại trong kho của dự án.");
 
         if ((inv.Quantity - inv.ReservedQuantity) < baseTransferQty)
-            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho khả dụng để chuyển. Tồn kho khả dụng: {inv.Quantity - inv.ReservedQuantity}, Yêu cầu chuyển: {baseTransferQty} (base unit).");
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho khả dụng để chuyển. Tồn kho khả dụng: {(inv.Quantity - inv.ReservedQuantity).ToString("G29")}, Yêu cầu chuyển: {baseTransferQty.ToString("G29")} (base unit).");
 
         inv.ReservedQuantity += baseTransferQty;
         inv.LastUpdated = DateTime.UtcNow;

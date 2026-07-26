@@ -17,6 +17,11 @@ export interface SurplusRequestDetail extends SurplusRequest {
   items: SurplusRequestItem[];
 }
 
+export interface ProjectReceivedSupplier {
+  supplierId: number;
+  supplierName: string;
+}
+
 // ─── Surplus Request Item ──────────────────────────────────────────────────
 export interface SurplusRequestItem {
   surplusRequestItemId: number;
@@ -26,6 +31,8 @@ export interface SurplusRequestItem {
   materialName: string;
   unitId: number;
   unitName: string;
+  supplierId?: number;
+  supplierName?: string;
   quantity: number;
   processedQuantity: number;
   status: string; // Pending | Processing | Completed | Cancelled
