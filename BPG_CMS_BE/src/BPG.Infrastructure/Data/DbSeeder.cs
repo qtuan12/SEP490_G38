@@ -625,6 +625,7 @@ public static class DbSeeder
         var po = new PurchaseOrder
         {
             RequestId            = mr.RequestId,
+            ProjectId            = project.ProjectId,
             SupplierId           = suppliers.First().SupplierId,
             PONumber             = $"PO-{rnd.Next(1000, 9999)}",
             OrderDate            = DateTime.UtcNow.AddDays(-19),
@@ -748,6 +749,7 @@ public static class DbSeeder
         var po2 = new PurchaseOrder
         {
             RequestId            = mr2.RequestId,
+            ProjectId            = project.ProjectId,
             SupplierId           = suppliers.Skip(1).FirstOrDefault()?.SupplierId ?? suppliers.First().SupplierId,
             PONumber             = $"PO-WAIT-{rnd.Next(1000, 9999)}",
             OrderDate            = DateTime.UtcNow.AddDays(-4),
@@ -805,6 +807,7 @@ public static class DbSeeder
         var po3 = new PurchaseOrder
         {
             RequestId            = mr3.RequestId,
+            ProjectId            = project.ProjectId,
             SupplierId           = suppliers.Skip(2).FirstOrDefault()?.SupplierId ?? suppliers.First().SupplierId,
             PONumber             = $"PO-PARTIAL-{rnd.Next(1000, 9999)}",
             OrderDate            = DateTime.UtcNow.AddDays(-9),
@@ -1074,6 +1077,7 @@ public static class DbSeeder
         var autoPO = new PurchaseOrder
         {
             RequestId            = dpMR.RequestId,         // tham chiếu MR placeholder
+            ProjectId            = project.ProjectId,
             SupplierId           = null,                   // mua tại chỗ, không có NCC trong hệ thống
             PONumber             = $"DP-PO-{rnd.Next(100, 999)}",
             OrderDate            = DateTime.UtcNow.AddDays(-7),

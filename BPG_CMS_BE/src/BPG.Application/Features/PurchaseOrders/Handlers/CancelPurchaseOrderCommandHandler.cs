@@ -32,7 +32,6 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
         public async Task<bool> Handle(CancelPurchaseOrderCommand request, CancellationToken cancellationToken)
         {
             var po = await _uow.Repository<PurchaseOrder>().Query()
-                .Include(p => p.Request).ThenInclude(r => r!.Phase)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
                 ?? throw new NotFoundException(nameof(PurchaseOrder), request.POId);
 
@@ -59,10 +58,8 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
 
             await _uow.SaveChangesAsync(cancellationToken);
 
-            var projectId = po.ProjectId ?? po.Request?.Phase.ProjectId;
-            if (projectId.HasValue)
-                await _realtimeSender.SendToGroupAsync(
-                    $"Project_{projectId.Value}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
+            await _realtimeSender.SendToGroupAsync(
+                $"Project_{po.ProjectId}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
 
             // Thông báo cho những người liên quan: kế toán và trưởng dự án
             var notiTitle = "Đơn hàng đã bị hủy";
@@ -72,19 +69,16 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 UserRole.Accountant, notiTitle, notiContent,
                 NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
 
-            if (projectId.HasValue)
-            {
-                var currentUserId = _currentUserService.UserId;
-                var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
-                    .Where(m => m.ProjectId == projectId.Value && m.IsLeader && m.UserId != currentUserId)
-                    .Select(m => m.UserId)
-                    .FirstOrDefaultAsync(cancellationToken);
+            var currentUserId = _currentUserService.UserId;
+            var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
+                .Where(m => m.ProjectId == po.ProjectId && m.IsLeader && m.UserId != currentUserId)
+                .Select(m => m.UserId)
+                .FirstOrDefaultAsync(cancellationToken);
 
-                if (projectLeaderId > 0)
-                    await _notificationService.SendNotificationAsync(
-                        projectLeaderId, notiTitle, notiContent,
-                        NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
-            }
+            if (projectLeaderId > 0)
+                await _notificationService.SendNotificationAsync(
+                    projectLeaderId, notiTitle, notiContent,
+                    NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
 
             return true;
         }

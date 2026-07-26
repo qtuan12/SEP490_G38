@@ -53,8 +53,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .AsNoTracking();
 
             if (request.ProjectId.HasValue)
-                query = query.Where(po => po.ProjectId == request.ProjectId.Value ||
-                    (po.ProjectId == null && po.Request != null && po.Request.Phase.ProjectId == request.ProjectId.Value));
+                query = query.Where(po => po.ProjectId == request.ProjectId.Value);
 
             if (!string.IsNullOrEmpty(request.Status))
                 query = query.Where(po => po.Status == request.Status);
