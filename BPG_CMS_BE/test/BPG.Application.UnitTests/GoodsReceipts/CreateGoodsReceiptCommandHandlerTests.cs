@@ -1,46 +1,47 @@
-using BPG.Application.Common.Models;
 using BPG.Application.Features.GoodsReceipts.Commands;
 using BPG.Application.Features.GoodsReceipts.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.UnitTests.Helpers;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
 using MockQueryable;
-using MockQueryable.Moq;
 using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using BPG.Application.UnitTests.Helpers;
+using RoleConstants = BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.UnitTests.GoodsReceipts
 {
     public class CreateGoodsReceiptCommandHandlerTests
     {
+        private const long CurrentUserId = 10;
+        private const long ProjectId = 5;
+        private const long POId = 100;
+        private const long GeneratedReceiptId = 500;
+        private const long CementId = 50;
+        private const long SandId = 51;
+        private const int UnitId = 1;
+        private const string ProjectGroup = "Project_5";
+        private const string GlobalInventoryGroup = "Project_0";
+
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<PurchaseOrder>> _mockPoRepo;
-        private readonly Mock<IGenericRepository<GoodsReceipt>> _mockGrRepo;
-        private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockGrItemRepo;
+        private readonly Mock<IGenericRepository<GoodsReceipt>> _mockReceiptRepo;
+        private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockReceiptItemRepo;
         private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
         private readonly Mock<IInventoryService> _mockInventoryService;
         private readonly Mock<IRealtimeNotificationSender> _mockRealtimeSender;
-
         private readonly CreateGoodsReceiptCommandHandler _handler;
 
         public CreateGoodsReceiptCommandHandlerTests()
         {
             _mockUow = new Mock<IUnitOfWork>();
             _mockPoRepo = new Mock<IGenericRepository<PurchaseOrder>>();
-            _mockGrRepo = new Mock<IGenericRepository<GoodsReceipt>>();
-            _mockGrItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
+            _mockReceiptRepo = new Mock<IGenericRepository<GoodsReceipt>>();
+            _mockReceiptItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
             _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
@@ -48,723 +49,400 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockRealtimeSender = new Mock<IRealtimeNotificationSender>();
 
             _mockUow.Setup(u => u.Repository<PurchaseOrder>()).Returns(_mockPoRepo.Object);
-            _mockUow.Setup(u => u.Repository<GoodsReceipt>()).Returns(_mockGrRepo.Object);
-            _mockUow.Setup(u => u.Repository<GoodsReceiptItem>()).Returns(_mockGrItemRepo.Object);
+            _mockUow.Setup(u => u.Repository<GoodsReceipt>()).Returns(_mockReceiptRepo.Object);
+            _mockUow.Setup(u => u.Repository<GoodsReceiptItem>()).Returns(_mockReceiptItemRepo.Object);
             _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
 
-            // Default Query Mock setups
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder>().AsQueryable().BuildMock());
-            _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt>().AsQueryable().BuildMock());
-            _mockGrItemRepo.Setup(r => r.Query()).Returns(new List<GoodsReceiptItem>().AsQueryable().BuildMock());
-            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
-            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
-
-            // Default user is Technical Manager by default to pass permission checks in existing tests
-            _mockCurrentUserService.Setup(s => s.IsInRole(It.IsAny<string>())).Returns(true);
-
-            // Default AddAsync setups
-            _mockGrRepo.Setup(r => r.AddAsync(It.IsAny<GoodsReceipt>(), It.IsAny<CancellationToken>()))
-                .Callback<GoodsReceipt, CancellationToken>((gr, ct) => gr.ReceiptId = 500)
-                .Returns(Task.CompletedTask);
+            SetupPurchaseOrders();
+            SetupApprovedReceiptItems();
+            SetupProjectMembers();
+            SetupReceiptIdGeneration();
 
             _handler = new CreateGoodsReceiptCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
                 _mockInventoryService.Object,
-                _mockRealtimeSender.Object
-            );
+                _mockRealtimeSender.Object);
         }
 
-
-
         [Fact]
-        public async Task UTCID01_Handle_ValidRequest_FullyReceived_ShouldCreateGoodsReceiptSuccessfully()
+        public async Task UTCID01_Handle_TechnicalManagerReceivesFullOrderWithImages_ShouldCreateReceiptAndMarkPOFullyReceived()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            SetupTechnicalManager();
+            var purchaseOrder = PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", quantity: 10));
+            SetupPurchaseOrders(purchaseOrder);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                PONumber = "PO-100",
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase
-                    {
-                        Project = project
-                    }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem
-                    {
-                        MaterialId = 50,
-                        Quantity = 10,
-                        ConversionRate = 1,
-                        Material = new MaterialCatalog { Name = "Cement" }
-                    }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+            var command = Command(
+                items: new[] { Item(CementId, quantity: 10) },
+                images: new[] { "http://file.com/photo.jpg" },
+                deliverer: "John Doe");
 
-            var items = new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(MaterialId: 50, UnitId: 1, Quantity: 10) // Full quantity
-            };
-            var command = new CreateGoodsReceiptCommand(
-                POId: 100,
-                DelivererInfo: "John Doe",
-                DeliveryDocNo: "DOC-123",
-                Items: items,
-                Images: new List<string> { "http://file.com/photo.jpg" }
-            );
-
-            // Act
             var result = await _handler.Handle(command, CancellationToken.None);
 
-            // Assert
-            result.Should().NotBeNull();
             result.Success.Should().BeTrue();
-            result.Data.Should().Be(500); // Set by callback
-
-            po.Status.Should().Be(PurchaseOrderStatus.FullyReceived);
-
-            _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
-            _mockGrRepo.Verify(r => r.AddAsync(It.Is<GoodsReceipt>(g => g.POId == 100 && g.DelivererInfo == "John Doe"), It.IsAny<CancellationToken>()), Times.Once);
-            _mockGrItemRepo.Verify(r => r.AddRangeAsync(It.Is<IEnumerable<GoodsReceiptItem>>(l => l.First().MaterialId == 50), It.IsAny<CancellationToken>()), Times.Once);
-            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(It.Is<IEnumerable<Attachment>>(l => l.First().FileUrl == "http://file.com/photo.jpg"), It.IsAny<CancellationToken>()), Times.Once);
-            _mockInventoryService.Verify(s => s.UpdateStockAsync(5, 50, 10, InventoryTransactionType.GoodsReceipt, It.IsAny<long>(), EntityType.GoodsReceipt, 10, It.IsAny<CancellationToken>()), Times.Once);
-            _mockUow.Verify(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+            result.Data.Should().Be(GeneratedReceiptId);
+            result.Message.Should().Be("Tạo phiếu nhập kho thành công.");
+            purchaseOrder.Status.Should().Be(PurchaseOrderStatus.FullyReceived);
+            VerifyReceiptSaved("John Doe", "DOC-123");
+            VerifyReceiptItemsSaved(CementId);
+            VerifyAttachmentsSaved(1);
+            VerifyStockUpdated(CementId, quantity: 10);
+            VerifyCommittedAndRealtimeSent();
         }
 
         [Fact]
-        public async Task UTCID02_Handle_ValidRequest_PartiallyReceived_ShouldCreateGoodsReceiptSuccessfully()
+        public async Task UTCID02_Handle_ProjectLeaderReceivesPartialOrderWithZeroQuantityItem_ShouldSkipZeroAndMarkPOPartiallyReceived()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            SetupProjectLeader();
+            var purchaseOrder = PurchaseOrderWithItems(
+                PurchaseOrderStatus.Sent,
+                POItem(CementId, "Cement", quantity: 10),
+                POItem(SandId, "Sand", quantity: 10));
+            SetupPurchaseOrders(purchaseOrder);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                PONumber = "PO-100",
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase
-                    {
-                        Project = project
-                    }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem
-                    {
-                        MaterialId = 50,
-                        Quantity = 10,
-                        ConversionRate = 1,
-                        Material = new MaterialCatalog { Name = "Cement" }
-                    }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+            var result = await _handler.Handle(Command(items: new[] { Item(CementId, 5), Item(SandId, 0) }), CancellationToken.None);
 
-            var items = new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(MaterialId: 50, UnitId: 1, Quantity: 4) // Partial quantity (4 out of 10)
-            };
-            var command = new CreateGoodsReceiptCommand(
-                POId: 100,
-                DelivererInfo: "John Doe",
-                DeliveryDocNo: "DOC-123",
-                Items: items
-            );
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
             result.Success.Should().BeTrue();
-            po.Status.Should().Be(PurchaseOrderStatus.PartiallyReceived);
+            purchaseOrder.Status.Should().Be(PurchaseOrderStatus.PartiallyReceived);
+            VerifyReceiptItemsSaved(CementId);
+            VerifyStockUpdated(CementId, quantity: 5);
+            VerifyStockNeverUpdated(SandId);
+            VerifyCommittedAndRealtimeSent();
         }
 
         [Fact]
-        public async Task UTCID03_Handle_EmptyItemsList_ShouldThrowBusinessException()
+        public async Task UTCID03_Handle_EmptyItems_ShouldThrowBusinessException()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>());
+            SetupTechnicalManager();
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+            var act = async () => await _handler.Handle(Command(items: Array.Empty<CreateGoodsReceiptItemDto>()), CancellationToken.None);
 
-            // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("Danh sách vật tư nhận thực tế không được để trống.");
+            VerifyTransactionNeverStarted();
         }
 
         [Fact]
         public async Task UTCID04_Handle_PurchaseOrderNotFound_ShouldThrowNotFoundException()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            SetupTechnicalManager();
+            SetupPurchaseOrders();
 
-            var command = new CreateGoodsReceiptCommand(999, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5)
-            });
+            var act = async () => await _handler.Handle(Command(poId: 999, items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
             await act.Should().ThrowAsync<NotFoundException>()
                 .WithMessage("PurchaseOrder với ID [999] không tồn tại.");
+            VerifyTransactionNeverStarted();
         }
 
         [Fact]
-        public async Task UTCID05_Handle_ProjectNotFound_ShouldThrowBusinessException()
+        public async Task UTCID05_Handle_PurchaseOrderWithoutProject_ShouldThrowBusinessException()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var po = new PurchaseOrder
+            SetupTechnicalManager();
+            SetupPurchaseOrders(new PurchaseOrder
             {
-                POId = 100,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = null } // No project!
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
-
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5)
+                POId = POId,
+                Status = PurchaseOrderStatus.Sent,
+                Request = new MaterialRequest { Phase = null! },
+                Items = new List<PurchaseOrderItem> { POItem(CementId, "Cement", 10) }
             });
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("Không tìm thấy dự án liên kết với đơn mua hàng này.");
+            VerifyTransactionNeverStarted();
         }
 
         [Fact]
-        public async Task UTCID06_Handle_ProjectNotActive_ShouldThrowBusinessException()
+        public async Task UTCID06_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Closed project!
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+            SetupTechnicalManager();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, ProjectStatus.Completed, POItem(CementId, "Cement", 10)));
 
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5)
-            });
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage(ValidationMessages.ProjectNotActive);
+            VerifyTransactionNeverStarted();
         }
 
         [Fact]
-        public async Task UTCID07_Handle_InvalidPOStatus_ShouldThrowBusinessException()
+        public async Task UTCID07_Handle_UserIsNeitherTechnicalManagerNorProjectLeader_ShouldThrowForbiddenException()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Closed, // Invalid status!
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+            SetupStandardUser();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
 
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5)
-            });
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+            await act.Should().ThrowAsync<ForbiddenException>()
+                .WithMessage("Chỉ Trưởng phòng kỹ thuật hoặc Trưởng dự án mới có quyền nhập kho cho đơn hàng.");
+            VerifyTransactionNeverStarted();
+        }
 
-            // Assert
+        [Fact]
+        public async Task UTCID08_Handle_InvalidPOStatus_ShouldThrowBusinessException()
+        {
+            SetupTechnicalManager();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Closed, POItem(CementId, "Cement", 10)));
+
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
+
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("*Không thể nhập kho cho đơn hàng có trạng thái*");
-        }
-
-        [Fact]
-        public async Task UTCID08_Handle_MultipleImages_ShouldCreateGoodsReceiptSuccessfully()
-        {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest { Phase = new Phase { Project = project } },
-                Items = new List<PurchaseOrderItem>
-        {
-            new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } }
-        }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
-
-            var images = new List<string> { "1", "2", "3", "4", "5", "6", "7", "8" }; // 8 images
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-    {
-        new CreateGoodsReceiptItemDto(50, 1, 5)
-    }, images);
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(
-                It.Is<IEnumerable<Attachment>>(l => l.Count() == 8),
-                It.IsAny<CancellationToken>()
-            ), Times.Once);
+            VerifyTransactionNeverStarted();
         }
 
         [Fact]
         public async Task UTCID09_Handle_MaterialNotInPO_ShouldThrowBusinessException()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem { MaterialId = 50 }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+            SetupTechnicalManager();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
 
-            // Asking to receive material 99 (not in PO)
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(99, 1, 5)
-            });
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(99, 5) }), CancellationToken.None);
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("Vật tư ID 99 không tồn tại trong đơn hàng PO này.");
+            VerifyTransactionNeverStarted();
         }
 
         [Fact]
-        public async Task UTCID10_Handle_InvalidQuantityLessThanZero_ShouldThrowBusinessException()
+        public async Task UTCID10_Handle_NegativeQuantity_ShouldThrowBusinessException()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem { MaterialId = 50, Material = new MaterialCatalog { Name = "Cement" } }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+            SetupTechnicalManager();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
 
-            // Quantity is -1
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, -1)
-            });
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, -1) }), CancellationToken.None);
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("Số lượng nhận của vật tư [Cement] phải lớn hơn hoặc bằng 0.");
+            VerifyTransactionNeverStarted();
         }
 
         [Fact]
-        public async Task UTCID11_Handle_DiscreteBaseUnitWithFractionalQuantity_ShouldThrowBusinessException()
+        public async Task UTCID11_Handle_DiscreteMaterialWithFractionalQuantity_ShouldThrowBusinessException()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest { Phase = new Phase { Project = project } },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem
-                    {
-                        MaterialId = 50,
-                        Quantity = 10,
-                        Material = new MaterialCatalog
-                        {
-                            Name = "Cement Bag",
-                            BaseUnit = new Unit { UnitName = "Bag", IsDiscrete = true }
-                        }
-                    }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+            SetupTechnicalManager();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement Bag", 10, isDiscrete: true)));
 
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 1.5m)
-            });
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 1.5m) }), CancellationToken.None);
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
-            _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
+            VerifyTransactionNeverStarted();
         }
 
         [Fact]
         public async Task UTCID12_Handle_QuantityExceededRemaining_ShouldThrowBusinessException()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
+            SetupTechnicalManager();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.PartiallyReceived, POItem(CementId, "Cement", 10)));
+            SetupApprovedReceiptItems(new GoodsReceiptItem
             {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
-
-            // GroupBy received list (user has already received 6 of material 50)
-            var existingReceiptItems = new List<GoodsReceiptItem>
-            {
-                new GoodsReceiptItem
-                {
-                    MaterialId = 50,
-                    Quantity = 6,
-                    Receipt = new GoodsReceipt { POId = 100, Status = GoodsReceiptStatus.Approved }
-                }
-            };
-            _mockGrItemRepo.Setup(r => r.Query()).Returns(existingReceiptItems.AsQueryable().BuildMock());
-
-            // Requesting to receive 5 more (6 + 5 = 11 > 10, which exceeds by 1)
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5)
+                MaterialId = CementId,
+                Quantity = 6,
+                Receipt = new GoodsReceipt { POId = POId, Status = GoodsReceiptStatus.Approved }
             });
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("Số lượng nhận (5) vượt quá số lượng còn lại cần giao của PO cho vật tư [Cement] (còn thiếu 4).");
+            VerifyTransactionNeverStarted();
         }
 
         [Fact]
-        public async Task UTCID12_Handle_MultipleItemsOneInvalid_ShouldThrowBusinessException()
+        public async Task UTCID13_Handle_AllItemsHaveZeroQuantity_ShouldThrowBusinessException()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } },
-                    new PurchaseOrderItem { MaterialId = 51, Quantity = 10, Material = new MaterialCatalog { Name = "Sand" } }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+            SetupTechnicalManager();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
 
-            var items = new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5),
-                new CreateGoodsReceiptItemDto(51, 1, -1) // Invalid: Qty = -1
-            };
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", items);
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 0) }), CancellationToken.None);
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
             await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Số lượng nhận của vật tư [Sand] phải lớn hơn hoặc bằng 0.");
+                .WithMessage("Danh sách vật tư nhận thực tế phải chứa ít nhất một vật tư có số lượng lớn hơn 0.");
+            VerifyTransactionNeverStarted();
         }
 
         [Fact]
-        public async Task UTCID13_Handle_POWithMultipleItemsPartiallyReceived_ShouldUpdatePOStatusToPartiallyReceived()
+        public async Task UTCID14_Handle_StockUpdateFails_ShouldRollbackTransactionAndRethrow()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } },
-                    new PurchaseOrderItem { MaterialId = 51, Quantity = 10, Material = new MaterialCatalog { Name = "Sand" } }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
-
-            var items = new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 10), // Cement fully received
-                new CreateGoodsReceiptItemDto(51, 1, 5)   // Sand partially received (5/10)
-            };
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", items);
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Success.Should().BeTrue();
-            po.Status.Should().Be(PurchaseOrderStatus.PartiallyReceived);
-        }
-
-        [Fact]
-        public async Task UTCID14_Handle_ExceptionDuringStockUpdate_ShouldRollbackTransactionAndThrow()
-        {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
-
+            SetupTechnicalManager();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
             _mockInventoryService.Setup(s => s.UpdateStockAsync(
-                It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(), It.IsAny<byte>(), It.IsAny<long>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<long>(),
+                    It.IsAny<long>(),
+                    It.IsAny<decimal>(),
+                    It.IsAny<byte>(),
+                    It.IsAny<long>(),
+                    It.IsAny<string>(),
+                    It.IsAny<long>(),
+                    It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new Exception("Database connection failed"));
 
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5)
-            });
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
             await act.Should().ThrowAsync<Exception>().WithMessage("Database connection failed");
             _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        [Fact]
-        public async Task UTCID19_Handle_UnauthorizedUser_NotLeaderOrManager_ShouldThrowForbiddenException()
-        {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            // Mock IsInRole to return false (not TechnicalManager or Admin)
-            _mockCurrentUserService.Setup(s => s.IsInRole(It.IsAny<string>())).Returns(false);
+        private static CreateGoodsReceiptCommand Command(
+            long poId = POId,
+            IEnumerable<CreateGoodsReceiptItemDto>? items = null,
+            IEnumerable<string>? images = null,
+            string? deliverer = "John",
+            string? deliveryDocNo = "DOC-123")
+            => new(
+                poId,
+                deliverer,
+                deliveryDocNo,
+                items?.ToList() ?? new List<CreateGoodsReceiptItemDto> { Item(CementId, 5) },
+                images?.ToList());
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
+        private static CreateGoodsReceiptItemDto Item(long materialId, decimal quantity)
+            => new(materialId, UnitId, quantity);
+
+        private static PurchaseOrder PurchaseOrderWithItems(string status, params PurchaseOrderItem[] items)
+            => PurchaseOrderWithItems(status, ProjectStatus.InProgress, items);
+
+        private static PurchaseOrder PurchaseOrderWithItems(string status, string projectStatus, params PurchaseOrderItem[] items)
+            => new()
             {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
+                POId = POId,
+                Status = status,
+                PONumber = "PO-100",
                 Request = new MaterialRequest
                 {
-                    Phase = new Phase { Project = project }
+                    Phase = new Phase
+                    {
+                        Project = new Project { ProjectId = ProjectId, Status = projectStatus }
+                    }
                 },
-                Items = new List<PurchaseOrderItem>
+                Items = items.ToList()
+            };
+
+        private static PurchaseOrderItem POItem(long materialId, string name, decimal quantity, decimal conversionRate = 1, bool isDiscrete = false)
+            => new()
+            {
+                MaterialId = materialId,
+                UnitId = UnitId,
+                Quantity = quantity,
+                ConversionRate = conversionRate,
+                Material = new MaterialCatalog
                 {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } }
+                    MaterialId = materialId,
+                    Name = name,
+                    BaseUnit = new Unit { UnitId = UnitId, UnitName = "Bag", IsDiscrete = isDiscrete }
                 }
             };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
 
-            // User is not a leader of the project
-            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>
-            {
-                new ProjectMember { ProjectId = 5, UserId = 10, IsLeader = false }
-            }.AsQueryable().BuildMock());
-
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5)
-            });
-
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            await act.Should().ThrowAsync<ForbiddenException>()
-                .WithMessage("Chỉ Trưởng phòng kỹ thuật hoặc Trưởng dự án mới có quyền nhập kho cho đơn hàng.");
+        private void SetupTechnicalManager()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId);
+            _mockCurrentUserService.Setup(s => s.IsInRole(RoleConstants.TechnicalManager)).Returns(true);
         }
 
-        [Fact]
-        public async Task UTCID20_Handle_AuthorizedProjectLeader_ShouldCreateGoodsReceiptSuccessfully()
+        private void SetupProjectLeader()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
-            // Mock IsInRole to return false (not TechnicalManager or Admin)
-            _mockCurrentUserService.Setup(s => s.IsInRole(It.IsAny<string>())).Returns(false);
-
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
-
-            // User is a Project Leader (IsLeader = true)
-            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>
-            {
-                new ProjectMember { ProjectId = 5, UserId = 10, IsLeader = true }
-            }.AsQueryable().BuildMock());
-
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5)
-            });
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Should().NotBeNull();
-            result.Data.Should().Be(500);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            _mockCurrentUserService.SetupUser(CurrentUserId);
+            _mockCurrentUserService.Setup(s => s.IsInRole(RoleConstants.TechnicalManager)).Returns(false);
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
         }
 
-        [Fact]
-        public async Task UTCID21_Handle_MultipleItemsOneZeroQuantity_ShouldSkipZeroQuantityItemAndSucceed()
+        private void SetupStandardUser()
         {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10);
+            _mockCurrentUserService.SetupUser(CurrentUserId);
+            _mockCurrentUserService.Setup(s => s.IsInRole(RoleConstants.TechnicalManager)).Returns(false);
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = false });
+        }
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder
-            {
-                POId = 100,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest
-                {
-                    Phase = new Phase { Project = project }
-                },
-                Items = new List<PurchaseOrderItem>
-                {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, Material = new MaterialCatalog { Name = "Cement" } },
-                    new PurchaseOrderItem { MaterialId = 51, Quantity = 10, Material = new MaterialCatalog { Name = "Sand" } }
-                }
-            };
-            _mockPoRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrder> { po }.AsQueryable().BuildMock());
+        private void SetupPurchaseOrders(params PurchaseOrder[] purchaseOrders)
+        {
+            _mockPoRepo.Setup(r => r.Query()).Returns(purchaseOrders.AsQueryable().BuildMock());
+        }
 
-            // Sand has 0 quantity (meaning not received in this delivery, to be delivered later)
-            var items = new List<CreateGoodsReceiptItemDto>
-            {
-                new CreateGoodsReceiptItemDto(50, 1, 5),
-                new CreateGoodsReceiptItemDto(51, 1, 0)
-            };
-            var command = new CreateGoodsReceiptCommand(100, "John", "DOC-123", items);
+        private void SetupApprovedReceiptItems(params GoodsReceiptItem[] items)
+        {
+            _mockReceiptItemRepo.Setup(r => r.Query()).Returns(items.AsQueryable().BuildMock());
+        }
 
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
+        private void SetupProjectMembers(params ProjectMember[] members)
+        {
+            _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+        }
 
-            // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
+        private void SetupReceiptIdGeneration()
+        {
+            _mockReceiptRepo.Setup(r => r.AddAsync(It.IsAny<GoodsReceipt>(), It.IsAny<CancellationToken>()))
+                .Callback<GoodsReceipt, CancellationToken>((receipt, _) => receipt.ReceiptId = GeneratedReceiptId)
+                .Returns(Task.CompletedTask);
+        }
 
-            // Should call UpdateStockAsync ONLY for Cement (MaterialId = 50), not Sand (MaterialId = 51)
-            _mockInventoryService.Verify(s => s.UpdateStockAsync(
-                project.ProjectId,
-                50,
-                It.IsAny<decimal>(),
-                InventoryTransactionType.GoodsReceipt,
-                It.IsAny<long>(),
-                EntityType.GoodsReceipt,
-                10,
+        private void VerifyReceiptSaved(string? deliverer, string? deliveryDocNo)
+        {
+            _mockReceiptRepo.Verify(r => r.AddAsync(It.Is<GoodsReceipt>(receipt =>
+                receipt.POId == POId &&
+                receipt.DelivererInfo == deliverer &&
+                receipt.DeliveryDocNo == deliveryDocNo &&
+                receipt.Status == GoodsReceiptStatus.Approved &&
+                receipt.CreatedBy == CurrentUserId), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        private void VerifyReceiptItemsSaved(params long[] materialIds)
+        {
+            _mockReceiptItemRepo.Verify(r => r.AddRangeAsync(It.Is<IEnumerable<GoodsReceiptItem>>(items =>
+                materialIds.All(materialId => items.Any(item => item.MaterialId == materialId)) &&
+                items.Count() == materialIds.Length), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        private void VerifyAttachmentsSaved(int count)
+        {
+            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(
+                It.Is<IEnumerable<Attachment>>(attachments => attachments.Count() == count),
                 It.IsAny<CancellationToken>()), Times.Once);
+        }
 
+        private void VerifyStockUpdated(long materialId, decimal quantity)
+        {
             _mockInventoryService.Verify(s => s.UpdateStockAsync(
-                project.ProjectId,
-                51,
+                ProjectId,
+                materialId,
+                quantity,
+                InventoryTransactionType.GoodsReceipt,
+                GeneratedReceiptId,
+                EntityType.GoodsReceipt,
+                CurrentUserId,
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        private void VerifyStockNeverUpdated(long materialId)
+        {
+            _mockInventoryService.Verify(s => s.UpdateStockAsync(
+                ProjectId,
+                materialId,
                 It.IsAny<decimal>(),
                 It.IsAny<byte>(),
                 It.IsAny<long>(),
                 It.IsAny<string>(),
                 It.IsAny<long>(),
                 It.IsAny<CancellationToken>()), Times.Never);
+        }
 
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        private void VerifyCommittedAndRealtimeSent()
+        {
+            _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockUow.Verify(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockRealtimeSender.Verify(s => s.SendToGroupAsync(
+                ProjectGroup, HubMethodNames.GoodsReceiptChanged, GeneratedReceiptId, It.IsAny<CancellationToken>()), Times.Once);
+            _mockRealtimeSender.Verify(s => s.SendToGroupAsync(
+                GlobalInventoryGroup, HubMethodNames.GoodsReceiptChanged, GeneratedReceiptId, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        private void VerifyTransactionNeverStarted()
+        {
+            _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
+            _mockReceiptRepo.Verify(r => r.AddAsync(It.IsAny<GoodsReceipt>(), It.IsAny<CancellationToken>()), Times.Never);
         }
     }
 }
