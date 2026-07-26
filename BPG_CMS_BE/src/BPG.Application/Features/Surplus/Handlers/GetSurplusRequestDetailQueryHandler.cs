@@ -53,6 +53,11 @@ public class GetSurplusRequestDetailQueryHandler : IRequestHandler<GetSurplusReq
             sr.ProjectId,
             sr.Items.Select(item => item.MaterialId).Distinct().ToArray(),
             ct);
+        var materialIds = sr.Items.Select(i => i.MaterialId).Distinct().ToList();
+        var inventoryByMaterial = await _uow.Repository<CurrentInventory>().Query()
+            .Where(ci => ci.ProjectId == sr.ProjectId && materialIds.Contains(ci.MaterialId))
+            .AsNoTracking()
+            .ToDictionaryAsync(ci => ci.MaterialId, ct);
 
         var dto = new SurplusRequestDetailDto
         {
@@ -68,6 +73,7 @@ public class GetSurplusRequestDetailQueryHandler : IRequestHandler<GetSurplusReq
             Items = sr.Items.Select(i =>
             {
                 suppliersByMaterial.TryGetValue(i.MaterialId, out var supplier);
+                inventoryByMaterial.TryGetValue(i.MaterialId, out var inventory);
                 return new SurplusRequestItemDto
                 {
                 SurplusRequestItemId = i.SurplusRequestItemId,
@@ -81,6 +87,9 @@ public class GetSurplusRequestDetailQueryHandler : IRequestHandler<GetSurplusReq
                 SupplierName = supplier?.SupplierName,
                 Quantity = i.Quantity,
                 ProcessedQuantity = i.ProcessedQuantity,
+                CurrentInventoryQuantity = inventory?.Quantity ?? 0,
+                ReservedQuantity = inventory?.ReservedQuantity ?? 0,
+                CloseReason = i.CloseReason,
                 Status = i.Status,
                 Actions = BuildActionSummaries(i)
                 };
