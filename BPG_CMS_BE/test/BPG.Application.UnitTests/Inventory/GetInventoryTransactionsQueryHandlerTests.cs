@@ -1,4 +1,4 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Inventory;
 using BPG.Application.Features.Inventory.Handlers;
 using BPG.Application.Features.Inventory.Queries;
@@ -326,3 +326,4 @@ namespace BPG.Application.UnitTests.Inventory
         }
     }
 }
+

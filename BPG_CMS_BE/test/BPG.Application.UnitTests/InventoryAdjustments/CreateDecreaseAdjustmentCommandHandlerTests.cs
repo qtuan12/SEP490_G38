@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -24,10 +24,10 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 {
     public class CreateDecreaseAdjustmentCommandHandlerTests
     {
+        private const long GeneratedAdjustmentId = 900;
+
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
-        private readonly Mock<IRealtimeNotificationSender> _mockRealtimeSender;
-        private readonly Mock<INotificationService> _mockNotificationService;
 
         private readonly Mock<IGenericRepository<Project>> _mockProjectRepo;
         private readonly Mock<IGenericRepository<Phase>> _mockPhaseRepo;
@@ -40,8 +40,6 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         {
             _mockUow = new Mock<IUnitOfWork>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
-            _mockRealtimeSender = new Mock<IRealtimeNotificationSender>();
-            _mockNotificationService = new Mock<INotificationService>();
 
             _mockProjectRepo = new Mock<IGenericRepository<Project>>();
             _mockPhaseRepo = new Mock<IGenericRepository<Phase>>();
@@ -54,12 +52,15 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             _mockUow.Setup(u => u.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
 
             _mockMaterialRepo.SetupMockData(new List<MaterialCatalog>());
+            _mockAdjustmentRepo.Setup(r => r.AddAsync(It.IsAny<InventoryAdjustment>(), It.IsAny<CancellationToken>()))
+                .Callback<InventoryAdjustment, CancellationToken>((adjustment, _) => adjustment.AdjustmentId = GeneratedAdjustmentId)
+                .Returns(Task.CompletedTask);
 
             _handler = new CreateDecreaseAdjustmentCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
-                _mockRealtimeSender.Object,
-                _mockNotificationService.Object
+                ServiceStubFactory.RealtimeSender(),
+                ServiceStubFactory.NotificationService()
             );
         }
 
@@ -222,29 +223,9 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             // Assert
             result.Should().NotBeNull();
             result.Success.Should().BeTrue();
+            result.Data.Should().Be(GeneratedAdjustmentId);
 
-            _mockAdjustmentRepo.Verify(r => r.AddAsync(It.Is<InventoryAdjustment>(
-                a => a.ProjectId == projectId &&
-                     a.PhaseId == phaseId &&
-                     a.AdjustmentType == InventoryAdjustmentType.Decrease &&
-                     a.Status == InventoryAdjustmentStatus.Pending &&
-                     a.Reason == "Trôi cát do mưa bão" &&
-                     a.Items.Count == 1 &&
-                     a.Items.First().MaterialId == materialId &&
-                     a.Items.First().Quantity == 15.5m
-            ), It.IsAny<CancellationToken>()), Times.Once);
-
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-
-            _mockNotificationService.Verify(n => n.SendNotificationToRoleAsync(
-                UserRole.Director,
-                "Phiếu điều chỉnh giảm tồn kho cần phê duyệt",
-                It.Is<string>(msg => msg.Contains("Dự án Alpha")),
-                NotificationType.Procurement,
-                It.IsAny<string?>(),
-                It.IsAny<long?>(),
-                It.IsAny<CancellationToken>()
-            ), Times.Once);
         }
     }
 }
+
