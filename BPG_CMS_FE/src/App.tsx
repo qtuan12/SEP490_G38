@@ -171,7 +171,7 @@ function App() {
               <Route
                 path="/field"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer']}>
                     <FieldWorkbench />
                   </ProtectedRoute>
                 }
