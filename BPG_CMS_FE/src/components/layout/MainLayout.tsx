@@ -15,6 +15,7 @@ import {
   Package,
   ShoppingCart,
   SlidersHorizontal,
+  Smartphone,
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
@@ -38,6 +39,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
     { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
+    { name: 'Việc của tôi', path: '/field', icon: <Smartphone size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer'] },
     { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: ['accountant'] },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, roles: ['admin', 'accountant'] },
     { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin'] },
@@ -171,6 +173,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         location.pathname === '/categories' ? 'Danh mục Vật tư' :
                           location.pathname === '/materials' ? 'Kho Vật tư' :
                             location.pathname === '/projects' ? 'Danh sách Dự án' :
+                              location.pathname === '/field' ? 'Việc của tôi' :
                               location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
                                 location.pathname === '/system-config' ? 'Cấu hình Hệ thống' :
                                   location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}

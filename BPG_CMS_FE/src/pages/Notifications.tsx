@@ -7,7 +7,7 @@ import { formatDate } from '../utils/dateHelpers';
 
 const PAGE_SIZE = 10;
 
-const resolveNotificationUrl = (noti: any): string | null => {
+export const resolveNotificationUrl = (noti: any): string | null => {
   const referenceType = noti.referenceType;
   const referenceId = noti.referenceId;
   const titleOrContent = ((noti.title || '') + ' ' + (noti.content || '')).toLowerCase();
