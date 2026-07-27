@@ -60,8 +60,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
                 _mockInventoryService.Object,
-                Mock.Of<IRealtimeNotificationSender>(),
-                Mock.Of<INotificationService>());
+                ServiceStubFactory.RealtimeSender(),
+                ServiceStubFactory.NotificationService());
         }
 
         [Fact]
@@ -97,6 +97,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
             var result = await _handler.Handle(Command(items: new[] { Item(CementId, 6) }), CancellationToken.None);
 
             result.Success.Should().BeTrue();
+            result.Data.Should().Be(GeneratedReturnId);
+            result.Message.Should().Contain("Tạo phiếu hoàn trả");
         }
 
         [Fact]

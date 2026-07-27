@@ -63,8 +63,8 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
                 _mockInventoryService.Object,
-                Mock.Of<IRealtimeNotificationSender>(),
-                Mock.Of<INotificationService>());
+                ServiceStubFactory.RealtimeSender(),
+                ServiceStubFactory.NotificationService());
         }
 
         [Fact]
@@ -99,6 +99,8 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             var result = await _handler.Handle(Command(items: new[] { Item(CementId, 5), Item(SandId, 0) }), CancellationToken.None);
 
             result.Success.Should().BeTrue();
+            result.Data.Should().Be(GeneratedReceiptId);
+            result.Message.Should().Be("Tạo phiếu nhập kho thành công.");
         }
 
         [Fact]

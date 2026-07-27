@@ -63,8 +63,8 @@ namespace BPG.Application.UnitTests.MaterialIssuances
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
                 _mockInventoryService.Object,
-                Mock.Of<IRealtimeNotificationSender>(),
-                Mock.Of<INotificationService>());
+                ServiceStubFactory.RealtimeSender(),
+                ServiceStubFactory.NotificationService());
         }
 
         [Fact]
@@ -101,6 +101,8 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             var result = await _handler.Handle(Command(items: new[] { Item(CementId, 10) }), CancellationToken.None);
 
             result.Success.Should().BeTrue();
+            result.Data.Should().Be(GeneratedIssuanceId);
+            result.Message.Should().Be("Tạo phiếu xuất kho thành công.");
         }
 
         [Fact]

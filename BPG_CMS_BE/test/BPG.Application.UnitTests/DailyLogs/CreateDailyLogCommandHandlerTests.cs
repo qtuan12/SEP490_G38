@@ -75,9 +75,9 @@ namespace BPG.Application.UnitTests.DailyLogs
                 _mockUow.Object,
                 _mockMapper.Object,
                 _mockCurrentUserService.Object,
-                Mock.Of<INotificationService>(),
-                Mock.Of<IRealtimeNotificationSender>(),
-                Mock.Of<IProgressRollupService>());
+                ServiceStubFactory.NotificationService(),
+                ServiceStubFactory.RealtimeSender(),
+                ServiceStubFactory.ProgressRollupService());
         }
 
         [Fact]

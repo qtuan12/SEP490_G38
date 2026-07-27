@@ -65,7 +65,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
                 _mockInventoryService.Object,
-                Mock.Of<IRealtimeNotificationSender>()
+                ServiceStubFactory.RealtimeSender()
             );
         }
 
@@ -177,6 +177,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             // Assert
             result.Success.Should().BeTrue();
+            result.Data.Should().BeTrue();
         }
 
         [Fact]

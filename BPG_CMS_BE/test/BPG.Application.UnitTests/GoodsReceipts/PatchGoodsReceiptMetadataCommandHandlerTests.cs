@@ -167,6 +167,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             // Assert
             result.Success.Should().BeTrue();
+            result.Data.Should().BeTrue();
         }
 
         [Fact]
@@ -189,6 +190,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             // Assert
             result.Success.Should().BeTrue();
+            result.Data.Should().BeTrue();
         }
 
         [Fact]
@@ -210,6 +212,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             // Assert
             result.Success.Should().BeTrue();
+            result.Data.Should().BeTrue();
         }
 
         [Fact]
@@ -230,6 +233,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             // Assert
             result.Success.Should().BeTrue();
+            result.Data.Should().BeTrue();
         }
 
         [Fact]
@@ -284,6 +288,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             {
                 var result = await act();
                 result.Success.Should().BeTrue();
+                result.Data.Should().BeTrue();
             }
             else
             {

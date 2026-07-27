@@ -3,6 +3,7 @@ using BPG.Application.Features.Tasks.Commands;
 using BPG.Application.Features.Tasks.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.UnitTests.Helpers;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
@@ -39,9 +40,9 @@ namespace BPG.Application.UnitTests.Tasks
 
             _handler = new AdjustTaskProgressCommandHandler(
                 _mockUow.Object,
-                Mock.Of<IProgressRollupService>(),
-                Mock.Of<INotificationService>(),
-                Mock.Of<IRealtimeNotificationSender>()
+                ServiceStubFactory.ProgressRollupService(),
+                ServiceStubFactory.NotificationService(),
+                ServiceStubFactory.RealtimeSender()
             );
         }
 

@@ -34,6 +34,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IMapper> _mockMapper;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
+        private readonly Mock<IRealtimeNotificationSender> _mockRealtimeSender;
 
         private readonly Mock<IGenericRepository<DailyLog>> _mockLogRepo;
         private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
@@ -51,6 +52,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockUow = new Mock<IUnitOfWork>();
             _mockMapper = new Mock<IMapper>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
+            _mockRealtimeSender = new Mock<IRealtimeNotificationSender>();
 
             _mockLogRepo = new Mock<IGenericRepository<DailyLog>>();
             _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
@@ -92,12 +94,19 @@ namespace BPG.Application.UnitTests.DailyLogs
                     NewProgressPercent = src.NewProgressPercent,
                     Description = src.Description
                 });
+            _mockRealtimeSender
+                .Setup(x => x.SendToGroupAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<object>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             _handler = new UpdateDailyLogCommandHandler(
                 _mockUow.Object,
                 _mockMapper.Object,
                 _mockCurrentUserService.Object,
-                Mock.Of<IRealtimeNotificationSender>()
+                _mockRealtimeSender.Object
             );
         }
 
@@ -151,6 +160,11 @@ namespace BPG.Application.UnitTests.DailyLogs
             result.Description.Should().Be("Updated description with new details");
             result.OldProgressPercent.Should().Be(20); // Mapped correctly
 
+            result.Images.Should().BeEquivalentTo(new[]
+            {
+                "http://site.com/old1.jpg",
+                "http://site.com/new1.jpg"
+            });
             result.EditWindowHours.Should().Be(24);
             result.CanEdit.Should().BeTrue(); // just edited -> still editable
 
@@ -279,9 +293,10 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
 
-            // Assert
-            result.Should().NotBeNull();
-        }
+        // Assert
+        result.Should().NotBeNull();
+        result.Images.Should().BeEquivalentTo(images);
+}
 
         [Fact]
         public async Task UTCID07_Handle_UserIsAssignee_ShouldUpdateSuccessfully()
@@ -318,6 +333,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
 
             // Assert
             result.Should().NotBeNull();
+            result.Description.Should().Be("New Description");
             result.EditWindowHours.Should().Be(24);
             result.CanEdit.Should().BeTrue();
         }
@@ -351,6 +367,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
 
             // Assert
             result.Should().NotBeNull();
+            result.Images.Should().BeEmpty();
         }
 
         [Fact]
@@ -428,6 +445,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
 
             // Assert
             result.Should().NotBeNull();
+            result.Description.Should().Be("New Description - Progress remains 50%");
             result.OldProgressPercent.Should().Be(40);
             result.NewProgressPercent.Should().Be(50);
             result.Images.Should().ContainSingle(img => img == "new_photo1.jpg");
@@ -503,6 +521,44 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
             // Assert
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_TASK_OBSOLETE");
+        }
+
+        [Fact]
+        public async Task UTCID13_Handle_UserIsProjectLeader_ShouldUpdateSuccessfully()
+        {
+            // Arrange
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false);
+
+            var project = Project();
+            var log = new DailyLog
+            {
+                LogId = LogId,
+                TaskId = TaskId,
+                CreatedAt = DateTime.UtcNow.AddMinutes(-10),
+                Task = new ProjectTask
+                {
+                    TaskId = TaskId,
+                    IsLocked = false,
+                    Phase = new Phase { Project = project }
+                }
+            };
+            _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>
+            {
+                new() { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true }
+            }.AsQueryable().BuildMock());
+            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
+
+            var command = Command("Leader update");
+
+            // Act
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Description.Should().Be("Leader update");
+            result.EditWindowHours.Should().Be(24);
+            result.CanEdit.Should().BeTrue();
         }
 
         private static Project Project(string status = ProjectStatus.InProgress)
