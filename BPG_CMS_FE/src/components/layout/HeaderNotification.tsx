@@ -119,7 +119,7 @@ export const HeaderNotification: React.FC = () => {
         </button>
 
         {isOpen && (
-          <div className="animate-slide-up" style={{ position: 'absolute', right: 0, marginTop: '8px', width: 'min(360px, calc(100vw - 24px))', maxWidth: 'calc(100vw - 24px)', zIndex: 100, borderRadius: '12px', border: hasEmergencyUnread ? '1px solid rgba(239,68,68,0.5)' : '1px solid hsl(var(--border))', overflow: 'hidden', background: 'hsl(var(--bg-card))', boxShadow: hasEmergencyUnread ? '0 0 0 3px rgba(239,68,68,0.15), var(--shadow-lg)' : 'var(--shadow-lg)' }}>
+          <div className="animate-slide-up" style={{ position: 'absolute', right: 0, marginTop: '8px', width: 'min(360px, calc(100vw - 48px))', maxWidth: 'calc(100vw - 48px)', zIndex: 100, borderRadius: '12px', border: hasEmergencyUnread ? '1px solid rgba(239,68,68,0.5)' : '1px solid hsl(var(--border))', overflow: 'hidden', background: 'hsl(var(--bg-card))', boxShadow: hasEmergencyUnread ? '0 0 0 3px rgba(239,68,68,0.15), var(--shadow-lg)' : 'var(--shadow-lg)' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid hsl(var(--border))', background: hasEmergencyUnread ? 'linear-gradient(135deg, rgba(239,68,68,0.08) 0%, transparent 100%)' : 'transparent' }}>
               <span style={{ fontWeight: 600, fontSize: '14px', color: 'hsl(var(--text-primary))', display: 'flex', alignItems: 'center', gap: '6px' }}>

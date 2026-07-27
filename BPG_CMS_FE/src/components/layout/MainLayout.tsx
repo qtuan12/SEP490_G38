@@ -173,6 +173,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                         location.pathname === '/categories' ? 'Danh mục Vật tư' :
                           location.pathname === '/materials' ? 'Kho Vật tư' :
                             location.pathname === '/projects' ? 'Danh sách Dự án' :
+                              location.pathname === '/field' ? 'Việc của tôi' :
                               location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
                                 location.pathname === '/system-config' ? 'Cấu hình Hệ thống' :
                                   location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
