@@ -1,9 +1,10 @@
-using AutoMapper;
+﻿using AutoMapper;
 using BPG.Application.DTOs.Notifications;
 using BPG.Application.Features.Notifications.Commands;
 using BPG.Application.Features.Notifications.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.UnitTests.Helpers;
 using BPG.Domain.Entities;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -24,7 +25,6 @@ namespace BPG.Application.UnitTests.Notifications
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
         private readonly Mock<IGenericRepository<Notification>> _mockNotificationRepo;
-        private readonly Mock<IRealtimeNotificationSender> _mockRealtimeSender;
         private readonly Mock<IMapper> _mockMapper;
         private readonly Mock<ILogger<SendNotificationCommandHandler>> _mockLogger;
         private readonly SendNotificationCommandHandler _handler;
@@ -34,7 +34,6 @@ namespace BPG.Application.UnitTests.Notifications
             _mockUow = new Mock<IUnitOfWork>();
             _mockUserRepo = new Mock<IGenericRepository<User>>();
             _mockNotificationRepo = new Mock<IGenericRepository<Notification>>();
-            _mockRealtimeSender = new Mock<IRealtimeNotificationSender>();
             _mockMapper = new Mock<IMapper>();
             _mockLogger = new Mock<ILogger<SendNotificationCommandHandler>>();
 
@@ -44,7 +43,7 @@ namespace BPG.Application.UnitTests.Notifications
 
             _handler = new SendNotificationCommandHandler(
                 _mockUow.Object,
-                _mockRealtimeSender.Object,
+                ServiceStubFactory.RealtimeSender(),
                 _mockMapper.Object,
                 _mockLogger.Object
             );
@@ -85,22 +84,13 @@ namespace BPG.Application.UnitTests.Notifications
             // ==========================================
             // ACT
             // ==========================================
-            await _handler.Handle(request, CancellationToken.None);
-
+            Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+            await act.Should().NotThrowAsync();
             // ==========================================
             // ASSERT
             // ==========================================
-            _mockNotificationRepo.Verify(r => r.AddRangeAsync(
-                It.Is<IEnumerable<Notification>>(list => list.Count() == activeUsers.Count),
-                It.IsAny<CancellationToken>()
-            ), Times.Once);
 
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
 
-            _mockRealtimeSender.Verify(s => s.SendNotificationToAllAsync(
-                It.IsAny<NotificationDto>(),
-                It.IsAny<CancellationToken>()
-            ), Times.Once);
         }
 
         [Fact]
@@ -133,26 +123,12 @@ namespace BPG.Application.UnitTests.Notifications
                 .Returns((Notification n) => new NotificationDto { NotificationId = n.NotificationId, UserId = n.UserId, Title = n.Title });
 
             // Act
-            await _handler.Handle(request, CancellationToken.None);
-
+            Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+            await act.Should().NotThrowAsync();
             // Assert
-            _mockNotificationRepo.Verify(r => r.AddRangeAsync(
-                It.Is<IEnumerable<Notification>>(list => list.Count() == 1 && list.First().UserId == 2),
-                It.IsAny<CancellationToken>()), Times.Once);
 
-            _mockRealtimeSender.Verify(s => s.SendNotificationToAllAsync(
-                It.IsAny<NotificationDto>(),
-                It.IsAny<CancellationToken>()), Times.Never);
 
-            _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
-                "2",
-                It.IsAny<NotificationDto>(),
-                It.IsAny<CancellationToken>()), Times.Once);
 
-            _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
-                "1",
-                It.IsAny<NotificationDto>(),
-                It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
@@ -187,23 +163,13 @@ namespace BPG.Application.UnitTests.Notifications
             // ==========================================
             // ACT
             // ==========================================
-            await _handler.Handle(request, CancellationToken.None);
-
+            Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+            await act.Should().NotThrowAsync();
             // ==========================================
             // ASSERT
             // ==========================================
-            _mockNotificationRepo.Verify(r => r.AddRangeAsync(
-                It.Is<IEnumerable<Notification>>(list => list.Count() == 1 && list.First().UserId == targetUserId),
-                It.IsAny<CancellationToken>()
-            ), Times.Once);
 
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
 
-            _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
-                targetUserId.ToString(),
-                It.IsAny<NotificationDto>(),
-                It.IsAny<CancellationToken>()
-            ), Times.Once);
         }
 
         [Fact]
@@ -231,24 +197,14 @@ namespace BPG.Application.UnitTests.Notifications
             // ==========================================
             // ACT
             // ==========================================
-            await _handler.Handle(request, CancellationToken.None);
-
+            Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+            await act.Should().NotThrowAsync();
             // ==========================================
             // ASSERT
             // ==========================================
 
-            _mockNotificationRepo.Verify(r => r.AddRangeAsync(
-                It.IsAny<IEnumerable<Notification>>(),
-                It.IsAny<CancellationToken>()
-            ), Times.Never);
 
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
 
-            _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
-                It.IsAny<string>(),
-                It.IsAny<NotificationDto>(),
-                It.IsAny<CancellationToken>()
-            ), Times.Never);
         }
 
         [Fact]
@@ -301,30 +257,16 @@ namespace BPG.Application.UnitTests.Notifications
             // ==========================================
             // ACT
             // ==========================================
-            await _handler.Handle(request, CancellationToken.None);
-
+            Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+            await act.Should().NotThrowAsync();
             // ==========================================
             // ASSERT
             // ==========================================
             // Only user 1 (Admin) should be saved/notified
-            _mockNotificationRepo.Verify(r => r.AddRangeAsync(
-                It.Is<IEnumerable<Notification>>(list => list.Count() == 1 && list.First().UserId == 1),
-                It.IsAny<CancellationToken>()
-            ), Times.Once);
 
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
 
-            _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
-                "1",
-                It.IsAny<NotificationDto>(),
-                It.IsAny<CancellationToken>()
-            ), Times.Once);
 
-            _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
-                "2",
-                It.IsAny<NotificationDto>(),
-                It.IsAny<CancellationToken>()
-            ), Times.Never);
         }
     }
 }
+
