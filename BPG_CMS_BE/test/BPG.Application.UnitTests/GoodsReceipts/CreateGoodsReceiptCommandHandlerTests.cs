@@ -1,4 +1,4 @@
-using BPG.Application.Features.GoodsReceipts.Commands;
+﻿using BPG.Application.Features.GoodsReceipts.Commands;
 using BPG.Application.Features.GoodsReceipts.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -31,9 +31,11 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockReceiptItemRepo;
         private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
+        private readonly Mock<IGenericRepository<User>> _mockUserRepo;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
         private readonly Mock<IInventoryService> _mockInventoryService;
         private readonly Mock<IRealtimeNotificationSender> _mockRealtimeSender;
+        private readonly Mock<INotificationService> _mockNotificationService;
         private readonly CreateGoodsReceiptCommandHandler _handler;
 
         public CreateGoodsReceiptCommandHandlerTests()
@@ -44,26 +46,31 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockReceiptItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
             _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
+            _mockUserRepo = new Mock<IGenericRepository<User>>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
             _mockInventoryService = new Mock<IInventoryService>();
             _mockRealtimeSender = new Mock<IRealtimeNotificationSender>();
+            _mockNotificationService = new Mock<INotificationService>();
 
             _mockUow.Setup(u => u.Repository<PurchaseOrder>()).Returns(_mockPoRepo.Object);
             _mockUow.Setup(u => u.Repository<GoodsReceipt>()).Returns(_mockReceiptRepo.Object);
             _mockUow.Setup(u => u.Repository<GoodsReceiptItem>()).Returns(_mockReceiptItemRepo.Object);
             _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
+            _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
 
             SetupPurchaseOrders();
             SetupApprovedReceiptItems();
             SetupProjectMembers();
+            SetupUsers(new User { UserId = CurrentUserId, FullName = "Current User" });
             SetupReceiptIdGeneration();
 
             _handler = new CreateGoodsReceiptCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
                 _mockInventoryService.Object,
-                _mockRealtimeSender.Object);
+                _mockRealtimeSender.Object,
+                _mockNotificationService.Object);
         }
 
         [Fact]
@@ -203,7 +210,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             var act = async () => await _handler.Handle(Command(items: new[] { Item(99, 5) }), CancellationToken.None);
 
             await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Vật tư ID 99 không tồn tại trong đơn hàng PO này.");
+                .WithMessage("Vật tư ID 99 không tồn tại trong đơn hàng này.");
             VerifyTransactionNeverStarted();
         }
 
@@ -248,7 +255,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
             await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Số lượng nhận (5) vượt quá số lượng còn lại cần giao của PO cho vật tư [Cement] (còn thiếu 4).");
+                .WithMessage("Số lượng nhận (5) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [Cement] (còn thiếu 4).");
             VerifyTransactionNeverStarted();
         }
 
@@ -372,6 +379,11 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
         }
 
+        private void SetupUsers(params User[] users)
+        {
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+        }
+
         private void SetupReceiptIdGeneration()
         {
             _mockReceiptRepo.Setup(r => r.AddAsync(It.IsAny<GoodsReceipt>(), It.IsAny<CancellationToken>()))
@@ -446,3 +458,6 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         }
     }
 }
+
+
+

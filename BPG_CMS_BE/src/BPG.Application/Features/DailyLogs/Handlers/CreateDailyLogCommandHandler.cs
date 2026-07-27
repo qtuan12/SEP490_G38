@@ -24,19 +24,22 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         private readonly ICurrentUserService _currentUserService;
         private readonly INotificationService _notificationService;
         private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly IProgressRollupService _progressRollupService;
 
         public CreateDailyLogCommandHandler(
             IUnitOfWork uow, 
             IMapper mapper, 
             ICurrentUserService currentUserService,
             INotificationService notificationService,
-            IRealtimeNotificationSender realtimeSender)
+            IRealtimeNotificationSender realtimeSender,
+            IProgressRollupService progressRollupService)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
             _realtimeSender = realtimeSender;
+            _progressRollupService = progressRollupService;
         }
 
         public async Task<DailyLogDto> Handle(CreateDailyLogCommand request, CancellationToken cancellationToken)
@@ -234,7 +237,13 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 await _uow.Repository<TaskProgressLog>().AddAsync(progressLog, cancellationToken);
 
                 // 9. Đồng bộ ngược tiến độ của các Task cha (Parent Tasks) nếu có
-                await SyncParentTasksProgressAsync(task, currentUserId, cancellationToken);
+                if (task.ParentTaskId.HasValue)
+                {
+                    await _progressRollupService.RecalculateParentTaskProgressAsync(
+                        task.ParentTaskId.Value,
+                        task.TaskId,
+                        cancellationToken);
+                }
 
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
@@ -273,75 +282,6 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             {
                 await _uow.RollbackTransactionAsync(cancellationToken);
                 throw;
-            }
-        }
-
-        private async Task SyncParentTasksProgressAsync(ProjectTask currentTask, long userId, CancellationToken cancellationToken)
-        {
-            var parentId = currentTask.ParentTaskId;
-            var current = currentTask;
-
-            while (parentId.HasValue)
-            {
-                var parent = await _uow.Repository<ProjectTask>().Query()
-                    .Include(t => t.SubTasks)
-                    .FirstOrDefaultAsync(t => t.TaskId == parentId.Value, cancellationToken);
-
-                if (parent == null) break;
-
-                // Lấy tất cả task con của parent này (không bao gồm các task đã bị xóa)
-                var siblingTasks = parent.SubTasks.Where(s => !s.IsDeleted).ToList();
-                if (!siblingTasks.Any()) break;
-
-                // Tính trung bình cộng tiến độ
-                byte oldParentProgress = parent.ProgressPercent;
-                double avgProgress = siblingTasks.Average(s => s.ProgressPercent);
-                byte newParentProgress = (byte)Math.Round(avgProgress);
-
-                if (oldParentProgress != newParentProgress)
-                {
-                    parent.ProgressPercent = newParentProgress;
-
-                    // Cập nhật trạng thái cho Task cha
-                    if (parent.ProgressPercent == 100)
-                    {
-                        parent.Status = BPG.Domain.Constants.TaskStatus.Completed;
-                    }
-                    else if (parent.ProgressPercent > 0)
-                    {
-                        parent.Status = BPG.Domain.Constants.TaskStatus.InProgress;
-                    }
-
-                    _uow.Repository<ProjectTask>().Update(parent);
-
-                    // Ghi nhận lịch sử cho Task cha
-                    var parentProgressLog = new TaskProgressLog
-                    {
-                        TaskId = parent.TaskId,
-                        OldProgress = oldParentProgress,
-                        NewProgress = newParentProgress,
-                        UpdateReason = "Cập nhật tự động từ tiến độ các công việc con",
-                        UpdatedAt = DateTime.UtcNow
-                    };
-                    await _uow.Repository<TaskProgressLog>().AddAsync(parentProgressLog, cancellationToken);
-
-                    if (newParentProgress < oldParentProgress)
-                    {
-                        var dailyLog = new DailyLog
-                        {
-                            TaskId = parent.TaskId,
-                            LogDate = DateOnly.FromDateTime(DateTime.Today),
-                            NewProgressPercent = newParentProgress,
-                            Description = $"Tiến độ giảm tự động từ {oldParentProgress}% xuống {newParentProgress}% do ảnh hưởng bởi thay đổi tiến độ của công việc con '{current.Name}'.",
-                            CreatedBy = userId,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        await _uow.Repository<DailyLog>().AddAsync(dailyLog, cancellationToken);
-                    }
-                }
-
-                current = parent;
-                parentId = current.ParentTaskId;
             }
         }
 

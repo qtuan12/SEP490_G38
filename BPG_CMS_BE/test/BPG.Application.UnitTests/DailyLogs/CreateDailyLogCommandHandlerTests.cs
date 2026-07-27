@@ -31,6 +31,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
         private readonly Mock<INotificationService> _mockNotificationService;
         private readonly Mock<IRealtimeNotificationSender> _mockRealtimeSender;
+        private readonly Mock<IProgressRollupService> _mockProgressRollupService;
         private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<IGenericRepository<TaskAssignee>> _mockAssigneeRepo;
@@ -49,6 +50,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockCurrentUserService = new Mock<ICurrentUserService>();
             _mockNotificationService = new Mock<INotificationService>();
             _mockRealtimeSender = new Mock<IRealtimeNotificationSender>();
+            _mockProgressRollupService = new Mock<IProgressRollupService>();
             _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockAssigneeRepo = new Mock<IGenericRepository<TaskAssignee>>();
@@ -82,7 +84,8 @@ namespace BPG.Application.UnitTests.DailyLogs
                 _mockMapper.Object,
                 _mockCurrentUserService.Object,
                 _mockNotificationService.Object,
-                _mockRealtimeSender.Object);
+                _mockRealtimeSender.Object,
+                _mockProgressRollupService.Object);
         }
 
         [Fact]
@@ -233,7 +236,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID10_Handle_DecreaseChildProgressByTechnicalManager_ShouldRollUpParentAndCreateParentLog()
+        public async Task UTCID10_Handle_DecreaseChildProgressByTechnicalManager_ShouldCallProgressRollupService()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
             SetupCreator("TM User");
@@ -241,7 +244,6 @@ namespace BPG.Application.UnitTests.DailyLogs
             var childTask = LeafTask(parentTaskId: ParentTaskId, progress: 80);
             parentTask.SubTasks.Add(childTask);
             SetupTasks(parentTask, childTask);
-            var capturedLogs = CaptureAddedDailyLogs();
 
             var result = await _handler.Handle(Command(progress: 50, description: "Decreasing child task progress"), CancellationToken.None);
 
@@ -249,9 +251,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             result.OldProgressPercent.Should().Be(80);
             result.NewProgressPercent.Should().Be(50);
             childTask.ProgressPercent.Should().Be(50);
-            parentTask.ProgressPercent.Should().Be(50);
-            capturedLogs.Should().ContainSingle(log => log.TaskId == TaskId && log.NewProgressPercent == 50);
-            capturedLogs.Should().ContainSingle(log => log.TaskId == ParentTaskId && log.NewProgressPercent == 50 && log.Description.Contains("Tiến độ giảm tự động"));
+            VerifyRollupCalled(ParentTaskId, TaskId);
             VerifyCommittedAndRealtimeSent();
         }
 
@@ -392,19 +392,6 @@ namespace BPG.Application.UnitTests.DailyLogs
                 .Returns(Task.CompletedTask);
         }
 
-        private List<DailyLog> CaptureAddedDailyLogs()
-        {
-            var capturedLogs = new List<DailyLog>();
-            _mockLogRepo.Setup(r => r.AddAsync(It.IsAny<DailyLog>(), It.IsAny<CancellationToken>()))
-                .Callback<DailyLog, CancellationToken>((log, _) =>
-                {
-                    log.LogId = GeneratedLogId + capturedLogs.Count;
-                    capturedLogs.Add(log);
-                })
-                .Returns(Task.CompletedTask);
-            return capturedLogs;
-        }
-
         private void SetupMapper()
         {
             _mockMapper.Setup(m => m.Map<DailyLogDto>(It.IsAny<DailyLog>()))
@@ -438,6 +425,14 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockUow.Verify(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
             _mockRealtimeSender.Verify(s => s.SendToGroupAsync(
                 ProjectGroup, ReceiveDailyLogCreated, It.IsAny<DailyLogDto>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        private void VerifyRollupCalled(long parentTaskId, long triggeringChildTaskId)
+        {
+            _mockProgressRollupService.Verify(s => s.RecalculateParentTaskProgressAsync(
+                parentTaskId,
+                triggeringChildTaskId,
+                It.IsAny<CancellationToken>()), Times.Once);
         }
 
         private void VerifyTransactionNeverStarted()

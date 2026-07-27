@@ -21,17 +21,20 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
         private readonly ICurrentUserService _currentUserService;
         private readonly IInventoryService _inventoryService;
         private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly INotificationService _notificationService;
 
         public CreateMaterialReturnCommandHandler(
             IUnitOfWork uow,
             ICurrentUserService currentUserService,
             IInventoryService inventoryService,
-            IRealtimeNotificationSender realtimeSender)
+            IRealtimeNotificationSender realtimeSender,
+            INotificationService notificationService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _inventoryService = inventoryService;
             _realtimeSender = realtimeSender;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateMaterialReturnCommand request, CancellationToken cancellationToken)
@@ -48,6 +51,8 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                 .Include(i => i.Task)
                     .ThenInclude(t => t.Phase)
                         .ThenInclude(p => p.Project)
+                .Include(i => i.Task)
+                    .ThenInclude(t => t.Assignees)
                 .Include(i => i.Items)
                 .FirstOrDefaultAsync(i => i.MaterialIssuanceId == request.OriginalIssuanceId, cancellationToken);
 
@@ -61,6 +66,8 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
             {
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với phiếu xuất kho này.");
             }
+
+            var taskName = issuance.Task?.Name ?? "công việc liên quan";
 
             if (project.Status != ProjectStatus.InProgress)
             {
@@ -181,6 +188,51 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                 await _uow.Repository<MaterialReturnItem>().AddRangeAsync(returnItems, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
+
+                var actorName = await _uow.Repository<User>().Query()
+                    .AsNoTracking()
+                    .Where(u => u.UserId == currentUserId)
+                    .Select(u => u.FullName)
+                    .FirstOrDefaultAsync(cancellationToken) ?? "Người dùng";
+
+                await _notificationService.SendNotificationAsync(
+                    currentUserId,
+                    "Hoàn trả vật tư thành công",
+                    $"Bạn đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
+                    NotificationType.Procurement,
+                    NotificationReferenceType.MaterialReturn,
+                    materialReturn.MaterialReturnId,
+                    cancellationToken);
+
+                var assigneeIds = issuance.Task?.Assignees
+                    .Select(a => a.UserId)
+                    .Where(userId => userId != currentUserId && userId != issuance.CreatedBy)
+                    .Distinct()
+                    .ToList() ?? new List<long>();
+
+                foreach (var assigneeId in assigneeIds)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        assigneeId,
+                        "Vật tư đã được hoàn trả",
+                        $"{actorName} đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
+                        NotificationType.Procurement,
+                        NotificationReferenceType.MaterialReturn,
+                        materialReturn.MaterialReturnId,
+                        cancellationToken);
+                }
+
+                if (issuance.CreatedBy.HasValue && issuance.CreatedBy.Value != currentUserId)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        issuance.CreatedBy.Value,
+                        "Có phiếu hoàn trả vật tư",
+                        $"{actorName} đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
+                        NotificationType.Procurement,
+                        NotificationReferenceType.MaterialReturn,
+                        materialReturn.MaterialReturnId,
+                        cancellationToken);
+                }
 
                 // Realtime: broadcast to members viewing this project's inventory workspace
                 await _realtimeSender.SendToGroupAsync(
