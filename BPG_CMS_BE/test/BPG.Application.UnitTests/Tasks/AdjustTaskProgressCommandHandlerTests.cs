@@ -61,7 +61,7 @@ namespace BPG.Application.UnitTests.Tasks
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
             _mockDependencyRepo.Setup(r => r.Query()).Returns(new List<TaskDependency>().AsQueryable().BuildMock());
 
-            var command = new AdjustTaskProgressCommand(1, 40, "Làm lại 1 phần");
+            var command = Command(40, "Làm lại 1 phần");
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -85,7 +85,7 @@ namespace BPG.Application.UnitTests.Tasks
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
             _mockDependencyRepo.Setup(r => r.Query()).Returns(new List<TaskDependency>().AsQueryable().BuildMock());
 
-            var command = new AdjustTaskProgressCommand(1, 100, "Xong");
+            var command = Command(100, "Xong");
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -109,7 +109,7 @@ namespace BPG.Application.UnitTests.Tasks
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
             _mockDependencyRepo.Setup(r => r.Query()).Returns(new List<TaskDependency>().AsQueryable().BuildMock());
 
-            var command = new AdjustTaskProgressCommand(1, 0, "Reset");
+            var command = Command(0, "Reset");
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -123,7 +123,7 @@ namespace BPG.Application.UnitTests.Tasks
         {
             // Arrange
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask>().AsQueryable().BuildMock());
-            var command = new AdjustTaskProgressCommand(1, 50, "Update");
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -144,7 +144,7 @@ namespace BPG.Application.UnitTests.Tasks
             };
             
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
-            var command = new AdjustTaskProgressCommand(1, 50, "Update");
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -168,7 +168,7 @@ namespace BPG.Application.UnitTests.Tasks
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
             _mockDependencyRepo.Setup(r => r.Query()).Returns(dependencies.AsQueryable().BuildMock());
 
-            var command = new AdjustTaskProgressCommand(1, 50, "Update");
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -193,7 +193,7 @@ namespace BPG.Application.UnitTests.Tasks
             _mockTaskRepo.Setup(r => r.Query()).Returns(tasks.BuildMock());
             _mockDependencyRepo.Setup(r => r.Query()).Returns(dependencies.AsQueryable().BuildMock());
 
-            var command = new AdjustTaskProgressCommand(1, 50, "Update");
+            var command = Command();
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -211,7 +211,7 @@ namespace BPG.Application.UnitTests.Tasks
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
             _mockDependencyRepo.Setup(r => r.Query()).Returns(new List<TaskDependency>().AsQueryable().BuildMock());
 
-            var command = new AdjustTaskProgressCommand(1, 50, "Update");
+            var command = Command();
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -238,7 +238,7 @@ namespace BPG.Application.UnitTests.Tasks
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
             _mockDependencyRepo.Setup(r => r.Query()).Returns(new List<TaskDependency>().AsQueryable().BuildMock());
 
-            var command = new AdjustTaskProgressCommand(1, 50, "Update");
+            var command = Command();
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -261,7 +261,7 @@ namespace BPG.Application.UnitTests.Tasks
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
             _mockDependencyRepo.Setup(r => r.Query()).Returns(new List<TaskDependency>().AsQueryable().BuildMock());
 
-            var command = new AdjustTaskProgressCommand(1, 50, "Update reason");
+            var command = Command(reason: "Update reason");
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -279,7 +279,7 @@ namespace BPG.Application.UnitTests.Tasks
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
             _mockDependencyRepo.Setup(r => r.Query()).Returns(new List<TaskDependency>().AsQueryable().BuildMock());
 
-            var command = new AdjustTaskProgressCommand(1, 50, "Update");
+            var command = Command();
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -287,6 +287,8 @@ namespace BPG.Application.UnitTests.Tasks
             // Assert
             result.Success.Should().BeTrue();
         }
+        private static AdjustTaskProgressCommand Command(byte progress = 50, string reason = "Update", long taskId = 1)
+            => new(taskId, progress, reason);
     }
 }
 

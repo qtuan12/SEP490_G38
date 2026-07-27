@@ -22,6 +22,11 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 {
     public class CancelGoodsReceiptCommandHandlerTests
     {
+        private const long CurrentUserId = 10;
+        private const long ProjectId = 5;
+        private const long POId = 100;
+        private const long ReceiptId = 500;
+        private const long CementId = 50;
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<GoodsReceipt>> _mockGrRepo;
         private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
@@ -70,30 +75,30 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID01_Handle_ValidRequest_AllReversed_ShouldCancelSuccessfully()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
-                POId = 100,
+                POId = POId,
                 Status = PurchaseOrderStatus.FullyReceived,
                 Items = new List<PurchaseOrderItem>
                 {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+                    new PurchaseOrderItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 }
                 },
                 Request = new MaterialRequest { Phase = new Phase { Project = project } }
             };
 
             var receipt = new GoodsReceipt
             {
-                ReceiptId = 500,
-                POId = 100,
+                ReceiptId = ReceiptId,
+                POId = POId,
                 Status = GoodsReceiptStatus.Approved,
                 CreatedAt = DateTime.UtcNow.AddDays(-2), // Created 2 days ago (within 7 days limit)
                 PurchaseOrder = po,
                 Items = new List<GoodsReceiptItem>
                 {
-                    new GoodsReceiptItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+                    new GoodsReceiptItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 }
                 }
             };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
@@ -103,10 +108,10 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockConfigRepo.Setup(r => r.Query()).Returns(new List<SystemConfig> { config }.AsQueryable().BuildMock());
 
             // Tồn kho khả dụng (Available Qty = 15 - 2 = 13 >= 10)
-            var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 15, ReservedQuantity = 2 };
+            var inventory = new CurrentInventory { ProjectId = ProjectId, MaterialId = CementId, Quantity = 15, ReservedQuantity = 2 };
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -123,49 +128,49 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID02_Handle_ValidRequest_PartiallyReversed_ShouldCancelSuccessfully()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
-                POId = 100,
+                POId = POId,
                 Status = PurchaseOrderStatus.FullyReceived,
                 Items = new List<PurchaseOrderItem>
                 {
-                    new PurchaseOrderItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+                    new PurchaseOrderItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 }
                 },
                 Request = new MaterialRequest { Phase = new Phase { Project = project } }
             };
 
             var receipt = new GoodsReceipt
             {
-                ReceiptId = 500,
-                POId = 100,
+                ReceiptId = ReceiptId,
+                POId = POId,
                 Status = GoodsReceiptStatus.Approved,
                 CreatedAt = DateTime.UtcNow.AddDays(-1),
                 PurchaseOrder = po,
                 Items = new List<GoodsReceiptItem>
                 {
-                    new GoodsReceiptItem { MaterialId = 50, Quantity = 4, ConversionRate = 1 }
+                    new GoodsReceiptItem { MaterialId = CementId, Quantity = 4, ConversionRate = 1 }
                 }
             };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
             // Tồn kho khả dụng (Available Qty = 10 >= 4)
-            var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 10, ReservedQuantity = 0 };
+            var inventory = new CurrentInventory { ProjectId = ProjectId, MaterialId = CementId, Quantity = 10, ReservedQuantity = 0 };
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
 
             // Mock another receipt for this PO that remains Approved (user had received 6 in another receipt)
             var otherReceiptItem = new GoodsReceiptItem
             {
-                MaterialId = 50,
+                MaterialId = CementId,
                 Quantity = 6,
                 ReceiptId = 400,
-                Receipt = new GoodsReceipt { ReceiptId = 400, POId = 100, Status = GoodsReceiptStatus.Approved }
+                Receipt = new GoodsReceipt { ReceiptId = 400, POId = POId, Status = GoodsReceiptStatus.Approved }
             };
             _mockGrItemRepo.Setup(r => r.Query()).Returns(new List<GoodsReceiptItem> { otherReceiptItem }.AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -178,9 +183,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID03_Handle_InsufficientPermission_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Standard worker
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Standard worker
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -193,9 +198,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID04_Handle_ReceiptNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
 
-            var command = new CancelGoodsReceiptCommand(999);
+            var command = Command(999);
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -208,11 +213,11 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID05_Handle_AlreadyCancelled_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
-            var receipt = new GoodsReceipt { ReceiptId = 500, Status = GoodsReceiptStatus.Cancelled };
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
+            var receipt = new GoodsReceipt { ReceiptId = ReceiptId, Status = GoodsReceiptStatus.Cancelled };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -225,11 +230,11 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID06_Handle_PONotFound_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
-            var receipt = new GoodsReceipt { ReceiptId = 500, Status = GoodsReceiptStatus.Approved, PurchaseOrder = null };
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
+            var receipt = new GoodsReceipt { ReceiptId = ReceiptId, Status = GoodsReceiptStatus.Approved, PurchaseOrder = null! };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -242,12 +247,12 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID07_Handle_ProjectNotFound_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
-            var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = null } } };
-            var receipt = new GoodsReceipt { ReceiptId = 500, Status = GoodsReceiptStatus.Approved, PurchaseOrder = po };
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
+            var po = new PurchaseOrder { POId = POId, Request = new MaterialRequest { Phase = new Phase { Project = null! } } };
+            var receipt = new GoodsReceipt { ReceiptId = ReceiptId, Status = GoodsReceiptStatus.Approved, PurchaseOrder = po };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -260,13 +265,13 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID08_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Inactive
-            var po = new PurchaseOrder { POId = 100, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
-            var receipt = new GoodsReceipt { ReceiptId = 500, Status = GoodsReceiptStatus.Approved, PurchaseOrder = po };
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
+            var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.Completed }; // Inactive
+            var po = new PurchaseOrder { POId = POId, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
+            var receipt = new GoodsReceipt { ReceiptId = ReceiptId, Status = GoodsReceiptStatus.Approved, PurchaseOrder = po };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -279,13 +284,13 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID09_Handle_POClosed_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder { POId = 100, Status = PurchaseOrderStatus.Closed, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
-            var receipt = new GoodsReceipt { ReceiptId = 500, Status = GoodsReceiptStatus.Approved, PurchaseOrder = po };
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
+            var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder { POId = POId, Status = PurchaseOrderStatus.Closed, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
+            var receipt = new GoodsReceipt { ReceiptId = ReceiptId, Status = GoodsReceiptStatus.Approved, PurchaseOrder = po };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -298,13 +303,13 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID10_Handle_CancelTimeframeExceeded_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var po = new PurchaseOrder { POId = 100, Status = PurchaseOrderStatus.FullyReceived, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
+            var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress };
+            var po = new PurchaseOrder { POId = POId, Status = PurchaseOrderStatus.FullyReceived, Request = new MaterialRequest { Phase = new Phase { Project = project } } };
             
             var receipt = new GoodsReceipt
             {
-                ReceiptId = 500,
+                ReceiptId = ReceiptId,
                 Status = GoodsReceiptStatus.Approved,
                 CreatedAt = DateTime.UtcNow.AddDays(-10), // Created 10 days ago (exceeds limit)
                 PurchaseOrder = po
@@ -315,7 +320,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             var config = new SystemConfig { ConfigKey = "HanHuyPhieuNgay", ConfigValue = "7" };
             _mockConfigRepo.Setup(r => r.Query()).Returns(new List<SystemConfig> { config }.AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -328,36 +333,36 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID11_Handle_InsufficientInventory_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
+            var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
-                POId = 100,
+                POId = POId,
                 Status = PurchaseOrderStatus.FullyReceived,
                 Request = new MaterialRequest { Phase = new Phase { Project = project } },
                 Items = new List<PurchaseOrderItem>
                 {
-                    new PurchaseOrderItem { MaterialId = 50, Material = new MaterialCatalog { Name = "Cement" } }
+                    new PurchaseOrderItem { MaterialId = CementId, Material = new MaterialCatalog { Name = "Cement" } }
                 }
             };
             var receipt = new GoodsReceipt
             {
-                ReceiptId = 500,
+                ReceiptId = ReceiptId,
                 Status = GoodsReceiptStatus.Approved,
                 CreatedAt = DateTime.UtcNow.AddDays(-1),
                 PurchaseOrder = po,
                 Items = new List<GoodsReceiptItem>
                 {
-                    new GoodsReceiptItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+                    new GoodsReceiptItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 }
                 }
             };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
             // Tồn kho khả dụng không đủ (Available = 8 - 0 = 8 < 10)
-            var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 8, ReservedQuantity = 0 };
+            var inventory = new CurrentInventory { ProjectId = ProjectId, MaterialId = CementId, Quantity = 8, ReservedQuantity = 0 };
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -370,29 +375,29 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID12_Handle_ErrorDuringTransaction_ShouldThrowException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
-                POId = 100,
+                POId = POId,
                 Status = PurchaseOrderStatus.FullyReceived,
-                Items = new List<PurchaseOrderItem> { new PurchaseOrderItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 } },
+                Items = new List<PurchaseOrderItem> { new PurchaseOrderItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 } },
                 Request = new MaterialRequest { Phase = new Phase { Project = project } }
             };
 
             var receipt = new GoodsReceipt
             {
-                ReceiptId = 500,
-                POId = 100,
+                ReceiptId = ReceiptId,
+                POId = POId,
                 Status = GoodsReceiptStatus.Approved,
                 CreatedAt = DateTime.UtcNow.AddDays(-1),
                 PurchaseOrder = po,
-                Items = new List<GoodsReceiptItem> { new GoodsReceiptItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 } }
+                Items = new List<GoodsReceiptItem> { new GoodsReceiptItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 } }
             };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
-            var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 15, ReservedQuantity = 0 };
+            var inventory = new CurrentInventory { ProjectId = ProjectId, MaterialId = CementId, Quantity = 15, ReservedQuantity = 0 };
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
 
             // Set up UpdateStockAsync to throw exception to trigger transaction rollback
@@ -402,7 +407,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 It.IsAny<long>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new Exception("Database connectivity failure"));
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -416,33 +421,33 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID13_Handle_SystemConfigKeyMissing_ShouldFallbackToDefaultSevenDaysLimit()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
-                POId = 100,
+                POId = POId,
                 Status = PurchaseOrderStatus.FullyReceived,
-                Items = new List<PurchaseOrderItem> { new PurchaseOrderItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 } },
+                Items = new List<PurchaseOrderItem> { new PurchaseOrderItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 } },
                 Request = new MaterialRequest { Phase = new Phase { Project = project } }
             };
 
             // Receipt created 8 days ago (exceeds default 7 days limit)
             var receipt = new GoodsReceipt
             {
-                ReceiptId = 500,
-                POId = 100,
+                ReceiptId = ReceiptId,
+                POId = POId,
                 Status = GoodsReceiptStatus.Approved,
                 CreatedAt = DateTime.UtcNow.AddDays(-8),
                 PurchaseOrder = po,
-                Items = new List<GoodsReceiptItem> { new GoodsReceiptItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 } }
+                Items = new List<GoodsReceiptItem> { new GoodsReceiptItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 } }
             };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
             // Config repo query returns empty (meaning config missing)
             _mockConfigRepo.Setup(r => r.Query()).Returns(new List<SystemConfig>().AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -455,41 +460,41 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         public async Task UTCID14_Handle_MultipleMaterialsOneInsufficient_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress };
             var po = new PurchaseOrder
             {
-                POId = 100,
+                POId = POId,
                 Status = PurchaseOrderStatus.FullyReceived,
                 Request = new MaterialRequest { Phase = new Phase { Project = project } },
                 Items = new List<PurchaseOrderItem>
                 {
-                    new PurchaseOrderItem { MaterialId = 50, Material = new MaterialCatalog { Name = "Cement" } },
+                    new PurchaseOrderItem { MaterialId = CementId, Material = new MaterialCatalog { Name = "Cement" } },
                     new PurchaseOrderItem { MaterialId = 60, Material = new MaterialCatalog { Name = "Brick" } }
                 }
             };
             var receipt = new GoodsReceipt
             {
-                ReceiptId = 500,
+                ReceiptId = ReceiptId,
                 Status = GoodsReceiptStatus.Approved,
                 CreatedAt = DateTime.UtcNow.AddDays(-1),
                 PurchaseOrder = po,
                 Items = new List<GoodsReceiptItem>
                 {
-                    new GoodsReceiptItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }, // Sufficent
+                    new GoodsReceiptItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 }, // Sufficent
                     new GoodsReceiptItem { MaterialId = 60, Quantity = 20, ConversionRate = 1 }  // Insufficient!
                 }
             };
             _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
 
             // Cement available = 15 - 0 = 15 >= 10
-            var cementInv = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 15, ReservedQuantity = 0 };
+            var cementInv = new CurrentInventory { ProjectId = ProjectId, MaterialId = CementId, Quantity = 15, ReservedQuantity = 0 };
             // Brick available = 5 - 0 = 5 < 20
-            var brickInv = new CurrentInventory { ProjectId = 5, MaterialId = 60, Quantity = 5, ReservedQuantity = 0 };
+            var brickInv = new CurrentInventory { ProjectId = ProjectId, MaterialId = 60, Quantity = 5, ReservedQuantity = 0 };
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { cementInv, brickInv }.AsQueryable().BuildMock());
 
-            var command = new CancelGoodsReceiptCommand(500);
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -502,30 +507,30 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 public async Task UTCID15_Handle_DirectorUser_ShouldCancelSuccessfully()
 {
     // Arrange
-    _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Director);
+    _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.Director);
 
-    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+    var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress };
     var po = new PurchaseOrder
     {
-        POId = 100,
+        POId = POId,
         Status = PurchaseOrderStatus.FullyReceived,
         Items = new List<PurchaseOrderItem>
         {
-            new PurchaseOrderItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+            new PurchaseOrderItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 }
         },
         Request = new MaterialRequest { Phase = new Phase { Project = project } }
     };
 
     var receipt = new GoodsReceipt
     {
-        ReceiptId = 500,
-        POId = 100,
+        ReceiptId = ReceiptId,
+        POId = POId,
         Status = GoodsReceiptStatus.Approved,
         CreatedAt = DateTime.UtcNow.AddDays(-2),
         PurchaseOrder = po,
         Items = new List<GoodsReceiptItem>
         {
-            new GoodsReceiptItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+            new GoodsReceiptItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 }
         }
     };
     _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
@@ -533,10 +538,10 @@ public async Task UTCID15_Handle_DirectorUser_ShouldCancelSuccessfully()
     var config = new SystemConfig { ConfigKey = "HanHuyPhieuNgay", ConfigValue = "7" };
     _mockConfigRepo.Setup(r => r.Query()).Returns(new List<SystemConfig> { config }.AsQueryable().BuildMock());
 
-    var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 15, ReservedQuantity = 2 };
+    var inventory = new CurrentInventory { ProjectId = ProjectId, MaterialId = CementId, Quantity = 15, ReservedQuantity = 2 };
     _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
 
-    var command = new CancelGoodsReceiptCommand(500);
+    var command = Command();
 
     // Act
     var result = await _handler.Handle(command, CancellationToken.None);
@@ -552,30 +557,30 @@ public async Task UTCID15_Handle_DirectorUser_ShouldCancelSuccessfully()
 public async Task UTCID16_Handle_AccountantUser_ShouldCancelSuccessfully()
 {
     // Arrange
-    _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.Accountant);
+    _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.Accountant);
 
-    var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+    var project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress };
     var po = new PurchaseOrder
     {
-        POId = 100,
+        POId = POId,
         Status = PurchaseOrderStatus.FullyReceived,
         Items = new List<PurchaseOrderItem>
         {
-            new PurchaseOrderItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+            new PurchaseOrderItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 }
         },
         Request = new MaterialRequest { Phase = new Phase { Project = project } }
     };
 
     var receipt = new GoodsReceipt
     {
-        ReceiptId = 500,
-        POId = 100,
+        ReceiptId = ReceiptId,
+        POId = POId,
         Status = GoodsReceiptStatus.Approved,
         CreatedAt = DateTime.UtcNow.AddDays(-2),
         PurchaseOrder = po,
         Items = new List<GoodsReceiptItem>
         {
-            new GoodsReceiptItem { MaterialId = 50, Quantity = 10, ConversionRate = 1 }
+            new GoodsReceiptItem { MaterialId = CementId, Quantity = 10, ConversionRate = 1 }
         }
     };
     _mockGrRepo.Setup(r => r.Query()).Returns(new List<GoodsReceipt> { receipt }.AsQueryable().BuildMock());
@@ -583,10 +588,10 @@ public async Task UTCID16_Handle_AccountantUser_ShouldCancelSuccessfully()
     var config = new SystemConfig { ConfigKey = "HanHuyPhieuNgay", ConfigValue = "7" };
     _mockConfigRepo.Setup(r => r.Query()).Returns(new List<SystemConfig> { config }.AsQueryable().BuildMock());
 
-    var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Quantity = 15, ReservedQuantity = 2 };
+    var inventory = new CurrentInventory { ProjectId = ProjectId, MaterialId = CementId, Quantity = 15, ReservedQuantity = 2 };
     _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
 
-    var command = new CancelGoodsReceiptCommand(500);
+    var command = Command();
 
     // Act
     var result = await _handler.Handle(command, CancellationToken.None);
@@ -597,7 +602,8 @@ public async Task UTCID16_Handle_AccountantUser_ShouldCancelSuccessfully()
     result.Data.Should().BeTrue();
 
 }
-
+        private static CancelGoodsReceiptCommand Command(long receiptId = ReceiptId)
+            => new(receiptId);
     }
 }
 

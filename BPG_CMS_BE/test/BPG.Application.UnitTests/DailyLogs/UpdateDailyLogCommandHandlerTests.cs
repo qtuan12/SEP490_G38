@@ -24,6 +24,13 @@ namespace BPG.Application.UnitTests.DailyLogs
 {
     public class UpdateDailyLogCommandHandlerTests
     {
+        private const long CurrentUserId = 10;
+        private const long ProjectId = 5;
+        private const long LogId = 800;
+        private const long TaskId = 100;
+        private const long ParentTaskId = 90;
+        private const string DefaultDescription = "New Desc";
+
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IMapper> _mockMapper;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
@@ -100,20 +107,20 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID01_Handle_ValidRequest_ShouldUpdateDailyLogSuccessfully()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = Project();
             var log = new DailyLog
             {
-                LogId = 800,
-                TaskId = 100,
+                LogId = LogId,
+                TaskId = TaskId,
                 NewProgressPercent = 50,
                 Description = "Old description",
-                CreatedBy = 10,
+                CreatedBy = CurrentUserId,
                 CreatedAt = DateTime.UtcNow.AddMinutes(-5),
                 Task = new ProjectTask
                 {
-                    TaskId = 100,
+                    TaskId = TaskId,
                     Name = "Slab Work",
                     IsLocked = false,
                     Phase = new Phase { Project = project }
@@ -122,24 +129,19 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
 
             // Mock old attachments (one remains, one is deleted)
-            var oldAtt1 = new Attachment { EntityType = EntityType.DailyLog, EntityId = 800, FileUrl = "http://site.com/old1.jpg", IsDeleted = false };
-            var oldAtt2 = new Attachment { EntityType = EntityType.DailyLog, EntityId = 800, FileUrl = "http://site.com/old2.jpg", IsDeleted = false };
+            var oldAtt1 = DailyLogAttachment("http://site.com/old1.jpg");
+            var oldAtt2 = DailyLogAttachment("http://site.com/old2.jpg");
             _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment> { oldAtt1, oldAtt2 }.AsQueryable().BuildMock());
 
-            var user = new User { UserId = 10, FullName = "Admin User" };
+            var user = new User { UserId = CurrentUserId, FullName = "Admin User" };
             _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { user }.AsQueryable().BuildMock());
 
             // Mock Progress Log history for old progress mapping
-            var progressLog = new TaskProgressLog { TaskId = 100, NewProgress = 50, OldProgress = 20, UpdatedAt = DateTime.UtcNow.AddMinutes(-5) };
+            var progressLog = new TaskProgressLog { TaskId = TaskId, NewProgress = 50, OldProgress = 20, UpdatedAt = DateTime.UtcNow.AddMinutes(-5) };
             _mockProgressLogRepo.Setup(r => r.Query()).Returns(new List<TaskProgressLog> { progressLog }.AsQueryable().BuildMock());
 
             // Request keeps old1.jpg, removes old2.jpg, adds new1.jpg
-            var command = new UpdateDailyLogCommand
-            {
-                LogId = 800,
-                Description = "Updated description with new details",
-                Images = new List<string> { "http://site.com/old1.jpg", "http://site.com/new1.jpg" }
-            };
+            var command = Command("Updated description with new details", new List<string> { "http://site.com/old1.jpg", "http://site.com/new1.jpg" });
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -161,8 +163,8 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID02_Handle_DailyLogNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
-            var command = new UpdateDailyLogCommand { LogId = 999, Description = "New Desc" };
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+            var command = Command(logId: 999);
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -175,16 +177,16 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID03_Handle_InsufficientPermission_ShouldThrowForbiddenException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = Project();
             var log = new DailyLog
             {
-                LogId = 800,
-                TaskId = 100,
+                LogId = LogId,
+                TaskId = TaskId,
                 Task = new ProjectTask
                 {
-                    TaskId = 100,
+                    TaskId = TaskId,
                     IsLocked = false,
                     Phase = new Phase { Project = project }
                 }
@@ -192,7 +194,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
 
             // Not a project leader, and not assigned to task
-            var command = new UpdateDailyLogCommand { LogId = 800, Description = "New Desc" };
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -205,17 +207,17 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID04_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.Completed }; // Inactive
+            var project = Project(ProjectStatus.Completed);
             var log = new DailyLog
             {
-                LogId = 800,
+                LogId = LogId,
                 Task = new ProjectTask { Phase = new Phase { Project = project } }
             };
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
 
-            var command = new UpdateDailyLogCommand { LogId = 800, Description = "New Desc" };
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -228,12 +230,12 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID05_Handle_TaskIsLocked_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = Project();
             var log = new DailyLog
             {
-                LogId = 800,
+                LogId = LogId,
                 Task = new ProjectTask
                 {
                     IsLocked = true, // Locked!
@@ -242,7 +244,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             };
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
 
-            var command = new UpdateDailyLogCommand { LogId = 800, Description = "New Desc" };
+            var command = Command();
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -252,18 +254,18 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
-        {
-            // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
+{
+    // Arrange
+    _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
-            var log = new DailyLog
+    var project = Project();
+        var log = new DailyLog
+        {
+            LogId = LogId,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-10),
+            Task = new ProjectTask
             {
-                LogId = 800,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-10),
-                Task = new ProjectTask
-                {
                     IsLocked = false,
                     Phase = new Phase { Project = project }
                 }
@@ -271,8 +273,8 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
             _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
 
-            var images = new List<string> { "1", "2", "3", "4", "5" }; // 5 images (within limit)
-            var command = new UpdateDailyLogCommand { LogId = 800, Description = "Multiple images", Images = images };
+        var images = new List<string> { "1", "2", "3", "4", "5" }; // 5 images (within limit)
+        var command = Command("Multiple images", images);
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -285,17 +287,17 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID07_Handle_UserIsAssignee_ShouldUpdateSuccessfully()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = Project();
             var log = new DailyLog
             {
-                LogId = 800,
-                TaskId = 100,
+                LogId = LogId,
+                TaskId = TaskId,
                 CreatedAt = DateTime.UtcNow.AddMinutes(-10),
                 Task = new ProjectTask
                 {
-                    TaskId = 100,
+                    TaskId = TaskId,
                     IsLocked = false,
                     Phase = new Phase { Project = project }
                 }
@@ -304,12 +306,12 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var assignees = new List<TaskAssignee>
             {
-                new TaskAssignee { TaskId = 100, UserId = 10 }
+                new TaskAssignee { TaskId = TaskId, UserId = CurrentUserId }
             };
             _mockAssigneeRepo.Setup(r => r.Query()).Returns(assignees.AsQueryable().BuildMock());
             _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
 
-            var command = new UpdateDailyLogCommand { LogId = 800, Description = "New Description" };
+            var command = Command("New Description");
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -324,12 +326,12 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID08_Handle_ImagesIsNull_ShouldReturnDailyLogDto()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = Project();
             var log = new DailyLog
             {
-                LogId = 800,
+                LogId = LogId,
                 CreatedAt = DateTime.UtcNow.AddMinutes(-10),
                 Task = new ProjectTask
                 {
@@ -339,10 +341,10 @@ namespace BPG.Application.UnitTests.DailyLogs
             };
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
 
-            var oldAtt = new Attachment { EntityType = EntityType.DailyLog, EntityId = 800, FileUrl = "old.jpg", IsDeleted = false };
+            var oldAtt = DailyLogAttachment("old.jpg");
             _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment> { oldAtt }.AsQueryable().BuildMock());
 
-            var command = new UpdateDailyLogCommand { LogId = 800, Description = "Desc", Images = null };
+            var command = Command("Desc", images: null);
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -355,12 +357,12 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID09_Handle_ExceptionDuringUpdate_ShouldThrowException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = Project();
             var log = new DailyLog
             {
-                LogId = 800,
+                LogId = LogId,
                 CreatedAt = DateTime.UtcNow.AddMinutes(-10),
                 Task = new ProjectTask
                 {
@@ -373,7 +375,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new Exception("DB Error"));
 
-            var command = new UpdateDailyLogCommand { LogId = 800, Description = "Desc" };
+            var command = Command("Desc");
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -386,19 +388,19 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID10_Handle_ValidRequest_ProgressUnchanged_DescriptionOrImagesChanged_ShouldSucceed()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = Project();
             var log = new DailyLog
             {
-                LogId = 800,
-                TaskId = 100,
+                LogId = LogId,
+                TaskId = TaskId,
                 NewProgressPercent = 50,
                 Description = "Old Description",
                 CreatedAt = DateTime.UtcNow.AddMinutes(-10),
                 Task = new ProjectTask
                 {
-                    TaskId = 100,
+                    TaskId = TaskId,
                     IsLocked = false,
                     Phase = new Phase { Project = project }
                 }
@@ -411,7 +413,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             // Mock progress logs to verify OldProgressPercent resolving logic
             var progressLog = new TaskProgressLog
             {
-                TaskId = 100,
+                TaskId = TaskId,
                 OldProgress = 40,
                 NewProgress = 50,
                 UpdatedAt = DateTime.UtcNow.AddMinutes(-10)
@@ -419,12 +421,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockProgressLogRepo.Setup(r => r.Query()).Returns(new List<TaskProgressLog> { progressLog }.AsQueryable().BuildMock());
 
             var newImages = new List<string> { "new_photo1.jpg" };
-            var command = new UpdateDailyLogCommand
-            {
-                LogId = 800,
-                Description = "New Description - Progress remains 50%",
-                Images = newImages
-            };
+            var command = Command("New Description - Progress remains 50%", newImages);
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
@@ -443,23 +440,23 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID11_Handle_EditWindowExpired_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = Project();
             var log = new DailyLog
             {
-                LogId = 800,
+                LogId = LogId,
                 CreatedAt = DateTime.UtcNow.AddHours(-25),
                 Task = new ProjectTask
                 {
-                    TaskId = 100,
+                    TaskId = TaskId,
                     IsLocked = false,
                     Phase = new Phase { Project = project }
                 }
             };
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
 
-            var command = new UpdateDailyLogCommand { LogId = 800, Description = "Late update" };
+            var command = Command("Late update");
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -473,24 +470,24 @@ namespace BPG.Application.UnitTests.DailyLogs
         public async Task UTCID12_Handle_AncestorTaskObsolete_ShouldThrowBusinessException()
         {
             // Arrange
-            _mockCurrentUserService.SetupUser(10, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
+            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
 
-            var project = new Project { ProjectId = 5, Status = ProjectStatus.InProgress };
+            var project = Project();
             var log = new DailyLog
             {
-                LogId = 800,
+                LogId = LogId,
                 CreatedAt = DateTime.UtcNow.AddMinutes(-10),
                 Task = new ProjectTask
                 {
-                    TaskId = 100,
-                    ParentTaskId = 90,
+                    TaskId = TaskId,
+                    ParentTaskId = ParentTaskId,
                     IsLocked = false,
                     Phase = new Phase { Project = project }
                 }
             };
             var parentTask = new ProjectTask
             {
-                TaskId = 90,
+                TaskId = ParentTaskId,
                 Name = "Obsolete parent",
                 Status = BPG.Domain.Constants.TaskStatus.Obsolete
             };
@@ -498,7 +495,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { parentTask }.AsQueryable().BuildMock());
 
-            var command = new UpdateDailyLogCommand { LogId = 800, Description = "Update obsolete branch" };
+            var command = Command("Update obsolete branch");
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -507,6 +504,28 @@ namespace BPG.Application.UnitTests.DailyLogs
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_TASK_OBSOLETE");
         }
+
+        private static Project Project(string status = ProjectStatus.InProgress)
+            => new() { ProjectId = ProjectId, Status = status };
+
+        private static Attachment DailyLogAttachment(string fileUrl)
+            => new()
+            {
+                EntityType = EntityType.DailyLog,
+                EntityId = LogId,
+                FileUrl = fileUrl,
+                IsDeleted = false
+            };
+
+        private static UpdateDailyLogCommand Command(
+            string description = DefaultDescription,
+            List<string>? images = null,
+            long logId = LogId)
+            => new()
+            {
+                LogId = logId,
+                Description = description,
+                Images = images!
+            };
     }
 }
-
