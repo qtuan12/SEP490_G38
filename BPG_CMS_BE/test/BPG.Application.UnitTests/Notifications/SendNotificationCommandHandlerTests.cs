@@ -104,6 +104,58 @@ namespace BPG.Application.UnitTests.Notifications
         }
 
         [Fact]
+        public async Task Handle_SendToAllWithExcludedUser_ShouldPersistAndPushOnlyRemainingUsers()
+        {
+            // Arrange
+            var users = new List<User>
+            {
+                new User { UserId = 1, IsActive = true, IsDeleted = false },
+                new User { UserId = 2, IsActive = true, IsDeleted = false }
+            };
+
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var request = new SendNotificationCommand(
+                UserId: null,
+                Title: "Announcement",
+                Content: "Content",
+                NotificationType: "System",
+                SendToAll: true,
+                RoleName: null,
+                ReferenceType: null,
+                ReferenceId: null,
+                ExcludeUserId: 1
+            );
+
+            _mockMapper.Setup(m => m.Map<Notification>(It.IsAny<SendNotificationCommand>()))
+                .Returns(new Notification { Title = request.Title, Content = request.Content });
+            _mockMapper.Setup(m => m.Map<NotificationDto>(It.IsAny<Notification>()))
+                .Returns((Notification n) => new NotificationDto { NotificationId = n.NotificationId, UserId = n.UserId, Title = n.Title });
+
+            // Act
+            await _handler.Handle(request, CancellationToken.None);
+
+            // Assert
+            _mockNotificationRepo.Verify(r => r.AddRangeAsync(
+                It.Is<IEnumerable<Notification>>(list => list.Count() == 1 && list.First().UserId == 2),
+                It.IsAny<CancellationToken>()), Times.Once);
+
+            _mockRealtimeSender.Verify(s => s.SendNotificationToAllAsync(
+                It.IsAny<NotificationDto>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+
+            _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
+                "2",
+                It.IsAny<NotificationDto>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+
+            _mockRealtimeSender.Verify(s => s.SendNotificationToUserAsync(
+                "1",
+                It.IsAny<NotificationDto>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
         public async Task Handle_SpecificUserId_ShouldNotifyOnlyThatUser()
         {
             // ==========================================

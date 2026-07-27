@@ -47,8 +47,21 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
         if (item.Unit != null && item.Unit.IsDiscrete && request.LiquidationQuantity % 1 != 0)
             throw new BusinessException(ErrorCodes.InvalidUnitQuantity, $"Đơn vị tính '{item.Unit.UnitName}' yêu cầu số lượng phải là số nguyên.");
 
-        if (request.LiquidationQuantity > (item.Quantity - item.ProcessedQuantity))
-            throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng thanh lý ({request.LiquidationQuantity}) vượt quá số lượng còn lại ({item.Quantity - item.ProcessedQuantity}).");
+        var pendingTransferQuantity = await _uow.Repository<SurplusTransfer>().Query()
+            .Where(t => t.SurplusRequestItemId == item.SurplusRequestItemId
+                && t.Status != SurplusTransferStatus.Rejected
+                && t.Status != SurplusTransferStatus.Received)
+            .SumAsync(t => (decimal?)t.TransferQuantity, ct) ?? 0m;
+        var remainingUncommittedQuantity = item.Quantity - item.ProcessedQuantity - pendingTransferQuantity;
+        if (request.LiquidationQuantity > remainingUncommittedQuantity)
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng thanh lý ({request.LiquidationQuantity.ToString("G29")}) vượt quá số lượng chưa được phân bổ ({remainingUncommittedQuantity.ToString("G29")}).");
+
+        var inventory = await _uow.Repository<CurrentInventory>().Query()
+            .FirstOrDefaultAsync(ci => ci.ProjectId == item.SurplusRequest.ProjectId && ci.MaterialId == item.MaterialId, ct)
+            ?? throw new BusinessException(ErrorCodes.InsufficientStock, "Vật tư không tồn tại trong kho dự án.");
+        var availableQuantity = inventory.Quantity - inventory.ReservedQuantity;
+        if (request.LiquidationQuantity > availableQuantity)
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho khả dụng để thanh lý. Khả dụng: {availableQuantity.ToString("G29")}, yêu cầu: {request.LiquidationQuantity.ToString("G29")}.");
 
         var liquidation = new SurplusLiquidation
         {
@@ -58,7 +71,10 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
             TotalAmount = request.TotalAmount
         };
 
-        await _uow.Repository<SurplusLiquidation>().AddAsync(liquidation, ct);
+        await _uow.BeginTransactionAsync(ct);
+        try
+        {
+            await _uow.Repository<SurplusLiquidation>().AddAsync(liquidation, ct);
 
         item.ProcessedQuantity += request.LiquidationQuantity;
         item.Status = item.ProcessedQuantity >= item.Quantity
@@ -66,40 +82,47 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
             : SurplusRequestItemStatus.Processing;
         _uow.Repository<SurplusRequestItem>().Update(item);
 
-        await _uow.SaveChangesAsync(ct);
-
-        if (request.Attachments != null && request.Attachments.Any())
-        {
-            foreach (var file in request.Attachments)
-            {
-                var fileUrl = await _fileStorage.UploadFileAsync(file, "surplus_liquidations", ct);
-                var attachment = new Attachment
-                {
-                    EntityType = EntityType.SurplusLiquidation,
-                    EntityId = liquidation.SurplusLiquidationId,
-                    AttachmentType = AttachmentType.SurplusEvidence,
-                    FileName = file.FileName,
-                    FileUrl = fileUrl,
-                    ContentType = file.ContentType,
-                    FileSizeBytes = file.Length
-                };
-                await _uow.Repository<Attachment>().AddAsync(attachment, ct);
-            }
             await _uow.SaveChangesAsync(ct);
-        }
+
+            if (request.Attachments != null && request.Attachments.Any())
+            {
+                foreach (var file in request.Attachments)
+                {
+                    var fileUrl = await _fileStorage.UploadFileAsync(file, "surplus_liquidations", ct);
+                    var attachment = new Attachment
+                    {
+                        EntityType = EntityType.SurplusLiquidation,
+                        EntityId = liquidation.SurplusLiquidationId,
+                        AttachmentType = AttachmentType.SurplusEvidence,
+                        FileName = file.FileName,
+                        FileUrl = fileUrl,
+                        ContentType = file.ContentType,
+                        FileSizeBytes = file.Length
+                    };
+                    await _uow.Repository<Attachment>().AddAsync(attachment, ct);
+                }
+                await _uow.SaveChangesAsync(ct);
+            }
 
         // Reduce inventory and log transaction
-        await _inventoryService.UpdateStockAsync(
-            item.SurplusRequest.ProjectId,
-            item.MaterialId,
-            -request.LiquidationQuantity,
-            InventoryTransactionType.Liquidation,
-            liquidation.SurplusLiquidationId,
-            EntityType.SurplusRequest,
-            userId,
-            ct);
+            await _inventoryService.UpdateStockAsync(
+                item.SurplusRequest.ProjectId,
+                item.MaterialId,
+                -request.LiquidationQuantity,
+                InventoryTransactionType.Liquidation,
+                liquidation.SurplusLiquidationId,
+                EntityType.SurplusRequest,
+                userId,
+                ct);
 
-        await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
+            await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
+            await _uow.CommitTransactionAsync(ct);
+        }
+        catch
+        {
+            await _uow.RollbackTransactionAsync(ct);
+            throw;
+        }
 
         // Notifications
         var notiTitle = "Thông báo thanh lý vật tư thừa";

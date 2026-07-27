@@ -95,7 +95,7 @@ namespace BPG.Application.Features.Notifications.Handlers
                 _logger.LogInformation("Đã lưu {NotificationCount} thông báo vào database.", notifications.Count);
 
                 // 3. Gửi thông báo realtime qua SignalR
-                if (request.SendToAll)
+                if (request.SendToAll && !request.ExcludeUserId.HasValue)
                 {
                     // Gửi một gói tin broadcast duy nhất cho tất cả clients đang kết nối để tối ưu hiệu năng
                     var sampleDto = _mapper.Map<NotificationDto>(notifications.First());
