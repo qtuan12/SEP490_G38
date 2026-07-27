@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -9,6 +9,8 @@ interface ModalProps {
   footer?: React.ReactNode;
   width?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   maxWidth?: string;
+  /** Renders edge-to-edge, full-height below the `sm` breakpoint; falls back to the normal centered card at `sm` and up. */
+  mobileFullScreen?: boolean;
 }
 
 const WIDTH_MAP: Record<string, string> = {
@@ -20,23 +22,35 @@ const WIDTH_MAP: Record<string, string> = {
 };
 
 export const Modal: React.FC<ModalProps> = ({
-  isOpen, onClose, title, children, footer, width = 'md', maxWidth,
+  isOpen, onClose, title, children, footer, width = 'md', maxWidth, mobileFullScreen = false,
 }) => {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 640
+  );
+
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!mobileFullScreen) return;
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [mobileFullScreen]);
+
   if (!isOpen) return null;
 
   const maxW = maxWidth ?? WIDTH_MAP[width] ?? WIDTH_MAP.md;
+  const fullScreen = mobileFullScreen && isMobile;
 
   return (
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '16px',
+        padding: fullScreen ? 0 : '16px',
       }}
       role="dialog"
       aria-modal="true"
@@ -60,14 +74,15 @@ export const Modal: React.FC<ModalProps> = ({
         style={{
           position: 'relative',
           width: '100%',
-          maxWidth: maxW,
+          maxWidth: fullScreen ? '100%' : maxW,
+          height: fullScreen ? '100%' : undefined,
           backgroundColor: 'hsl(var(--bg-card))',
-          border: '1px solid hsl(var(--border))',
-          borderRadius: 'var(--radius-md)',
-          boxShadow: '0 24px 48px hsl(224 71% 4% / 0.4), 0 0 0 1px hsl(var(--border))',
+          border: fullScreen ? 'none' : '1px solid hsl(var(--border))',
+          borderRadius: fullScreen ? 0 : 'var(--radius-md)',
+          boxShadow: fullScreen ? 'none' : '0 24px 48px hsl(224 71% 4% / 0.4), 0 0 0 1px hsl(var(--border))',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: 'calc(100vh - 48px)',
+          maxHeight: fullScreen ? '100%' : 'calc(100vh - 48px)',
           overflow: 'hidden',
         }}
       >

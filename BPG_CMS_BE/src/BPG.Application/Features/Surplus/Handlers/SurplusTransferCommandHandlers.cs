@@ -53,8 +53,14 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
         if (item.Unit != null && item.Unit.IsDiscrete && request.TransferQuantity % 1 != 0)
             throw new BusinessException(ErrorCodes.InvalidUnitQuantity, $"Đơn vị tính '{item.Unit.UnitName}' yêu cầu số lượng phải là số nguyên.");
 
-        if (request.TransferQuantity > (item.Quantity - item.ProcessedQuantity))
-            throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng chuyển ({request.TransferQuantity.ToString("G29")}) vượt quá số lượng còn lại ({(item.Quantity - item.ProcessedQuantity).ToString("G29")}).");
+        var pendingTransferQuantity = await _uow.Repository<SurplusTransfer>().Query()
+            .Where(t => t.SurplusRequestItemId == item.SurplusRequestItemId
+                && t.Status != SurplusTransferStatus.Rejected
+                && t.Status != SurplusTransferStatus.Received)
+            .SumAsync(t => (decimal?)t.TransferQuantity, ct) ?? 0m;
+        var remainingUncommittedQuantity = item.Quantity - item.ProcessedQuantity - pendingTransferQuantity;
+        if (request.TransferQuantity > remainingUncommittedQuantity)
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Số lượng chuyển ({request.TransferQuantity.ToString("G29")}) vượt quá số lượng chưa được phân bổ ({remainingUncommittedQuantity.ToString("G29")}).");
 
         var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
         var baseTransferQty = request.TransferQuantity / conversionRate;

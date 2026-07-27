@@ -1,4 +1,19 @@
+import type { SurplusRequestItem } from '../types/surplus';
+
 // Surplus status helpers — dùng chung cho batch, item, transfer
+
+export const getSurplusMaxActionQuantity = (item: SurplusRequestItem): number => {
+  const activeTransferQuantity = item.actions
+    .filter(action =>
+      action.actionType === 'Transfer'
+      && action.status !== 'Rejected'
+      && action.status !== 'Received'
+    )
+    .reduce((total, action) => total + action.quantity, 0);
+
+  const unallocatedQuantity = item.quantity - item.processedQuantity - activeTransferQuantity;
+  return Math.max(0, Math.min(unallocatedQuantity, item.availableQuantity));
+};
 
 export const getSurplusRequestStatusDetails = (status: string) => {
   switch (status) {

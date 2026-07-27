@@ -34,6 +34,10 @@ public class SurplusRequestItemDto
     public string? SupplierName { get; set; }
     public decimal Quantity { get; set; }
     public decimal ProcessedQuantity { get; set; }
+    public decimal CurrentInventoryQuantity { get; set; }
+    public decimal ReservedQuantity { get; set; }
+    public decimal AvailableQuantity => CurrentInventoryQuantity - ReservedQuantity;
+    public string? CloseReason { get; set; }
     public string Status { get; set; } = string.Empty;
     public List<SurplusActionSummaryDto> Actions { get; set; } = new();
 }

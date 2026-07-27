@@ -69,6 +69,11 @@ public class SurplusController : BaseApiController
     public async Task<IActionResult> CreateRequest(long projectId, [FromBody] CreateSurplusRequestBody body, CancellationToken ct)
         => ApiOk(await Mediator.Send(new CreateSurplusRequestCommand(projectId, body.Reason), ct));
 
+    [HttpPut("items/{surplusRequestItemId:long}/close")]
+    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin}")]
+    public async Task<IActionResult> CloseItem(long surplusRequestItemId, [FromBody] CloseSurplusRequestItemBody body, CancellationToken ct)
+        => ApiOk(await Mediator.Send(new CloseSurplusRequestItemCommand(surplusRequestItemId, body.Reason), ct));
+
     // ============================================================
     // ACTION: RETURN TO SUPPLIER (Accountant)
     // ============================================================
@@ -137,5 +142,10 @@ public class SurplusController : BaseApiController
             surplusRequestItemId, form.BuyerName, form.LiquidationQuantity, form.TotalAmount, form.Attachments);
         return ApiOk(await Mediator.Send(command, ct));
     }
+}
+
+public class CloseSurplusRequestItemBody
+{
+    public string Reason { get; set; } = string.Empty;
 }
 

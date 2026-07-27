@@ -10,6 +10,7 @@ public class SurplusRequestItem : BaseEntity
     public decimal ProcessedQuantity { get; set; } = 0;
     public decimal ConversionRate { get; set; } = 1;
     public string Status { get; set; } = "Pending";
+    public string? CloseReason { get; set; }
 
     public SurplusRequest SurplusRequest { get; set; } = null!;
     public MaterialCatalog Material { get; set; } = null!;

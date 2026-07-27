@@ -35,6 +35,10 @@ export interface SurplusRequestItem {
   supplierName?: string;
   quantity: number;
   processedQuantity: number;
+  currentInventoryQuantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  closeReason?: string;
   status: string; // Pending | Processing | Completed | Cancelled
   actions: SurplusActionSummary[];
 }
