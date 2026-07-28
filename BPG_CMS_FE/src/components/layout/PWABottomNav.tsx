@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ClipboardList, BookOpen, Package, AlertTriangle, Bell } from 'lucide-react';
+import { Smartphone, FolderKanban, BookOpen, AlertTriangle, Bell } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 
 export const PWABottomNav: React.FC = () => {
@@ -8,27 +8,31 @@ export const PWABottomNav: React.FC = () => {
   const location = useLocation();
   const { unreadCount } = useNotification();
 
+  // Extract project ID from URL if inside a project path, or get last active project from localStorage
+  const matchProject = location.pathname.match(/\/projects\/([^/]+)/);
+  const activeProjectId = matchProject ? matchProject[1] : localStorage.getItem('field_workbench_last_project');
+
   const navItems = [
     {
       id: 'field',
-      label: 'Việc tôi',
-      icon: ClipboardList,
-      path: '/field',
+      label: 'Bàn làm việc',
+      icon: Smartphone,
+      path: '/field?standalone=true',
       isActive: location.pathname === '/field' || location.pathname.startsWith('/tasks/')
+    },
+    {
+      id: 'projects',
+      label: 'Dự án',
+      icon: FolderKanban,
+      path: '/projects',
+      isActive: location.pathname === '/projects' || (location.pathname.startsWith('/projects/') && !location.pathname.includes('/logs'))
     },
     {
       id: 'logs',
       label: 'Nhật ký',
       icon: BookOpen,
-      path: '/field', // Navigates to Field Workbench or recent logs
+      path: activeProjectId ? `/projects/${activeProjectId}/logs` : '/field',
       isActive: location.pathname.includes('/logs')
-    },
-    {
-      id: 'inventory',
-      label: 'Kho vật tư',
-      icon: Package,
-      path: '/purchase-orders',
-      isActive: location.pathname.startsWith('/purchase-orders') || location.pathname.startsWith('/direct-purchases')
     },
     {
       id: 'incidents',
