@@ -28,6 +28,7 @@ namespace BPG.Application.UnitTests.Notifications
             _mockNotiRepo = new Mock<IGenericRepository<Notification>>();
 
             _mockUow.Setup(u => u.Repository<Notification>()).Returns(_mockNotiRepo.Object);
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
             _handler = new MarkNotificationAsReadCommandHandler(_mockUow.Object);
         }
@@ -35,7 +36,7 @@ namespace BPG.Application.UnitTests.Notifications
 
 
         [Fact]
-        public async Task UTCID01_Handle_MarkAll_UserHasUnread_ShouldMarkAllAsRead()
+        public async Task UTCID01_Handle_MarkAllWithUnreadNotifications_ShouldReturnTrue()
         {
             // Arrange
             var notifications = new List<Notification>
@@ -57,7 +58,7 @@ namespace BPG.Application.UnitTests.Notifications
         }
 
         [Fact]
-        public async Task UTCID02_Handle_MarkAll_UserHasNoUnread_ShouldDoNothingAndReturnTrue()
+        public async Task UTCID02_Handle_MarkAllWithNoUnreadNotifications_ShouldReturnTrue()
         {
             // Arrange
             var notifications = new List<Notification>
@@ -76,7 +77,7 @@ namespace BPG.Application.UnitTests.Notifications
         }
 
         [Fact]
-        public async Task UTCID03_Handle_SpecificNotificationUnread_ShouldMarkAsRead()
+        public async Task UTCID03_Handle_SpecificUnreadNotification_ShouldReturnTrue()
         {
             // Arrange
             var notification = new Notification { NotificationId = 123, UserId = 10, IsRead = false };
@@ -94,7 +95,7 @@ namespace BPG.Application.UnitTests.Notifications
         }
 
         [Fact]
-        public async Task UTCID04_Handle_SpecificNotificationAlreadyRead_ShouldDoNothingAndReturnTrue()
+        public async Task UTCID04_Handle_SpecificAlreadyReadNotification_ShouldReturnTrue()
         {
             // Arrange
             var notification = new Notification { NotificationId = 123, UserId = 10, IsRead = true };
@@ -144,7 +145,7 @@ namespace BPG.Application.UnitTests.Notifications
         }
 
         [Fact]
-        public async Task UTCID07_Handle_BothMarkAllAndNotificationIdProvided_ShouldPrioritizeMarkAll()
+        public async Task UTCID07_Handle_BothMarkAllAndNotificationIdProvided_ShouldReturnTrue()
         {
             // Arrange
             var notifications = new List<Notification>

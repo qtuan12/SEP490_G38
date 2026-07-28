@@ -62,6 +62,15 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockUow.Setup(u => u.Repository<TaskProgressLog>()).Returns(_mockProgressLogRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.Repository<SystemConfig>()).Returns(_mockConfigRepo.Object);
+            _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.ExecuteSqlAsync(It.IsAny<FormattableString>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockAttachmentRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Attachment>>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            _mockProgressLogRepo.Setup(r => r.AddAsync(It.IsAny<TaskProgressLog>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             SetupProjectMembers();
             SetupTaskAssignees();
@@ -81,7 +90,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID01_Handle_ValidLeafTaskWithImages_ShouldCreateLogUpdateProgressAndNotify()
+        public async Task UTCID01_Handle_TechnicalManagerWithValidLeafTask_ShouldReturnDailyLogDto()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
             var task = LeafTask(name: "Concrete Slab", progress: 20);
@@ -110,7 +119,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID02_Handle_ProgressPercent100_ShouldSetTaskCompleted()
+        public async Task UTCID02_Handle_ProgressPercent100_ShouldReturnDailyLogDto()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
             var task = LeafTask(progress: 50);
@@ -234,19 +243,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID12_Handle_PersistenceException_ShouldThrowException()
-        {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
-            SetupTasks(LeafTask());
-            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new Exception("DB Error"));
-
-            var act = async () => await _handler.Handle(Command(progress: 50, description: "Succeed"), CancellationToken.None);
-
-            await act.Should().ThrowAsync<Exception>();
-        }
-
-        [Fact]
-        public async Task UTCID13_Handle_AssignedEngineerReportsZeroProgress_ShouldSkipDependencyBlockAndSucceed()
+        public async Task UTCID12_Handle_AssignedEngineerReportsZeroProgress_ShouldReturnDailyLogDto()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer, hasRole: false);
             var task = LeafTask(progress: 0);

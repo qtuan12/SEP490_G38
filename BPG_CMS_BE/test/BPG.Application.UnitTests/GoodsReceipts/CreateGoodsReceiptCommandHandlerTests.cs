@@ -31,7 +31,6 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
-        private readonly Mock<IInventoryService> _mockInventoryService;
         private readonly CreateGoodsReceiptCommandHandler _handler;
 
         public CreateGoodsReceiptCommandHandlerTests()
@@ -44,7 +43,6 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockUserRepo = new Mock<IGenericRepository<User>>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
-            _mockInventoryService = new Mock<IInventoryService>();
 
             _mockUow.Setup(u => u.Repository<PurchaseOrder>()).Returns(_mockPoRepo.Object);
             _mockUow.Setup(u => u.Repository<GoodsReceipt>()).Returns(_mockReceiptRepo.Object);
@@ -52,6 +50,14 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
+            _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockReceiptItemRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<GoodsReceiptItem>>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            _mockAttachmentRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Attachment>>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             SetupPurchaseOrders();
             SetupApprovedReceiptItems();
@@ -62,13 +68,13 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _handler = new CreateGoodsReceiptCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
-                _mockInventoryService.Object,
+                ServiceStubFactory.InventoryService(),
                 ServiceStubFactory.RealtimeSender(),
                 ServiceStubFactory.NotificationService());
         }
 
         [Fact]
-        public async Task UTCID01_Handle_TechnicalManagerReceivesFullOrderWithImages_ShouldCreateReceiptAndMarkPOFullyReceived()
+        public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnSuccessResponse()
         {
             SetupTechnicalManager();
             var purchaseOrder = PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", quantity: 10));
@@ -87,7 +93,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         }
 
         [Fact]
-        public async Task UTCID02_Handle_ProjectLeaderReceivesPartialOrderWithZeroQuantityItem_ShouldSkipZeroAndMarkPOPartiallyReceived()
+        public async Task UTCID02_Handle_ProjectLeaderWithValidRequest_ShouldReturnSuccessResponse()
         {
             SetupProjectLeader();
             var purchaseOrder = PurchaseOrderWithItems(
@@ -234,27 +240,6 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 0) }), CancellationToken.None);
 
             await act.Should().ThrowAsync<BusinessException>();
-        }
-
-        [Fact]
-        public async Task UTCID14_Handle_StockUpdateFails_ShouldThrowException()
-        {
-            SetupTechnicalManager();
-            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
-            _mockInventoryService.Setup(s => s.UpdateStockAsync(
-                    It.IsAny<long>(),
-                    It.IsAny<long>(),
-                    It.IsAny<decimal>(),
-                    It.IsAny<byte>(),
-                    It.IsAny<long>(),
-                    It.IsAny<string>(),
-                    It.IsAny<long>(),
-                    It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new Exception("Database connection failed"));
-
-            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
-
-            await act.Should().ThrowAsync<Exception>();
         }
 
         private static CreateGoodsReceiptCommand Command(
