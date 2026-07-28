@@ -267,7 +267,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     receiptTitle,
                     receiptContent,
                     NotificationType.Procurement,
-                    NotificationReferenceType.GoodsReceipt,
+                    $"/projects/{project.ProjectId}?tab=inventory&subTab=receipts&receiptId={goodsReceipt.ReceiptId}",
                     goodsReceipt.ReceiptId,
                     cancellationToken);
 
@@ -277,7 +277,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     $"{actorName} đã tạo phiếu nhập kho {goodsReceipt.ReceiptNo} cho đơn mua {po.PONumber} tại dự án {project.Name}.",
                     NotificationType.Procurement,
                     currentUserId,
-                    NotificationReferenceType.GoodsReceipt,
+                    $"/projects/{project.ProjectId}?tab=inventory&subTab=receipts&receiptId={goodsReceipt.ReceiptId}",
                     goodsReceipt.ReceiptId,
                     cancellationToken);
 

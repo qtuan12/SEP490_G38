@@ -304,7 +304,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     "Cập nhật nhật ký tiến độ",
                     $"Thành viên [{creatorName}] đã cập nhật nhật ký cho công việc [{task.Name}] với tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
-                    NotificationReferenceType.Task,
+                    $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                     task.TaskId,
                     cancellationToken
                 );
@@ -327,7 +327,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     "Đồng nghiệp cập nhật tiến độ",
                     $"Thành viên [{creatorName}] cùng thực hiện công việc [{task.Name}] đã cập nhật nhật ký tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
-                    NotificationReferenceType.Task,
+                    $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                     task.TaskId,
                     cancellationToken
                 );
@@ -339,7 +339,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 "Cập nhật nhật ký tiến độ",
                 $"Nhật ký tiến độ mới cho công việc [{task.Name}] tại dự án [{project.Name}] vừa được cập nhật ({newProgress}%).",
                 NotificationType.Progress,
-                NotificationReferenceType.Task,
+                $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                 task.TaskId,
                 cancellationToken
             );
