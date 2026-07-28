@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Smartphone, FolderKanban, BookOpen, AlertTriangle, Bell } from 'lucide-react';
+import { ClipboardList, BookOpen, AlertTriangle, Bell, User } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 
 export const PWABottomNav: React.FC = () => {
@@ -15,17 +15,10 @@ export const PWABottomNav: React.FC = () => {
   const navItems = [
     {
       id: 'field',
-      label: 'Bàn làm việc',
-      icon: Smartphone,
+      label: 'Việc tôi',
+      icon: ClipboardList,
       path: '/field?standalone=true',
       isActive: location.pathname === '/field' || location.pathname.startsWith('/tasks/')
-    },
-    {
-      id: 'projects',
-      label: 'Dự án',
-      icon: FolderKanban,
-      path: '/projects',
-      isActive: location.pathname === '/projects' || (location.pathname.startsWith('/projects/') && !location.pathname.includes('/logs'))
     },
     {
       id: 'logs',
@@ -48,6 +41,13 @@ export const PWABottomNav: React.FC = () => {
       path: '/notifications',
       isActive: location.pathname === '/notifications',
       badge: unreadCount > 0 ? unreadCount : undefined
+    },
+    {
+      id: 'profile',
+      label: 'Cá nhân',
+      icon: User,
+      path: '/profile',
+      isActive: location.pathname === '/profile'
     }
   ];
 
