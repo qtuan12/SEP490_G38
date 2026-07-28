@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { supplierService } from '../../services/supplierService';
@@ -7,6 +7,7 @@ import { projectService } from '../../services/projectService';
 import { Button, Input, Select } from '../../components/ui';
 import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { isDiscreteUnit } from '../../utils/unitHelpers';
 
 interface POItem {
   materialId: number;
@@ -24,17 +25,42 @@ interface POItem {
 const fmt = (v: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
 
+// Chuyển yyyy-mm-dd (giá trị input date) sang dd-mm-yyyy để hiển thị
+const toDisplayDate = (isoDate: string) => {
+  if (!isoDate) return '';
+  const [y, m, d] = isoDate.split('-');
+  return `${d}-${m}-${y}`;
+};
+
 const label: React.CSSProperties = {
   fontSize: 13, fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: 4, display: 'block',
 };
 
 export const CreatePOPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryProjectId = searchParams.get('projectId');
+  const queryRequestId = searchParams.get('requestId');
+  // Được điều hướng kèm projectId (từ tab YCVT hoặc tab Đơn hàng trong dự án) → khóa dự án, không cho đổi.
+  const isProjectLocked = Boolean(queryProjectId);
+  // Kèm cả requestId (từ tab YCVT, bấm "Tạo PO" trên một yêu cầu cụ thể) → khóa luôn yêu cầu vật tư.
+  // Nếu chỉ có projectId (từ tab Đơn hàng), người dùng vẫn được chọn yêu cầu vật tư hợp lệ của dự án.
+  const isRequestLocked = Boolean(queryProjectId && queryRequestId);
 
   // Header state
   const [projectId, setProjectId] = useState(0);
   const [selectedRequestId, setSelectedRequestId] = useState(0);
-  const [orderDate, setOrderDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Tự động chọn Dự án nếu được truyền từ Tab Yêu cầu vật tư
+  useEffect(() => {
+    if (queryProjectId) {
+      const pId = Number(queryProjectId);
+      if (pId > 0 && pId !== projectId) {
+        setProjectId(pId);
+      }
+    }
+  }, [queryProjectId]);
+  const [orderDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [supplierId, setSupplierId] = useState(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
@@ -52,9 +78,24 @@ export const CreatePOPage: React.FC = () => {
     queryFn: () => projectService.getProjects(),
   });
 
+  // Khi dự án bị khóa (không có dropdown để người dùng tự chọn), tự điền địa chỉ giao hàng
+  // ngay khi danh sách dự án tải xong — tương đương hành vi chọn dự án thủ công.
+  useEffect(() => {
+    if (isProjectLocked && projectId > 0 && !deliveryAddress && projectList.length > 0) {
+      const proj = projectList.find((p) => String(p.id) === String(projectId));
+      if (proj?.address) setDeliveryAddress(proj.address);
+    }
+  }, [isProjectLocked, projectId, projectList, deliveryAddress]);
+
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers-active'],
     queryFn: () => supplierService.getSuppliers({ pageSize: 200, collaborationStatus: 'Active' }).then((r) => r.items),
+  });
+
+  // Mã đơn hàng dự kiến sẽ được backend sinh — chỉ hiển thị tham khảo, không cho chỉnh sửa
+  const { data: nextPoNumber } = useQuery({
+    queryKey: ['next-po-number', orderDate],
+    queryFn: () => inventoryService.getNextPoNumber(orderDate),
   });
 
   const { data: approvedRequestsData, isLoading: loadingRequests } = useQuery({
@@ -65,6 +106,24 @@ export const CreatePOPage: React.FC = () => {
   // useMemo giữ stable reference khi data là undefined (query bị disable)
   // tránh [] mới mỗi render gây infinite re-render loop trong useEffect bên dưới
   const approvedRequests = useMemo(() => approvedRequestsData ?? [], [approvedRequestsData]);
+
+  // Loại bỏ các yêu cầu đã được đặt đủ số lượng qua PO trước (không còn vật tư nào để tạo đơn mới)
+  // khỏi danh sách cho chọn — tránh người dùng chọn nhầm một yêu cầu không thể tạo được PO.
+  const selectableRequests = useMemo(
+    () => approvedRequests.filter((r) => r.items.some((it) => it.remainingQuantity > 0)),
+    [approvedRequests]
+  );
+
+  // Tự động chọn Phiếu yêu cầu sau khi danh sách yêu cầu được tải
+  useEffect(() => {
+    if (queryRequestId && approvedRequests.length > 0 && !selectedRequestId) {
+      const rId = Number(queryRequestId);
+      const exists = approvedRequests.some(r => r.requestId === rId);
+      if (exists) {
+        setSelectedRequestId(rId);
+      }
+    }
+  }, [queryRequestId, approvedRequests, selectedRequestId]);
 
   // Load items when the selected request changes
   useEffect(() => {
@@ -159,6 +218,9 @@ export const CreatePOPage: React.FC = () => {
       if (it.quantity <= 0) return setFormError(`Số lượng "${it.materialName}" phải lớn hơn 0.`);
       if (it.quantity > it.maxQuantity)
         return setFormError(`Số lượng "${it.materialName}" vượt quá số lượng yêu cầu (${it.maxQuantity}).`);
+      if (isDiscreteUnit(it.unitName) && it.quantity % 1 !== 0) {
+        return setFormError(`Đơn vị tính '${it.unitName}' của vật tư "${it.materialName}" yêu cầu số lượng phải là số nguyên.`);
+      }
     }
     mutation.mutate();
   };
@@ -170,17 +232,18 @@ export const CreatePOPage: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1120, margin: '0 auto' }}>
       {/* Page title */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Link
-          to="/purchase-orders"
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
           style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             padding: 8, borderRadius: 6, border: '1px solid hsl(var(--border))',
             background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-secondary))',
-            cursor: 'pointer', textDecoration: 'none', transition: 'background 0.15s',
+            cursor: 'pointer', transition: 'background 0.15s',
           }}
         >
           <ArrowLeft size={18} />
-        </Link>
+        </button>
         <ShoppingCart size={22} style={{ color: 'hsl(var(--primary))' }} />
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
           Tạo Đơn Hàng
@@ -204,32 +267,64 @@ export const CreatePOPage: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px 20px' }}>
           <div>
             <label style={label}>Dự án <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-            <Select
-              value={projectId.toString()}
-              onChange={(e) => {
-                const pid = Number(e.target.value);
-                setProjectId(pid);
-                setSelectedRequestId(0);
-                // Tự động điền địa điểm giao hàng từ địa chỉ dự án
-                const proj = projectList.find((p) => String(p.id) === String(pid));
-                setDeliveryAddress(proj?.address ?? '');
-              }}
-              options={[
-                { label: '-- Chọn dự án --', value: '0' },
-                ...projectList.map((p) => ({ label: p.name, value: p.id })),
-              ]}
+            {isProjectLocked ? (
+              <div
+                className="h-10"
+                style={{
+                  display: 'flex', alignItems: 'center',
+                  borderRadius: 6, padding: '0 12px', fontSize: 14, fontWeight: 600,
+                  border: '1px solid hsl(var(--border))',
+                  background: 'hsl(var(--bg-muted, var(--bg-card)))', color: 'hsl(var(--text-secondary))',
+                }}
+              >
+                {projectList.find((p) => String(p.id) === String(projectId))?.name ?? '...'}
+              </div>
+            ) : (
+              <Select
+                value={projectId.toString()}
+                onChange={(e) => {
+                  const pid = Number(e.target.value);
+                  setProjectId(pid);
+                  setSelectedRequestId(0);
+                  // Tự động điền địa điểm giao hàng từ địa chỉ dự án
+                  const proj = projectList.find((p) => String(p.id) === String(pid));
+                  setDeliveryAddress(proj?.address ?? '');
+                }}
+                options={[
+                  { label: '-- Chọn dự án --', value: '0' },
+                  ...projectList.map((p) => ({ label: p.name, value: p.id })),
+                ]}
+                className="h-10"
+              />
+            )}
+          </div>
+          <div>
+            <label style={label}>Mã đơn hàng <span style={{ fontWeight: 400, color: 'hsl(var(--text-muted))' }}>(dự kiến)</span></label>
+            <div
               className="h-10"
-            />
+              style={{
+                display: 'flex', alignItems: 'center',
+                borderRadius: 6, padding: '0 12px', fontSize: 14, fontWeight: 600,
+                border: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--bg-muted, var(--bg-card)))', color: 'hsl(var(--text-secondary))',
+              }}
+            >
+              {nextPoNumber ?? '...'}
+            </div>
           </div>
           <div>
             <label style={label}>Ngày đơn hàng <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-            <Input
-              type="date"
-              value={orderDate}
-              onChange={(e) => { setOrderDate(e.target.value); setOrderDateError(null); }}
+            <div
               className="h-10"
-              style={orderDateError ? { borderColor: 'hsl(var(--danger))' } : undefined}
-            />
+              style={{
+                display: 'flex', alignItems: 'center',
+                borderRadius: 6, padding: '0 12px', fontSize: 14,
+                border: `1px solid ${orderDateError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`,
+                background: 'hsl(var(--bg-muted, var(--bg-card)))', color: 'hsl(var(--text-secondary))',
+              }}
+            >
+              {toDisplayDate(orderDate)}
+            </div>
             {orderDateError && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{orderDateError}</p>
             )}
@@ -248,13 +343,27 @@ export const CreatePOPage: React.FC = () => {
           </div>
           <div>
             <label style={label}>Hạn giao hàng</label>
-            <Input
-              type="date"
-              value={expectedDeliveryDate}
-              onChange={(e) => { setExpectedDeliveryDate(e.target.value); setDeliveryDateError(null); }}
-              className="h-10"
-              style={deliveryDateError ? { borderColor: 'hsl(var(--danger))' } : undefined}
-            />
+            <div style={{ position: 'relative' }}>
+              <Input
+                type="date"
+                value={expectedDeliveryDate}
+                onChange={(e) => { setExpectedDeliveryDate(e.target.value); setDeliveryDateError(null); }}
+                className="h-10"
+                style={{
+                  color: 'transparent',
+                  ...(deliveryDateError ? { borderColor: 'hsl(var(--danger))' } : {}),
+                }}
+              />
+              <span
+                style={{
+                  position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                  fontSize: 14, pointerEvents: 'none',
+                  color: expectedDeliveryDate ? 'hsl(var(--text-primary))' : 'hsl(var(--text-muted))',
+                }}
+              >
+                {expectedDeliveryDate ? toDisplayDate(expectedDeliveryDate) : 'dd-mm-yyyy'}
+              </span>
+            </div>
             {deliveryDateError && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{deliveryDateError}</p>
             )}
@@ -274,31 +383,43 @@ export const CreatePOPage: React.FC = () => {
       {projectId > 0 && (
         <div className="glass-panel p-6">
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
-            Chọn yêu cầu vật tư đã duyệt <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(mỗi đơn hàng thuộc một yêu cầu)</span>
+            {isRequestLocked ? (
+              <>Yêu cầu vật tư <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(đã chọn từ tab Yêu cầu vật tư)</span></>
+            ) : (
+              <>Chọn yêu cầu vật tư đã duyệt <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(mỗi đơn hàng thuộc một yêu cầu)</span></>
+            )}
           </h3>
           {loadingRequests ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'hsl(var(--text-muted))' }}>
               <Loader2 size={16} className="animate-spin" /> Đang tải...
             </div>
-          ) : approvedRequests.length === 0 ? (
+          ) : (isRequestLocked ? approvedRequests : selectableRequests).length === 0 ? (
             <p style={{ color: 'hsl(var(--text-muted))', margin: 0, fontSize: 14 }}>
-              Không có yêu cầu đã duyệt cho dự án này.
+              {isRequestLocked
+                ? 'Không có yêu cầu đã duyệt cho dự án này.'
+                : 'Không có yêu cầu nào có thể tạo đơn hàng (tất cả đã được đặt đủ số lượng qua các đơn hàng trước).'}
             </p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 10 }}>
-              {approvedRequests.map((req) => {
+              {(isRequestLocked
+                ? approvedRequests.filter((r) => String(r.requestId) === queryRequestId)
+                : selectableRequests
+              ).map((req) => {
                 const checked = selectedRequestId === req.requestId;
                 return (
                   <label key={req.requestId} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer',
+                    display: 'flex', alignItems: 'flex-start', gap: 12,
+                    cursor: isRequestLocked ? 'default' : 'pointer',
                     padding: '12px 14px', borderRadius: 8,
                     border: `1px solid ${checked ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
                     background: checked ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-card))',
                     boxShadow: checked ? '0 0 0 1px hsl(var(--primary))' : 'none',
                     transition: 'all 0.15s',
                   }}>
-                    <input type="radio" name="po-request" checked={checked} onChange={() => selectRequest(req.requestId)}
-                      style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2, accentColor: 'hsl(var(--primary))', cursor: 'pointer' }} />
+                    {!isRequestLocked && (
+                      <input type="radio" name="po-request" checked={checked} onChange={() => selectRequest(req.requestId)}
+                        style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2, accentColor: 'hsl(var(--primary))', cursor: 'pointer' }} />
+                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
                         <span style={{ fontWeight: 700, fontSize: 13, color: 'hsl(var(--text-primary))' }}>
@@ -374,7 +495,10 @@ export const CreatePOPage: React.FC = () => {
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-secondary))' }}>{it.unitName}</td>
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-muted))' }}>{it.maxQuantity}</td>
                     <td style={{ padding: '8px 10px' }}>
-                      <Input type="number" min={0.001} max={it.maxQuantity} step={0.001}
+                      <Input type="number" 
+                        min={isDiscreteUnit(it.unitName) ? 1 : 0.001} 
+                        max={it.maxQuantity} 
+                        step={isDiscreteUnit(it.unitName) ? 1 : 0.001}
                         value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))}
                         className="h-8" style={{ width: 110 }} />
                     </td>
@@ -411,17 +535,18 @@ export const CreatePOPage: React.FC = () => {
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingBottom: 24 }}>
-        <Link
-          to="/purchase-orders"
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
           style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             padding: '8px 16px', borderRadius: 6, border: '1px solid hsl(var(--border))',
             background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-secondary))',
-            fontSize: 14, fontWeight: 500, cursor: 'pointer', textDecoration: 'none', transition: 'background 0.15s',
+            fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.15s',
           }}
         >
           Hủy
-        </Link>
+        </button>
         <Button type="button" variant="primary" disabled={mutation.isPending} className="font-semibold" onClick={handleSubmit}>
           {mutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Đang lưu...</> : <><Plus size={16} /> Tạo đơn hàng</>}
         </Button>

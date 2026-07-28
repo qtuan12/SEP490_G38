@@ -8,7 +8,6 @@ namespace BPG.Application.DTOs.PurchaseOrders
         public DateTime OrderDate { get; set; }
         public DateOnly? ExpectedDeliveryDate { get; set; }
         public string? DeliveryAddress { get; set; }
-        public string? PaymentTerms { get; set; }
         public string? Notes { get; set; }
         public string? CancelledReason { get; set; }
         public string? ClosedReason { get; set; }
@@ -18,7 +17,7 @@ namespace BPG.Application.DTOs.PurchaseOrders
         public string SupplierName { get; set; } = string.Empty;
         public string? SupplierContactInfo { get; set; }
 
-        public long? ProjectId { get; set; }
+        public long ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
 
         public List<PODetailItemDto> Items { get; set; } = new();

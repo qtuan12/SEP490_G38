@@ -48,7 +48,7 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
         // 2. Verify Phase is not frozen
         if (phase.Status == "frozen" || phase.Status == "Approved")
         {
-            throw new BusinessException("ERR_PHASE_FROZEN", "Giai đoạn đã đóng băng nghiệm thu, không thể cập nhật BOQ.");
+            throw new BusinessException("ERR_PHASE_FROZEN", "Giai đoạn đã nghiệm thu, không thể cập nhật định mức vật tư.");
         }
 
         // 3. Fetch all existing BOQItems of the Phase (including soft-deleted ones)
@@ -194,8 +194,8 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
                 "Cập nhật định mức vật tư",
                 $"Định mức vật tư giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' vừa được cập nhật bởi '{userName}'.",
                 NotificationType.Procurement,
-                NotificationReferenceType.Project,
-                phase.ProjectId,
+                $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/boq",
+                phase.PhaseId,
                 cancellationToken);
 
             // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án
@@ -208,8 +208,8 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
                     "Cập nhật định mức vật tư",
                     $"Định mức vật tư giai đoạn '{phase.Name}' vừa được cập nhật bởi '{userName}'.",
                     NotificationType.Procurement,
-                    NotificationReferenceType.Project,
-                    phase.ProjectId,
+                    $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/boq",
+                    phase.PhaseId,
                     cancellationToken);
             }
         }

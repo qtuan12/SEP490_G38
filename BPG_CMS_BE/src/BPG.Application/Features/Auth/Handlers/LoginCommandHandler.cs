@@ -63,6 +63,16 @@ namespace BPG.Application.Features.Auth.Handlers
             user.LastLoginAt = DateTime.UtcNow;
             await _uow.SaveChangesAsync(cancellationToken);
 
+            var rawRefreshToken = _jwtService.GenerateRefreshToken();
+            await _uow.Repository<RefreshToken>().AddAsync(new RefreshToken
+            {
+                UserId = user.UserId,
+                TokenHash = _jwtService.HashToken(rawRefreshToken),
+                ExpiresAt = DateTime.UtcNow.AddDays(_jwtService.RefreshTokenExpiryDays),
+                CreatedAt = DateTime.UtcNow
+            }, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
+
             var role = user.UserRoles.FirstOrDefault()?.Role;
             return new LoginResponse
             {
@@ -70,7 +80,8 @@ namespace BPG.Application.Features.Auth.Handlers
                 FullName = user.FullName,
                 Email = user.Email,
                 Role = role?.RoleName ?? string.Empty,
-                AccessToken = _jwtService.GenerateToken(user)
+                AccessToken = _jwtService.GenerateToken(user),
+                RefreshToken = rawRefreshToken
             };
         }
     }

@@ -89,7 +89,7 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
                 "Hủy nghiệm thu giai đoạn",
                 $"Biên bản nghiệm thu của giai đoạn '{phaseName}' thuộc dự án '{projectName}' đã bị hủy.",
                 NotificationType.Progress,
-                NotificationReferenceType.PhaseAcceptance,
+                $"/projects/{acceptance.Phase?.ProjectId}/phases/{acceptance.Phase?.PhaseId}/acceptance",
                 acceptance.AcceptanceId,
                 ct);
 
@@ -105,7 +105,7 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
                         "Hủy nghiệm thu giai đoạn",
                         $"Biên bản nghiệm thu của giai đoạn '{phaseName}' thuộc dự án '{projectName}' đã bị hủy.",
                         NotificationType.Progress,
-                        NotificationReferenceType.PhaseAcceptance,
+                        $"/projects/{acceptance.Phase?.ProjectId}/phases/{acceptance.Phase?.PhaseId}/acceptance",
                         acceptance.AcceptanceId,
                         ct);
                 }

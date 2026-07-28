@@ -3,6 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 import { Button, LoadingSpinner } from '../../components/ui';
 import { inventoryService } from '../../services/inventoryService';
 import type { CurrentInventory } from '../../types/inventory';
+import { useAuth } from '../../context/AuthContext';
+import { projectService } from '../../services/projectService';
+import { useNotification } from '../../context/NotificationContext';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
+
+const PROJECT_ZERO = 0;
 
 // Import các sub-components được bóc tách
 import { InventoryOverviewCards } from './components/InventoryOverviewCards';
@@ -30,6 +36,7 @@ interface InventoryWorkspaceProps {
 
 export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectId }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { connection } = useNotification();
   const [activeSubTab, setActiveSubTab] = useState<'current' | 'receipts' | 'issuances' | 'ledger'>(
     (searchParams.get('subTab') as any) || 'current'
   );
@@ -72,6 +79,22 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const [isCreateIssuanceOpen, setIsCreateIssuanceOpen] = useState(false);
   const [selectedIssuanceId, setSelectedIssuanceId] = useState<number | null>(null);
 
+  const { user } = useAuth();
+  const [isAssignedLeader, setIsAssignedLeader] = useState(false);
+
+  useEffect(() => {
+    if (projectId) {
+      projectService.getMembers(projectId.toString()).then(members => {
+        const currentMember = members.find(m => m.userId === user?.id);
+        setIsAssignedLeader(currentMember?.isLeader ?? false);
+      }).catch(console.error);
+    }
+  }, [projectId, user]);
+
+  const userRole = user?.role?.toLowerCase() || '';
+  const canCreateReceipt = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin';
+  const canCreateIssuance = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin';
+
   // Tải thông tin kho hiện tại để làm dữ liệu thống kê
   useEffect(() => {
     loadInventorySummary();
@@ -94,6 +117,39 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const handleRefreshAll = () => {
     setRefreshKey(prev => prev + 1);
   };
+
+  // Realtime: tham gia group dự án + group toàn cục (Project_0) để nhận cập nhật kho
+  useEffect(() => {
+    if (!connection) return;
+
+    const joinGroups = () => {
+      connection.invoke('JoinProjectGroup', Number(projectId)).catch((e) =>
+        console.error('[SignalR] JoinProjectGroup error:', e)
+      );
+      connection.invoke('JoinProjectGroup', PROJECT_ZERO).catch((e) =>
+        console.error('[SignalR] JoinProjectGroup (global) error:', e)
+      );
+    };
+
+    if (connection.state === 'Connected') {
+      joinGroups();
+    }
+    connection.onreconnected(joinGroups);
+
+    return () => {
+      if (connection.state === 'Connected') {
+        connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
+        connection.invoke('LeaveProjectGroup', PROJECT_ZERO).catch(console.error);
+      }
+    };
+  }, [connection, projectId]);
+
+  // Realtime: khi có biến động kho từ SignalR, làm mới toàn bộ workspace
+  useSignalREvent('GoodsReceiptChanged', () => handleRefreshAll());
+  useSignalREvent('MaterialIssuanceChanged', () => handleRefreshAll());
+  useSignalREvent('MaterialReturnChanged', () => handleRefreshAll());
+  useSignalREvent('InventoryAdjustmentCreated', () => handleRefreshAll());
+  useSignalREvent('InventoryAdjustmentUpdated', () => handleRefreshAll());
 
   const handleCreateReceiptSuccess = () => {
     setIsCreateReceiptOpen(false);
@@ -200,7 +256,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
         {/* Nút hành động */}
         <div className="flex gap-2.5">
-          {activeSubTab === 'receipts' && (
+          {activeSubTab === 'receipts' && canCreateReceipt && (
             <Button
               variant="primary"
               onClick={() => setIsCreateReceiptOpen(true)}
@@ -211,7 +267,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             </Button>
           )}
 
-          {activeSubTab === 'issuances' && (
+          {activeSubTab === 'issuances' && canCreateIssuance && (
             <Button
               variant="primary"
               onClick={() => setIsCreateIssuanceOpen(true)}
@@ -286,6 +342,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           isOpen={selectedReceiptId !== null}
           onClose={() => setSelectedReceiptId(null)}
           receiptId={selectedReceiptId}
+          isAssignedLeader={isAssignedLeader}
           onSuccess={handleRefreshAll}
         />
       )}
@@ -305,6 +362,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           onClose={() => setSelectedIssuanceId(null)}
           issuanceId={selectedIssuanceId}
           projectId={projectId}
+          isAssignedLeader={isAssignedLeader}
           onSuccess={() => setRefreshKey(prev => prev + 1)}
         />
       )}

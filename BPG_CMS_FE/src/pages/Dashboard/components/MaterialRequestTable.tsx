@@ -32,17 +32,17 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
   const getStatusBadgeMR = (status: MaterialRequest['status']) => {
     switch (status) {
       case 'pending_accountant':
-        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 normal-case">Đang kiểm tra</Badge>;
+        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 normal-case">Chờ phê duyệt</Badge>;
       case 'pending_director':
-        return <Badge variant="default" className="text-[0.72rem] py-0.5 px-2 normal-case">Chờ duyệt</Badge>;
+        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] normal-case">Chờ duyệt vượt định mức</Badge>;
       case 'pending_disbursement':
-        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] normal-case">Chờ Giải ngân</Badge>;
+        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] normal-case">Chờ tạm ứng</Badge>;
       case 'disbursed':
-        return <Badge variant="success" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã giải ngân</Badge>;
+        return <Badge variant="success" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã tạm ứng</Badge>;
       case 'approved':
-        return <Badge variant="success" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã duyệt</Badge>;
+        return <Badge variant="success" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã phê duyệt</Badge>;
       case 'rejected':
-        return <Badge variant="danger" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã từ chối</Badge>;
+        return <Badge variant="danger" className="text-[0.72rem] py-0.5 px-2 normal-case">Bị từ chối</Badge>;
       default:
         return null;
     }

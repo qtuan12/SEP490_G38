@@ -4,6 +4,9 @@ import { RefreshCw, PackageX } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { projectService } from '../../services/projectService';
+import { surplusService } from '../../services/surplusService';
+import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { useNotification } from '../../context/NotificationContext';
 
 import { SurplusRequestListTab } from './components/SurplusRequestListTab';
 import { SurplusRequestDetailTab } from './components/SurplusRequestDetailTab';
@@ -24,11 +27,13 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   projectName,
 }) => {
   const { user } = useAuth();
+  const { connection } = useNotification();
   const [isLeader, setIsLeader] = useState(false);
   
   const isAccountant = user?.role === 'accountant';
   const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
 
+  // isLeader = true nếu user là SiteEngineer VÀ được gán làm trưởng dự án trong bảng ProjectMembers
   useEffect(() => {
     const checkLeaderStatus = async () => {
       if (user?.role === 'siteengineer') {
@@ -47,10 +52,17 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
     checkLeaderStatus();
   }, [projectId, user]);
 
+  // Quyền tạo đề xuất xử lý vật tư thừa:
+  // - Trưởng phòng kỹ thuật (TechnicalManager) hoặc Admin: luôn được tạo
+  // - Trưởng dự án (SiteEngineer có isLeader=true trong dự án): được tạo
+  // - Nhân viên kỹ thuật thường (SiteEngineer không phải leader): KHÔNG được tạo
+  const canCreateSurplusRequest = isTPKT || isLeader;
+
   const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>('outbound');
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isCheckingCreateEligibility, setIsCheckingCreateEligibility] = useState(false);
 
   // Modal states
   const [showCreateBatch, setShowCreateBatch] = useState(false);
@@ -61,6 +73,36 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
 
   const handleRefresh = () => setRefreshKey(k => k + 1);
 
+  // ── Join/Leave SignalR project group khi mở tab Xử lý Vật tư thừa ──
+  useEffect(() => {
+    if (!connection) return;
+    const numericProjectId = Number(projectId);
+
+    connection.invoke('JoinProjectGroup', numericProjectId)
+      .catch(err => console.error('SurplusWorkspace: JoinProjectGroup error', err));
+
+    const handleSurplusUpdated = (_payload: any) => {
+      handleRefresh();
+      toast('Dữ liệu Vật tư thừa đã được cập nhật!', { icon: '🔄' });
+    };
+
+    connection.on('SurplusUpdated', handleSurplusUpdated);
+
+    return () => {
+      connection.off('SurplusUpdated', handleSurplusUpdated);
+      connection.invoke('LeaveProjectGroup', numericProjectId)
+        .catch(err => console.error('SurplusWorkspace: LeaveProjectGroup error', err));
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection, projectId]);
+
+  // ── Giữ lại listener ReceiveNotification cho các user có notification cá nhân ──
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    if (noti?.referenceType === 'SurplusRequest') {
+      handleRefresh();
+    }
+  });
+
   const handleViewDetail = (id: number) => {
     setSelectedBatchId(id);
     setView('detail');
@@ -69,6 +111,31 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   const handleBack = () => {
     setView('list');
     setSelectedBatchId(null);
+  };
+
+  const handleOpenCreateBatch = async () => {
+    if (isCheckingCreateEligibility) return;
+
+    setIsCheckingCreateEligibility(true);
+    try {
+      const activeRequests = await surplusService.getList({
+        projectId,
+        status: 'Processing',
+        pageNumber: 1,
+        pageSize: 1,
+      });
+
+      if (activeRequests.items.length > 0) {
+        toast.error('Dự án đang có đợt xử lý vật tư thừa chưa hoàn tất.');
+        return;
+      }
+
+      setShowCreateBatch(true);
+    } catch {
+      toast.error('Không thể kiểm tra trạng thái xử lý vật tư thừa. Vui lòng thử lại.');
+    } finally {
+      setIsCheckingCreateEligibility(false);
+    }
   };
 
   const handleActionSuccess = () => {
@@ -127,8 +194,9 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
             projectId={projectId}
             refreshKey={refreshKey}
             onViewDetail={handleViewDetail}
-            onCreateRequest={() => setShowCreateBatch(true)}
-            isLeader={isLeader || isTPKT}
+            onCreateRequest={handleOpenCreateBatch}
+            isCheckingCreateEligibility={isCheckingCreateEligibility}
+            isLeader={canCreateSurplusRequest}
           />
         )}
 
@@ -171,6 +239,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
           onClose={() => setReturnItem(null)}
           onSuccess={() => { handleActionSuccess(); setReturnItem(null); }}
           item={returnItem}
+          projectId={projectId}
         />
       )}
 

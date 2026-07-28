@@ -11,7 +11,6 @@ namespace BPG.Application.Features.PurchaseOrders.Commands
         public long ProjectId { get; init; }
         public DateOnly? ExpectedDeliveryDate { get; init; }
         public string? DeliveryAddress { get; init; }
-        public string? PaymentTerms { get; init; }
         public string? Notes { get; init; }
         public long RequestId { get; init; }
         public List<CreatePOItemDto> Items { get; init; } = new();

@@ -1,22 +1,21 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useCompany } from '../../context/CompanyContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
   LogOut,
   Hammer,
-  Boxes,
   Menu,
   FileText,
   Truck,
   Ruler,
   Tags,
   Package,
-  FileSignature,
-  AlertTriangle,
   ShoppingCart,
   SlidersHorizontal,
+  Smartphone,
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
@@ -25,6 +24,7 @@ import { HeaderNotification } from './HeaderNotification';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
+  const { companyName, companyLogoUrl } = useCompany();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -36,22 +36,24 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   };
 
   const navItems: Array<{ name: string; path: string; icon: React.ReactNode; roles: string[]; disabled?: boolean }> = [
-    { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
+    { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
+    { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
+    { name: 'Việc của tôi', path: '/field', icon: <Smartphone size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer'] },
+    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: [] },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Dự án (WBS)', path: '/projects', icon: <Hammer size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
-    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Danh mục Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Vật tư', path: '/materials', icon: <Package size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Kiểm kê vật tư', path: '/inventory-adjustments', icon: <FileSignature size={20} />, roles: ['director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer'] },
-    { name: 'Sự cố thi công', path: '/incidents', icon: <AlertTriangle size={20} />, roles: ['technicalmanager', 'director', 'accountant'] },
-    { name: 'Kiểm soát Vật tư', path: '/materials-control', icon: <Boxes size={20} />, roles: ['technicalmanager', 'director', 'accountant'] },
-    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: ['accountant'] },
-    { name: 'Báo cáo', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant'] },
+    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin'] },
+    { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin'] },
+    { name: 'Danh sách Vật tư', path: '/materials', icon: <Package size={20} />, roles: ['admin'] },
+    { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant', 'technicalmanager'] },
     { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, roles: ['admin'] },
   ];
 
-  const filteredNavItems = navItems.filter(item => user && item.roles.includes(user.role));
+  const filteredNavItems = navItems.filter(item => {
+    if (!user || !user.role) return false;
+    const userRole = user.role.toLowerCase();
+    return item.roles.map(r => r.toLowerCase()).includes(userRole);
+  });
 
 
 
@@ -76,14 +78,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="flex items-center gap-3 justify-center">
             {!isCollapsed && (
               <img
-                src="/logo.png"
-                alt="BPG Logo"
+                src={companyLogoUrl}
+                alt={`${companyName} Logo`}
                 className="h-10 w-10 object-contain rounded-sm"
               />
             )}
             {!isCollapsed && (
               <div className="overflow-hidden whitespace-nowrap">
-                <h1 className="text-xl font-bold tracking-wider">BPG CMS</h1>
+                <h1 className="text-xl font-bold tracking-wider">{companyName}</h1>
                 <span className="text-[11px] text-[hsl(var(--text-muted))] uppercase font-semibold">Construction MVP</span>
               </div>
             )}
@@ -170,16 +172,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                       location.pathname === '/units' ? 'Quản lý Đơn vị tính' :
                         location.pathname === '/categories' ? 'Danh mục Vật tư' :
                           location.pathname === '/materials' ? 'Kho Vật tư' :
-                            location.pathname === '/projects' ? 'Danh sách Dự án WBS' :
+                            location.pathname === '/projects' ? 'Danh sách Dự án' :
+                              location.pathname === '/field' ? 'Việc của tôi' :
                               location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
                                 location.pathname === '/system-config' ? 'Cấu hình Hệ thống' :
                                   location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
               </h2>
             </div>
             <div className="flex items-center gap-4">
-              <div className="hidden md:flex text-sm gap-1 text-[hsl(var(--text-secondary))]">
-                Dự án: <strong className="text-[hsl(var(--text-primary))]">BPG Construction (MVP)</strong>
-              </div>
+
               <HeaderNotification />
             </div>
           </div>

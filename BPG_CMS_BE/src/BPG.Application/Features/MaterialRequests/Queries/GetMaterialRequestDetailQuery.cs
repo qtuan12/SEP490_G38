@@ -1,4 +1,5 @@
 using MediatR;
+using BPG.Application.Common.Interfaces;
 using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialRequests;
@@ -11,7 +12,21 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Queries
 {
-    public record GetMaterialRequestDetailQuery(long RequestId) : IRequest<ApiResponse<MaterialRequestDto>>;
+    public record GetMaterialRequestDetailQuery(long RequestId) : IRequest<ApiResponse<MaterialRequestDto>>, IProjectRequirement
+    {
+        public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+        {
+            var projectId = await unitOfWork.Repository<MaterialRequest>().Query()
+                .Where(mr => mr.RequestId == RequestId)
+                .Select(mr => mr.Phase.ProjectId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (projectId == 0)
+                throw new NotFoundException(nameof(MaterialRequest), RequestId);
+
+            return projectId;
+        }
+    }
 
     public class GetMaterialRequestDetailQueryHandler : IRequestHandler<GetMaterialRequestDetailQuery, ApiResponse<MaterialRequestDto>>
     {

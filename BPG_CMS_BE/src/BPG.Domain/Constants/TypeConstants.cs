@@ -57,6 +57,7 @@ public static class InventoryTransactionType
     public const byte Adjustment = 6;       // Điều chỉnh tăng/giảm (có thể dấu ±)
     public const byte Liquidation = 7;      // Thanh lý vật tư (giảm)
     public const byte IssuanceReturn = 8;   // Hoàn trả vật tư dư từ công trường về kho (tăng)
+    public const byte IncidentLoss = 9;     // Giảm tồn do sự cố (giảm)
 }
 
 public static class AttachmentType
@@ -75,6 +76,9 @@ public static class NotificationReferenceType
 {
     public const string MaterialRequest = "MaterialRequest";
     public const string PurchaseOrder = "PurchaseOrder";
+    public const string GoodsReceipt = "GoodsReceipt";
+    public const string MaterialIssuance = "MaterialIssuance";
+    public const string MaterialReturn = "MaterialReturn";
     public const string DirectPurchaseRequest = "DirectPurchaseRequest";
     public const string Incident = "Incident";
     public const string Task = "Task";

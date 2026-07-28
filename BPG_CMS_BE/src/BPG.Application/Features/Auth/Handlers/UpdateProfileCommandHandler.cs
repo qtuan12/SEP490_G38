@@ -19,16 +19,15 @@ namespace BPG.Application.Features.Auth.Handlers
 
         public async Task<GetCurrentUserDto> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(request.FullName))
-                throw new InvalidOperationException("Họ tên không được để trống.");
-
             var user = await _uow.Repository<User>().Query()
                 .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.UserId == request.UserId && !u.IsDeleted, cancellationToken)
                 ?? throw new NotFoundException("Không tìm thấy người dùng.");
 
             user.FullName = request.FullName.Trim();
-            user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
+            user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber)
+                ? null
+                : request.PhoneNumber.Replace(" ", "").Replace("-", "").Trim();
             if (!string.IsNullOrWhiteSpace(request.AvatarUrl))
                 user.AvatarUrl = request.AvatarUrl.Trim();
 

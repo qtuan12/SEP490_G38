@@ -1,33 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { directPurchaseService } from '../../services/directPurchaseService';
-import type { DirectPurchaseRequestDto } from '../../services/directPurchaseService';
-import { Select, Badge, DataTable, Pagination } from '../../components/ui';
-import { Button } from '../../components/ui';
-import { ShoppingBag, AlertCircle, Loader2, Plus } from 'lucide-react';
+import { Badge, Pagination, Button } from '../../components/ui';
+import { AlertCircle, Loader2, Plus, Search, ChevronDown } from 'lucide-react';
 import { CreateDirectPurchaseModal } from './CreateDirectPurchaseModal';
 import { DirectPurchaseDetailModal } from './DirectPurchaseDetailModal';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 
-const STATUS_OPTIONS = [
-  { label: 'Tất cả trạng thái', value: '' },
-  { label: 'Đã duyệt', value: 'Approved' },
-  { label: 'Từ chối', value: 'Rejected' },
-];
-
 const AUDIT_OPTIONS = [
-  { label: 'Tất cả kiểm toán', value: '' },
+  { label: 'Tất cả', value: '' },
   { label: 'Chờ kiểm toán', value: 'PendingAudit' },
   { label: 'Đã kiểm toán', value: 'Audited' },
   { label: 'Từ chối kiểm toán', value: 'Rejected' },
 ];
-
-const statusLabel: Record<string, string> = {
-  Draft: 'Nháp',
-  Approved: 'Đã duyệt',
-  Rejected: 'Từ chối',
-};
 
 const auditLabel: Record<string, string> = {
   PendingAudit: 'Chờ kiểm toán',
@@ -64,8 +50,9 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
   const { user } = useAuth();
   const { connection } = useNotification();
   const isAccountant = user?.role === 'accountant';
-  const [statusFilter, setStatusFilter] = useState('');
   const [auditFilter, setAuditFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
@@ -73,17 +60,27 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
 
   const refetchList = () => queryClient.invalidateQueries({ queryKey: ['project-direct-purchases', projectId] });
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [searchTerm]);
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['project-direct-purchases', projectId, page, statusFilter, auditFilter],
+    queryKey: ['project-direct-purchases', projectId, page, auditFilter, debouncedSearchTerm],
     queryFn: () =>
       directPurchaseService.getList({
         projectId,
-        status: statusFilter || undefined,
         auditStatus: auditFilter || undefined,
+        searchTerm: debouncedSearchTerm || undefined,
         pageNumber: page,
         pageSize,
       }),
   });
+
+  const items = data?.items ?? [];
 
   // Realtime: tự làm mới danh sách khi có phiếu mua khẩn cấp thay đổi (tạo/kiểm toán) từ người dùng khác
   useEffect(() => {
@@ -103,159 +100,128 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connection, projectId]);
 
-  const columns = [
-    {
-      key: 'requestNumber',
-      header: 'Số phiếu',
-      render: (dp: DirectPurchaseRequestDto) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ padding: 4, background: 'hsl(var(--primary-glow))', borderRadius: 4, border: '1px solid hsl(var(--border))' }}>
-            <ShoppingBag size={14} style={{ color: 'hsl(var(--primary))' }} />
-          </div>
-          <span style={{ fontWeight: 600 }}>{dp.requestNumber}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'phaseName',
-      header: 'Giai đoạn',
-      render: (dp: DirectPurchaseRequestDto) => (
-        <span style={{ color: 'hsl(var(--text-secondary))' }}>{dp.phaseName}</span>
-      ),
-    },
-    {
-      key: 'purchaseDate',
-      header: 'Ngày mua',
-      render: (dp: DirectPurchaseRequestDto) => (
-        <span style={{ color: 'hsl(var(--text-secondary))' }}>{formatDate(dp.purchaseDate)}</span>
-      ),
-    },
-    {
-      key: 'requesterName',
-      header: 'Người tạo',
-      render: (dp: DirectPurchaseRequestDto) => (
-        <span style={{ color: 'hsl(var(--text-secondary))' }}>{dp.requesterName}</span>
-      ),
-    },
-    {
-      key: 'totalAmount',
-      header: 'Tổng tiền',
-      render: (dp: DirectPurchaseRequestDto) => (
-        <span style={{ fontWeight: 600 }}>{formatCurrency(dp.totalAmount)}</span>
-      ),
-    },
-    {
-      key: 'itemCount',
-      header: 'Vật tư',
-      render: (dp: DirectPurchaseRequestDto) => (
-        <span style={{ color: 'hsl(var(--text-muted))' }}>{dp.itemCount} dòng</span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Trạng thái',
-      render: (dp: DirectPurchaseRequestDto) => (
-        <Badge variant={dp.status === 'Rejected' ? 'danger' : 'success'}>
-          {statusLabel[dp.status] ?? dp.status}
-        </Badge>
-      ),
-    },
-    {
-      key: 'auditStatus',
-      header: 'Kiểm toán',
-      render: (dp: DirectPurchaseRequestDto) => (
-        <Badge variant={auditVariant[dp.auditStatus] ?? 'default'}>
-          {auditLabel[dp.auditStatus] ?? dp.auditStatus}
-        </Badge>
-      ),
-    },
-  ];
-
   return (
-    <div className="flex flex-col gap-4 animate-fade-in">
-      <div
-        style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px',
-          padding: '14px 16px', borderRadius: 10,
-          border: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-card))',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Trạng thái</label>
-            <Select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="w-48 h-10"
-              options={STATUS_OPTIONS}
-            />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Kiểm toán</label>
-            <Select
-              value={auditFilter}
-              onChange={(e) => { setAuditFilter(e.target.value); setPage(1); }}
-              className="w-48 h-10"
-              options={AUDIT_OPTIONS}
-            />
-          </div>
-          {data && (
-            <span
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6, height: 40, padding: '0 12px',
-                borderRadius: 999, background: 'hsl(var(--primary-glow))',
-                fontSize: 13, fontWeight: 600, color: 'hsl(var(--primary))',
-              }}
-            >
-              <ShoppingBag size={14} />
-              {data.totalCount} phiếu
-            </span>
-          )}
+    <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl shadow-sm overflow-hidden flex flex-col">
+      {isError && (
+        <div className="m-4 mb-0 animate-fade-in py-2.5 px-3.5 flex items-center gap-2 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
+          <AlertCircle size={16} className="flex-shrink-0" />
+          Không thể tải danh sách phiếu mua khẩn cấp.
         </div>
+      )}
+
+      <div className="p-4 border-b border-[hsl(var(--border))] flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] pointer-events-none" size={16} />
+            <input
+              type="text"
+              placeholder="Tìm theo số phiếu, lý do..."
+              className="py-2 pl-9 pr-3 border border-[hsl(var(--border))] rounded-lg text-sm bg-transparent w-full sm:w-64"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="relative w-full sm:w-auto">
+            <select
+              className="appearance-none pl-3 pr-9 py-2 border border-[hsl(var(--border))] rounded-lg text-sm bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] w-full sm:w-52"
+              value={auditFilter}
+              onChange={e => { setAuditFilter(e.target.value); setPage(1); }}
+            >
+              {AUDIT_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] pointer-events-none" size={14} />
+          </div>
+        </div>
+
         {isLeader && (
-          <Button
-            variant="primary"
-            onClick={() => setIsCreateOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', height: 40 }}
-          >
-            <Plus size={16} />
-            Tạo phiếu mua khẩn cấp
+          <Button variant="primary" className="flex items-center gap-1.5 text-sm w-full lg:w-auto justify-center" onClick={() => setIsCreateOpen(true)}>
+            <Plus size={16} /> Tạo phiếu mua khẩn cấp
           </Button>
         )}
       </div>
 
-      {isLoading && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200, gap: 10 }}>
-          <Loader2 className="animate-spin" size={22} style={{ color: 'hsl(var(--primary))' }} />
-          <span style={{ color: 'hsl(var(--text-secondary))' }}>Đang tải...</span>
-        </div>
-      )}
+      <div className="overflow-x-auto">
+        <table className={`w-full min-w-[900px] table-fixed text-sm text-left ${isLoading ? 'opacity-50' : ''}`}>
+          <colgroup>
+            <col className="w-[13%]" />
+            <col className="w-[12%]" />
+            <col className="w-[11%]" />
+            <col className="w-[14%]" />
+            <col className="w-[13%]" />
+            <col className="w-[9%]" />
+            <col className="w-[15%]" />
+            <col className="w-[13%]" />
+          </colgroup>
+          <thead className="bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] border-b border-[hsl(var(--border))]">
+            <tr>
+              <th className="px-4 py-3 font-medium">Số phiếu</th>
+              <th className="px-4 py-3 font-medium">Giai đoạn</th>
+              <th className="px-4 py-3 font-medium">Ngày mua</th>
+              <th className="px-4 py-3 font-medium">Người tạo</th>
+              <th className="px-4 py-3 font-medium text-right">Tổng tiền</th>
+              <th className="px-4 py-3 font-medium text-center">Vật tư</th>
+              <th className="px-4 py-3 font-medium text-center">Trạng thái kiểm toán</th>
+              <th className="px-4 py-3 font-medium text-center">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[hsl(var(--border))]">
+            {isLoading ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="animate-spin" size={18} />
+                    Đang tải...
+                  </div>
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
+                  Dự án này chưa có phiếu mua khẩn cấp nào.
+                </td>
+              </tr>
+            ) : (
+              items.map(dp => (
+                <tr
+                  key={dp.directPurchaseId}
+                  className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
+                  onClick={() => setDetailId(dp.directPurchaseId)}
+                >
+                  <td className="px-4 py-3 font-medium truncate" title={dp.requestNumber}>{dp.requestNumber}</td>
+                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.phaseName}>{dp.phaseName}</td>
+                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatDate(dp.purchaseDate)}</td>
+                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.requesterName}>{dp.requesterName}</td>
+                  <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(dp.totalAmount)}</td>
+                  <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{dp.itemCount} dòng</td>
+                  <td className="px-4 py-3 text-center">
+                    <Badge variant={auditVariant[dp.auditStatus] ?? 'default'}>
+                      {auditLabel[dp.auditStatus] ?? dp.auditStatus}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDetailId(dp.directPurchaseId); }}
+                      className="text-[hsl(var(--primary))] font-semibold text-sm hover:underline"
+                    >
+                      Xem chi tiết
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-      {isError && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.3)', borderRadius: 4, padding: '12px 16px', color: 'hsl(346 84% 35%)', fontSize: 14 }}>
-          <AlertCircle size={16} style={{ flexShrink: 0 }} />
-          <span>Không thể tải danh sách phiếu mua khẩn cấp.</span>
-        </div>
-      )}
-
-      {!isLoading && !isError && (
-        <div className="flex flex-col gap-4">
-          <DataTable
-            columns={columns}
-            data={data?.items ?? []}
-            keyExtractor={(dp) => dp.directPurchaseId.toString()}
-            emptyMessage="Dự án này chưa có phiếu mua khẩn cấp nào."
-            onRowClick={(dp) => setDetailId(dp.directPurchaseId)}
+      {data && data.totalPages > 1 && (
+        <div className="p-4 border-t border-[hsl(var(--border))]">
+          <Pagination
+            currentPage={page}
+            totalPages={data.totalPages}
+            onPageChange={setPage}
           />
-          {data && data.totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Pagination
-                currentPage={page}
-                totalPages={data.totalPages}
-                onPageChange={setPage}
-              />
-            </div>
-          )}
         </div>
       )}
 

@@ -1,7 +1,9 @@
 using AutoMapper;
 using BPG.Application.DTOs.Users;
 using BPG.Domain.Entities;
-using BPG.Application.Features.PhaseAcceptances.DTOs;
+using BPG.Application.DTOs.PhaseAcceptances;
+using BPG.Application.DTOs.MaterialCategories;
+using BPG.Application.DTOs.MaterialCatalogs;
 using System.Linq;
 
 namespace BPG.Application.Common.Mappings
@@ -77,10 +79,10 @@ namespace BPG.Application.Common.Mappings
             // Mapping cho Supplier
             CreateMap<Supplier, BPG.Application.DTOs.Suppliers.SupplierDto>().ReverseMap();
             // Mapping cho MaterialCategory
-            CreateMap<MaterialCategory, BPG.Application.Features.MaterialCategories.DTOs.MaterialCategoryDto>().ReverseMap();
+            CreateMap<MaterialCategory, MaterialCategoryDto>().ReverseMap();
 
             // Mapping cho MaterialCatalog
-            CreateMap<MaterialCatalog, BPG.Application.Features.MaterialCatalogs.DTOs.MaterialCatalogDto>()
+            CreateMap<MaterialCatalog, MaterialCatalogDto>()
                 .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.CategoryName : string.Empty))
                 .ForMember(dest => dest.BaseUnitName, opt => opt.MapFrom(src => src.BaseUnit != null ? src.BaseUnit.UnitName : string.Empty));
 

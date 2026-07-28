@@ -5,6 +5,7 @@ using BPG.Infrastructure.Data;
 using BPG.Infrastructure.Repositories;
 using BPG.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,6 +27,7 @@ public static class DependencyInjection
                 sp.GetRequiredService<SoftDeleteInterceptor>(),
                 sp.GetRequiredService<AuditInterceptor>()
             );
+            options.ConfigureWarnings(w => w.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
         });
 
         // Repositories & UnitOfWork
@@ -39,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IProgressRollupService, ProgressRollupService>();
         services.AddScoped<IPdfService, QuestPdfService>();
         services.AddScoped<IInventoryService, InventoryService>();
+        services.AddScoped<ISurplusMaterialSupplierService, SurplusMaterialSupplierService>();
         services.AddScoped<IEmailService, EmailService>();
 
         return services;

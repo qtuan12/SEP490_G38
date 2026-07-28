@@ -21,7 +21,7 @@ export const ObsoleteTaskForm: React.FC<ObsoleteTaskFormProps> = ({
   const mutation = useMutation({
     mutationFn: async () => {
       if (!reason.trim()) {
-        throw new Error('Vui lòng nhập lý do hủy bỏ/đánh dấu lỗi thời.');
+        throw new Error('Vui lòng nhập lý do tạm dừng.');
       }
       
       const tId = parseInt(task.id.replace('t-', ''));
@@ -31,7 +31,7 @@ export const ObsoleteTaskForm: React.FC<ObsoleteTaskFormProps> = ({
       });
     },
     onSuccess: () => {
-      const msg = `Đã đánh dấu lỗi thời công việc: ${task.name}`;
+      const msg = `Đã tạm dừng thành công công việc: ${task.name}`;
       toast.success(msg);
       onSuccess(msg);
       setReason('');
@@ -51,13 +51,13 @@ export const ObsoleteTaskForm: React.FC<ObsoleteTaskFormProps> = ({
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div>
         <p style={{ fontSize: '0.875rem', color: 'hsl(var(--text-muted))', marginBottom: '12px' }}>
-          Xác nhận hủy bỏ công việc: <strong style={{ color: 'hsl(var(--text-primary))' }}>{task.name}</strong>
+          Xác nhận tạm dừng công việc: <strong style={{ color: 'hsl(var(--text-primary))' }}>{task.name}</strong>
         </p>
-        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '4px', color: 'hsl(var(--text-secondary))' }}>Lý do hủy bỏ <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '4px', color: 'hsl(var(--text-secondary))' }}>Lý do tạm dừng <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
         <textarea
           className="input"
           style={{ width: '100%', minHeight: '100px', resize: 'none' }}
-          placeholder="Nhập lý do tại sao công việc này bị hủy bỏ hoặc không còn giá trị..."
+          placeholder="Nhập lý do tại sao công việc này bị tạm dừng..."
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           required
@@ -67,7 +67,7 @@ export const ObsoleteTaskForm: React.FC<ObsoleteTaskFormProps> = ({
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
         <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={mutation.isPending}>Thoát</button>
         <button type="submit" className="btn" style={{ backgroundColor: 'hsl(var(--danger))', color: '#fff' }} disabled={mutation.isPending || !reason.trim()}>
-          {mutation.isPending ? 'Đang xử lý...' : 'Xác nhận hủy'}
+          {mutation.isPending ? 'Đang xử lý...' : 'Xác nhận'}
         </button>
       </div>
     </form>
@@ -87,7 +87,7 @@ export const ObsoleteTaskModal: React.FC<ObsoleteTaskModalProps> = ({
 }) => {
   if (!isOpen) return null;
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Hủy bỏ / Đánh dấu lỗi thời">
+    <Modal isOpen={isOpen} onClose={onClose} title="Tạm dừng công việc">
       <ObsoleteTaskForm task={task} onSuccess={onSuccess} onCancel={onClose} />
     </Modal>
   );

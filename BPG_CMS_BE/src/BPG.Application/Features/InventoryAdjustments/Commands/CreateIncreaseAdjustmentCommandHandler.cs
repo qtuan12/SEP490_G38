@@ -35,9 +35,30 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 throw new NotFoundException(nameof(Project), request.ProjectId);
             }
 
+            var userId = _currentUserService.GetRequiredUserId();
+            var isLeader = await _unitOfWork.Repository<ProjectMember>().Query()
+                .AnyAsync(m => m.ProjectId == request.ProjectId && m.UserId == userId && m.IsLeader, cancellationToken);
+            var isManagerOrAdmin = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
+
+            if (!isLeader && !isManagerOrAdmin)
+            {
+                throw new BusinessException(ErrorCodes.Forbidden, "Chỉ Trưởng dự án của dự án này hoặc Trưởng phòng Kĩ thuật mới có quyền tạo phiếu tăng tồn kho.");
+            }
+
+            var phase = await _unitOfWork.Repository<Phase>().GetByIdAsync(request.PhaseId);
+            if (phase == null)
+            {
+                throw new NotFoundException(nameof(Phase), request.PhaseId);
+            }
+            if (phase.ProjectId != request.ProjectId)
+            {
+                throw new BusinessException(ErrorCodes.InvalidTransition, "Giai đoạn không thuộc dự án này.");
+            }
+
             var adjustment = new InventoryAdjustment
             {
                 ProjectId = request.ProjectId,
+                PhaseId = request.PhaseId,
                 AdjustmentType = InventoryAdjustmentType.Increase,
                 Reason = request.Reason,
                 Description = request.Description,
@@ -50,8 +71,16 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             foreach (var item in request.Items)
             {
-                var material = await _unitOfWork.Repository<MaterialCatalog>().GetByIdAsync(item.MaterialId);
+                var material = await _unitOfWork.Repository<MaterialCatalog>().Query()
+                    .Include(m => m.BaseUnit)
+                    .FirstOrDefaultAsync(m => m.MaterialId == item.MaterialId, cancellationToken);
                 if (material == null) throw new NotFoundException(nameof(MaterialCatalog), item.MaterialId);
+
+                if (material.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng phải là số nguyên.");
+                }
 
                 adjustment.Items.Add(new AdjustmentItem
                 {
@@ -93,6 +122,8 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     QuantityChange = item.Quantity, // Dương cho tăng
                     BalanceAfter = currentInventory.Quantity,
                     ReferenceType = EntityType.InventoryAdjustment,
+                    CreatedBy = userId,
+                    CreatedAt = System.DateTime.UtcNow
                     // ReferenceId sẽ được update sau khi save adjustment, ta sẽ save adjustment trước
                 };
                 await _unitOfWork.Repository<InventoryTransaction>().AddAsync(transaction);
@@ -110,13 +141,12 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             }
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Gửi thông báo DB xác nhận phiếu tăng tồn cho Kế toán
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Accountant,
                 "Phiếu điều chỉnh tăng tồn đã được tạo",
                 $"Một phiếu tăng tồn kho mới (#{adjustment.AdjustmentId}) đã được tạo và tự động phê duyệt. Tồn kho dự án đã được cập nhật.",
                 BPG.Domain.Constants.NotificationType.Procurement,
-                BPG.Domain.Constants.NotificationReferenceType.InventoryAdjustment,
+                $"/projects/{request.ProjectId}/workspace/inventoryadjustments",
                 adjustment.AdjustmentId,
                 cancellationToken
             );

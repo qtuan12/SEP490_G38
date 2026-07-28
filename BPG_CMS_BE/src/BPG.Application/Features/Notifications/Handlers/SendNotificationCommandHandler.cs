@@ -64,11 +64,19 @@ namespace BPG.Application.Features.Notifications.Handlers
                     }
                 }
 
+                // Loại bỏ người thực hiện hành động khỏi danh sách nhận thông báo
+                if (request.ExcludeUserId.HasValue)
+                {
+                    targetUsers = targetUsers.Where(u => u.UserId != request.ExcludeUserId.Value).ToList();
+                }
+
+
                 if (!targetUsers.Any())
-{
-    _logger.LogWarning("Không tìm thấy người dùng nhận thông báo hợp lệ cho request: {@Request}", request);
-    throw new Exception("Không tìm thấy người dùng nhận thông báo hợp lệ."); 
-}
+                {
+                    _logger.LogWarning("Không tìm thấy người dùng nhận thông báo hợp lệ cho request: {@Request}", request);
+                    return;
+                }
+
 
                 _logger.LogInformation("Đã xác định {UserCount} người nhận thông báo.", targetUsers.Count);
 
@@ -87,7 +95,7 @@ namespace BPG.Application.Features.Notifications.Handlers
                 _logger.LogInformation("Đã lưu {NotificationCount} thông báo vào database.", notifications.Count);
 
                 // 3. Gửi thông báo realtime qua SignalR
-                if (request.SendToAll)
+                if (request.SendToAll && !request.ExcludeUserId.HasValue)
                 {
                     // Gửi một gói tin broadcast duy nhất cho tất cả clients đang kết nối để tối ưu hiệu năng
                     var sampleDto = _mapper.Map<NotificationDto>(notifications.First());

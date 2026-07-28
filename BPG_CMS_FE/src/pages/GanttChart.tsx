@@ -92,17 +92,28 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
     const data: any[] = [];
     const links: any[] = [];
 
-    phases.forEach(ph => {
-      const phaseTasks = tasks.filter(t => t.phaseId === ph.id && t.status !== 'obsolete');
-      const progress = phaseTasks.length
-        ? Math.round(phaseTasks.reduce((s, t) => s + t.progress, 0) / Math.max(1, phaseTasks.length)) / 100
+    const projStart = project?.startDate ? new Date(project.startDate) : new Date();
+
+    phases.forEach((ph, index) => {
+      const phaseTasks = tasks.filter(t => t.phaseId === ph.id);
+      const activePhaseTasks = phaseTasks.filter(t => t.status !== 'obsolete');
+      const progress = activePhaseTasks.length
+        ? Math.round(activePhaseTasks.reduce((s, t) => s + t.progress, 0) / Math.max(1, activePhaseTasks.length)) / 100
         : 0;
 
-      let minDate = new Date();
-      let maxDate = new Date();
+      let minDate: Date;
+      let maxDate: Date;
+
       if (phaseTasks.length > 0) {
         minDate = new Date(Math.min(...phaseTasks.map(t => new Date(t.startDate || t.deadline).getTime())));
         maxDate = new Date(Math.max(...phaseTasks.map(t => new Date(t.deadline).getTime())));
+      } else {
+        minDate = ph.startDate ? new Date(ph.startDate) : new Date(projStart.getTime() + index * 7 * 24 * 60 * 60 * 1000);
+        maxDate = ph.endDate ? new Date(ph.endDate) : new Date(minDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+      }
+
+      if (maxDate.getTime() <= minDate.getTime()) {
+        maxDate = new Date(minDate.getTime() + 7 * 24 * 60 * 60 * 1000);
       }
 
       data.push({
@@ -118,18 +129,16 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
     });
 
     tasks.forEach(t => {
-      if (t.status === 'obsolete') return;
-
       let customClass = 'gantt-task';
-      if (t.isOverdue) customClass = 'gantt-task-delayed';
+      if (t.status === 'obsolete') customClass = 'gantt-task-obsolete';
+      else if (t.isOverdue) customClass = 'gantt-task-delayed';
       else if (t.progress === 100) customClass = 'gantt-task-done';
       else if (t.progress > 0) customClass = 'gantt-task-inprogress';
 
       const tStart = new Date(t.startDate || t.deadline);
-      const tEnd = new Date(t.deadline);
-      let tType = gantt.config.types.task;
-      if (tStart.toDateString() === tEnd.toDateString()) {
-        tType = gantt.config.types.milestone;
+      let tEnd = new Date(t.deadline);
+      if (tEnd.getTime() <= tStart.getTime()) {
+        tEnd = new Date(tStart.getTime() + 24 * 60 * 60 * 1000);
       }
 
       data.push({
@@ -137,29 +146,66 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
         text: t.name,
         start_date: tStart,
         end_date: tEnd,
-        type: tType,
+        type: gantt.config.types.task,
         progress: t.progress / 100,
         parent: `phase_${t.phaseId}`,
         custom_class: customClass,
+        status: t.status,
         assignedName: t.assignedName,
         rawTask: t,
       });
 
-      // Handle dependencies
+      // 1. Explicit predecessorTaskIds dependencies
       if (t.predecessorTaskIds && t.predecessorTaskIds.length > 0) {
         t.predecessorTaskIds.forEach(predId => {
-          links.push({
-            id: `link_${predId}_${t.id}`,
-            source: predId.toString(),
-            target: t.id.toString(),
-            type: '0', // finish_to_start
-          });
+          const predTask = tasks.find(x => String(x.id).replace(/^t-/, '') === String(predId).replace(/^t-/, ''));
+          if (predTask) {
+            links.push({
+              id: `link_${predTask.id}_${t.id}`,
+              source: predTask.id.toString(),
+              target: t.id.toString(),
+              type: '0', // finish_to_start
+            });
+          }
         });
       }
     });
 
+    // 2. Sequential links between adjacent tasks within the same phase
+    phases.forEach(ph => {
+      const phaseTasks = tasks.filter(t => t.phaseId === ph.id && t.status !== 'obsolete');
+      for (let i = 1; i < phaseTasks.length; i++) {
+        const prev = phaseTasks[i - 1];
+        const curr = phaseTasks[i];
+        if (!curr.predecessorTaskIds || curr.predecessorTaskIds.length === 0) {
+          links.push({
+            id: `link_seq_${prev.id}_${curr.id}`,
+            source: prev.id.toString(),
+            target: curr.id.toString(),
+            type: '0', // finish_to_start
+          });
+        }
+      }
+    });
+
+    // 3. Sequential link from last task of phase i-1 to first task of phase i
+    for (let i = 1; i < phases.length; i++) {
+      const prevTasks = tasks.filter(t => t.phaseId === phases[i - 1].id && t.status !== 'obsolete');
+      const currTasks = tasks.filter(t => t.phaseId === phases[i].id && t.status !== 'obsolete');
+      if (prevTasks.length > 0 && currTasks.length > 0) {
+        const lastTask = prevTasks[prevTasks.length - 1];
+        const firstTask = currTasks[0];
+        links.push({
+          id: `link_phase_seq_${lastTask.id}_${firstTask.id}`,
+          source: lastTask.id.toString(),
+          target: firstTask.id.toString(),
+          type: '0',
+        });
+      }
+    }
+
     return { data, links };
-  }, [phases, tasks]);
+  }, [phases, tasks, project]);
 
   // ── configure Gantt & Events ──────────────────────────────────────────
   useEffect(() => {
@@ -167,15 +213,53 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
     // config basic Gantt Settings
     gantt.config.readonly = true;
+    gantt.config.show_links = true;
+    gantt.config.link_wrapper_width = 20;
+    gantt.config.link_line_width = 2;
     gantt.config.columns = [
-      { name: "text", label: "Tên công việc", width: "*", tree: true },
-      { name: "start_date", label: "Bắt đầu", align: "center", width: 80, template: (obj: any) => formatDate(obj.start_date.toISOString().split('T')[0]) },
-      { name: "progress", label: "Tiến độ", align: "center", width: 60, template: (obj: any) => `${Math.round(obj.progress * 100)}%` },
+      {
+        name: "text",
+        label: "Tên công việc",
+        width: "*",
+        tree: true,
+        template: (obj: any) => {
+          if (obj.rawTask?.status === 'obsolete' || obj.status === 'obsolete' || obj.custom_class?.includes('obsolete')) {
+            return `<span style="color: #94a3b8; font-weight: 500;">
+              <span style="background-color: #fee2e2; color: #dc2626; font-size: 10px; font-weight: 700; padding: 1.5px 5px; border-radius: 4px; margin-right: 5px; display: inline-block; border: 1px solid #fca5a5;">⛔ Đã dừng</span>
+              <span style="text-decoration: line-through;">${obj.text}</span>
+            </span>`;
+          }
+          return obj.text;
+        }
+      },
+      {
+        name: "start_date",
+        label: "Bắt đầu",
+        align: "center",
+        width: 80,
+        template: (obj: any) => formatDate(obj.start_date.toISOString().split('T')[0])
+      },
+      {
+        name: "progress",
+        label: "Tiến độ",
+        align: "center",
+        width: 70,
+        template: (obj: any) => {
+          if (obj.rawTask?.status === 'obsolete' || obj.status === 'obsolete' || obj.custom_class?.includes('obsolete')) {
+            return `<span style="color: #ef4444; font-size: 11px; font-weight: 700;">Đã dừng</span>`;
+          }
+          return `${Math.round(obj.progress * 100)}%`;
+        }
+      },
     ];
 
     // Config tooltips & resource text
     gantt.templates.rightside_text = function (_start: any, _end: any, task: any) {
       if (task.type === gantt.config.types.project) return "";
+      if (task.rawTask?.status === 'obsolete' || task.status === 'obsolete' || task.custom_class?.includes('obsolete')) {
+        const reason = task.rawTask?.obsoleteReason ? `: ${task.rawTask.obsoleteReason}` : '';
+        return `<span style="color: #ef4444; font-size: 11px; font-weight: 700; margin-left: 8px;">⛔ Đã dừng${reason}</span>`;
+      }
       return task.assignedName ? `<span style="color: #64748b; font-size: 11px; margin-left: 8px;">👤 ${task.assignedName}</span>` : "";
     };
 
@@ -343,7 +427,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
             { label: '✅ Hoàn thành', val: doneTasks.length, color: 'text-[hsl(142_70%_38%)]' },
             { label: '🔵 Đang thi công', val: inProgressTasks.length, color: 'text-[hsl(217_91%_52%)]' },
             { label: '⚫ Chưa bắt đầu', val: activeTasks.filter(t => t.progress === 0).length, color: 'text-[hsl(var(--text-muted))]' },
-            { label: '⛔ Đã hủy', val: tasks.filter(t => t.status === 'obsolete').length, color: 'text-[hsl(346_84%_50%)]' },
+            { label: '⛔ Đã dừng', val: tasks.filter(t => t.status === 'obsolete').length, color: 'text-[hsl(346_84%_50%)]' },
           ].map(s => (
             <div key={s.label} className="flex items-center gap-1.5">
               <strong className={`text-base ${s.color}`}>{s.val}</strong>
@@ -396,53 +480,68 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
       {/* ── Custom CSS overrides for light/dark theme ─────────────────── */}
       <style>{`
-        /* DHTMLX Gantt Custom Theme Overrides */
-        .gantt-phase .gantt_task_progress {
-          background-color: hsl(271 81% 52%) !important;
-        }
-        .gantt-phase .gantt_task_content {
-          background-color: hsl(271 81% 52% / 0.15) !important;
-          border: 1px solid hsl(271 81% 52%) !important;
-        }
+        /* ── Orange + Blue Gantt Theme (matching reference image) ──────────── */
         
-        .gantt-phase-frozen .gantt_task_progress {
-          background-color: hsl(142 70% 38%) !important;
-        }
-        .gantt-phase-frozen .gantt_task_content {
-          background-color: hsl(142 70% 38% / 0.15) !important;
-          border: 1px solid hsl(142 70% 38%) !important;
-        }
-
-        .gantt-task-done .gantt_task_progress {
-          background-color: hsl(142 70% 38%) !important;
-        }
-        .gantt-task-done .gantt_task_content {
-          background-color: hsl(142 70% 38% / 0.15) !important;
-          border: 1px solid hsl(142 70% 38%) !important;
-        }
-
-        .gantt-task-inprogress .gantt_task_progress {
-          background-color: hsl(38 92% 50%) !important;
-        }
-        .gantt-task-inprogress .gantt_task_content {
-          background-color: hsl(38 92% 50% / 0.15) !important;
-          border: 1px solid hsl(38 92% 50%) !important;
-        }
-
-        .gantt-task-delayed .gantt_task_progress {
-          background-color: hsl(346 84% 50%) !important;
-        }
-        .gantt-task-delayed .gantt_task_content {
-          background-color: hsl(346 84% 50% / 0.15) !important;
-          border: 1px solid hsl(346 84% 50%) !important;
-        }
-
-        /* Default task styles */
+        /* Base task bar (total duration): Royal Blue background */
         .gantt_task_line {
-          border-radius: 4px;
+          background-color: #2563eb !important; /* Royal Blue for remaining/total duration */
+          border: 1px solid #1d4ed8 !important;
+          border-radius: 4px !important;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
         }
+
+        /* Progress fill inside task bar: Vivid Orange */
         .gantt_task_progress {
-          border-radius: 4px;
+          background-color: #f97316 !important; /* Vivid Orange for progress fill */
+          border-radius: 3px 0 0 3px !important;
+        }
+
+        /* Phase bars (Parent WBS Folder): Darker Blue background with Deep Orange progress */
+        .gantt-phase .gantt_task_line,
+        .gantt-phase-frozen .gantt_task_line {
+          background-color: #1d4ed8 !important;
+          border: 1px solid #1e40af !important;
+          border-radius: 4px !important;
+        }
+
+        .gantt-phase .gantt_task_progress,
+        .gantt-phase-frozen .gantt_task_progress {
+          background-color: #ea580c !important;
+          border-radius: 3px 0 0 3px !important;
+        }
+
+        /* Obsolete / Stopped tasks */
+        .gantt-task-obsolete .gantt_task_line {
+          background-color: #94a3b8 !important;
+          border-color: #64748b !important;
+          opacity: 0.6;
+        }
+        .gantt-task-obsolete .gantt_task_progress {
+          background-color: #64748b !important;
+        }
+
+        /* Task Label Text inside bar */
+        .gantt_task_content {
+          color: #ffffff !important;
+          font-weight: 600;
+          font-size: 11.5px;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+        }
+
+        /* Dependency Arrow Lines (Smooth Red/Orange arrows between task endpoints) */
+        .gantt_task_link .gantt_line_wrapper div {
+          background-color: #ef4444 !important;
+        }
+        .gantt_task_link .gantt_link_arrow {
+          border-left-color: #ef4444 !important;
+          border-right-color: #ef4444 !important;
+        }
+        .gantt_task_link:hover .gantt_line_wrapper div {
+          background-color: #dc2626 !important;
+        }
+        .gantt_task_link:hover .gantt_link_arrow {
+          border-left-color: #dc2626 !important;
+          border-right-color: #dc2626 !important;
         }
       `}</style>
     </div>

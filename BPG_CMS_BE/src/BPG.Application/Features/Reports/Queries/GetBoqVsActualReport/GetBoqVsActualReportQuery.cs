@@ -57,16 +57,35 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             .GroupBy(i => i.MaterialId)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
-        // Pending POs
-        var poItems = await _unitOfWork.Repository<PurchaseOrderItem>()
+        // Pending POs: Only count active POs (Sent or PartiallyReceived)
+        var activePoItems = await _unitOfWork.Repository<PurchaseOrderItem>()
             .Query()
             .Include(p => p.PurchaseOrder).ThenInclude(po => po!.Request).ThenInclude(r => r!.Phase)
-            .Where(p => p.PurchaseOrder!.Request!.Phase!.ProjectId == request.ProjectId)
+            .Where(p => p.PurchaseOrder!.Request!.Phase!.ProjectId == request.ProjectId
+                     && (p.PurchaseOrder.Status == "Sent" || p.PurchaseOrder.Status == "PartiallyReceived"))
             .ToListAsync(cancellationToken);
-        
-        var poGrouped = poItems
+
+        var poIds = activePoItems.Select(pi => pi.POId).Distinct().ToList();
+
+        var receivedMap = poIds.Count == 0
+            ? new Dictionary<(long POId, long MaterialId), decimal>()
+            : await _unitOfWork.Repository<GoodsReceiptItem>()
+                .Query()
+                .Where(gri => poIds.Contains(gri.Receipt.POId) && gri.Receipt.Status == "Approved")
+                .GroupBy(gri => new { POId = gri.Receipt.POId, gri.MaterialId })
+                .Select(g => new { g.Key.POId, g.Key.MaterialId, Total = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => (x.POId, x.MaterialId), x => x.Total, cancellationToken);
+
+        var poGrouped = activePoItems
             .GroupBy(p => p.MaterialId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+            .ToDictionary(
+                g => g.Key,
+                g => g.Sum(pi =>
+                {
+                    receivedMap.TryGetValue((pi.POId, pi.MaterialId), out var recQty);
+                    return Math.Max(0, pi.Quantity - recQty);
+                })
+            );
 
         // Pending MRs
         var mrItems = await _unitOfWork.Repository<MaterialRequestItem>()

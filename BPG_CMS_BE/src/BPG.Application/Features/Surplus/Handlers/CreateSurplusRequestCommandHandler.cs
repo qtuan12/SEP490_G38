@@ -22,12 +22,18 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
     private readonly INotificationService _notificationService;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public CreateSurplusRequestCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, INotificationService notificationService)
+    public CreateSurplusRequestCommandHandler(
+        IUnitOfWork uow,
+        ICurrentUserService currentUser,
+        INotificationService notificationService,
+        IRealtimeNotificationSender realtimeSender)
     {
         _uow = uow;
         _currentUser = currentUser;
         _notificationService = notificationService;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<ApiResponse<long>> Handle(CreateSurplusRequestCommand request, CancellationToken ct)
@@ -53,7 +59,7 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
         var hasActiveBatch = await _uow.Repository<SurplusRequest>().Query()
             .AnyAsync(sr => sr.ProjectId == request.ProjectId && sr.Status == SurplusRequestStatus.Processing, ct);
         if (hasActiveBatch)
-            throw new BusinessException(ErrorCodes.DuplicateEntry, "Dự án đang có batch xử lý vật tư thừa chưa hoàn tất.");
+            throw new BusinessException(ErrorCodes.DuplicateEntry, "Dự án đang có đợt xử lý vật tư thừa chưa hoàn tất.");
 
         // Pull all inventory with quantity > 0
         var inventoryItems = await _uow.Repository<CurrentInventory>().Query()
@@ -90,17 +96,18 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
         var notiTitle = "Yêu cầu xử lý vật tư thừa mới";
         var notiContent = $"[{creatorName}] đã tạo phiếu xử lý vật tư thừa (Mã: {batch.SurplusRequestId}) cho dự án [{project.Name}].";
 
-        // 1. Always notify Accountant
+        // 1. Luôn thông báo đến Kế toán (trừ người tạo)
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.Accountant,
             notiTitle,
             notiContent,
             NotificationType.Procurement,
+            excludeUserId: userId,
             NotificationReferenceType.SurplusRequest,
             batch.SurplusRequestId,
             ct);
 
-        // 2. If created by TechnicalManager/Admin -> Notify Project Leader
+        // 2. Nếu do TechnicalManager/Admin tạo -> Thông báo đến Project Leader (trừ người tạo)
         if (isManagerOrAdmin)
         {
             var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
@@ -121,7 +128,7 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
             }
         }
 
-        // 3. If created by Project Leader -> Notify Technical Manager
+        // 3. Nếu do Project Leader tạo -> Thông báo đến Trưởng phòng kỹ thuật (trừ người tạo)
         if (isLeader)
         {
             await _notificationService.SendNotificationToRoleAsync(
@@ -129,10 +136,18 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
                 notiTitle,
                 notiContent,
                 NotificationType.Procurement,
+                excludeUserId: userId,
                 NotificationReferenceType.SurplusRequest,
                 batch.SurplusRequestId,
                 ct);
         }
+
+        // Broadcast real-time SurplusUpdated to ALL project members (kể cả SiteEngineer thường)
+        await _realtimeSender.SendToGroupAsync(
+            $"Project_{request.ProjectId}",
+            "SurplusUpdated",
+            new { projectId = request.ProjectId, surplusRequestId = batch.SurplusRequestId },
+            ct);
 
         return ApiResponse<long>.SuccessResult(batch.SurplusRequestId, ResponseMessages.CreateSuccess);
     }

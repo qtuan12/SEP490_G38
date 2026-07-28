@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { UploadCloud, X, AlertCircle, Loader2 } from 'lucide-react';
+import { UploadCloud, X, AlertCircle, Loader2, Camera } from 'lucide-react';
 import { projectService } from '../../../services/projectService';
 import type { WBSTask, DailyLog, WBSPhase } from '../../../types/common';
 import { Modal, Button, Textarea } from '../../../components/ui';
@@ -66,11 +66,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
     return tasks.find(t => String(t.id).replace(/^t-/, '') === String(activeId).replace(/^t-/, ''));
   }, [task, taskId, tasks, editLog]);
 
+  const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
   const minProgress = currentTask ? currentTask.progress : 0;
-  const isProgressDisabled = !currentTask || currentTask.progress === 100;
+  const isProgressDisabled = !currentTask || (!isTMOrAdmin && currentTask.progress === 100);
 
   const schema = React.useMemo(() => {
-    const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
     const minVal = isTMOrAdmin ? 0 : minProgress;
     return z.object({
       progress: z.number()
@@ -94,7 +94,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       message: 'Vui lòng nhập chi tiết diễn biến thi công (tối thiểu 5 ký tự).',
       path: ['content']
     });
-  }, [minProgress, user?.role]);
+  }, [minProgress, isTMOrAdmin]);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<DailyLogForm>({
     resolver: zodResolver(schema),
@@ -290,21 +290,22 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                     valueAsNumber: true,
                     onChange: (e) => {
                       const val = Number(e.target.value);
-                      const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
                       if (!isTMOrAdmin && val < minProgress) {
                         setValue('progress', minProgress);
                       }
                     }
                   })}
-                  min={user?.role === 'admin' || user?.role === 'technicalmanager' ? 0 : minProgress}
+                  min={isTMOrAdmin ? 0 : minProgress}
                   max={100}
-                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={isProgressDisabled}
                 />
                 <span className="text-xs text-slate-500 whitespace-nowrap">100%</span>
               </div>
               <span className="text-xs text-slate-500 block mt-1.5">
-                * Khóa cứng chiều lùi: Bạn chỉ có thể kéo tiến độ tiến lên hoặc giữ nguyên.
+                {isTMOrAdmin
+                  ? '* Quyền TPKT: Bạn có thể điều chỉnh giảm tiến độ nếu cần (yêu cầu nhập lý do giảm).'
+                  : '* Khóa cứng chiều lùi: Bạn chỉ có thể kéo tiến độ tiến lên hoặc giữ nguyên.'}
               </span>
               {errors.progress && <p className="text-red-500 text-xs mt-1">{errors.progress.message}</p>}
             </div>
@@ -357,6 +358,27 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
           <div>
             <label className="block text-sm font-medium mb-1.5 text-slate-600">Hình ảnh hiện trường thi công</label>
             
+            <div className="flex gap-2 mb-2">
+              <button
+                type="button"
+                onClick={() => document.getElementById('log-camera-input')?.click()}
+                disabled={mutation.isPending}
+                className="flex-1 flex items-center justify-center gap-1.5 h-11 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <Camera size={16} />
+                Chụp ảnh
+              </button>
+              <button
+                type="button"
+                onClick={() => document.getElementById('log-image-input')?.click()}
+                disabled={mutation.isPending}
+                className="flex-1 flex items-center justify-center gap-1.5 h-11 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <UploadCloud size={16} />
+                Chọn ảnh
+              </button>
+            </div>
+
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -367,8 +389,8 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 }
               }}
               className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
-                dragging 
-                  ? 'border-blue-500 bg-blue-50' 
+                dragging
+                  ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
               }`}
             >
@@ -381,7 +403,16 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 onChange={handleFileSelect}
                 disabled={mutation.isPending}
               />
-              
+              <input
+                id="log-camera-input"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={mutation.isPending}
+              />
+
               {totalImagesCount > 0 ? (
                 <div className="flex flex-wrap items-center justify-center gap-4 mt-2" onClick={e => e.stopPropagation()}>
                   {/* Existing Images (Edit mode) */}
@@ -496,7 +527,7 @@ export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
 }) => {
   if (!isOpen) return null;
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={rest.editLog ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"}>
+    <Modal isOpen={isOpen} onClose={onClose} title={rest.editLog ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"} mobileFullScreen>
       <DailyLogForm {...rest} isPL={isPL} onCancel={onClose} hideHeader={true} />
     </Modal>
   );

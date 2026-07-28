@@ -5,7 +5,7 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using BPG.Application.Features.Wbs.DTOs;
+using BPG.Application.DTOs.Wbs;
 using BPG.Application.Features.Wbs.Queries;
 
 namespace BPG.Application.Features.Wbs.Handlers;
@@ -151,7 +151,8 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 PredecessorTaskIds = node.Dependencies != null ? node.Dependencies.Select(d => d.PredecessorTaskId).ToList() : new(),
                 IsOutsourced = node.IsOutsourced,
                 OutsourcedTeamName = node.OutsourcedTeamName,
-                OutsourcedTeamContact = node.OutsourcedTeamContact
+                OutsourcedTeamContact = node.OutsourcedTeamContact,
+                ObsoleteReason = node.ObsoleteReason
             };
 
             var taskDeadline = node.EndDate.ToDateTime(new TimeOnly(23, 59, 59));

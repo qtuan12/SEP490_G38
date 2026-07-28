@@ -29,7 +29,7 @@ public class UsersController : BaseApiController
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateUser(long id, UpdateUserRequest request)
     {
-        var result = await Mediator.Send(new UpdateUserCommand(id, request.Name, request.Email, request.Role));
+        var result = await Mediator.Send(new UpdateUserCommand(id, request.Name, request.Email, request.Role, request.PhoneNumber));
         return ApiOk(result, "Cập nhật người dùng thành công");
     }
 

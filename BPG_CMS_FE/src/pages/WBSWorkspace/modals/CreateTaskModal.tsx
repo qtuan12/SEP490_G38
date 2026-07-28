@@ -4,9 +4,9 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Calendar, CalendarDays } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
-import type {ProjectMember, WBSTask, WBSPhase, Project} from '../../../types/common';
+import type { ProjectMember, WBSTask, WBSPhase, Project } from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
 const createTaskSchema = z.object({
@@ -114,12 +114,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     }
   }, [isOpen, reset]);
 
-  const engineers = members.filter(m => 
-    m.userRole === 'Site Engineer' || 
-    m.userRole === 'SiteEngineer' || 
-    m.userRole.toLowerCase() === 'siteengineer' || 
-    m.userRole === 'Nhân viên kỹ thuật'
-  );
+  const engineers = members;
 
   // Tìm tất cả tổ tiên (ancestor) của parentTaskId để tránh vòng lặp khóa tiến độ
   const getAncestors = (startId: string | undefined): Set<string> => {
@@ -134,8 +129,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   };
 
   const parentAncestors = getAncestors(parentTaskId);
-  const potentialPredecessors = tasks.filter(t => 
-    t.status !== 'obsolete' && 
+  const potentialPredecessors = tasks.filter(t =>
+    t.status !== 'obsolete' &&
     !parentAncestors.has(t.id) &&
     t.phaseId?.toString() === phaseId.replace('ph-', '')
   );
@@ -189,21 +184,21 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const onSubmit = (data: CreateTaskForm) => {
     if (selectedPredecessorIds.length > 0) {
       const taskStartDate = new Date(data.startDate);
-      taskStartDate.setHours(0,0,0,0);
+      taskStartDate.setHours(0, 0, 0, 0);
 
       const invalidPredecessors = selectedPredecessorIds
         .map(id => potentialPredecessors.find(p => p.id === id))
         .filter(p => {
           if (!p) return false;
-          const pDeadline = new Date(p.deadline);
-          pDeadline.setHours(0,0,0,0);
-          // New task's start date must be STRICTLY AFTER predecessor's deadline
-          return taskStartDate <= pDeadline; 
+          const pStartDate = new Date(p.startDate || '');
+          pStartDate.setHours(0, 0, 0, 0);
+          // New task's start date must be >= predecessor's start date
+          return taskStartDate < pStartDate;
         });
 
       if (invalidPredecessors.length > 0) {
         const p = invalidPredecessors[0]!;
-        toast.error(`Ngày bắt đầu phải sau ngày kết thúc của "${p.name}" (hoàn thành: ${new Date(p.deadline).toLocaleDateString('vi-VN')}).`);
+        toast.error(`Ngày bắt đầu không được trước ngày bắt đầu của "${p.name}" (${new Date(p.startDate || '').toLocaleDateString('vi-VN')}).`);
         return;
       }
     }
@@ -213,71 +208,81 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} width="xl" title={parentTaskId ? "Thêm Công việc con (Sub-Task)" : "Thêm Công việc mới"}>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 max-h-[85vh] overflow-y-auto p-2">
-        
+
         {/* THÔNG TIN THỜI GIAN PHASE & PROJECT */}
         {(project || phase) && (
-          <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex flex-col sm:flex-row gap-4 sm:gap-8 -mb-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 -mb-2">
             {project && (
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Thời gian dự án:</p>
-                <p className="text-sm font-medium text-slate-700">
-                  {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
-                </p>
+              <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3.5 rounded-xl border border-indigo-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+                <div className="bg-white/80 p-2 rounded-lg text-indigo-600 shadow-sm border border-indigo-50">
+                  <Calendar size={18} className="stroke-[1.75]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 mb-1">Thời gian dự án</p>
+                  <p className="text-[13px] font-semibold text-slate-700 truncate">
+                    {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
+                  </p>
+                </div>
               </div>
             )}
             {phase && (
-              <div>
-                <p className="text-xs text-slate-500 mb-1">Thời gian Giai đoạn:</p>
-                <p className="text-sm font-medium text-slate-700">
-                  {phase.startDate ? new Date(phase.startDate).toLocaleDateString('vi-VN') : '---'} - {phase.endDate ? new Date(phase.endDate).toLocaleDateString('vi-VN') : (phase.deadline ? new Date(phase.deadline).toLocaleDateString('vi-VN') : '---')}
-                </p>
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-3.5 rounded-xl border border-emerald-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+                <div className="bg-white/80 p-2 rounded-lg text-emerald-600 shadow-sm border border-emerald-50">
+                  <CalendarDays size={18} className="stroke-[1.75]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-500 mb-1">Thời gian Giai đoạn</p>
+                  <p className="text-[13px] font-semibold text-slate-700 truncate">
+                    {phase.startDate ? new Date(phase.startDate).toLocaleDateString('vi-VN') : '---'} - {phase.endDate ? new Date(phase.endDate).toLocaleDateString('vi-VN') : (phase.deadline ? new Date(phase.deadline).toLocaleDateString('vi-VN') : '---')}
+                  </p>
+                </div>
               </div>
             )}
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
+
           {/* CỘT TRÁI: Thông tin cơ bản */}
           <div className="flex flex-col gap-4">
             <div>
               <label className="block text-sm font-medium mb-1.5 text-slate-600">
                 Tên công việc <span className="text-red-500">*</span>
               </label>
-              <input 
-                type="text" 
-                placeholder="Ví dụ: Đổ bê tông móng..." 
+              <input
+                type="text"
+                placeholder="Ví dụ: Đổ bê tông móng..."
                 {...register('name')}
                 className={`w-full text-sm px-3 py-2 rounded-md border ${errors.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
               />
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium mb-1.5 text-slate-600">Mô tả chi tiết</label>
-              <textarea 
-                placeholder="Mô tả các yêu cầu kỹ thuật, vị trí..." 
-                {...register('description')} 
-                rows={4} 
+              <textarea
+                placeholder="Mô tả các yêu cầu kỹ thuật, vị trí..."
+                {...register('description')}
+                rows={4}
                 className="w-full text-sm px-3 py-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 resize-none"
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1.5 text-slate-600">Ngày bắt đầu <span className="text-red-500">*</span></label>
-                <input 
-                  type="date" 
-                  {...register('startDate')} 
+                <input
+                  type="date"
+                  {...register('startDate')}
                   className={`w-full text-sm px-3 py-2 rounded-md border ${errors.startDate ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
                 />
                 {errors.startDate && <p className="text-red-500 text-xs mt-1">{errors.startDate.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5 text-slate-600">Hạn chót (Deadline) <span className="text-red-500">*</span></label>
-                <input 
-                  type="date" 
-                  {...register('deadline')} 
+                <label className="block text-sm font-medium mb-1.5 text-slate-600">Ngày kết thúc<span className="text-red-500">*</span></label>
+                <input
+                  type="date"
+                  {...register('deadline')}
                   className={`w-full text-sm px-3 py-2 rounded-md border ${errors.deadline ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
                 />
                 {errors.deadline && <p className="text-red-500 text-xs mt-1">{errors.deadline.message}</p>}
@@ -286,7 +291,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium mb-1.5 text-slate-600">Mức độ quan trọng</label>
-              <select 
+              <select
                 {...register('weight')}
                 className={`w-full text-sm px-3 py-2 rounded-md border ${errors.weight ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
               >
@@ -305,23 +310,30 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 flex flex-col gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1.5 text-slate-700">Người phụ trách (Kỹ sư)</label>
-                <select 
-                  {...register('assignedTo')} 
+                <select
+                  {...register('assignedTo')}
                   className="w-full text-sm px-3 py-2.5 rounded-md border border-slate-300 bg-white text-slate-900 focus:outline-none focus:border-blue-500 shadow-sm"
                 >
                   <option value="">-- Chưa phân công --</option>
-                  {engineers.map(e => (
-                    <option key={e.userId} value={e.userId}>
-                      {e.userName} ({e.isLeader ? 'Trưởng dự án' : 'Nhân viên kỹ thuật'})
-                    </option>
-                  ))}
+                  {engineers.map(e => {
+                    let displayRole = e.userRole;
+                    if (e.isLeader) displayRole = 'Trưởng dự án';
+                    else if (e.userRole === 'TechnicalManager' || e.userRole === 'Technical Manager') displayRole = 'Trưởng phòng kỹ thuật';
+                    else if (e.userRole === 'SiteEngineer' || e.userRole === 'Site Engineer' || e.userRole?.toLowerCase() === 'siteengineer') displayRole = 'Nhân viên kỹ thuật';
+
+                    return (
+                      <option key={e.userId} value={e.userId}>
+                        {e.userName} - {displayRole}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
               <div className="border-t border-slate-200 pt-4 mt-1">
                 <label className="flex justify-start items-center gap-2.5 text-sm font-medium text-slate-800 cursor-pointer select-none mb-3">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     {...register('isOutsourced')}
                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 flex-shrink-0 cursor-pointer"
                   />
@@ -332,9 +344,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                   <div className="flex flex-col gap-3 mt-3 bg-white p-3 rounded-md border border-slate-100 shadow-sm">
                     <div>
                       <label className="block text-xs font-medium mb-1 text-slate-600">Tên Đội thợ / Thầu phụ <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" 
-                        placeholder="Ví dụ: Đội thạch cao anh Ba..." 
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: Đội thạch cao anh Ba..."
                         {...register('outsourcedTeamName')}
                         className={`w-full text-sm px-3 py-2 rounded-md border ${errors.outsourcedTeamName ? 'border-red-500' : 'border-slate-300'} bg-white text-slate-900 focus:outline-none focus:border-blue-500`}
                       />
@@ -342,9 +354,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                     </div>
                     <div>
                       <label className="block text-xs font-medium mb-1 text-slate-600">SĐT / Liên hệ <span className="text-red-500">*</span></label>
-                      <input 
-                        type="text" 
-                        placeholder="0912..." 
+                      <input
+                        type="text"
+                        placeholder="0912..."
                         {...register('outsourcedTeamContact')}
                         className={`w-full text-sm px-3 py-2 rounded-md border ${errors.outsourcedTeamContact ? 'border-red-500' : 'border-slate-300'} bg-white text-slate-900 focus:outline-none focus:border-blue-500`}
                       />
@@ -358,7 +370,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             <div className="flex-1 flex flex-col">
               <label className="block text-sm font-medium mb-1.5 text-slate-700">Các công việc cần hoàn thành trước</label>
               {potentialPredecessors.length > 0 && (
-                <input 
+                <input
                   type="text"
                   placeholder="Tìm kiếm công việc..."
                   value={searchTerm}
@@ -374,7 +386,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 ) : (
                   filteredPredecessors.map(t => (
                     <label key={t.id} className="flex justify-start items-center gap-2.5 text-sm text-slate-700 hover:bg-slate-50 p-2 rounded cursor-pointer select-none transition-colors">
-                      <input 
+                      <input
                         type="checkbox"
                         value={t.id}
                         checked={selectedPredecessorIds.includes(t.id)}
@@ -388,7 +400,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 flex-shrink-0 cursor-pointer mt-0.5"
                       />
                       <div className="flex flex-col truncate flex-1 gap-0.5">
-                        <span className="truncate">{t.name}</span> 
+                        <span className="truncate">{t.name}</span>
                         {t.startDate && t.deadline && (
                           <span className="text-[11px] text-slate-500 font-medium">
                             {new Date(t.startDate).toLocaleDateString('vi-VN')} - {new Date(t.deadline).toLocaleDateString('vi-VN')}

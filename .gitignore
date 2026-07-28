@@ -2,6 +2,10 @@
 # Visual Studio & .NET GitIgnore Template
 # ==========================================
 
+# Local-only docs (not for push)
+docs/
+arch-logos/
+
 # Build results
 bin/
 obj/

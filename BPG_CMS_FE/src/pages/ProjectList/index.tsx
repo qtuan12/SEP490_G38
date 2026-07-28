@@ -4,6 +4,7 @@ import { projectService } from '../../services/projectService';
 import type { Project } from '../../types/common';
 import { CreateProjectModal } from './modals/CreateProjectModal';
 import { Button, Input, Select, Badge, Pagination } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../../components/ui/Modal';
 import type { BadgeVariant } from '../../components/ui';
 import {
@@ -22,6 +23,9 @@ import {
 
 export const ProjectList: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isTPKT = user?.role === 'technicalmanager';
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,43 +142,47 @@ export const ProjectList: React.FC = () => {
       {/* Control Actions Header */}
       <div className="glass-panel p-5 sm:px-6 flex justify-between items-center flex-wrap gap-4">
         {/* Filters */}
-        <div className="flex gap-3 flex-1 min-w-[280px] flex-wrap">
-          <div className="relative flex-1 min-w-[180px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))]" />
+        <div className="flex items-center gap-3 flex-1 min-w-0 max-w-3xl">
+          <div className="relative flex-1 min-w-0">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] pointer-events-none z-10" />
             <Input
               type="text"
               placeholder="Tìm kiếm dự án theo tên hoặc địa chỉ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-10"
+              className="pl-9 h-10 w-full"
             />
           </div>
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-44 h-10"
-            options={[
-              { label: 'Tất cả Trạng thái', value: '' },
-              { label: 'Bản nháp (Draft)', value: 'draft' },
-              { label: 'Đang hoạt động (Inprogress)', value: 'inprogress' },
-              { label: 'Tạm dừng (Paused)', value: 'paused' },
-              { label: 'Hoàn thành (Done)', value: 'done' },
-            ]}
-          />
+          <div className="w-52 shrink-0">
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-10 w-full"
+              options={[
+                { label: 'Tất cả Trạng thái', value: '' },
+                { label: 'Bản nháp', value: 'draft' },
+                { label: 'Đang chạy', value: 'inprogress' },
+                { label: 'Tạm dừng', value: 'paused' },
+                { label: 'Hoàn thành', value: 'done' },
+              ]}
+            />
+          </div>
         </div>
 
         {/* Add Project Button */}
-        <Button
-          variant="primary"
-          onClick={() => {
-            setError(null);
-            setIsOpen(true);
-          }}
-          className="h-10 font-semibold"
-        >
-          <FolderPlus size={18} />
-          <span>Khởi tạo Dự án</span>
-        </Button>
+        {isTPKT && (
+          <Button
+            variant="primary"
+            onClick={() => {
+              setError(null);
+              setIsOpen(true);
+            }}
+            className="h-10 font-semibold"
+          >
+            <FolderPlus size={18} />
+            <span>Khởi tạo Dự án</span>
+          </Button>
+        )}
       </div>
 
       {/* Grid Projects Content */}
@@ -202,7 +210,7 @@ export const ProjectList: React.FC = () => {
                 <div className="flex justify-between items-start gap-2">
                   <h3 className="text-[1.1rem] font-bold leading-tight">{p.name}</h3>
                   <div className="flex items-center gap-2">
-                    {p.status === 'draft' && (
+                    {isTPKT && p.status === 'draft' && (
                       <button
                         onClick={(e) => openDeleteConfirm(e, p.id, p.name)}
                         className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors"

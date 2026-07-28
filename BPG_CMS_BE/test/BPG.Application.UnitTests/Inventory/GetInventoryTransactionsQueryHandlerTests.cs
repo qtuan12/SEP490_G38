@@ -1,4 +1,4 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Inventory;
 using BPG.Application.Features.Inventory.Handlers;
 using BPG.Application.Features.Inventory.Queries;
@@ -224,5 +224,106 @@ namespace BPG.Application.UnitTests.Inventory
             result.Items.Count.Should().Be(1);
             result.Items[0].MaterialCode.Should().Be("MAT-60");
         }
+
+        [Fact]
+        public async Task UTCID06_Handle_CreatedByUserNotFound_ShouldReturnNAForCreatedByName()
+        {
+            // Arrange
+            var txs = GetMockTxList();
+            txs[0].CreatedBy = 999; // User 999 does not exist in users list
+            _mockTxRepo.Setup(r => r.Query()).Returns(txs.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetInventoryTransactionsQuery
+            {
+                ProjectId = 5,
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Count.Should().Be(2);
+            result.Items[0].CreatedByName.Should().Be("N/A");
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_SearchNoMatch_ShouldReturnEmptyList()
+        {
+            // Arrange
+            var txs = GetMockTxList();
+            _mockTxRepo.Setup(r => r.Query()).Returns(txs.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetInventoryTransactionsQuery
+            {
+                ProjectId = 5,
+                Search = "NonExistentKeyword",
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task UTCID08_Handle_PaginationFallback_ShouldClampInvalidPageNumberAndSize()
+        {
+            // Arrange
+            var txs = GetMockTxList();
+            _mockTxRepo.Setup(r => r.Query()).Returns(txs.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetInventoryTransactionsQuery
+            {
+                ProjectId = 5,
+                PageNumber = 0,
+                PageSize = -10
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.PageNumber.Should().Be(1);
+            result.PageSize.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task UTCID09_Handle_ProjectNotFoundOrNoTransactions_ShouldReturnEmptyList()
+        {
+            // Arrange
+            var txs = GetMockTxList(); // only contains ProjectId = 5
+            _mockTxRepo.Setup(r => r.Query()).Returns(txs.AsQueryable().BuildMock());
+
+            var users = GetMockUsersList();
+            _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+
+            var query = new GetInventoryTransactionsQuery
+            {
+                ProjectId = 99, // project 99
+                PageNumber = 1,
+                PageSize = 10
+            };
+
+            // Act
+            var result = await _handler.Handle(query, CancellationToken.None);
+
+            // Assert
+            result.Items.Should().BeEmpty();
+        }
     }
 }
+

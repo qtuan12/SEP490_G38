@@ -119,6 +119,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
           reworkTaskName,
           reworkTaskStartDate,
           reworkTaskEndDate,
+          reworkAssigneeId: data.reworkAssigneeId ? Number(data.reworkAssigneeId) : undefined,
           decreaseProgressTo,
           decreaseProgressReason: data.reduceProgressReason,
           handlingInstruction: data.handlingInstruction
@@ -201,7 +202,7 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
                 {...register('resolutionAction')}
                 style={{ width: '18px', height: '18px', accentColor: 'hsl(var(--primary))' }}
               />
-              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: resolutionAction === 'rework' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))' }}>Tạo Rework Task mới</span>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: resolutionAction === 'rework' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))' }}>Tạo công việc mới</span>
             </div>
             <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', paddingLeft: '28px', lineHeight: '1.4' }}>
               Lập công việc khắc phục mới để sửa lỗi, đồng thời khóa (Obsolete) công việc hiện tại.

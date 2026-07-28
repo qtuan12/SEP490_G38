@@ -13,6 +13,7 @@ interface SurplusRequestListTabProps {
   refreshKey: number;
   onViewDetail: (id: number) => void;
   onCreateRequest: () => void;
+  isCheckingCreateEligibility: boolean;
   isLeader: boolean;
 }
 
@@ -21,6 +22,7 @@ export const SurplusRequestListTab: React.FC<SurplusRequestListTabProps> = ({
   refreshKey,
   onViewDetail,
   onCreateRequest,
+  isCheckingCreateEligibility,
   isLeader,
 }) => {
   const [list, setList] = useState<SurplusRequest[]>([]);
@@ -85,10 +87,11 @@ export const SurplusRequestListTab: React.FC<SurplusRequestListTabProps> = ({
         {isLeader && (
           <button
             onClick={onCreateRequest}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={isCheckingCreateEligibility}
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Plus size={16} />
-            <span>Tạo đề xuất xử lý thừa</span>
+            <span>{isCheckingCreateEligibility ? 'Đang kiểm tra...' : 'Tạo đề xuất xử lý thừa'}</span>
           </button>
         )}
       </div>
@@ -108,7 +111,7 @@ export const SurplusRequestListTab: React.FC<SurplusRequestListTabProps> = ({
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
                 <tr>
-                  <th className="px-4 py-3">Mã đề xuất</th>
+                  <th className="px-4 py-3 text-center">STT</th>
                   <th className="px-4 py-3">Dự án</th>
                   <th className="px-4 py-3">Lý do</th>
                   <th className="px-4 py-3 text-center">Tiến độ</th>
@@ -126,15 +129,15 @@ export const SurplusRequestListTab: React.FC<SurplusRequestListTabProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  list.map(item => {
+                  list.map((item, index) => {
                     const badge = getSurplusRequestStatusDetails(item.status);
                     const progress = item.totalItems > 0
                       ? Math.round((item.processedItems / item.totalItems) * 100)
                       : 0;
                     return (
                       <tr key={item.surplusRequestId} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3.5 font-mono text-xs font-semibold text-blue-600">
-                          #{item.surplusRequestId}
+                        <td className="px-4 py-3.5 text-center font-medium text-slate-700">
+                          {index + 1}
                         </td>
                         <td className="px-4 py-3.5 font-medium text-slate-800">{item.projectName}</td>
                         <td className="px-4 py-3.5 text-slate-500 max-w-[160px] truncate">

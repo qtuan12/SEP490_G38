@@ -146,8 +146,8 @@ export const PODetailPage: React.FC = () => {
         <p style={{ color: 'hsl(var(--text-secondary))', textAlign: 'center' }}>
           {(error as any)?.message || 'Không thể tải thông tin đơn mua hàng.'}
         </p>
-        <Button type="button" variant="secondary" onClick={() => navigate('/purchase-orders')}>
-          <ArrowLeft size={16} /> Quay lại danh sách
+        <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
+          <ArrowLeft size={16} /> Quay lại
         </Button>
       </div>
     );
@@ -161,7 +161,7 @@ export const PODetailPage: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1120, margin: '0 auto' }}>
       {/* Title bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <Button type="button" variant="secondary" className="p-2 h-auto" onClick={() => navigate('/purchase-orders')}>
+        <Button type="button" variant="secondary" className="p-2 h-auto" onClick={() => navigate(-1)}>
           <ArrowLeft size={18} />
         </Button>
         <ShoppingCart size={22} style={{ color: 'hsl(var(--primary))' }} />
@@ -244,7 +244,7 @@ export const PODetailPage: React.FC = () => {
             {po.linkedRequests.map((req) => (
               <Link
                 key={req.requestId}
-                to={`/projects/${req.projectId}/phases/${req.phaseId}/material-requests?requestId=${req.requestId}`}
+                to={`/projects/${req.projectId}?tab=materialrequests&phaseId=${req.phaseId}&requestId=${req.requestId}`}
                 style={{
                   padding: '6px 12px', borderRadius: 6, fontSize: 13,
                   border: '1px solid hsl(var(--border))',
@@ -345,8 +345,8 @@ export const PODetailPage: React.FC = () => {
 
       {/* Back button */}
       <div style={{ paddingBottom: 24 }}>
-        <Button type="button" variant="secondary" onClick={() => navigate('/purchase-orders')}>
-          <ArrowLeft size={16} /> Quay lại danh sách
+        <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
+          <ArrowLeft size={16} /> Quay lại
         </Button>
       </div>
 

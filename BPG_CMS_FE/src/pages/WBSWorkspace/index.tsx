@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { wbsService } from '../../services/wbsService';
+import { incidentService } from '../../services/incidentService';
 import { useNotification } from '../../context/NotificationContext';
 import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
-import { AlertTriangle, FileText, BarChart2, History } from 'lucide-react';
-import { Button, ConfirmDialog } from '../../components/ui';
+import { FileText, BarChart2 } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui';
 
 
 interface WBSWorkspaceProps {
@@ -24,30 +25,43 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { connection } = useNotification();
 
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const { data: wbsDataAll, isLoading: loading, error: queryError } = useQuery({
-    queryKey: ['wbsDataAll', projectId],
-    queryFn: async () => {
-      const [wbsData, allProjs, memberList, mr] = await Promise.all([
-        wbsService.getWbsDataFlattened(projectId),
-        projectService.getProjects(),
-        projectService.getMembers(projectId),
-        projectService.getMaterialRequests(projectId)
-      ]);
-      return {
-        wbsData,
-        project: allProjs.find(p => p.id === projectId) || null,
-        memberList,
-        materialRequests: mr
-      };
-    }
+  // The tree is the only blocking request for the WBS area. Supporting data is
+  // fetched independently so a slow material-request or incident endpoint does
+  // not keep the whole tree behind the loading state.
+  const { data: wbsData, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['wbsData', projectId],
+    queryFn: () => wbsService.getWbsDataFlattened(projectId),
+    staleTime: 30_000,
   });
 
-  const phases = wbsDataAll?.wbsData.phases || [];
-  const tasks = wbsDataAll?.wbsData.tasks || [];
-  const project = wbsDataAll?.project || null;
-  const members = wbsDataAll?.memberList || [];
-  const materialRequests = wbsDataAll?.materialRequests || [];
+  const { data: project = null } = useQuery({
+    queryKey: ['wbsProject', projectId],
+    queryFn: () => projectService.getProjectById(projectId),
+    staleTime: 60_000,
+  });
+
+  const { data: members = [] } = useQuery({
+    queryKey: ['wbsMembers', projectId],
+    queryFn: () => projectService.getMembers(projectId),
+    staleTime: 60_000,
+  });
+
+  const { data: materialRequests = [] } = useQuery({
+    queryKey: ['wbsMaterialRequests', projectId],
+    queryFn: () => projectService.getMaterialRequests(projectId),
+    staleTime: 30_000,
+  });
+
+  const { data: incidentsList = [] } = useQuery({
+    queryKey: ['wbsIncidents', projectId],
+    queryFn: () => incidentService.getIncidents(Number(projectId.replace('p-', ''))),
+    staleTime: 30_000,
+  });
+
+  const phases = wbsData?.phases || [];
+  const tasks = wbsData?.tasks || [];
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -147,17 +161,31 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   useEffect(() => {
-    if (wbsDataAll?.wbsData.phases) {
+    if (wbsData?.phases) {
       setExpandedPhases(prev => {
         if (Object.keys(prev).length === 0) {
           const expands: Record<string, boolean> = {};
-          wbsDataAll.wbsData.phases.forEach(p => { expands[p.id] = true; });
+          wbsData.phases.forEach(p => { expands[p.id] = true; });
           return expands;
         }
         return prev;
       });
     }
-  }, [wbsDataAll?.wbsData.phases]);
+  }, [wbsData?.phases]);
+
+  // Support opening task detail from URL
+  useEffect(() => {
+    const queryTaskId = searchParams.get('taskId');
+    if (queryTaskId && tasks.length > 0) {
+      const taskExists = tasks.some(t => t.id === queryTaskId);
+      if (taskExists) {
+        setSelectedTaskId(queryTaskId);
+        setIsDetailOpen(true);
+        searchParams.delete('taskId');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [searchParams, tasks, setSearchParams]);
 
   useEffect(() => {
     if (!connection) return;
@@ -169,7 +197,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
     const handleWbsUpdated = (payload: any) => {
       console.log('SignalR: WbsTreeUpdated', payload);
-      queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
     };
 
     connection.on('WbsTreeUpdated', handleWbsUpdated);
@@ -183,7 +211,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   }, [connection, projectId]);
 
   const loadWBSData = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+    await queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
   };
 
   const togglePhase = (phaseId: string) =>
@@ -192,7 +220,12 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const handleSuccess = (msg: string) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(null), 3000);
-    queryClient.invalidateQueries({ queryKey: ['wbsDataAll', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+    // Refresh supporting information in the background without blocking the tree.
+    queryClient.invalidateQueries({ queryKey: ['wbsProject', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['wbsMembers', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['wbsMaterialRequests', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['wbsIncidents', projectId] });
   };
   const handleError = (msg: string) => {
     setError(msg);
@@ -212,7 +245,13 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return phaseTasks.every(t => t.progress === 100);
   };
 
-  const canEdit = isTPKTOrPL && project?.status !== 'paused' && project?.status !== 'done';
+  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
+
+  const canEdit = isTPKTOrPL && (
+    project?.status !== 'paused' ||
+    (isTPKT && hasApprovedEmergencyIncident)
+  ) && project?.status !== 'done';
 
   // ── Material Request Actions ─────────────────────────
   const handleApproveByLeader = async (requestId: string) => {
@@ -314,27 +353,10 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   };
 
 
-  const handleActivateProject = async () => {
-    setConfirmDialog({
-      isOpen: true,
-      title: 'Kích hoạt Dự án',
-      message: 'Kích hoạt dự án sẽ đưa vào vận hành thực tế. Bạn có chắc chắn WBS đã hoàn thiện chưa?',
-      isDanger: false,
-      onConfirm: async () => {
-        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-        try {
-          await projectService.activateProject(projectId);
-          handleSuccess('Dự án đã được Kích hoạt thành công!');
-        } catch (err: any) { handleError(err.message); }
-      }
-    });
-  };
-
-
 
 
   const contextValue = {
-    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, canEdit, materialRequests,
+    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests,
     expandedPhases, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -388,33 +410,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
           </div>
         )}
 
-        {/* Draft Status Banner */}
-        {project?.status === 'draft' && (
-          <div className="animate-fade-in flex items-center justify-between py-3.5 px-5 bg-[#fef3c7] border border-[#fde68a] rounded-sm text-[#92400e]">
-            <div>
-              <h4 className="m-0 mb-1 text-base flex items-center gap-2">
-                <AlertTriangle size={18} />
-                Dự án đang ở trạng thái BẢN NHÁP (DRAFT)
-              </h4>
-              <p className="m-0 text-[0.85rem]">
-                Hãy thêm thành viên, tạo cấu trúc WBS và đảm bảo Hạn chót công việc phải lớn hơn hoặc bằng Ngày bắt đầu dự án ({project.startDate}), sau đó bấm Kích hoạt để bắt đầu thi công.
-              </p>
-            </div>
-            {isTPKTOrPL && (
-              <Button
-                onClick={handleActivateProject}
-                variant="primary"
-                className="animate-pulse font-semibold py-2 px-5 ml-4 shrink-0"
-              >
-                🚀 Kích hoạt Dự án
-              </Button>
-            )}
-          </div>
-        )}
-
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
-            <h3 className="text-[1.15rem] font-semibold m-0">Cơ cấu phân rã công việc (WBS)</h3>
+            <h3 className="text-[1.15rem] font-semibold m-0">Cấu trúc công việc</h3>
 
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -435,13 +433,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
               <BarChart2 size={15} />
               <span>Xem Biểu đồ công việc</span>
             </button>
-            <button
-              onClick={() => navigate(`/projects/${projectId}/logs`)}
-              className="flex items-center gap-2 py-2 px-4 shrink-0 border border-[hsl(var(--primary)/0.4)] rounded-sm bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] cursor-pointer text-[0.85rem] font-semibold transition-all duration-150 hover:bg-[hsl(var(--primary))] hover:text-white"
-            >
-              <History size={15} />
-              <span>Xem Nhật ký thi công</span>
-            </button>
+
           </div>
         </div>
 

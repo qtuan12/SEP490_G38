@@ -21,8 +21,6 @@ export interface CurrentInventory {
   boqQuantity?: number;
   usedQuantity?: number;
   phaseUsages?: MaterialPhaseUsage[];
-  avgUnitPrice: number;
-  stockValue: number;
   lastUpdated: string;
   supplierName: string;
 }

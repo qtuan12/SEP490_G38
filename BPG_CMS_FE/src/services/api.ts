@@ -2,14 +2,53 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5160/api';
 
 export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
+const ACCESS_TOKEN_KEY = 'bpg_token';
+const REFRESH_TOKEN_KEY = 'bpg_refresh_token';
+const USER_KEY = 'bpg_user';
+
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
 }
 
+function clearSessionAndRedirect() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  window.location.href = '/login';
+}
+
+// Gom các lần 401 xảy ra đồng thời lại thành 1 lần gọi /auth/refresh-token duy nhất.
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${BASE_URL}/auth/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return null;
+
+    const json = await res.json();
+    const newAccessToken = json?.data?.accessToken;
+    const newRefreshToken = json?.data?.refreshToken;
+    if (!newAccessToken || !newRefreshToken) return null;
+
+    localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+    return newAccessToken;
+  } catch {
+    return null;
+  }
+}
+
 export const apiClient = {
-  async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-    const token = localStorage.getItem('bpg_token');
-    
+  async request<T>(endpoint: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+
     // Setup headers
     const headers = new Headers(options.headers);
     if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
@@ -35,15 +74,27 @@ export const apiClient = {
       const response = await fetch(url, config);
 
       if (response.status === 401) {
-        const errorData = await response.json().catch(() => ({}));
         // Nếu đang gọi login thì không redirect — chỉ throw message từ backend
         if (endpoint === '/auth/login') {
+          const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || 'Email hoặc mật khẩu không chính xác.');
         }
-        // Các endpoint khác: session hết hạn → clear và redirect
-        localStorage.removeItem('bpg_token');
-        localStorage.removeItem('bpg_user');
-        window.location.href = '/login';
+
+        // Access token hết hạn → thử refresh 1 lần rồi retry lại request gốc.
+        // Không refresh nếu chính request này đã là retry, hoặc đang gọi refresh-token/logout.
+        const skipRefresh = isRetry || endpoint === '/auth/refresh-token' || endpoint === '/auth/logout';
+        if (!skipRefresh) {
+          if (!refreshPromise) {
+            refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null; });
+          }
+          const newToken = await refreshPromise;
+          if (newToken) {
+            return apiClient.request<T>(endpoint, options, true);
+          }
+        }
+
+        // Refresh thất bại hoặc không áp dụng được → session hết hạn thật sự
+        clearSessionAndRedirect();
         throw new Error('Unauthorized');
       }
 

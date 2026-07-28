@@ -1,5 +1,5 @@
 using AutoMapper;
-using BPG.Application.Features.Units.DTOs;
+using BPG.Application.DTOs.Units;
 using BPG.Domain.Entities;
 
 namespace BPG.Application.Features.Units.Profiles;

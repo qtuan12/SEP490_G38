@@ -16,6 +16,13 @@ interface Props {
   projectId: number;
 }
 
+// Chuyển yyyy-mm-dd (giá trị input date) sang dd-mm-yyyy để hiển thị
+const toDisplayDate = (isoDate: string) => {
+  if (!isoDate) return '';
+  const [y, m, d] = isoDate.split('-');
+  return `${d}-${m}-${y}`;
+};
+
 interface ItemRow {
   materialId: number;
   materialName: string;
@@ -137,6 +144,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const validate = (): string | null => {
     if (!selectedPhaseId) return 'Vui lòng chọn giai đoạn.';
     if (!purchaseDate) return 'Vui lòng chọn ngày mua.';
+    if (!reason.trim()) return 'Vui lòng nhập lý do mua khẩn cấp.';
     if (uploadedFiles.length === 0) return 'Bắt buộc phải tải ảnh hóa đơn.';
     if (rows.length === 0) return 'Vui lòng thêm ít nhất một vật tư.';
     for (const r of rows) {
@@ -247,12 +255,23 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'hsl(var(--text-secondary))' }}>
               Ngày mua <span style={{ color: 'hsl(var(--danger))' }}>*</span>
             </label>
-            <input
-              type="date"
-              value={purchaseDate}
-              onChange={e => { setPurchaseDate(e.target.value); setPurchaseDateError(null); }}
-              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${purchaseDateError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.9rem' }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type="date"
+                value={purchaseDate}
+                onChange={e => { setPurchaseDate(e.target.value); setPurchaseDateError(null); }}
+                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${purchaseDateError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'transparent', fontSize: '0.9rem' }}
+              />
+              <span
+                style={{
+                  position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                  fontSize: '0.9rem', pointerEvents: 'none',
+                  color: purchaseDate ? 'hsl(var(--text-primary))' : 'hsl(var(--text-muted))',
+                }}
+              >
+                {purchaseDate ? toDisplayDate(purchaseDate) : 'dd-mm-yyyy'}
+              </span>
+            </div>
             {purchaseDateError && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{purchaseDateError}</p>
             )}
@@ -262,7 +281,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         {/* Reason */}
         <div>
           <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'hsl(var(--text-secondary))' }}>
-            Lý do mua khẩn cấp
+            Lý do mua khẩn cấp <span style={{ color: 'hsl(var(--danger))' }}>*</span>
           </label>
           <textarea
             value={reason}
@@ -319,8 +338,10 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                     const price = parseFloat(row.unitPrice) || 0;
                     const lineTotal = qty * price;
                     const exceeds = row.materialId > 0 && qty > row.remainingQty;
+                    const qtyNegative = row.quantity !== '' && qty <= 0;
+                    const priceNegative = row.unitPrice !== '' && price <= 0;
                     return (
-                      <tr key={i} style={{ borderBottom: '1px solid hsl(var(--border))', backgroundColor: exceeds ? 'hsl(var(--danger-glow))' : undefined }}>
+                      <tr key={i} style={{ borderBottom: '1px solid hsl(var(--border))', backgroundColor: (exceeds || qtyNegative || priceNegative) ? 'hsl(var(--danger-glow))' : undefined }}>
                         <td style={{ padding: '8px 10px' }}>
                           <select
                             value={row.materialId || ''}
@@ -345,23 +366,40 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                             type="number"
                             min="0.001"
                             step="0.001"
+                            className="dp-no-spinner"
                             value={row.quantity}
                             onChange={e => updateRowField(i, 'quantity', e.target.value)}
                             placeholder="0"
-                            style={{ width: '80px', padding: '4px 6px', border: `1px solid ${exceeds ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
+                            style={{ width: '80px', padding: '4px 6px', border: `1px solid ${(exceeds || qtyNegative) ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
                           />
                           {row.materialId > 0 && <span style={{ marginLeft: '4px', color: 'hsl(var(--text-muted))' }}>{row.unitName}</span>}
+                          {qtyNegative && (
+                            <div style={{ marginTop: '4px', fontSize: '0.75rem', color: 'hsl(var(--danger))' }}>
+                              Số lượng phải lớn hơn 0
+                            </div>
+                          )}
+                          {!qtyNegative && exceeds && (
+                            <div style={{ marginTop: '4px', fontSize: '0.75rem', color: 'hsl(var(--danger))' }}>
+                              Vượt quá còn lại ({row.remainingQty} {row.unitName})
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '8px 10px' }}>
                           <input
                             type="number"
                             min="1"
                             step="1"
+                            className="dp-no-spinner"
                             value={row.unitPrice}
                             onChange={e => updateRowField(i, 'unitPrice', e.target.value)}
                             placeholder="0"
-                            style={{ width: '110px', padding: '4px 6px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
+                            style={{ width: '110px', padding: '4px 6px', border: `1px solid ${priceNegative ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
                           />
+                          {priceNegative && (
+                            <div style={{ marginTop: '4px', fontSize: '0.75rem', color: 'hsl(var(--danger))' }}>
+                              Đơn giá phải lớn hơn 0
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {lineTotal > 0 ? lineTotal.toLocaleString('vi-VN') + ' ₫' : '-'}
@@ -427,6 +465,16 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         </div>
 
       </div>
+      <style>{`
+        .dp-no-spinner::-webkit-outer-spin-button,
+        .dp-no-spinner::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .dp-no-spinner {
+          -moz-appearance: textfield;
+        }
+      `}</style>
     </Modal>
   );
 };

@@ -55,7 +55,7 @@ export const MaterialControl: React.FC = () => {
 
   // ─── SignalR: tự động reload khi có notification liên quan đến yêu cầu vật tư ───
   useSignalREvent('ReceiveNotification', (noti: any) => {
-    if (noti?.referenceType === 'MaterialRequest') {
+    if (noti?.referenceType === 'MaterialRequest' || noti?.referenceType?.includes('/materialrequests')) {
       fetchMaterialRequests();
       toast('Danh sách yêu cầu vật tư vừa được cập nhật!', { icon: '📋' });
     }
@@ -219,10 +219,10 @@ export const MaterialControl: React.FC = () => {
             className="w-48 h-10"
             options={[
               { label: 'Tất cả Trạng thái', value: '' },
-              { label: 'Đang kiểm tra', value: 'pending_accountant' },
-              { label: 'Chờ duyệt', value: 'pending_director' },
-              { label: 'Đã duyệt', value: 'approved' },
-              { label: 'Đã từ chối', value: 'rejected' },
+              { label: 'Chờ phê duyệt', value: 'pending_accountant' },
+              { label: 'Chờ duyệt vượt định mức', value: 'pending_director' },
+              { label: 'Đã phê duyệt', value: 'approved' },
+              { label: 'Bị từ chối', value: 'rejected' },
             ]}
           />
         </div>

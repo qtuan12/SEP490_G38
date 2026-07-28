@@ -26,7 +26,7 @@ public class GetCostReferenceReportQueryHandler : IRequestHandler<GetCostReferen
             .Query()
             .Include(p => p.Items)
             .Include(p => p.Request).ThenInclude(r => r!.Phase)
-            .Where(p => p.Request!.Phase!.ProjectId == request.ProjectId && (p.Status == "Sent" || p.Status == "PartiallyReceived" || p.Status == "FullyReceived"))
+            .Where(p => p.Request!.Phase!.ProjectId == request.ProjectId && (p.Status == "Sent" || p.Status == "PartiallyReceived" || p.Status == "FullyReceived" || p.Status == "Closed"))
             .ToListAsync(cancellationToken);
 
         decimal totalPoCost = 0;

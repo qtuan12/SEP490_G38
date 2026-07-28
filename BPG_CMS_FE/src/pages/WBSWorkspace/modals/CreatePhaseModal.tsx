@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Calendar, Clock } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
 import { Modal } from '../../../../src/components/ui/Modal';
 import type { Project, WBSPhase } from '../../../types/common';
@@ -64,14 +64,14 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
       });
     },
     onSuccess: (_, variables) => {
-      const msg = `Đã tạo thành công Phase mới: ${variables.name.trim()}`;
+      const msg = `Đã tạo thành công Giai đoạn mới: ${variables.name.trim()}`;
       toast.success(msg);
       onSuccess(msg);
       reset();
       onClose();
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Lỗi khi tạo Phase.');
+      toast.error(error.message || 'Lỗi khi tạo Giai đoạn.');
     }
   });
 
@@ -122,19 +122,51 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
     mutation.mutate(data);
   };
 
+  const latestPhase = phases && phases.length > 0 ? phases.reduce((latest, current) => {
+       const latestDate = new Date(latest.endDate || latest.deadline || latest.startDate || 0);
+       const currentDate = new Date(current.endDate || current.deadline || current.startDate || 0);
+       return currentDate > latestDate ? current : latest;
+  }, phases[0]) : null;
+
+  const latestDateStr = latestPhase ? (latestPhase.endDate || latestPhase.deadline || latestPhase.startDate) : undefined;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Tạo Giai đoạn (Phase) mới">
+    <Modal isOpen={isOpen} onClose={onClose} title="Tạo Giai đoạn mới">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         
-        {/* THÔNG TIN THỜI GIAN DỰ ÁN */}
-        {project && (
-          <div className="bg-blue-50/50 p-3 rounded-lg border border-blue-100 flex flex-col -mb-1">
-            <p className="text-xs text-slate-500 mb-1">Thời gian dự án:</p>
-            <p className="text-sm font-medium text-slate-700">
-              {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
-            </p>
-          </div>
-        )}
+        {/* THÔNG TIN THỜI GIAN DỰ ÁN VÀ GIAI ĐOẠN TRƯỚC */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 -mb-1">
+          {project && (
+            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3.5 rounded-xl border border-indigo-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+              <div className="bg-white/80 p-2 rounded-lg text-indigo-600 shadow-sm border border-indigo-50">
+                <Calendar size={18} className="stroke-[1.75]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 mb-1">Thời gian dự án</p>
+                <p className="text-[13px] font-semibold text-slate-700 truncate">
+                  {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {latestPhase && (
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-3.5 rounded-xl border border-amber-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+              <div className="bg-white/80 p-2 rounded-lg text-amber-600 shadow-sm border border-amber-50">
+                <Clock size={18} className="stroke-[1.75]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="mb-1 truncate" title={`Giai đoạn trước nhất (${latestPhase.name})`}>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-amber-600/70 mr-1">Kế tiếp:</span>
+                  <span className="text-[12px] font-bold text-amber-700">{latestPhase.name}</span>
+                </div>
+                <p className="text-[13px] font-semibold text-slate-700 truncate">
+                  {latestPhase.startDate ? new Date(latestPhase.startDate).toLocaleDateString('vi-VN') : 'N/A'} - {latestDateStr ? new Date(latestDateStr).toLocaleDateString('vi-VN') : 'N/A'}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div>
           <label htmlFor="phase-name" className="block text-sm font-medium mb-1.5 text-slate-600">
@@ -143,7 +175,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
           <input
             id="phase-name"
             type="text"
-            placeholder="Ví dụ: Phase 4: Hoàn thiện nội thất"
+            placeholder="Ví dụ: Giai đoạn 4: Hoàn thiện nội thất"
             {...register('name')}
             className={`w-full text-sm px-3 py-2 rounded-md border ${errors.name ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
           />
@@ -152,7 +184,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
 
         <div>
           <label htmlFor="phase-description" className="block text-sm font-medium mb-1.5 text-slate-600">
-            Mô tả Phase
+            Mô tả Giai đoạn
           </label>
           <textarea
             id="phase-description"
@@ -166,7 +198,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="start-date" className="block text-sm font-medium mb-1.5 text-slate-600">
-              Ngày bắt đầu dự kiến <span className="text-red-500">*</span>
+              Ngày bắt đầu <span className="text-red-500">*</span>
             </label>
             <input 
               id="start-date" 
@@ -178,7 +210,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
           </div>
           <div>
             <label htmlFor="end-date" className="block text-sm font-medium mb-1.5 text-slate-600">
-              Ngày kết thúc (Deadline) <span className="text-red-500">*</span>
+              Ngày kết thúc <span className="text-red-500">*</span>
             </label>
             <input 
               id="end-date" 
@@ -195,7 +227,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
             Hủy
           </button>
           <button type="submit" className="btn btn-primary" disabled={mutation.isPending}>
-            {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Tạo Phase'}
+            {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Tạo Giai đoạn'}
           </button>
         </div>
       </form>

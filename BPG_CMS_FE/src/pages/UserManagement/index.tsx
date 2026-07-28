@@ -153,8 +153,9 @@ export const UserManagement: React.FC = () => {
     {
       key: 'actions',
       header: 'Hành động',
+      align: 'center' as const,
       render: (user: UserProfile) => (
-        <div className="flex gap-2 justify-end">
+        <div className="flex gap-2 justify-center">
           <Button
             variant="secondary"
             className="p-2 h-auto"
@@ -235,7 +236,7 @@ export const UserManagement: React.FC = () => {
                 options={[
                   { label: 'Tất cả Vai trò', value: '' },
                   { label: 'Admin', value: 'admin' },
-                  { label: 'TP Kỹ Thuật', value: 'technicalmanager' },
+                  { label: 'Trưởng phòng Kĩ thuật', value: 'technicalmanager' },
                   { label: 'Nhân viên kỹ thuật', value: 'siteengineer' },
                   { label: 'Kế Toán', value: 'accountant' },
                   { label: 'Giám Đốc', value: 'director' },

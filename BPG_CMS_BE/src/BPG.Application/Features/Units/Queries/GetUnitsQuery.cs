@@ -1,5 +1,5 @@
 using BPG.Application.Common.Models;
-using BPG.Application.Features.Units.DTOs;
+using BPG.Application.DTOs.Units;
 using MediatR;
 
 namespace BPG.Application.Features.Units.Queries;

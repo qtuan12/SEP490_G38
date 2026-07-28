@@ -24,19 +24,22 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         private readonly ICurrentUserService _currentUserService;
         private readonly INotificationService _notificationService;
         private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly IProgressRollupService _progressRollupService;
 
         public CreateDailyLogCommandHandler(
             IUnitOfWork uow, 
             IMapper mapper, 
             ICurrentUserService currentUserService,
             INotificationService notificationService,
-            IRealtimeNotificationSender realtimeSender)
+            IRealtimeNotificationSender realtimeSender,
+            IProgressRollupService progressRollupService)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
             _realtimeSender = realtimeSender;
+            _progressRollupService = progressRollupService;
         }
 
         public async Task<DailyLogDto> Handle(CreateDailyLogCommand request, CancellationToken cancellationToken)
@@ -57,9 +60,9 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = task.Phase.Project;
 
-            // 2. Kiểm tra quyền của User (Chỉ Admin, TM, Project Leader hoặc Assigned Engineer mới được tạo daily log)
-            bool isAdminOrTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isAdminOrTM)
+            // 2. Kiểm tra quyền của User (Chỉ TM, Project Leader hoặc Assigned Engineer mới được tạo daily log)
+            bool isTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
+            if (!isTM)
             {
                 // Kiểm tra xem User có phải là Project Leader của dự án này không
                 var isLeader = await _uow.Repository<ProjectMember>().Query()
@@ -100,11 +103,6 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 }
             }
 
-            // Kiểm tra số lượng hình ảnh
-            if (request.Images != null && request.Images.Count > 5)
-            {
-                throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh hiện trường thi công.");
-            }
 
             // 4. Kiểm tra xem Task có phải là Task cha (có subtasks) không
             if (task.SubTasks != null && task.SubTasks.Any(s => !s.IsDeleted))
@@ -156,7 +154,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             byte oldProgress = task.ProgressPercent;
             if (request.NewProgressPercent < oldProgress)
             {
-                if (!isAdminOrTM)
+                if (!isTM)
                 {
                     throw new BusinessException("ERR_DECREASE_PROGRESS_FORBIDDEN", 
                         "Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
@@ -239,7 +237,13 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 await _uow.Repository<TaskProgressLog>().AddAsync(progressLog, cancellationToken);
 
                 // 9. Đồng bộ ngược tiến độ của các Task cha (Parent Tasks) nếu có
-                await SyncParentTasksProgressAsync(task, currentUserId, cancellationToken);
+                if (task.ParentTaskId.HasValue)
+                {
+                    await _progressRollupService.RecalculateParentTaskProgressAsync(
+                        task.ParentTaskId.Value,
+                        task.TaskId,
+                        cancellationToken);
+                }
 
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
@@ -256,6 +260,16 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.Images = request.Images ?? new List<string>();
                 dto.OldProgressPercent = oldProgress;
 
+                // Vừa tạo luôn nằm trong cửa sổ chỉnh sửa; lấy config để FE biết giới hạn
+                var editWindowConfig = await _uow.Repository<SystemConfig>().Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.DailyLogEditWindowHours, cancellationToken);
+                int editWindowHours = editWindowConfig != null && int.TryParse(editWindowConfig.ConfigValue, out var parsedHours) && parsedHours > 0
+                    ? parsedHours
+                    : 24;
+                dto.EditWindowHours = editWindowHours;
+                dto.CanEdit = true;
+
                 // 10. Gửi thông báo đến những người liên quan
                 await SendNotificationsAsync(task, creator?.FullName ?? "Kỹ sư", request.NewProgressPercent, cancellationToken);
 
@@ -268,61 +282,6 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             {
                 await _uow.RollbackTransactionAsync(cancellationToken);
                 throw;
-            }
-        }
-
-        private async Task SyncParentTasksProgressAsync(ProjectTask currentTask, long userId, CancellationToken cancellationToken)
-        {
-            var parentId = currentTask.ParentTaskId;
-            var current = currentTask;
-
-            while (parentId.HasValue)
-            {
-                var parent = await _uow.Repository<ProjectTask>().Query()
-                    .Include(t => t.SubTasks)
-                    .FirstOrDefaultAsync(t => t.TaskId == parentId.Value, cancellationToken);
-
-                if (parent == null) break;
-
-                // Lấy tất cả task con của parent này (không bao gồm các task đã bị xóa)
-                var siblingTasks = parent.SubTasks.Where(s => !s.IsDeleted).ToList();
-                if (!siblingTasks.Any()) break;
-
-                // Tính trung bình cộng tiến độ
-                byte oldParentProgress = parent.ProgressPercent;
-                double avgProgress = siblingTasks.Average(s => s.ProgressPercent);
-                byte newParentProgress = (byte)Math.Round(avgProgress);
-
-                if (oldParentProgress != newParentProgress)
-                {
-                    parent.ProgressPercent = newParentProgress;
-
-                    // Cập nhật trạng thái cho Task cha
-                    if (parent.ProgressPercent == 100)
-                    {
-                        parent.Status = BPG.Domain.Constants.TaskStatus.Completed;
-                    }
-                    else if (parent.ProgressPercent > 0)
-                    {
-                        parent.Status = BPG.Domain.Constants.TaskStatus.InProgress;
-                    }
-
-                    _uow.Repository<ProjectTask>().Update(parent);
-
-                    // Ghi nhận lịch sử cho Task cha
-                    var parentProgressLog = new TaskProgressLog
-                    {
-                        TaskId = parent.TaskId,
-                        OldProgress = oldParentProgress,
-                        NewProgress = newParentProgress,
-                        UpdateReason = "Cập nhật tự động từ tiến độ các công việc con",
-                        UpdatedAt = DateTime.UtcNow
-                    };
-                    await _uow.Repository<TaskProgressLog>().AddAsync(parentProgressLog, cancellationToken);
-                }
-
-                current = parent;
-                parentId = current.ParentTaskId;
             }
         }
 

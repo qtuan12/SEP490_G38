@@ -58,7 +58,7 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
                 .AnyAsync(pm => pm.ProjectId == request.ProjectId && pm.UserId == currentUserId && pm.IsLeader, cancellationToken);
             if (!isLeader)
             {
-                throw new ForbiddenException("Chỉ có Chỉ huy trưởng (Project Leader) của dự án mới được phép lập đề xuất yêu cầu vật tư.");
+                throw new ForbiddenException("Chỉ có trưởng nhóm của dự án mới được phép lập đề xuất yêu cầu vật tư.");
             }
 
             // 2. Kiểm tra Phase tồn tại và thuộc dự án
@@ -101,6 +101,12 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
                     throw new NotFoundException(nameof(BPG.Domain.Entities.Unit), item.Unit);
                 }
 
+                if (unit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Đơn vị tính '{unit.UnitName}' yêu cầu số lượng phải là số nguyên.");
+                }
+
                 // Xác định tỷ lệ quy đổi sang đơn vị cơ bản (Base Unit)
                 decimal conversionRate = 1.0m;
                 if (material.BaseUnitId != unit.UnitId)
@@ -116,7 +122,7 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
                 }
 
                 // Quy đổi số lượng yêu cầu đợt này sang Base Unit
-                decimal qtyInBase = item.Quantity * conversionRate;
+                decimal qtyInBase = item.Quantity / (conversionRate == 0 ? 1m : conversionRate);
 
                 // Lấy định mức BOQ được duyệt của vật tư trong Phase này
                 var boq = await _uow.Repository<BOQItem>().Query()
@@ -133,7 +139,7 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
                 }
                 else
                 {
-                    boqLimitInBase = boq.Quantity * boq.ConversionRate;
+                    boqLimitInBase = boq.Quantity / (boq.ConversionRate == 0 ? 1m : boq.ConversionRate);
 
                     // Tính lũy kế số lượng đã yêu cầu của các phiếu đang xử lý/đã duyệt trước đó
                     var totalRequestedBeforeInBase = await _uow.Repository<MaterialRequestItem>().Query()
@@ -142,7 +148,7 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
                                      ri.Request.Status != MaterialRequestStatus.Rejected &&
                                      ri.Request.Status != MaterialRequestStatus.Cancelled &&
                                      !ri.Request.IsDeleted)
-                        .SumAsync(ri => ri.Quantity * ri.ConversionRate, cancellationToken);
+                        .SumAsync(ri => ri.Quantity / (ri.ConversionRate == 0 ? 1m : ri.ConversionRate), cancellationToken);
 
                     // So sánh tổng yêu cầu (trước đó + đợt này) với định mức BOQ
                     if (totalRequestedBeforeInBase + qtyInBase > boqLimitInBase)
@@ -203,7 +209,7 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
                     "Yêu cầu vật tư mới",
                     $"{userName} vừa tạo yêu cầu vật tư mới cho giai đoạn '{phase.Name}' thuộc dự án '{project.Name}'.",
                     NotificationType.Procurement,
-                    NotificationReferenceType.MaterialRequest,
+                    $"/projects/{project.ProjectId}/workspace/materialrequests",
                     materialRequest.RequestId,
                     cancellationToken);
             }

@@ -5,7 +5,7 @@ export const getRoleLabel = (role: string): string => {
   const norm = role.toLowerCase().replace(/[\s_-]/g, '');
   switch (norm) {
     case 'admin': return 'Admin';
-    case 'technicalmanager': return 'TP Kỹ Thuật';
+    case 'technicalmanager': return 'Trưởng phòng Kĩ thuật';
     case 'siteengineer': return 'Nhân viên kỹ thuật';
     case 'projectleader': return 'Trưởng Dự án';
     case 'director': return 'Giám đốc';

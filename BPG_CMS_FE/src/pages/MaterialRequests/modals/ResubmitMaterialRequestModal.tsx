@@ -5,10 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { Loader2, Plus, Trash2, AlertCircle } from 'lucide-react';
-import {projectService} from '../../../../src/services/projectService';
+import { projectService } from '../../../../src/services/projectService';
 import { materialService } from '../../../../src/services/materialService';
 import type { MaterialCatalog } from '../../../../src/types/material';
-import type {MaterialRequest} from '../../../types/common';
+import type { MaterialRequest } from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 import { SearchSelect } from '../../../../src/components/ui/SearchSelect';
 import { isDiscreteUnit } from '../../../../src/utils/unitHelpers';
@@ -87,7 +87,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
       setAllCatalogs(res.items || []);
     }).catch(console.error);
   }, []);
-  
+
   const { register, control, handleSubmit, reset, watch, setValue, trigger, formState: { errors } } = useForm<ResubmitMaterialRequestForm>({
     resolver: zodResolver(resubmitMaterialRequestSchema),
     mode: 'onTouched',
@@ -96,7 +96,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
       reason: request.reason || '',
       invoiceImage: request.invoiceImage || '',
       isOverBOQ: request.isOverBOQ || false,
-      items: request.items.length > 0 
+      items: request.items.length > 0
         ? request.items.map(it => ({ name: it.name, quantity: it.quantity, unit: it.unit }))
         : [{ name: '', quantity: 1, unit: '' }]
     }
@@ -114,7 +114,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   const handleMaterialChange = (index: number, name: string) => {
     const mat = allCatalogs.find(m => m.name === name);
     if (mat) {
-      setValue(`items.${index}.unit`, mat.baseUnitName || '');
+      setValue(`items.${index}.unit`, mat.baseUnitName || '', { shouldValidate: true, shouldTouch: true, shouldDirty: true });
     }
   };
 
@@ -125,7 +125,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
         reason: request.reason || '',
         invoiceImage: request.invoiceImage || '',
         isOverBOQ: request.isOverBOQ || false,
-        items: request.items.length > 0 
+        items: request.items.length > 0
           ? request.items.map(it => ({ name: it.name, quantity: it.quantity, unit: it.unit }))
           : [{ name: '', quantity: 1, unit: '' }]
       });
@@ -162,7 +162,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Sửa & Gửi lại Yêu cầu cấp Vật tư">
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-600">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <div className="text-sm">
@@ -211,9 +211,9 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
         <div>
           <div className="flex justify-between items-center mb-3 mt-2">
             <span className="text-sm font-medium text-slate-700">Danh sách vật tư yêu cầu <span className="text-red-500">*</span></span>
-            <button 
-              type="button" 
-              onClick={() => append({ name: '', quantity: 1, unit: '' })} 
+            <button
+              type="button"
+              onClick={() => append({ name: '', quantity: 1, unit: '' })}
               className="btn btn-secondary py-1 px-2 text-xs flex items-center gap-1"
             >
               <Plus size={14} /><span>Thêm vật tư</span>
@@ -233,7 +233,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                     onChange={async (selName) => {
                       setValue(`items.${idx}.name`, selName, { shouldValidate: true });
                       handleMaterialChange(idx, selName);
-                      await trigger('items');
+                      await trigger(`items.${idx}.unit`);
                     }}
                     placeholder="-- Chọn vật tư --"
                     error={!!errors.items?.[idx]?.name}
@@ -262,12 +262,12 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                 </div>
                 <button
                   type="button"
-                  disabled={fields.length === 1}
                   onClick={async () => {
                     remove(idx);
                     await trigger('items');
                   }}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-md"
+                  title="Xóa vật tư"
                 >
                   <Trash2 size={18} />
                 </button>

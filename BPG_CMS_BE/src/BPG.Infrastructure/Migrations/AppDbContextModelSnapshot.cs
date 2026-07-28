@@ -270,6 +270,12 @@ namespace BPG.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsEdited")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastEditedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateOnly>("LogDate")
                         .HasColumnType("date");
 
@@ -542,6 +548,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsEmergency")
+                        .HasColumnType("bit");
+
                     b.Property<long?>("PhaseId")
                         .HasColumnType("bigint");
 
@@ -549,6 +558,13 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<string>("ProposedAction")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("RecoveryEstimateCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("RecoveryPlanText")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<long>("ReportedBy")
@@ -1501,10 +1517,7 @@ namespace BPG.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("PaymentTerms")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<long?>("ProjectId")
+                    b.Property<long>("ProjectId")
                         .HasColumnType("bigint");
 
                     b.Property<long?>("RequestId")
@@ -1528,6 +1541,8 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("POId");
+
+                    b.HasIndex("ProjectId");
 
                     b.HasIndex("RequestId");
 
@@ -1581,21 +1596,6 @@ namespace BPG.Infrastructure.Migrations
                     b.HasIndex("UnitId");
 
                     b.ToTable("PurchaseOrderItems");
-                });
-
-            modelBuilder.Entity("BPG.Domain.Entities.PurchaseOrderRequest", b =>
-                {
-                    b.Property<long>("POId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("RequestId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("POId", "RequestId");
-
-                    b.HasIndex("RequestId");
-
-                    b.ToTable("PurchaseOrderRequests");
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.RefreshToken", b =>
@@ -1856,6 +1856,9 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("SurplusRequestItemId"));
+
+                    b.Property<string>("CloseReason")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("ConversionRate")
                         .HasPrecision(18, 6)
@@ -2162,6 +2165,9 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDiscrete")
                         .HasColumnType("bit");
 
                     b.Property<string>("UnitCode")
@@ -2861,6 +2867,12 @@ namespace BPG.Infrastructure.Migrations
 
             modelBuilder.Entity("BPG.Domain.Entities.PurchaseOrder", b =>
                 {
+                    b.HasOne("BPG.Domain.Entities.Project", "Project")
+                        .WithMany("PurchaseOrders")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("BPG.Domain.Entities.MaterialRequest", "Request")
                         .WithMany()
                         .HasForeignKey("RequestId")
@@ -2869,6 +2881,8 @@ namespace BPG.Infrastructure.Migrations
                     b.HasOne("BPG.Domain.Entities.Supplier", "Supplier")
                         .WithMany("PurchaseOrders")
                         .HasForeignKey("SupplierId");
+
+                    b.Navigation("Project");
 
                     b.Navigation("Request");
 
@@ -2900,25 +2914,6 @@ namespace BPG.Infrastructure.Migrations
                     b.Navigation("PurchaseOrder");
 
                     b.Navigation("Unit");
-                });
-
-            modelBuilder.Entity("BPG.Domain.Entities.PurchaseOrderRequest", b =>
-                {
-                    b.HasOne("BPG.Domain.Entities.PurchaseOrder", "PurchaseOrder")
-                        .WithMany("RequestLinks")
-                        .HasForeignKey("POId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("BPG.Domain.Entities.MaterialRequest", "MaterialRequest")
-                        .WithMany()
-                        .HasForeignKey("RequestId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("MaterialRequest");
-
-                    b.Navigation("PurchaseOrder");
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.RefreshToken", b =>
@@ -3177,6 +3172,8 @@ namespace BPG.Infrastructure.Migrations
                     b.Navigation("Members");
 
                     b.Navigation("Phases");
+
+                    b.Navigation("PurchaseOrders");
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.ProjectTask", b =>
@@ -3199,8 +3196,6 @@ namespace BPG.Infrastructure.Migrations
                     b.Navigation("GoodsReceipts");
 
                     b.Navigation("Items");
-
-                    b.Navigation("RequestLinks");
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.Role", b =>

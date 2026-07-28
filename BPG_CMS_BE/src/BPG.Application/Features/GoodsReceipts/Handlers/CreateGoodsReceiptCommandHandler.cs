@@ -21,15 +21,21 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
         private readonly IInventoryService _inventoryService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly INotificationService _notificationService;
 
         public CreateGoodsReceiptCommandHandler(
-            IUnitOfWork uow, 
+            IUnitOfWork uow,
             ICurrentUserService currentUserService,
-            IInventoryService inventoryService)
+            IInventoryService inventoryService,
+            IRealtimeNotificationSender realtimeSender,
+            INotificationService notificationService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _inventoryService = inventoryService;
+            _realtimeSender = realtimeSender;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateGoodsReceiptCommand request, CancellationToken cancellationToken)
@@ -48,6 +54,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                         .ThenInclude(ph => ph!.Project)
                 .Include(p => p.Items)
                     .ThenInclude(pi => pi!.Material)
+                        .ThenInclude(m => m!.BaseUnit)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken);
 
             if (po == null)
@@ -67,18 +74,32 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }
 
+            // 2.5 Kiểm tra quyền: Chỉ Trưởng phòng kỹ thuật hoặc Trưởng dự án mới được tạo phiếu nhập kho
+            bool isTechnicalManager = _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager);
+
+            if (!isTechnicalManager)
+            {
+                var isLeader = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
+
+                if (!isLeader)
+                {
+                    throw new ForbiddenException("Chỉ Trưởng phòng kỹ thuật hoặc Trưởng dự án mới có quyền nhập kho cho đơn hàng.");
+                }
+            }
+
             // 3. Kiểm tra trạng thái PO
             if (po.Status != PurchaseOrderStatus.Sent && po.Status != PurchaseOrderStatus.PartiallyReceived)
             {
-                throw new BusinessException("ERR_INVALID_PO_STATUS", 
-                    $"Không thể nhập kho cho đơn hàng có trạng thái: {po.Status}. Chỉ chấp nhận đơn hàng ở trạng thái Gửi (Sent) hoặc Nhận một phần (PartiallyReceived).");
+                throw new BusinessException("ERR_INVALID_PO_STATUS",
+                    $"Không thể nhập kho cho đơn hàng có trạng thái: {po.Status}. Chỉ chấp nhận đơn hàng ở trạng thái Đã đặt hàng hoặc Nhận một phần.");
             }
 
             // 4. Kiểm tra ảnh chụp chứng minh nếu có validation bắt buộc (tối đa 5 ảnh)
-            if (request.Images != null && request.Images.Count > 5)
-            {
-                throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh chứng từ giao nhận.");
-            }
+            // if (request.Images != null && request.Images.Count > 5)
+            // {
+            //     throw new BusinessException("ERR_MAX_IMAGES_EXCEEDED", "Tối đa chỉ được đính kèm 5 hình ảnh chứng từ giao nhận.");
+            // }
 
             // 5. Lấy tổng số lượng đã nhận của từng vật tư trong PO này từ trước đến nay
             var receivedQtyMap = await _uow.Repository<GoodsReceiptItem>().Query()
@@ -88,19 +109,31 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 .ToDictionaryAsync(g => g.MaterialId, g => g.TotalReceived, cancellationToken);
 
             // 6. Bắt đầu validate chi tiết từng vật tư nhận đợt này
+            var validItems = new List<CreateGoodsReceiptItemDto>();
             foreach (var item in request.Items)
             {
                 var poItem = po.Items.FirstOrDefault(pi => pi.MaterialId == item.MaterialId);
                 if (poItem == null)
                 {
-                    throw new BusinessException("ERR_MATERIAL_NOT_IN_PO", 
-                        $"Vật tư ID {item.MaterialId} không tồn tại trong đơn hàng PO này.");
+                    throw new BusinessException("ERR_MATERIAL_NOT_IN_PO",
+                        $"Vật tư ID {item.MaterialId} không tồn tại trong đơn hàng này.");
                 }
 
-                if (item.Quantity <= 0)
+                if (item.Quantity < 0)
                 {
-                    throw new BusinessException("ERR_INVALID_QUANTITY", 
-                        $"Số lượng nhận của vật tư [{poItem.Material.Name}] phải lớn hơn 0.");
+                    throw new BusinessException("ERR_INVALID_QUANTITY",
+                        $"Số lượng nhận của vật tư [{poItem.Material.Name}] phải lớn hơn hoặc bằng 0.");
+                }
+
+                if (item.Quantity == 0)
+                {
+                    continue; // Bỏ qua vật tư không nhận đợt này (giao bù sau)
+                }
+
+                if (poItem.Material.BaseUnit != null && poItem.Material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity,
+                        $"Đơn vị tính '{poItem.Material.BaseUnit.UnitName}' của vật tư [{poItem.Material.Name}] yêu cầu số lượng nhận phải là số nguyên.");
                 }
 
                 receivedQtyMap.TryGetValue(item.MaterialId, out decimal totalReceivedBefore);
@@ -108,9 +141,16 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
 
                 if (item.Quantity > remainingQty)
                 {
-                    throw new BusinessException("ERR_QUANTITY_EXCEEDED", 
-                        $"Số lượng nhận ({item.Quantity}) vượt quá số lượng còn lại cần giao của PO cho vật tư [{poItem.Material.Name}] (còn thiếu {remainingQty}).");
+                    throw new BusinessException("ERR_QUANTITY_EXCEEDED",
+                        $"Số lượng nhận ({item.Quantity}) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [{poItem.Material.Name}] (còn thiếu {remainingQty}).");
                 }
+
+                validItems.Add(item);
+            }
+
+            if (!validItems.Any())
+            {
+                throw new BusinessException("ERR_EMPTY_ITEMS", "Danh sách vật tư nhận thực tế phải chứa ít nhất một vật tư có số lượng lớn hơn 0.");
             }
 
             // 7. Bắt đầu transaction để ghi nhận nhập kho
@@ -139,10 +179,10 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 var goodsReceiptItems = new List<GoodsReceiptItem>();
 
                 // Xử lý từng vật tư nhận
-                foreach (var item in request.Items)
+                foreach (var item in validItems)
                 {
                     var poItem = po.Items.First(pi => pi.MaterialId == item.MaterialId);
-                    
+
                     var gri = new GoodsReceiptItem
                     {
                         ReceiptId = goodsReceipt.ReceiptId,
@@ -197,7 +237,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 {
                     decimal incomingQty = request.Items.FirstOrDefault(i => i.MaterialId == poItem.MaterialId)?.Quantity ?? 0;
                     receivedQtyMap.TryGetValue(poItem.MaterialId, out decimal totalReceivedBefore);
-                    
+
                     if (totalReceivedBefore + incomingQty < poItem.Quantity)
                     {
                         allReceived = false;
@@ -212,6 +252,48 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
 
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
+
+                var actorName = await _uow.Repository<User>().Query()
+                    .AsNoTracking()
+                    .Where(u => u.UserId == currentUserId)
+                    .Select(u => u.FullName)
+                    .FirstOrDefaultAsync(cancellationToken) ?? "Người dùng";
+
+                var receiptTitle = "Nhập kho thành công";
+                var receiptContent = $"Bạn đã tạo phiếu nhập kho {goodsReceipt.ReceiptNo} cho đơn mua {po.PONumber} tại dự án {project.Name}.";
+
+                await _notificationService.SendNotificationAsync(
+                    currentUserId,
+                    receiptTitle,
+                    receiptContent,
+                    NotificationType.Procurement,
+                    NotificationReferenceType.GoodsReceipt,
+                    goodsReceipt.ReceiptId,
+                    cancellationToken);
+
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.Accountant,
+                    "Có phiếu nhập kho mới",
+                    $"{actorName} đã tạo phiếu nhập kho {goodsReceipt.ReceiptNo} cho đơn mua {po.PONumber} tại dự án {project.Name}.",
+                    NotificationType.Procurement,
+                    currentUserId,
+                    NotificationReferenceType.GoodsReceipt,
+                    goodsReceipt.ReceiptId,
+                    cancellationToken);
+
+                // Realtime: broadcast to members viewing this project's inventory workspace
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + project.ProjectId,
+                    HubMethodNames.GoodsReceiptChanged,
+                    goodsReceipt.ReceiptId,
+                    cancellationToken);
+
+                // Realtime: broadcast to members viewing global inventory (Project_0)
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + 0,
+                    HubMethodNames.GoodsReceiptChanged,
+                    goodsReceipt.ReceiptId,
+                    cancellationToken);
 
                 return ApiResponse<long>.SuccessResult(goodsReceipt.ReceiptId, "Tạo phiếu nhập kho thành công.");
             }

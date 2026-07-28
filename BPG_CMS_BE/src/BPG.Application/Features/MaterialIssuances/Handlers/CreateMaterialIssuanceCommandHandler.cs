@@ -20,15 +20,21 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
         private readonly IInventoryService _inventoryService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly INotificationService _notificationService;
 
         public CreateMaterialIssuanceCommandHandler(
             IUnitOfWork uow, 
             ICurrentUserService currentUserService,
-            IInventoryService inventoryService)
+            IInventoryService inventoryService,
+            IRealtimeNotificationSender realtimeSender,
+            INotificationService notificationService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _inventoryService = inventoryService;
+            _realtimeSender = realtimeSender;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateMaterialIssuanceCommand request, CancellationToken cancellationToken)
@@ -44,6 +50,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
             var task = await _uow.Repository<ProjectTask>().Query()
                 .Include(t => t.Phase)
                     .ThenInclude(p => p.Project)
+                .Include(t => t.Assignees)
                 .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, cancellationToken);
 
             if (task == null)
@@ -55,6 +62,20 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
             if (project == null)
             {
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với công việc này.");
+            }
+
+            // 1.5 Kiểm tra quyền: Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án (Leader) mới được phép tạo yêu cầu xuất dùng vật tư
+            bool isOfficeRole = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
+
+            if (!isOfficeRole)
+            {
+                var isLeader = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
+
+                if (!isLeader)
+                {
+                    throw new ForbiddenException("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
+                }
             }
 
             // 2. Kiểm tra trạng thái dự án
@@ -85,6 +106,12 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 {
                     throw new BusinessException("ERR_NO_INVENTORY", 
                         $"Vật tư ID {item.MaterialId} không tồn tại trong kho của dự án.");
+                }
+
+                if (inv.Material.BaseUnit != null && inv.Material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Đơn vị tính '{inv.Material.BaseUnit.UnitName}' của vật tư [{inv.Material.Name}] yêu cầu số lượng xuất phải là số nguyên.");
                 }
 
                 // Chuyển đổi số lượng xuất ra đơn vị cơ bản
@@ -156,6 +183,53 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 await _uow.Repository<MaterialIssuanceItem>().AddRangeAsync(issuanceItems, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
+
+                var actorName = await _uow.Repository<User>().Query()
+                    .AsNoTracking()
+                    .Where(u => u.UserId == currentUserId)
+                    .Select(u => u.FullName)
+                    .FirstOrDefaultAsync(cancellationToken) ?? "Người dùng";
+
+                await _notificationService.SendNotificationAsync(
+                    currentUserId,
+                    "Xuất vật tư thành công",
+                    $"Bạn đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
+                    NotificationType.Procurement,
+                    NotificationReferenceType.MaterialIssuance,
+                    issuance.MaterialIssuanceId,
+                    cancellationToken);
+
+                var assigneeIds = task.Assignees
+                    .Select(a => a.UserId)
+                    .Where(userId => userId != currentUserId)
+                    .Distinct()
+                    .ToList();
+
+                foreach (var assigneeId in assigneeIds)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        assigneeId,
+                        "Bạn được xuất vật tư cho công việc",
+                        $"{actorName} đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
+                        NotificationType.Procurement,
+                        NotificationReferenceType.MaterialIssuance,
+                        issuance.MaterialIssuanceId,
+                        cancellationToken);
+                }
+
+                // Realtime: broadcast to members viewing this project's inventory workspace
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + project.ProjectId,
+                    HubMethodNames.MaterialIssuanceChanged,
+                    issuance.MaterialIssuanceId,
+                    cancellationToken);
+
+                // Realtime: broadcast to members viewing global inventory (Project_0)
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + 0,
+                    HubMethodNames.MaterialIssuanceChanged,
+                    issuance.MaterialIssuanceId,
+                    cancellationToken);
 
                 return ApiResponse<long>.SuccessResult(issuance.MaterialIssuanceId, "Tạo phiếu xuất kho thành công.");
             }

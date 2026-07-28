@@ -12,10 +12,13 @@ interface MaterialRequestDetailModalProps {
   request: MaterialRequest | null;
   isAccountant: boolean;
   isDirector: boolean;
+  user?: any;
+  isLeader?: boolean;
   handleVerifyRequestByAccountant: (id: string) => void;
   handleDisburseRequestByAccountant: (id: string) => void;
   handleApproveRequestByDirector: (id: string) => void;
   handleRejectRequest: (id: string) => void;
+  handleCancelRequest?: (id: string) => void;
 }
 
 export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProps> = ({
@@ -24,10 +27,13 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
   request,
   isAccountant,
   isDirector,
+  user,
+  isLeader,
   handleVerifyRequestByAccountant,
   handleDisburseRequestByAccountant,
   handleApproveRequestByDirector,
-  handleRejectRequest
+  handleRejectRequest,
+  handleCancelRequest
 }) => {
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [allRequests, setAllRequests] = useState<MaterialRequest[]>([]);
@@ -101,17 +107,19 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
   const getStatusBadge = (status: MaterialRequest['status']) => {
     switch (status) {
       case 'pending_accountant':
-        return <Badge variant="warning">Đang kiểm tra</Badge>;
+        return <Badge variant="warning">Chờ phê duyệt</Badge>;
       case 'pending_director':
-        return <Badge variant="default">Chờ duyệt</Badge>;
+        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Chờ duyệt vượt định mức</Badge>;
       case 'pending_disbursement':
-        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Chờ Giải ngân</Badge>;
+        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Chờ tạm ứng</Badge>;
       case 'disbursed':
-        return <Badge variant="success">Đã giải ngân</Badge>;
+        return <Badge variant="success">Đã tạm ứng</Badge>;
       case 'approved':
-        return <Badge variant="success">Đã duyệt</Badge>;
+        return <Badge variant="success">Đã phê duyệt</Badge>;
       case 'rejected':
-        return <Badge variant="danger">Đã từ chối</Badge>;
+        return <Badge variant="danger">Bị từ chối</Badge>;
+      case 'cancelled':
+        return <Badge variant="default">Đã hủy</Badge>;
       default:
         return <Badge variant="default">{status}</Badge>;
     }
@@ -121,7 +129,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Chi tiết Yêu cầu Vật tư & Đối chiếu Định mức Giai đoạn"
+      title={`${request.id.toUpperCase().replace('MAT-REQ-', 'YCVT-')} — Chi tiết Yêu cầu Vật tư & Đối chiếu Định mức Giai đoạn`}
       width="lg"
     >
       {loadingData ? (
@@ -146,7 +154,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
               </div>
               <div className="flex items-center gap-2 text-slate-600 text-sm">
                 <Layers size={16} className="text-slate-400" />
-                <span>Giai đoạn (Phase):</span>
+                <span>Giai đoạn:</span>
                 <strong className="text-slate-800 font-semibold">{request.phaseName || 'N/A'}</strong>
               </div>
             </div>
@@ -232,7 +240,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
 
           {request.reason && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-bold text-slate-600">Lý do yêu cầu / Giải trình của kỹ sư:</span>
+              <span className="text-xs font-bold text-slate-600">Ghi chú:</span>
               <div className="p-3 bg-blue-50/50 border border-blue-100/50 rounded-lg text-slate-700 text-sm leading-relaxed italic">
                 "{request.reason}"
               </div>
@@ -274,12 +282,37 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
             </div>
           )}
 
+          {request.status === 'cancelled' && request.rejectionReason && (
+            <div className="flex flex-col gap-1.5 border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+              <div className="flex items-center gap-2 text-slate-700 font-bold text-sm">
+                <AlertTriangle size={16} className="text-slate-500" />
+                <span>Lý do hủy yêu cầu:</span>
+              </div>
+              <p className="text-sm text-slate-600 m-0 leading-relaxed italic">"{request.rejectionReason}"</p>
+            </div>
+          )}
+
           <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-2">
             <Button type="button" variant="secondary" onClick={onClose}>
               Đóng chi tiết
             </Button>
 
             <div className="flex gap-2">
+              {((request.status === 'pending_accountant' || request.status === 'pending_director') &&
+                (request.createdBy === user?.id || isLeader) &&
+                handleCancelRequest) && (
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      onClose();
+                      handleCancelRequest(request.id);
+                    }}
+                    className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-1.5 px-3.5 text-xs font-semibold"
+                  >
+                    Hủy yêu cầu
+                  </Button>
+                )}
+
               {request.status === 'pending_accountant' && isAccountant && (
                 <>
                   <Button

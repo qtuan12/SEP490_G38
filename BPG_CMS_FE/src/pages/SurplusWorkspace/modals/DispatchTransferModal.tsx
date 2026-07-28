@@ -41,7 +41,7 @@ export const DispatchTransferModal: React.FC<DispatchTransferModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Xác nhận đã gửi (Dispatch)"
+      title="Xác nhận đã gửi"
       width="md"
       footer={
         <div className="flex justify-end gap-3 w-full">

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, FormItem, Input, Select } from '../../../components/ui';
 import { AlertCircle } from 'lucide-react';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
+import { getSurplusMaxActionQuantity } from '../../../utils/surplusHelpers';
 import { surplusService } from '../../../services/surplusService';
 import { projectService } from '../../../services/projectService';
 import type { SurplusRequestItem } from '../../../types/surplus';
@@ -25,6 +27,7 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const remaining = item.quantity - item.processedQuantity;
+  const maxTransferQuantity = getSurplusMaxActionQuantity(item);
 
   useEffect(() => {
     if (isOpen) {
@@ -49,7 +52,8 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
     if (!toProjectId) { setError('Vui lòng chọn dự án nhận.'); return; }
     const qty = parseFloat(transferQty);
     if (isNaN(qty) || qty <= 0) { setError('Số lượng phải lớn hơn 0.'); return; }
-    if (qty > remaining) { setError(`Số lượng không được vượt quá còn lại (${remaining} ${item.unitName}).`); return; }
+    if (qty > maxTransferQuantity) { setError(`Số lượng chuyển tối đa là ${maxTransferQuantity} ${item.unitName} sau khi trừ phần đã phân bổ.`); return; }
+    if (isDiscreteUnit(item.unitName) && qty % 1 !== 0) { setError(`Đơn vị tính '${item.unitName}' yêu cầu số lượng phải là số nguyên.`); return; }
 
     setError(null);
     setSubmitting(true);
@@ -94,7 +98,9 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
           <span className="font-semibold text-slate-700">{item.materialName}</span>
           <span className="text-slate-500 ml-2">({item.materialCode})</span>
           <p className="text-slate-500 mt-1">
-            Còn lại: <strong className="text-orange-600">{remaining} {item.unitName}</strong>
+            Còn lại trong đợt: <strong className="text-orange-600">{remaining} {item.unitName}</strong>
+            <span className="mx-2">•</span>
+            Có thể chuyển: <strong className="text-blue-600">{maxTransferQuantity} {item.unitName}</strong>
           </p>
         </div>
 
@@ -117,12 +123,12 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
         <FormItem label="Số lượng chuyển" required>
           <Input
             type="number"
-            step="any"
-            min={0}
-            max={remaining}
+            step={isDiscreteUnit(item.unitName) ? "1" : "any"}
+            min={isDiscreteUnit(item.unitName) ? "1" : "0"}
+            max={maxTransferQuantity}
             value={transferQty}
             onChange={e => setTransferQty(e.target.value)}
-            placeholder={`Tối đa ${remaining} ${item.unitName}`}
+            placeholder={`Tối đa ${maxTransferQuantity} ${item.unitName}`}
             disabled={submitting}
           />
         </FormItem>

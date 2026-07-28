@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { CompanyProvider } from './context/CompanyContext';
 import { Layout } from './components/layout/MainLayout';
 import { Login } from './pages/Auth/Login';
 import { PhaseAcceptances } from './pages/PhaseAcceptances';
@@ -23,13 +24,11 @@ import { MaterialManagement } from './pages/MasterData/Materials';
 import { GanttChart } from './pages/GanttChart';
 import { ProjectDrawing } from './pages/ProjectDrawing';
 import { ProjectDailyLogs } from './pages/ProjectDailyLogs';
-import { PhaseMaterialRequests } from './pages/MaterialRequests';
 import { NotificationProvider } from './context/NotificationContext';
 import { NotificationsList } from './pages/Notifications';
 import { InventoryAdjustmentsPage } from './pages/InventoryAdjustments';
 import { BoqVsActualReport } from './pages/Reports/BoqVsActualReport';
 import { CostReferenceReport } from './pages/Reports/CostReferenceReport';
-import { ReportsHub } from './pages/ReportsHub';
 import { GlobalIncidents } from './pages/GlobalIncidents';
 import { MaterialControl } from './pages/MaterialControl';
 import { PurchaseOrderList } from './pages/PurchaseOrders';
@@ -37,6 +36,8 @@ import { CreatePOPage } from './pages/PurchaseOrders/CreatePOPage';
 import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
 import { SystemConfigPage } from './pages/SystemConfig';
 import { DirectPurchaseList } from './pages/DirectPurchases';
+import { ReportsHub } from './pages/ReportsHub';
+import { FieldWorkbench } from './pages/FieldWorkbench';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,6 +107,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <CompanyProvider>
       <AuthProvider>
         <NotificationProvider>
           <Router>
@@ -157,13 +159,22 @@ function App() {
                 } 
               />
 
-              <Route 
-                path="/notifications" 
+              <Route
+                path="/notifications"
                 element={
                   <ProtectedRoute>
                     <NotificationsList />
                   </ProtectedRoute>
-                } 
+                }
+              />
+
+              <Route
+                path="/field"
+                element={
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer']}>
+                    <FieldWorkbench />
+                  </ProtectedRoute>
+                }
               />
 
               <Route 
@@ -221,81 +232,74 @@ function App() {
               />
 
               <Route 
-                path="/projects" 
+                path="/projects"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <ProjectList />
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId" 
+                path="/projects/:projectId"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <ProjectLayoutHub />
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId/logs" 
+                path="/projects/:projectId/logs"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director']}>
                     <ProjectDailyLogs />
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId/tasks/:taskId/logs" 
+                path="/projects/:projectId/tasks/:taskId/logs"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director']}>
                     <ProjectDailyLogs />
                   </ProtectedRoute>
                 } 
               />
 
-              <Route 
-                path="/projects/:projectId/phases/:phaseId/material-requests" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <PhaseMaterialRequests />
-                  </ProtectedRoute>
-                } 
-              />
+
 
               <Route 
-                path="/projects/:projectId/phases/:phaseId/boq" 
+                path="/projects/:projectId/phases/:phaseId/boq"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseBOQ />
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId/phases/:phaseId/acceptance" 
+                path="/projects/:projectId/phases/:phaseId/acceptance"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader']}>
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseAcceptance />
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId/gantt" 
+                path="/projects/:projectId/gantt"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director']}>
                     <GanttChart />
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId/drawing" 
+                path="/projects/:projectId/drawing"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director']}>
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director']}>
                     <ProjectDrawing />
                   </ProtectedRoute>
                 } 
@@ -304,7 +308,7 @@ function App() {
               <Route 
                 path="/reports" 
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
                     <ReportsHub />
                   </ProtectedRoute>
                 } 
@@ -322,7 +326,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/reports/boq" 
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
                     <BoqVsActualReport />
                   </ProtectedRoute>
                 } 
@@ -331,16 +335,16 @@ function App() {
               <Route 
                 path="/projects/:projectId/reports/cost" 
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
                     <CostReferenceReport />
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/tasks/:taskId" 
+                path="/tasks/:taskId"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <TaskDetailSE />
                   </ProtectedRoute>
                 } 
@@ -366,7 +370,7 @@ function App() {
               <Route
                 path="/purchase-orders/:id"
                 element={
-                  <ProtectedRoute allowedRoles={['accountant', 'siteengineer', 'admin']}>
+                  <ProtectedRoute allowedRoles={['accountant', 'technicalmanager', 'siteengineer', 'director']}>
                     <PODetailPage />
                   </ProtectedRoute>
                 }
@@ -396,7 +400,7 @@ function App() {
               <Route
                 path="/phase-acceptances"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'director']}>
+                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
                     <PhaseAcceptances />
                   </ProtectedRoute>
                 }
@@ -418,6 +422,7 @@ function App() {
           </Router>
         </NotificationProvider>
       </AuthProvider>
+      </CompanyProvider>
       <Toaster position="top-right" />
     </QueryClientProvider>
   );

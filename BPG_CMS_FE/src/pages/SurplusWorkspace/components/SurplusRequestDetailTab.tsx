@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { LoadingSpinner } from '../../../components/ui';
-import { ArrowLeft, RotateCcw, ArrowRightLeft, Flame, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button, LoadingSpinner, Modal } from '../../../components/ui';
+import { ArrowLeft, RotateCcw, ArrowRightLeft, Flame, ChevronDown, ChevronUp, CircleSlash2 } from 'lucide-react';
 import { surplusService } from '../../../services/surplusService';
 import type { SurplusRequestDetail, SurplusRequestItem } from '../../../types/surplus';
 import {
-  getSurplusRequestStatusDetails,
   getSurplusItemStatusDetails,
   getSurplusActionTypeLabel,
-  formatDateVN,
   getGeneralActionStatusName,
 } from '../../../utils/surplusHelpers';
 import { SurplusActionInlineDetail } from './SurplusActionInlineDetail';
@@ -43,6 +41,45 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
   const [expandedActionId, setExpandedActionId] = useState<number | null>(null);
   const [expandedActionType, setExpandedActionType] = useState<string | null>(null);
+  const [closingItemId, setClosingItemId] = useState<number | null>(null);
+  const [closeItem, setCloseItem] = useState<SurplusRequestItem | null>(null);
+  const [closeReason, setCloseReason] = useState('');
+  const [closeError, setCloseError] = useState<string | null>(null);
+
+  const openCloseModal = (item: SurplusRequestItem) => {
+    setCloseItem(item);
+    setCloseReason('');
+    setCloseError(null);
+  };
+
+  const dismissCloseModal = () => {
+    if (closingItemId !== null) return;
+    setCloseItem(null);
+    setCloseReason('');
+    setCloseError(null);
+  };
+
+  const closeRemaining = async () => {
+    if (!closeItem) return;
+    const reason = closeReason.trim();
+    if (reason.length < 10) {
+      setCloseError('Lý do đóng phần còn lại phải có ít nhất 10 ký tự.');
+      return;
+    }
+    setCloseError(null);
+    setClosingItemId(closeItem.surplusRequestItemId);
+    try {
+      await surplusService.closeItem(closeItem.surplusRequestItemId, reason);
+      setCloseItem(null);
+      setCloseReason('');
+      await loadDetail();
+      onRefresh();
+    } catch (err: any) {
+      setCloseError(err.message || 'Không thể đóng phần vật tư còn lại.');
+    } finally {
+      setClosingItemId(null);
+    }
+  };
 
   useEffect(() => {
     loadDetail();
@@ -78,7 +115,6 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
 
   if (!detail) return null;
 
-  const batchBadge = getSurplusRequestStatusDetails(detail.status);
   const isProcessing = detail.status === 'Processing';
 
   return (
@@ -92,26 +128,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
         Quay lại danh sách
       </button>
 
-      {/* Header card */}
-      <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-xs text-slate-400">Đề xuất #{detail.surplusRequestId}</span>
-              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border ${batchBadge.color}`}>
-                {batchBadge.name}
-              </span>
-            </div>
-            <h2 className="text-lg font-bold text-slate-800">{detail.projectName}</h2>
-            {detail.reason && (
-              <p className="text-sm text-slate-500 mt-1">Lý do: {detail.reason}</p>
-            )}
-            <p className="text-xs text-slate-400 mt-1">
-              Tạo ngày {formatDateVN(detail.createdAt)} bởi <strong>{detail.createdByName}</strong>
-            </p>
-          </div>
-        </div>
-      </div>
+
 
       {/* Item list */}
       <div className="flex flex-col gap-3">
@@ -139,7 +156,15 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                     <span>Tổng: <strong className="text-slate-700">{item.quantity} {item.unitName}</strong></span>
                     <span>Đã xử lý: <strong className="text-green-600">{item.processedQuantity} {item.unitName}</strong></span>
                     <span>Còn lại: <strong className="text-orange-600">{remaining} {item.unitName}</strong></span>
+                    <span>Tồn hiện tại: <strong className="text-slate-700">{item.currentInventoryQuantity} {item.unitName}</strong></span>
+                    <span>Tạm khóa: <strong className="text-rose-600">{item.reservedQuantity} {item.unitName}</strong></span>
+                    <span>Khả dụng: <strong className="text-blue-600">{item.availableQuantity} {item.unitName}</strong></span>
                   </div>
+                  {item.status === 'Cancelled' && item.closeReason && (
+                    <div className="mt-2 text-xs text-slate-500">
+                      Đã đóng phần còn lại: <strong>{item.closeReason}</strong>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -169,6 +194,16 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                     >
                       <ArrowRightLeft size={12} />
                       Chuyển kho
+                    </button>
+                  )}
+                  {canAct && isTPKT && (
+                    <button
+                      disabled={closingItemId === item.surplusRequestItemId}
+                      onClick={() => openCloseModal(item)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 text-slate-700 border border-slate-300 hover:bg-slate-100 disabled:opacity-50 transition-colors"
+                    >
+                      <CircleSlash2 size={12} />
+                      {closingItemId === item.surplusRequestItemId ? 'Đang đóng...' : 'Đóng phần còn lại'}
                     </button>
                   )}
                   {item.actions.length > 0 && (
@@ -271,6 +306,71 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
           );
         })}
       </div>
+
+      <Modal
+        isOpen={closeItem !== null}
+        onClose={dismissCloseModal}
+        title="Đóng phần vật tư còn lại"
+        width="md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={dismissCloseModal} disabled={closingItemId !== null}>
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              onClick={closeRemaining}
+              isLoading={closingItemId !== null}
+              disabled={closeReason.trim().length < 10}
+            >
+              Xác nhận đóng
+            </Button>
+          </div>
+        }
+      >
+        {closeItem && (
+          <div className="flex flex-col gap-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="font-semibold">{closeItem.materialName} ({closeItem.materialCode})</p>
+              <p className="mt-1">
+                Phần chưa xử lý sẽ được đóng:
+                {' '}
+                <strong>{closeItem.quantity - closeItem.processedQuantity} {closeItem.unitName}</strong>.
+                Thao tác này không làm giảm tồn kho.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                Lý do đóng <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                autoFocus
+                rows={4}
+                maxLength={500}
+                value={closeReason}
+                onChange={e => {
+                  setCloseReason(e.target.value);
+                  if (closeError) setCloseError(null);
+                }}
+                disabled={closingItemId !== null}
+                placeholder="Ví dụ: Số lượng thực tế đã được kiểm kê và điều chỉnh, phần chênh lệch không còn trong kho..."
+                className={`w-full resize-none rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 ${
+                  closeError
+                    ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
+                    : 'border-slate-300 focus:border-blue-500 focus:ring-blue-100'
+                }`}
+              />
+              <div className="mt-1 flex justify-between text-xs">
+                <span className={closeError ? 'text-red-600' : 'text-slate-400'}>
+                  {closeError || 'Tối thiểu 10 ký tự. Lý do sẽ được lưu vào lịch sử.'}
+                </span>
+                <span className="text-slate-400">{closeReason.length}/500</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

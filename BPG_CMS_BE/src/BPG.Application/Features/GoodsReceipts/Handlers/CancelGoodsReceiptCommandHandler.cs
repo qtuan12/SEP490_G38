@@ -19,15 +19,18 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
         private readonly IInventoryService _inventoryService;
+        private readonly IRealtimeNotificationSender _realtimeSender;
 
         public CancelGoodsReceiptCommandHandler(
             IUnitOfWork uow, 
             ICurrentUserService currentUserService,
-            IInventoryService inventoryService)
+            IInventoryService inventoryService,
+            IRealtimeNotificationSender realtimeSender)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _inventoryService = inventoryService;
+            _realtimeSender = realtimeSender;
         }
 
         public async Task<ApiResponse<bool>> Handle(CancelGoodsReceiptCommand request, CancellationToken cancellationToken)
@@ -38,12 +41,12 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
             if (!_currentUserService.IsInAnyRole(
                     BPG.Domain.Constants.UserRole.TechnicalManager,
                     BPG.Domain.Constants.UserRole.Accountant,
-                    BPG.Domain.Constants.UserRole.Admin))
+                    BPG.Domain.Constants.UserRole.Director))
             {
                 throw new BusinessException(
                     "ERR_INSUFFICIENT_PERMISSION",
                     "Bạn không có quyền hủy phiếu nhập kho đã được ghi nhận. " +
-                    "Chỉ Quản lý Kỹ thuật, Kế toán hoặc Quản trị viên mới có thể thực hiện thao tác này.");
+                    "Chỉ Quản lý Kỹ thuật, Kế toán hoặc Giám đốc mới có thể thực hiện thao tác này.");
             }
 
             // 1. Tìm phiếu nhập kho kèm chi tiết
@@ -198,6 +201,20 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
 
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
+
+                // Realtime: broadcast to members viewing this project's inventory workspace
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + project.ProjectId,
+                    HubMethodNames.GoodsReceiptChanged,
+                    receipt.ReceiptId,
+                    cancellationToken);
+
+                // Realtime: broadcast to members viewing global inventory (Project_0)
+                await _realtimeSender.SendToGroupAsync(
+                    HubMethodNames.GroupProject + 0,
+                    HubMethodNames.GoodsReceiptChanged,
+                    receipt.ReceiptId,
+                    cancellationToken);
 
                 return ApiResponse<bool>.SuccessResult(true, "Hủy phiếu nhập kho thành công.");
             }

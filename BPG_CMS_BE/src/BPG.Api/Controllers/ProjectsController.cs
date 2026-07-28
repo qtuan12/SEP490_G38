@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 public class ProjectsController : BaseApiController
 {
     [HttpGet("metrics")]
-    [Authorize(Roles = "Director, Accountant")]
+    [Authorize]
     public async Task<IActionResult> GetDashboardMetrics()
     {
         var result = await Mediator.Send(new GetDashboardMetricsQuery());
@@ -20,7 +20,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet("dashboard/warnings")]
-    [Authorize(Roles = "Director, Accountant")]
+    [Authorize]
     public async Task<IActionResult> GetDashboardWarnings()
     {
         var result = await Mediator.Send(new GetDashboardWarningsQuery());
@@ -28,7 +28,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet]
-    [Authorize]
+    [Authorize(Roles = "TechnicalManager, ProjectLeader, SiteEngineer, Director, Accountant")]
     public async Task<IActionResult> GetProjects([FromQuery] GetProjectsQuery query)
     {
         var result = await Mediator.Send(query);
@@ -36,7 +36,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet("{id}")]
-    [Authorize]
+    [Authorize(Roles = "TechnicalManager, ProjectLeader, SiteEngineer, Director, Accountant")]
     public async Task<IActionResult> GetProjectById(long id)
     {
         var result = await Mediator.Send(new GetProjectByIdQuery(id));

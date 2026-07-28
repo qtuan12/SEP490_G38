@@ -2,11 +2,13 @@ using BPG.Application.Common.Models;
 using BPG.Application.DTOs.PurchaseOrders;
 using BPG.Application.Features.PurchaseOrders.Queries;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using UserRole = BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
@@ -14,8 +16,13 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
         : IRequestHandler<GetPurchaseOrderByIdQuery, ApiResponse<PurchaseOrderDetailDto>>
     {
         private readonly IUnitOfWork _uow;
+        private readonly ICurrentUserService _currentUserService;
 
-        public GetPurchaseOrderByIdQueryHandler(IUnitOfWork uow) => _uow = uow;
+        public GetPurchaseOrderByIdQueryHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        {
+            _uow = uow;
+            _currentUserService = currentUserService;
+        }
 
         public async Task<ApiResponse<PurchaseOrderDetailDto>> Handle(
             GetPurchaseOrderByIdQuery request, CancellationToken cancellationToken)
@@ -23,22 +30,21 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             var po = await _uow.Repository<PurchaseOrder>().Query()
                 .AsNoTracking()
                 .Include(p => p.Supplier)
+                .Include(p => p.Project)
                 .Include(p => p.Items).ThenInclude(i => i.Material)
                 .Include(p => p.Items).ThenInclude(i => i.Unit)
                 .Include(p => p.Request).ThenInclude(mr => mr!.Phase)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
                 ?? throw new NotFoundException(nameof(PurchaseOrder), request.POId);
 
-            // Project name
-            string projectName = string.Empty;
-            if (po.ProjectId.HasValue)
+            // SiteEngineer chỉ được xem PO thuộc dự án mình được phân công.
+            if (_currentUserService.IsInRole(UserRole.SiteEngineer))
             {
-                var project = await _uow.Repository<Project>().Query()
-                    .AsNoTracking()
-                    .Where(p => p.ProjectId == po.ProjectId.Value)
-                    .Select(p => p.Name)
-                    .FirstOrDefaultAsync(cancellationToken);
-                projectName = project ?? string.Empty;
+                var currentUserId = _currentUserService.GetRequiredUserId();
+                var isMember = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(m => m.ProjectId == po.ProjectId && m.UserId == currentUserId, cancellationToken);
+                if (!isMember)
+                    throw new ForbiddenException("Bạn không được phân công vào dự án này nên không có quyền xem đơn hàng.");
             }
 
             // TotalReceived per material from approved GR items
@@ -60,7 +66,6 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 OrderDate = po.OrderDate,
                 ExpectedDeliveryDate = po.ExpectedDeliveryDate,
                 DeliveryAddress = po.DeliveryAddress,
-                PaymentTerms = po.PaymentTerms,
                 Notes = po.Notes,
                 CancelledReason = po.CancelledReason,
                 ClosedReason = po.ClosedReason,
@@ -69,7 +74,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 SupplierName = po.Supplier?.SupplierName ?? string.Empty,
                 SupplierContactInfo = po.Supplier?.ContactInfo,
                 ProjectId = po.ProjectId,
-                ProjectName = projectName,
+                ProjectName = po.Project?.Name ?? string.Empty,
                 Items = po.Items.Select(i =>
                 {
                     receivedMap.TryGetValue(i.MaterialId, out var received);

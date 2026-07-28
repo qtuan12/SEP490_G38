@@ -16,6 +16,11 @@ const unwrap = <T>(res: ApiResponse<T>): T => {
   return res.data;
 };
 
+export interface CompanyInfoDto {
+  companyName: string;
+  companyLogoUrl: string;
+}
+
 export const systemConfigService = {
   getAll: async (): Promise<SystemConfigDto[]> =>
     unwrap(await apiClient.get<ApiResponse<SystemConfigDto[]>>('/systemconfigs')),
@@ -23,5 +28,13 @@ export const systemConfigService = {
   update: async (configKey: string, configValue: string): Promise<boolean> =>
     unwrap(
       await apiClient.put<ApiResponse<boolean>>(`/systemconfigs/${encodeURIComponent(configKey)}`, { configValue })
+    ),
+
+  getCompanyInfo: async (): Promise<CompanyInfoDto> =>
+    unwrap(await apiClient.get<ApiResponse<CompanyInfoDto>>('/systemconfigs/company')),
+
+  updateCompanySettings: async (companyName: string, companyLogoUrl: string): Promise<boolean> =>
+    unwrap(
+      await apiClient.put<ApiResponse<boolean>>('/systemconfigs/company', { companyName, companyLogoUrl })
     ),
 };

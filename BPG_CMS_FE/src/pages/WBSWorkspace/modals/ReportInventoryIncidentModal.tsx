@@ -12,10 +12,22 @@ import type { UploadedFileState } from '../../../utils/uploadHelper';
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
 
+const getLocalISOString = () => {
+  const now = new Date();
+  const tzOffset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+};
+
 const schema = z.object({
   incidentType: z.enum(['InventoryLoss', 'InventoryDamage']),
   description: z.string().min(5, 'Mô tả sự cố phải có ít nhất 5 ký tự'),
-  incidentDate: z.string().min(1, 'Vui lòng chọn ngày phát hiện'),
+  incidentDate: z.string()
+    .min(1, 'Vui lòng chọn ngày phát hiện')
+    .refine((val) => {
+      const selected = new Date(val);
+      const now = new Date();
+      return selected <= now;
+    }, 'Ngày/Giờ phát hiện không được vượt quá thời gian hiện tại'),
   estimatedLaborDays: z.coerce.number().optional().default(0),
   estimatedDelayDays: z.coerce.number().optional().default(0),
 });
@@ -63,7 +75,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
     defaultValues: {
       incidentType: 'InventoryLoss',
       description: '',
-      incidentDate: new Date().toISOString().slice(0, 16),
+      incidentDate: getLocalISOString(),
       estimatedLaborDays: 0,
       estimatedDelayDays: 0,
     },
@@ -213,21 +225,28 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
       </div>
 
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ minHeight: '510px' }}>
           <div className="flex flex-col gap-3">
             <h4 style={{ margin: '0 0 4px 0', fontSize: '0.82rem', fontWeight: 700, color: 'hsl(var(--primary))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Phần 1: Thông tin Sự cố
             </h4>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
                   Loại sự cố vật tư <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
-                <select className="input" {...register('incidentType')}>
-                  <option value="InventoryLoss">📦 Thất thoát vật tư </option>
-                  <option value="InventoryDamage">🔴 Hư hại vật tư </option>
-                </select>
+                <div style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: 'hsl(var(--bg-card))',
+                  border: '1px solid hsl(var(--border))',
+                  fontSize: '0.9rem',
+                  color: 'hsl(210, 70%, 45%)',
+                  fontWeight: 600,
+                }}>
+                  📦 Sự cố Vật tư Kho
+                </div>
+                <input type="hidden" {...register('incidentType')} value="InventoryLoss" />
               </div>
 
               <div>
@@ -241,6 +260,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                   placeholder="Mô tả vật tư bị mất/hư hỏng, số lượng ước tính, điều kiện phát hiện..."
                   {...register('description')}
                   rows={3}
+                  style={{ resize: 'none' }}
                 />
                 {(errors as any).description && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).description?.message)}</span>}
               </div>
@@ -252,6 +272,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 <input
                   type="datetime-local"
                   className="input"
+                  max={getLocalISOString()}
                   {...register('incidentDate')}
                 />
                 {(errors as any).incidentDate && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).incidentDate?.message)}</span>}
@@ -382,52 +403,54 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 )}
 
                 {damagedMaterials.length > 0 ? (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                    <thead style={{ background: 'hsl(var(--bg-muted))', textAlign: 'left' }}>
-                      <tr>
-                        <th style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>Vật tư</th>
-                        <th style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>SL Lỗi/Mất</th>
-                        <th style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', width: '40px' }}></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {damagedMaterials.map((m, idx) => (
-                        <tr key={m.materialId}>
-                          <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
-                            <div style={{ fontWeight: 600 }}>{m.materialCode}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>{m.materialName}</div>
-                          </td>
-                          <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <input
-                                type="number"
-                                min={0}
-                                className="input"
-                                style={{ width: '80px', padding: '4px 8px' }}
-                                value={m.quantityLost === 0 ? '' : m.quantityLost}
-                                onChange={e => {
-                                  const val = parseFloat(e.target.value) || 0;
-                                  const newArr = [...damagedMaterials];
-                                  newArr[idx].quantityLost = val;
-                                  setDamagedMaterials(newArr);
-                                }}
-                              />
-                              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>{m.unitName}</span>
-                            </div>
-                          </td>
-                          <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={() => setDamagedMaterials(damagedMaterials.filter((_, i) => i !== idx))}
-                              style={{ color: 'hsl(var(--danger))', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
+                  <div style={{ maxHeight: '160px', overflowY: 'auto', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                      <thead style={{ textAlign: 'left' }}>
+                        <tr>
+                          <th style={{ position: 'sticky', top: 0, zIndex: 1, padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))' }}>Vật tư</th>
+                          <th style={{ position: 'sticky', top: 0, zIndex: 1, padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))' }}>SL Lỗi/Mất</th>
+                          <th style={{ position: 'sticky', top: 0, zIndex: 1, padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))', width: '40px' }}></th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {damagedMaterials.map((m, idx) => (
+                          <tr key={m.materialId}>
+                            <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
+                              <div style={{ fontWeight: 600 }}>{m.materialCode}</div>
+                              <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>{m.materialName}</div>
+                            </td>
+                            <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  className="input"
+                                  style={{ width: '80px', padding: '4px 8px' }}
+                                  value={m.quantityLost === 0 ? '' : m.quantityLost}
+                                  onChange={e => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    const newArr = [...damagedMaterials];
+                                    newArr[idx].quantityLost = val;
+                                    setDamagedMaterials(newArr);
+                                  }}
+                                />
+                                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>{m.unitName}</span>
+                              </div>
+                            </td>
+                            <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => setDamagedMaterials(damagedMaterials.filter((_, i) => i !== idx))}
+                                style={{ color: 'hsl(var(--danger))', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
                   <div style={{ padding: '16px', textAlign: 'center', fontSize: '0.8rem', color: 'hsl(var(--text-muted))', border: '1px dashed hsl(var(--border))', borderRadius: '6px' }}>
                     Chưa có vật tư nào được chọn.

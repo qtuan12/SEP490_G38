@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useCompany } from '../../context/CompanyContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, Mail, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
 
 const getRoleDashboard = (role: string): string => {
-  switch (role) {
+  const normRole = role?.toLowerCase() || '';
+  switch (normRole) {
+    case 'admin':
+      return '/users';
     case 'technicalmanager':
     case 'siteengineer':
+    case 'projectleader':
       return '/projects';
     default:
       return '/dashboard';
@@ -16,6 +21,7 @@ const getRoleDashboard = (role: string): string => {
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
+  const { companyName, companyLogoUrl } = useCompany();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -125,12 +131,12 @@ export const Login: React.FC = () => {
         
         {/* Header */}
         <div className="text-center mb-8">
-          <img 
-            src="/logo.png" 
-            alt="BPG Logo" 
+          <img
+            src={companyLogoUrl}
+            alt={`${companyName} Logo`}
             className="h-20 w-20 object-contain mb-4 drop-shadow-md mx-auto"
           />
-          <h2 className="gradient-text text-[1.75rem] font-bold mb-1.5">BPG CMS</h2>
+          <h2 className="gradient-text text-[1.75rem] font-bold mb-1.5">{companyName}</h2>
           <p className="text-[hsl(var(--text-secondary))] text-[0.9rem]">
             Hệ thống Quản lý Thi công & Kiểm soát Vật tư
           </p>
