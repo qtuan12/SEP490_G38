@@ -117,6 +117,16 @@ function App() {
         <NotificationProvider>
           <Router>
             <Routes>
+              {/* Root route */}
+              <Route 
+                path="/" 
+                element={
+                  <PublicRoute>
+                    <Navigate to="/field?standalone=true" replace />
+                  </PublicRoute>
+                } 
+              />
+
               {/* Public login route */}
               <Route 
                 path="/login" 
