@@ -34,11 +34,17 @@ export const ProjectDailyLogs: React.FC = () => {
       {/* Top navigation */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <button
-          onClick={() => navigate(`/projects/${projectId}`)}
+          onClick={() => {
+            if (window.history.state?.idx > 0) {
+              navigate(-1);
+            } else {
+              navigate(`/projects/${projectId}`);
+            }
+          }}
           className="inline-flex items-center gap-1.5 bg-transparent border-none text-[hsl(var(--text-secondary))] cursor-pointer text-sm font-medium hover:text-[hsl(var(--primary))]"
         >
           <ArrowLeft size={16} />
-          <span>Quay lại Kế hoạch WBS</span>
+          <span>Quay lại</span>
         </button>
 
         {/* Nút mở drawer lịch sử — chỉ hiện khi đang xem theo task */}

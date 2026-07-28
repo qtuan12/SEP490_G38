@@ -321,12 +321,12 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                             type="text"
                             value={editingCommentContent}
                             onChange={(e) => setEditingCommentContent(e.target.value)}
-                            className="h-8 text-xs flex-1"
+                            className="h-10 sm:h-8 text-xs flex-1"
                             required
                             autoFocus
                           />
-                          <Button size="sm" type="submit" variant="primary" className="h-8 px-2 py-0.5 text-xs">Lưu</Button>
-                          <Button size="sm" type="button" variant="outline" className="h-8 px-2 py-0.5 text-xs" onClick={() => setEditingCommentId(null)}>Hủy</Button>
+                          <Button size="sm" type="submit" variant="primary" className="h-10 sm:h-8 px-2 py-0.5 text-xs">Lưu</Button>
+                          <Button size="sm" type="button" variant="outline" className="h-10 sm:h-8 px-2 py-0.5 text-xs" onClick={() => setEditingCommentId(null)}>Hủy</Button>
                         </form>
                       ) : (
                         <p className="text-[hsl(var(--text-primary))] mt-0.5 leading-snug">
@@ -348,13 +348,13 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                 placeholder="Nhập ý kiến chỉ đạo trực tuyến của Ban lãnh đạo..."
                 value={commentInput}
                 onChange={(e) => setCommentInput(e.target.value)}
-                className="h-9 text-xs flex-1"
+                className="h-11 sm:h-9 text-xs flex-1"
                 required
               />
               <Button
                 type="submit"
                 variant="primary"
-                className="w-9 h-9 p-0 rounded-sm shrink-0 flex items-center justify-center"
+                className="w-11 h-11 sm:w-9 sm:h-9 p-0 rounded-sm shrink-0 flex items-center justify-center"
               >
                 <Send size={13} />
               </Button>
