@@ -196,9 +196,7 @@ function App() {
                 path="/users" 
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
-                    <DesktopOnlyGuard>
-                      <UserManagement />
-                    </DesktopOnlyGuard>
+                    <UserManagement />
                   </ProtectedRoute>
                 } 
               />

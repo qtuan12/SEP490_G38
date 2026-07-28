@@ -14,6 +14,9 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle2,
+  User as UserIcon,
+  Phone,
+  Mail
 } from 'lucide-react';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
 
@@ -62,7 +65,8 @@ export const UserManagement: React.FC = () => {
     return allUsers.filter(user => {
       const matchSearch = !searchTerm || 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.phoneNumber && user.phoneNumber.includes(searchTerm));
       const matchRole = !roleFilter || user.role === roleFilter;
       return matchSearch && matchRole;
     });
@@ -83,7 +87,7 @@ export const UserManagement: React.FC = () => {
 
   const showSuccess = (message: string) => {
     setSuccess(message);
-    setTimeout(() => setSuccess(null), 3000);
+    setTimeout(() => setSuccess(null), 3500);
   };
 
   const handleDeleteSubmit = async () => {
@@ -119,18 +123,28 @@ export const UserManagement: React.FC = () => {
     setIsDeleteOpen(true);
   };
 
-
-
   const columns = [
     {
       key: 'name',
       header: 'Tên thành viên',
-      render: (user: UserProfile) => <span className="font-semibold">{user.name}</span>
+      render: (user: UserProfile) => (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-sm shrink-0">
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+          <div className="flex flex-col">
+            <span className="font-semibold text-slate-900">{user.name}</span>
+            {user.phoneNumber && (
+              <span className="text-xs text-slate-500">{user.phoneNumber}</span>
+            )}
+          </div>
+        </div>
+      )
     },
     {
       key: 'email',
       header: 'Email tài khoản',
-      render: (user: UserProfile) => <span className="text-[hsl(var(--text-secondary))]">{user.email}</span>
+      render: (user: UserProfile) => <span className="text-slate-600 text-sm">{user.email}</span>
     },
     {
       key: 'role',
@@ -163,8 +177,8 @@ export const UserManagement: React.FC = () => {
             onClick={() => handleToggleStatus(user.id, user.name)}
           >
             {user.status === 'active'
-              ? <Lock size={15} className="text-[hsl(var(--warning))]" />
-              : <Unlock size={15} className="text-[hsl(var(--success))]" />
+              ? <Lock size={15} className="text-amber-600" />
+              : <Unlock size={15} className="text-emerald-600" />
             }
           </Button>
           <Button
@@ -173,7 +187,7 @@ export const UserManagement: React.FC = () => {
             title="Sửa thông tin"
             onClick={() => openEditModal(user)}
           >
-            <Edit2 size={15} className="text-[hsl(var(--primary-hover))]" />
+            <Edit2 size={15} className="text-blue-600" />
           </Button>
           <Button
             variant="secondary"
@@ -181,7 +195,7 @@ export const UserManagement: React.FC = () => {
             title="Xóa tài khoản"
             onClick={() => openDeleteModal(user)}
           >
-            <Trash2 size={15} className="text-[hsl(var(--danger))]" />
+            <Trash2 size={15} className="text-red-600" />
           </Button>
         </div>
       ),
@@ -189,92 +203,183 @@ export const UserManagement: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-in">
+    <div className="flex flex-col gap-5 p-4 sm:p-6 animate-fade-in max-w-7xl mx-auto w-full">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <UserIcon className="text-blue-600 shrink-0" size={24} />
+            <span>Quản lý Thành viên</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Quản lý tài khoản, phân quyền vai trò và trạng thái hoạt động trong hệ thống BPG
+          </p>
+        </div>
+        <Button
+          variant="primary"
+          onClick={() => { setError(null); setIsCreateOpen(true); }}
+          className="h-10 font-semibold flex items-center justify-center gap-2 w-full sm:w-auto shrink-0 shadow-sm"
+        >
+          <UserPlus size={18} />
+          <span>Thêm Thành viên</span>
+        </Button>
+      </div>
 
       {success && (
-        <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.3)] rounded-sm py-3 px-4 text-[hsl(142_70%_35%)] text-sm font-medium animate-fade-in">
-          <CheckCircle2 size={18} className="text-[hsl(var(--success))] shrink-0" />
+        <div className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-xl py-3 px-4 text-emerald-800 text-sm font-medium animate-fade-in shadow-sm">
+          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
           <span>{success}</span>
         </div>
       )}
 
       {error && (
-        <div className="flex items-center gap-2.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm py-3 px-4 text-[hsl(346_84%_35%)] text-sm font-medium animate-fade-in">
-          <AlertCircle size={18} className="text-[hsl(var(--danger))] shrink-0" />
-          <span>{error}</span>
+        <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-xl py-3 px-4 text-red-800 text-sm font-medium animate-fade-in shadow-sm">
+          <AlertCircle size={18} className="text-red-600 shrink-0" />
+          <span className="flex-1">{error}</span>
           <button
             onClick={() => setError(null)}
-            className="ml-auto bg-transparent border-none text-inherit cursor-pointer opacity-70 hover:opacity-100"
+            className="bg-transparent border-none text-inherit cursor-pointer opacity-70 hover:opacity-100 p-1"
           >
             &times;
           </button>
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 flex flex-col gap-4">
-        {/* Filters & Actions bar */}
-        <div className="flex justify-between items-center flex-wrap gap-4">
-          <div className="flex items-center gap-3 flex-grow max-w-2xl">
-            <div className="relative flex-grow">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm thành viên..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPageNumber(1);
-                }}
-                className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="w-48 shrink-0">
-              <Select
-                value={roleFilter}
-                onChange={handleRoleChange}
-                className="h-10"
-                options={[
-                  { label: 'Tất cả Vai trò', value: '' },
-                  { label: 'Admin', value: 'admin' },
-                  { label: 'Trưởng phòng Kĩ thuật', value: 'technicalmanager' },
-                  { label: 'Nhân viên kỹ thuật', value: 'siteengineer' },
-                  { label: 'Kế Toán', value: 'accountant' },
-                  { label: 'Giám Đốc', value: 'director' },
-                ]}
-              />
-            </div>
+      {/* Main Content Card */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 sm:p-5 flex flex-col gap-4">
+        {/* Filters bar */}
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo tên, email hoặc SĐT..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPageNumber(1);
+              }}
+              className="pl-9 pr-4 py-2 w-full text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 focus:bg-white transition-colors"
+            />
           </div>
-
-          <Button
-            variant="primary"
-            onClick={() => { setError(null); setIsCreateOpen(true); }}
-            className="h-10 font-semibold flex items-center gap-1.5"
-          >
-            <UserPlus size={18} />
-            <span>Thêm Thành viên</span>
-          </Button>
+          <div className="w-full sm:w-56 shrink-0">
+            <Select
+              value={roleFilter}
+              onChange={handleRoleChange}
+              className="h-10 rounded-xl"
+              options={[
+                { label: 'Tất cả Vai trò', value: '' },
+                { label: 'Admin', value: 'admin' },
+                { label: 'Trưởng phòng Kĩ thuật', value: 'technicalmanager' },
+                { label: 'Nhân viên kỹ thuật', value: 'siteengineer' },
+                { label: 'Kế Toán', value: 'accountant' },
+                { label: 'Giám Đốc', value: 'director' },
+              ]}
+            />
+          </div>
         </div>
 
-        {/* Table */}
+        {/* Content Area */}
         {loading ? (
-          <div className="flex justify-center items-center h-[200px] gap-2.5">
-            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-            <span className="text-[hsl(var(--text-secondary))]">Đang tải dữ liệu...</span>
+          <div className="flex justify-center items-center h-48 gap-2.5">
+            <Loader2 className="animate-spin text-blue-600" size={24} />
+            <span className="text-slate-500 text-sm">Đang tải danh sách thành viên...</span>
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="text-center py-12 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            <UserIcon size={36} className="text-slate-300 mx-auto mb-2" />
+            <p className="text-sm font-medium text-slate-600">Không tìm thấy thành viên nào trùng khớp.</p>
+            <p className="text-xs text-slate-400 mt-1">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc vai trò.</p>
           </div>
         ) : (
           <div className="animate-fade-in flex flex-col gap-4">
-            <DataTable
-              columns={columns}
-              data={paginatedUsers}
-              keyExtractor={(item) => item.id}
-              emptyMessage="Không tìm thấy thành viên nào trùng khớp."
-            />
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <DataTable
+                columns={columns}
+                data={paginatedUsers}
+                keyExtractor={(item) => item.id}
+                emptyMessage="Không tìm thấy thành viên nào."
+              />
+            </div>
 
-            {/* Pagination */}
+            {/* Mobile & PWA Responsive Cards View */}
+            <div className="grid grid-cols-1 gap-3.5 md:hidden">
+              {paginatedUsers.map((u) => (
+                <div 
+                  key={u.id}
+                  className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-all flex flex-col gap-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-sm shrink-0 shadow-xs">
+                        {u.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-slate-900 text-sm truncate">{u.name}</h4>
+                        <div className="flex items-center gap-1 text-xs text-slate-500 truncate mt-0.5">
+                          <Mail size={12} className="shrink-0 text-slate-400" />
+                          <span className="truncate">{u.email}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Badge variant={getRoleVariant(u.role)} className="shrink-0 text-[10px]">
+                      {getRoleLabel(u.role)}
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={u.status === 'active' ? 'success' : 'danger'} className="normal-case text-[10px]">
+                        {u.status === 'active' ? 'Đang hoạt động' : 'Bị khóa'}
+                      </Badge>
+                      {u.phoneNumber && (
+                        <span className="flex items-center gap-1 text-slate-500">
+                          <Phone size={11} className="text-slate-400" />
+                          {u.phoneNumber}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(u.id, u.name)}
+                        className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
+                        title={u.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa'}
+                      >
+                        {u.status === 'active'
+                          ? <Lock size={14} className="text-amber-600" />
+                          : <Unlock size={14} className="text-emerald-600" />
+                        }
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(u)}
+                        className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-blue-600 transition-colors"
+                        title="Sửa thông tin"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openDeleteModal(u)}
+                        className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-red-600 transition-colors"
+                        title="Xóa tài khoản"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-1 mt-4">
-                <span className="text-sm text-[hsl(var(--text-secondary))]">
-                  Tổng {totalCount} thành viên
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                <span className="text-xs text-slate-500">
+                  Hiển thị {(pageNumber - 1) * PAGE_SIZE + 1} - {Math.min(pageNumber * PAGE_SIZE, totalCount)} trên {totalCount} thành viên
                 </span>
                 <Pagination
                   currentPage={pageNumber}
@@ -286,7 +391,7 @@ export const UserManagement: React.FC = () => {
             )}
 
             {totalPages <= 1 && totalCount > 0 && (
-              <p className="text-sm text-[hsl(var(--text-muted))] px-1 mt-4">Tổng {totalCount} thành viên</p>
+              <p className="text-xs text-slate-400 pt-1">Tổng cộng {totalCount} thành viên</p>
             )}
           </div>
         )}
