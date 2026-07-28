@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { isPWAMode } from '../utils/pwaHelpers';
-import { Monitor, Smartphone, ArrowLeft } from 'lucide-react';
+import { Monitor, Smartphone } from 'lucide-react';
 import { Button } from './ui';
 
 interface DesktopOnlyGuardProps {
