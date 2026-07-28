@@ -231,6 +231,19 @@ export const FieldWorkbench: React.FC = () => {
         )}
       </section>
 
+      {/* Floating Action Button (FAB) for mobile/PWA */}
+      {selectedProject && tasks.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setLogModalTaskId(tasks[0].id)}
+          className="fixed bottom-20 right-4 z-40 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 px-4 rounded-full shadow-xl flex items-center gap-2 border border-blue-400 transition-all md:hidden"
+          title="Tạo nhật ký thi công nhanh"
+        >
+          <Plus size={20} />
+          <span className="text-xs font-semibold">Tạo Nhật ký</span>
+        </button>
+      )}
+
       {/* Daily log create modal */}
       {logModalTaskId && user && selectedProject && (
         <DailyLogFormModal
