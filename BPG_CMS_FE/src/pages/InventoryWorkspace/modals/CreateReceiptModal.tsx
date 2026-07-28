@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Button, Input, FormItem, Select } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import type { PurchaseOrderDto, PurchaseOrderItemDto } from '../../../services/inventoryService';
-import { UploadCloud, X, AlertCircle, Loader2 } from 'lucide-react';
+import { UploadCloud, X, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
@@ -509,7 +510,20 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                     )}
 
                     {file.status === 'error' && (
-                      <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                      <>
+                        <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            retryUpload(file.id);
+                          }}
+                          className="absolute top-1 left-1 bg-blue-600 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 transition-opacity z-10"
+                          title="Thử lại upload"
+                        >
+                          <RotateCcw size={10} />
+                        </button>
+                      </>
                     )}
 
                     {file.status === 'success' && (
