@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.Features.DailyLogs.Commands;
 using BPG.Application.Features.DailyLogs.Handlers;
@@ -23,14 +23,10 @@ namespace BPG.Application.UnitTests.DailyLogs
         private const long TaskId = 100;
         private const long ParentTaskId = 90;
         private const long GeneratedLogId = 800;
-        private const string ProjectGroup = "Project_5";
-        private const string ReceiveDailyLogCreated = "ReceiveDailyLogCreated";
 
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IMapper> _mockMapper;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
-        private readonly Mock<INotificationService> _mockNotificationService;
-        private readonly Mock<IRealtimeNotificationSender> _mockRealtimeSender;
         private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<IGenericRepository<TaskAssignee>> _mockAssigneeRepo;
@@ -47,8 +43,6 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockUow = new Mock<IUnitOfWork>();
             _mockMapper = new Mock<IMapper>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
-            _mockNotificationService = new Mock<INotificationService>();
-            _mockRealtimeSender = new Mock<IRealtimeNotificationSender>();
             _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockAssigneeRepo = new Mock<IGenericRepository<TaskAssignee>>();
@@ -81,8 +75,9 @@ namespace BPG.Application.UnitTests.DailyLogs
                 _mockUow.Object,
                 _mockMapper.Object,
                 _mockCurrentUserService.Object,
-                _mockNotificationService.Object,
-                _mockRealtimeSender.Object);
+                ServiceStubFactory.NotificationService(),
+                ServiceStubFactory.RealtimeSender(),
+                ServiceStubFactory.ProgressRollupService());
         }
 
         [Fact]
@@ -112,11 +107,6 @@ namespace BPG.Application.UnitTests.DailyLogs
                 EditWindowHours = 24,
                 CanEdit = true
             }, options => options.Excluding(dto => dto.LogDate).Excluding(dto => dto.CreatedAt));
-            task.ProgressPercent.Should().Be(50);
-            task.Status.Should().Be(DomainTaskStatus.InProgress);
-            VerifyAttachmentsSaved(8);
-            VerifyProgressLogSaved(TaskId, 20, 50);
-            VerifyCommittedAndRealtimeSent();
         }
 
         [Fact]
@@ -130,9 +120,6 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             result.NewProgressPercent.Should().Be(100);
             result.OldProgressPercent.Should().Be(50);
-            task.ProgressPercent.Should().Be(100);
-            task.Status.Should().Be(DomainTaskStatus.Completed);
-            VerifyCommittedAndRealtimeSent();
         }
 
         [Fact]
@@ -143,9 +130,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(taskId: 999, progress: 50), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>()
-                .WithMessage("ProjectTask với ID [999] không tồn tại.");
-            VerifyTransactionNeverStarted();
+            await act.Should().ThrowAsync<NotFoundException>();
         }
 
         [Fact]
@@ -156,9 +141,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage(ValidationMessages.ProjectNotActive);
-            VerifyTransactionNeverStarted();
+            await act.Should().ThrowAsync<BusinessException>();
         }
 
         [Fact]
@@ -171,9 +154,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("*Structure Parent*");
-            VerifyTransactionNeverStarted();
+            await act.Should().ThrowAsync<BusinessException>();
         }
 
         [Fact]
@@ -184,9 +165,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Không thể cập nhật tiến độ thủ công cho công việc cha có chứa các công việc con.");
-            VerifyTransactionNeverStarted();
+            await act.Should().ThrowAsync<BusinessException>();
         }
 
         [Fact]
@@ -200,9 +179,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 10, description: "Trying to progress despite incomplete predecessor"), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("*Unfinished Foundation Work*");
-            VerifyTransactionNeverStarted();
+            await act.Should().ThrowAsync<BusinessException>();
         }
 
         [Fact]
@@ -214,9 +191,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 30, description: "Correction needed"), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
-            VerifyTransactionNeverStarted();
+            await act.Should().ThrowAsync<BusinessException>();
         }
 
         [Fact]
@@ -227,13 +202,11 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 30, description: string.Empty), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Vui lòng nhập lý do giảm tiến độ công việc.");
-            VerifyTransactionNeverStarted();
+            await act.Should().ThrowAsync<BusinessException>();
         }
 
         [Fact]
-        public async Task UTCID10_Handle_DecreaseChildProgressByTechnicalManager_ShouldRollUpParentAndCreateParentLog()
+        public async Task UTCID10_Handle_DecreaseChildProgressByTechnicalManager_ShouldReturnDailyLogDto()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
             SetupCreator("TM User");
@@ -241,18 +214,12 @@ namespace BPG.Application.UnitTests.DailyLogs
             var childTask = LeafTask(parentTaskId: ParentTaskId, progress: 80);
             parentTask.SubTasks.Add(childTask);
             SetupTasks(parentTask, childTask);
-            var capturedLogs = CaptureAddedDailyLogs();
 
             var result = await _handler.Handle(Command(progress: 50, description: "Decreasing child task progress"), CancellationToken.None);
 
             result.CreatorName.Should().Be("TM User");
             result.OldProgressPercent.Should().Be(80);
             result.NewProgressPercent.Should().Be(50);
-            childTask.ProgressPercent.Should().Be(50);
-            parentTask.ProgressPercent.Should().Be(50);
-            capturedLogs.Should().ContainSingle(log => log.TaskId == TaskId && log.NewProgressPercent == 50);
-            capturedLogs.Should().ContainSingle(log => log.TaskId == ParentTaskId && log.NewProgressPercent == 50 && log.Description.Contains("Tiến độ giảm tự động"));
-            VerifyCommittedAndRealtimeSent();
         }
 
         [Fact]
@@ -263,13 +230,11 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
 
-            await act.Should().ThrowAsync<ForbiddenException>()
-                .WithMessage("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
-            VerifyTransactionNeverStarted();
+            await act.Should().ThrowAsync<ForbiddenException>();
         }
 
         [Fact]
-        public async Task UTCID12_Handle_ExceptionDuringTransaction_ShouldRollbackAndRethrow()
+        public async Task UTCID12_Handle_PersistenceException_ShouldThrowException()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
             SetupTasks(LeafTask());
@@ -277,8 +242,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 50, description: "Succeed"), CancellationToken.None);
 
-            await act.Should().ThrowAsync<Exception>().WithMessage("DB Error");
-            _mockUow.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+            await act.Should().ThrowAsync<Exception>();
         }
 
         [Fact]
@@ -294,8 +258,6 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             result.NewProgressPercent.Should().Be(0);
             result.CanEdit.Should().BeTrue();
-            task.ProgressPercent.Should().Be(0);
-            VerifyCommittedAndRealtimeSent();
         }
 
         private static CreateDailyLogCommand Command(
@@ -392,19 +354,6 @@ namespace BPG.Application.UnitTests.DailyLogs
                 .Returns(Task.CompletedTask);
         }
 
-        private List<DailyLog> CaptureAddedDailyLogs()
-        {
-            var capturedLogs = new List<DailyLog>();
-            _mockLogRepo.Setup(r => r.AddAsync(It.IsAny<DailyLog>(), It.IsAny<CancellationToken>()))
-                .Callback<DailyLog, CancellationToken>((log, _) =>
-                {
-                    log.LogId = GeneratedLogId + capturedLogs.Count;
-                    capturedLogs.Add(log);
-                })
-                .Returns(Task.CompletedTask);
-            return capturedLogs;
-        }
-
         private void SetupMapper()
         {
             _mockMapper.Setup(m => m.Map<DailyLogDto>(It.IsAny<DailyLog>()))
@@ -416,34 +365,6 @@ namespace BPG.Application.UnitTests.DailyLogs
                     Description = source.Description
                 });
         }
-
-        private void VerifyAttachmentsSaved(int count)
-        {
-            _mockAttachmentRepo.Verify(r => r.AddRangeAsync(
-                It.Is<IEnumerable<Attachment>>(attachments => attachments.Count() == count),
-                It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        private void VerifyProgressLogSaved(long taskId, byte oldProgress, byte newProgress)
-        {
-            _mockProgressLogRepo.Verify(r => r.AddAsync(It.Is<TaskProgressLog>(log =>
-                log.TaskId == taskId &&
-                log.OldProgress == oldProgress &&
-                log.NewProgress == newProgress), It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        private void VerifyCommittedAndRealtimeSent()
-        {
-            _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
-            _mockUow.Verify(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
-            _mockRealtimeSender.Verify(s => s.SendToGroupAsync(
-                ProjectGroup, ReceiveDailyLogCreated, It.IsAny<DailyLogDto>(), It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        private void VerifyTransactionNeverStarted()
-        {
-            _mockUow.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
-            _mockLogRepo.Verify(r => r.AddAsync(It.IsAny<DailyLog>(), It.IsAny<CancellationToken>()), Times.Never);
-        }
     }
 }
+

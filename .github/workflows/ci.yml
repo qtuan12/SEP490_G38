@@ -44,6 +44,9 @@ jobs:
         cache: 'npm'
         cache-dependency-path: BPG_CMS_FE/package-lock.json
 
+    - name: Pin npm version
+      run: npm install -g npm@11.13.0
+
     - name: Install Frontend Dependencies
       run: |
         cd BPG_CMS_FE

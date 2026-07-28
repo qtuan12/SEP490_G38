@@ -1,4 +1,4 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Inventory;
 using BPG.Application.Features.Inventory.Handlers;
 using BPG.Application.Features.Inventory.Queries;
@@ -89,7 +89,7 @@ namespace BPG.Application.UnitTests.Inventory
             result.Should().NotBeNull();
             result.Success.Should().BeTrue();
             result.Data.Should().HaveCount(1);
-            result.Data.First().SafetyThreshold.Should().Be(15);
+            result.Data!.First().SafetyThreshold.Should().Be(15);
         }
 
         [Fact]
@@ -144,7 +144,7 @@ namespace BPG.Application.UnitTests.Inventory
             // Assert
             result.Should().NotBeNull();
             result.Success.Should().BeTrue();
-            var dto = result.Data.First();
+            var dto = result.Data!.First();
             dto.SupplierName.Should().Be("Supplier Alpha");
         }
 
@@ -196,7 +196,7 @@ namespace BPG.Application.UnitTests.Inventory
             // Assert
             result.Should().NotBeNull();
             result.Success.Should().BeTrue();
-            var dto = result.Data.First();
+            var dto = result.Data!.First();
             dto.BoqQuantity.Should().Be(100);
             dto.UsedQuantity.Should().Be(40);
         }
@@ -249,7 +249,7 @@ namespace BPG.Application.UnitTests.Inventory
             // Assert
             result.Should().NotBeNull();
             result.Success.Should().BeTrue();
-            var dto = result.Data.First();
+            var dto = result.Data!.First();
             dto.PhaseUsages.Should().HaveCount(1);
             dto.PhaseUsages.First().PhaseName.Should().Be("Foundation Phase");
             dto.PhaseUsages.First().BoqQuantity.Should().Be(100);
@@ -288,7 +288,7 @@ namespace BPG.Application.UnitTests.Inventory
             var result = await _handler.Handle(query, CancellationToken.None);
 
             // Assert
-            result.Data.First().SafetyThreshold.Should().Be(10m); // Fallback threshold
+            result.Data!.First().SafetyThreshold.Should().Be(10m); // Fallback threshold
         }
 
 
@@ -331,7 +331,7 @@ namespace BPG.Application.UnitTests.Inventory
 
             // Assert
             result.Success.Should().BeTrue();
-            var dto = result.Data.First();
+            var dto = result.Data!.First();
             dto.BoqQuantity.Should().Be(50);
             dto.UsedQuantity.Should().Be(20);
             dto.PhaseUsages.First().BoqQuantity.Should().Be(50);
@@ -381,7 +381,7 @@ namespace BPG.Application.UnitTests.Inventory
 
             // Assert
             result.Success.Should().BeTrue();
-            result.Data.First().SupplierName.Should().Be("Supplier Beta"); // Picks Beta as it is the newest ordered PO
+            result.Data!.First().SupplierName.Should().Be("Supplier Beta"); // Picks Beta as it is the newest ordered PO
         }
 
         [Fact]
@@ -433,14 +433,14 @@ namespace BPG.Application.UnitTests.Inventory
             result.Success.Should().BeTrue();
             result.Data.Should().HaveCount(2);
 
-            var cementDto = result.Data.First(d => d.MaterialId == 50);
+            var cementDto = result.Data!.First(d => d.MaterialId == 50);
             cementDto.BoqQuantity.Should().Be(250); // 100 + 150
             cementDto.UsedQuantity.Should().Be(100); // 30 + 70
             cementDto.PhaseUsages.Should().HaveCount(2);
             cementDto.PhaseUsages.First(u => u.PhaseId == 10).BoqQuantity.Should().Be(100);
             cementDto.PhaseUsages.First(u => u.PhaseId == 20).BoqQuantity.Should().Be(150);
 
-            var brickDto = result.Data.First(d => d.MaterialId == 60);
+            var brickDto = result.Data!.First(d => d.MaterialId == 60);
             brickDto.BoqQuantity.Should().Be(0);
             brickDto.UsedQuantity.Should().Be(0);
         }
@@ -483,9 +483,11 @@ namespace BPG.Application.UnitTests.Inventory
 
             // Assert
             result.Success.Should().BeTrue();
-            var dto = result.Data.First();
+            var dto = result.Data!.First();
             dto.BoqQuantity.Should().Be(0); // Ignored soft-deleted boq
             dto.UsedQuantity.Should().Be(0); // Ignored soft-deleted issuance
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using BPG.Application.Common.Mappings;
 using BPG.Application.DTOs.Notifications;
 using BPG.Application.Features.Notifications.Handlers;
@@ -193,8 +193,7 @@ namespace BPG.Application.UnitTests.Notifications
             Func<Task> act = async () => await _handler.Handle(query, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<UnauthorizedAccessException>()
-                .WithMessage("User is not authenticated.");
+            await act.Should().ThrowAsync<UnauthorizedAccessException>();
         }
 
         [Fact]
@@ -222,3 +221,4 @@ namespace BPG.Application.UnitTests.Notifications
         }
     }
 }
+

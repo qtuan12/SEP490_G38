@@ -21,17 +21,20 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
         private readonly ICurrentUserService _currentUserService;
         private readonly IInventoryService _inventoryService;
         private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly INotificationService _notificationService;
 
         public CreateMaterialIssuanceCommandHandler(
             IUnitOfWork uow, 
             ICurrentUserService currentUserService,
             IInventoryService inventoryService,
-            IRealtimeNotificationSender realtimeSender)
+            IRealtimeNotificationSender realtimeSender,
+            INotificationService notificationService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _inventoryService = inventoryService;
             _realtimeSender = realtimeSender;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateMaterialIssuanceCommand request, CancellationToken cancellationToken)
@@ -47,6 +50,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
             var task = await _uow.Repository<ProjectTask>().Query()
                 .Include(t => t.Phase)
                     .ThenInclude(p => p.Project)
+                .Include(t => t.Assignees)
                 .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, cancellationToken);
 
             if (task == null)
@@ -179,6 +183,39 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 await _uow.Repository<MaterialIssuanceItem>().AddRangeAsync(issuanceItems, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
+
+                var actorName = await _uow.Repository<User>().Query()
+                    .AsNoTracking()
+                    .Where(u => u.UserId == currentUserId)
+                    .Select(u => u.FullName)
+                    .FirstOrDefaultAsync(cancellationToken) ?? "Người dùng";
+
+                await _notificationService.SendNotificationAsync(
+                    currentUserId,
+                    "Xuất vật tư thành công",
+                    $"Bạn đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
+                    NotificationType.Procurement,
+                    NotificationReferenceType.MaterialIssuance,
+                    issuance.MaterialIssuanceId,
+                    cancellationToken);
+
+                var assigneeIds = task.Assignees
+                    .Select(a => a.UserId)
+                    .Where(userId => userId != currentUserId)
+                    .Distinct()
+                    .ToList();
+
+                foreach (var assigneeId in assigneeIds)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        assigneeId,
+                        "Bạn được xuất vật tư cho công việc",
+                        $"{actorName} đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
+                        NotificationType.Procurement,
+                        NotificationReferenceType.MaterialIssuance,
+                        issuance.MaterialIssuanceId,
+                        cancellationToken);
+                }
 
                 // Realtime: broadcast to members viewing this project's inventory workspace
                 await _realtimeSender.SendToGroupAsync(
