@@ -40,6 +40,9 @@ namespace BPG.Application.UnitTests.Notifications
             // Setup repository behavior in UOW
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.Repository<Notification>()).Returns(_mockNotificationRepo.Object);
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            _mockNotificationRepo.Setup(repository => repository.AddRangeAsync(It.IsAny<IEnumerable<Notification>>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             _handler = new SendNotificationCommandHandler(
                 _mockUow.Object,
@@ -50,11 +53,8 @@ namespace BPG.Application.UnitTests.Notifications
         }
 
         [Fact]
-        public async Task Handle_SendToAll_ShouldNotifyAllActiveUsersAndSendBroadcast()
+        public async Task UTCID01_Handle_SendToAllActiveUsers_ShouldComplete()
         {
-            // ==========================================
-            // ARRANGE
-            // ==========================================
             var activeUsers = new List<User>
             {
                 new User { UserId = 1, IsActive = true, IsDeleted = false },
@@ -76,25 +76,18 @@ namespace BPG.Application.UnitTests.Notifications
             );
 
             _mockMapper.Setup(m => m.Map<Notification>(It.IsAny<SendNotificationCommand>()))
-                .Returns(new Notification { Title = request.Title, Content = request.Content });
+                .Returns((SendNotificationCommand source) => new Notification { Title = source.Title, Content = source.Content });
 
             _mockMapper.Setup(m => m.Map<NotificationDto>(It.IsAny<Notification>()))
-                .Returns(new NotificationDto { NotificationId = 1, Title = request.Title });
+                .Returns((Notification source) => new NotificationDto { NotificationId = source.NotificationId, UserId = source.UserId, Title = source.Title });
 
-            // ==========================================
-            // ACT
-            // ==========================================
             Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+
             await act.Should().NotThrowAsync();
-            // ==========================================
-            // ASSERT
-            // ==========================================
-
-
         }
 
         [Fact]
-        public async Task Handle_SendToAllWithExcludedUser_ShouldPersistAndPushOnlyRemainingUsers()
+        public async Task UTCID02_Handle_SendToAllWithExcludedUser_ShouldComplete()
         {
             // Arrange
             var users = new List<User>
@@ -118,25 +111,18 @@ namespace BPG.Application.UnitTests.Notifications
             );
 
             _mockMapper.Setup(m => m.Map<Notification>(It.IsAny<SendNotificationCommand>()))
-                .Returns(new Notification { Title = request.Title, Content = request.Content });
+                .Returns((SendNotificationCommand source) => new Notification { Title = source.Title, Content = source.Content });
             _mockMapper.Setup(m => m.Map<NotificationDto>(It.IsAny<Notification>()))
                 .Returns((Notification n) => new NotificationDto { NotificationId = n.NotificationId, UserId = n.UserId, Title = n.Title });
 
-            // Act
             Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+
             await act.Should().NotThrowAsync();
-            // Assert
-
-
-
         }
 
         [Fact]
-        public async Task Handle_SpecificUserId_ShouldNotifyOnlyThatUser()
+        public async Task UTCID03_Handle_SpecificActiveUser_ShouldComplete()
         {
-            // ==========================================
-            // ARRANGE
-            // ==========================================
             var targetUserId = 99L;
             var targetUser = new User { UserId = targetUserId, IsActive = true, IsDeleted = false };
 
@@ -155,29 +141,19 @@ namespace BPG.Application.UnitTests.Notifications
             );
 
             _mockMapper.Setup(m => m.Map<Notification>(It.IsAny<SendNotificationCommand>()))
-                .Returns(new Notification { Title = request.Title, Content = request.Content });
+                .Returns((SendNotificationCommand source) => new Notification { Title = source.Title, Content = source.Content });
 
             _mockMapper.Setup(m => m.Map<NotificationDto>(It.IsAny<Notification>()))
-                .Returns(new NotificationDto { NotificationId = 1, Title = request.Title });
+                .Returns((Notification source) => new NotificationDto { NotificationId = source.NotificationId, UserId = source.UserId, Title = source.Title });
 
-            // ==========================================
-            // ACT
-            // ==========================================
             Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+
             await act.Should().NotThrowAsync();
-            // ==========================================
-            // ASSERT
-            // ==========================================
-
-
         }
 
         [Fact]
-        public async Task Handle_SpecificUserIdNotFound_ShouldReturnAndNotSave()
+        public async Task UTCID04_Handle_SpecificUserNotFound_ShouldComplete()
         {
-            // ==========================================
-            // ARRANGE
-            // ==========================================
             var nonExistentUserId = 999L;
             
             _mockUserRepo.Setup(r => r.GetByIdAsync(nonExistentUserId, It.IsAny<CancellationToken>()))
@@ -194,25 +170,14 @@ namespace BPG.Application.UnitTests.Notifications
                 ReferenceId: null
             );
 
-            // ==========================================
-            // ACT
-            // ==========================================
             Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+
             await act.Should().NotThrowAsync();
-            // ==========================================
-            // ASSERT
-            // ==========================================
-
-
-
         }
 
         [Fact]
-        public async Task Handle_SendToRoleName_ShouldNotifyOnlyUsersWithRoleAndSendRealtime()
+        public async Task UTCID05_Handle_SendToRoleName_ShouldComplete()
         {
-            // ==========================================
-            // ARRANGE
-            // ==========================================
             var roleAdmin = new Role { RoleName = "Admin" };
             var roleSiteEng = new Role { RoleName = "SiteEngineer" };
 
@@ -249,23 +214,14 @@ namespace BPG.Application.UnitTests.Notifications
             );
 
             _mockMapper.Setup(m => m.Map<Notification>(It.IsAny<SendNotificationCommand>()))
-                .Returns(new Notification { Title = request.Title, Content = request.Content });
+                .Returns((SendNotificationCommand source) => new Notification { Title = source.Title, Content = source.Content });
 
             _mockMapper.Setup(m => m.Map<NotificationDto>(It.IsAny<Notification>()))
-                .Returns(new NotificationDto { NotificationId = 1, Title = request.Title });
+                .Returns((Notification source) => new NotificationDto { NotificationId = source.NotificationId, UserId = source.UserId, Title = source.Title });
 
-            // ==========================================
-            // ACT
-            // ==========================================
             Func<Task> act = async () => await _handler.Handle(request, CancellationToken.None);
+
             await act.Should().NotThrowAsync();
-            // ==========================================
-            // ASSERT
-            // ==========================================
-            // Only user 1 (Admin) should be saved/notified
-
-
-
         }
     }
 }

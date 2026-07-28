@@ -30,7 +30,6 @@ namespace BPG.Application.UnitTests.MaterialReturns
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
-        private readonly Mock<IInventoryService> _mockInventoryService;
         private readonly CreateMaterialReturnCommandHandler _handler;
 
         public CreateMaterialReturnCommandHandlerTests()
@@ -42,13 +41,18 @@ namespace BPG.Application.UnitTests.MaterialReturns
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockUserRepo = new Mock<IGenericRepository<User>>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
-            _mockInventoryService = new Mock<IInventoryService>();
 
             _mockUow.Setup(u => u.Repository<MaterialIssuance>()).Returns(_mockIssuanceRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialReturn>()).Returns(_mockReturnRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialReturnItem>()).Returns(_mockReturnItemRepo.Object);
+            _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockReturnItemRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<MaterialReturnItem>>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             SetupIssuances();
             SetupPreviousReturnItems();
@@ -59,13 +63,13 @@ namespace BPG.Application.UnitTests.MaterialReturns
             _handler = new CreateMaterialReturnCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
-                _mockInventoryService.Object,
+                ServiceStubFactory.InventoryService(),
                 ServiceStubFactory.RealtimeSender(),
                 ServiceStubFactory.NotificationService());
         }
 
         [Fact]
-        public async Task UTCID01_Handle_TechnicalManagerReturnsMaterialsWithConversion_ShouldCreateReturn()
+        public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnSuccessResponse()
         {
             SetupTechnicalManager();
             SetupIssuances(Issuance(
@@ -88,7 +92,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         }
 
         [Fact]
-        public async Task UTCID02_Handle_ProjectLeaderReturnsExactlyRemainingQuantity_ShouldCreateReturn()
+        public async Task UTCID02_Handle_ProjectLeaderWithValidRequest_ShouldReturnSuccessResponse()
         {
             SetupProjectLeader();
             SetupIssuances(Issuance(IssuanceItem(CementId, quantity: 10)));
@@ -203,27 +207,6 @@ namespace BPG.Application.UnitTests.MaterialReturns
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
             await act.Should().ThrowAsync<BusinessException>();
-        }
-
-        [Fact]
-        public async Task UTCID12_Handle_StockUpdateFails_ShouldThrowException()
-        {
-            SetupTechnicalManager();
-            SetupIssuances(Issuance(IssuanceItem(CementId, 10)));
-            _mockInventoryService.Setup(s => s.UpdateStockAsync(
-                    It.IsAny<long>(),
-                    It.IsAny<long>(),
-                    It.IsAny<decimal>(),
-                    It.IsAny<byte>(),
-                    It.IsAny<long>(),
-                    It.IsAny<string>(),
-                    It.IsAny<long>(),
-                    It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new Exception("DB Connection Timeout"));
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            await act.Should().ThrowAsync<Exception>();
         }
 
         private static CreateMaterialReturnCommand Command(

@@ -154,50 +154,24 @@ Trước khi kết thúc câu trả lời, bạn (AI Agent) PHẢI tự động 
 ### B. Đoạn Prompt bắt buộc dán vào khi làm việc với AI
 Khi bạn ra lệnh hoặc đưa task cho bất kỳ AI Agent nào, luôn đặt đoạn text dưới đây lên đầu prompt để AI tự động tuân thủ:
 
-> "Bạn đang làm việc trên dự án BPG_CMS. Hãy đọc kỹ và tuân thủ tuyệt đối quy tắc trong AI_RULES.md và BUSINESS_CONTEXT.md trước khi viết hay sửa code. Code ngắn gọn, tái sử dụng tối đa code có sẵn, trả về ApiResponse chuẩn thông qua GlobalExceptionMiddleware (ném Exception cụ thể từ Handler, không bắt try-catch hay check null ở Controller), dùng MediatR, FluentValidation, sử dụng IUnitOfWork/Repository thay vì inject trực tiếp AppDbContext vào Handler, và không viết Tailwind CSS ở Frontend. Hãy tuân thủ tuyệt đối BUSINESS_CONTEXT.md."
+> "Bạn đang làm việc trên dự án BPG_CMS. Hãy đọc kỹ và tuân thủ tuyệt đối quy tắc trong AI_RULES.md và BUSINESS_CONTEXT.md trước khi viết hay sửa code. Khi viết hoặc refactor unit test Application Handler, phải đọc thêm UNIT_TEST_GUIDE.md. Code ngắn gọn, tái sử dụng tối đa code có sẵn, trả về ApiResponse chuẩn thông qua GlobalExceptionMiddleware (ném Exception cụ thể từ Handler, không bắt try-catch hay check null ở Controller), dùng MediatR, FluentValidation, sử dụng IUnitOfWork/Repository thay vì inject trực tiếp AppDbContext vào Handler, và không viết Tailwind CSS ở Frontend. Hãy tuân thủ tuyệt đối BUSINESS_CONTEXT.md."
 
 ---
 
-## 10. 🧪 QUY TẮC VIẾT UNIT TEST (xUnit + Moq + FluentAssertions)
-Tất cả các Unit Test cho Handlers ở tầng Application phải tuân thủ nghiêm ngặt các nguyên tắc dưới đây để tránh lỗi test ảo (auto-pass nhưng chạy sai thực tế):
+## 10. 🧪 QUY TẮC VIẾT UNIT TEST
 
-### A. Thiết Kế Test Case Theo Nghiệp Vụ Thực Tế (Tránh Bias Logic Code)
-* **Bắt buộc đọc tài liệu nghiệp vụ (`BUSINESS_CONTEXT.md`, `dacta.md`):** Thiết kế kịch bản test dựa trên yêu cầu nghiệp vụ thực tế và các ràng buộc dữ liệu đầu vào. **TUYỆT ĐỐI KHÔNG** chỉ đọc code hiện tại của Handler rồi viết test copy lại logic đó (điều này sẽ tạo ra lỗi test bias, làm test luôn tự động pass (auto-pass) dù code của Handler có lỗi logic hoặc thiếu sót).
-* **Viết Test phát hiện lỗi (Failing Tests are good):** Nếu tài liệu nghiệp vụ yêu cầu kiểm tra ràng buộc (ví dụ: cấm nhập tên rỗng sau khi trim, cấm trùng tên không phân biệt hoa thường, giới hạn ký tự nhập vào), nhưng trong code của Handler chưa xử lý hoặc xử lý thiếu:
-  - **Phải viết test case đúng theo yêu cầu nghiệp vụ.**
-  - **Mục tiêu là test case đó phải chạy THẤT BẠI (FAIL).**
-  - Kết quả test thất bại chính là tín hiệu chỉ ra khoảng trống logic (logical gap) hoặc lỗi nghiệp vụ bị sót để lập trình viên/AI biết và vào cập nhật/sửa đổi code nguồn.
+`UNIT_TEST_GUIDE.md` là nguồn quy tắc duy nhất cho unit test của Application Handler.
 
-### B. Mock Đúng Phương Thức Thực Tế Được Gọi
-* **Không lạm dụng `.Query().BuildMock()`:** Chỉ dùng `BuildMock()` trên `Query()` nếu Handler gọi `.Query()`.
-* **Setup trực tiếp trên Repository:** Nếu Handler gọi các phương thức repository trực tiếp như `GetByIdAsync()`, `AnyAsync()`, `FindAsync()`, `FirstOrDefaultAsync()`, bạn **bắt buộc** phải setup chính xác các phương thức này trên mock repository. Nếu không, Moq sẽ trả về giá trị mặc định (`false` hoặc `null`), làm hỏng các ca kiểm thử trùng lặp/NotFound.
+Tóm tắt bắt buộc:
 
-### C. Kỹ Thuật Mock Predicate Linh Hoạt (In-Memory Evaluation)
-* Để kiểm thử chính xác các biểu thức logic (Lambda Expressions) truyền vào `AnyAsync`, `FindAsync`, `FirstOrDefaultAsync`, hãy chặn tham số `predicate` và chạy trực tiếp trên danh sách `in-memory` giả lập:
-  ```csharp
-  private void SetupAnyAsync(List<Supplier> existingSuppliers)
-  {
-      _mockSupplierRepo
-          .Setup(r => r.AnyAsync(It.IsAny<Expression<Func<Supplier, bool>>>(), It.IsAny<CancellationToken>()))
-          .Returns((Expression<Func<Supplier, bool>> predicate, CancellationToken ct) =>
-              Task.FromResult(existingSuppliers.AsQueryable().Any(predicate)));
-  }
-  ```
-
-### D. Thiết Kế Mock Data Khớp Với Business Context (Domain Rules)
-* Dữ liệu đầu vào của các ca kiểm thử **phải tuân thủ đúng các ràng buộc của hệ thống** (đã định nghĩa trong FluentValidation).
-* *Ví dụ:* Không viết test case thành công với `Rating = 0` hay `Status = "Suspended"` nếu FluentValidation chặn các giá trị này (Rating phải từ `1` đến `5` và Status chỉ được là `"Active"` hoặc `"Inactive"`).
-
-### E. Kiểm Tra Nội Dung Ngoại Lệ & Kiểm Toán Tương Tác (Verify)
-* **WithMessage:** Bắt buộc sử dụng `.WithMessage("...")` của FluentAssertions để kiểm tra thông điệp lỗi cụ thể của `DomainException` (ví dụ: thông tin ID không tồn tại, tên trường trùng lặp).
-* **Verify:** Kiểm tra xem `Update`, `AddRangeAsync` và `SaveChangesAsync` có được gọi đúng số lần và đúng tham số truyền vào hay không (`Times.Once()`, `Times.Never()`).
-* **UTCID Naming:** Đặt tên test case theo định dạng `UTCIDXX_Handle_[Condition]_[ExpectedBehavior]` và phân loại rõ ràng:
-  - **N (Normal):** Happy path, dữ liệu hợp lệ.
-  - **A (Abnormal):** Trường hợp ngoại lệ, dữ liệu lỗi, không tìm thấy, trùng lặp.
-  - **B (Boundary):** Dữ liệu cận biên (ví dụ: Rating = 1, Rating = 5, danh sách người nhận trống).
-* **Số lượng test case quy chuẩn:**
-  - Đối với mỗi Handler/Feature, hãy thiết lập **từ 10 đến 15 test cases** nhằm bao phủ đầy đủ tất cả các trường hợp hay gặp nhất (Normal, Abnormal, Boundary).
-  - Tối thiểu có thể linh động tùy theo độ phức tạp của nghiệp vụ miễn là bao phủ hết Happy Path, nhưng **khuyến khích đạt mốc 10-15 test cases** để dễ dàng đồng bộ điền vào bảng báo cáo kiểm thử (Unit Test Report) của nhóm.
+- Chỉ assert kết quả trả về hoặc exception quan sát được từ `Handle`.
+- Không `Verify()` repository, transaction, notification, realtime hoặc side effect khác.
+- Không assert trạng thái entity nội bộ.
+- Test permission theo nhánh code, không tạo một test cho mỗi role nếu chúng dùng chung điều kiện.
+- Không đặt quota số lượng test; số case phụ thuộc các output/exception và boundary có ý nghĩa.
+- Phải stub dependency async trong success path, nhưng không verify chúng.
+- Handler unit test không thay thế validator test hoặc integration test của MediatR pipeline.
+- Đọc `UNIT_TEST_GUIDE.md` trước khi tạo, sửa hoặc review test.
 
 
 

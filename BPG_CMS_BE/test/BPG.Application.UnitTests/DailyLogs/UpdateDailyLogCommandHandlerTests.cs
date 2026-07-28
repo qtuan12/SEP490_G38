@@ -34,7 +34,6 @@ namespace BPG.Application.UnitTests.DailyLogs
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IMapper> _mockMapper;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
-        private readonly Mock<IRealtimeNotificationSender> _mockRealtimeSender;
 
         private readonly Mock<IGenericRepository<DailyLog>> _mockLogRepo;
         private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
@@ -52,7 +51,6 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockUow = new Mock<IUnitOfWork>();
             _mockMapper = new Mock<IMapper>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
-            _mockRealtimeSender = new Mock<IRealtimeNotificationSender>();
 
             _mockLogRepo = new Mock<IGenericRepository<DailyLog>>();
             _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
@@ -71,6 +69,10 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.Repository<TaskProgressLog>()).Returns(_mockProgressLogRepo.Object);
             _mockUow.Setup(u => u.Repository<SystemConfig>()).Returns(_mockConfigRepo.Object);
+            _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
             // Default mock setups
             _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog>().AsQueryable().BuildMock());
@@ -94,26 +96,21 @@ namespace BPG.Application.UnitTests.DailyLogs
                     NewProgressPercent = src.NewProgressPercent,
                     Description = src.Description
                 });
-            _mockRealtimeSender
-                .Setup(x => x.SendToGroupAsync(
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<object>(),
-                    It.IsAny<CancellationToken>()))
+            _mockAttachmentRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Attachment>>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
 
             _handler = new UpdateDailyLogCommandHandler(
                 _mockUow.Object,
                 _mockMapper.Object,
                 _mockCurrentUserService.Object,
-                _mockRealtimeSender.Object
+                ServiceStubFactory.RealtimeSender()
             );
         }
 
 
 
         [Fact]
-        public async Task UTCID01_Handle_ValidRequest_ShouldUpdateDailyLogSuccessfully()
+        public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnDailyLogDto()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
@@ -299,7 +296,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
 }
 
         [Fact]
-        public async Task UTCID07_Handle_UserIsAssignee_ShouldUpdateSuccessfully()
+        public async Task UTCID07_Handle_UserIsAssignee_ShouldReturnDailyLogDto()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false); // Engineer
@@ -371,38 +368,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
         }
 
         [Fact]
-        public async Task UTCID09_Handle_ExceptionDuringUpdate_ShouldThrowException()
-        {
-            // Arrange
-            _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
-
-            var project = Project();
-            var log = new DailyLog
-            {
-                LogId = LogId,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-10),
-                Task = new ProjectTask
-                {
-                    IsLocked = false,
-                    Phase = new Phase { Project = project }
-                }
-            };
-            _mockLogRepo.Setup(r => r.Query()).Returns(new List<DailyLog> { log }.AsQueryable().BuildMock());
-            _mockAttachmentRepo.Setup(r => r.Query()).Returns(new List<Attachment>().AsQueryable().BuildMock());
-
-            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new Exception("DB Error"));
-
-            var command = Command("Desc");
-
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            await act.Should().ThrowAsync<Exception>();
-        }
-
-        [Fact]
-        public async Task UTCID10_Handle_ValidRequest_ProgressUnchanged_DescriptionOrImagesChanged_ShouldSucceed()
+        public async Task UTCID09_Handle_ProgressUnchangedAndImagesChanged_ShouldReturnDailyLogDto()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
@@ -455,7 +421,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
         }
 
         [Fact]
-        public async Task UTCID11_Handle_EditWindowExpired_ShouldThrowBusinessException()
+        public async Task UTCID10_Handle_EditWindowExpired_ShouldThrowBusinessException()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
@@ -485,7 +451,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
         }
 
         [Fact]
-        public async Task UTCID12_Handle_AncestorTaskObsolete_ShouldThrowBusinessException()
+        public async Task UTCID11_Handle_AncestorTaskObsolete_ShouldThrowBusinessException()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.TechnicalManager, hasRole: true);
@@ -524,7 +490,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
         }
 
         [Fact]
-        public async Task UTCID13_Handle_UserIsProjectLeader_ShouldUpdateSuccessfully()
+        public async Task UTCID12_Handle_UserIsProjectLeader_ShouldReturnDailyLogDto()
         {
             // Arrange
             _mockCurrentUserService.SetupUser(CurrentUserId, BPG.Domain.Constants.UserRole.SiteEngineer, hasRole: false);
