@@ -10,7 +10,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'script-defer',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      devOptions: {
+        enabled: true,
+        type: 'module'
+      },
       manifest: {
         name: 'BPG CMS',
         short_name: 'BPG CMS',
