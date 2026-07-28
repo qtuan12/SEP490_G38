@@ -183,7 +183,8 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         id: tempId,
         name: file.name,
         url: localUrl,
-        status: 'uploading'
+        status: 'uploading',
+        file
       };
 
       setUploadedFiles(prev => [...prev, newFileState]);
@@ -197,12 +198,38 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
           );
         },
         () => {
+          toast.error(`Không thể tải ảnh ${file.name} lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
           );
         }
       );
     });
+  };
+
+  const retryUpload = (id: string) => {
+    const target = uploadedFiles.find(f => f.id === id);
+    if (!target || !target.file) return;
+
+    setUploadedFiles(prev =>
+      prev.map(f => f.id === id ? { ...f, status: 'uploading' } : f)
+    );
+
+    compressAndUploadFile(
+      target.file,
+      'goodsreceipts',
+      (uploadedUrl) => {
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === id ? { ...f, status: 'success', url: uploadedUrl } : f)
+        );
+      },
+      () => {
+        toast.error(`Không thể tải ảnh ${target.name} lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.`);
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === id ? { ...f, status: 'error' } : f)
+        );
+      }
+    );
   };
 
   const removeFile = (id: string) => {
@@ -266,6 +293,11 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
     if (uploadedFiles.some(f => f.status === 'uploading')) {
       setGeneralError('Vui lòng chờ hình ảnh tải lên hoàn tất.');
+      return;
+    }
+
+    if (uploadedFiles.some(f => f.status === 'error') || uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
+      setGeneralError('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
       return;
     }
 
