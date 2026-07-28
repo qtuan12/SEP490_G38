@@ -11,6 +11,8 @@ import { DailyLogFormModal } from '../../modals/DailyLogFormModal';
 import { DailyLogFilters } from './DailyLogFilters';
 import { DailyLogCard } from './DailyLogCard';
 
+import { useSearchParams } from 'react-router-dom';
+
 const PAGE_SIZE = 4;
 
 const formatDateTime = (dateStr?: string) => {
@@ -113,11 +115,14 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     return list;
   }, [taskId, currentTask, currentTaskHasSubtasks, tasks]);
 
+  const [searchParams] = useSearchParams();
+  const targetLogId = searchParams.get('logId');
+
   const loadData = async () => {
     setLoading(true);
     try {
       const [logsResult, tasksData, phasesData, membersData] = await Promise.all([
-        projectService.getDailyLogsPage(projectId, 1, PAGE_SIZE, taskId),
+        projectService.getDailyLogsPage(projectId, 1, PAGE_SIZE, taskId, targetLogId || undefined),
         projectService.getTasks(projectId),
         projectService.getPhases(projectId),
         projectService.getMembers(projectId)

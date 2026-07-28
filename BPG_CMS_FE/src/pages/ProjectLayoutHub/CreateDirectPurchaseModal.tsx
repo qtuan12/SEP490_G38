@@ -170,6 +170,11 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       return;
     }
 
+    if (uploadedFiles.some(f => f.status === 'error') || uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
+      toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const urls = uploadedFiles

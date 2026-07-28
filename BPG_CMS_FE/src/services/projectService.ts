@@ -873,7 +873,8 @@ export const projectService = {
     projectId: string,
     page: number,
     pageSize: number,
-    taskId?: string
+    taskId?: string,
+    logId?: string
   ): Promise<{ items: DailyLog[]; hasNextPage: boolean; totalCount: number }> {
     if (!USE_MOCK_API) {
       const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
@@ -885,6 +886,9 @@ export const projectService = {
       if (taskId) {
         const parsedTaskId = taskId.startsWith('t-') ? taskId.substring(2) : taskId;
         params.taskId = parsedTaskId;
+      }
+      if (logId) {
+        params.logId = logId;
       }
 
       const res = await apiClient.get<ApiResponse<{

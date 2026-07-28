@@ -43,8 +43,18 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
   useEffect(() => {
     const subTab = searchParams.get('subTab');
-    if (subTab && ['current', 'receipts', 'issuances', 'ledger'].includes(subTab)) {
+    if (subTab && ['current', 'receipts', 'issuances', 'ledger', 'returns'].includes(subTab)) {
       setActiveSubTab(subTab as any);
+    }
+    const receiptId = searchParams.get('receiptId');
+    if (receiptId) {
+      setSelectedReceiptId(Number(receiptId));
+      setActiveSubTab('receipts');
+    }
+    const issuanceId = searchParams.get('issuanceId');
+    if (issuanceId) {
+      setSelectedIssuanceId(Number(issuanceId));
+      setActiveSubTab('issuances');
     }
   }, [searchParams]);
 

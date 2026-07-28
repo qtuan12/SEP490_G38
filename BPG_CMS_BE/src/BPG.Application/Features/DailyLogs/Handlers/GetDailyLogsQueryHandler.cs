@@ -90,6 +90,26 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             // Ánh xạ sang DTO
             var dtos = _mapper.Map<List<DailyLogDto>>(pagedEntities.Items);
 
+            if (request.LogId.HasValue && !dtos.Any(d => d.LogId == request.LogId.Value))
+            {
+                var targetLogEntity = await _uow.Repository<DailyLog>().Query()
+                    .AsNoTracking()
+                    .AsSplitQuery()
+                    .Include(d => d.Task)
+                    .Include(d => d.Creator)
+                    .Include(d => d.Comments)
+                        .ThenInclude(c => c.Author)
+                            .ThenInclude(u => u.UserRoles)
+                                .ThenInclude(ur => ur.Role)
+                    .FirstOrDefaultAsync(d => d.LogId == request.LogId.Value, cancellationToken);
+
+                if (targetLogEntity != null)
+                {
+                    var targetDto = _mapper.Map<DailyLogDto>(targetLogEntity);
+                    dtos.Insert(0, targetDto);
+                }
+            }
+
             if (dtos.Any())
             {
                 var logIds = dtos.Select(d => d.LogId).ToList();

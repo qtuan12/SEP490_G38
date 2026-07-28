@@ -43,6 +43,7 @@ import { useNotification } from '../context/NotificationContext';
 import { useSignalREvent } from '../hooks/useSignalREvent';
 import { ProjectMaterialRequestsTab } from './MaterialRequests/components/ProjectMaterialRequestsTab';
 import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
+import { isPWAMode } from '../utils/pwaHelpers';
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
@@ -156,7 +157,8 @@ export const ProjectLayoutHub: React.FC = () => {
     (() => {
       const tab = searchParams.get('tab') as TabKey;
       if (tab === 'inventoryincidents') return 'incidents';
-      return tab || 'wbs';
+      const defaultTab = isPWAMode() ? 'logs' : 'wbs';
+      return tab || defaultTab;
     })()
   );
 
