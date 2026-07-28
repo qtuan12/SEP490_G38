@@ -140,9 +140,9 @@ export const ProjectList: React.FC = () => {
       )}
 
       {/* Control Actions Header */}
-      <div className="glass-panel p-5 sm:px-6 flex justify-between items-center flex-wrap gap-4">
+      <div className="glass-panel p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
         {/* Filters */}
-        <div className="flex items-center gap-3 flex-1 min-w-0 max-w-3xl">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 min-w-0">
           <div className="relative flex-1 min-w-0">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] pointer-events-none z-10" />
             <Input
@@ -153,7 +153,7 @@ export const ProjectList: React.FC = () => {
               className="pl-9 h-10 w-full"
             />
           </div>
-          <div className="w-52 shrink-0">
+          <div className="w-full sm:w-52 shrink-0">
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -177,7 +177,7 @@ export const ProjectList: React.FC = () => {
               setError(null);
               setIsOpen(true);
             }}
-            className="h-10 font-semibold"
+            className="h-10 font-semibold w-full sm:w-auto flex items-center justify-center gap-1.5"
           >
             <FolderPlus size={18} />
             <span>Khởi tạo Dự án</span>

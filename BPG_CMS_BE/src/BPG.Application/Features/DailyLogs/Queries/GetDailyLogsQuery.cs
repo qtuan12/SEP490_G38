@@ -14,6 +14,7 @@ namespace BPG.Application.Features.DailyLogs.Queries
         public long? TaskId { get; set; }
         public long? CreatedBy { get; set; }
         public DateOnly? LogDate { get; set; }
+        public long? LogId { get; set; }
 
         public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
             => Task.FromResult(ProjectId);

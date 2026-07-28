@@ -11,7 +11,7 @@ namespace BPG.Api.Controllers
     public class SuppliersController : BaseApiController
     {
         [HttpGet]
-        [Authorize(Roles = "Admin,Accountant")]
+        [Authorize(Roles = "Accountant,TechnicalManager,Director,ProjectLeader,SiteEngineer")]
         public async Task<IActionResult> GetSuppliers([FromQuery] GetSuppliersQuery query)
         {
             var result = await Mediator.Send(query);
@@ -19,7 +19,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,Accountant")]
+        [Authorize(Roles = "Accountant,TechnicalManager,Director,ProjectLeader,SiteEngineer")]
         public async Task<IActionResult> GetSupplierById(long id)
         {
             var result = await Mediator.Send(new GetSupplierByIdQuery(id));
@@ -27,7 +27,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Accountant,TechnicalManager,Director")]
         public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierCommand command)
         {
             var result = await Mediator.Send(command);
@@ -35,7 +35,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Accountant,TechnicalManager,Director")]
         public async Task<IActionResult> UpdateSupplier(long id, [FromBody] UpdateSupplierRequest request)
         {
             var result = await Mediator.Send(new UpdateSupplierCommand(
@@ -52,7 +52,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Accountant,TechnicalManager,Director")]
         public async Task<IActionResult> DeleteSupplier(long id)
         {
             await Mediator.Send(new DeleteSupplierCommand(id));

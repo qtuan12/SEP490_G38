@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { UploadCloud, X, AlertCircle, Loader2, Camera } from 'lucide-react';
+import { UploadCloud, X, AlertCircle, Loader2, Camera, RotateCcw } from 'lucide-react';
 import { projectService } from '../../../services/projectService';
 import type { WBSTask, DailyLog, WBSPhase } from '../../../types/common';
 import { Modal, Button, Textarea } from '../../../components/ui';
@@ -170,7 +170,8 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
         id: tempId,
         name: file.name,
         url: localUrl,
-        status: 'uploading'
+        status: 'uploading',
+        file
       };
 
       setUploadedFiles(prev => [...prev, newFileState]);
@@ -184,13 +185,38 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
           );
         },
         () => {
-          toast.error(`Tải ảnh ${file.name} lên thất bại.`);
+          toast.error(`Không thể tải ảnh ${file.name} lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
           );
         }
       );
     });
+  };
+
+  const retryUpload = (id: string) => {
+    const target = uploadedFiles.find(f => f.id === id);
+    if (!target || !target.file) return;
+
+    setUploadedFiles(prev =>
+      prev.map(f => f.id === id ? { ...f, status: 'uploading' } : f)
+    );
+
+    compressAndUploadFile(
+      target.file,
+      'dailylogs',
+      (uploadedUrl) => {
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === id ? { ...f, status: 'success', url: uploadedUrl } : f)
+        );
+      },
+      () => {
+        toast.error(`Không thể tải ảnh ${target.name} lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.`);
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === id ? { ...f, status: 'error' } : f)
+        );
+      }
+    );
   };
 
   const removeNewImage = (id: string) => {
@@ -254,11 +280,25 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   });
 
   const onSubmit = (data: DailyLogForm) => {
-    // Prevent submitting if any file is still uploading
+    // 1. Chặn submit nếu có hình ảnh đang tải lên
     if (uploadedFiles.some(f => f.status === 'uploading')) {
       toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
       return;
     }
+
+    // 2. Chặn submit nếu có hình ảnh bị lỗi upload (timeout / kết nối / dung lượng)
+    if (uploadedFiles.some(f => f.status === 'error')) {
+      toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
+      return;
+    }
+
+    // 3. Đảm bảo tất cả file mới đều có URL remote hợp lệ
+    const hasInvalidUploads = uploadedFiles.some(f => !f.url || !f.url.startsWith('http'));
+    if (hasInvalidUploads) {
+      toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
+      return;
+    }
+
     mutation.mutate(data);
   };
 
@@ -446,7 +486,20 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                       )}
                       
                       {file.status === 'error' && (
-                        <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                        <>
+                          <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              retryUpload(file.id);
+                            }}
+                            className="absolute top-1 left-1 bg-blue-600 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 transition-opacity z-10"
+                            title="Thử lại upload"
+                          >
+                            <RotateCcw size={10} />
+                          </button>
+                        </>
                       )}
                       
                       {file.status === 'success' && (
@@ -476,6 +529,15 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                   <span className="text-xs text-slate-500">
                     Hỗ trợ định dạng hình ảnh tối đa 10MB
                   </span>
+                </div>
+              )}
+
+              {uploadedFiles.some(f => f.status === 'error') && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center justify-between gap-2" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 text-left">
+                    <AlertCircle size={16} className="text-red-600 shrink-0" />
+                    <span>Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.</span>
+                  </div>
                 </div>
               )}
 

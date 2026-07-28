@@ -4,6 +4,7 @@ import { supplierService } from '../../services/supplierService';
 import { SupplierFormModal } from './modals/SupplierFormModal';
 import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination } from '../../components/ui';
 import type { Supplier } from '../../types/supplier';
+import { useAuth } from '../../context/AuthContext';
 import {
   Search,
   Plus,
@@ -17,6 +18,8 @@ import {
 
 export const SupplierManagement: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canManageSuppliers = ['accountant', 'technicalmanager', 'director'].includes(user?.role?.toLowerCase() || '');
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -77,18 +80,21 @@ export const SupplierManagement: React.FC = () => {
   };
 
   const openCreateModal = () => {
+    if (!canManageSuppliers) return;
     setSelectedSupplier(null);
     setError(null);
     setIsFormOpen(true);
   };
 
   const openEditModal = (supplier: Supplier) => {
+    if (!canManageSuppliers) return;
     setSelectedSupplier(supplier);
     setError(null);
     setIsFormOpen(true);
   };
 
   const openDeleteModal = (supplier: Supplier) => {
+    if (!canManageSuppliers) return;
     setSelectedSupplier(supplier);
     setError(null);
     setIsDeleteOpen(true);
@@ -171,7 +177,7 @@ export const SupplierManagement: React.FC = () => {
         </Badge>
       ),
     },
-    {
+    ...(canManageSuppliers ? [{
       key: 'actions',
       header: 'Hành động',
       render: (supplier: Supplier) => (
@@ -194,7 +200,7 @@ export const SupplierManagement: React.FC = () => {
           </Button>
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
@@ -254,10 +260,12 @@ export const SupplierManagement: React.FC = () => {
             </div>
           </div>
 
-          <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
-            <Plus size={18} />
-            <span>Thêm Nhà cung cấp</span>
-          </Button>
+          {canManageSuppliers && (
+            <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
+              <Plus size={18} />
+              <span>Thêm Nhà cung cấp</span>
+            </Button>
+          )}
         </div>
 
         {isLoading ? (
@@ -285,23 +293,27 @@ export const SupplierManagement: React.FC = () => {
         )}
       </div>
 
-      {/* Supplier Create/Edit Modal */}
-      <SupplierFormModal
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        supplier={selectedSupplier}
-        onSuccess={showSuccess}
-      />
+      {canManageSuppliers && (
+        <>
+          {/* Supplier Create/Edit Modal */}
+          <SupplierFormModal
+            isOpen={isFormOpen}
+            onClose={() => setIsFormOpen(false)}
+            supplier={selectedSupplier}
+            onSuccess={showSuccess}
+          />
 
-      {/* Soft Delete Confirmation Modal */}
-      <ConfirmDialog
-        isOpen={isDeleteOpen}
-        onClose={() => setIsDeleteOpen(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Xóa nhà cung cấp"
-        message={`Bạn có chắc chắn muốn xóa nhà cung cấp ${selectedSupplier?.supplierName || ''}? Hệ thống sẽ lưu trữ và ẩn nhà cung cấp này khỏi các giao dịch mới.`}
-        confirmText="Xác nhận xóa"
-      />
+          {/* Soft Delete Confirmation Modal */}
+          <ConfirmDialog
+            isOpen={isDeleteOpen}
+            onClose={() => setIsDeleteOpen(false)}
+            onConfirm={handleDeleteConfirm}
+            title="Xóa nhà cung cấp"
+            message={`Bạn có chắc chắn muốn xóa nhà cung cấp ${selectedSupplier?.supplierName || ''}? Hệ thống sẽ lưu trữ và ẩn nhà cung cấp này khỏi các giao dịch mới.`}
+            confirmText="Xác nhận xóa"
+          />
+        </>
+      )}
     </div>
   );
 };

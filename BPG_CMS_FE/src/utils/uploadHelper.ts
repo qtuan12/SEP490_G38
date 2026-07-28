@@ -6,6 +6,7 @@ export interface UploadedFileState {
   name: string;
   url?: string;
   status: 'uploading' | 'success' | 'error';
+  file?: File;
 }
 
 export const compressAndUploadFile = async (

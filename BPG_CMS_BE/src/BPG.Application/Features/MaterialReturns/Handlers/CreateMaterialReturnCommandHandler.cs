@@ -200,7 +200,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                     "Hoàn trả vật tư thành công",
                     $"Bạn đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
                     NotificationType.Procurement,
-                    NotificationReferenceType.MaterialReturn,
+                    $"/projects/{project.ProjectId}?tab=inventory&subTab=returns&returnId={materialReturn.MaterialReturnId}",
                     materialReturn.MaterialReturnId,
                     cancellationToken);
 
@@ -217,7 +217,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                         "Vật tư đã được hoàn trả",
                         $"{actorName} đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
                         NotificationType.Procurement,
-                        NotificationReferenceType.MaterialReturn,
+                        $"/projects/{project.ProjectId}?tab=inventory&subTab=returns&returnId={materialReturn.MaterialReturnId}",
                         materialReturn.MaterialReturnId,
                         cancellationToken);
                 }
@@ -229,7 +229,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                         "Có phiếu hoàn trả vật tư",
                         $"{actorName} đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
                         NotificationType.Procurement,
-                        NotificationReferenceType.MaterialReturn,
+                        $"/projects/{project.ProjectId}?tab=inventory&subTab=returns&returnId={materialReturn.MaterialReturnId}",
                         materialReturn.MaterialReturnId,
                         cancellationToken);
                 }

@@ -125,6 +125,10 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
       toast.error('Vui lòng chờ bản vẽ thiết kế tải lên hoàn tất.');
       return;
     }
+    if (uploadedFiles.some(f => f.status === 'error') || uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
+      toast.error('Không thể tải ảnh/file lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
+      return;
+    }
     await mutation.mutateAsync(data);
   };
 

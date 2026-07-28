@@ -5,13 +5,19 @@ import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, Mail, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
 
+import { isPWAMode } from '../../utils/pwaHelpers';
+
 const getRoleDashboard = (role: string): string => {
+  if (isPWAMode()) {
+    return '/field?standalone=true';
+  }
   const normRole = role?.toLowerCase() || '';
   switch (normRole) {
     case 'admin':
       return '/users';
-    case 'technicalmanager':
     case 'siteengineer':
+      return '/field';
+    case 'technicalmanager':
     case 'projectleader':
       return '/projects';
     default:

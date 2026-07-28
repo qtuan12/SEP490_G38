@@ -195,7 +195,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                     "Xuất vật tư thành công",
                     $"Bạn đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
                     NotificationType.Procurement,
-                    NotificationReferenceType.MaterialIssuance,
+                    $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
                     issuance.MaterialIssuanceId,
                     cancellationToken);
 
@@ -212,7 +212,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                         "Bạn được xuất vật tư cho công việc",
                         $"{actorName} đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
                         NotificationType.Procurement,
-                        NotificationReferenceType.MaterialIssuance,
+                        $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
                         issuance.MaterialIssuanceId,
                         cancellationToken);
                 }

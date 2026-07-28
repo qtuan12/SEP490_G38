@@ -191,23 +191,30 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 await _uow.Repository<DailyLog>().AddAsync(log, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken); // Save để có LogId cho Attachments
 
-                // 7. Lưu Attachments (hình ảnh)
+                // 7. Lưu Attachments (hình ảnh hợp lệ)
                 if (request.Images != null && request.Images.Any())
                 {
-                    var attachments = request.Images.Select(url => new Attachment
-                    {
-                        EntityType = EntityType.DailyLog,
-                        EntityId = log.LogId,
-                        AttachmentType = AttachmentType.DailyLogPhoto,
-                        FileName = Path.GetFileName(url) ?? "photo.jpg",
-                        FileUrl = url,
-                        ContentType = "image/jpeg",
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedBy = currentUserId,
-                        IsDeleted = false
-                    }).ToList();
+                    var validUrls = request.Images
+                        .Where(url => !string.IsNullOrWhiteSpace(url) && (url.StartsWith("http://") || url.StartsWith("https://")))
+                        .ToList();
 
-                    await _uow.Repository<Attachment>().AddRangeAsync(attachments, cancellationToken);
+                    if (validUrls.Any())
+                    {
+                        var attachments = validUrls.Select(url => new Attachment
+                        {
+                            EntityType = EntityType.DailyLog,
+                            EntityId = log.LogId,
+                            AttachmentType = AttachmentType.DailyLogPhoto,
+                            FileName = Path.GetFileName(url) ?? "photo.jpg",
+                            FileUrl = url,
+                            ContentType = "image/jpeg",
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = currentUserId,
+                            IsDeleted = false
+                        }).ToList();
+
+                        await _uow.Repository<Attachment>().AddRangeAsync(attachments, cancellationToken);
+                    }
                 }
 
                 // 8. Cập nhật tiến độ của Task hiện tại
@@ -304,7 +311,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     "Cập nhật nhật ký tiến độ",
                     $"Thành viên [{creatorName}] đã cập nhật nhật ký cho công việc [{task.Name}] với tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
-                    NotificationReferenceType.Task,
+                    $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                     task.TaskId,
                     cancellationToken
                 );
@@ -327,7 +334,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     "Đồng nghiệp cập nhật tiến độ",
                     $"Thành viên [{creatorName}] cùng thực hiện công việc [{task.Name}] đã cập nhật nhật ký tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
-                    NotificationReferenceType.Task,
+                    $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                     task.TaskId,
                     cancellationToken
                 );
@@ -339,7 +346,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 "Cập nhật nhật ký tiến độ",
                 $"Nhật ký tiến độ mới cho công việc [{task.Name}] tại dự án [{project.Name}] vừa được cập nhật ({newProgress}%).",
                 NotificationType.Progress,
-                NotificationReferenceType.Task,
+                $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                 task.TaskId,
                 cancellationToken
             );

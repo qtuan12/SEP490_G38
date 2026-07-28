@@ -18,15 +18,26 @@ namespace BPG.Application.Features.GoodsReceipts.Queries
     {
         public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
-            var projectId = await unitOfWork.Repository<GoodsReceipt>().Query()
-                .Where(g => g.ReceiptId == ReceiptId)
-                .Select(g => (long?)g.PurchaseOrder.ProjectId)
-                .FirstOrDefaultAsync(cancellationToken);
+            var gr = await unitOfWork.Repository<GoodsReceipt>().Query()
+                .AsNoTracking()
+                .Include(g => g.PurchaseOrder)
+                    .ThenInclude(po => po.Request)
+                        .ThenInclude(r => r!.Phase)
+                .FirstOrDefaultAsync(g => g.ReceiptId == ReceiptId, cancellationToken);
 
-            if (!projectId.HasValue || projectId.Value <= 0)
+            if (gr == null)
                 throw new NotFoundException(nameof(GoodsReceipt), ReceiptId);
 
-            return projectId.Value;
+            long projectId = gr.PurchaseOrder?.ProjectId ?? 0;
+            if (projectId <= 0 && gr.PurchaseOrder?.Request?.Phase != null)
+            {
+                projectId = gr.PurchaseOrder.Request.Phase.ProjectId;
+            }
+
+            if (projectId <= 0)
+                throw new NotFoundException(nameof(GoodsReceipt), ReceiptId);
+
+            return projectId;
         }
     }
 
