@@ -8,40 +8,29 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using UserRole = BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
     public class GetPurchaseOrdersQueryHandler : IRequestHandler<GetPurchaseOrdersQuery, PagedList<PurchaseOrderDto>>
     {
         private readonly IUnitOfWork _uow;
-        private readonly ICurrentUserService _currentUserService;
+        private readonly IPermissionService _permissionService;
 
-        public GetPurchaseOrdersQueryHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public GetPurchaseOrdersQueryHandler(
+            IUnitOfWork uow,
+            IPermissionService permissionService)
         {
             _uow = uow;
-            _currentUserService = currentUserService;
+            _permissionService = permissionService;
         }
 
         public async Task<PagedList<PurchaseOrderDto>> Handle(GetPurchaseOrdersQuery request, CancellationToken cancellationToken)
         {
-            // Danh sách PO chung (không lọc theo dự án) chỉ dành cho Accountant.
-            // Các role khác (TechnicalManager, SiteEngineer, Director) chỉ được xem PO trong phạm vi
-            // một dự án cụ thể (tab "Đơn hàng" trong workspace dự án), bắt buộc phải truyền ProjectId.
-            if (!_currentUserService.IsInRole(UserRole.Accountant))
+            if (!request.ProjectId.HasValue &&
+                !_permissionService.HasSystemPermission(SystemPermission.ProcurementManage))
             {
-                if (!request.ProjectId.HasValue)
-                    throw new ForbiddenException("Bạn chỉ được xem đơn hàng trong phạm vi dự án được phân công.");
-
-                // SiteEngineer chỉ được xem đơn hàng của dự án mình được phân công là thành viên.
-                if (_currentUserService.IsInRole(UserRole.SiteEngineer))
-                {
-                    var currentUserId = _currentUserService.GetRequiredUserId();
-                    var isMember = await _uow.Repository<ProjectMember>().Query()
-                        .AnyAsync(m => m.ProjectId == request.ProjectId.Value && m.UserId == currentUserId, cancellationToken);
-                    if (!isMember)
-                        throw new ForbiddenException("Bạn không được phân công vào dự án này nên không có quyền xem đơn hàng.");
-                }
+                throw new ForbiddenException(
+                    "Bạn chỉ được xem đơn hàng trong phạm vi dự án được cấp quyền.");
             }
 
             var query = _uow.Repository<PurchaseOrder>().Query()
@@ -53,7 +42,16 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .AsNoTracking();
 
             if (request.ProjectId.HasValue)
+            {
                 query = query.Where(po => po.ProjectId == request.ProjectId.Value);
+            }
+            else
+            {
+                var accessibleProjectIds = await _permissionService.GetProjectIdsWithPermissionAsync(
+                    ProjectPermission.View,
+                    cancellationToken);
+                query = query.Where(po => accessibleProjectIds.Contains(po.ProjectId));
+            }
 
             if (!string.IsNullOrEmpty(request.Status))
                 query = query.Where(po => po.Status == request.Status);

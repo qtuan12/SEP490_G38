@@ -30,6 +30,13 @@ export interface ProjectMember {
   isLeader: boolean; // crown icon 👑 if true
 }
 
+export interface ProjectAccess {
+  projectId: number;
+  isMember: boolean;
+  isLeader: boolean;
+  permissions: string[];
+}
+
 export interface PhaseMaterialItem {
   materialId: number;
   name: string;

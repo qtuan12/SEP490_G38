@@ -2,6 +2,7 @@ using BPG.Application.Features.InventoryAdjustments.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.UnitTests.Helpers;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
@@ -74,21 +75,20 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("Project với ID [1] không tồn tại.");
         }
 
         [Fact]
-        public async Task UTCID02_Handle_UserIsNeitherLeaderNorManager_ShouldThrowBusinessException()
+        public void UTCID02_Command_ShouldDeclareExecutionPermissionForProjectResource()
         {
-            SetupProject(Project());
-            SetupUser(RoleConstants.Accountant, hasRole: false);
+            var command = Command();
 
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
+            command.RequiredPermission.Should().Be(ProjectPermission.ExecutionManage);
+            command.ProjectResource.Id.Should().Be(ProjectId);
+            command.ProjectResource.Type.ToString().Should().Be("Project");
         }
-
         [Fact]
         public async Task UTCID03_Handle_PhaseNotFound_ShouldThrowNotFoundException()
         {
@@ -98,7 +98,9 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("Phase với ID [2] không tồn tại.");
         }
 
         [Fact]
@@ -112,6 +114,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
+            exception.Which.Message.Should().Be("Giai đoạn không thuộc dự án này.");
         }
 
         [Fact]
@@ -122,7 +125,9 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("MaterialCatalog với ID [10] không tồn tại.");
         }
 
         [Fact]
@@ -135,6 +140,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            exception.Which.Message.Should().Be("Đơn vị tính 'Bao' của vật tư [Xi măng] yêu cầu số lượng phải là số nguyên.");
         }
 
         [Fact]

@@ -4,6 +4,8 @@ using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialRequests;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -14,29 +16,30 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Queries
 {
-    public class GetMaterialRequestsQuery : PaginationRequest, IRequest<PagedList<MaterialRequestDto>>, IProjectRequirement
+    public class GetMaterialRequestsQuery : PaginationRequest, IRequest<PagedList<MaterialRequestDto>>, IProjectScopedListRequest
     {
         public long? ProjectId { get; set; }
         public long? PhaseId { get; set; }
         public string? Status { get; set; }
 
-        public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-        {
-            if (ProjectId == null)
-                throw new NotFoundException("ProjectId");
-            return Task.FromResult(ProjectId.Value);
-        }
+        public Task<long?> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+            => Task.FromResult(ProjectId);
     }
 
     public class GetMaterialRequestsQueryHandler : IRequestHandler<GetMaterialRequestsQuery, PagedList<MaterialRequestDto>>
     {
         private readonly IUnitOfWork _uow;
         private readonly IMapper _mapper;
+        private readonly IPermissionService _permissionService;
 
-        public GetMaterialRequestsQueryHandler(IUnitOfWork uow, IMapper mapper)
+        public GetMaterialRequestsQueryHandler(
+            IUnitOfWork uow,
+            IMapper mapper,
+            IPermissionService permissionService)
         {
             _uow = uow;
             _mapper = mapper;
+            _permissionService = permissionService;
         }
 
         public async Task<PagedList<MaterialRequestDto>> Handle(GetMaterialRequestsQuery request, CancellationToken cancellationToken)
@@ -50,6 +53,17 @@ namespace BPG.Application.Features.MaterialRequests.Queries
                 .Include(mr => mr.Items)
                     .ThenInclude(ri => ri.Unit)
                 .AsNoTracking();
+
+            if (!request.ProjectId.HasValue)
+            {
+                if (!_permissionService.HasSystemPermission(SystemPermission.ProcurementManage))
+                    throw new ForbiddenException("Bạn không có quyền xem đề xuất vật tư toàn hệ thống.");
+
+                var accessibleProjectIds = await _permissionService.GetProjectIdsWithPermissionAsync(
+                    ProjectPermission.View,
+                    cancellationToken);
+                query = query.Where(mr => accessibleProjectIds.Contains(mr.Phase.ProjectId));
+            }
 
             // Áp dụng bộ lọc
             if (request.ProjectId.HasValue)

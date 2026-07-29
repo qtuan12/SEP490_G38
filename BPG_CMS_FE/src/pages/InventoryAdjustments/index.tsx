@@ -5,6 +5,7 @@ import type { Project } from '../../types/common';
 import { AdjustmentList } from './components/AdjustmentList';
 import { Loader2, FileSignature } from 'lucide-react';
 import { FormItem } from '../../components/ui';
+import { SystemPermission } from '../../auth/permissions';
 
 export const InventoryAdjustmentsPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -15,8 +16,8 @@ export const InventoryAdjustmentsPage: React.FC = () => {
     loadProjects();
   }, []);
 
-  const { user } = useAuth();
-  const isGlobalRole = user?.role === 'technicalmanager' || user?.role === 'admin' || user?.role === 'accountant' || user?.role === 'director';
+  const { hasSystemPermission } = useAuth();
+  const isGlobalRole = hasSystemPermission(SystemPermission.ReportsView);
 
   const loadProjects = async () => {
     setLoading(true);

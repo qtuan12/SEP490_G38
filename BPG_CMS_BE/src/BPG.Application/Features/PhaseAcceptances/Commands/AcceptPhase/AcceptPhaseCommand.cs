@@ -1,4 +1,5 @@
 using BPG.Domain.Exceptions;
+using BPG.Application.Common.Authorization;
 using BPG.Application.DTOs;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -10,7 +11,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.PhaseAcceptances.Commands.AcceptPhase;
 
-public record AcceptPhaseCommand(long PhaseId, string ReportContent) : IRequest<long>;
+public record AcceptPhaseCommand(long PhaseId, string ReportContent)
+    : IRequest<long>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Phase(PhaseId);
+    public string RequiredPermission => ProjectPermission.TechnicalManage;
+}
 
 public class AcceptPhaseCommandValidator : AbstractValidator<AcceptPhaseCommand>
 {

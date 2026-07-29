@@ -56,7 +56,9 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("Project với ID [1] không tồn tại.");
         }
 
         [Fact]
@@ -67,7 +69,9 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("Phase với ID [2] không tồn tại.");
         }
 
         [Fact]
@@ -80,6 +84,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_INVALID_PHASE");
+            exception.Which.Message.Should().Be("Giai đoạn không thuộc dự án này");
         }
 
         [Fact]
@@ -90,7 +95,9 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("MaterialCatalog với ID [10] không tồn tại.");
         }
 
         [Fact]
@@ -103,6 +110,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            exception.Which.Message.Should().Be("Đơn vị tính 'm3' của vật tư [Cát xây dựng] yêu cầu số lượng phải là số nguyên.");
         }
 
         [Fact]

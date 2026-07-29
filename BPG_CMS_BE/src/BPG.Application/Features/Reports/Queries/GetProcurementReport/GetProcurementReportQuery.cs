@@ -1,13 +1,20 @@
 using BPG.Application.IRepositories;
+using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetProcurementReport;
 
-public record GetProcurementReportQuery(long ProjectId) : IRequest<ApiResponse<ProcurementReportDto>>;
+public record GetProcurementReportQuery(long ProjectId)
+    : IRequest<ApiResponse<ProcurementReportDto>>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
+    public string RequiredPermission => ProjectPermission.ReportsView;
+}
 
 public class GetProcurementReportQueryHandler
     : IRequestHandler<GetProcurementReportQuery, ApiResponse<ProcurementReportDto>>

@@ -7,7 +7,6 @@ public static class UserRole
     public const string TechnicalManager = "TechnicalManager";
     public const string SiteEngineer = "SiteEngineer";
     public const string Accountant = "Accountant";
-    public const string ProjectLeader = "ProjectLeader";
 }
 
 public static class SupplierRelationshipHealth

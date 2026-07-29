@@ -25,6 +25,7 @@ import { userService } from '../../services/userService';
 import { projectService } from '../../services/projectService';
 import { reportService } from '../../services/reportService';
 import { getRoleLabel } from '../../utils/roleHelpers';
+import { hasPermission, ProjectPermission, SystemPermission } from '../../auth/permissions';
 
 import type { Project, MaterialRequest } from '../../types/common';
 import { useNavigate } from 'react-router-dom';
@@ -32,7 +33,7 @@ import { DashboardStats } from '../Dashboard/components/DashboardStats';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasSystemPermission } = useAuth();
   const [userCount, setUserCount] = useState(0);
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [warnings, setWarnings] = useState<import('../../types/common').DashboardWarningDto[]>([]);
@@ -43,17 +44,17 @@ export const Dashboard: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [projectExecData, setProjectExecData] = useState<any>(null);
   const [loadingProjectExec, setLoadingProjectExec] = useState<boolean>(false);
+  const [hasLeaderProject, setHasLeaderProject] = useState(false);
 
   const navigate = useNavigate();
+  const canManageUsers = hasSystemPermission(SystemPermission.UsersManage);
+  const canViewProcurement = hasSystemPermission(SystemPermission.ProcurementManage);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (canManageUsers) {
       navigate('/users', { replace: true });
     }
-  }, [user, navigate]);
-
-  const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
-  const isDirector = user?.role === 'director' || user?.role === 'admin';
+  }, [canManageUsers, navigate]);
 
   const fetchMetrics = async () => {
     try {
@@ -92,26 +93,43 @@ export const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
-    if (isAccountant || isDirector) {
+    if (canManageUsers) {
+      fetchUsers();
+    }
+    if (canViewProcurement) {
       fetchMaterialRequests();
     }
     fetchWarnings();
     fetchMetrics();
 
     // Fetch project list for dropdown filters
-    if (user?.role === 'projectleader' || user?.role === 'siteengineer') {
+    if (user?.role === 'siteengineer') {
       projectService.getProjects()
-        .then((data) => {
+        .then(async (data) => {
           const activeProjects = data.filter(p => p.status !== 'draft');
-          setProjects(activeProjects);
-          if (activeProjects.length > 0) {
-            setSelectedProjectId(activeProjects[0].id);
+          const projectAccess = await Promise.all(
+            activeProjects.map((project) => projectService.getMyAccess(project.id)),
+          );
+          const dashboardProjects = activeProjects.filter((_, index) =>
+            hasPermission(
+              projectAccess[index]?.permissions,
+              ProjectPermission.View,
+            ),
+          );
+          setProjects(dashboardProjects);
+          setHasLeaderProject(
+            projectAccess.some((access) =>
+              access.isLeader
+              && hasPermission(access.permissions, ProjectPermission.View),
+            ),
+          );
+          if (dashboardProjects.length > 0) {
+            setSelectedProjectId(dashboardProjects[0].id);
           }
         })
         .catch((err) => console.error('Error fetching projects:', err));
     }
-  }, [isAccountant, isDirector, user]);
+  }, [canManageUsers, canViewProcurement, user]);
 
   useEffect(() => {
     if (selectedProjectId) {
@@ -962,8 +980,9 @@ export const Dashboard: React.FC = () => {
       {user?.role === 'admin' || user?.role === 'director' ? renderDirectorDashboard() :
         user?.role === 'accountant' ? renderAccountantDashboard() :
           user?.role === 'technicalmanager' ? renderTechnicalManagerDashboard() :
-            user?.role === 'projectleader' ? renderProjectLeaderDashboard() :
-              user?.role === 'siteengineer' ? renderSiteEngineerDashboard() : (
+            user?.role === 'siteengineer'
+              ? (hasLeaderProject ? renderProjectLeaderDashboard() : renderSiteEngineerDashboard())
+              : (
                 <div className="glass-panel p-6 text-center text-[hsl(var(--text-muted))]">
                   Giao diện đang được phát triển cho vai trò của bạn.
                 </div>

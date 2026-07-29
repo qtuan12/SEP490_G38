@@ -9,6 +9,8 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using BPG.Domain.Exceptions;
+using BPG.Application.Common.Authorization;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Tasks.Commands;
 
@@ -25,13 +27,8 @@ public record CreateTaskCommand(
     bool IsOutsourced = false,
     string? OutsourcedTeamName = null,
     string? OutsourcedTeamContact = null
-) : IRequest<ApiResponse<long>>, IRequireProjectLeader
+) : IRequest<ApiResponse<long>>, IProjectResourceRequirement
 {
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        var phase = await unitOfWork.Repository<Phase>().Query()
-            .FirstOrDefaultAsync(p => p.PhaseId == PhaseId, cancellationToken);
-        if (phase == null) throw new NotFoundException("Phase", PhaseId);
-        return phase.ProjectId;
-    }
+    public ProjectResource ProjectResource => ProjectResource.Phase(PhaseId);
+    public string RequiredPermission => ProjectPermission.ExecutionManage;
 }

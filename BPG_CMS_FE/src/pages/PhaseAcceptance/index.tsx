@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type {WBSPhase, WBSTask, Project} from '../../types/common';
 import { formatDate, formatDateOnly } from '../../utils/dateHelpers';
@@ -17,11 +16,13 @@ import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
 import html2pdf from 'html2pdf.js';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { toast } from 'react-hot-toast';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { ProjectPermission } from '../../auth/permissions';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { hasProjectPermission } = useProjectAccess(projectId);
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
@@ -49,7 +50,7 @@ export const PhaseAcceptance: React.FC = () => {
 
   const canRevoke = isViewingHistory ? !historicalAcceptance?.isCancelled : isSubmitted;
 
-  const isTPKT = user?.role === 'technicalmanager';
+  const isTPKT = hasProjectPermission(ProjectPermission.TechnicalManage);
 
   const loadData = React.useCallback(async () => {
     if (!projectId || !phaseId) return;
@@ -68,7 +69,12 @@ export const PhaseAcceptance: React.FC = () => {
       setTasks(phaseTasks);
 
       if (targetPhase?.status === 'frozen') {
-        const res = await phaseAcceptanceService.getPhaseAcceptances({ pageIndex: 1, pageSize: 10, phaseId: Number(phaseId) });
+        const res = await phaseAcceptanceService.getPhaseAcceptances({
+          pageIndex: 1,
+          pageSize: 10,
+          projectId: Number(projectId),
+          phaseId: Number(phaseId),
+        });
         const activeAcc = res.items.find((x: any) => !x.isCancelled);
         if (activeAcc) {
           setActiveReportContent(activeAcc.reportContent || '');
@@ -79,7 +85,12 @@ export const PhaseAcceptance: React.FC = () => {
       }
 
       if (historyId) {
-        const res = await phaseAcceptanceService.getPhaseAcceptances({ pageIndex: 1, pageSize: 10, phaseId: Number(phaseId) });
+        const res = await phaseAcceptanceService.getPhaseAcceptances({
+          pageIndex: 1,
+          pageSize: 10,
+          projectId: Number(projectId),
+          phaseId: Number(phaseId),
+        });
         const targetAcc = res.items.find((x: any) => x.acceptanceId === Number(historyId));
         if (targetAcc) {
           setHistoricalAcceptance(targetAcc);

@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using BPG.Application.Common.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
+using BPG.Application.Common.Authorization;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Phases.Commands.CreatePhase;
 
@@ -18,10 +20,10 @@ public record CreatePhaseCommand(
     int OrderIndex,
     DateOnly? StartDate,
     DateOnly? EndDate
-) : IRequest<ApiResponse<long>>, IRequireTechnicalManager
+) : IRequest<ApiResponse<long>>, IProjectResourceRequirement
 {
-    public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-        => Task.FromResult(ProjectId);
+    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
+    public string RequiredPermission => ProjectPermission.TechnicalManage;
 }
 
 public class CreatePhaseCommandValidator : AbstractValidator<CreatePhaseCommand>

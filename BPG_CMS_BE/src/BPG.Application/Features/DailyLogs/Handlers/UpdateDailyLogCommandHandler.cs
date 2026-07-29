@@ -23,17 +23,20 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         private readonly IMapper _mapper;
         private readonly ICurrentUserService _currentUserService;
         private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly IPermissionService? _permissionService;
 
         public UpdateDailyLogCommandHandler(
             IUnitOfWork uow, 
             IMapper mapper, 
             ICurrentUserService currentUserService,
-            IRealtimeNotificationSender realtimeSender)
+            IRealtimeNotificationSender realtimeSender,
+            IPermissionService? permissionService = null)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
             _realtimeSender = realtimeSender;
+            _permissionService = permissionService;
         }
 
         public async Task<DailyLogDto> Handle(UpdateDailyLogCommand request, CancellationToken cancellationToken)
@@ -56,19 +59,29 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = log.Task.Phase.Project;
 
-            // 2. Kiểm tra quyền chỉnh sửa (Chỉ TM, Project Leader hoặc Kỹ sư được gán vào công việc mới được sửa nhật ký)
-            bool isTM = _currentUserService.IsInAnyRole( BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isTM)
+            var canManageExecution = _permissionService != null
+                ? await _permissionService.HasProjectPermissionAsync(
+                    project.ProjectId,
+                    ProjectPermission.ExecutionManage,
+                    cancellationToken)
+                : _currentUserService.IsInAnyRole(
+                    BPG.Domain.Constants.UserRole.TechnicalManager);
+            if (!canManageExecution)
             {
                 // Kiểm tra xem User có phải là Project Leader của dự án này không
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
+                var hasLegacyLeaderAccess = _permissionService == null
+                    && await _uow.Repository<ProjectMember>().Query()
+                        .AnyAsync(
+                            m => m.ProjectId == project.ProjectId
+                                && m.UserId == currentUserId
+                                && m.IsLeader,
+                            cancellationToken);
 
                 // Kiểm tra xem User có được gán vào công việc này không
                 var isAssignee = await _uow.Repository<TaskAssignee>().Query()
                     .AnyAsync(ta => ta.TaskId == log.TaskId && ta.UserId == currentUserId, cancellationToken);
 
-                if (!isLeader && !isAssignee)
+                if (!hasLegacyLeaderAccess && !isAssignee)
                 {
                     throw new ForbiddenException("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép chỉnh sửa nhật ký thi công.");
                 }

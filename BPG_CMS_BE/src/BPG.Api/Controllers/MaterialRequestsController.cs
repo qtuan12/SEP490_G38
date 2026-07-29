@@ -37,7 +37,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,Director,TechnicalManager,Accountant")]
+        [Authorize(Policy = SystemPermission.ProcurementManage)]
         public async Task<IActionResult> GetAllMaterialRequests(
             [FromQuery] GetMaterialRequestsQuery query,
             CancellationToken ct)
@@ -67,7 +67,6 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/accountant-process")]
-        [Authorize(Policy = PolicyNames.RequireAccountant)]
         public async Task<IActionResult> AccountantProcess(
             [FromRoute] long id,
             [FromBody] ProcessMaterialRequestRequest request,
@@ -79,7 +78,6 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/director-approve")]
-        [Authorize(Policy = PolicyNames.RequireDirector)]
         public async Task<IActionResult> DirectorApprove(
             [FromRoute] long id,
             [FromBody] ApproveMaterialRequestRequest request,
@@ -91,7 +89,6 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/reject")]
-        [Authorize(Roles = "Admin,Director,TechnicalManager,Accountant")]
         public async Task<IActionResult> RejectMaterialRequest(
             [FromRoute] long id,
             [FromBody] RejectMaterialRequestRequest request,

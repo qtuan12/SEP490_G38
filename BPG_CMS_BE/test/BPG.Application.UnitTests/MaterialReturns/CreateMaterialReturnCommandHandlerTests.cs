@@ -1,4 +1,4 @@
-﻿using BPG.Application.Features.MaterialReturns.Commands;
+using BPG.Application.Features.MaterialReturns.Commands;
 using BPG.Application.Features.MaterialReturns.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -88,7 +88,6 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             result.Success.Should().BeTrue();
             result.Data.Should().Be(GeneratedReturnId);
-            result.Message.Should().Contain("Tạo phiếu hoàn trả");
         }
 
         [Fact]
@@ -102,7 +101,6 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             result.Success.Should().BeTrue();
             result.Data.Should().Be(GeneratedReturnId);
-            result.Message.Should().Contain("Tạo phiếu hoàn trả");
         }
 
         [Fact]
@@ -112,7 +110,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var act = async () => await _handler.Handle(Command(items: Array.Empty<ReturnItemDto>()), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_EMPTY_ITEMS");
         }
 
         [Fact]
@@ -123,7 +122,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var act = async () => await _handler.Handle(Command(originalIssuanceId: 999), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
         }
 
         [Fact]
@@ -139,7 +139,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
         }
 
         [Fact]
@@ -150,20 +151,19 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
 
         [Fact]
-        public async Task UTCID07_Handle_UserIsNeitherTechnicalManagerNorProjectLeader_ShouldThrowForbiddenException()
+        public void UTCID07_Command_ShouldDeclareExecutionPermissionForMaterialIssuanceResource()
         {
-            SetupStandardUser();
-            SetupIssuances(Issuance(IssuanceItem(CementId, 10)));
+            var command = Command();
 
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            await act.Should().ThrowAsync<ForbiddenException>();
+            command.RequiredPermission.Should().Be(ProjectPermission.ExecutionManage);
+            command.ProjectResource.Id.Should().Be(OriginalIssuanceId);
+            command.ProjectResource.Type.ToString().Should().Be("MaterialIssuance");
         }
-
         [Fact]
         public async Task UTCID08_Handle_MaterialNotInOriginalIssuance_ShouldThrowBusinessException()
         {
@@ -172,7 +172,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(99, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_MATERIAL_NOT_IN_ISSUANCE");
         }
 
         [Fact]
@@ -183,7 +184,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 0) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INVALID_QUANTITY");
         }
 
         [Fact]
@@ -194,7 +196,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 15) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_RETURN_EXCEEDS_ISSUED");
         }
 
         [Fact]
@@ -206,7 +209,8 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_RETURN_EXCEEDS_ISSUED");
         }
 
         private static CreateMaterialReturnCommand Command(

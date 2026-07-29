@@ -9,6 +9,8 @@ import type { IncidentReport, WBSPhase } from '../../../types/common';
 import { ArrowRight, ArrowLeft, AlertCircle, CheckCircle, HardHat, Package, MapPin, Clock, Users, BarChart3, FileText } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { ProjectPermission } from '../../../auth/permissions';
 interface IncidentDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -74,10 +76,10 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   onClose,
   incident,
   phase,
-  user,
   onResolveClick,
   onSuccessAction
 }) => {
+  const { hasProjectPermission } = useProjectAccess(incident.projectId);
   const [isRejecting, setIsRejecting] = useState(false);
   const [isResubmittingByDirector, setIsResubmittingByDirector] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -998,10 +1000,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     Resolved: { label: 'Đã xử lý', color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' },
   }[incident.status as string] ?? { label: incident.status, color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' };
 
-  const roleLabel = user?.role?.toLowerCase() ?? '';
-  const isTPKT = roleLabel === 'technicalmanager' || roleLabel === 'admin';
-  const isAccountant = roleLabel === 'accountant' || roleLabel === 'admin';
-  const isDirector = roleLabel === 'director' || roleLabel === 'admin';
+  const isTPKT = hasProjectPermission(ProjectPermission.TechnicalManage);
+  const isAccountant = hasProjectPermission(ProjectPermission.AccountingManage);
+  const isDirector = hasProjectPermission(ProjectPermission.Approve);
 
   const incidentDetailsJSX = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

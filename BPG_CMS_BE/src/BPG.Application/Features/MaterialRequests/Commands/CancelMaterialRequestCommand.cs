@@ -1,4 +1,5 @@
 using MediatR;
+using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -12,17 +13,26 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Commands
 {
-    public record CancelMaterialRequestCommand(long RequestId, string Reason) : IRequest<ApiResponse<bool>>;
+    public record CancelMaterialRequestCommand(long RequestId, string Reason)
+        : IRequest<ApiResponse<bool>>, IProjectResourceRequirement
+    {
+        public ProjectResource ProjectResource => ProjectResource.MaterialRequest(RequestId);
+    }
 
     public class CancelMaterialRequestCommandHandler : IRequestHandler<CancelMaterialRequestCommand, ApiResponse<bool>>
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IPermissionService _permissionService;
 
-        public CancelMaterialRequestCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public CancelMaterialRequestCommandHandler(
+            IUnitOfWork uow,
+            ICurrentUserService currentUserService,
+            IPermissionService permissionService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _permissionService = permissionService;
         }
 
         public async Task<ApiResponse<bool>> Handle(CancelMaterialRequestCommand request, CancellationToken cancellationToken)
@@ -38,11 +48,11 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
             }
 
-            // Kiểm tra phân quyền: Phải là người tạo hoặc Project Leader của dự án
-            var isLeader = await _uow.Repository<ProjectMember>().Query()
-                .AnyAsync(pm => pm.ProjectId == mr.Phase.ProjectId && pm.UserId == currentUserId && pm.IsLeader, cancellationToken);
-
-            if (mr.CreatedBy != currentUserId && !isLeader)
+            var canManageExecution = await _permissionService.HasProjectPermissionAsync(
+                mr.Phase.ProjectId,
+                ProjectPermission.ExecutionManage,
+                cancellationToken);
+            if (mr.CreatedBy != currentUserId && !canManageExecution)
             {
                 throw new ForbiddenException("Bạn không có quyền hủy yêu cầu vật tư này.");
             }

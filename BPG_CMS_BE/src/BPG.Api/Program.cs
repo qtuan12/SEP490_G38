@@ -1,10 +1,12 @@
 using System.Text;
+using BPG.Api.Authorization;
 using BPG.Api.Middleware;
 using BPG.Application;
 using BPG.Domain.Entities;
 using BPG.Infrastructure;
 using BPG.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -31,6 +33,7 @@ try
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddSignalR();
     builder.Services.AddScoped<BPG.Application.IServices.IRealtimeNotificationSender, BPG.Api.Hubs.RealtimeNotificationSender>();
+    builder.Services.AddScoped<IAuthorizationHandler, SystemPermissionHandler>();
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
@@ -99,37 +102,15 @@ try
 
     builder.Services.AddAuthorization(options =>
     {
-        // Single roles
-        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireAdmin, policy =>
-            policy.RequireRole(BPG.Domain.Constants.UserRole.Admin));
-        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireDirector, policy =>
-            policy.RequireRole(BPG.Domain.Constants.UserRole.Director));
-        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireTechnicalManager, policy =>
-            policy.RequireRole(BPG.Domain.Constants.UserRole.TechnicalManager));
-        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireSiteEngineer, policy =>
-            policy.RequireRole(BPG.Domain.Constants.UserRole.SiteEngineer));
-        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireAccountant, policy =>
-            policy.RequireRole(BPG.Domain.Constants.UserRole.Accountant));
+        options.FallbackPolicy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
 
-        // Compound roles
-        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireManagerOrAbove, policy =>
-            policy.RequireRole(
-                BPG.Domain.Constants.UserRole.Admin,
-                BPG.Domain.Constants.UserRole.Director,
-                BPG.Domain.Constants.UserRole.TechnicalManager));
-
-        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireFieldStaff, policy =>
-            policy.RequireRole(
-                BPG.Domain.Constants.UserRole.SiteEngineer,
-                BPG.Domain.Constants.UserRole.TechnicalManager,
-                BPG.Domain.Constants.UserRole.Admin,
-                BPG.Domain.Constants.UserRole.Director));
-
-        options.AddPolicy(BPG.Domain.Constants.PolicyNames.RequireProcurement, policy =>
-            policy.RequireRole(
-                BPG.Domain.Constants.UserRole.Admin,
-                BPG.Domain.Constants.UserRole.Director,
-                BPG.Domain.Constants.UserRole.Accountant));
+        foreach (var permission in BPG.Domain.Constants.PermissionCatalog.SystemPermissions)
+        {
+            options.AddPolicy(permission, policy =>
+                policy.AddRequirements(new SystemPermissionRequirement(permission)));
+        }
     });
 
     builder.Services.AddEndpointsApiExplorer();

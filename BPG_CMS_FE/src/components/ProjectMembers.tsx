@@ -8,6 +8,11 @@ import { Modal } from './ui/Modal';
 import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { useSignalREvent } from '../hooks/useSignalREvent';
+import { useProjectAccess } from '../hooks/useProjectAccess';
+import {
+  ProjectPermission,
+  SystemPermission,
+} from '../auth/permissions';
 
 interface AvailableEngineer extends UserProfile {
   leaderProjectName?: string;
@@ -18,8 +23,9 @@ interface ProjectMembersProps {
 }
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => {
-  const { user } = useAuth();
+  const { hasSystemPermission } = useAuth();
   const { connection } = useNotification();
+  const { hasProjectPermission } = useProjectAccess(projectId);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +39,9 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<{id: string, name: string} | null>(null);
 
-  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const canManageMembers =
+    hasSystemPermission(SystemPermission.ProjectMembersManage) &&
+    hasProjectPermission(ProjectPermission.TechnicalManage);
   const hasLeader = members.some(m => m.isLeader);
 
   const loadData = async (bustCache = false) => {
@@ -44,7 +52,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       setMembers(projMembers);
 
       // Only TPKT/Admin needs to load all users to add them
-      if (isTPKT) {
+      if (canManageMembers) {
         const usersResponse = await userService.getUsers({ pageSize: 1000 });
         const allUsers = usersResponse.items;
         // Filter out those who are not engineers or are already members of this project
@@ -53,7 +61,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         );
 
         // Lấy tất cả dự án và thành viên để tìm thông tin trưởng nhóm
-        const allProjects = await projectService.getProjects(true);
+        const allProjects = await projectService.getProjects();
         const allMembersPromises = allProjects.map(p => projectService.getMembers(p.id));
         const allMembersArrays = await Promise.all(allMembersPromises);
         
@@ -87,7 +95,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
 
   useEffect(() => {
     loadData();
-  }, [projectId]);
+  }, [projectId, canManageMembers]);
 
   useEffect(() => {
     if (!connection) return;
@@ -234,7 +242,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
             Danh sách nhân sự tham gia thi công và giám sát dự án
           </p>
         </div>
-        {isTPKT && (
+        {canManageMembers && (
           <button onClick={openAddModal} className="btn btn-primary" style={{ padding: '8px 12px', fontSize: '0.85rem' }}>
             <UserPlus size={16} />
             <span>Thêm kỹ sư</span>
@@ -314,11 +322,12 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
             </div>
 
             {/* Actions for TPKT */}
-            {isTPKT && (
+            {canManageMembers && (
               <div style={{
                 display: 'flex',
-                justifyContent: 'space-between',
+                justifyContent: 'flex-end',
                 alignItems: 'center',
+                gap: '6px',
                 borderTop: '1px solid hsl(var(--border) / 0.5)',
                 paddingTop: '12px',
                 marginTop: '4px'
@@ -341,9 +350,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                     <Crown size={14} fill={m.isLeader ? 'none' : 'currentColor'} />
                     <span>{m.isLeader ? 'Hủy trưởng nhóm' : 'Gán trưởng nhóm'}</span>
                   </button>
-                ) : (
-                  <div></div>
-                )}
+                ) : null}
 
                 {/* Remove member button */}
                 <button
@@ -366,7 +373,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
             )}
 
             {/* Informational Read-only icons for other users */}
-            {!isTPKT && (
+            {!canManageMembers && (
               <div style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', display: 'flex', gap: '6px', alignItems: 'center' }}>
                 <UserCheck size={14} />
                 <span>Kỹ sư thi công dự án</span>

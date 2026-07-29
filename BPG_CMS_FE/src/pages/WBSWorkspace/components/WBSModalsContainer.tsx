@@ -19,7 +19,7 @@ import { ReportInventoryIncidentModal } from '../modals/ReportInventoryIncidentM
 
 export const WBSModalsContainer = () => {
   const {
-    projectId, user, isPL, materialRequests, tasks, members,
+    projectId, user, isPL, isTPKT, materialRequests, tasks, members,
     isDetailOpen, setIsDetailOpen, project, isTPKTOrPL, handleDeleteTask, setCreateMatReqType, isAssignOpen, setIsAssignOpen,
     isLogOpen, setIsLogOpen,
     isCreateMatReqOpen, setIsCreateMatReqOpen, createMatReqType,
@@ -56,6 +56,7 @@ export const WBSModalsContainer = () => {
           user={user}
           materialRequests={materialRequests}
           isTPKTOrPL={isTPKTOrPL}
+          isTPKT={isTPKT}
           isPL={isPL}
           onCreateMatReqOpen={(type) => { setIsDetailOpen(false); setCreateMatReqType(type); setIsCreateMatReqOpen(true); }}
           onObsolete={() => { 
@@ -110,7 +111,7 @@ export const WBSModalsContainer = () => {
 
 
       {isLogOpen && selectedTask && user && (
-        <DailyLogFormModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} task={selectedTask} engineerId={user.id} engineerName={user.name} isPL={isPL} onSuccess={handleSuccess} onError={handleError} />
+        <DailyLogFormModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} task={selectedTask} engineerId={user.id} engineerName={user.name} isPL={isPL} canManageTechnical={isTPKT} onSuccess={handleSuccess} onError={handleError} />
       )}
 
       {isCreateMatReqOpen && selectedTask && (
@@ -121,7 +122,6 @@ export const WBSModalsContainer = () => {
           phase={selectedTaskPhase || undefined}
           projectId={projectId}
           user={user}
-          isLeader={isPL}
           allMaterialRequests={materialRequests}
           requestType={createMatReqType}
           onSuccess={(msg) => {
@@ -188,8 +188,6 @@ export const WBSModalsContainer = () => {
           }}
           request={selectedResubmitRequest}
           projectId={projectId}
-          user={user}
-          isLeader={isPL}
           onSuccess={(msg) => {
             handleSuccess(msg);
             // Mở rộng sau: fetch lại data
@@ -207,7 +205,6 @@ export const WBSModalsContainer = () => {
           phase={selectedPhaseForMatReq}
           projectId={projectId}
           user={user}
-          isLeader={isPL}
           allMaterialRequests={materialRequests}
           requestType={createMatReqType}
           onSuccess={handleSuccess}

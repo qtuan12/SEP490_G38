@@ -12,6 +12,7 @@ namespace BPG.Api.Controllers;
 public class AuthController : BaseApiController
 {
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login(LoginCommand command)
     {
         var result = await Mediator.Send(command);
@@ -19,6 +20,7 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("refresh-token")]
+    [AllowAnonymous]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command)
     {
         var result = await Mediator.Send(command);
@@ -74,6 +76,7 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("forgot-password")]
+    [AllowAnonymous]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand command)
     {
         await Mediator.Send(command);
@@ -81,6 +84,7 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("verify-otp")]
+    [AllowAnonymous]
     public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpCommand command)
     {
         var resetToken = await Mediator.Send(command);
@@ -88,6 +92,7 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("reset-password")]
+    [AllowAnonymous]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand command)
     {
         await Mediator.Send(command);

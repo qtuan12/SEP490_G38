@@ -1,4 +1,5 @@
 using BPG.Application.Features.SystemConfigs;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,7 +22,7 @@ namespace BPG.Api.Controllers
         /// Admin cập nhật giá trị một tham số cấu hình.
         /// </summary>
         [HttpPut("{key}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Policy = SystemPermission.ConfigurationManage)]
         public async Task<IActionResult> UpdateSystemConfig(string key, [FromBody] UpdateConfigBody body, CancellationToken ct)
         {
             await Mediator.Send(new UpdateSystemConfigCommand { ConfigKey = key, ConfigValue = body.ConfigValue }, ct);
@@ -43,7 +44,7 @@ namespace BPG.Api.Controllers
         /// Admin cập nhật tên và logo công ty.
         /// </summary>
         [HttpPut("company")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Policy = SystemPermission.ConfigurationManage)]
         public async Task<IActionResult> UpdateCompanySettings([FromBody] UpdateCompanySettingsCommand command, CancellationToken ct)
         {
             await Mediator.Send(command, ct);

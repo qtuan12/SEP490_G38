@@ -7,6 +7,8 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using BPG.Domain.Exceptions;
+using BPG.Application.Common.Authorization;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Surplus.Commands;
 
@@ -19,14 +21,8 @@ public record CreateSurplusLiquidationActionCommand(
     decimal LiquidationQuantity,
     decimal TotalAmount,
     List<Microsoft.AspNetCore.Http.IFormFile>? Attachments
-) : IRequest<ApiResponse<long>>, IRequireAccountant
+) : IRequest<ApiResponse<long>>, IProjectResourceRequirement
 {
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        var item = await unitOfWork.Repository<SurplusRequestItem>().Query()
-            .Include(i => i.SurplusRequest)
-            .FirstOrDefaultAsync(i => i.SurplusRequestItemId == SurplusRequestItemId, cancellationToken);
-        if (item == null) throw new NotFoundException("SurplusRequestItem", SurplusRequestItemId);
-        return item.SurplusRequest.ProjectId;
-    }
+    public ProjectResource ProjectResource => ProjectResource.SurplusRequestItem(SurplusRequestItemId);
+    public string RequiredPermission => ProjectPermission.AccountingManage;
 }

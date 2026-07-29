@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using BPG.Application.Common.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
+using BPG.Application.Common.Authorization;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Phases.Commands.UpdatePhase;
 
@@ -19,15 +21,10 @@ public record UpdatePhaseCommand(
     DateOnly? StartDate,
     DateOnly? EndDate,
     int Status
-) : IRequest<ApiResponse>, IRequireTechnicalManager
+) : IRequest<ApiResponse>, IProjectResourceRequirement
 {
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        var phase = await unitOfWork.Repository<Phase>().Query()
-            .FirstOrDefaultAsync(p => p.PhaseId == PhaseId, cancellationToken);
-        if (phase == null) throw new NotFoundException("Phase", PhaseId);
-        return phase.ProjectId;
-    }
+    public ProjectResource ProjectResource => ProjectResource.Phase(PhaseId);
+    public string RequiredPermission => ProjectPermission.TechnicalManage;
 }
 
 public class UpdatePhaseCommandValidator : AbstractValidator<UpdatePhaseCommand>

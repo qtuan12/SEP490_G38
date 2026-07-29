@@ -18,7 +18,6 @@ const getRoleDashboard = (role: string): string => {
     case 'siteengineer':
       return '/field';
     case 'technicalmanager':
-    case 'projectleader':
       return '/projects';
     default:
       return '/dashboard';

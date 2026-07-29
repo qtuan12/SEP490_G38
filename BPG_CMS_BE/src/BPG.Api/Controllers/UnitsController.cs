@@ -1,12 +1,13 @@
 using BPG.Api.Controllers;
 using BPG.Application.Features.Units.Commands;
 using BPG.Application.Features.Units.Queries;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BPG.Api.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = SystemPermission.MasterDataManage)]
 [Route("api/[controller]")]
 public class UnitsController : BaseApiController
 {

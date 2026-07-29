@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Common.Interfaces;
 
@@ -12,9 +13,24 @@ namespace BPG.Application.Common.Interfaces;
 /// </summary>
 public interface IProjectRequirement
 {
+    string RequiredPermission => ProjectPermission.View;
+
     /// <summary>
     /// Trả về ProjectId của query. Throw <c>NotFoundException</c> nếu không xác định được
     /// (vd. FK nullable bị null hoặc entity không tồn tại) để fail-closed.
     /// </summary>
     Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Used by requests that support both a project-scoped endpoint and a separately
+/// authorized system-wide endpoint.
+/// </summary>
+public interface IProjectScopedListRequest
+{
+    string RequiredPermission => ProjectPermission.View;
+
+    Task<long?> GetProjectIdAsync(
+        IUnitOfWork unitOfWork,
+        CancellationToken cancellationToken);
 }

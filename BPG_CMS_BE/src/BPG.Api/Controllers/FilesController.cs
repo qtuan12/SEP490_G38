@@ -1,5 +1,7 @@
 using BPG.Application.DTOs.Files;
 using BPG.Application.IServices;
+using BPG.Domain.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
@@ -7,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Api.Controllers
 {
+    [Authorize]
     public class FilesController : BaseApiController
     {
         private readonly IFileStorageService _fileStorageService;
@@ -84,6 +87,7 @@ namespace BPG.Api.Controllers
         /// Xóa tệp từ xa trên Cloudinary dựa trên URL.
         /// </summary>
         [HttpDelete("delete")]
+        [Authorize(Policy = SystemPermission.FilesDelete)]
         public async Task<IActionResult> DeleteFile([FromQuery] string fileUrl)
         {
             if (string.IsNullOrWhiteSpace(fileUrl))

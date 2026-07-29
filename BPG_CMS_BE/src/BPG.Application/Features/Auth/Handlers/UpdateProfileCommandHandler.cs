@@ -1,3 +1,4 @@
+using BPG.Application.Common.Authorization;
 using BPG.Application.DTOs.Auth;
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
@@ -33,6 +34,13 @@ namespace BPG.Application.Features.Auth.Handlers
 
             await _uow.SaveChangesAsync(cancellationToken);
 
+            var roles = user.UserRoles
+                .Where(userRole => userRole.Role != null)
+                .Select(userRole => userRole.Role!.RoleName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(role => role, StringComparer.Ordinal)
+                .ToList();
+
             return new GetCurrentUserDto
             {
                 UserId = user.UserId,
@@ -40,7 +48,11 @@ namespace BPG.Application.Features.Auth.Handlers
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
                 AvatarUrl = user.AvatarUrl,
-                Role = user.UserRoles.FirstOrDefault()?.Role?.RoleName ?? string.Empty,
+                Role = roles.FirstOrDefault() ?? string.Empty,
+                Roles = roles,
+                SystemPermissions = PermissionGrantCatalog.GetSystemPermissions(roles)
+                    .OrderBy(permission => permission, StringComparer.Ordinal)
+                    .ToList(),
                 IsActive = user.IsActive,
                 LastLoginAt = user.LastLoginAt,
                 PasswordChangedAt = user.PasswordChangedAt

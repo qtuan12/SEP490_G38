@@ -1,12 +1,13 @@
 using BPG.Application.Features.MaterialCategories.Commands;
 using BPG.Application.Features.MaterialCategories.Queries;
 using BPG.Application.DTOs.MaterialCategories;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BPG.Api.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = SystemPermission.MasterDataManage)]
 public class MaterialCategoriesController : BaseApiController
 {
     [HttpGet]

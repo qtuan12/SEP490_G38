@@ -1,4 +1,5 @@
 using BPG.Domain.Exceptions;
+using BPG.Application.Common.Authorization;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
@@ -9,7 +10,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.PhaseAcceptances.Commands.CancelAcceptance;
 
-public record CancelAcceptanceCommand(long AcceptanceId, string CancellationReason) : IRequest<bool>;
+public record CancelAcceptanceCommand(long AcceptanceId, string CancellationReason)
+    : IRequest<bool>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.PhaseAcceptance(AcceptanceId);
+    public string RequiredPermission => ProjectPermission.TechnicalManage;
+}
 
 public class CancelAcceptanceCommandValidator : AbstractValidator<CancelAcceptanceCommand>
 {

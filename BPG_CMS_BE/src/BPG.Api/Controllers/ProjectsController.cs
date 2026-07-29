@@ -1,18 +1,18 @@
 namespace BPG.Api.Controllers;
 
 using BPG.Application.Common.Models;
-
 using BPG.Application.Features.Projects.Commands;
 using BPG.Application.Features.Projects.DTOs;
 using BPG.Application.Features.Projects.Queries;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 
+[Authorize]
 public class ProjectsController : BaseApiController
 {
     [HttpGet("metrics")]
-    [Authorize]
+    [Authorize(Policy = SystemPermission.ProjectsList)]
     public async Task<IActionResult> GetDashboardMetrics()
     {
         var result = await Mediator.Send(new GetDashboardMetricsQuery());
@@ -20,7 +20,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet("dashboard/warnings")]
-    [Authorize]
+    [Authorize(Policy = SystemPermission.ProjectsList)]
     public async Task<IActionResult> GetDashboardWarnings()
     {
         var result = await Mediator.Send(new GetDashboardWarningsQuery());
@@ -28,7 +28,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet]
-    [Authorize(Roles = "TechnicalManager, ProjectLeader, SiteEngineer, Director, Accountant")]
+    [Authorize(Policy = SystemPermission.ProjectsList)]
     public async Task<IActionResult> GetProjects([FromQuery] GetProjectsQuery query)
     {
         var result = await Mediator.Send(query);
@@ -36,85 +36,97 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "TechnicalManager, ProjectLeader, SiteEngineer, Director, Accountant")]
     public async Task<IActionResult> GetProjectById(long id)
     {
         var result = await Mediator.Send(new GetProjectByIdQuery(id));
         return ApiOk(result);
     }
 
+    [HttpGet("{id}/access")]
+    public async Task<IActionResult> GetMyAccess(long id, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new GetMyProjectAccessQuery(id), ct);
+        return ApiOk(result);
+    }
+
     [HttpPost]
-    [Authorize(Roles = "TechnicalManager")]
+    [Authorize(Policy = SystemPermission.ProjectsCreate)]
     public async Task<IActionResult> CreateProject([FromBody] CreateProjectCommand command)
     {
         var result = await Mediator.Send(command);
-        return ApiOk(result, "Tạo dự án thành công.");
+        return ApiOk(result, "Tao du an thanh cong.");
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "TechnicalManager")]
+    [Authorize(Policy = SystemPermission.ProjectsUpdate)]
     public async Task<IActionResult> UpdateProject(long id, [FromBody] UpdateProjectCommand command)
     {
-        if (id != command.ProjectId) return ApiBadRequest("Id trong URL và Body không khớp.");
+        if (id != command.ProjectId)
+            return ApiBadRequest("Id trong URL va Body khong khop.");
+
         var result = await Mediator.Send(command);
-        return ApiOk(result, "Cập nhật dự án thành công.");
+        return ApiOk(result, "Cap nhat du an thanh cong.");
     }
 
     [HttpPut("{id}/activate")]
-    [Authorize(Roles = "TechnicalManager")]
+    [Authorize(Policy = SystemPermission.ProjectsChangeStatus)]
     public async Task<IActionResult> ActivateProject(long id)
     {
         await Mediator.Send(new ActivateProjectCommand(id));
-        return ApiOk("Kích hoạt dự án thành công.");
+        return ApiOk("Kich hoat du an thanh cong.");
     }
 
     [HttpPut("{id}/pause")]
-    [Authorize(Roles = "TechnicalManager, Director")]
+    [Authorize(Policy = SystemPermission.ProjectsChangeStatus)]
     public async Task<IActionResult> PauseProject(long id, [FromBody] PauseProjectCommand command)
     {
-        if (id != command.ProjectId) return ApiBadRequest("Id trong URL và Body không khớp.");
+        if (id != command.ProjectId)
+            return ApiBadRequest("Id trong URL va Body khong khop.");
+
         await Mediator.Send(command);
-        return ApiOk("Tạm dừng dự án thành công.");
+        return ApiOk("Tam dung du an thanh cong.");
     }
 
     [HttpPut("{id}/resume")]
-    [Authorize(Roles = "TechnicalManager, Director")]
+    [Authorize(Policy = SystemPermission.ProjectsChangeStatus)]
     public async Task<IActionResult> ResumeProject(long id)
     {
         await Mediator.Send(new ResumeProjectCommand { ProjectId = id });
-        return ApiOk("Tiếp tục dự án thành công.");
+        return ApiOk("Tiep tuc du an thanh cong.");
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "TechnicalManager")]
+    [Authorize(Policy = SystemPermission.ProjectsUpdate)]
     public async Task<IActionResult> DeleteProject(long id)
     {
         await Mediator.Send(new DeleteProjectCommand { ProjectId = id });
-        return ApiOk("Xóa dự án thành công.");
+        return ApiOk("Xoa du an thanh cong.");
     }
 
     [HttpPost("{id}/members")]
-    [Authorize(Roles = "TechnicalManager")]
+    [Authorize(Policy = SystemPermission.ProjectMembersManage)]
     public async Task<IActionResult> AddProjectMember(long id, [FromBody] AddProjectMemberCommand command)
     {
-        if (id != command.ProjectId) return ApiBadRequest("Id trong URL và Body không khớp.");
+        if (id != command.ProjectId)
+            return ApiBadRequest("Id trong URL va Body khong khop.");
+
         var result = await Mediator.Send(command);
-        return ApiOk(result, "Thêm thành viên thành công.");
+        return ApiOk(result, "Them thanh vien thanh cong.");
     }
 
     [HttpDelete("{id}/members/{userId}")]
-    [Authorize(Roles = "TechnicalManager")]
+    [Authorize(Policy = SystemPermission.ProjectMembersManage)]
     public async Task<IActionResult> RemoveProjectMember(long id, long userId)
     {
         await Mediator.Send(new RemoveProjectMemberCommand { ProjectId = id, UserId = userId });
-        return ApiOk("Xóa thành viên thành công.");
+        return ApiOk("Xoa thanh vien thanh cong.");
     }
 
     [HttpPut("{id}/members/{userId}/leader")]
-    [Authorize(Roles = "TechnicalManager")]
+    [Authorize(Policy = SystemPermission.ProjectMembersManage)]
     public async Task<IActionResult> AssignProjectLeader(long id, long userId)
     {
         await Mediator.Send(new AssignProjectLeaderCommand { ProjectId = id, UserId = userId });
-        return ApiOk("Gán chức vụ Nhóm trưởng thành công.");
+        return ApiOk("Gan chuc vu truong nhom thanh cong.");
     }
 }

@@ -25,6 +25,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         private readonly INotificationService _notificationService;
         private readonly IRealtimeNotificationSender _realtimeSender;
         private readonly IProgressRollupService _progressRollupService;
+        private readonly IPermissionService? _permissionService;
 
         public CreateDailyLogCommandHandler(
             IUnitOfWork uow, 
@@ -32,7 +33,8 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             ICurrentUserService currentUserService,
             INotificationService notificationService,
             IRealtimeNotificationSender realtimeSender,
-            IProgressRollupService progressRollupService)
+            IProgressRollupService progressRollupService,
+            IPermissionService? permissionService = null)
         {
             _uow = uow;
             _mapper = mapper;
@@ -40,6 +42,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             _notificationService = notificationService;
             _realtimeSender = realtimeSender;
             _progressRollupService = progressRollupService;
+            _permissionService = permissionService;
         }
 
         public async Task<DailyLogDto> Handle(CreateDailyLogCommand request, CancellationToken cancellationToken)
@@ -60,19 +63,37 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = task.Phase.Project;
 
-            // 2. Kiểm tra quyền của User (Chỉ TM, Project Leader hoặc Assigned Engineer mới được tạo daily log)
-            bool isTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isTM)
+            var canManageExecution = _permissionService != null
+                ? await _permissionService.HasProjectPermissionAsync(
+                    project.ProjectId,
+                    ProjectPermission.ExecutionManage,
+                    cancellationToken)
+                : _currentUserService.IsInAnyRole(
+                    BPG.Domain.Constants.UserRole.TechnicalManager);
+            var canManageTechnical = _permissionService != null
+                ? await _permissionService.HasProjectPermissionAsync(
+                    project.ProjectId,
+                    ProjectPermission.TechnicalManage,
+                    cancellationToken)
+                : _currentUserService.IsInAnyRole(
+                    BPG.Domain.Constants.UserRole.TechnicalManager,
+                    BPG.Domain.Constants.UserRole.Admin);
+            if (!canManageExecution)
             {
                 // Kiểm tra xem User có phải là Project Leader của dự án này không
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
+                var hasLegacyLeaderAccess = _permissionService == null
+                    && await _uow.Repository<ProjectMember>().Query()
+                        .AnyAsync(
+                            m => m.ProjectId == project.ProjectId
+                                && m.UserId == currentUserId
+                                && m.IsLeader,
+                            cancellationToken);
 
                 // Kiểm tra xem User có được gán vào công việc này không
                 var isAssignee = await _uow.Repository<TaskAssignee>().Query()
                     .AnyAsync(ta => ta.TaskId == task.TaskId && ta.UserId == currentUserId, cancellationToken);
 
-                if (!isLeader && !isAssignee)
+                if (!hasLegacyLeaderAccess && !isAssignee)
                 {
                     throw new ForbiddenException("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
                 }
@@ -154,7 +175,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             byte oldProgress = task.ProgressPercent;
             if (request.NewProgressPercent < oldProgress)
             {
-                if (!isTM)
+                if (!canManageTechnical)
                 {
                     throw new BusinessException("ERR_DECREASE_PROGRESS_FORBIDDEN", 
                         "Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");

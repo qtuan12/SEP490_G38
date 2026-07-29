@@ -88,7 +88,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(receiptId: 999), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("GoodsReceipt với ID [999] không tồn tại.");
         }
 
         [Fact]
@@ -101,19 +103,18 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
+            exception.Which.Message.Should().Be("Không tìm thấy dự án liên kết với phiếu nhập kho này.");
         }
 
         [Fact]
-        public async Task UTCID05_Handle_UserWithoutPermission_ShouldThrowForbiddenException()
+        public void UTCID05_Command_ShouldDeclareInventoryPermissionForGoodsReceiptResource()
         {
-            SetupUser(RoleConstants.SiteEngineer, hasRole: false);
-            SetupReceipts(Receipt());
+            var command = Command();
 
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            await act.Should().ThrowAsync<ForbiddenException>();
+            command.RequiredPermission.Should().Be(ProjectPermission.InventoryManage);
+            command.ProjectResource.Id.Should().Be(ReceiptId);
+            command.ProjectResource.Type.ToString().Should().Be("GoodsReceipt");
         }
-
         [Fact]
         public async Task UTCID06_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
         {
@@ -124,6 +125,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be("Dự án liên kết không còn hoạt động, không thể chỉnh sửa thông tin.");
         }
 
         private static PatchGoodsReceiptMetadataCommand Command(
