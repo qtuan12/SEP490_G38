@@ -31,7 +31,10 @@ interface EditUserModalProps {
   user: UserProfile | null;
 }
 
+import { useLoading } from '../../../context/LoadingContext';
+
 export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSuccess, user }) => {
+  const { withLoading } = useLoading();
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
   });
@@ -60,15 +63,17 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, o
   });
 
   const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+    withLoading(async () => {
+      await mutation.mutateAsync(data);
+    }, 'Đang lưu thay đổi...');
   };
 
   const footer = (
     <>
-      <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="mr-3">
+      <Button variant="outline" onClick={onClose} disabled={isSubmitting || mutation.isPending} className="mr-3">
         Hủy
       </Button>
-      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={isSubmitting}>
+      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={isSubmitting || mutation.isPending}>
         Lưu thay đổi
       </Button>
     </>

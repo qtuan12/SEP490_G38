@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { materialCategoryService } from '../../../../services/materialCategoryService';
 import { Modal, Button, Input, FormItem } from '../../../../components/ui';
+import { useLoading } from '../../../../context/LoadingContext';
 import type { MaterialCategory } from '../../../../types/materialCategory';
 
 const categorySchema = z.object({
@@ -22,6 +23,7 @@ interface CategoryFormModalProps {
 }
 
 export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ isOpen, onClose, category, onSuccess }) => {
+  const { withLoading } = useLoading();
   const queryClient = useQueryClient();
 
   const {
@@ -64,7 +66,9 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ isOpen, on
   });
 
   const onSubmit = (data: CategoryFormData) => {
-    mutation.mutate(data);
+    withLoading(async () => {
+      await mutation.mutateAsync(data);
+    }, category ? 'Đang cập nhật danh mục...' : 'Đang thêm danh mục mới...');
   };
 
   return (

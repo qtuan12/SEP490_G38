@@ -5,6 +5,7 @@ import { inventoryService } from '../../services/inventoryService';
 import { supplierService } from '../../services/supplierService';
 import { projectService } from '../../services/projectService';
 import { Button, Input, Select } from '../../components/ui';
+import { useLoading } from '../../context/LoadingContext';
 import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { isDiscreteUnit } from '../../utils/unitHelpers';
@@ -37,6 +38,7 @@ const label: React.CSSProperties = {
 };
 
 export const CreatePOPage: React.FC = () => {
+  const { withLoading } = useLoading();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryProjectId = searchParams.get('projectId');
@@ -206,7 +208,7 @@ export const CreatePOPage: React.FC = () => {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setFormError(null);
     setOrderDateError(null);
     setDeliveryDateError(null);
@@ -222,7 +224,13 @@ export const CreatePOPage: React.FC = () => {
         return setFormError(`Đơn vị tính '${it.unitName}' của vật tư "${it.materialName}" yêu cầu số lượng phải là số nguyên.`);
       }
     }
-    mutation.mutate();
+    try {
+      await withLoading(async () => {
+        await mutation.mutateAsync();
+      }, 'Đang khởi tạo đơn hàng mua vật tư...');
+    } catch {
+      // Error is handled in mutation onError
+    }
   };
 
   const selectRequest = (id: number) =>

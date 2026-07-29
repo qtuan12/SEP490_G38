@@ -7,6 +7,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { Button, Input, Select, Textarea, FormItem } from '../../../components/ui';
 import { supplierService } from '../../../services/supplierService';
 import type { Supplier } from '../../../types/supplier';
+import { useLoading } from '../../../context/LoadingContext';
 
 const schema = z.object({
   supplierName: z.string()
@@ -21,7 +22,7 @@ const schema = z.object({
   collaborationStatus: z.enum(['Active', 'Inactive']).default('Active'),
 });
 
-type FormData = z.infer<typeof schema>;
+type SupplierFormData = z.infer<typeof schema>;
 
 interface SupplierFormModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
   supplier,
   onSuccess,
 }) => {
+  const { withLoading } = useLoading();
   const queryClient = useQueryClient();
   const isEdit = !!supplier;
 
@@ -45,7 +47,7 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
     formState: { errors, isSubmitting },
     reset,
     setValue,
-  } = useForm<FormData>({
+  } = useForm<SupplierFormData>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       supplierName: '',
@@ -84,7 +86,7 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
   }, [isOpen, supplier, setValue, reset]);
 
   const mutation = useMutation({
-    mutationFn: async (data: FormData) => {
+    mutationFn: async (data: SupplierFormData) => {
       // Map form data to payload format
       const payload = {
         supplierName: data.supplierName,
@@ -113,16 +115,18 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+  const onSubmit = (data: SupplierFormData) => {
+    withLoading(async () => {
+      await mutation.mutateAsync(data);
+    }, isEdit ? 'Đang cập nhật nhà cung cấp...' : 'Đang thêm nhà cung cấp mới...');
   };
 
   const footer = (
     <>
-      <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="mr-3">
+      <Button variant="outline" onClick={onClose} disabled={isSubmitting || mutation.isPending} className="mr-3">
         Hủy
       </Button>
-      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={isSubmitting}>
+      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={isSubmitting || mutation.isPending}>
         Xác nhận
       </Button>
     </>

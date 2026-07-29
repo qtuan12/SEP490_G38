@@ -19,10 +19,12 @@ import {
   Mail
 } from 'lucide-react';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
+import { useLoading } from '../../context/LoadingContext';
 
 const PAGE_SIZE = 20;
 
 export const UserManagement: React.FC = () => {
+  const { withLoading } = useLoading();
   const [allUsers, setAllUsers] = useState<UserProfile[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +95,9 @@ export const UserManagement: React.FC = () => {
   const handleDeleteSubmit = async () => {
     if (!selectedUser) return;
     try {
-      await userService.deleteUser(selectedUser.id);
+      await withLoading(async () => {
+        await userService.deleteUser(selectedUser.id);
+      }, 'Đang xoá tài khoản...');
       setIsDeleteOpen(false);
       showSuccess(`Đã xoá tài khoản ${selectedUser.name} khỏi hệ thống.`);
       setSelectedUser(null);
@@ -105,7 +109,9 @@ export const UserManagement: React.FC = () => {
 
   const handleToggleStatus = async (id: string, name: string) => {
     try {
-      const updated = await userService.toggleUserStatus(id);
+      const updated = await withLoading(async () => {
+        return await userService.toggleUserStatus(id);
+      }, 'Đang cập nhật trạng thái tài khoản...');
       showSuccess(`Đã ${updated.status === 'active' ? 'mở khoá' : 'khoá'} tài khoản ${name}.`);
       loadAllUsers();
     } catch (err: any) {
@@ -400,7 +406,7 @@ export const UserManagement: React.FC = () => {
       <CreateUserModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={(msg) => { showSuccess(msg); setPageNumber(1); loadAllUsers(); }}
+        onSuccess={(msg: string) => { showSuccess(msg); setPageNumber(1); loadAllUsers(); }}
       />
 
       <EditUserModal

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
+import { useLoading } from '../../context/LoadingContext';
 import { Button, Badge } from '../../components/ui';
 import toast from 'react-hot-toast';
 import {
@@ -67,6 +68,7 @@ function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string
 }
 
 export const PODetailPage: React.FC = () => {
+  const { withLoading } = useLoading();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -403,9 +405,15 @@ export const PODetailPage: React.FC = () => {
                 type="button"
                 variant="danger"
                 disabled={cancelMutation.isPending}
-                onClick={() => {
+                onClick={async () => {
                   if (!cancelReason.trim()) return setCancelError('Vui lòng nhập lý do hủy.');
-                  cancelMutation.mutate();
+                  try {
+                    await withLoading(async () => {
+                      await cancelMutation.mutateAsync();
+                    }, 'Đang xử lý hủy đơn mua hàng...');
+                  } catch {
+                    // Error handled in onError
+                  }
                 }}
               >
                 {cancelMutation.isPending
@@ -471,9 +479,15 @@ export const PODetailPage: React.FC = () => {
                 type="button"
                 variant="primary"
                 disabled={closeMutation.isPending}
-                onClick={() => {
+                onClick={async () => {
                   if (!closeReason.trim()) return setCloseError('Vui lòng nhập lý do đóng đơn hàng.');
-                  closeMutation.mutate();
+                  try {
+                    await withLoading(async () => {
+                      await closeMutation.mutateAsync();
+                    }, 'Đang đóng đơn mua hàng...');
+                  } catch {
+                    // Error handled in onError
+                  }
                 }}
               >
                 {closeMutation.isPending

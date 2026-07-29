@@ -25,6 +25,7 @@ import { GanttChart } from './pages/GanttChart';
 import { ProjectDrawing } from './pages/ProjectDrawing';
 import { ProjectDailyLogs } from './pages/ProjectDailyLogs';
 import { NotificationProvider } from './context/NotificationContext';
+import { LoadingProvider } from './context/LoadingContext';
 import { NotificationsList } from './pages/Notifications';
 import { InventoryAdjustmentsPage } from './pages/InventoryAdjustments';
 import { BoqVsActualReport } from './pages/Reports/BoqVsActualReport';
@@ -114,6 +115,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <CompanyProvider>
       <AuthProvider>
+        <LoadingProvider>
         <NotificationProvider>
           <Router>
             <Routes>
@@ -441,6 +443,7 @@ function App() {
             </Routes>
           </Router>
         </NotificationProvider>
+        </LoadingProvider>
       </AuthProvider>
       </CompanyProvider>
       <Toaster position="top-right" />
