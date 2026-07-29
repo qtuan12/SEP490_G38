@@ -34,7 +34,6 @@ export interface ProjectAccess {
   projectId: number;
   isMember: boolean;
   isLeader: boolean;
-  permissions: string[];
 }
 
 export interface PhaseMaterialItem {

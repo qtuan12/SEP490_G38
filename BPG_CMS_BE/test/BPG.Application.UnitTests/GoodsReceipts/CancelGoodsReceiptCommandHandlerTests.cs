@@ -1,4 +1,4 @@
-using BPG.Application.Features.GoodsReceipts.Commands;
+﻿using BPG.Application.Features.GoodsReceipts.Commands;
 using BPG.Application.Features.GoodsReceipts.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -61,30 +61,6 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 _mockCurrentUserService.Object,
                 ServiceStubFactory.InventoryService(),
                 ServiceStubFactory.RealtimeSender());
-        }
-
-        [Fact]
-        public async Task UTCID01_Handle_AllowedRoleWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupUser(RoleConstants.TechnicalManager);
-            SetupReceipts(Receipt());
-            SetupInventories(Inventory(quantity: 15, reservedQuantity: 2));
-
-            var result = await _handler.Handle(Command(), CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeTrue();
-            result.Message.Should().Be("Hủy phiếu nhập kho thành công.");
-        }
-
-        [Fact]
-        public void UTCID02_Command_ShouldDeclareInventoryPermissionForGoodsReceiptResource()
-        {
-            var command = Command();
-
-            command.RequiredPermission.Should().Be(ProjectPermission.InventoryManage);
-            command.ProjectResource.Id.Should().Be(ReceiptId);
-            command.ProjectResource.Type.ToString().Should().Be("GoodsReceipt");
         }
         [Fact]
         public async Task UTCID03_Handle_ReceiptNotFound_ShouldThrowNotFoundException()

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { projectService } from '../../../services/projectService';
@@ -21,7 +21,6 @@ import { formatDate } from '../../../utils/dateHelpers';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import { Modal } from '../../../components/ui/Modal';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../../auth/permissions';
 
 interface ProjectMaterialRequestsTabProps {
   projectId: number;
@@ -30,7 +29,7 @@ interface ProjectMaterialRequestsTabProps {
 export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProps> = ({ projectId }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { hasProjectPermission } = useProjectAccess(projectId);
+  const { canManageExecution, canManageAccounting, canApprove } = useProjectAccess(projectId);
   const [searchParams] = useSearchParams();
   const urlPhaseId = searchParams.get('phaseId');
   const urlRequestId = searchParams.get('requestId');
@@ -116,9 +115,9 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const [actionNoteError, setActionNoteError] = useState('');
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
-  const isAccountant = hasProjectPermission(ProjectPermission.AccountingManage);
-  const isDirector = hasProjectPermission(ProjectPermission.Approve);
-  const canCreateRequest = hasProjectPermission(ProjectPermission.ExecutionManage);
+  const isAccountant = canManageAccounting;
+  const isDirector = canApprove;
+  const canCreateRequest = canManageExecution;
 
   const fetchData = async () => {
     setLoading(true);

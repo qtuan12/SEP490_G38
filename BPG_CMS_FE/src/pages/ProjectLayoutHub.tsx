@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../services/projectService';
@@ -45,7 +45,7 @@ import { ProjectMaterialRequestsTab } from './MaterialRequests/components/Projec
 import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 import { isPWAMode } from '../utils/pwaHelpers';
 import { useProjectAccess } from '../hooks/useProjectAccess';
-import { ProjectPermission, SystemPermission } from '../auth/permissions';
+import { RoleGroup } from '../auth/roles';
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
@@ -142,17 +142,12 @@ export const ProjectLayoutHub: React.FC = () => {
   });
   const hasApprovedEmergencyIncident = incidents?.some(i => i.isEmergency && i.status === 'Approved') ?? false;
 
-  const { hasSystemPermission } = useAuth();
-  const { hasProjectPermission } = useProjectAccess(projectId);
+  const { hasAnyRole } = useAuth();
+  const { canManageExecution, canManageTechnical, canManageAccounting, canViewReports } = useProjectAccess(projectId);
   const { connection } = useNotification();
-  const isTPKT = hasProjectPermission(ProjectPermission.TechnicalManage);
-  const canManageExecution = hasProjectPermission(ProjectPermission.ExecutionManage);
-  const canManageAccounting = hasProjectPermission(ProjectPermission.AccountingManage);
-  const canViewReports = hasProjectPermission(ProjectPermission.ReportsView);
-  const canEditProject = hasSystemPermission(SystemPermission.ProjectsUpdate);
-  const canChangeProjectStatus = hasSystemPermission(
-    SystemPermission.ProjectsChangeStatus,
-  );
+  const isTPKT = canManageTechnical;
+  const canEditProject = hasAnyRole(RoleGroup.ProjectManagers);
+  const canChangeProjectStatus = hasAnyRole(RoleGroup.ProjectManagers) || hasAnyRole(RoleGroup.Approval);
   const canManageDirectPurchase = canManageExecution || canManageAccounting;
 
   const [project, setProject] = useState<Project | null>(null);

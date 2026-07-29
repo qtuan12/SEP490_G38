@@ -1,8 +1,7 @@
-using BPG.Application.IRepositories;
+﻿using BPG.Application.IRepositories;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
-using BPG.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BPG.Application.DTOs.Phases;
@@ -11,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.Phases.Queries
 {
-    public record GetPhaseBOQQuery(long PhaseId) : IRequest<List<PhaseBOQItemDto>>, IProjectRequirement
+    public record GetPhaseBOQQuery(long PhaseId) : IRequest<List<PhaseBOQItemDto>>
     {
         public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
@@ -100,3 +99,4 @@ namespace BPG.Application.Features.Phases.Queries
         }
     }
 }
+

@@ -1,6 +1,5 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.DirectPurchases;
-using BPG.Application.Common.Interfaces;
 using BPG.Application.IRepositories;
 using BPG.Domain.Exceptions;
 using MediatR;
@@ -9,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.DirectPurchases.Queries
 {
-    public class GetDirectPurchaseRequestsQuery : PaginationRequest, IRequest<PagedList<DirectPurchaseRequestDto>>, IProjectRequirement
+    public class GetDirectPurchaseRequestsQuery : PaginationRequest, IRequest<PagedList<DirectPurchaseRequestDto>>
     {
         public long? ProjectId { get; set; }
         public string? Status { get; set; }
@@ -25,3 +24,4 @@ namespace BPG.Application.Features.DirectPurchases.Queries
         }
     }
 }
+

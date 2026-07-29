@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ClipboardList, Bell, Plus, FileText, ChevronRight, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -10,7 +10,6 @@ import { getRoleLabel, getRoleBadgeVariant } from '../../utils/roleHelpers';
 import { resolveNotificationUrl } from '../Notifications';
 import type { Project, WBSTask, DailyLog } from '../../types/common';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 const LAST_PROJECT_KEY = 'field_workbench_last_project';
 
@@ -26,8 +25,7 @@ export const FieldWorkbench: React.FC = () => {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [logModalTaskId, setLogModalTaskId] = useState<string | null>(null);
-  const { hasProjectPermission } = useProjectAccess(projectId);
-  const canManageTechnical = hasProjectPermission(ProjectPermission.TechnicalManage);
+  const { canManageTechnical } = useProjectAccess(projectId);
 
   useEffect(() => {
     projectService.getProjects().then(list => {

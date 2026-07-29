@@ -1,4 +1,4 @@
-using BPG.Application.Features.MaterialCatalogs.Commands;
+﻿using BPG.Application.Features.MaterialCatalogs.Commands;
 using BPG.Application.DTOs.MaterialCatalogs;
 using BPG.Application.Features.MaterialCatalogs.Queries;
 using Microsoft.AspNetCore.Authorization;
@@ -20,7 +20,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpPost]
-    [Authorize(Policy = SystemPermission.MasterDataManage)]
+    [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Create([FromBody] CreateMaterialCatalogRequest request, CancellationToken ct)
     {
         var command = new CreateMaterialCatalogCommand(
@@ -32,11 +32,11 @@ public class MaterialCatalogsController : BaseApiController
         );
 
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result, "Tạo vật tư thành công.");
+        return ApiOk(result, "Táº¡o váº­t tÆ° thÃ nh cÃ´ng.");
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = SystemPermission.MasterDataManage)]
+    [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateMaterialCatalogRequest request, CancellationToken ct)
     {
         var command = new UpdateMaterialCatalogCommand(
@@ -49,15 +49,15 @@ public class MaterialCatalogsController : BaseApiController
         );
 
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result, "Cập nhật vật tư thành công.");
+        return ApiOk(result, "Cáº­p nháº­t váº­t tÆ° thÃ nh cÃ´ng.");
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = SystemPermission.MasterDataManage)]
+    [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await Mediator.Send(new DeleteMaterialCatalogCommand(id), ct);
-        return ApiOk("Xóa vật tư thành công.");
+        return ApiOk("XÃ³a váº­t tÆ° thÃ nh cÃ´ng.");
     }
 
     [HttpGet("{id}/conversions")]
@@ -68,11 +68,12 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpPut("{id}/conversions")]
-    [Authorize(Policy = SystemPermission.MasterDataManage)]
+    [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> SyncConversions(long id, [FromBody] List<MaterialConversionRequest> request, CancellationToken ct)
     {
         await Mediator.Send(new SyncMaterialConversionsCommand(id, request), ct);
         var result = await Mediator.Send(new GetConversionsByMaterialIdQuery(id), ct);
-        return ApiOk(result, "Cập nhật tỷ lệ quy đổi vật tư thành công.");
+        return ApiOk(result, "Cáº­p nháº­t tá»· lá»‡ quy Ä‘á»•i váº­t tÆ° thÃ nh cÃ´ng.");
     }
 }
+

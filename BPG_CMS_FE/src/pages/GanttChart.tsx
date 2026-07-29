@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { gantt } from 'dhtmlx-gantt';
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css';
@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProjectAccess } from '../hooks/useProjectAccess';
-import { ProjectPermission } from '../auth/permissions';
 
 import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 
@@ -57,9 +56,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
-  const { hasProjectPermission } = useProjectAccess(projectId);
-  const canManageExecution = hasProjectPermission(ProjectPermission.ExecutionManage);
-  const canManageTechnical = hasProjectPermission(ProjectPermission.TechnicalManage);
+  const { canManageExecution, canManageTechnical } = useProjectAccess(projectId);
 
   const [isAdjustModalOpen, setAdjustModalOpen] = useState(false);
   const [selectedTaskToAdjust, setSelectedTaskToAdjust] = useState<WBSTask | null>(null);

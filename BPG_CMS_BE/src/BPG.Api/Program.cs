@@ -1,5 +1,4 @@
 using System.Text;
-using BPG.Api.Authorization;
 using BPG.Api.Middleware;
 using BPG.Application;
 using BPG.Domain.Entities;
@@ -33,7 +32,6 @@ try
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddSignalR();
     builder.Services.AddScoped<BPG.Application.IServices.IRealtimeNotificationSender, BPG.Api.Hubs.RealtimeNotificationSender>();
-    builder.Services.AddScoped<IAuthorizationHandler, SystemPermissionHandler>();
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
@@ -105,12 +103,6 @@ try
         options.FallbackPolicy = new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .Build();
-
-        foreach (var permission in BPG.Domain.Constants.PermissionCatalog.SystemPermissions)
-        {
-            options.AddPolicy(permission, policy =>
-                policy.AddRequirements(new SystemPermissionRequirement(permission)));
-        }
     });
 
     builder.Services.AddEndpointsApiExplorer();

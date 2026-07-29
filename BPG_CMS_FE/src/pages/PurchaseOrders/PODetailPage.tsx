@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
@@ -10,7 +10,6 @@ import {
   FileText, Package, Link2, AlertCircle, Loader2, XCircle, Ban, Lock,
 } from 'lucide-react';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
@@ -111,10 +110,7 @@ export const PODetailPage: React.FC = () => {
     queryFn: () => inventoryService.getPurchaseOrderById(poId),
     enabled: !isNaN(poId) && poId > 0,
   });
-  const { hasProjectPermission } = useProjectAccess(po?.projectId);
-  const canManageAccounting = hasProjectPermission(
-    ProjectPermission.AccountingManage,
-  );
+  const { canManageAccounting } = useProjectAccess(po?.projectId);
 
   // Realtime: tự làm mới nếu PO này bị người khác hủy/đóng trong khi đang xem
   const poProjectId = po?.projectId;

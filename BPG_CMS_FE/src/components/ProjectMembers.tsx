@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+﻿import React, { useEffect, useState } from 'react';
 import { projectService } from '../services/projectService';
 import type { ProjectMember } from '../types/common';
 import { userService } from '../services/userService';
@@ -9,10 +8,6 @@ import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react'
 import { useNotification } from '../context/NotificationContext';
 import { useSignalREvent } from '../hooks/useSignalREvent';
 import { useProjectAccess } from '../hooks/useProjectAccess';
-import {
-  ProjectPermission,
-  SystemPermission,
-} from '../auth/permissions';
 
 interface AvailableEngineer extends UserProfile {
   leaderProjectName?: string;
@@ -23,9 +18,8 @@ interface ProjectMembersProps {
 }
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => {
-  const { hasSystemPermission } = useAuth();
   const { connection } = useNotification();
-  const { hasProjectPermission } = useProjectAccess(projectId);
+  const { canManageTechnical } = useProjectAccess(projectId);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,9 +33,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<{id: string, name: string} | null>(null);
 
-  const canManageMembers =
-    hasSystemPermission(SystemPermission.ProjectMembersManage) &&
-    hasProjectPermission(ProjectPermission.TechnicalManage);
+  const canManageMembers = canManageTechnical;
   const hasLeader = members.some(m => m.isLeader);
 
   const loadData = async (bustCache = false) => {

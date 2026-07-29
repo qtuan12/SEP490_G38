@@ -1,4 +1,4 @@
-import * as React from 'react';
+﻿import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -25,7 +25,7 @@ import { userService } from '../../services/userService';
 import { projectService } from '../../services/projectService';
 import { reportService } from '../../services/reportService';
 import { getRoleLabel } from '../../utils/roleHelpers';
-import { hasPermission, ProjectPermission, SystemPermission } from '../../auth/permissions';
+import { RoleGroup } from '../../auth/roles';
 
 import type { Project, MaterialRequest } from '../../types/common';
 import { useNavigate } from 'react-router-dom';
@@ -33,7 +33,7 @@ import { DashboardStats } from '../Dashboard/components/DashboardStats';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export const Dashboard: React.FC = () => {
-  const { user, hasSystemPermission } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const [userCount, setUserCount] = useState(0);
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [warnings, setWarnings] = useState<import('../../types/common').DashboardWarningDto[]>([]);
@@ -47,8 +47,8 @@ export const Dashboard: React.FC = () => {
   const [hasLeaderProject, setHasLeaderProject] = useState(false);
 
   const navigate = useNavigate();
-  const canManageUsers = hasSystemPermission(SystemPermission.UsersManage);
-  const canViewProcurement = hasSystemPermission(SystemPermission.ProcurementManage);
+  const canManageUsers = hasAnyRole(RoleGroup.AdminOnly);
+  const canViewProcurement = hasAnyRole(RoleGroup.Procurement);
 
   useEffect(() => {
     if (canManageUsers) {
@@ -111,17 +111,11 @@ export const Dashboard: React.FC = () => {
             activeProjects.map((project) => projectService.getMyAccess(project.id)),
           );
           const dashboardProjects = activeProjects.filter((_, index) =>
-            hasPermission(
-              projectAccess[index]?.permissions,
-              ProjectPermission.View,
-            ),
+            projectAccess[index]?.isMember || projectAccess[index]?.isLeader,
           );
           setProjects(dashboardProjects);
           setHasLeaderProject(
-            projectAccess.some((access) =>
-              access.isLeader
-              && hasPermission(access.permissions, ProjectPermission.View),
-            ),
+            projectAccess.some((access) => access.isLeader),
           );
           if (dashboardProjects.length > 0) {
             setSelectedProjectId(dashboardProjects[0].id);

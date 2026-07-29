@@ -1,6 +1,5 @@
 import type { Project, ProjectAccess, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, TaskHistory, WBSTask, DailyLogComment, DailyLog, TaskProgressLog } from '../types/common';
 import { apiClient, USE_MOCK_API } from './api';
-import { getBaselineProjectPermissions } from '../auth/permissions';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -433,17 +432,10 @@ export const projectService = {
     };
     const members = await this.getMembers(projectId);
     const member = members.find((item) => item.userId === user.id);
-    const roles = user.roles?.length ? user.roles : [user.role];
-    const baseline = getBaselineProjectPermissions(
-      roles,
-      Boolean(member),
-      member?.isLeader ?? false,
-    );
     return {
       projectId: Number(parsedId),
       isMember: Boolean(member),
       isLeader: member?.isLeader ?? false,
-      permissions: baseline,
     };
   },
 

@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { hasPermission } from '../auth/permissions';
-import type { SystemPermissionValue } from '../auth/permissions';
+import { hasAnyRole as checkAnyRole } from '../auth/roles';
 import { authService } from '../services/authService';
 import type { LoginCredentials, UserProfile } from '../services/authService';
 
@@ -12,7 +11,7 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<UserProfile>;
   logout: () => void;
   updateUser: (partial: Partial<UserProfile>) => void;
-  hasSystemPermission: (permission: SystemPermissionValue | string) => boolean;
+  hasAnyRole: (allowedRoles: readonly string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -90,8 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const hasSystemPermission = (permission: SystemPermissionValue | string) =>
-    hasPermission(user?.systemPermissions, permission);
+  const hasAnyRole = (allowedRoles: readonly string[]) =>
+    checkAnyRole(user?.roles?.length ? user.roles : user ? [user.role] : undefined, allowedRoles);
 
   return (
     <AuthContext.Provider
@@ -103,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         updateUser,
-        hasSystemPermission,
+        hasAnyRole,
       }}
     >
       {children}

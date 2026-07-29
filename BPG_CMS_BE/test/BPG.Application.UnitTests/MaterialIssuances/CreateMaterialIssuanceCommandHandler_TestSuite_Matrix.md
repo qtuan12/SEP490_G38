@@ -1,4 +1,4 @@
-# CreateMaterialIssuanceCommandHandler.Handle - Unit Test Suite Matrix
+﻿# CreateMaterialIssuanceCommandHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `CreateMaterialIssuanceCommandHandler`  
 Function Name: `Handle(CreateMaterialIssuanceCommand request, CancellationToken cancellationToken)`  
@@ -12,9 +12,6 @@ Test requirement: Passed `11`, Failed `0`, Untested `0`, N/A/B `3 / 7 / 1`, Tota
 | Condition | User is authenticated | O | O | O | O | O |  | O | O | O | O | O |
 |  | Task exists in DB | O | O | O |  | O |  | O | O | O | O | O |
 |  | Task does NOT exist |  |  |  | O |  |  |  |  |  |  |  |
-|  | User can manage execution through project.execution.manage (TechnicalManager grant) | O |  | O | O | O |  | O | O | O | O | O |
-|  | User is project leader; membership grants project.execution.manage/project.inventory.manage |  | O |  |  |  |  |  |  |  |  |  |
-|  | Pipeline requires `project.execution.manage` for `Task` resource |  |  |  |  |  | O |  |  |  |  |  |
 |  | Task has project context | O | O | O | O |  |  | O | O | O | O | O |
 |  | Task has NO project context |  |  |  |  | O |  |  |  |  |  |  |
 |  | Project status is NOT InProgress |  |  |  |  |  |  | O |  |  |  |  |
@@ -33,7 +30,6 @@ Test requirement: Passed `11`, Failed `0`, Untested `0`, N/A/B `3 / 7 / 1`, Tota
 | Input | CancellationToken.None | O | O | O | O | O | O | O | O | O | O | O |
 | Confirm | Return |  |  |  |  |  |  |  |  |  |  |  |
 |  | `{`<br>`  Success = true,`<br>`  Data = 600,`<br>`  Message = "Tạo phiếu xuất kho thành công."`<br>`}` | O | O |  |  |  |  |  |  |  |  |  |
-|  | Command contract: `RequiredPermission = project.execution.manage`, `ProjectResource = Task(100)` |  |  |  |  |  | O |  |  |  |  |  |
 | Confirm | Exception |  |  |  |  |  |  |  |  |  |  |  |
 |  | Throws `BusinessException` — `ERR_EMPTY_ITEMS`: `Danh sách vật tư xuất dùng không được để trống.` |  |  | O |  |  |  |  |  |  |  |  |
 |  | Throws `NotFoundException` — `BIZ_001`: `ProjectTask với ID [999] không tồn tại.` |  |  |  | O |  |  |  |  |  |  |  |

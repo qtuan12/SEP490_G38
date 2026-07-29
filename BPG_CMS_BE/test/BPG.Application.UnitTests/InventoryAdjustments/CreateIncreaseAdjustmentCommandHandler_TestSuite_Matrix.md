@@ -1,4 +1,4 @@
-# CreateIncreaseAdjustmentCommandHandler.Handle - Unit Test Suite Matrix
+﻿# CreateIncreaseAdjustmentCommandHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `CreateIncreaseAdjustmentCommandHandler`  
 Function Name: `Handle(CreateIncreaseAdjustmentCommand request, CancellationToken cancellationToken)`  
@@ -12,8 +12,6 @@ Test requirement: Passed `8`, Failed `0`, Untested `0`, N/A/B `3 / 4 / 1`, Total
 | Condition | User is authenticated | O |  | O | O | O | O | O | O |
 |  | Project exists in DB |  |  | O | O | O | O | O | O |
 |  | Project does NOT exist | O |  |  |  |  |  |  |  |
-|  | User has `project.execution.manage` (Admin/TechnicalManager grant or project leader membership) | O |  | O | O | O | O | O | O |
-|  | Pipeline requires `project.execution.manage` for `Project` resource |  | O |  |  |  |  |  |  |
 |  | Phase exists in DB | O |  |  | O | O | O | O | O |
 |  | Phase does NOT exist |  |  | O |  |  |  |  |  |
 |  | Phase belongs to project | O |  | O |  | O | O | O | O |
@@ -29,7 +27,6 @@ Test requirement: Passed `8`, Failed `0`, Untested `0`, N/A/B `3 / 4 / 1`, Total
 | Input | CancellationToken.None | O | O | O | O | O | O | O | O |
 | Confirm | Return |  |  |  |  |  |  |  |  |
 |  | `{`<br>`  Success = true,`<br>`  Data = 800`<br>`}` |  |  |  |  |  |  | O | O |
-|  | Command contract: `RequiredPermission = project.execution.manage`, `ProjectResource = Project(1)` |  | O |  |  |  |  |  |  |
 | Confirm | Exception |  |  |  |  |  |  |  |  |
 |  | Throws `NotFoundException` — `BIZ_001`: `Project với ID [1] không tồn tại.` | O |  |  |  |  |  |  |  |
 |  | Throws `NotFoundException` — `BIZ_001`: `Phase với ID [2] không tồn tại.` |  |  | O |  |  |  |  |  |

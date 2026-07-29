@@ -4,7 +4,7 @@ import { projectService } from '../services/projectService';
 
 import type {Project} from '../types/common';
 import { useAuth } from '../context/AuthContext';
-import { SystemPermission } from '../auth/permissions';
+import { RoleGroup } from '../auth/roles';
 import { Modal } from '../components/ui/Modal';
 import {
   ArrowLeft,
@@ -22,7 +22,7 @@ import {
 export const ProjectDrawing: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { hasSystemPermission } = useAuth();
+  const { hasAnyRole } = useAuth();
   
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,7 @@ export const ProjectDrawing: React.FC = () => {
   const [showSelectModal, setShowSelectModal] = useState(false);
 
   const canEdit =
-    hasSystemPermission(SystemPermission.ProjectsUpdate) &&
+    hasAnyRole(RoleGroup.ProjectManagers) &&
     project?.status !== 'done';
 
   const loadProject = async () => {

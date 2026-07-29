@@ -1,4 +1,4 @@
-namespace BPG.Application.DTOs.Auth
+﻿namespace BPG.Application.DTOs.Auth
 {
     public class GetCurrentUserDto
     {
@@ -9,9 +9,9 @@ namespace BPG.Application.DTOs.Auth
         public string? AvatarUrl { get; set; }
         public string Role { get; set; } = string.Empty;
         public IReadOnlyList<string> Roles { get; set; } = [];
-        public IReadOnlyList<string> SystemPermissions { get; set; } = [];
         public bool IsActive { get; set; }
         public DateTime? LastLoginAt { get; set; }
         public DateTime? PasswordChangedAt { get; set; }
     }
 }
+

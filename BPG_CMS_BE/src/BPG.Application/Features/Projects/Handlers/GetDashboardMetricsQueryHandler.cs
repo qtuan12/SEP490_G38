@@ -16,23 +16,21 @@ using System.Threading.Tasks;
 public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetricsQuery, DashboardMetricsDto>
 {
     private readonly IUnitOfWork _uow;
-    private readonly IPermissionService _permissionService;
+    private readonly IProjectAccessService _projectAccessService;
 
     public GetDashboardMetricsQueryHandler(
         IUnitOfWork uow,
-        IPermissionService permissionService)
+        IProjectAccessService projectAccessService)
     {
         _uow = uow;
-        _permissionService = permissionService;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<DashboardMetricsDto> Handle(GetDashboardMetricsQuery request, CancellationToken cancellationToken)
     {
         var query = _uow.Repository<Project>().Query()
             .AsNoTracking();
-        var accessibleProjectIds = await _permissionService.GetProjectIdsWithPermissionAsync(
-            ProjectPermission.View,
-            cancellationToken);
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
         query = query.Where(project => accessibleProjectIds.Contains(project.ProjectId));
 
         var projects = await query

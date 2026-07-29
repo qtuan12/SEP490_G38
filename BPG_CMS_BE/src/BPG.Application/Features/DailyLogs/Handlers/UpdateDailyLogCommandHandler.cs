@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.Features.DailyLogs.Commands;
 using BPG.Application.IRepositories;
@@ -23,27 +23,24 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         private readonly IMapper _mapper;
         private readonly ICurrentUserService _currentUserService;
         private readonly IRealtimeNotificationSender _realtimeSender;
-        private readonly IPermissionService? _permissionService;
 
         public UpdateDailyLogCommandHandler(
             IUnitOfWork uow, 
             IMapper mapper, 
             ICurrentUserService currentUserService,
-            IRealtimeNotificationSender realtimeSender,
-            IPermissionService? permissionService = null)
+            IRealtimeNotificationSender realtimeSender)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
             _realtimeSender = realtimeSender;
-            _permissionService = permissionService;
         }
 
         public async Task<DailyLogDto> Handle(UpdateDailyLogCommand request, CancellationToken cancellationToken)
         {
             var currentUserId = _currentUserService.GetRequiredUserId();
 
-            // 1. Kiểm tra DailyLog có tồn tại hay không
+            // 1. Kiá»ƒm tra DailyLog cÃ³ tá»“n táº¡i hay khÃ´ng
             var log = await _uow.Repository<DailyLog>().Query()
                 .Include(d => d.Task)
                     .ThenInclude(t => t.Phase)
@@ -59,61 +56,52 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = log.Task.Phase.Project;
 
-            var canManageExecution = _permissionService != null
-                ? await _permissionService.HasProjectPermissionAsync(
-                    project.ProjectId,
-                    ProjectPermission.ExecutionManage,
-                    cancellationToken)
-                : _currentUserService.IsInAnyRole(
-                    BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!canManageExecution)
+            var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
+            if (!isManager)
             {
-                // Kiểm tra xem User có phải là Project Leader của dự án này không
-                var hasLegacyLeaderAccess = _permissionService == null
-                    && await _uow.Repository<ProjectMember>().Query()
-                        .AnyAsync(
-                            m => m.ProjectId == project.ProjectId
-                                && m.UserId == currentUserId
-                                && m.IsLeader,
-                            cancellationToken);
+                var isProjectLeader = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(
+                        m => m.ProjectId == project.ProjectId
+                            && m.UserId == currentUserId
+                            && m.IsLeader,
+                        cancellationToken);
 
-                // Kiểm tra xem User có được gán vào công việc này không
                 var isAssignee = await _uow.Repository<TaskAssignee>().Query()
                     .AnyAsync(ta => ta.TaskId == log.TaskId && ta.UserId == currentUserId, cancellationToken);
 
-                if (!hasLegacyLeaderAccess && !isAssignee)
+                if (!isProjectLeader && !isAssignee)
                 {
-                    throw new ForbiddenException("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép chỉnh sửa nhật ký thi công.");
+                    throw new ForbiddenException("Chá»‰ TrÆ°á»Ÿng dá»± Ã¡n (Leader), Ban quáº£n lÃ½ hoáº·c Ká»¹ sÆ° Ä‘Æ°á»£c gÃ¡n vÃ o cÃ´ng viá»‡c má»›i Ä‘Æ°á»£c phÃ©p chá»‰nh sá»­a nháº­t kÃ½ thi cÃ´ng.");
                 }
             }
 
-            // 3. Kiểm tra trạng thái dự án
+            // 3. Kiá»ƒm tra tráº¡ng thÃ¡i dá»± Ã¡n
             if (project.Status != ProjectStatus.InProgress)
             {
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }
 
-            // Kiểm tra xem công việc có bị khóa (đã nghiệm thu) không
+            // Kiá»ƒm tra xem cÃ´ng viá»‡c cÃ³ bá»‹ khÃ³a (Ä‘Ã£ nghiá»‡m thu) khÃ´ng
             if (log.Task.IsLocked)
             {
-                throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã được nghiệm thu và khóa tiến độ, không thể chỉnh sửa nhật ký thi công.");
+                throw new BusinessException("ERR_TASK_LOCKED", "CÃ´ng viá»‡c nÃ y Ä‘Ã£ Ä‘Æ°á»£c nghiá»‡m thu vÃ  khÃ³a tiáº¿n Ä‘á»™, khÃ´ng thá»ƒ chá»‰nh sá»­a nháº­t kÃ½ thi cÃ´ng.");
             }
 
-            // Kiểm tra xem công việc hoặc các cấp cha/ancestor có bị khóa (đã nghiệm thu)
-            // hoặc bị obsolete (loại bỏ) không — nhất quán với luồng Create.
+            // Kiá»ƒm tra xem cÃ´ng viá»‡c hoáº·c cÃ¡c cáº¥p cha/ancestor cÃ³ bá»‹ khÃ³a (Ä‘Ã£ nghiá»‡m thu)
+            // hoáº·c bá»‹ obsolete (loáº¡i bá») khÃ´ng â€” nháº¥t quÃ¡n vá»›i luá»“ng Create.
             var tempTask = log.Task;
             while (tempTask != null)
             {
                 if (tempTask.IsLocked)
                 {
                     throw new BusinessException("ERR_TASK_LOCKED",
-                        $"Không thể chỉnh sửa nhật ký vì công việc hoặc cấp cha [{tempTask.Name}] đã được nghiệm thu và khóa.");
+                        $"KhÃ´ng thá»ƒ chá»‰nh sá»­a nháº­t kÃ½ vÃ¬ cÃ´ng viá»‡c hoáº·c cáº¥p cha [{tempTask.Name}] Ä‘Ã£ Ä‘Æ°á»£c nghiá»‡m thu vÃ  khÃ³a.");
                 }
 
                 if (tempTask.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
                 {
                     throw new BusinessException("ERR_TASK_OBSOLETE",
-                        $"Không thể chỉnh sửa nhật ký vì công việc hoặc cấp cha [{tempTask.Name}] đã bị loại bỏ (obsolete).");
+                        $"KhÃ´ng thá»ƒ chá»‰nh sá»­a nháº­t kÃ½ vÃ¬ cÃ´ng viá»‡c hoáº·c cáº¥p cha [{tempTask.Name}] Ä‘Ã£ bá»‹ loáº¡i bá» (obsolete).");
                 }
 
                 if (tempTask.ParentTaskId.HasValue)
@@ -127,9 +115,9 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 }
             }
 
-            // Giới han thời gian sửa: chỉ cho phép sửa trong khoảng thời gian cấu hình
-            // (SystemConfig: DailyLogEditWindowHours, mặc định 24h) kể từ lúc tạo.
-            // Quá thời han, nhật ký bị khóa chỉnh sửa để tránh sửa lại nội dung cũ.
+            // Giá»›i han thá»i gian sá»­a: chá»‰ cho phÃ©p sá»­a trong khoáº£ng thá»i gian cáº¥u hÃ¬nh
+            // (SystemConfig: DailyLogEditWindowHours, máº·c Ä‘á»‹nh 24h) ká»ƒ tá»« lÃºc táº¡o.
+            // QuÃ¡ thá»i han, nháº­t kÃ½ bá»‹ khÃ³a chá»‰nh sá»­a Ä‘á»ƒ trÃ¡nh sá»­a láº¡i ná»™i dung cÅ©.
             var editWindowConfig = await _uow.Repository<SystemConfig>().Query()
                 .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.DailyLogEditWindowHours, cancellationToken);
             int editWindowHours = editWindowConfig != null && int.TryParse(editWindowConfig.ConfigValue, out var parsedHours) && parsedHours > 0
@@ -140,21 +128,21 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             if (DateTime.UtcNow > editDeadline)
             {
                 throw new BusinessException("ERR_EDIT_WINDOW_EXPIRED",
-                    $"Nhật ký thi công chỉ được phép chỉnh sửa trong vòng {editWindowHours} giờ kể từ lúc tạo (cấu hình bởi Quản trị viên). Quá thời han, vui lòng tạo nhật ký mới hoặc liên hệ Quản trị viên.");
+                    $"Nháº­t kÃ½ thi cÃ´ng chá»‰ Ä‘Æ°á»£c phÃ©p chá»‰nh sá»­a trong vÃ²ng {editWindowHours} giá» ká»ƒ tá»« lÃºc táº¡o (cáº¥u hÃ¬nh bá»Ÿi Quáº£n trá»‹ viÃªn). QuÃ¡ thá»i han, vui lÃ²ng táº¡o nháº­t kÃ½ má»›i hoáº·c liÃªn há»‡ Quáº£n trá»‹ viÃªn.");
             }
 
-            // Bắt đầu một transaction để lưu trữ đồng bộ
+            // Báº¯t Ä‘áº§u má»™t transaction Ä‘á»ƒ lÆ°u trá»¯ Ä‘á»“ng bá»™
             await _uow.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                // 4. Cập nhật mô tả nhật ký thi công + đánh dấu đã chỉnh sửa (audit)
+                // 4. Cáº­p nháº­t mÃ´ táº£ nháº­t kÃ½ thi cÃ´ng + Ä‘Ã¡nh dáº¥u Ä‘Ã£ chá»‰nh sá»­a (audit)
                 log.Description = request.Description;
                 log.IsEdited = true;
                 log.LastEditedAt = DateTime.UtcNow;
                 _uow.Repository<DailyLog>().Update(log);
 
-                // 5. Cập nhật Attachments (hình ảnh)
+                // 5. Cáº­p nháº­t Attachments (hÃ¬nh áº£nh)
                 var existingAttachments = await _uow.Repository<Attachment>().Query()
                     .Where(a => a.EntityType == EntityType.DailyLog && a.EntityId == log.LogId && !a.IsDeleted)
                     .ToListAsync(cancellationToken);
@@ -162,7 +150,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 var existingUrls = existingAttachments.Select(a => a.FileUrl).ToList();
                 var newUrls = request.Images ?? new List<string>();
 
-                // Tìm các hình ảnh bị xóa
+                // TÃ¬m cÃ¡c hÃ¬nh áº£nh bá»‹ xÃ³a
                 var removedAttachments = existingAttachments.Where(a => !newUrls.Contains(a.FileUrl)).ToList();
                 foreach (var att in removedAttachments)
                 {
@@ -172,7 +160,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     _uow.Repository<Attachment>().Update(att);
                 }
 
-                // Tìm các hình ảnh mới được thêm
+                // TÃ¬m cÃ¡c hÃ¬nh áº£nh má»›i Ä‘Æ°á»£c thÃªm
                 var addedUrls = newUrls.Where(url => !existingUrls.Contains(url)).ToList();
                 if (addedUrls.Any())
                 {
@@ -195,13 +183,13 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
 
-                // 6. Map kết quả trả về
+                // 6. Map káº¿t quáº£ tráº£ vá»
                 var creator = await _uow.Repository<User>().Query()
                     .Include(u => u.UserRoles)
                         .ThenInclude(ur => ur.Role)
                     .FirstOrDefaultAsync(u => u.UserId == log.CreatedBy, cancellationToken);
 
-                // Lấy lại danh sách progress logs của Task này để xác định OldProgressPercent
+                // Láº¥y láº¡i danh sÃ¡ch progress logs cá»§a Task nÃ y Ä‘á»ƒ xÃ¡c Ä‘á»‹nh OldProgressPercent
                 var progressLogs = await _uow.Repository<TaskProgressLog>().Query()
                     .AsNoTracking()
                     .Where(tpl => tpl.TaskId == log.TaskId && tpl.NewProgress == log.NewProgressPercent)
@@ -217,9 +205,9 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.Images = newUrls;
                 dto.OldProgressPercent = progressLog?.OldProgress ?? 0;
                 dto.EditWindowHours = editWindowHours;
-                dto.CanEdit = true; // vừa chỉnh sửa thành công => vẫn trong cửa sổ
+                dto.CanEdit = true; // vá»«a chá»‰nh sá»­a thÃ nh cÃ´ng => váº«n trong cá»­a sá»•
 
-                // Gửi realtime cho client dòng thời gian dự án
+                // Gá»­i realtime cho client dÃ²ng thá»i gian dá»± Ã¡n
                 await _realtimeSender.SendToGroupAsync($"Project_{project.ProjectId}", "ReceiveDailyLogUpdated", dto, cancellationToken);
 
                 return dto;
@@ -232,3 +220,4 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         }
     }
 }
+

@@ -1,4 +1,4 @@
-# UpdateDailyLogCommandHandler.Handle - Unit Test Suite Matrix
+﻿# UpdateDailyLogCommandHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `UpdateDailyLogCommandHandler`  
 Function Name: `Handle(UpdateDailyLogCommand request, CancellationToken cancellationToken)`  
@@ -12,9 +12,7 @@ Test requirement: Passed `13`, Failed `0`, Untested `0`, N/A/B `6 / 5 / 2`, Tota
 | Condition | User is authenticated | O | O | O | O | O | O | O | O | O | O | O | O |
 |  | DailyLog exists in DB | O |  | O | O | O | O | O | O | O | O | O | O |
 |  | DailyLog does NOT exist |  | O |  |  |  |  |  |  |  |  |  |  |
-|  | User can manage execution through project.execution.manage (TechnicalManager grant) | O | O |  | O | O | O |  | O | O | O | O |  |
 |  | User is assigned engineer; handler business rule allows field log editing/reporting |  |  |  |  |  |  | O |  |  |  |  |  |
-|  | User is project leader; membership grants project.execution.manage/project.inventory.manage |  |  |  |  |  |  |  |  |  |  |  | O |
 |  | User lacks the required project permission or handler-specific authorization |  |  | O |  |  |  |  |  |  |  |  |  |
 |  | Project status is NOT InProgress |  |  |  | O |  |  |  |  |  |  |  |  |
 |  | Task is locked |  |  |  |  | O |  |  |  |  |  |  |  |
@@ -54,4 +52,3 @@ Test requirement: Passed `13`, Failed `0`, Untested `0`, N/A/B `6 / 5 / 2`, Tota
 |  | Executed Date | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 |
 |  | Defect ID |  |  |  |  |  |  |  |  |  |  |  |  |
 
-Note: Additional contract test `Command_ShouldRequireProjectViewPermissionForDailyLogResource` verifies `RequiredPermission = project.view` and `ProjectResource = DailyLog(800)`. It is counted in the total but kept outside the 12 handler-behavior columns.

@@ -1,5 +1,4 @@
-using BPG.Application.IRepositories;
-using BPG.Application.Common.Authorization;
+﻿using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;
@@ -10,10 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace BPG.Application.Features.Reports.Queries.GetProcurementReport;
 
 public record GetProcurementReportQuery(long ProjectId)
-    : IRequest<ApiResponse<ProcurementReportDto>>, IProjectResourceRequirement
+    : IRequest<ApiResponse<ProcurementReportDto>>
 {
-    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
-    public string RequiredPermission => ProjectPermission.ReportsView;
 }
 
 public class GetProcurementReportQueryHandler
@@ -29,7 +26,7 @@ public class GetProcurementReportQueryHandler
     public async Task<ApiResponse<ProcurementReportDto>> Handle(
         GetProcurementReportQuery request, CancellationToken cancellationToken)
     {
-        // Fetch POs linked to this project via MaterialRequest → Phase → Project
+        // Fetch POs linked to this project via MaterialRequest â†’ Phase â†’ Project
         var pos = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
             .Include(p => p.Supplier)
@@ -92,3 +89,4 @@ public class GetProcurementReportQueryHandler
         return ApiResponse<ProcurementReportDto>.SuccessResult(dto);
     }
 }
+

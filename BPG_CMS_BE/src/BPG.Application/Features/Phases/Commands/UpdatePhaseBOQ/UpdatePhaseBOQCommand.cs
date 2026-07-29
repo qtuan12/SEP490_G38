@@ -1,5 +1,4 @@
-using BPG.Application.Common.Authorization;
-using BPG.Domain.Constants;
+﻿using BPG.Domain.Constants;
 using MediatR;
 using System.Collections.Generic;
 
@@ -9,10 +8,8 @@ public record UpdatePhaseBOQCommand(
     long ProjectId,
     long PhaseId,
     List<BOQItemInput> Items
-) : IRequest<bool>, IProjectResourceRequirement
+) : IRequest<bool>
 {
-    public ProjectResource ProjectResource => ProjectResource.Phase(PhaseId);
-    public string RequiredPermission => ProjectPermission.TechnicalManage;
 }
 
 public record BOQItemInput(
@@ -20,3 +17,4 @@ public record BOQItemInput(
     decimal Quantity,
     int UnitId
 );
+

@@ -20,13 +20,13 @@ import {
   AlertTriangle,
   Trash2
 } from 'lucide-react';
-import { SystemPermission } from '../../auth/permissions';
+import { RoleGroup } from '../../auth/roles';
 
 export const ProjectList: React.FC = () => {
   const navigate = useNavigate();
-  const { hasSystemPermission } = useAuth();
-  const canCreateProject = hasSystemPermission(SystemPermission.ProjectsCreate);
-  const canDeleteProject = hasSystemPermission(SystemPermission.ProjectsUpdate);
+  const { hasAnyRole } = useAuth();
+  const canCreateProject = hasAnyRole(RoleGroup.ProjectManagers);
+  const canDeleteProject = hasAnyRole(RoleGroup.ProjectManagers);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);

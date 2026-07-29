@@ -21,11 +21,10 @@ import { Button, Avatar, Badge } from '../ui';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
 import { HeaderNotification } from './HeaderNotification';
 import { PWABottomNav } from './PWABottomNav';
-import { SystemPermission } from '../../auth/permissions';
-import type { SystemPermissionValue } from '../../auth/permissions';
+import { RoleGroup } from '../../auth/roles';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout, hasSystemPermission } = useAuth();
+  const { user, logout, hasAnyRole } = useAuth();
   const { companyName, companyLogoUrl } = useCompany();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -41,24 +40,24 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     name: string;
     path: string;
     icon: React.ReactNode;
-    permission?: SystemPermissionValue;
+    allowedRoles?: readonly string[];
     disabled?: boolean;
   }> = [
     { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, permission: SystemPermission.UsersManage },
-    { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, permission: SystemPermission.ProjectsList },
-    { name: 'Việc của tôi', path: '/field', icon: <Smartphone size={20} />, permission: SystemPermission.ProjectsList },
-    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, permission: SystemPermission.ProcurementManage },
-    { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, permission: SystemPermission.SuppliersView },
-    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, permission: SystemPermission.MasterDataManage },
-    { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, permission: SystemPermission.MasterDataManage },
-    { name: 'Danh sách Vật tư', path: '/materials', icon: <Package size={20} />, permission: SystemPermission.MasterDataManage },
-    { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, permission: SystemPermission.ReportsView },
-    { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, permission: SystemPermission.ConfigurationManage },
+    { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, allowedRoles: RoleGroup.AdminOnly },
+    { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, allowedRoles: RoleGroup.ProjectViewers },
+    { name: 'Việc của tôi', path: '/field', icon: <Smartphone size={20} />, allowedRoles: RoleGroup.ProjectViewers },
+    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, allowedRoles: RoleGroup.Procurement },
+    { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, allowedRoles: RoleGroup.SupplierViewers },
+    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, allowedRoles: RoleGroup.MasterData },
+    { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, allowedRoles: RoleGroup.MasterData },
+    { name: 'Danh sách Vật tư', path: '/materials', icon: <Package size={20} />, allowedRoles: RoleGroup.MasterData },
+    { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, allowedRoles: RoleGroup.Reports },
+    { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, allowedRoles: RoleGroup.AdminOnly },
   ];
 
   const filteredNavItems = navItems.filter(
-    (item) => !item.permission || hasSystemPermission(item.permission),
+    (item) => !item.allowedRoles || hasAnyRole(item.allowedRoles),
   );
 
   return (

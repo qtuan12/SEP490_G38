@@ -1,5 +1,4 @@
-using BPG.Application.Common.Models;
-using BPG.Application.Common.Authorization;
+﻿using BPG.Application.Common.Models;
 using BPG.Domain.Constants;
 using FluentValidation;
 using MediatR;
@@ -7,11 +6,9 @@ using System.Collections.Generic;
 
 namespace BPG.Application.Features.InventoryAdjustments.Commands
 {
-    public class CreateIncreaseAdjustmentCommand : IRequest<ApiResponse<long>>, IProjectResourceRequirement
+    public class CreateIncreaseAdjustmentCommand : IRequest<ApiResponse<long>>
     {
         public long ProjectId { get; set; }
-        public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
-        public string RequiredPermission => ProjectPermission.ExecutionManage;
         public long PhaseId { get; set; }
         public string Reason { get; set; } = string.Empty;
         public string? Description { get; set; }
@@ -40,3 +37,4 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
         }
     }
 }
+

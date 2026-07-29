@@ -1,5 +1,4 @@
-using AutoMapper;
-using BPG.Application.Common.Interfaces;
+﻿using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.PhaseAcceptances;
 using BPG.Application.IRepositories;
@@ -13,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.PhaseAcceptances.Queries.GetPhaseAcceptances;
 
-public class GetPhaseAcceptancesQuery : PaginationRequest, IRequest<PagedList<PhaseAcceptanceDto>>, IProjectScopedListRequest
+public class GetPhaseAcceptancesQuery : PaginationRequest, IRequest<PagedList<PhaseAcceptanceDto>>
 {
     public long? ProjectId { get; set; }
     public long? PhaseId { get; set; }
@@ -26,16 +25,19 @@ public class GetPhaseAcceptancesQueryHandler : IRequestHandler<GetPhaseAcceptanc
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
-    private readonly IPermissionService _permissionService;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IProjectAccessService _projectAccessService;
 
     public GetPhaseAcceptancesQueryHandler(
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        IPermissionService permissionService)
+        ICurrentUserService currentUserService,
+        IProjectAccessService projectAccessService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
-        _permissionService = permissionService;
+        _currentUserService = currentUserService;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<PagedList<PhaseAcceptanceDto>> Handle(GetPhaseAcceptancesQuery request, CancellationToken ct)
@@ -50,13 +52,11 @@ public class GetPhaseAcceptancesQueryHandler : IRequestHandler<GetPhaseAcceptanc
 
         if (!request.ProjectId.HasValue)
         {
-            if (!_permissionService.HasSystemPermission(SystemPermission.ReportsView))
+            if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Director, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Accountant))
                 throw new BPG.Domain.Exceptions.ForbiddenException(
-                    "Bạn không có quyền xem nghiệm thu toàn hệ thống.");
+                    "Báº¡n khÃ´ng cÃ³ quyá»n xem nghiá»‡m thu toÃ n há»‡ thá»‘ng.");
 
-            var accessibleProjectIds = await _permissionService.GetProjectIdsWithPermissionAsync(
-                ProjectPermission.View,
-                ct);
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(ct);
             query = query.Where(item => accessibleProjectIds.Contains(item.Phase.ProjectId));
         }
 
@@ -95,3 +95,6 @@ public class GetPhaseAcceptancesQueryHandler : IRequestHandler<GetPhaseAcceptanc
         return new PagedList<PhaseAcceptanceDto>(dtoList, pagedEntities.TotalCount, pagedEntities.PageNumber, pagedEntities.PageSize);
     }
 }
+
+
+

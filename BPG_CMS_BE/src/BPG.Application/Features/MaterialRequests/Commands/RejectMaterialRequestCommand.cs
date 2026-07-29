@@ -1,5 +1,4 @@
-using MediatR;
-using BPG.Application.Common.Authorization;
+﻿using MediatR;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -14,9 +13,8 @@ using System.Threading.Tasks;
 namespace BPG.Application.Features.MaterialRequests.Commands
 {
     public record RejectMaterialRequestCommand(long RequestId, string Reason)
-        : IRequest<ApiResponse<bool>>, IProjectResourceRequirement
+        : IRequest<ApiResponse<bool>>
     {
-        public ProjectResource ProjectResource => ProjectResource.MaterialRequest(RequestId);
     }
 
     public class RejectMaterialRequestCommandHandler : IRequestHandler<RejectMaterialRequestCommand, ApiResponse<bool>>
@@ -24,18 +22,15 @@ namespace BPG.Application.Features.MaterialRequests.Commands
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
         private readonly INotificationService _notificationService;
-        private readonly IPermissionService _permissionService;
 
         public RejectMaterialRequestCommandHandler(
             IUnitOfWork uow, 
             ICurrentUserService currentUserService,
-            INotificationService notificationService,
-            IPermissionService permissionService)
+            INotificationService notificationService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
-            _permissionService = permissionService;
         }
 
         public async Task<ApiResponse<bool>> Handle(RejectMaterialRequestCommand request, CancellationToken cancellationToken)
@@ -44,7 +39,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
 
             if (string.IsNullOrWhiteSpace(request.Reason))
             {
-                throw new BusinessException("ERR_REJECTION_REASON_REQUIRED", "Bắt buộc phải nhập lý do từ chối yêu cầu.");
+                throw new BusinessException("ERR_REJECTION_REASON_REQUIRED", "Báº¯t buá»™c pháº£i nháº­p lÃ½ do tá»« chá»‘i yÃªu cáº§u.");
             }
 
             var mr = await _uow.Repository<MaterialRequest>().Query()
@@ -56,20 +51,17 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
             }
 
-            // Chỉ cho phép từ chối khi đang chờ duyệt hoặc chờ trình duyệt
+            // Chá»‰ cho phÃ©p tá»« chá»‘i khi Ä‘ang chá» duyá»‡t hoáº·c chá» trÃ¬nh duyá»‡t
             if (mr.Status != MaterialRequestStatus.Pending && mr.Status != MaterialRequestStatus.WaitingApproval)
             {
                 throw new BusinessException("ERR_INVALID_STATUS_FOR_REJECT", 
-                    $"Không thể từ chối yêu cầu vật tư đang ở trạng thái: {mr.Status}. Chỉ hỗ trợ từ chối phiếu ở trạng thái Chờ duyệt (Pending) hoặc Chờ Giám đốc (WaitingApproval).");
+                    $"KhÃ´ng thá»ƒ tá»« chá»‘i yÃªu cáº§u váº­t tÆ° Ä‘ang á»Ÿ tráº¡ng thÃ¡i: {mr.Status}. Chá»‰ há»— trá»£ tá»« chá»‘i phiáº¿u á»Ÿ tráº¡ng thÃ¡i Chá» duyá»‡t (Pending) hoáº·c Chá» GiÃ¡m Ä‘á»‘c (WaitingApproval).");
             }
 
-            var requiredPermission = mr.Status == MaterialRequestStatus.Pending
-                ? ProjectPermission.AccountingManage
-                : ProjectPermission.Approve;
-            if (!await _permissionService.HasProjectPermissionAsync(
-                    mr.Phase.ProjectId,
-                    requiredPermission,
-                    cancellationToken))
+            var isAllowed = mr.Status == MaterialRequestStatus.Pending
+                ? _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant)
+                : _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Director);
+            if (!isAllowed)
             {
                 throw new ForbiddenException();
             }
@@ -77,12 +69,12 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             if (mr.Status == MaterialRequestStatus.Pending)
             {
                 mr.CheckedBy = currentUserId;
-                mr.AccountantNote = $"Từ chối: {request.Reason}";
+                mr.AccountantNote = $"Tá»« chá»‘i: {request.Reason}";
             }
             else // WaitingApproval
             {
                 mr.ApprovedBy = currentUserId;
-                mr.ApprovalNote = $"Từ chối: {request.Reason}";
+                mr.ApprovalNote = $"Tá»« chá»‘i: {request.Reason}";
             }
 
             mr.Status = MaterialRequestStatus.Rejected;
@@ -92,18 +84,18 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             _uow.Repository<MaterialRequest>().Update(mr);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            // Gửi thông báo realtime
+            // Gá»­i thÃ´ng bÃ¡o realtime
             try
             {
                 var rejectUser = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
-                var rejectUserName = rejectUser?.FullName ?? "Người duyệt";
+                var rejectUserName = rejectUser?.FullName ?? "NgÆ°á»i duyá»‡t";
 
                 if (mr.CreatedBy.HasValue)
                 {
                     await _notificationService.SendNotificationAsync(
                         mr.CreatedBy.Value,
-                        "Yêu cầu vật tư bị từ chối",
-                        $"Yêu cầu vật tư cho giai đoạn '{mr.Phase?.Name}' của bạn đã bị từ chối bởi '{rejectUserName}'. Lý do: {request.Reason}",
+                        "YÃªu cáº§u váº­t tÆ° bá»‹ tá»« chá»‘i",
+                        $"YÃªu cáº§u váº­t tÆ° cho giai Ä‘oáº¡n '{mr.Phase?.Name}' cá»§a báº¡n Ä‘Ã£ bá»‹ tá»« chá»‘i bá»Ÿi '{rejectUserName}'. LÃ½ do: {request.Reason}",
                         NotificationType.Procurement,
                         $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
                         mr.RequestId,
@@ -115,7 +107,10 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 Console.WriteLine($"Error sending notification: {ex.Message}");
             }
 
-            return ApiResponse<bool>.SuccessResult(true, "Từ chối yêu cầu vật tư thành công.");
+            return ApiResponse<bool>.SuccessResult(true, "Tá»« chá»‘i yÃªu cáº§u váº­t tÆ° thÃ nh cÃ´ng.");
         }
     }
 }
+
+
+

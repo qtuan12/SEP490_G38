@@ -1,5 +1,4 @@
-using BPG.Application.Common.Models;
-using BPG.Application.Common.Authorization;
+﻿using BPG.Application.Common.Models;
 using BPG.Domain.Constants;
 using MediatR;
 using System.Collections.Generic;
@@ -12,10 +11,8 @@ public record CreateGoodsReceiptCommand(
     string? DeliveryDocNo,
     List<CreateGoodsReceiptItemDto> Items,
     List<string>? Images = null
-) : IRequest<ApiResponse<long>>, IProjectResourceRequirement
+) : IRequest<ApiResponse<long>>
 {
-    public ProjectResource ProjectResource => ProjectResource.PurchaseOrder(POId);
-    public string RequiredPermission => ProjectPermission.ExecutionManage;
 }
 
 public record CreateGoodsReceiptItemDto(
@@ -23,3 +20,4 @@ public record CreateGoodsReceiptItemDto(
     int UnitId,
     decimal Quantity
 );
+

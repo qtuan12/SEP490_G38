@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import type {WBSPhase, WBSTask, Project} from '../../types/common';
@@ -17,12 +17,11 @@ import html2pdf from 'html2pdf.js';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { toast } from 'react-hot-toast';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
-  const { hasProjectPermission } = useProjectAccess(projectId);
+  const { canManageTechnical } = useProjectAccess(projectId);
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
@@ -50,7 +49,7 @@ export const PhaseAcceptance: React.FC = () => {
 
   const canRevoke = isViewingHistory ? !historicalAcceptance?.isCancelled : isSubmitted;
 
-  const isTPKT = hasProjectPermission(ProjectPermission.TechnicalManage);
+  const isTPKT = canManageTechnical;
 
   const loadData = React.useCallback(async () => {
     if (!projectId || !phaseId) return;

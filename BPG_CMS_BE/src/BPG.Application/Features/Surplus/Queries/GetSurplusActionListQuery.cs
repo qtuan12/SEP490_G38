@@ -1,6 +1,5 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Surplus;
-using BPG.Application.Common.Interfaces;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -12,9 +11,9 @@ using Microsoft.EntityFrameworkCore;
 namespace BPG.Application.Features.Surplus.Queries;
 
 /// <summary>
-/// Lấy danh sách actions của một SurplusRequestItem: Return, Transfer, Liquidation.
+/// Láº¥y danh sÃ¡ch actions cá»§a má»™t SurplusRequestItem: Return, Transfer, Liquidation.
 /// </summary>
-public record GetSurplusActionListQuery(long SurplusRequestItemId) : IRequest<ApiResponse<SurplusActionListDto>>, IProjectRequirement
+public record GetSurplusActionListQuery(long SurplusRequestItemId) : IRequest<ApiResponse<SurplusActionListDto>>
 {
     public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
     {
@@ -37,3 +36,4 @@ public class SurplusActionListDto
     public List<SurplusTransferDto> Transfers { get; set; } = new();
     public List<SurplusLiquidationDto> Liquidations { get; set; } = new();
 }
+

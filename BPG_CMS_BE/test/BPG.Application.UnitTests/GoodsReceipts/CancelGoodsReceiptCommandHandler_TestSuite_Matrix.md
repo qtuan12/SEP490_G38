@@ -1,4 +1,4 @@
-# CancelGoodsReceiptCommandHandler.Handle - Unit Test Suite Matrix
+﻿# CancelGoodsReceiptCommandHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `CancelGoodsReceiptCommandHandler`  
 Function Name: `Handle(CancelGoodsReceiptCommand request, CancellationToken cancellationToken)`  
@@ -12,8 +12,6 @@ Test requirement: Passed `11`, Failed `0`, Untested `0`, N/A/B `2 / 8 / 1`, Tota
 | Condition | User is authenticated | O |  | O | O | O | O | O | O | O | O | O |
 |  | Receipt exists in DB | O |  |  | O | O | O | O | O | O | O | O |
 |  | Receipt does NOT exist |  |  | O |  |  |  |  |  |  |  |  |
-|  | Handler assumes ProjectAuthorizationBehavior already allowed `project.inventory.manage` | O |  | O | O | O | O | O | O | O | O | O |
-|  | Pipeline requires `project.inventory.manage` for `GoodsReceipt` resource |  | O |  |  |  |  |  |  |  |  |  |
 |  | Receipt is already cancelled |  |  |  | O |  |  |  |  |  |  |  |
 |  | Receipt has no Purchase Order |  |  |  |  | O |  |  |  |  |  |  |
 |  | Purchase Order has no project |  |  |  |  |  | O |  |  |  |  |  |
@@ -27,7 +25,6 @@ Test requirement: Passed `11`, Failed `0`, Untested `0`, N/A/B `2 / 8 / 1`, Tota
 | Input | CancellationToken.None | O | O | O | O | O | O | O | O | O | O | O |
 | Confirm | Return |  |  |  |  |  |  |  |  |  |  |  |
 |  | `{`<br>`  Success = true,`<br>`  Data = true,`<br>`  Message = "Hủy phiếu nhập kho thành công."`<br>`}` | O |  |  |  |  |  |  |  |  |  |  |
-|  | Command contract: `RequiredPermission = project.inventory.manage`, `ProjectResource = GoodsReceipt(500)` |  | O |  |  |  |  |  |  |  |  |  |
 | Confirm | Exception |  |  |  |  |  |  |  |  |  |  |  |
 |  | Throws `NotFoundException` — `BIZ_001`: `GoodsReceipt với ID [999] không tồn tại.` |  |  | O |  |  |  |  |  |  |  |  |
 |  | Throws `BusinessException` — `ERR_RECEIPT_ALREADY_CANCELLED`: `Phiếu nhập kho này đã được hủy từ trước.` |  |  |  | O |  |  |  |  |  |  |  |

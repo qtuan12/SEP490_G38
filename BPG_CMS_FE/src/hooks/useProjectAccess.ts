@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { hasPermission } from '../auth/permissions';
-import type { ProjectPermissionValue } from '../auth/permissions';
+import { RoleGroup } from '../auth/roles';
+import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 
 export const projectAccessQueryKey = (projectId: string | number) =>
@@ -9,6 +9,7 @@ export const projectAccessQueryKey = (projectId: string | number) =>
 export const useProjectAccess = (
   projectId: string | number | null | undefined,
 ) => {
+  const { hasAnyRole } = useAuth();
   const normalizedProjectId = projectId == null ? '' : String(projectId);
   const query = useQuery({
     queryKey: projectAccessQueryKey(normalizedProjectId),
@@ -20,7 +21,16 @@ export const useProjectAccess = (
   return {
     ...query,
     access: query.data,
-    hasProjectPermission: (permission: ProjectPermissionValue | string) =>
-      hasPermission(query.data?.permissions, permission),
+    isProjectMember: query.data?.isMember ?? false,
+    isProjectLeader: query.data?.isLeader ?? false,
+    canViewProject: hasAnyRole(RoleGroup.ProjectViewers) || (query.data?.isMember ?? false),
+    canManageExecution:
+      hasAnyRole(RoleGroup.Execution) || (query.data?.isLeader ?? false),
+    canManageTechnical:
+      hasAnyRole(RoleGroup.Technical) || (query.data?.isLeader ?? false),
+    canManageAccounting: hasAnyRole(RoleGroup.Accounting),
+    canManageInventory: hasAnyRole(RoleGroup.Inventory),
+    canApprove: hasAnyRole(RoleGroup.Approval),
+    canViewReports: hasAnyRole(RoleGroup.Reports) || (query.data?.isMember ?? false),
   };
 };

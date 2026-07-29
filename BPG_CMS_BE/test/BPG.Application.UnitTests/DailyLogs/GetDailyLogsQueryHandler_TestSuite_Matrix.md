@@ -1,4 +1,4 @@
-# GetDailyLogsQueryHandler.Handle - Unit Test Suite Matrix
+﻿# GetDailyLogsQueryHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `GetDailyLogsQueryHandler`  
 Function Name: `Handle(GetDailyLogsQuery request, CancellationToken cancellationToken)`  
@@ -49,6 +49,5 @@ Test requirement: Passed `0`, Failed `0`, Untested `9`, N/A/B `5 / 0 / 4`, Total
 |  | Executed Date |  |  |  |  |  |  |  |  |  |
 |  | Defect ID |  |  |  |  |  |  |  |  |  |
 
-Note: Project permission check and resource validation are enforced by ProjectAuthorizationBehavior; direct handler unit tests cover handler-specific filtering, mapping, and business rules only.
 Note: Search and SortBy are inherited by the query but are not read by this handler, so no test case claims that they filter or sort Daily Logs.
 Note: Known code gap: the fallback lookup for LogId is not constrained by ProjectId. Fix that production query before adding a cross-project isolation test.
