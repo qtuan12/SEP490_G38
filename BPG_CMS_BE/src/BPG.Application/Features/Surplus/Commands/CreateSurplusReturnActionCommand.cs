@@ -1,19 +1,17 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using MediatR;
-using BPG.Application.Common.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using BPG.Domain.Exceptions;
-using BPG.Application.Common.Authorization;
 using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Surplus.Commands;
 
 /// <summary>
-/// Kế toán xử lý trả NCC: nhập số tiền thu hồi và hoàn tất action.
+/// Káº¿ toÃ¡n xá»­ lÃ½ tráº£ NCC: nháº­p sá»‘ tiá»n thu há»“i vÃ  hoÃ n táº¥t action.
 /// </summary>
 public record CreateSurplusReturnActionCommand(
     long SurplusRequestItemId,
@@ -22,8 +20,7 @@ public record CreateSurplusReturnActionCommand(
     decimal? RefundAmount,
     string? Note,
     List<Microsoft.AspNetCore.Http.IFormFile>? Attachments
-) : IRequest<ApiResponse<long>>, IProjectResourceRequirement
+) : IRequest<ApiResponse<long>>
 {
-    public ProjectResource ProjectResource => ProjectResource.SurplusRequestItem(SurplusRequestItemId);
-    public string RequiredPermission => ProjectPermission.AccountingManage;
 }
+

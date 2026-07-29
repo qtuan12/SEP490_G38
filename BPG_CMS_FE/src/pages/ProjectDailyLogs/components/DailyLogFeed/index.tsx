@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+﻿import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../../../context/AuthContext';
 import { useNotification } from '../../../../context/NotificationContext';
 import { projectService } from '../../../../services/projectService';
@@ -13,7 +13,6 @@ import { DailyLogCard } from './DailyLogCard';
 
 import { useSearchParams } from 'react-router-dom';
 import { useProjectAccess } from '../../../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../../../auth/permissions';
 
 const PAGE_SIZE = 4;
 
@@ -67,9 +66,7 @@ interface DailyLogFeedProps {
 
 export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId }) => {
   const { user } = useAuth();
-  const { hasProjectPermission } = useProjectAccess(projectId);
-  const canManageExecution = hasProjectPermission(ProjectPermission.ExecutionManage);
-  const canManageTechnical = hasProjectPermission(ProjectPermission.TechnicalManage);
+  const { canManageExecution, canManageTechnical } = useProjectAccess(projectId);
   const { connection } = useNotification();
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);

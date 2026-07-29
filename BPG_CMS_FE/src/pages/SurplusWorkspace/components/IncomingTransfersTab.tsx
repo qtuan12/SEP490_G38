@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { LoadingSpinner } from '../../../components/ui';
 import { surplusService } from '../../../services/surplusService';
 import type { IncomingTransfer } from '../../../types/surplus';
@@ -8,7 +8,6 @@ import toast from 'react-hot-toast';
 import { RefreshCw, Package } from 'lucide-react';
 import { ReceiveTransferModal } from '../modals/ReceiveTransferModal';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../../auth/permissions';
 
 interface IncomingTransfersTabProps {
   projectId: number;
@@ -18,10 +17,8 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
   const [list, setList] = useState<IncomingTransfer[]>([]);
   const [loading, setLoading] = useState(false);
   const [receivingTransferId, setReceivingTransferId] = useState<number | null>(null);
-  const { hasProjectPermission } = useProjectAccess(projectId);
-  const canReceiveTransfer = hasProjectPermission(
-    ProjectPermission.ExecutionManage,
-  );
+  const { canManageExecution } = useProjectAccess(projectId);
+  const canReceiveTransfer = canManageExecution;
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {

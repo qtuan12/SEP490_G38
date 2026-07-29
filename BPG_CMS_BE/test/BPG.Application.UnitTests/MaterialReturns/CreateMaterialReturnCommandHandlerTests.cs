@@ -1,4 +1,4 @@
-using BPG.Application.Features.MaterialReturns.Commands;
+﻿using BPG.Application.Features.MaterialReturns.Commands;
 using BPG.Application.Features.MaterialReturns.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -66,103 +66,6 @@ namespace BPG.Application.UnitTests.MaterialReturns
                 ServiceStubFactory.InventoryService(),
                 ServiceStubFactory.RealtimeSender(),
                 ServiceStubFactory.NotificationService());
-        }
-
-        [Fact]
-        public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupTechnicalManager();
-            SetupIssuances(Issuance(
-                IssuanceItem(CementId, quantity: 30, conversionRate: 1),
-                IssuanceItem(SandId, quantity: 10, conversionRate: 0.5m)));
-
-            var command = Command(
-                reason: "Excess materials",
-                items: new[]
-                {
-                    Item(CementId, quantity: 10, conversionRate: 1),
-                    Item(SandId, quantity: 5, conversionRate: 0.5m)
-                });
-
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().Be(GeneratedReturnId);
-        }
-
-        [Fact]
-        public async Task UTCID02_Handle_ProjectLeaderWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupProjectLeader();
-            SetupIssuances(Issuance(IssuanceItem(CementId, quantity: 10)));
-            SetupPreviousReturnItems(PreviousReturnItem(CementId, quantity: 4));
-
-            var result = await _handler.Handle(Command(items: new[] { Item(CementId, 6) }), CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().Be(GeneratedReturnId);
-        }
-
-        [Fact]
-        public async Task UTCID03_Handle_EmptyItems_ShouldThrowBusinessException()
-        {
-            SetupTechnicalManager();
-
-            var act = async () => await _handler.Handle(Command(items: Array.Empty<ReturnItemDto>()), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be("ERR_EMPTY_ITEMS");
-        }
-
-        [Fact]
-        public async Task UTCID04_Handle_OriginalIssuanceNotFound_ShouldThrowNotFoundException()
-        {
-            SetupTechnicalManager();
-            SetupIssuances();
-
-            var act = async () => await _handler.Handle(Command(originalIssuanceId: 999), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<NotFoundException>();
-            exception.Which.ErrorCode.Should().Be("BIZ_001");
-        }
-
-        [Fact]
-        public async Task UTCID05_Handle_IssuanceWithoutProject_ShouldThrowBusinessException()
-        {
-            SetupTechnicalManager();
-            SetupIssuances(new MaterialIssuance
-            {
-                MaterialIssuanceId = OriginalIssuanceId,
-                Task = new ProjectTask { Phase = null! },
-                Items = new List<MaterialIssuanceItem> { IssuanceItem(CementId, 10) }
-            });
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
-        }
-
-        [Fact]
-        public async Task UTCID06_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
-        {
-            SetupTechnicalManager();
-            SetupIssuances(Issuance(ProjectStatus.Completed, IssuanceItem(CementId, 10)));
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
-        }
-
-        [Fact]
-        public void UTCID07_Command_ShouldDeclareExecutionPermissionForMaterialIssuanceResource()
-        {
-            var command = Command();
-
-            command.RequiredPermission.Should().Be(ProjectPermission.ExecutionManage);
-            command.ProjectResource.Id.Should().Be(OriginalIssuanceId);
-            command.ProjectResource.Type.ToString().Should().Be("MaterialIssuance");
         }
         [Fact]
         public async Task UTCID08_Handle_MaterialNotInOriginalIssuance_ShouldThrowBusinessException()

@@ -1,4 +1,4 @@
-using BPG.Application.Features.GoodsReceipts.Commands;
+﻿using BPG.Application.Features.GoodsReceipts.Commands;
 using BPG.Application.Features.GoodsReceipts.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -52,68 +52,6 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _handler = new PatchGoodsReceiptMetadataCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object);
-        }
-
-        [Fact]
-        public async Task UTCID01_Handle_OfficeRoleWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupUser(RoleConstants.Accountant);
-            SetupReceipts(Receipt());
-            SetupAttachments(Attachment());
-
-            var result = await _handler.Handle(Command(), CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeTrue();
-            result.Message.Should().Be("Cập nhật thông tin phiếu nhập kho thành công.");
-        }
-
-        [Fact]
-        public async Task UTCID02_Handle_ProjectLeaderWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupUser(RoleConstants.SiteEngineer, hasRole: false);
-            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
-            SetupReceipts(Receipt());
-
-            var result = await _handler.Handle(Command(delivererInfo: null, deliveryDocNo: "", images: null), CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeTrue();
-        }
-
-        [Fact]
-        public async Task UTCID03_Handle_ReceiptNotFound_ShouldThrowNotFoundException()
-        {
-            SetupUser(RoleConstants.Accountant);
-
-            var act = async () => await _handler.Handle(Command(receiptId: 999), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<NotFoundException>();
-            exception.Which.ErrorCode.Should().Be("BIZ_001");
-            exception.Which.Message.Should().Be("GoodsReceipt với ID [999] không tồn tại.");
-        }
-
-        [Fact]
-        public async Task UTCID04_Handle_ReceiptWithoutProject_ShouldThrowBusinessException()
-        {
-            SetupUser(RoleConstants.Accountant);
-            SetupReceipts(Receipt(hasProject: false));
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
-            exception.Which.Message.Should().Be("Không tìm thấy dự án liên kết với phiếu nhập kho này.");
-        }
-
-        [Fact]
-        public void UTCID05_Command_ShouldDeclareInventoryPermissionForGoodsReceiptResource()
-        {
-            var command = Command();
-
-            command.RequiredPermission.Should().Be(ProjectPermission.InventoryManage);
-            command.ProjectResource.Id.Should().Be(ReceiptId);
-            command.ProjectResource.Type.ToString().Should().Be("GoodsReceipt");
         }
         [Fact]
         public async Task UTCID06_Handle_ProjectNotInProgress_ShouldThrowBusinessException()

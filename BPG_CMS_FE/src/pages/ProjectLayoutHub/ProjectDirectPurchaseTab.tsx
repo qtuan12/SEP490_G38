@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { directPurchaseService } from '../../services/directPurchaseService';
 import { Badge, Pagination, Button } from '../../components/ui';
@@ -7,7 +7,6 @@ import { CreateDirectPurchaseModal } from './CreateDirectPurchaseModal';
 import { DirectPurchaseDetailModal } from './DirectPurchaseDetailModal';
 import { useNotification } from '../../context/NotificationContext';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 const AUDIT_OPTIONS = [
   { label: 'Tất cả', value: '' },
@@ -47,10 +46,10 @@ interface Props {
 
 export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
   const queryClient = useQueryClient();
-  const { hasProjectPermission } = useProjectAccess(projectId);
+  const { canManageExecution, canManageAccounting } = useProjectAccess(projectId);
   const { connection } = useNotification();
-  const isAccountant = hasProjectPermission(ProjectPermission.AccountingManage);
-  const canCreate = hasProjectPermission(ProjectPermission.ExecutionManage);
+  const isAccountant = canManageAccounting;
+  const canCreate = canManageExecution;
   const [auditFilter, setAuditFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');

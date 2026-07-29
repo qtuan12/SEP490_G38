@@ -1,6 +1,5 @@
-
+﻿
 using BPG.Application.IRepositories;
-using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;
@@ -11,10 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace BPG.Application.Features.Reports.Queries.GetCostReferenceReport;
 
 public record GetCostReferenceReportQuery(long ProjectId)
-    : IRequest<ApiResponse<CostReferenceReportDto>>, IProjectResourceRequirement
+    : IRequest<ApiResponse<CostReferenceReportDto>>
 {
-    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
-    public string RequiredPermission => ProjectPermission.ReportsView;
 }
 
 public class GetCostReferenceReportQueryHandler : IRequestHandler<GetCostReferenceReportQuery, ApiResponse<CostReferenceReportDto>>
@@ -65,3 +62,4 @@ public class GetCostReferenceReportQueryHandler : IRequestHandler<GetCostReferen
         return ApiResponse<CostReferenceReportDto>.SuccessResult(dto);
     }
 }
+

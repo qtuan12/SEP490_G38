@@ -1,5 +1,4 @@
-using BPG.Application.IRepositories;
-using BPG.Application.Common.Authorization;
+﻿using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;
@@ -10,10 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace BPG.Application.Features.Reports.Queries.GetConstructionProgressReport;
 
 public record GetConstructionProgressReportQuery(long ProjectId)
-    : IRequest<ApiResponse<ConstructionProgressReportDto>>, IProjectResourceRequirement
+    : IRequest<ApiResponse<ConstructionProgressReportDto>>
 {
-    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
-    public string RequiredPermission => ProjectPermission.ReportsView;
 }
 
 public class GetConstructionProgressReportQueryHandler
@@ -122,3 +119,4 @@ public class GetConstructionProgressReportQueryHandler
         return ApiResponse<ConstructionProgressReportDto>.SuccessResult(dto);
     }
 }
+

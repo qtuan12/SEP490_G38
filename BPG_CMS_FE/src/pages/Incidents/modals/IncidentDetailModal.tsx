@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { incidentService } from '../../../services/incidentService';
@@ -10,7 +10,6 @@ import { ArrowRight, ArrowLeft, AlertCircle, CheckCircle, HardHat, Package, MapP
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../../auth/permissions';
 interface IncidentDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -79,7 +78,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   onResolveClick,
   onSuccessAction
 }) => {
-  const { hasProjectPermission } = useProjectAccess(incident.projectId);
+  const { canManageTechnical, canManageAccounting, canApprove } = useProjectAccess(incident.projectId);
   const [isRejecting, setIsRejecting] = useState(false);
   const [isResubmittingByDirector, setIsResubmittingByDirector] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -1000,9 +999,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     Resolved: { label: 'Đã xử lý', color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' },
   }[incident.status as string] ?? { label: incident.status, color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' };
 
-  const isTPKT = hasProjectPermission(ProjectPermission.TechnicalManage);
-  const isAccountant = hasProjectPermission(ProjectPermission.AccountingManage);
-  const isDirector = hasProjectPermission(ProjectPermission.Approve);
+  const isTPKT = canManageTechnical;
+  const isAccountant = canManageAccounting;
+  const isDirector = canApprove;
 
   const incidentDetailsJSX = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

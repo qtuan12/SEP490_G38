@@ -1,14 +1,12 @@
-using BPG.Application.Common.Authorization;
-using BPG.Domain.Constants;
+﻿using BPG.Domain.Constants;
 using MediatR;
 
 namespace BPG.Application.Features.PurchaseOrders.Commands
 {
-    public class ClosePurchaseOrderCommand : IRequest<bool>, IProjectResourceRequirement
+    public class ClosePurchaseOrderCommand : IRequest<bool>
     {
         public long POId { get; init; }
-        public ProjectResource ProjectResource => ProjectResource.PurchaseOrder(POId);
-        public string RequiredPermission => ProjectPermission.AccountingManage;
         public string Reason { get; init; } = string.Empty;
     }
 }
+

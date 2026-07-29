@@ -16,23 +16,21 @@ public class GetAllIncidentsQueryHandler : IRequestHandler<GetAllIncidentsQuery,
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
-    private readonly IPermissionService _permissionService;
+    private readonly IProjectAccessService _projectAccessService;
 
     public GetAllIncidentsQueryHandler(
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        IPermissionService permissionService)
+        IProjectAccessService projectAccessService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
-        _permissionService = permissionService;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<ApiResponse<List<IncidentDto>>> Handle(GetAllIncidentsQuery request, CancellationToken cancellationToken)
     {
-        var accessibleProjectIds = await _permissionService.GetProjectIdsWithPermissionAsync(
-            ProjectPermission.View,
-            cancellationToken);
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
         var incidents = await _unitOfWork.Repository<Incident>()
             .Query()
             .Where(incident => accessibleProjectIds.Contains(incident.ProjectId))

@@ -5,7 +5,7 @@ import { SupplierFormModal } from './modals/SupplierFormModal';
 import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination } from '../../components/ui';
 import type { Supplier } from '../../types/supplier';
 import { useAuth } from '../../context/AuthContext';
-import { SystemPermission } from '../../auth/permissions';
+import { RoleGroup } from '../../auth/roles';
 import {
   Search,
   Plus,
@@ -19,8 +19,8 @@ import {
 
 export const SupplierManagement: React.FC = () => {
   const queryClient = useQueryClient();
-  const { hasSystemPermission } = useAuth();
-  const canManageSuppliers = hasSystemPermission(SystemPermission.SuppliersManage);
+  const { hasAnyRole } = useAuth();
+  const canManageSuppliers = hasAnyRole(RoleGroup.SupplierManagers);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');

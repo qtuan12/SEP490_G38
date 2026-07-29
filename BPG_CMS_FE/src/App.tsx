@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -40,9 +40,7 @@ import { ReportsHub } from './pages/ReportsHub';
 import { FieldWorkbench } from './pages/FieldWorkbench';
 import { isPWAMode } from './utils/pwaHelpers';
 import { DesktopOnlyGuard } from './components/DesktopOnlyGuard';
-import { ProjectPermission, SystemPermission } from './auth/permissions';
-import type { ProjectPermissionValue, SystemPermissionValue } from './auth/permissions';
-import { useProjectAccess } from './hooks/useProjectAccess';
+import { RoleGroup } from './auth/roles';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,10 +54,10 @@ const queryClient = new QueryClient({
 // Protected Route Guard
 const ProtectedRoute: React.FC<{
   children: React.ReactNode;
-  requiredPermission?: SystemPermissionValue;
+  allowedRoles?: readonly string[];
   noLayout?: boolean;
-}> = ({ children, requiredPermission, noLayout }) => {
-  const { isAuthenticated, isLoading, hasSystemPermission } = useAuth();
+}> = ({ children, allowedRoles, noLayout }) => {
+  const { isAuthenticated, isLoading, hasAnyRole } = useAuth();
 
   if (isLoading) {
     return (
@@ -71,7 +69,7 @@ const ProtectedRoute: React.FC<{
         backgroundColor: 'hsl(var(--bg-main))',
         color: 'hsl(var(--text-primary))'
       }}>
-        <h3>Đang tải phiên làm việc...</h3>
+        <h3>Äang táº£i phiÃªn lÃ m viá»‡c...</h3>
       </div>
     );
   }
@@ -80,61 +78,36 @@ const ProtectedRoute: React.FC<{
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredPermission && !hasSystemPermission(requiredPermission)) {
+  if (allowedRoles && !hasAnyRole(allowedRoles)) {
     return <Navigate to="/dashboard" replace />;
   }
 
   return noLayout ? <>{children}</> : <Layout>{children}</Layout>;
 };
 
-const ProjectPermissionRoute: React.FC<{
-  children: React.ReactNode;
-  permission?: ProjectPermissionValue;
-}> = ({ children, permission = ProjectPermission.View }) => {
+const ProjectRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { projectId } = useParams();
-  const { isLoading, isError, hasProjectPermission } = useProjectAccess(projectId);
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-48 items-center justify-center">
-        <span>Đang tải quyền dự án...</span>
-      </div>
-    );
-  }
-
-  if (!projectId || isError || !hasProjectPermission(permission)) {
+  if (!projectId) {
     return <Navigate to="/projects" replace />;
   }
 
   return <>{children}</>;
 };
 
-const ProjectOrSystemPermissionRoute: React.FC<{
+const ProjectOrRoleRoute: React.FC<{
   children: React.ReactNode;
-  systemPermission: SystemPermissionValue;
-  projectPermission: ProjectPermissionValue;
-}> = ({ children, systemPermission, projectPermission }) => {
-  const { hasSystemPermission } = useAuth();
+  allowedRoles: readonly string[];
+}> = ({ children, allowedRoles }) => {
+  const { hasAnyRole } = useAuth();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('projectId');
-  const hasSystemAccess = hasSystemPermission(systemPermission);
-  const { isLoading, isError, hasProjectPermission } = useProjectAccess(projectId);
-
-  if (projectId && isLoading) {
-    return (
-      <div className="flex min-h-48 items-center justify-center">
-        <span>Đang tải quyền dự án...</span>
-      </div>
-    );
-  }
 
   if (projectId) {
-    return isError || !hasProjectPermission(projectPermission)
-      ? <Navigate to="/projects" replace />
-      : <>{children}</>;
+    return <>{children}</>;
   }
 
-  if (!hasSystemAccess) {
+  if (!hasAnyRole(allowedRoles)) {
     return <Navigate to="/projects" replace />;
   }
 
@@ -143,12 +116,12 @@ const ProjectOrSystemPermissionRoute: React.FC<{
 
 // Route wrapper for redirecting authenticated users away from Login page
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, hasSystemPermission } = useAuth();
+  const { isAuthenticated, isLoading, hasAnyRole } = useAuth();
 
   if (isLoading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'hsl(var(--bg-main))' }}>
-        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Đang tải...</h3>
+        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Äang táº£i...</h3>
       </div>
     );
   }
@@ -157,7 +130,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     if (isPWAMode()) {
       return <Navigate to="/field?standalone=true" replace />;
     }
-    if (hasSystemPermission(SystemPermission.UsersManage)) {
+    if (hasAnyRole(RoleGroup.AdminOnly)) {
       return <Navigate to="/users" replace />;
     }
     return <Navigate to="/dashboard" replace />;
@@ -243,7 +216,7 @@ function App() {
               <Route
                 path="/field"
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.ProjectsList}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <FieldWorkbench />
                   </ProtectedRoute>
                 }
@@ -252,7 +225,7 @@ function App() {
               <Route 
                 path="/users" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.UsersManage}>
+                  <ProtectedRoute allowedRoles={RoleGroup.AdminOnly}>
                     <UserManagement />
                   </ProtectedRoute>
                 } 
@@ -261,7 +234,7 @@ function App() {
               <Route 
                 path="/suppliers" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.SuppliersView}>
+                  <ProtectedRoute allowedRoles={RoleGroup.SupplierViewers}>
                     <SupplierManagement />
                   </ProtectedRoute>
                 } 
@@ -270,7 +243,7 @@ function App() {
               <Route 
                 path="/units" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.MasterDataManage}>
+                  <ProtectedRoute allowedRoles={RoleGroup.MasterData}>
                     <UnitManagement />
                   </ProtectedRoute>
                 } 
@@ -279,7 +252,7 @@ function App() {
               <Route 
                 path="/categories" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.MasterDataManage}>
+                  <ProtectedRoute allowedRoles={RoleGroup.MasterData}>
                     <CategoryManagement />
                   </ProtectedRoute>
                 } 
@@ -288,7 +261,7 @@ function App() {
               <Route 
                 path="/materials" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.MasterDataManage}>
+                  <ProtectedRoute allowedRoles={RoleGroup.MasterData}>
                     <MaterialManagement />
                   </ProtectedRoute>
                 } 
@@ -297,7 +270,7 @@ function App() {
               <Route 
                 path="/materials-control" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.ProcurementManage}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Procurement}>
                     <MaterialControl />
                   </ProtectedRoute>
                 } 
@@ -306,7 +279,7 @@ function App() {
               <Route 
                 path="/projects" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.ProjectsList}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectList />
                   </ProtectedRoute>
                 } 
@@ -316,9 +289,9 @@ function App() {
                 path="/projects/:projectId" 
                 element={
                   <ProtectedRoute>
-                    <ProjectPermissionRoute>
+                    <ProjectRoute>
                       <ProjectLayoutHub />
-                    </ProjectPermissionRoute>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -327,9 +300,9 @@ function App() {
                 path="/projects/:projectId/logs" 
                 element={
                   <ProtectedRoute>
-                    <ProjectPermissionRoute>
+                    <ProjectRoute>
                       <ProjectDailyLogs />
-                    </ProjectPermissionRoute>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -338,9 +311,9 @@ function App() {
                 path="/projects/:projectId/tasks/:taskId/logs" 
                 element={
                   <ProtectedRoute>
-                    <ProjectPermissionRoute>
+                    <ProjectRoute>
                       <ProjectDailyLogs />
-                    </ProjectPermissionRoute>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -349,9 +322,9 @@ function App() {
                 path="/projects/:projectId/phases/:phaseId/boq" 
                 element={
                   <ProtectedRoute>
-                    <ProjectPermissionRoute>
+                    <ProjectRoute>
                       <PhaseBOQ />
-                    </ProjectPermissionRoute>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -360,9 +333,9 @@ function App() {
                 path="/projects/:projectId/phases/:phaseId/acceptance" 
                 element={
                   <ProtectedRoute>
-                    <ProjectPermissionRoute>
+                    <ProjectRoute>
                       <PhaseAcceptance />
-                    </ProjectPermissionRoute>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -371,11 +344,11 @@ function App() {
                 path="/projects/:projectId/gantt" 
                 element={
                   <ProtectedRoute>
-                    <ProjectPermissionRoute>
+                    <ProjectRoute>
                       <DesktopOnlyGuard>
                         <GanttChart />
                       </DesktopOnlyGuard>
-                    </ProjectPermissionRoute>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -384,9 +357,9 @@ function App() {
                 path="/projects/:projectId/drawing" 
                 element={
                   <ProtectedRoute>
-                    <ProjectPermissionRoute>
+                    <ProjectRoute>
                       <ProjectDrawing />
-                    </ProjectPermissionRoute>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -394,7 +367,7 @@ function App() {
               <Route 
                 path="/reports" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.ReportsView}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Reports}>
                     <DesktopOnlyGuard>
                       <ReportsHub />
                     </DesktopOnlyGuard>
@@ -405,7 +378,7 @@ function App() {
               <Route 
                 path="/incidents" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.ReportsView}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Reports}>
                     <GlobalIncidents />
                   </ProtectedRoute>
                 } 
@@ -415,11 +388,11 @@ function App() {
                 path="/projects/:projectId/reports/boq" 
                 element={
                   <ProtectedRoute>
-                    <ProjectPermissionRoute permission={ProjectPermission.ReportsView}>
+                    <ProjectRoute>
                       <DesktopOnlyGuard>
                         <BoqVsActualReport />
                       </DesktopOnlyGuard>
-                    </ProjectPermissionRoute>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -428,11 +401,11 @@ function App() {
                 path="/projects/:projectId/reports/cost" 
                 element={
                   <ProtectedRoute>
-                    <ProjectPermissionRoute permission={ProjectPermission.ReportsView}>
+                    <ProjectRoute>
                       <DesktopOnlyGuard>
                         <CostReferenceReport />
                       </DesktopOnlyGuard>
-                    </ProjectPermissionRoute>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -449,7 +422,7 @@ function App() {
               <Route 
                 path="/purchase-orders" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.ProcurementManage}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Procurement}>
                     <PurchaseOrderList />
                   </ProtectedRoute>
                 } 
@@ -459,12 +432,11 @@ function App() {
                 path="/purchase-orders/new" 
                 element={
                   <ProtectedRoute>
-                    <ProjectOrSystemPermissionRoute
-                      systemPermission={SystemPermission.ProcurementManage}
-                      projectPermission={ProjectPermission.AccountingManage}
+                    <ProjectOrRoleRoute
+                      allowedRoles={RoleGroup.Procurement}
                     >
                       <CreatePOPage />
-                    </ProjectOrSystemPermissionRoute>
+                    </ProjectOrRoleRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -490,7 +462,7 @@ function App() {
               <Route 
                 path="/system-config" 
                 element={
-                  <ProtectedRoute requiredPermission={SystemPermission.ConfigurationManage}>
+                  <ProtectedRoute allowedRoles={RoleGroup.AdminOnly}>
                     <DesktopOnlyGuard>
                       <SystemConfigPage />
                     </DesktopOnlyGuard>
@@ -502,12 +474,11 @@ function App() {
                 path="/phase-acceptances" 
                 element={
                   <ProtectedRoute>
-                    <ProjectOrSystemPermissionRoute
-                      systemPermission={SystemPermission.ReportsView}
-                      projectPermission={ProjectPermission.View}
+                    <ProjectOrRoleRoute
+                      allowedRoles={RoleGroup.Reports}
                     >
                       <PhaseAcceptances />
-                    </ProjectOrSystemPermissionRoute>
+                    </ProjectOrRoleRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -534,3 +505,4 @@ function App() {
 }
 
 export default App;
+

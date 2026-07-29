@@ -7,7 +7,6 @@ using BPG.Application.Features.Projects.DTOs;
 using BPG.Application.Features.Projects.Queries;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
-using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -19,25 +18,23 @@ public class GetProjectsQueryHandler : IRequestHandler<GetProjectsQuery, PagedLi
 {
     private readonly IUnitOfWork _uow;
     private readonly IMapper _mapper;
-    private readonly IPermissionService _permissionService;
+    private readonly IProjectAccessService _projectAccessService;
 
     public GetProjectsQueryHandler(
         IUnitOfWork uow,
         IMapper mapper,
-        IPermissionService permissionService)
+        IProjectAccessService projectAccessService)
     {
         _uow = uow;
         _mapper = mapper;
-        _permissionService = permissionService;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<PagedList<ProjectDto>> Handle(GetProjectsQuery request, CancellationToken cancellationToken)
     {
         var query = _uow.Repository<Project>().Query()
             .AsNoTracking();
-        var accessibleProjectIds = await _permissionService.GetProjectIdsWithPermissionAsync(
-            ProjectPermission.View,
-            cancellationToken);
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
         query = query.Where(project => accessibleProjectIds.Contains(project.ProjectId));
 
         if (!string.IsNullOrEmpty(request.Status))

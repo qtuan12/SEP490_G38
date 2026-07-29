@@ -1,4 +1,4 @@
-using BPG.Application.IServices;
+﻿using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -8,30 +8,28 @@ namespace BPG.Api.Hubs
     [Authorize]
     public class NotificationHub : Hub
     {
-        private readonly IPermissionService _permissionService;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public NotificationHub(IPermissionService permissionService)
+        public NotificationHub(IProjectAccessService projectAccessService)
         {
-            _permissionService = permissionService;
+            _projectAccessService = projectAccessService;
         }
 
         public override async Task OnConnectedAsync()
         {
-            // SignalR tự động ánh xạ UserIdentifier thông qua ClaimTypes.NameIdentifier của JWT Token
+            // SignalR tá»± Ä‘á»™ng Ã¡nh xáº¡ UserIdentifier thÃ´ng qua ClaimTypes.NameIdentifier cá»§a JWT Token
             var userId = Context.UserIdentifier;
             
-            // Bạn có thể bật log hoặc làm các tác vụ khi user connect ở đây nếu cần thiết
+            // Báº¡n cÃ³ thá»ƒ báº­t log hoáº·c lÃ m cÃ¡c tÃ¡c vá»¥ khi user connect á»Ÿ Ä‘Ã¢y náº¿u cáº§n thiáº¿t
             await base.OnConnectedAsync();
         }
 
         public async Task JoinProjectGroup(long projectId)
         {
-            if (!await _permissionService.HasProjectPermissionAsync(
-                    projectId,
-                    ProjectPermission.View,
-                    Context.ConnectionAborted))
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(Context.ConnectionAborted);
+            if (!accessibleProjectIds.Contains(projectId))
             {
-                throw new HubException("Bạn không có quyền truy cập dự án này.");
+                throw new HubException("Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p dá»± Ã¡n nÃ y.");
             }
 
             await Groups.AddToGroupAsync(Context.ConnectionId, $"Project_{projectId}");
@@ -43,3 +41,4 @@ namespace BPG.Api.Hubs
         }
     }
 }
+

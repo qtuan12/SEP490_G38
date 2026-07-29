@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { incidentService } from '../../services/incidentService';
@@ -16,7 +16,6 @@ import { Badge, Button } from '../../components/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 interface Props {
   projectId: string;
@@ -25,7 +24,7 @@ interface Props {
 
 export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) => {
   const { user } = useAuth();
-  const { hasProjectPermission } = useProjectAccess(projectId);
+  const { canManageExecution } = useProjectAccess(projectId);
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
@@ -285,7 +284,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const totalPages = Math.ceil(filteredIncidents.length / ITEMS_PER_PAGE);
   const paginatedIncidents = filteredIncidents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const isPL = hasProjectPermission(ProjectPermission.ExecutionManage);
+  const isPL = canManageExecution;
   const hasActiveEmergencyStop = incidents.some(
     i => i.isEmergency && ['WaitingStopApproval', 'WaitingRecoveryPlan', 'WaitingDirectorApproval'].includes(i.status)
   );

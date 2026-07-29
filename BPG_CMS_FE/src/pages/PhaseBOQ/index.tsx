@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
@@ -13,7 +13,6 @@ import { Button, SearchSelect } from '../../components/ui';
 import { isDiscreteUnit } from '../../utils/unitHelpers';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 const phaseBOQSchema = z.object({
   materials: z.array(
@@ -55,8 +54,8 @@ export const PhaseBOQ: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { hasProjectPermission } = useProjectAccess(projectId);
-  const canEdit = hasProjectPermission(ProjectPermission.TechnicalManage);
+  const { canManageTechnical } = useProjectAccess(projectId);
+  const canEdit = canManageTechnical;
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);

@@ -1,5 +1,4 @@
-using BPG.Application.Common.Authorization;
-using BPG.Application.IRepositories;
+﻿using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;
@@ -10,10 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace BPG.Application.Features.Reports.Queries.GetIncidentReport;
 
 public record GetIncidentReportQuery(long ProjectId)
-    : IRequest<ApiResponse<IncidentReportDto>>, IProjectResourceRequirement
+    : IRequest<ApiResponse<IncidentReportDto>>
 {
-    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
-    public string RequiredPermission => ProjectPermission.ReportsView;
 }
 
 
@@ -74,3 +71,4 @@ public class GetIncidentReportQueryHandler
         return ApiResponse<IncidentReportDto>.SuccessResult(dto);
     }
 }
+

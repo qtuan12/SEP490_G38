@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -14,7 +14,6 @@ import { WBSModalsContainer } from './components/WBSModalsContainer';
 import { FileText, BarChart2 } from 'lucide-react';
 import { ConfirmDialog } from '../../components/ui';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 
 interface WBSWorkspaceProps {
@@ -23,7 +22,7 @@ interface WBSWorkspaceProps {
 
 export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { user } = useAuth();
-  const { hasProjectPermission } = useProjectAccess(projectId);
+  const { canManageExecution, canManageTechnical } = useProjectAccess(projectId);
   const navigate = useNavigate();
   const { connection } = useNotification();
 
@@ -238,7 +237,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
 
-  const isTPKTOrPL = hasProjectPermission(ProjectPermission.ExecutionManage);
+  const isTPKTOrPL = canManageExecution;
   const isPL = isTPKTOrPL;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
@@ -247,7 +246,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return phaseTasks.every(t => t.progress === 100);
   };
 
-  const isTPKT = hasProjectPermission(ProjectPermission.TechnicalManage);
+  const isTPKT = canManageTechnical;
   const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
 
   const canEdit = isTPKTOrPL && (

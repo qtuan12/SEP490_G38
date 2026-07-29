@@ -1,4 +1,4 @@
-# PatchGoodsReceiptMetadataCommandHandler.Handle - Unit Test Suite Matrix
+﻿# PatchGoodsReceiptMetadataCommandHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `PatchGoodsReceiptMetadataCommandHandler`  
 Function Name: `Handle(PatchGoodsReceiptMetadataCommand request, CancellationToken cancellationToken)`  
@@ -12,9 +12,6 @@ Test requirement: Passed `6`, Failed `0`, Untested `0`, N/A/B `3 / 3 / 0`, Total
 | Condition | User is authenticated | O | O | O | O |  | O |
 |  | Receipt exists in DB | O | O |  | O |  | O |
 |  | Receipt does NOT exist |  |  | O |  |  |  |
-|  | User has project.inventory.manage through an office role grant | O |  | O | O |  | O |
-|  | User is project leader; membership grants project.execution.manage/project.inventory.manage |  | O |  |  |  |  |
-|  | Pipeline requires `project.inventory.manage` for `GoodsReceipt` resource |  |  |  |  | O |  |
 |  | Receipt has project context | O | O | O |  |  | O |
 |  | Receipt has NO project context |  |  |  | O |  |  |
 |  | Project status is NOT InProgress |  |  |  |  |  | O |
@@ -26,7 +23,6 @@ Test requirement: Passed `6`, Failed `0`, Untested `0`, N/A/B `3 / 3 / 0`, Total
 | Confirm | Return |  |  |  |  |  |  |
 |  | `{`<br>`  Success = true,`<br>`  Data = true,`<br>`  Message = "Cập nhật thông tin phiếu nhập kho thành công."`<br>`}` | O |  |  |  |  |  |
 |  | `{`<br>`  Success = true,`<br>`  Data = true`<br>`}` |  | O |  |  |  |  |
-|  | Command contract: `RequiredPermission = project.inventory.manage`, `ProjectResource = GoodsReceipt(500)` |  |  |  |  | O |  |
 | Confirm | Exception |  |  |  |  |  |  |
 |  | Throws `NotFoundException` — `BIZ_001`: `GoodsReceipt với ID [999] không tồn tại.` |  |  | O |  |  |  |
 |  | Throws `BusinessException` — `ERR_PROJECT_NOT_FOUND`: `Không tìm thấy dự án liên kết với phiếu nhập kho này.` |  |  |  | O |  |  |

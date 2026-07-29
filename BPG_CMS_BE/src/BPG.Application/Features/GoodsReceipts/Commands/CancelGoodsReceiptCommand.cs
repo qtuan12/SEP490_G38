@@ -1,5 +1,4 @@
-using BPG.Application.Common.Models;
-using BPG.Application.Common.Authorization;
+﻿using BPG.Application.Common.Models;
 using BPG.Domain.Constants;
 using MediatR;
 
@@ -7,8 +6,7 @@ namespace BPG.Application.Features.GoodsReceipts.Commands;
 
 public record CancelGoodsReceiptCommand(
     long ReceiptId
-) : IRequest<ApiResponse<bool>>, IProjectResourceRequirement
+) : IRequest<ApiResponse<bool>>
 {
-    public ProjectResource ProjectResource => ProjectResource.GoodsReceipt(ReceiptId);
-    public string RequiredPermission => ProjectPermission.InventoryManage;
 }
+

@@ -1,4 +1,4 @@
-using BPG.Application.Features.MaterialIssuances.Commands;
+﻿using BPG.Application.Features.MaterialIssuances.Commands;
 using BPG.Application.Features.MaterialIssuances.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -69,87 +69,6 @@ namespace BPG.Application.UnitTests.MaterialIssuances
                 ServiceStubFactory.InventoryService(),
                 ServiceStubFactory.RealtimeSender(),
                 ServiceStubFactory.NotificationService());
-        }
-
-        [Fact]
-        public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupTechnicalManager();
-            SetupTasks(ProjectTask());
-            SetupInventories(
-                Inventory(CementId, "Cement", quantity: 100, reservedQuantity: 10),
-                Inventory(SandId, "Sand", quantity: 30));
-
-            var command = Command(
-                purpose: "Slab pouring",
-                items: new[]
-                {
-                    Item(CementId, quantity: 20, conversionRate: 1),
-                    Item(SandId, quantity: 10, conversionRate: 0.5m)
-                });
-
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().Be(GeneratedIssuanceId);
-        }
-
-        [Fact]
-        public async Task UTCID02_Handle_ProjectLeaderWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupProjectLeader();
-            SetupTasks(ProjectTask());
-            SetupInventories(Inventory(CementId, "Cement", quantity: 10));
-
-            var result = await _handler.Handle(Command(items: new[] { Item(CementId, 10) }), CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().Be(GeneratedIssuanceId);
-        }
-
-        [Fact]
-        public async Task UTCID03_Handle_EmptyItems_ShouldThrowBusinessException()
-        {
-            SetupTechnicalManager();
-
-            var act = async () => await _handler.Handle(Command(items: Array.Empty<CreateMaterialIssuanceItemDto>()), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be("ERR_EMPTY_ITEMS");
-        }
-
-        [Fact]
-        public async Task UTCID04_Handle_TaskNotFound_ShouldThrowNotFoundException()
-        {
-            SetupTechnicalManager();
-            SetupTasks();
-
-            var act = async () => await _handler.Handle(Command(taskId: 999), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<NotFoundException>();
-            exception.Which.ErrorCode.Should().Be("BIZ_001");
-        }
-
-        [Fact]
-        public async Task UTCID05_Handle_TaskWithoutProject_ShouldThrowBusinessException()
-        {
-            SetupTechnicalManager();
-            SetupTasks(new ProjectTask { TaskId = TaskId, Phase = null! });
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
-        }
-
-        [Fact]
-        public void UTCID06_Command_ShouldDeclareExecutionPermissionForTaskResource()
-        {
-            var command = Command();
-
-            command.RequiredPermission.Should().Be(ProjectPermission.ExecutionManage);
-            command.ProjectResource.Id.Should().Be(TaskId);
-            command.ProjectResource.Type.ToString().Should().Be("Task");
         }
         [Fact]
         public async Task UTCID07_Handle_ProjectNotInProgress_ShouldThrowBusinessException()

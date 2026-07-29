@@ -1,4 +1,4 @@
-# GetTaskProgressHistoryQueryHandler.Handle - Unit Test Suite Matrix
+﻿# GetTaskProgressHistoryQueryHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `GetTaskProgressHistoryQueryHandler`  
 Function Name: `Handle(GetTaskProgressHistoryQuery request, CancellationToken cancellationToken)`  
@@ -11,7 +11,6 @@ Test requirement: Passed `0`, Failed `0`, Untested `5`, N/A/B `2 / 2 / 1`, Total
 |---|---|---|---|---|---|---|
 | Condition | Task 100 exists | O | O |  | O | O |
 |  | Task 999 does NOT exist |  |  | O |  |  |
-|  | User has global project.view/project reports access (Admin or TechnicalManager grant) | O |  |  |  | O |
 |  | User is a project member without privileged role |  | O |  |  |  |
 |  | User has neither global project permission grant nor project membership |  |  |  | O |  |
 |  | Task progress logs exist | O | O |  |  |  |

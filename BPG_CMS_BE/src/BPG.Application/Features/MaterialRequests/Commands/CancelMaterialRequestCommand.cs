@@ -1,5 +1,4 @@
-using MediatR;
-using BPG.Application.Common.Authorization;
+﻿using MediatR;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -14,25 +13,21 @@ using System.Threading.Tasks;
 namespace BPG.Application.Features.MaterialRequests.Commands
 {
     public record CancelMaterialRequestCommand(long RequestId, string Reason)
-        : IRequest<ApiResponse<bool>>, IProjectResourceRequirement
+        : IRequest<ApiResponse<bool>>
     {
-        public ProjectResource ProjectResource => ProjectResource.MaterialRequest(RequestId);
     }
 
     public class CancelMaterialRequestCommandHandler : IRequestHandler<CancelMaterialRequestCommand, ApiResponse<bool>>
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
-        private readonly IPermissionService _permissionService;
 
         public CancelMaterialRequestCommandHandler(
             IUnitOfWork uow,
-            ICurrentUserService currentUserService,
-            IPermissionService permissionService)
+            ICurrentUserService currentUserService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
-            _permissionService = permissionService;
         }
 
         public async Task<ApiResponse<bool>> Handle(CancelMaterialRequestCommand request, CancellationToken cancellationToken)
@@ -48,25 +43,28 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
             }
 
-            var canManageExecution = await _permissionService.HasProjectPermissionAsync(
-                mr.Phase.ProjectId,
-                ProjectPermission.ExecutionManage,
-                cancellationToken);
-            if (mr.CreatedBy != currentUserId && !canManageExecution)
+            var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
+            var isProjectLeader = await _uow.Repository<ProjectMember>().Query()
+                .AnyAsync(
+                    m => m.ProjectId == mr.Phase.ProjectId
+                        && m.UserId == currentUserId
+                        && m.IsLeader,
+                    cancellationToken);
+            if (mr.CreatedBy != currentUserId && !isManager && !isProjectLeader)
             {
-                throw new ForbiddenException("Bạn không có quyền hủy yêu cầu vật tư này.");
+                throw new ForbiddenException("Báº¡n khÃ´ng cÃ³ quyá»n há»§y yÃªu cáº§u váº­t tÆ° nÃ y.");
             }
 
-            // Chỉ cho phép hủy khi đang chờ duyệt
+            // Chá»‰ cho phÃ©p há»§y khi Ä‘ang chá» duyá»‡t
             if (mr.Status != MaterialRequestStatus.Pending && mr.Status != MaterialRequestStatus.WaitingApproval)
             {
                 throw new BusinessException("ERR_INVALID_STATUS_FOR_CANCEL", 
-                    $"Không thể hủy yêu cầu vật tư đang ở trạng thái: {mr.Status}. Chỉ hỗ trợ hủy phiếu ở trạng thái Chờ duyệt (Pending) hoặc Chờ Giám đốc (WaitingApproval).");
+                    $"KhÃ´ng thá»ƒ há»§y yÃªu cáº§u váº­t tÆ° Ä‘ang á»Ÿ tráº¡ng thÃ¡i: {mr.Status}. Chá»‰ há»— trá»£ há»§y phiáº¿u á»Ÿ tráº¡ng thÃ¡i Chá» duyá»‡t (Pending) hoáº·c Chá» GiÃ¡m Ä‘á»‘c (WaitingApproval).");
             }
 
             mr.Status = MaterialRequestStatus.Cancelled;
             mr.AccountantNote = string.IsNullOrWhiteSpace(request.Reason) 
-                ? "Hủy yêu cầu" 
+                ? "Há»§y yÃªu cáº§u" 
                 : request.Reason.Trim();
             mr.UpdatedAt = DateTime.UtcNow;
             mr.UpdatedBy = currentUserId;
@@ -74,7 +72,10 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             _uow.Repository<MaterialRequest>().Update(mr);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            return ApiResponse<bool>.SuccessResult(true, "Hủy yêu cầu vật tư thành công.");
+            return ApiResponse<bool>.SuccessResult(true, "Há»§y yÃªu cáº§u váº­t tÆ° thÃ nh cÃ´ng.");
         }
     }
 }
+
+
+

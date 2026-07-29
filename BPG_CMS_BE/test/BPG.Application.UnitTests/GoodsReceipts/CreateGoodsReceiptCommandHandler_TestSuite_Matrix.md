@@ -1,4 +1,4 @@
-# CreateGoodsReceiptCommandHandler.Handle - Unit Test Suite Matrix
+﻿# CreateGoodsReceiptCommandHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `CreateGoodsReceiptCommandHandler`  
 Function Name: `Handle(CreateGoodsReceiptCommand request, CancellationToken cancellationToken)`  
@@ -12,9 +12,6 @@ Test requirement: Passed `13`, Failed `0`, Untested `0`, N/A/B `3 / 8 / 2`, Tota
 | Condition | User is authenticated | O | O | O | O | O | O | O | O | O | O | O | O | O |
 |  | Purchase Order exists in DB | O | O | O |  | O | O |  | O | O | O | O | O | O |
 |  | Purchase Order does NOT exist |  |  |  | O |  |  |  |  |  |  |  |  |  |
-|  | User can manage execution through project.execution.manage (TechnicalManager grant) | O |  | O | O | O | O |  | O | O | O | O | O | O |
-|  | User is project leader; membership grants project.execution.manage/project.inventory.manage |  | O |  |  |  |  |  |  |  |  |  |  |  |
-|  | Pipeline requires `project.execution.manage` for `PurchaseOrder` resource |  |  |  |  |  |  | O |  |  |  |  |  |  |
 |  | Purchase Order has project context | O | O | O | O |  | O | O | O | O | O | O | O | O |
 |  | Purchase Order has NO project context |  |  |  |  | O |  |  |  |  |  |  |  |  |
 |  | Project status is NOT InProgress |  |  |  |  |  | O |  |  |  |  |  |  |  |
@@ -34,7 +31,6 @@ Test requirement: Passed `13`, Failed `0`, Untested `0`, N/A/B `3 / 8 / 2`, Tota
 | Input | CancellationToken.None | O | O | O | O | O | O | O | O | O | O | O | O | O |
 | Confirm | Return |  |  |  |  |  |  |  |  |  |  |  |  |  |
 |  | `{`<br>`  Success = true,`<br>`  Data = 500,`<br>`  Message = "Tạo phiếu nhập kho thành công."`<br>`}` | O | O |  |  |  |  |  |  |  |  |  |  |  |
-|  | Command contract: `RequiredPermission = project.execution.manage`, `ProjectResource = PurchaseOrder(100)` |  |  |  |  |  |  | O |  |  |  |  |  |  |
 | Confirm | Exception |  |  |  |  |  |  |  |  |  |  |  |  |  |
 |  | Throws `BusinessException` — `ERR_EMPTY_ITEMS`: `Danh sách vật tư nhận thực tế không được để trống.` |  |  | O |  |  |  |  |  |  |  |  |  |  |
 |  | Throws `NotFoundException` — `BIZ_001`: `PurchaseOrder với ID [999] không tồn tại.` |  |  |  | O |  |  |  |  |  |  |  |  |  |

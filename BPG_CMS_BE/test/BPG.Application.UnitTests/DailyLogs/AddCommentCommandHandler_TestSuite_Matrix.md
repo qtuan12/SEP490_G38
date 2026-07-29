@@ -1,4 +1,4 @@
-# AddCommentCommandHandler.Handle - Unit Test Suite Matrix
+﻿# AddCommentCommandHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `AddCommentCommandHandler`  
 Function Name: `Handle(AddCommentCommand request, CancellationToken cancellationToken)`  
@@ -11,9 +11,6 @@ Test requirement: Passed `0`, Failed `0`, Untested `4`, N/A/B `2 / 2 / 0`, Total
 |---|---|---|---|---|---|
 | Condition | DailyLog 100 exists | O | O |  | O |
 |  | DailyLog 999 does NOT exist |  |  | O |  |
-|  | User has project.view through a global role grant (Director / TechnicalManager / Accountant) | O |  |  |  |
-|  | User has project.view through project membership |  | O |  |  |
-|  | User has neither global project.view grant nor project membership |  |  |  | O |
 |  | Current user record and role exist for DTO mapping | O | O |  |  |
 | Input | AddCommentCommand |  |  |  |  |
 |  | `{`<br>`  LogId = 100,`<br>`  Content = "Great job!"`<br>`}` | O | O |  | O |

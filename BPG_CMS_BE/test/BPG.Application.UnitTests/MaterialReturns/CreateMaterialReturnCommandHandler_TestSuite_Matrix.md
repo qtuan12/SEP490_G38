@@ -1,4 +1,4 @@
-# CreateMaterialReturnCommandHandler.Handle - Unit Test Suite Matrix
+﻿# CreateMaterialReturnCommandHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `CreateMaterialReturnCommandHandler`  
 Function Name: `Handle(CreateMaterialReturnCommand request, CancellationToken cancellationToken)`  
@@ -12,9 +12,6 @@ Test requirement: Passed `11`, Failed `0`, Untested `0`, N/A/B `3 / 7 / 1`, Tota
 | Condition | User is authenticated | O | O | O | O | O | O |  | O | O | O | O |
 |  | Original issuance exists in DB | O | O | O |  | O | O |  | O | O | O | O |
 |  | Original issuance does NOT exist |  |  |  | O |  |  |  |  |  |  |  |
-|  | User can manage execution through project.execution.manage (TechnicalManager grant) | O |  | O | O | O | O |  | O | O | O | O |
-|  | User is project leader; membership grants project.execution.manage/project.inventory.manage |  | O |  |  |  |  |  |  |  |  |  |
-|  | Pipeline requires `project.execution.manage` for `MaterialIssuance` resource |  |  |  |  |  |  | O |  |  |  |  |
 |  | Original issuance has project context | O | O | O | O |  | O |  | O | O | O | O |
 |  | Original issuance has NO project context |  |  |  |  | O |  |  |  |  |  |  |
 |  | Project status is NOT InProgress |  |  |  |  |  | O |  |  |  |  |  |
@@ -32,7 +29,6 @@ Test requirement: Passed `11`, Failed `0`, Untested `0`, N/A/B `3 / 7 / 1`, Tota
 | Input | CancellationToken.None | O | O | O | O | O | O | O | O | O | O | O |
 | Confirm | Return |  |  |  |  |  |  |  |  |  |  |  |
 |  | `{`<br>`  Success = true,`<br>`  Data = 700,`<br>`  Message contains "Tạo phiếu hoàn trả"`<br>`}` | O | O |  |  |  |  |  |  |  |  |  |
-|  | Command contract: `RequiredPermission = project.execution.manage`, `ProjectResource = MaterialIssuance(500)` |  |  |  |  |  |  | O |  |  |  |  |
 | Confirm | Exception |  |  |  |  |  |  |  |  |  |  |  |
 |  | Throws `BusinessException` — `ERR_EMPTY_ITEMS`: `Danh sách vật tư hoàn trả không được để trống.` |  |  | O |  |  |  |  |  |  |  |  |
 |  | Throws `NotFoundException` — `BIZ_001`: `MaterialIssuance với ID [999] không tồn tại.` |  |  |  | O |  |  |  |  |  |  |  |

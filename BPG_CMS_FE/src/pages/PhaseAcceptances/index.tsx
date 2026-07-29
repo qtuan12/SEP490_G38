@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Eye, ArrowLeft } from 'lucide-react';
@@ -10,7 +10,6 @@ import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 export const PhaseAcceptances: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -61,8 +60,8 @@ export const PhaseAcceptances: React.FC = () => {
     })
   });
 
-  const { hasProjectPermission } = useProjectAccess(searchProjectId || null);
-  const canManageAcceptance = hasProjectPermission(ProjectPermission.TechnicalManage);
+  const { canManageTechnical } = useProjectAccess(searchProjectId || null);
+  const canManageAcceptance = canManageTechnical;
 
   const hasActiveAcceptance = data?.items?.some((item: any) => !item.isCancelled);
   const canCreate =

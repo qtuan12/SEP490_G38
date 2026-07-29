@@ -1,4 +1,4 @@
-# GetInventoryTransactionsQueryHandler.Handle - Unit Test Suite Matrix
+﻿# GetInventoryTransactionsQueryHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `GetInventoryTransactionsQueryHandler`  
 Function Name: `Handle(GetInventoryTransactionsQuery request, CancellationToken cancellationToken)`  
@@ -41,4 +41,3 @@ Test requirement: Passed `0`, Failed `0`, Untested `8`, N/A/B `5 / 0 / 3`, Total
 |  | Defect ID |  |  |  |  |  |  |  |  |
 
 Note: SortBy and SortDescending are ignored by the handler; output is ordered by CreatedAt descending.
-Note: Project permission check and resource validation are enforced by ProjectAuthorizationBehavior; direct handler unit tests cover handler-specific filtering, mapping, and business rules only.

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -9,7 +9,6 @@ import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus
 import { useNotification } from '../../context/NotificationContext';
 import toast from 'react-hot-toast';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 const menuItemStyle: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 8,
@@ -143,9 +142,8 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { connection } = useNotification();
-  const { hasProjectPermission } = useProjectAccess(projectId);
-  const isAccountant = hasProjectPermission(ProjectPermission.AccountingManage);
-  const canManageExecution = hasProjectPermission(ProjectPermission.ExecutionManage);
+  const { canManageExecution, canManageAccounting } = useProjectAccess(projectId);
+  const isAccountant = canManageAccounting;
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');

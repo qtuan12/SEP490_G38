@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button, LoadingSpinner } from '../../components/ui';
 import { inventoryService } from '../../services/inventoryService';
@@ -28,7 +28,6 @@ import {
   Plus
 } from 'lucide-react';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 interface InventoryWorkspaceProps {
   projectId: number;
@@ -89,9 +88,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const [isCreateIssuanceOpen, setIsCreateIssuanceOpen] = useState(false);
   const [selectedIssuanceId, setSelectedIssuanceId] = useState<number | null>(null);
 
-  const { hasProjectPermission } = useProjectAccess(projectId);
-  const canManageExecution = hasProjectPermission(ProjectPermission.ExecutionManage);
-  const canManageInventory = hasProjectPermission(ProjectPermission.InventoryManage);
+  const { canManageExecution, canManageInventory } = useProjectAccess(projectId);
   const canCreateReceipt = canManageExecution;
   const canCreateIssuance = canManageExecution;
 

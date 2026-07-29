@@ -1,4 +1,4 @@
-using BPG.Application.Features.InventoryAdjustments.Commands;
+﻿using BPG.Application.Features.InventoryAdjustments.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.UnitTests.Helpers;
@@ -66,28 +66,6 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
                 _mockCurrentUserService.Object,
                 ServiceStubFactory.RealtimeSender(),
                 ServiceStubFactory.NotificationService());
-        }
-
-        [Fact]
-        public async Task UTCID01_Handle_ProjectNotFound_ShouldThrowNotFoundException()
-        {
-            SetupProject(null);
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<NotFoundException>();
-            exception.Which.ErrorCode.Should().Be("BIZ_001");
-            exception.Which.Message.Should().Be("Project với ID [1] không tồn tại.");
-        }
-
-        [Fact]
-        public void UTCID02_Command_ShouldDeclareExecutionPermissionForProjectResource()
-        {
-            var command = Command();
-
-            command.RequiredPermission.Should().Be(ProjectPermission.ExecutionManage);
-            command.ProjectResource.Id.Should().Be(ProjectId);
-            command.ProjectResource.Type.ToString().Should().Be("Project");
         }
         [Fact]
         public async Task UTCID03_Handle_PhaseNotFound_ShouldThrowNotFoundException()

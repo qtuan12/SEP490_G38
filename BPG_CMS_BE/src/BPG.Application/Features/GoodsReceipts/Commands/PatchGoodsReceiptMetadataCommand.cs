@@ -1,5 +1,4 @@
-using BPG.Application.Common.Models;
-using BPG.Application.Common.Authorization;
+﻿using BPG.Application.Common.Models;
 using BPG.Domain.Constants;
 using MediatR;
 using System.Collections.Generic;
@@ -11,8 +10,7 @@ public record PatchGoodsReceiptMetadataCommand(
     string? DelivererInfo,
     string? DeliveryDocNo,
     List<string>? Images = null
-) : IRequest<ApiResponse<bool>>, IProjectResourceRequirement
+) : IRequest<ApiResponse<bool>>
 {
-    public ProjectResource ProjectResource => ProjectResource.GoodsReceipt(ReceiptId);
-    public string RequiredPermission => ProjectPermission.InventoryManage;
 }
+

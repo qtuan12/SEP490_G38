@@ -1,5 +1,4 @@
-using BPG.Application.Common.Models;
-using BPG.Application.Common.Authorization;
+﻿using BPG.Application.Common.Models;
 using BPG.Domain.Constants;
 using MediatR;
 using System.Collections.Generic;
@@ -10,10 +9,8 @@ namespace BPG.Application.Features.MaterialReturns.Commands
         long OriginalIssuanceId,
         string Reason,
         List<ReturnItemDto> Items
-    ) : IRequest<ApiResponse<long>>, IProjectResourceRequirement
+    ) : IRequest<ApiResponse<long>>
     {
-        public ProjectResource ProjectResource => ProjectResource.MaterialIssuance(OriginalIssuanceId);
-        public string RequiredPermission => ProjectPermission.ExecutionManage;
     }
 
     public record ReturnItemDto(
@@ -23,3 +20,4 @@ namespace BPG.Application.Features.MaterialReturns.Commands
         decimal ConversionRate = 1
     );
 }
+

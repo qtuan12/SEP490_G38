@@ -1,4 +1,4 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.PurchaseOrders;
 using BPG.Application.Features.PurchaseOrders.Queries;
 using BPG.Application.IRepositories;
@@ -14,23 +14,26 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
     public class GetPurchaseOrdersQueryHandler : IRequestHandler<GetPurchaseOrdersQuery, PagedList<PurchaseOrderDto>>
     {
         private readonly IUnitOfWork _uow;
-        private readonly IPermissionService _permissionService;
+        private readonly ICurrentUserService _currentUserService;
+        private readonly IProjectAccessService _projectAccessService;
 
         public GetPurchaseOrdersQueryHandler(
             IUnitOfWork uow,
-            IPermissionService permissionService)
+            ICurrentUserService currentUserService,
+            IProjectAccessService projectAccessService)
         {
             _uow = uow;
-            _permissionService = permissionService;
+            _currentUserService = currentUserService;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PagedList<PurchaseOrderDto>> Handle(GetPurchaseOrdersQuery request, CancellationToken cancellationToken)
         {
             if (!request.ProjectId.HasValue &&
-                !_permissionService.HasSystemPermission(SystemPermission.ProcurementManage))
+                !_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Director))
             {
                 throw new ForbiddenException(
-                    "Bạn chỉ được xem đơn hàng trong phạm vi dự án được cấp quyền.");
+                    "Báº¡n chá»‰ Ä‘Æ°á»£c xem Ä‘Æ¡n hÃ ng trong pháº¡m vi dá»± Ã¡n Ä‘Æ°á»£c cáº¥p quyá»n.");
             }
 
             var query = _uow.Repository<PurchaseOrder>().Query()
@@ -47,9 +50,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             }
             else
             {
-                var accessibleProjectIds = await _permissionService.GetProjectIdsWithPermissionAsync(
-                    ProjectPermission.View,
-                    cancellationToken);
+                var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
                 query = query.Where(po => accessibleProjectIds.Contains(po.ProjectId));
             }
 
@@ -129,3 +130,5 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
         }
     }
 }
+
+

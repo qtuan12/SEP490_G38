@@ -17,14 +17,14 @@ namespace BPG.Application.Features.Projects.Handlers;
 public class GetDashboardWarningsQueryHandler : IRequestHandler<GetDashboardWarningsQuery, List<DashboardWarningDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IPermissionService _permissionService;
+    private readonly IProjectAccessService _projectAccessService;
 
     public GetDashboardWarningsQueryHandler(
         IUnitOfWork unitOfWork,
-        IPermissionService permissionService)
+        IProjectAccessService projectAccessService)
     {
         _unitOfWork = unitOfWork;
-        _permissionService = permissionService;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<List<DashboardWarningDto>> Handle(GetDashboardWarningsQuery request, CancellationToken cancellationToken)
@@ -35,9 +35,7 @@ public class GetDashboardWarningsQueryHandler : IRequestHandler<GetDashboardWarn
         // Retrieve active projects with their phases, tasks
         var query = _unitOfWork.Repository<Project>().Query()
             .Where(p => p.Status == ProjectStatus.InProgress);
-        var accessibleProjectIds = await _permissionService.GetProjectIdsWithPermissionAsync(
-            ProjectPermission.View,
-            cancellationToken);
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
         query = query.Where(project => accessibleProjectIds.Contains(project.ProjectId));
 
         var activeProjects = await query

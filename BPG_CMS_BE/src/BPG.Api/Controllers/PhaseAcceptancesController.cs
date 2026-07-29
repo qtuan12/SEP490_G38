@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BPG.Domain.Constants;
 
@@ -8,10 +8,10 @@ namespace BPG.Api.Controllers;
 public class PhaseAcceptancesController : BaseApiController
 {
     /// <summary>
-    /// [TPKT] Lấy danh sách các biên bản nghiệm thu (phân trang, lọc theo Phase/Project)
+    /// [TPKT] Láº¥y danh sÃ¡ch cÃ¡c biÃªn báº£n nghiá»‡m thu (phÃ¢n trang, lá»c theo Phase/Project)
     /// </summary>
     [HttpGet]
-    [Authorize(Policy = SystemPermission.ReportsView)]
+    [Authorize(Roles = RolePolicies.Reports)]
     public async Task<IActionResult> GetPhaseAcceptances([FromQuery] BPG.Application.Features.PhaseAcceptances.Queries.GetPhaseAcceptances.GetPhaseAcceptancesQuery request, CancellationToken ct)
     {
         request.ProjectId = null;
@@ -31,7 +31,7 @@ public class PhaseAcceptancesController : BaseApiController
     }
 
     /// <summary>
-    /// [TPKT] Nghiệm thu Phase (Kiểm tra 100% Task, tạo PDF, khóa Phase)
+    /// [TPKT] Nghiá»‡m thu Phase (Kiá»ƒm tra 100% Task, táº¡o PDF, khÃ³a Phase)
     /// </summary>
     [HttpPost]
     public async Task<IActionResult> AcceptPhase([FromBody] BPG.Application.Features.PhaseAcceptances.Commands.AcceptPhase.AcceptPhaseCommand command, CancellationToken ct)
@@ -41,14 +41,15 @@ public class PhaseAcceptancesController : BaseApiController
     }
 
     /// <summary>
-    /// [TPKT] Hủy nghiệm thu (Trong vòng 7 ngày, bắt buộc lý do)
+    /// [TPKT] Há»§y nghiá»‡m thu (Trong vÃ²ng 7 ngÃ y, báº¯t buá»™c lÃ½ do)
     /// </summary>
     [HttpPut("{id}/cancel")]
     public async Task<IActionResult> CancelAcceptance(long id, [FromBody] BPG.Application.DTOs.PhaseAcceptances.CancelAcceptanceRequest request, CancellationToken ct)
     {
         var command = new BPG.Application.Features.PhaseAcceptances.Commands.CancelAcceptance.CancelAcceptanceCommand(id, request.CancellationReason);
         await Mediator.Send(command, ct);
-        return ApiOk("Đã hủy nghiệm thu thành công.");
+        return ApiOk("ÄÃ£ há»§y nghiá»‡m thu thÃ nh cÃ´ng.");
     }
 
 }
+

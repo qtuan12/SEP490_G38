@@ -1,4 +1,4 @@
-// Force IDE TS Server to re-parse this file
+﻿// Force IDE TS Server to re-parse this file
 import React, { useState, useEffect } from 'react';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
@@ -10,14 +10,13 @@ import { ReviewAdjustmentModal } from './ReviewAdjustmentModal';
 import { useNotification } from '../../../context/NotificationContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../../auth/permissions';
 
 interface AdjustmentListProps {
   projectId: number;
 }
 
 export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => {
-  const { hasProjectPermission } = useProjectAccess(projectId > 0 ? projectId : null);
+  const { canManageExecution, canManageAccounting, canApprove } = useProjectAccess(projectId > 0 ? projectId : null);
   const [data, setData] = useState<InventoryAdjustmentDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -127,11 +126,10 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
 
   const canCreateIncrease =
     projectId > 0 &&
-    hasProjectPermission(ProjectPermission.ExecutionManage);
+    canManageExecution;
   const canCreateDecrease =
     projectId > 0 &&
-    hasProjectPermission(ProjectPermission.AccountingManage);
-  const canApprove = hasProjectPermission(ProjectPermission.Approve);
+    canManageAccounting;
 
   return (
     <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl shadow-sm overflow-hidden flex flex-col">

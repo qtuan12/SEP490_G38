@@ -1,4 +1,4 @@
-# GetGoodsReceiptsQueryHandler.Handle - Unit Test Suite Matrix
+﻿# GetGoodsReceiptsQueryHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `GetGoodsReceiptsQueryHandler`  
 Function Name: `Handle(GetGoodsReceiptsQuery request, CancellationToken cancellationToken)`  
@@ -37,4 +37,3 @@ Test requirement: Passed `0`, Failed `0`, Untested `7`, N/A/B `5 / 0 / 2`, Total
 |  | Defect ID |  |  |  |  |  |  |  |
 
 Note: SortBy and SortDescending are inherited but ignored by this handler; output is always ordered by CreatedAt descending.
-Note: Project permission check and resource validation are enforced by ProjectAuthorizationBehavior; direct handler unit tests cover handler-specific filtering, mapping, and business rules only.

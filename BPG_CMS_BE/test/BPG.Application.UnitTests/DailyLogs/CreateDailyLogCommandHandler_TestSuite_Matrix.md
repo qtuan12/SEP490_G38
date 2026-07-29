@@ -1,4 +1,4 @@
-# CreateDailyLogCommandHandler.Handle - Unit Test Suite Matrix
+﻿# CreateDailyLogCommandHandler.Handle - Unit Test Suite Matrix
 
 Class Name: `CreateDailyLogCommandHandler`  
 Function Name: `Handle(CreateDailyLogCommand request, CancellationToken cancellationToken)`  
@@ -12,8 +12,6 @@ Test requirement: Passed `13`, Failed `0`, Untested `0`, N/A/B `3 / 8 / 2`, Tota
 | Condition | User is authenticated | O | O | O | O | O | O | O | O | O | O | O | O |
 |  | Task exists in DB | O | O |  | O | O | O | O | O | O | O | O | O |
 |  | Task does NOT exist |  |  | O |  |  |  |  |  |  |  |  |  |
-|  | User can manage execution through project.execution.manage (TechnicalManager grant) | O | O | O | O | O | O | O |  | O | O |  |  |
-|  | User is project leader; membership grants project.execution.manage/project.inventory.manage |  |  |  |  |  |  |  | O |  |  |  |  |
 |  | User is assigned engineer; handler business rule allows field log editing/reporting |  |  |  |  |  |  |  |  |  |  |  | O |
 |  | User lacks execution permission, project leader membership, and task assignment |  |  |  |  |  |  |  |  |  |  | O |  |
 |  | Project status is NOT InProgress |  |  |  | O |  |  |  |  |  |  |  |  |
@@ -54,6 +52,5 @@ Test requirement: Passed `13`, Failed `0`, Untested `0`, N/A/B `3 / 8 / 2`, Tota
 |  | Executed Date | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 | 07/14 |
 |  | Defect ID |  |  |  |  |  |  |  |  |  |  |  |  |
 
-Note: Additional contract test `Command_ShouldRequireProjectViewPermissionForTaskResource` verifies `RequiredPermission = project.view` and `ProjectResource = Task(100)`. It is counted in the total but kept outside the 12 handler-behavior columns.
 
 Note: There is no DB-error test case in `CreateDailyLogCommandHandlerTests.cs`, so the matrix does not add the sample `Throws Exception: "DB Error"` row.

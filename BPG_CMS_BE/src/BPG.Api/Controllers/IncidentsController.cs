@@ -1,4 +1,4 @@
-using BPG.Application.Features.Incidents.Commands.CreateAndAssessIncident;
+﻿using BPG.Application.Features.Incidents.Commands.CreateAndAssessIncident;
 using BPG.Application.Features.Incidents.Commands.ConfirmIncident;
 using BPG.Application.Features.Incidents.Queries.GetIncidents;
 using BPG.Domain.Constants;
@@ -11,7 +11,7 @@ namespace BPG.Api.Controllers;
 public class IncidentsController : BaseApiController
 {
     [HttpGet("all")]
-    [Authorize(Policy = SystemPermission.ReportsView)]
+    [Authorize(Roles = RolePolicies.Reports)]
     public async Task<IActionResult> GetAllIncidents(CancellationToken ct)
     {
         var result = await Mediator.Send(new BPG.Application.Features.Incidents.Queries.GetAllIncidents.GetAllIncidentsQuery(), ct);
@@ -56,3 +56,4 @@ public class IncidentsController : BaseApiController
         return ApiOk(result.Data, result.Message ?? "Success");
     }
 }
+

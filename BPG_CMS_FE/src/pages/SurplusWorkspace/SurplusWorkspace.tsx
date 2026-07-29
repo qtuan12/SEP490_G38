@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/ui';
 import { RefreshCw, PackageX } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -15,7 +15,6 @@ import { CreateTransferModal } from './modals/CreateTransferModal';
 import { CreateLiquidationModal } from './modals/CreateLiquidationModal';
 import type { SurplusRequestItem } from '../../types/surplus';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
-import { ProjectPermission } from '../../auth/permissions';
 
 interface SurplusWorkspaceProps {
   projectId: number;
@@ -27,13 +26,11 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   projectName,
 }) => {
   const { connection } = useNotification();
-  const { access, hasProjectPermission } = useProjectAccess(projectId);
+  const { canManageExecution, canManageTechnical, canManageAccounting, access } = useProjectAccess(projectId);
   const isLeader = access?.isLeader ?? false;
-  const isAccountant = hasProjectPermission(ProjectPermission.AccountingManage);
-  const isTPKT = hasProjectPermission(ProjectPermission.TechnicalManage);
-  const canCreateSurplusRequest = hasProjectPermission(
-    ProjectPermission.ExecutionManage,
-  );
+  const isAccountant = canManageAccounting;
+  const isTPKT = canManageTechnical;
+  const canCreateSurplusRequest = canManageExecution;
 
   const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>('outbound');
   const [view, setView] = useState<'list' | 'detail'>('list');

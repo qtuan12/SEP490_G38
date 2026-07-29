@@ -1,5 +1,4 @@
-using MediatR;
-using BPG.Application.Common.Interfaces;
+﻿using MediatR;
 using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialRequests;
@@ -12,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Queries
 {
-    public record GetMaterialRequestDetailQuery(long RequestId) : IRequest<ApiResponse<MaterialRequestDto>>, IProjectRequirement
+    public record GetMaterialRequestDetailQuery(long RequestId) : IRequest<ApiResponse<MaterialRequestDto>>
     {
         public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
@@ -58,7 +57,7 @@ namespace BPG.Application.Features.MaterialRequests.Queries
 
             var dto = _mapper.Map<MaterialRequestDto>(mr);
 
-            // Điền tên người tạo (CreatedByName)
+            // Äiá»n tÃªn ngÆ°á»i táº¡o (CreatedByName)
             if (mr.CreatedBy.HasValue)
             {
                 var creator = await _uow.Repository<User>().Query()
@@ -69,7 +68,8 @@ namespace BPG.Application.Features.MaterialRequests.Queries
                 }
             }
 
-            return ApiResponse<MaterialRequestDto>.SuccessResult(dto, "Lấy thông tin chi tiết yêu cầu vật tư thành công.");
+            return ApiResponse<MaterialRequestDto>.SuccessResult(dto, "Láº¥y thÃ´ng tin chi tiáº¿t yÃªu cáº§u váº­t tÆ° thÃ nh cÃ´ng.");
         }
     }
 }
+
