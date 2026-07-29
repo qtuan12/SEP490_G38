@@ -387,13 +387,13 @@ function App() {
                 } 
               />
 
-              <Route 
-                path="/incidents" 
+              <Route
+                path="/incidents"
                 element={
-                  <ProtectedRoute allowedRoles={RoleGroup.Reports}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <GlobalIncidents />
                   </ProtectedRoute>
-                } 
+                }
               />
 
               <Route 
