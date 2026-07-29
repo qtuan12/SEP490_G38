@@ -38,6 +38,7 @@ import { SystemConfigPage } from './pages/SystemConfig';
 import { DirectPurchaseList } from './pages/DirectPurchases';
 import { ReportsHub } from './pages/ReportsHub';
 import { FieldWorkbench } from './pages/FieldWorkbench';
+import { FieldTaskList } from './pages/FieldTaskList';
 import { isPWAMode } from './utils/pwaHelpers';
 import { DesktopOnlyGuard } from './components/DesktopOnlyGuard';
 
@@ -97,7 +98,8 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   if (isAuthenticated) {
-    if (isPWAMode()) {
+    const fieldRoles = ['technicalmanager', 'projectleader', 'siteengineer'];
+    if (isPWAMode() && user?.role && fieldRoles.includes(user.role)) {
       return <Navigate to="/field?standalone=true" replace />;
     }
     if (user?.role === 'admin') {
@@ -188,6 +190,15 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer']}>
                     <FieldWorkbench />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/field/tasks"
+                element={
+                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer']}>
+                    <FieldTaskList />
                   </ProtectedRoute>
                 }
               />

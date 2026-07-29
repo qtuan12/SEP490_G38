@@ -11,6 +11,7 @@ import { Modal, Button, Textarea } from '../../../components/ui';
 import { useAuth } from '../../../context/AuthContext';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
+import { CameraCaptureModal } from '../../../components/CameraCaptureModal';
 
 const dailyLogSchema = z.object({
   progress: z.number().min(0).max(100),
@@ -56,6 +57,10 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const [existingImages, setExistingImages] = useState<string[]>([]);
   // File dragging state
   const [dragging, setDragging] = useState(false);
+  // Chụp ảnh ngay trong trang (getUserMedia) thay vì mở app Camera hệ thống — trên Android,
+  // khi PWA chạy standalone, mở camera hệ thống có thể không trả về đúng cửa sổ app, mất ảnh vừa chụp.
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const supportsInPageCamera = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   // Find the selected task object
   const currentTask = React.useMemo(() => {
     if (task) return task;
@@ -305,6 +310,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const totalImagesCount = existingImages.length + uploadedFiles.length;
 
   return (
+    <>
     <div className={`bg-[hsl(var(--bg-card))] rounded-md ${hideHeader ? '' : 'border border-[hsl(var(--border))] shadow-sm mt-4'} overflow-hidden animate-fade-in`}>
       {!hideHeader && (
         <div className="p-3 bg-blue-50/50 border-b border-[hsl(var(--border))]">
@@ -401,7 +407,13 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
             <div className="flex gap-2 mb-2">
               <button
                 type="button"
-                onClick={() => document.getElementById('log-camera-input')?.click()}
+                onClick={() => {
+                  if (supportsInPageCamera) {
+                    setCameraOpen(true);
+                  } else {
+                    document.getElementById('log-camera-input')?.click();
+                  }
+                }}
                 disabled={mutation.isPending}
                 className="flex-1 flex items-center justify-center gap-1.5 h-11 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
@@ -575,6 +587,15 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
         </form>
       </div>
     </div>
+    <CameraCaptureModal
+      isOpen={cameraOpen}
+      onClose={() => setCameraOpen(false)}
+      onCapture={(file) => {
+        setCameraOpen(false);
+        addImages([file]);
+      }}
+    />
+    </>
   );
 };
 

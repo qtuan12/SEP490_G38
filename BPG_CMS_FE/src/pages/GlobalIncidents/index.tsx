@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { incidentService } from '../../services/incidentService';
+import type { IncidentDto } from '../../services/incidentService';
 import type { IncidentReport, WBSTask, WBSPhase, ProjectMember } from '../../types/common';
 import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
@@ -19,6 +21,10 @@ import type { Project } from '../../types/common';
 
 export const GlobalIncidents: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedProjectId = searchParams.get('projectId');
+
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(
@@ -33,8 +39,23 @@ export const GlobalIncidents: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
+  // GET /incidents/all chỉ cho phép technicalmanager/admin/accountant/director.
+  // siteengineer/projectleader xem sự cố theo đúng dự án đang chọn ở "Việc của tôi" (không có quyền xem toàn hệ thống).
+  const isPrivileged = !!user?.role && ['technicalmanager', 'admin', 'accountant', 'director'].includes(user.role);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+
   useEffect(() => {
-    projectService.getProjects().then(setProjects).catch(console.error);
+    projectService.getProjects().then(list => {
+      setProjects(list);
+      if (!isPrivileged) {
+        setSelectedProjectId(prev => {
+          if (requestedProjectId && list.some(p => p.id === requestedProjectId)) return requestedProjectId;
+          if (prev && list.some(p => p.id === prev)) return prev;
+          return list[0]?.id || '';
+        });
+      }
+    }).catch(console.error).finally(() => setProjectsLoaded(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -66,72 +87,91 @@ export const GlobalIncidents: React.FC = () => {
   const totalPages = Math.ceil(visibleIncidents.length / ITEMS_PER_PAGE);
   const paginatedIncidents = visibleIncidents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
+  const mapDtoToIncident = (dto: IncidentDto): IncidentReport => {
+    let desc = dto.description || '';
+    const images: string[] = [];
+
+    const imgRegex = /!\[.*?\]\((.*?)\)/g;
+    let match;
+    while ((match = imgRegex.exec(desc)) !== null) {
+      images.push(match[1]);
+    }
+
+    desc = desc.replace(/\*\*Hình ảnh đính kèm:\*\*/g, '');
+    desc = desc.replace(/!\[.*?\]\((.*?)\)/g, '');
+    desc = desc.trim();
+
+    return {
+      id: dto.incidentId.toString(),
+      projectId: dto.projectId.toString(),
+      projectName: dto.projectName,
+      taskId: dto.taskId?.toString() || '',
+      taskName: dto.taskName || 'Không xác định',
+      phaseId: dto.phaseId?.toString() || '',
+      phaseName: dto.phaseName || 'Không xác định',
+      reporterId: dto.reportedBy.toString(),
+      reporterName: dto.reporterName,
+      reviewerId: dto.reviewerBy?.toString(),
+      reviewerName: dto.reviewerName,
+      incidentType: dto.incidentType as any,
+      description: desc,
+      status: dto.status as any,
+      damageDescription: dto.damageDescription,
+      estimatedMaterialLoss: dto.estimatedMaterialLoss,
+      estimatedLaborDays: dto.estimatedLaborDays,
+      estimatedDelayDays: dto.estimatedDelayDays,
+      proposedAction: dto.proposedAction,
+      handlingInstruction: dto.handlingInstruction,
+      reworkTaskId: dto.reworkTaskId?.toString(),
+      isEmergency: dto.isEmergency,
+      recoveryPlanText: dto.recoveryPlanText,
+      recoveryEstimateCost: dto.recoveryEstimateCost,
+      date: (() => {
+        const dateStr = dto.createdAt.endsWith('Z') ? dto.createdAt : dto.createdAt + 'Z';
+        const d = new Date(dateStr);
+        const hours = d.getHours().toString().padStart(2, '0');
+        const minutes = d.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+      })(),
+      images: images
+    };
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const incListDto = await incidentService.getAllIncidents();
-      const incList: IncidentReport[] = incListDto.map(dto => {
-        let desc = dto.description || '';
-        const images: string[] = [];
+      let incListDto: IncidentDto[];
 
-        const imgRegex = /!\[.*?\]\((.*?)\)/g;
-        let match;
-        while ((match = imgRegex.exec(desc)) !== null) {
-          images.push(match[1]);
-        }
+      if (isPrivileged) {
+        incListDto = await incidentService.getAllIncidents();
+      } else {
+        // Không có quyền gọi /incidents/all — chỉ lấy sự cố của (các) dự án mình tham gia.
+        const targetProjectIds = selectedProjectId
+          ? [selectedProjectId]
+          : projects.map(p => p.id);
+        const lists = await Promise.all(
+          targetProjectIds.map(id => incidentService.getIncidents(Number(id)))
+        );
+        incListDto = lists.flat();
+      }
 
-        desc = desc.replace(/\*\*Hình ảnh đính kèm:\*\*/g, '');
-        desc = desc.replace(/!\[.*?\]\((.*?)\)/g, '');
-        desc = desc.trim();
-
-        return {
-          id: dto.incidentId.toString(),
-          projectId: dto.projectId.toString(),
-          projectName: dto.projectName,
-          taskId: dto.taskId?.toString() || '',
-          taskName: dto.taskName || 'Không xác định',
-          phaseId: dto.phaseId?.toString() || '',
-          phaseName: dto.phaseName || 'Không xác định',
-          reporterId: dto.reportedBy.toString(),
-          reporterName: dto.reporterName,
-          reviewerId: dto.reviewerBy?.toString(),
-          reviewerName: dto.reviewerName,
-          incidentType: dto.incidentType as any,
-          description: desc,
-          status: dto.status as any,
-          damageDescription: dto.damageDescription,
-          estimatedMaterialLoss: dto.estimatedMaterialLoss,
-          estimatedLaborDays: dto.estimatedLaborDays,
-          estimatedDelayDays: dto.estimatedDelayDays,
-          proposedAction: dto.proposedAction,
-          handlingInstruction: dto.handlingInstruction,
-          reworkTaskId: dto.reworkTaskId?.toString(),
-          isEmergency: dto.isEmergency,
-          recoveryPlanText: dto.recoveryPlanText,
-          recoveryEstimateCost: dto.recoveryEstimateCost,
-          date: (() => {
-            const dateStr = dto.createdAt.endsWith('Z') ? dto.createdAt : dto.createdAt + 'Z';
-            const d = new Date(dateStr);
-            const hours = d.getHours().toString().padStart(2, '0');
-            const minutes = d.getMinutes().toString().padStart(2, '0');
-            return `${hours}:${minutes} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
-          })(),
-          images: images
-        };
-      });
-
-      setIncidents(incList);
+      setIncidents(incListDto.map(mapDtoToIncident));
     } catch (err: any) {
       console.error(err);
-      setError('Lỗi khi tải dữ liệu sự cố toàn hệ thống.');
+      setError('Lỗi khi tải dữ liệu sự cố.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isPrivileged) {
+      loadData();
+    } else if (projectsLoaded) {
+      loadData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPrivileged, projectsLoaded, selectedProjectId]);
 
   // Tham gia SignalR group chung (Project_0)
   useEffect(() => {
@@ -248,6 +288,7 @@ export const GlobalIncidents: React.FC = () => {
   };
 
   const effectivePhase = selectedPhase;
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
 
   return (
     <div className="flex flex-col gap-5">
@@ -267,22 +308,37 @@ export const GlobalIncidents: React.FC = () => {
       <div className="flex justify-between items-center flex-wrap gap-4 mb-2">
         <div>
           <h3 className="text-[1.3rem] font-bold m-0">
-            Quản lý Sự cố Toàn hệ thống
+            {isPrivileged
+              ? 'Quản lý Sự cố Toàn hệ thống'
+              : `Sự cố dự án${selectedProject ? `: ${selectedProject.name}` : ''}`}
           </h3>
           <p className="text-[0.85rem] text-[hsl(var(--text-muted))] mt-1 mb-0">
-            Tổng hợp toàn bộ báo cáo sự cố (Thi công / Vật tư) trên hệ thống
+            {isPrivileged
+              ? 'Tổng hợp toàn bộ báo cáo sự cố (Thi công / Vật tư) trên hệ thống'
+              : 'Theo dõi và xử lý báo cáo sự cố (Thi công / Vật tư) của dự án'}
           </p>
         </div>
-        <div className="w-full sm:w-64">
-          <Select
-            value={selectedProjectId}
-            onChange={(e) => setSelectedProjectId(e.target.value)}
-            options={[
-              { label: 'Tất cả Dự án', value: '' },
-              ...projects.map(p => ({ label: p.name, value: p.id.toString() }))
-            ]}
-          />
-        </div>
+        {isPrivileged ? (
+          <div className="w-full sm:w-64">
+            <Select
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              options={[
+                { label: 'Tất cả Dự án', value: '' },
+                ...projects.map(p => ({ label: p.name, value: p.id.toString() }))
+              ]}
+            />
+          </div>
+        ) : (
+          projects.length > 0 && (
+            <button
+              onClick={() => navigate('/projects')}
+              className="shrink-0 text-xs font-medium text-[hsl(var(--primary))]"
+            >
+              Đổi dự án
+            </button>
+          )
+        )}
       </div>
 
       <div className="flex gap-2 border-b border-[hsl(var(--border))] mb-4">
