@@ -1,5 +1,4 @@
-using BPG.Application.Common.Interfaces;
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Inventory;
 using BPG.Application.IRepositories;
 using MediatR;
@@ -8,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.InventoryAdjustments.Queries
 {
-    public class GetInventoryAdjustmentsQuery : PaginationRequest, IRequest<PagedList<InventoryAdjustmentDto>>, IProjectRequirement
+    public class GetInventoryAdjustmentsQuery : PaginationRequest, IRequest<PagedList<InventoryAdjustmentDto>>
     {
         public long ProjectId { get; set; }
         public string? AdjustmentType { get; set; }
@@ -26,3 +25,4 @@ namespace BPG.Application.Features.InventoryAdjustments.Queries
             => Task.FromResult(ProjectId);
     }
 }
+

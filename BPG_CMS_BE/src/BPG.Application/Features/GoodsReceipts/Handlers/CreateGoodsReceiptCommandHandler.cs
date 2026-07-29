@@ -74,20 +74,6 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }
 
-            // 2.5 Kiểm tra quyền: Chỉ Trưởng phòng kỹ thuật hoặc Trưởng dự án mới được tạo phiếu nhập kho
-            bool isTechnicalManager = _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager);
-
-            if (!isTechnicalManager)
-            {
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
-
-                if (!isLeader)
-                {
-                    throw new ForbiddenException("Chỉ Trưởng phòng kỹ thuật hoặc Trưởng dự án mới có quyền nhập kho cho đơn hàng.");
-                }
-            }
-
             // 3. Kiểm tra trạng thái PO
             if (po.Status != PurchaseOrderStatus.Sent && po.Status != PurchaseOrderStatus.PartiallyReceived)
             {
@@ -267,7 +253,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     receiptTitle,
                     receiptContent,
                     NotificationType.Procurement,
-                    NotificationReferenceType.GoodsReceipt,
+                    $"/projects/{project.ProjectId}?tab=inventory&subTab=receipts&receiptId={goodsReceipt.ReceiptId}",
                     goodsReceipt.ReceiptId,
                     cancellationToken);
 
@@ -277,7 +263,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     $"{actorName} đã tạo phiếu nhập kho {goodsReceipt.ReceiptNo} cho đơn mua {po.PONumber} tại dự án {project.Name}.",
                     NotificationType.Procurement,
                     currentUserId,
-                    NotificationReferenceType.GoodsReceipt,
+                    $"/projects/{project.ProjectId}?tab=inventory&subTab=receipts&receiptId={goodsReceipt.ReceiptId}",
                     goodsReceipt.ReceiptId,
                     cancellationToken);
 

@@ -40,15 +40,6 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
         if (project == null)
             throw new NotFoundException(nameof(Project), request.Id);
 
-        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
-        {
-            var currentUserId = _currentUserService.GetRequiredUserId();
-            if (!project.Members.Any(m => m.UserId == currentUserId))
-            {
-                throw new ForbiddenException("Bạn không được phân công vào dự án này nên không có quyền xem thông tin.");
-            }
-        }
-
         var attachments = await _uow.Repository<Attachment>().Query()
             .AsNoTracking()
             .Where(a => a.EntityType == EntityType.Project && a.EntityId == project.ProjectId)

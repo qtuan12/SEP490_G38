@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { hasAnyRole as checkAnyRole } from '../auth/roles';
 import { authService } from '../services/authService';
 import type { LoginCredentials, UserProfile } from '../services/authService';
 
@@ -10,9 +11,16 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<UserProfile>;
   logout: () => void;
   updateUser: (partial: Partial<UserProfile>) => void;
+  hasAnyRole: (allowedRoles: readonly string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const clearStoredSession = () => {
+  localStorage.removeItem('bpg_token');
+  localStorage.removeItem('bpg_refresh_token');
+  localStorage.removeItem('bpg_user');
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -20,49 +28,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const VALID_ROLES = ['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'accountant', 'director'];
-
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('bpg_token');
-      const storedUser = localStorage.getItem('bpg_user');
-
-      if (storedToken && storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          if (parsed && VALID_ROLES.includes(parsed.role)) {
-            setToken(storedToken);
-            setUser(parsed);
-          } else {
-            // Role cũ hoặc không hợp lệ → clear session
-            localStorage.removeItem('bpg_token');
-            localStorage.removeItem('bpg_refresh_token');
-            localStorage.removeItem('bpg_user');
-          }
-        } catch {
-          localStorage.removeItem('bpg_token');
-          localStorage.removeItem('bpg_refresh_token');
-          localStorage.removeItem('bpg_user');
-        }
+      if (!storedToken) {
+        setIsLoading(false);
+        return;
       }
-      setIsLoading(false);
+
+      try {
+        const sessionUser = await authService.getSessionUser();
+        if (sessionUser.status !== 'active') {
+          throw new Error('Tài khoản không còn hoạt động.');
+        }
+
+        setToken(storedToken);
+        setUser(sessionUser);
+        localStorage.setItem('bpg_user', JSON.stringify(sessionUser));
+      } catch {
+        clearStoredSession();
+        setToken(null);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    initializeAuth();
+    void initializeAuth();
   }, []);
 
   const login = async (credentials: LoginCredentials): Promise<UserProfile> => {
     try {
       const response = await authService.login(credentials);
-      setToken(response.token);
-      setUser(response.user);
       localStorage.setItem('bpg_token', response.token);
       localStorage.setItem('bpg_refresh_token', response.refreshToken);
       localStorage.setItem('bpg_user', JSON.stringify(response.user));
+      setToken(response.token);
+      setUser(response.user);
       return response.user;
     } catch (error) {
-      localStorage.removeItem('bpg_token');
-      localStorage.removeItem('bpg_refresh_token');
-      localStorage.removeItem('bpg_user');
+      clearStoredSession();
       setUser(null);
       setToken(null);
       throw error;
@@ -71,24 +75,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     authService.logout();
+    clearStoredSession();
     setToken(null);
     setUser(null);
-    localStorage.removeItem('bpg_token');
-    localStorage.removeItem('bpg_refresh_token');
-    localStorage.removeItem('bpg_user');
   };
 
   const updateUser = (partial: Partial<UserProfile>) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const updated = { ...prev, ...partial };
+    setUser((previous) => {
+      if (!previous) return previous;
+      const updated = { ...previous, ...partial };
       localStorage.setItem('bpg_user', JSON.stringify(updated));
       return updated;
     });
   };
 
+  const hasAnyRole = (allowedRoles: readonly string[]) =>
+    checkAnyRole(user?.roles?.length ? user.roles : user ? [user.role] : undefined, allowedRoles);
+
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, isLoading, login, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isAuthenticated: Boolean(token && user),
+        isLoading,
+        login,
+        logout,
+        updateUser,
+        hasAnyRole,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

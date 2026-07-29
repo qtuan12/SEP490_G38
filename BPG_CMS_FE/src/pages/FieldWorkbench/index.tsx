@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ClipboardList, Bell, Plus, FileText, ChevronRight, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +9,7 @@ import { Badge, LoadingSpinner, Select } from '../../components/ui';
 import { getRoleLabel, getRoleBadgeVariant } from '../../utils/roleHelpers';
 import { resolveNotificationUrl } from '../Notifications';
 import type { Project, WBSTask, DailyLog } from '../../types/common';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 const LAST_PROJECT_KEY = 'field_workbench_last_project';
 
@@ -24,6 +25,7 @@ export const FieldWorkbench: React.FC = () => {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [logModalTaskId, setLogModalTaskId] = useState<string | null>(null);
+  const { canManageTechnical } = useProjectAccess(projectId);
 
   useEffect(() => {
     projectService.getProjects().then(list => {
@@ -231,6 +233,19 @@ export const FieldWorkbench: React.FC = () => {
         )}
       </section>
 
+      {/* Floating Action Button (FAB) for mobile/PWA */}
+      {selectedProject && tasks.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setLogModalTaskId(tasks[0].id)}
+          className="fixed bottom-20 right-4 z-40 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold py-3 px-4 rounded-full shadow-xl flex items-center gap-2 border border-blue-400 transition-all md:hidden"
+          title="Tạo nhật ký thi công nhanh"
+        >
+          <Plus size={20} />
+          <span className="text-xs font-semibold">Tạo Nhật ký</span>
+        </button>
+      )}
+
       {/* Daily log create modal */}
       {logModalTaskId && user && selectedProject && (
         <DailyLogFormModal
@@ -240,6 +255,7 @@ export const FieldWorkbench: React.FC = () => {
           tasks={tasks}
           engineerId={user.id}
           engineerName={user.name}
+          canManageTechnical={canManageTechnical}
           onSuccess={() => setLogModalTaskId(null)}
         />
       )}

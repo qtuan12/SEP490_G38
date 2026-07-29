@@ -1,4 +1,4 @@
-using BPG.Domain.Exceptions;
+﻿using BPG.Domain.Exceptions;
 using BPG.Application.DTOs;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -10,17 +10,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.PhaseAcceptances.Commands.AcceptPhase;
 
-public record AcceptPhaseCommand(long PhaseId, string ReportContent) : IRequest<long>;
+public record AcceptPhaseCommand(long PhaseId, string ReportContent)
+    : IRequest<long>
+{
+}
 
 public class AcceptPhaseCommandValidator : AbstractValidator<AcceptPhaseCommand>
 {
     public AcceptPhaseCommandValidator()
     {
         RuleFor(x => x.PhaseId)
-            .GreaterThan(0).WithMessage("PhaseId không hợp lệ.");
+            .GreaterThan(0).WithMessage("PhaseId khÃ´ng há»£p lá»‡.");
 
         RuleFor(x => x.ReportContent)
-            .NotEmpty().WithMessage("Nội dung báo cáo không được để trống.");
+            .NotEmpty().WithMessage("Ná»™i dung bÃ¡o cÃ¡o khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.");
     }
 }
 
@@ -62,7 +65,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
             throw new NotFoundException(nameof(Phase), request.PhaseId);
 
         if (phase.Status == PhaseStatus.Approved)
-            throw new BusinessException("INVALID_STATUS", "Phase này đã được nghiệm thu và hoàn thành trước đó.");
+            throw new BusinessException("INVALID_STATUS", "Phase nÃ y Ä‘Ã£ Ä‘Æ°á»£c nghiá»‡m thu vÃ  hoÃ n thÃ nh trÆ°á»›c Ä‘Ã³.");
 
         // 2. Validate all Tasks 100%
         var tasks = await taskRepo.Query()
@@ -74,10 +77,10 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         var nonObsoleteTasks = tasks.Where(t => t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList();
 
         if (nonObsoleteTasks.Count == 0)
-            throw new BusinessException("INVALID_OPERATION", "Không thể nghiệm thu Phase chưa có công việc hoạt động nào.");
+            throw new BusinessException("INVALID_OPERATION", "KhÃ´ng thá»ƒ nghiá»‡m thu Phase chÆ°a cÃ³ cÃ´ng viá»‡c hoáº¡t Ä‘á»™ng nÃ o.");
 
         if (nonObsoleteTasks.Any(t => t.ProgressPercent < 100))
-            throw new BusinessException("INVALID_OPERATION", "Không thể nghiệm thu Phase khi chưa hoàn thành 100% tất cả các công việc hoạt động.");
+            throw new BusinessException("INVALID_OPERATION", "KhÃ´ng thá»ƒ nghiá»‡m thu Phase khi chÆ°a hoÃ n thÃ nh 100% táº¥t cáº£ cÃ¡c cÃ´ng viá»‡c hoáº¡t Ä‘á»™ng.");
 
         var userId = _currentUserService.GetRequiredUserId();
         var user = await userRepo.GetByIdAsync(userId, ct);
@@ -94,7 +97,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
             Tasks = nonObsoleteTasks.Select(t => new PhaseAcceptanceTaskDto
             {
                 TaskName = t.Name,
-                AssigneeName = t.Assignees.FirstOrDefault()?.User?.FullName ?? "Chưa phân công",
+                AssigneeName = t.Assignees.FirstOrDefault()?.User?.FullName ?? "ChÆ°a phÃ¢n cÃ´ng",
                 ProgressPercent = t.ProgressPercent
             }).ToList()
         };
@@ -124,28 +127,28 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
 
         await _unitOfWork.SaveChangesAsync(ct);
 
-        // Gửi thông báo realtime
+        // Gá»­i thÃ´ng bÃ¡o realtime
         try
         {
-            // 1. Gửi thông báo đến Giám đốc
+            // 1. Gá»­i thÃ´ng bÃ¡o Ä‘áº¿n GiÃ¡m Ä‘á»‘c
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Director,
-                "Nghiệm thu hoàn thành giai đoạn",
-                $"Giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' đã được nghiệm thu và hoàn thành.",
+                "Nghiá»‡m thu hoÃ n thÃ nh giai Ä‘oáº¡n",
+                $"Giai Ä‘oáº¡n '{phase.Name}' cá»§a dá»± Ã¡n '{phase.Project?.Name}' Ä‘Ã£ Ä‘Æ°á»£c nghiá»‡m thu vÃ  hoÃ n thÃ nh.",
                 NotificationType.Progress,
                 $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/acceptance",
                 acceptance.AcceptanceId,
                 ct);
 
-            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án
+            // 2. Gá»­i thÃ´ng bÃ¡o tá»›i Project Leader (Chá»‰ huy trÆ°á»Ÿng) cá»§a dá»± Ã¡n
             var projectLeader = await _unitOfWork.Repository<ProjectMember>().Query()
                 .FirstOrDefaultAsync(pm => pm.ProjectId == phase.ProjectId && pm.IsLeader, ct);
             if (projectLeader != null)
             {
                 await _notificationService.SendNotificationAsync(
                     projectLeader.UserId,
-                    "Nghiệm thu hoàn thành giai đoạn",
-                    $"Giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' đã được nghiệm thu.",
+                    "Nghiá»‡m thu hoÃ n thÃ nh giai Ä‘oáº¡n",
+                    $"Giai Ä‘oáº¡n '{phase.Name}' cá»§a dá»± Ã¡n '{phase.Project?.Name}' Ä‘Ã£ Ä‘Æ°á»£c nghiá»‡m thu.",
                     NotificationType.Progress,
                     $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/acceptance",
                     acceptance.AcceptanceId,
@@ -160,3 +163,4 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         return acceptance.AcceptanceId;
     }
 }
+

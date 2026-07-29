@@ -1,4 +1,5 @@
-using BPG.Application.DTOs.DailyLogs;
+﻿using BPG.Application.DTOs.DailyLogs;
+using BPG.Domain.Constants;
 using MediatR;
 using System.Collections.Generic;
 
@@ -12,3 +13,4 @@ namespace BPG.Application.Features.DailyLogs.Commands
         public List<string> Images { get; set; } = new List<string>();
     }
 }
+

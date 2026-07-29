@@ -20,10 +20,11 @@ import {
 import { Button, Avatar, Badge } from '../ui';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
 import { HeaderNotification } from './HeaderNotification';
-
+import { PWABottomNav } from './PWABottomNav';
+import { RoleGroup } from '../../auth/roles';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasAnyRole } = useAuth();
   const { companyName, companyLogoUrl } = useCompany();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -35,27 +36,29 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     navigate('/login');
   };
 
-  const navItems: Array<{ name: string; path: string; icon: React.ReactNode; roles: string[]; disabled?: boolean }> = [
-    { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
-    { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
-    { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
-    { name: 'Việc của tôi', path: '/field', icon: <Smartphone size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer'] },
-    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: [] },
-    { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, roles: ['admin', 'accountant'] },
-    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin'] },
-    { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin'] },
-    { name: 'Danh sách Vật tư', path: '/materials', icon: <Package size={20} />, roles: ['admin'] },
-    { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant', 'technicalmanager'] },
-    { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, roles: ['admin'] },
+  const navItems: Array<{
+    name: string;
+    path: string;
+    icon: React.ReactNode;
+    allowedRoles?: readonly string[];
+    disabled?: boolean;
+  }> = [
+    { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, allowedRoles: RoleGroup.AdminOnly },
+    { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, allowedRoles: RoleGroup.ProjectViewers },
+    { name: 'Việc của tôi', path: '/field', icon: <Smartphone size={20} />, allowedRoles: RoleGroup.ProjectViewers },
+    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, allowedRoles: RoleGroup.Procurement },
+    { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, allowedRoles: RoleGroup.SupplierViewers },
+    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, allowedRoles: RoleGroup.MasterData },
+    { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, allowedRoles: RoleGroup.MasterData },
+    { name: 'Danh sách Vật tư', path: '/materials', icon: <Package size={20} />, allowedRoles: RoleGroup.MasterData },
+    { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, allowedRoles: RoleGroup.Reports },
+    { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, allowedRoles: RoleGroup.AdminOnly },
   ];
 
-  const filteredNavItems = navItems.filter(item => {
-    if (!user || !user.role) return false;
-    const userRole = user.role.toLowerCase();
-    return item.roles.map(r => r.toLowerCase()).includes(userRole);
-  });
-
-
+  const filteredNavItems = navItems.filter(
+    (item) => !item.allowedRoles || hasAnyRole(item.allowedRoles),
+  );
 
   return (
     <div className="flex h-screen overflow-hidden bg-[hsl(var(--bg-main))]">
@@ -86,7 +89,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             {!isCollapsed && (
               <div className="overflow-hidden whitespace-nowrap">
                 <h1 className="text-xl font-bold tracking-wider">{companyName}</h1>
-                <span className="text-[11px] text-[hsl(var(--text-muted))] uppercase font-semibold">Construction MVP</span>
+                <span className="text-[11px] text-[hsl(var(--text-muted))] uppercase font-semibold">BPG CMS</span>
               </div>
             )}
           </div>
@@ -119,24 +122,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 disabled={item.disabled}
               >
                 {item.icon}
-                {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
-                {item.disabled && !isCollapsed && (
-                  <span className="text-[10px] ml-auto px-2 py-0.5 bg-[hsl(var(--border))] rounded-sm text-[hsl(var(--text-muted))]">
-                    Sắp có
-                  </span>
-                )}
+                {!isCollapsed && <span>{item.name}</span>}
               </button>
             );
           })}
         </nav>
 
         {user && (
-          <div className="p-5 border-t border-[hsl(var(--border))] flex flex-col gap-3">
-            <div
-              className="flex items-center gap-2.5 cursor-pointer p-1 rounded-sm transition-colors hover:bg-[hsl(var(--bg-main))]"
-              onClick={() => navigate('/profile')}
-              title="Xem trang cá nhân"
-            >
+          <div className="p-4 border-t border-[hsl(var(--border))] flex flex-col gap-3">
+            <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
               <Avatar name={user.name} src={user.avatarUrl} size="md" />
               {!isCollapsed && (
                 <div className="overflow-hidden">
@@ -157,7 +151,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </aside>
 
       <div className="flex flex-col flex-1 overflow-hidden">
-        <header className="h-[70px] bg-[hsl(var(--bg-card))] border-b border-[hsl(var(--border))] flex items-center sticky top-0 z-30 lg:px-12 px-6">
+        <header className="h-[60px] md:h-[70px] bg-[hsl(var(--bg-card))] border-b border-[hsl(var(--border))] flex items-center sticky top-0 z-30 lg:px-12 px-4 md:px-6">
           <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Menu
@@ -165,7 +159,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 className="text-[hsl(var(--text-secondary))] cursor-pointer lg:hidden"
                 onClick={() => setIsSidebarOpen(true)}
               />
-              <h2 className="text-xl font-semibold">
+              <h2 className="text-base sm:text-xl font-semibold truncate">
                 {location.pathname === '/dashboard' ? 'Bảng điều khiển' :
                   location.pathname === '/users' ? 'Quản lý Thành viên' :
                     location.pathname === '/suppliers' ? 'Quản lý Nhà cung cấp' :
@@ -174,24 +168,26 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                           location.pathname === '/materials' ? 'Kho Vật tư' :
                             location.pathname === '/projects' ? 'Danh sách Dự án' :
                               location.pathname === '/field' ? 'Việc của tôi' :
-                              location.pathname.startsWith('/projects/') ? 'Không gian làm việc Dự án' :
+                              location.pathname.startsWith('/projects/') ? 'Dự án' :
                                 location.pathname === '/system-config' ? 'Cấu hình Hệ thống' :
                                   location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
               </h2>
             </div>
             <div className="flex items-center gap-4">
-
               <HeaderNotification />
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto lg:p-12 p-6">
+        <main className="flex-1 overflow-y-auto lg:p-12 p-4 md:p-6 pb-20 md:pb-6">
           <div className="max-w-[1400px] mx-auto w-full">
             {children}
           </div>
         </main>
       </div>
+
+      {/* PWA Mobile Bottom Navigation Bar */}
+      <PWABottomNav />
     </div>
   );
 };

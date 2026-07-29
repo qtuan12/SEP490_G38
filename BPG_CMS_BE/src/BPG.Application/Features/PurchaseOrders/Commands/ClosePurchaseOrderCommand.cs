@@ -1,3 +1,4 @@
+﻿using BPG.Domain.Constants;
 using MediatR;
 
 namespace BPG.Application.Features.PurchaseOrders.Commands
@@ -8,3 +9,4 @@ namespace BPG.Application.Features.PurchaseOrders.Commands
         public string Reason { get; init; } = string.Empty;
     }
 }
+

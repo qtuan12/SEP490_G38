@@ -39,26 +39,6 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
 
-        // Phân quyền: Phải là TechnicalManager hoặc là Leader của dự án
-        bool isTechnicalManager = _currentUserService.IsInRole("TechnicalManager");
-        bool isProjectLeader = false;
-        
-        if (!isTechnicalManager)
-        {
-            var member = await _unitOfWork.Repository<ProjectMember>()
-                .Query()
-                .FirstOrDefaultAsync(m => m.ProjectId == task.Phase.ProjectId && m.UserId == currentUserId, ct);
-            if (member != null && member.IsLeader)
-            {
-                isProjectLeader = true;
-            }
-
-            if (!isProjectLeader)
-            {
-                throw new ForbiddenException("Chỉ Quản lý dự án hoặc Trưởng phòng Kỹ thuật mới có quyền khôi phục công việc.");
-            }
-        }
-
         if (task.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
             return ApiResponse.SuccessResult("Task không ở trạng thái Obsolete để khôi phục.");
 

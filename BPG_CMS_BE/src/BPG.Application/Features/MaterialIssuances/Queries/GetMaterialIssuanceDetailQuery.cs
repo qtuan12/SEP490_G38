@@ -1,9 +1,8 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using BPG.Application.DTOs.MaterialIssuances;
-using BPG.Application.Common.Interfaces;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
@@ -12,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialIssuances.Queries
 {
-    public record GetMaterialIssuanceDetailQuery(long IssuanceId) : IRequest<ApiResponse<MaterialIssuanceDetailDto>>, IProjectRequirement
+    public record GetMaterialIssuanceDetailQuery(long IssuanceId) : IRequest<ApiResponse<MaterialIssuanceDetailDto>>
     {
         public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
@@ -89,3 +88,4 @@ namespace BPG.Application.Features.MaterialIssuances.Queries
         }
     }
 }
+

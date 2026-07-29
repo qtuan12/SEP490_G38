@@ -1,10 +1,9 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
-using BPG.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -14,19 +13,30 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.GoodsReceipts.Queries
 {
-    public record GetGoodsReceiptDetailQuery(long ReceiptId) : IRequest<ApiResponse<GoodsReceiptDetailDto>>, IProjectRequirement
+    public record GetGoodsReceiptDetailQuery(long ReceiptId) : IRequest<ApiResponse<GoodsReceiptDetailDto>>
     {
         public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
-            var projectId = await unitOfWork.Repository<GoodsReceipt>().Query()
-                .Where(g => g.ReceiptId == ReceiptId)
-                .Select(g => (long?)g.PurchaseOrder.ProjectId)
-                .FirstOrDefaultAsync(cancellationToken);
+            var gr = await unitOfWork.Repository<GoodsReceipt>().Query()
+                .AsNoTracking()
+                .Include(g => g.PurchaseOrder)
+                    .ThenInclude(po => po.Request)
+                        .ThenInclude(r => r!.Phase)
+                .FirstOrDefaultAsync(g => g.ReceiptId == ReceiptId, cancellationToken);
 
-            if (!projectId.HasValue || projectId.Value <= 0)
+            if (gr == null)
                 throw new NotFoundException(nameof(GoodsReceipt), ReceiptId);
 
-            return projectId.Value;
+            long projectId = gr.PurchaseOrder?.ProjectId ?? 0;
+            if (projectId <= 0 && gr.PurchaseOrder?.Request?.Phase != null)
+            {
+                projectId = gr.PurchaseOrder.Request.Phase.ProjectId;
+            }
+
+            if (projectId <= 0)
+                throw new NotFoundException(nameof(GoodsReceipt), ReceiptId);
+
+            return projectId;
         }
     }
 
@@ -130,3 +140,4 @@ namespace BPG.Application.Features.GoodsReceipts.Queries
         }
     }
 }
+

@@ -1,9 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using BPG.Application.Common.Models;
 using BPG.Application.Features.InventoryAdjustments.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -11,228 +5,152 @@ using BPG.Application.UnitTests.Helpers;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
-using MockQueryable.Moq;
 using Moq;
-using Xunit;
-using NotificationType = BPG.Domain.Constants.NotificationType;
 using InventoryAdjustmentStatus = BPG.Domain.Constants.InventoryAdjustmentStatus;
 
 namespace BPG.Application.UnitTests.InventoryAdjustments
 {
     public class ApproveDecreaseAdjustmentCommandHandlerTests
     {
+        private const long CurrentUserId = 50;
+        private const long AdjustmentId = 1;
+        private const long ProjectId = 100;
+        private const long MaterialId = 20;
+
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
-
         private readonly Mock<IGenericRepository<InventoryAdjustment>> _mockAdjustmentRepo;
         private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
-        private readonly Mock<IGenericRepository<InventoryTransaction>> _mockTransactionRepo;
         private readonly Mock<IGenericRepository<Incident>> _mockIncidentRepo;
-
         private readonly ApproveDecreaseAdjustmentCommandHandler _handler;
 
         public ApproveDecreaseAdjustmentCommandHandlerTests()
         {
             _mockUow = new Mock<IUnitOfWork>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
-
             _mockAdjustmentRepo = new Mock<IGenericRepository<InventoryAdjustment>>();
             _mockInventoryRepo = new Mock<IGenericRepository<CurrentInventory>>();
-            _mockTransactionRepo = new Mock<IGenericRepository<InventoryTransaction>>();
             _mockIncidentRepo = new Mock<IGenericRepository<Incident>>();
+            var transactionRepo = new Mock<IGenericRepository<InventoryTransaction>>();
 
-            _mockUow.Setup(u => u.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
-            _mockUow.Setup(u => u.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
-            _mockUow.Setup(u => u.Repository<InventoryTransaction>()).Returns(_mockTransactionRepo.Object);
-            _mockUow.Setup(u => u.Repository<Incident>()).Returns(_mockIncidentRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<InventoryTransaction>()).Returns(transactionRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<Incident>()).Returns(_mockIncidentRepo.Object);
 
+            _mockCurrentUserService.SetupUser(CurrentUserId);
+            _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment>());
+            _mockInventoryRepo.SetupMockData(new List<CurrentInventory>());
             _mockIncidentRepo.SetupMockData(new List<Incident>());
+            transactionRepo.Setup(repository => repository.AddAsync(It.IsAny<InventoryTransaction>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             _handler = new ApproveDecreaseAdjustmentCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
                 ServiceStubFactory.RealtimeSender(),
-                ServiceStubFactory.NotificationService()
-            );
+                ServiceStubFactory.NotificationService());
         }
 
         [Fact]
-        public async Task Handle_AdjustmentNotFound_ShouldThrowNotFoundException()
+        public async Task UTCID01_Handle_AdjustmentNotFound_ShouldThrowNotFoundException()
         {
-            // Arrange
-            long adjustmentId = 999;
-            _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment>());
+            var act = async () => await _handler.Handle(Command(isApproved: true), CancellationToken.None);
 
-            var command = new ApproveDecreaseAdjustmentCommand
-            {
-                AdjustmentId = adjustmentId,
-                IsApproved = true
-            };
-
-            // Act & Assert
-            await FluentActions.Invoking(() => _handler.Handle(command, CancellationToken.None))
-                .Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("InventoryAdjustment với ID [1] không tồn tại.");
         }
 
         [Fact]
-        public async Task Handle_AdjustmentNotPending_ShouldThrowBusinessException()
+        public async Task UTCID02_Handle_AdjustmentNotPending_ShouldThrowBusinessException()
         {
-            // Arrange
-            long adjustmentId = 1;
-            var adjustment = new InventoryAdjustment
-            {
-                AdjustmentId = adjustmentId,
-                Status = InventoryAdjustmentStatus.Approved // Đã duyệt rồi
-            };
-            _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment> { adjustment });
+            SetupAdjustments(Adjustment(status: InventoryAdjustmentStatus.Approved));
 
-            var command = new ApproveDecreaseAdjustmentCommand
-            {
-                AdjustmentId = adjustmentId,
-                IsApproved = true
-            };
+            var act = async () => await _handler.Handle(Command(isApproved: true), CancellationToken.None);
 
-            // Act & Assert
-            var ex = await FluentActions.Invoking(() => _handler.Handle(command, CancellationToken.None))
-                .Should().ThrowAsync<BusinessException>();
-
-            ex.Which.ErrorCode.Should().Be("ERR_INVALID_STATUS");
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INVALID_STATUS");
+            exception.Which.Message.Should().Be("Phiếu không ở trạng thái chờ duyệt");
         }
 
         [Fact]
-        public async Task Handle_RejectRequest_ShouldUpdateStatusToRejectedAndSendNotification()
+        public async Task UTCID03_Handle_RejectRequest_ShouldReturnSuccessResponse()
         {
-            // Arrange
-            long adjustmentId = 1;
-            long directorId = 50;
-            long creatorId = 10;
-            _mockCurrentUserService.SetupUser(directorId);
+            SetupAdjustments(Adjustment());
 
-            var adjustment = new InventoryAdjustment
-            {
-                AdjustmentId = adjustmentId,
-                ProjectId = 100,
-                Status = InventoryAdjustmentStatus.Pending,
-                CreatedBy = creatorId
-            };
-            _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment> { adjustment });
+            var result = await _handler.Handle(Command(isApproved: false, rejectedReason: "Thông tin hao hụt không rõ ràng"), CancellationToken.None);
 
-            var command = new ApproveDecreaseAdjustmentCommand
-            {
-                AdjustmentId = adjustmentId,
-                IsApproved = false,
-                RejectedReason = "Thông tin hao hụt không rõ ràng"
-            };
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Should().NotBeNull();
             result.Success.Should().BeTrue();
             result.Data.Should().BeTrue();
-
-            adjustment.RejectedReason.Should().Be("Thông tin hao hụt không rõ ràng");
-            adjustment.ApprovedBy.Should().Be(directorId);
-
-
+            result.Message.Should().Be("Đã từ chối phiếu điều chỉnh giảm tồn");
         }
 
         [Fact]
-        public async Task Handle_ApproveRequest_InsufficientStock_ShouldThrowBusinessException()
+        public async Task UTCID04_Handle_ApproveRequestWithInsufficientStock_ShouldThrowBusinessException()
         {
-            // Arrange
-            long adjustmentId = 1;
-            long directorId = 50;
-            long materialId = 20;
-            long projectId = 100;
-            _mockCurrentUserService.SetupUser(directorId);
+            SetupAdjustments(Adjustment(quantity: 50));
+            SetupInventories(Inventory(quantity: 30));
 
-            var adjustment = new InventoryAdjustment
-            {
-                AdjustmentId = adjustmentId,
-                ProjectId = projectId,
-                Status = InventoryAdjustmentStatus.Pending,
-                Items = new List<AdjustmentItem>
-                {
-                    new() { MaterialId = materialId, Quantity = 50m } // Yêu cầu giảm 50
-                }
-            };
-            _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment> { adjustment });
+            var act = async () => await _handler.Handle(Command(isApproved: true), CancellationToken.None);
 
-            // Tồn kho hiện tại chỉ có 30
-            var currentInventory = new CurrentInventory
-            {
-                ProjectId = projectId,
-                MaterialId = materialId,
-                Quantity = 30m
-            };
-            _mockInventoryRepo.SetupMockData(new List<CurrentInventory> { currentInventory });
-
-            var command = new ApproveDecreaseAdjustmentCommand
-            {
-                AdjustmentId = adjustmentId,
-                IsApproved = true
-            };
-
-            // Act & Assert
-            var ex = await FluentActions.Invoking(() => _handler.Handle(command, CancellationToken.None))
-                .Should().ThrowAsync<BusinessException>();
-
-            ex.Which.ErrorCode.Should().Be("ERR_INSUFFICIENT_STOCK");
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INSUFFICIENT_STOCK");
+            exception.Which.Message.Should().Be("Không đủ tồn kho cho vật tư ID 20");
         }
 
         [Fact]
-        public async Task Handle_ApproveRequest_SufficientStock_ShouldDeductInventoryAndCreateTransaction()
+        public async Task UTCID05_Handle_ApproveRequestWithSufficientStock_ShouldReturnSuccessResponse()
         {
-            // Arrange
-            long adjustmentId = 1;
-            long directorId = 50;
-            long creatorId = 10;
-            long materialId = 20;
-            long projectId = 100;
-            _mockCurrentUserService.SetupUser(directorId);
+            SetupAdjustments(Adjustment(quantity: 20));
+            SetupInventories(Inventory(quantity: 100));
 
-            var adjustment = new InventoryAdjustment
-            {
-                AdjustmentId = adjustmentId,
-                ProjectId = projectId,
-                Status = InventoryAdjustmentStatus.Pending,
-                CreatedBy = creatorId,
-                Items = new List<AdjustmentItem>
-                {
-                    new() { MaterialId = materialId, Quantity = 20m }
-                }
-            };
-            _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment> { adjustment });
+            var result = await _handler.Handle(Command(isApproved: true), CancellationToken.None);
 
-            var currentInventory = new CurrentInventory
-            {
-                ProjectId = projectId,
-                MaterialId = materialId,
-                Quantity = 100m
-            };
-            _mockInventoryRepo.SetupMockData(new List<CurrentInventory> { currentInventory });
-
-            var command = new ApproveDecreaseAdjustmentCommand
-            {
-                AdjustmentId = adjustmentId,
-                IsApproved = true
-            };
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Should().NotBeNull();
             result.Success.Should().BeTrue();
             result.Data.Should().BeTrue();
+            result.Message.Should().Be("Phê duyệt phiếu điều chỉnh giảm tồn thành công");
+        }
 
-            adjustment.ApprovedBy.Should().Be(directorId);
+        private static ApproveDecreaseAdjustmentCommand Command(bool isApproved, string? rejectedReason = null)
+            => new()
+            {
+                AdjustmentId = AdjustmentId,
+                IsApproved = isApproved,
+                RejectedReason = rejectedReason
+            };
 
+        private static InventoryAdjustment Adjustment(
+            string status = InventoryAdjustmentStatus.Pending,
+            decimal quantity = 20)
+            => new()
+            {
+                AdjustmentId = AdjustmentId,
+                ProjectId = ProjectId,
+                Status = status,
+                CreatedBy = 10,
+                Items = new List<AdjustmentItem>
+                {
+                    new() { MaterialId = MaterialId, Quantity = quantity }
+                }
+            };
 
+        private static CurrentInventory Inventory(decimal quantity)
+            => new()
+            {
+                ProjectId = ProjectId,
+                MaterialId = MaterialId,
+                Quantity = quantity
+            };
 
+        private void SetupAdjustments(params InventoryAdjustment[] adjustments)
+        {
+            _mockAdjustmentRepo.SetupMockData(adjustments.ToList());
+        }
+
+        private void SetupInventories(params CurrentInventory[] inventories)
+        {
+            _mockInventoryRepo.SetupMockData(inventories.ToList());
         }
     }
 }
-

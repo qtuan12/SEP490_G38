@@ -1,13 +1,17 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetExecutiveDashboard;
 
-public record GetExecutiveDashboardQuery(long ProjectId) : IRequest<ApiResponse<ExecutiveDashboardDto>>;
+public record GetExecutiveDashboardQuery(long ProjectId)
+    : IRequest<ApiResponse<ExecutiveDashboardDto>>
+{
+}
 
 public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDashboardQuery, ApiResponse<ExecutiveDashboardDto>>
 {
@@ -71,7 +75,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                 continue;
             }
 
-            // At risk: ≤ 3 days left and behind schedule by 20%+
+            // At risk: â‰¤ 3 days left and behind schedule by 20%+
             var daysLeft = (endDt - now).TotalDays;
             if (daysLeft <= 3)
             {
@@ -151,3 +155,4 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
         return ApiResponse<ExecutiveDashboardDto>.SuccessResult(dto);
     }
 }
+

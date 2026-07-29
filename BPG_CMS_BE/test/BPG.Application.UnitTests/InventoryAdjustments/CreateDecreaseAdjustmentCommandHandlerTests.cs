@@ -1,9 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using BPG.Application.Common.Models;
 using BPG.Application.Features.InventoryAdjustments.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -11,221 +5,172 @@ using BPG.Application.UnitTests.Helpers;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
-using MockQueryable.Moq;
 using Moq;
-using Xunit;
-using UserRole = BPG.Domain.Constants.UserRole;
-using NotificationType = BPG.Domain.Constants.NotificationType;
 using ErrorCodes = BPG.Domain.Constants.ErrorCodes;
-using InventoryAdjustmentType = BPG.Domain.Constants.InventoryAdjustmentType;
-using InventoryAdjustmentStatus = BPG.Domain.Constants.InventoryAdjustmentStatus;
 
 namespace BPG.Application.UnitTests.InventoryAdjustments
 {
     public class CreateDecreaseAdjustmentCommandHandlerTests
     {
+        private const long ProjectId = 1;
+        private const long PhaseId = 2;
+        private const long MaterialId = 10;
         private const long GeneratedAdjustmentId = 900;
 
         private readonly Mock<IUnitOfWork> _mockUow;
-        private readonly Mock<ICurrentUserService> _mockCurrentUserService;
-
         private readonly Mock<IGenericRepository<Project>> _mockProjectRepo;
         private readonly Mock<IGenericRepository<Phase>> _mockPhaseRepo;
         private readonly Mock<IGenericRepository<MaterialCatalog>> _mockMaterialRepo;
         private readonly Mock<IGenericRepository<InventoryAdjustment>> _mockAdjustmentRepo;
-
         private readonly CreateDecreaseAdjustmentCommandHandler _handler;
 
         public CreateDecreaseAdjustmentCommandHandlerTests()
         {
             _mockUow = new Mock<IUnitOfWork>();
-            _mockCurrentUserService = new Mock<ICurrentUserService>();
-
             _mockProjectRepo = new Mock<IGenericRepository<Project>>();
             _mockPhaseRepo = new Mock<IGenericRepository<Phase>>();
             _mockMaterialRepo = new Mock<IGenericRepository<MaterialCatalog>>();
             _mockAdjustmentRepo = new Mock<IGenericRepository<InventoryAdjustment>>();
 
-            _mockUow.Setup(u => u.Repository<Project>()).Returns(_mockProjectRepo.Object);
-            _mockUow.Setup(u => u.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
-            _mockUow.Setup(u => u.Repository<MaterialCatalog>()).Returns(_mockMaterialRepo.Object);
-            _mockUow.Setup(u => u.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<Project>()).Returns(_mockProjectRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<MaterialCatalog>()).Returns(_mockMaterialRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
 
             _mockMaterialRepo.SetupMockData(new List<MaterialCatalog>());
-            _mockAdjustmentRepo.Setup(r => r.AddAsync(It.IsAny<InventoryAdjustment>(), It.IsAny<CancellationToken>()))
+            _mockAdjustmentRepo.Setup(repository => repository.AddAsync(It.IsAny<InventoryAdjustment>(), It.IsAny<CancellationToken>()))
                 .Callback<InventoryAdjustment, CancellationToken>((adjustment, _) => adjustment.AdjustmentId = GeneratedAdjustmentId)
                 .Returns(Task.CompletedTask);
 
             _handler = new CreateDecreaseAdjustmentCommandHandler(
                 _mockUow.Object,
-                _mockCurrentUserService.Object,
+                Mock.Of<ICurrentUserService>(),
                 ServiceStubFactory.RealtimeSender(),
-                ServiceStubFactory.NotificationService()
-            );
+                ServiceStubFactory.NotificationService());
         }
 
         [Fact]
-        public async Task Handle_ProjectNotFound_ShouldThrowNotFoundException()
+        public async Task UTCID01_Handle_ProjectNotFound_ShouldThrowNotFoundException()
         {
-            // Arrange
-            long projectId = 99;
-            _mockProjectRepo.Setup(r => r.GetByIdAsync(projectId, It.IsAny<CancellationToken>())).ReturnsAsync((Project?)null);
+            SetupProject(null);
 
-            var command = new CreateDecreaseAdjustmentCommand
-            {
-                ProjectId = projectId,
-                PhaseId = 1,
-                Reason = "Giảm tồn do hư hỏng",
-                Items = new List<AdjustmentItemRequest> { new() { MaterialId = 10, Quantity = 2 } }
-            };
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            // Act & Assert
-            await FluentActions.Invoking(() => _handler.Handle(command, CancellationToken.None))
-                .Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("Project với ID [1] không tồn tại.");
         }
 
         [Fact]
-        public async Task Handle_PhaseNotFound_ShouldThrowNotFoundException()
+        public async Task UTCID02_Handle_PhaseNotFound_ShouldThrowNotFoundException()
         {
-            // Arrange
-            long projectId = 1;
-            long phaseId = 99;
-            _mockProjectRepo.Setup(r => r.GetByIdAsync(projectId, It.IsAny<CancellationToken>())).ReturnsAsync(new Project { ProjectId = projectId });
-            _mockPhaseRepo.Setup(r => r.GetByIdAsync(phaseId, It.IsAny<CancellationToken>())).ReturnsAsync((Phase?)null);
+            SetupProject(Project());
+            SetupPhase(null);
 
-            var command = new CreateDecreaseAdjustmentCommand
-            {
-                ProjectId = projectId,
-                PhaseId = phaseId,
-                Reason = "Giảm tồn",
-                Items = new List<AdjustmentItemRequest> { new() { MaterialId = 10, Quantity = 2 } }
-            };
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            // Act & Assert
-            await FluentActions.Invoking(() => _handler.Handle(command, CancellationToken.None))
-                .Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("Phase với ID [2] không tồn tại.");
         }
 
         [Fact]
-        public async Task Handle_PhaseNotInProject_ShouldThrowBusinessException()
+        public async Task UTCID03_Handle_PhaseNotInProject_ShouldThrowBusinessException()
         {
-            // Arrange
-            long projectId = 1;
-            long phaseId = 2;
-            _mockProjectRepo.Setup(r => r.GetByIdAsync(projectId, It.IsAny<CancellationToken>())).ReturnsAsync(new Project { ProjectId = projectId });
-            _mockPhaseRepo.Setup(r => r.GetByIdAsync(phaseId, It.IsAny<CancellationToken>())).ReturnsAsync(new Phase { PhaseId = phaseId, ProjectId = 888 });
+            SetupProject(Project());
+            SetupPhase(new Phase { PhaseId = PhaseId, ProjectId = 888 });
 
-            var command = new CreateDecreaseAdjustmentCommand
-            {
-                ProjectId = projectId,
-                PhaseId = phaseId,
-                Reason = "Giảm tồn",
-                Items = new List<AdjustmentItemRequest> { new() { MaterialId = 10, Quantity = 2 } }
-            };
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            // Act & Assert
-            var ex = await FluentActions.Invoking(() => _handler.Handle(command, CancellationToken.None))
-                .Should().ThrowAsync<BusinessException>();
-
-            ex.Which.Message.Should().Contain("Giai đoạn không thuộc dự án này");
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INVALID_PHASE");
+            exception.Which.Message.Should().Be("Giai đoạn không thuộc dự án này");
         }
 
         [Fact]
-        public async Task Handle_MaterialNotFound_ShouldThrowNotFoundException()
+        public async Task UTCID04_Handle_MaterialNotFound_ShouldThrowNotFoundException()
         {
-            // Arrange
-            long projectId = 1;
-            long phaseId = 2;
-            long materialId = 999;
-            _mockProjectRepo.Setup(r => r.GetByIdAsync(projectId, It.IsAny<CancellationToken>())).ReturnsAsync(new Project { ProjectId = projectId });
-            _mockPhaseRepo.Setup(r => r.GetByIdAsync(phaseId, It.IsAny<CancellationToken>())).ReturnsAsync(new Phase { PhaseId = phaseId, ProjectId = projectId });
-            _mockMaterialRepo.SetupMockData(new List<MaterialCatalog>());
+            SetupValidPreconditions();
+            SetupMaterials();
 
-            var command = new CreateDecreaseAdjustmentCommand
-            {
-                ProjectId = projectId,
-                PhaseId = phaseId,
-                Reason = "Giảm tồn",
-                Items = new List<AdjustmentItemRequest> { new() { MaterialId = materialId, Quantity = 2 } }
-            };
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            // Act & Assert
-            await FluentActions.Invoking(() => _handler.Handle(command, CancellationToken.None))
-                .Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("MaterialCatalog với ID [10] không tồn tại.");
         }
 
         [Fact]
-        public async Task Handle_DiscreteUnitWithDecimalQuantity_ShouldThrowBusinessException()
+        public async Task UTCID05_Handle_DiscreteMaterialWithDecimalQuantity_ShouldThrowBusinessException()
         {
-            // Arrange
-            long projectId = 1;
-            long phaseId = 2;
-            long materialId = 10;
-            _mockProjectRepo.Setup(r => r.GetByIdAsync(projectId, It.IsAny<CancellationToken>())).ReturnsAsync(new Project { ProjectId = projectId });
-            _mockPhaseRepo.Setup(r => r.GetByIdAsync(phaseId, It.IsAny<CancellationToken>())).ReturnsAsync(new Phase { PhaseId = phaseId, ProjectId = projectId });
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: true));
 
-            var material = new MaterialCatalog
-            {
-                MaterialId = materialId,
-                Name = "Máy biến áp",
-                BaseUnitId = 1,
-                BaseUnit = new Unit { UnitId = 1, UnitName = "Cái", IsDiscrete = true }
-            };
-            _mockMaterialRepo.SetupMockData(new List<MaterialCatalog> { material });
+            var act = async () => await _handler.Handle(Command(quantity: 2.3m), CancellationToken.None);
 
-            var command = new CreateDecreaseAdjustmentCommand
-            {
-                ProjectId = projectId,
-                PhaseId = phaseId,
-                Reason = "Hao hụt máy móc",
-                Items = new List<AdjustmentItemRequest> { new() { MaterialId = materialId, Quantity = 2.3m } }
-            };
-
-            // Act & Assert
-            var ex = await FluentActions.Invoking(() => _handler.Handle(command, CancellationToken.None))
-                .Should().ThrowAsync<BusinessException>();
-
-            ex.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            exception.Which.Message.Should().Be("Đơn vị tính 'm3' của vật tư [Cát xây dựng] yêu cầu số lượng phải là số nguyên.");
         }
 
         [Fact]
-        public async Task Handle_ValidRequest_ShouldCreatePendingAdjustmentAndSendNotificationToDirector()
+        public async Task UTCID06_Handle_ValidRequest_ShouldReturnSuccessResponse()
         {
-            // Arrange
-            long projectId = 1;
-            long phaseId = 2;
-            long materialId = 10;
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: false));
 
-            _mockProjectRepo.Setup(r => r.GetByIdAsync(projectId, It.IsAny<CancellationToken>())).ReturnsAsync(new Project { ProjectId = projectId, Name = "Dự án Alpha" });
-            _mockPhaseRepo.Setup(r => r.GetByIdAsync(phaseId, It.IsAny<CancellationToken>())).ReturnsAsync(new Phase { PhaseId = phaseId, ProjectId = projectId });
+            var result = await _handler.Handle(Command(quantity: 15.5m), CancellationToken.None);
 
-            var material = new MaterialCatalog
-            {
-                MaterialId = materialId,
-                Name = "Cát xây dựng",
-                BaseUnitId = 3,
-                BaseUnit = new Unit { UnitId = 3, UnitName = "m3", IsDiscrete = false }
-            };
-            _mockMaterialRepo.SetupMockData(new List<MaterialCatalog> { material });
-
-            var command = new CreateDecreaseAdjustmentCommand
-            {
-                ProjectId = projectId,
-                PhaseId = phaseId,
-                Reason = "Trôi cát do mưa bão",
-                Description = "Sự cố thời tiết",
-                Items = new List<AdjustmentItemRequest> { new() { MaterialId = materialId, Quantity = 15.5m } }
-            };
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Should().NotBeNull();
             result.Success.Should().BeTrue();
             result.Data.Should().Be(GeneratedAdjustmentId);
+        }
 
+        private static CreateDecreaseAdjustmentCommand Command(decimal quantity = 2)
+            => new()
+            {
+                ProjectId = ProjectId,
+                PhaseId = PhaseId,
+                Reason = "Giảm tồn do hư hỏng",
+                Description = "Sự cố vật tư",
+                Items = new List<AdjustmentItemRequest> { new() { MaterialId = MaterialId, Quantity = quantity } }
+            };
+
+        private static Project Project()
+            => new() { ProjectId = ProjectId, Name = "Project Alpha" };
+
+        private static Phase Phase()
+            => new() { PhaseId = PhaseId, ProjectId = ProjectId };
+
+        private static MaterialCatalog Material(bool isDiscrete)
+            => new()
+            {
+                MaterialId = MaterialId,
+                Name = "Cát xây dựng",
+                BaseUnitId = 3,
+                BaseUnit = new Unit { UnitId = 3, UnitName = "m3", IsDiscrete = isDiscrete }
+            };
+
+        private void SetupValidPreconditions()
+        {
+            SetupProject(Project());
+            SetupPhase(Phase());
+        }
+
+        private void SetupProject(Project? project)
+        {
+            _mockProjectRepo.Setup(repository => repository.GetByIdAsync(ProjectId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(project);
+        }
+
+        private void SetupPhase(Phase? phase)
+        {
+            _mockPhaseRepo.Setup(repository => repository.GetByIdAsync(PhaseId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(phase);
+        }
+
+        private void SetupMaterials(params MaterialCatalog[] materials)
+        {
+            _mockMaterialRepo.SetupMockData(materials.ToList());
         }
     }
 }
-

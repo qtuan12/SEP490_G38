@@ -1,9 +1,10 @@
-using MediatR;
-using BPG.Application.Common.Interfaces;
+﻿using MediatR;
 using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialRequests;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -14,29 +15,33 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Queries
 {
-    public class GetMaterialRequestsQuery : PaginationRequest, IRequest<PagedList<MaterialRequestDto>>, IProjectRequirement
+    public class GetMaterialRequestsQuery : PaginationRequest, IRequest<PagedList<MaterialRequestDto>>
     {
         public long? ProjectId { get; set; }
         public long? PhaseId { get; set; }
         public string? Status { get; set; }
 
-        public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-        {
-            if (ProjectId == null)
-                throw new NotFoundException("ProjectId");
-            return Task.FromResult(ProjectId.Value);
-        }
+        public Task<long?> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+            => Task.FromResult(ProjectId);
     }
 
     public class GetMaterialRequestsQueryHandler : IRequestHandler<GetMaterialRequestsQuery, PagedList<MaterialRequestDto>>
     {
         private readonly IUnitOfWork _uow;
         private readonly IMapper _mapper;
+        private readonly ICurrentUserService _currentUserService;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetMaterialRequestsQueryHandler(IUnitOfWork uow, IMapper mapper)
+        public GetMaterialRequestsQueryHandler(
+            IUnitOfWork uow,
+            IMapper mapper,
+            ICurrentUserService currentUserService,
+            IProjectAccessService projectAccessService)
         {
             _uow = uow;
             _mapper = mapper;
+            _currentUserService = currentUserService;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PagedList<MaterialRequestDto>> Handle(GetMaterialRequestsQuery request, CancellationToken cancellationToken)
@@ -51,7 +56,16 @@ namespace BPG.Application.Features.MaterialRequests.Queries
                     .ThenInclude(ri => ri.Unit)
                 .AsNoTracking();
 
-            // Áp dụng bộ lọc
+            if (!request.ProjectId.HasValue)
+            {
+                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Director))
+                    throw new ForbiddenException("Báº¡n khÃ´ng cÃ³ quyá»n xem Ä‘á» xuáº¥t váº­t tÆ° toÃ n há»‡ thá»‘ng.");
+
+                var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+                query = query.Where(mr => accessibleProjectIds.Contains(mr.Phase.ProjectId));
+            }
+
+            // Ãp dá»¥ng bá»™ lá»c
             if (request.ProjectId.HasValue)
             {
                 query = query.Where(mr => mr.Phase.ProjectId == request.ProjectId.Value);
@@ -67,16 +81,16 @@ namespace BPG.Application.Features.MaterialRequests.Queries
                 query = query.Where(mr => mr.Status == request.Status);
             }
 
-            // Sắp xếp mặc định theo ngày tạo mới nhất
+            // Sáº¯p xáº¿p máº·c Ä‘á»‹nh theo ngÃ y táº¡o má»›i nháº¥t
             query = query.OrderByDescending(mr => mr.CreatedAt);
 
-            // Phân trang
+            // PhÃ¢n trang
             var pagedEntities = await query.ToPagedListAsync(request, cancellationToken);
 
             // Mapping sang DTO
             var mappedItems = _mapper.Map<List<MaterialRequestDto>>(pagedEntities.Items);
 
-            // Điền tên người tạo (CreatedByName)
+            // Äiá»n tÃªn ngÆ°á»i táº¡o (CreatedByName)
             var creatorIds = pagedEntities.Items
                 .Where(x => x.CreatedBy.HasValue)
                 .Select(x => x.CreatedBy!.Value)
@@ -103,3 +117,6 @@ namespace BPG.Application.Features.MaterialRequests.Queries
         }
     }
 }
+
+
+

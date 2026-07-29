@@ -1,3 +1,4 @@
+﻿using BPG.Domain.Constants;
 using MediatR;
 using System.Collections.Generic;
 
@@ -7,10 +8,13 @@ public record UpdatePhaseBOQCommand(
     long ProjectId,
     long PhaseId,
     List<BOQItemInput> Items
-) : IRequest<bool>;
+) : IRequest<bool>
+{
+}
 
 public record BOQItemInput(
     long MaterialId,
     decimal Quantity,
     int UnitId
 );
+

@@ -66,7 +66,6 @@ export interface CreateMaterialRequestModalProps {
   phase?: WBSPhase;
   projectId: string;
   user: any;
-  isLeader?: boolean;
   allMaterialRequests: MaterialRequest[];
   requestType: 'normal' | 'emergency';
   onSuccess: (msg: string) => void;
@@ -80,7 +79,6 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
   phase,
   projectId,
   user,
-  isLeader,
   allMaterialRequests,
   requestType,
   onSuccess
@@ -223,7 +221,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
         invoiceImage: data.type === 'emergency' ? data.invoiceImage?.trim() : undefined,
         reason: data.reason?.trim() || undefined,
         isOverBOQ: isOverBOQ
-      }, user?.role, isLeader);
+      });
     },
     onSuccess: (_, variables) => {
       const msg = variables.type === 'emergency'

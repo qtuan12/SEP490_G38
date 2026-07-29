@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Eye, ArrowLeft } from 'lucide-react';
 import { Button, DataTable, Badge, Pagination } from '../../components/ui';
 import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
 import { projectService } from '../../services/projectService';
-import { useAuth } from '../../context/AuthContext';
 import { formatDate } from '../../utils/dateHelpers';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 export const PhaseAcceptances: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -60,10 +60,15 @@ export const PhaseAcceptances: React.FC = () => {
     })
   });
 
-  const { user } = useAuth();
+  const { canManageTechnical } = useProjectAccess(searchProjectId || null);
+  const canManageAcceptance = canManageTechnical;
 
   const hasActiveAcceptance = data?.items?.some((item: any) => !item.isCancelled);
-  const canCreate = searchProjectId && searchPhaseId && !hasActiveAcceptance && user?.role === 'technicalmanager';
+  const canCreate =
+    searchProjectId &&
+    searchPhaseId &&
+    !hasActiveAcceptance &&
+    canManageAcceptance;
 
   const columns = [
     { key: 'acceptanceId', header: 'ID' },
@@ -129,7 +134,7 @@ export const PhaseAcceptances: React.FC = () => {
           <h1 className="text-2xl font-bold text-[hsl(var(--text-primary))]">Danh sách Nghiệm thu Giai đoạn</h1>
           <p className="text-[hsl(var(--text-secondary))] mt-1">Quản lý các biên bản nghiệm thu đã lập</p>
         </div>
-        {user?.role === 'technicalmanager' && (
+        {canManageAcceptance && (
           <Button
             variant="primary"
             disabled={!canCreate}

@@ -12,25 +12,34 @@ import {
   Clock,
   Loader2
 } from 'lucide-react';
-import { Badge, Button, Pagination } from '../../components/ui';
+import { Badge, Button, Pagination, Select } from '../../components/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
+import type { Project } from '../../types/common';
 
 export const GlobalIncidents: React.FC = () => {
   const { user } = useAuth();
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(
+    () => localStorage.getItem('field_workbench_last_project') || ''
+  );
   const [loading, setLoading] = useState(true);
   const { connection } = useNotification();
   const [activeTab, setActiveTab] = useState<'construction' | 'inventory'>(
-    user?.role === 'accountant' ? 'inventory' : 'construction'
+    'construction'
   );
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
+    projectService.getProjects().then(setProjects).catch(console.error);
+  }, []);
+
+  useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab]);
+  }, [activeTab, selectedProjectId]);
 
   // Modals & Selected States
   const [selectedIncident, setSelectedIncident] = useState<IncidentReport | null>(null);
@@ -47,10 +56,11 @@ export const GlobalIncidents: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   const visibleIncidents = incidents.filter(inc => {
+    const matchesProject = !selectedProjectId || inc.projectId === selectedProjectId;
     if (activeTab === 'inventory') {
-      return inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage';
+      return matchesProject && (inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage');
     }
-    return inc.incidentType !== 'InventoryLoss' && inc.incidentType !== 'InventoryDamage';
+    return matchesProject && (inc.incidentType !== 'InventoryLoss' && inc.incidentType !== 'InventoryDamage');
   });
 
   const totalPages = Math.ceil(visibleIncidents.length / ITEMS_PER_PAGE);
@@ -260,20 +270,28 @@ export const GlobalIncidents: React.FC = () => {
             Quản lý Sự cố Toàn hệ thống
           </h3>
           <p className="text-[0.85rem] text-[hsl(var(--text-muted))] mt-1 mb-0">
-            Tổng hợp toàn bộ báo cáo sự cố (Thi công / Vật tư) trên toàn hệ thống
+            Tổng hợp toàn bộ báo cáo sự cố (Thi công / Vật tư) trên hệ thống
           </p>
+        </div>
+        <div className="w-full sm:w-64">
+          <Select
+            value={selectedProjectId}
+            onChange={(e) => setSelectedProjectId(e.target.value)}
+            options={[
+              { label: 'Tất cả Dự án', value: '' },
+              ...projects.map(p => ({ label: p.name, value: p.id.toString() }))
+            ]}
+          />
         </div>
       </div>
 
       <div className="flex gap-2 border-b border-[hsl(var(--border))] mb-4">
-        {user?.role !== 'accountant' && (
-          <button
-            className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
-            onClick={() => setActiveTab('construction')}
-          >
-            Sự cố Thi công
-          </button>
-        )}
+        <button
+          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
+          onClick={() => setActiveTab('construction')}
+        >
+          Sự cố Thi công
+        </button>
         <button
           className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
           onClick={() => setActiveTab('inventory')}

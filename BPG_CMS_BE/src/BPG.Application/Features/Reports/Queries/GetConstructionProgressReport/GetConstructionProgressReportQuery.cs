@@ -1,13 +1,17 @@
-using BPG.Application.IRepositories;
+﻿using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetConstructionProgressReport;
 
-public record GetConstructionProgressReportQuery(long ProjectId) : IRequest<ApiResponse<ConstructionProgressReportDto>>;
+public record GetConstructionProgressReportQuery(long ProjectId)
+    : IRequest<ApiResponse<ConstructionProgressReportDto>>
+{
+}
 
 public class GetConstructionProgressReportQueryHandler
     : IRequestHandler<GetConstructionProgressReportQuery, ApiResponse<ConstructionProgressReportDto>>
@@ -115,3 +119,4 @@ public class GetConstructionProgressReportQueryHandler
         return ApiResponse<ConstructionProgressReportDto>.SuccessResult(dto);
     }
 }
+

@@ -1,4 +1,5 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
+using BPG.Domain.Constants;
 using MediatR;
 using System.Collections.Generic;
 
@@ -10,10 +11,13 @@ public record CreateGoodsReceiptCommand(
     string? DeliveryDocNo,
     List<CreateGoodsReceiptItemDto> Items,
     List<string>? Images = null
-) : IRequest<ApiResponse<long>>;
+) : IRequest<ApiResponse<long>>
+{
+}
 
 public record CreateGoodsReceiptItemDto(
     long MaterialId,
     int UnitId,
     decimal Quantity
 );
+

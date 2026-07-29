@@ -1,5 +1,7 @@
-using BPG.Application.DTOs.Files;
+﻿using BPG.Application.DTOs.Files;
 using BPG.Application.IServices;
+using BPG.Domain.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
@@ -7,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Api.Controllers
 {
+    [Authorize]
     public class FilesController : BaseApiController
     {
         private readonly IFileStorageService _fileStorageService;
@@ -17,7 +20,7 @@ namespace BPG.Api.Controllers
         }
 
         /// <summary>
-        /// Tải lên một tệp đơn lẻ (Ảnh, PDF, v.v.) lên Cloudinary.
+        /// Tải lên một tệp đơn lẻ (Ảnh, PDF, v.v.) lÃªn Cloudinary.
         /// </summary>
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]
@@ -38,11 +41,11 @@ namespace BPG.Api.Controllers
                 FileSizeBytes = file.Length
             };
 
-            return ApiOk(response, "Tải lên tệp thành công.");
+            return ApiOk(response, "Tải tệp lên thành công.");
         }
 
         /// <summary>
-        /// Tải lên nhiều tệp cùng một lúc lên Cloudinary.
+        /// Tải nhiều tệp cùng lúc lên Cloudinary.
         /// </summary>
         [HttpPost("upload-multiple")]
         [Consumes("multipart/form-data")]
@@ -77,27 +80,29 @@ namespace BPG.Api.Controllers
             var results = await Task.WhenAll(uploadTasks);
             var uploadResponses = new List<UploadFileResponse>(results);
 
-            return ApiOk(uploadResponses, "Tải lên các tệp thành công.");
+            return ApiOk(uploadResponses, "Tải lên tệp thành công.");
         }
 
         /// <summary>
-        /// Xóa tệp từ xa trên Cloudinary dựa trên URL.
+        /// xóa tệp qua URL.
         /// </summary>
         [HttpDelete("delete")]
+        [Authorize(Roles = RolePolicies.AdminOrTechnicalManager)]
         public async Task<IActionResult> DeleteFile([FromQuery] string fileUrl)
         {
             if (string.IsNullOrWhiteSpace(fileUrl))
             {
-                return ApiBadRequest("Đường dẫn fileUrl không hợp lệ.");
+                return ApiBadRequest("Đường dẫn không hợp lệ.");
             }
 
             var deleted = await _fileStorageService.DeleteFileAsync(fileUrl);
             if (!deleted)
             {
-                return ApiBadRequest("Không thể xóa tệp. Vui lòng kiểm tra lại URL tệp.");
+                return ApiBadRequest("Không thể xóa tệp. Vui lòng kiểm tra lại.");
             }
 
-            return ApiOk(true, "Xóa tệp trên Cloudinary thành công.");
+            return ApiOk(true, "Xóa tệp thành công.");
         }
     }
 }
+

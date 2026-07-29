@@ -15,7 +15,6 @@ const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gi
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Quản trị viên',
   technicalmanager: 'Trưởng phòng Kỹ thuật',
-  projectleader: 'Trưởng dự án',
   siteengineer: 'Nhân viên kỹ thuật',
   accountant: 'Kế toán',
   director: 'Giám đốc',

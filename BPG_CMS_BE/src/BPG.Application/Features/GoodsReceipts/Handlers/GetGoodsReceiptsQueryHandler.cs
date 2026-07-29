@@ -32,7 +32,9 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
 
             if (request.ProjectId.HasValue)
             {
-                query = query.Where(gr => gr.PurchaseOrder!.Request!.Phase!.ProjectId == request.ProjectId.Value);
+                query = query.Where(gr => gr.PurchaseOrder != null && 
+                    (gr.PurchaseOrder.ProjectId == request.ProjectId.Value || 
+                     (gr.PurchaseOrder.Request != null && gr.PurchaseOrder.Request.Phase != null && gr.PurchaseOrder.Request.Phase.ProjectId == request.ProjectId.Value)));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Search))

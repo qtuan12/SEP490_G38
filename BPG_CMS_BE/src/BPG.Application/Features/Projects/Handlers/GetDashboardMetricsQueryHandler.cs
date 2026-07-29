@@ -4,6 +4,7 @@ namespace BPG.Application.Features.Projects.Handlers;
 using BPG.Application.Features.Projects.DTOs;
 using BPG.Application.Features.Projects.Queries;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
@@ -15,24 +16,22 @@ using System.Threading.Tasks;
 public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetricsQuery, DashboardMetricsDto>
 {
     private readonly IUnitOfWork _uow;
-    private readonly BPG.Application.IServices.ICurrentUserService _currentUserService;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetDashboardMetricsQueryHandler(IUnitOfWork uow, BPG.Application.IServices.ICurrentUserService currentUserService)
+    public GetDashboardMetricsQueryHandler(
+        IUnitOfWork uow,
+        IProjectAccessService projectAccessService)
     {
         _uow = uow;
-        _currentUserService = currentUserService;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<DashboardMetricsDto> Handle(GetDashboardMetricsQuery request, CancellationToken cancellationToken)
     {
         var query = _uow.Repository<Project>().Query()
             .AsNoTracking();
-
-        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
-        {
-            var currentUserId = _currentUserService.GetRequiredUserId();
-            query = query.Where(p => p.Members.Any(m => m.UserId == currentUserId));
-        }
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+        query = query.Where(project => accessibleProjectIds.Contains(project.ProjectId));
 
         var projects = await query
             .Include(p => p.Phases)

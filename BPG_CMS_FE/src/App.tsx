@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+﻿import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -38,6 +38,9 @@ import { SystemConfigPage } from './pages/SystemConfig';
 import { DirectPurchaseList } from './pages/DirectPurchases';
 import { ReportsHub } from './pages/ReportsHub';
 import { FieldWorkbench } from './pages/FieldWorkbench';
+import { isPWAMode } from './utils/pwaHelpers';
+import { DesktopOnlyGuard } from './components/DesktopOnlyGuard';
+import { RoleGroup } from './auth/roles';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,8 +52,12 @@ const queryClient = new QueryClient({
 });
 
 // Protected Route Guard
-const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[]; noLayout?: boolean }> = ({ children, allowedRoles, noLayout }) => {
-  const { isAuthenticated, user, isLoading } = useAuth();
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  allowedRoles?: readonly string[];
+  noLayout?: boolean;
+}> = ({ children, allowedRoles, noLayout }) => {
+  const { isAuthenticated, isLoading, hasAnyRole } = useAuth();
 
   if (isLoading) {
     return (
@@ -62,7 +69,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
         backgroundColor: 'hsl(var(--bg-main))',
         color: 'hsl(var(--text-primary))'
       }}>
-        <h3>Đang tải phiên làm việc...</h3>
+        <h3>Äang táº£i phiÃªn lÃ m viá»‡c...</h3>
       </div>
     );
   }
@@ -71,31 +78,59 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // If not authorized for this specific route, send to dashboard (or users if admin)
-    if (user.role === 'admin') {
-      return <Navigate to="/users" replace />;
-    }
+  if (allowedRoles && !hasAnyRole(allowedRoles)) {
     return <Navigate to="/dashboard" replace />;
   }
 
   return noLayout ? <>{children}</> : <Layout>{children}</Layout>;
 };
 
+const ProjectRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { projectId } = useParams();
+
+  if (!projectId) {
+    return <Navigate to="/projects" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const ProjectOrRoleRoute: React.FC<{
+  children: React.ReactNode;
+  allowedRoles: readonly string[];
+}> = ({ children, allowedRoles }) => {
+  const { hasAnyRole } = useAuth();
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get('projectId');
+
+  if (projectId) {
+    return <>{children}</>;
+  }
+
+  if (!hasAnyRole(allowedRoles)) {
+    return <Navigate to="/projects" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 // Route wrapper for redirecting authenticated users away from Login page
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, user, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, hasAnyRole } = useAuth();
 
   if (isLoading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'hsl(var(--bg-main))' }}>
-        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Đang tải...</h3>
+        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Äang táº£i...</h3>
       </div>
     );
   }
 
   if (isAuthenticated) {
-    if (user?.role === 'admin') {
+    if (isPWAMode()) {
+      return <Navigate to="/field?standalone=true" replace />;
+    }
+    if (hasAnyRole(RoleGroup.AdminOnly)) {
       return <Navigate to="/users" replace />;
     }
     return <Navigate to="/dashboard" replace />;
@@ -112,6 +147,16 @@ function App() {
         <NotificationProvider>
           <Router>
             <Routes>
+              {/* Root route */}
+              <Route 
+                path="/" 
+                element={
+                  <PublicRoute>
+                    <Navigate to="/field?standalone=true" replace />
+                  </PublicRoute>
+                } 
+              />
+
               {/* Public login route */}
               <Route 
                 path="/login" 
@@ -171,7 +216,7 @@ function App() {
               <Route
                 path="/field"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <FieldWorkbench />
                   </ProtectedRoute>
                 }
@@ -180,7 +225,7 @@ function App() {
               <Route 
                 path="/users" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.AdminOnly}>
                     <UserManagement />
                   </ProtectedRoute>
                 } 
@@ -189,7 +234,7 @@ function App() {
               <Route 
                 path="/suppliers" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.SupplierViewers}>
                     <SupplierManagement />
                   </ProtectedRoute>
                 } 
@@ -198,7 +243,7 @@ function App() {
               <Route 
                 path="/units" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.MasterData}>
                     <UnitManagement />
                   </ProtectedRoute>
                 } 
@@ -207,7 +252,7 @@ function App() {
               <Route 
                 path="/categories" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.MasterData}>
                     <CategoryManagement />
                   </ProtectedRoute>
                 } 
@@ -216,7 +261,7 @@ function App() {
               <Route 
                 path="/materials" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.MasterData}>
                     <MaterialManagement />
                   </ProtectedRoute>
                 } 
@@ -225,82 +270,96 @@ function App() {
               <Route 
                 path="/materials-control" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Procurement}>
                     <MaterialControl />
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects"
+                path="/projects" 
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectList />
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId"
+                path="/projects/:projectId" 
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <ProjectLayoutHub />
+                  <ProtectedRoute>
+                    <ProjectRoute>
+                      <ProjectLayoutHub />
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId/logs"
+                path="/projects/:projectId/logs" 
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director']}>
-                    <ProjectDailyLogs />
+                  <ProtectedRoute>
+                    <ProjectRoute>
+                      <ProjectDailyLogs />
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId/tasks/:taskId/logs"
+                path="/projects/:projectId/tasks/:taskId/logs" 
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director']}>
-                    <ProjectDailyLogs />
-                  </ProtectedRoute>
-                } 
-              />
-
-
-
-              <Route 
-                path="/projects/:projectId/phases/:phaseId/boq"
-                element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <PhaseBOQ />
+                  <ProtectedRoute>
+                    <ProjectRoute>
+                      <ProjectDailyLogs />
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId/phases/:phaseId/acceptance"
+                path="/projects/:projectId/phases/:phaseId/boq" 
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <PhaseAcceptance />
+                  <ProtectedRoute>
+                    <ProjectRoute>
+                      <PhaseBOQ />
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId/gantt"
+                path="/projects/:projectId/phases/:phaseId/acceptance" 
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director']}>
-                    <GanttChart />
+                  <ProtectedRoute>
+                    <ProjectRoute>
+                      <PhaseAcceptance />
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/projects/:projectId/drawing"
+                path="/projects/:projectId/gantt" 
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director']}>
-                    <ProjectDrawing />
+                  <ProtectedRoute>
+                    <ProjectRoute>
+                      <DesktopOnlyGuard>
+                        <GanttChart />
+                      </DesktopOnlyGuard>
+                    </ProjectRoute>
+                  </ProtectedRoute>
+                } 
+              />
+
+              <Route 
+                path="/projects/:projectId/drawing" 
+                element={
+                  <ProtectedRoute>
+                    <ProjectRoute>
+                      <ProjectDrawing />
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -308,8 +367,10 @@ function App() {
               <Route 
                 path="/reports" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
-                    <ReportsHub />
+                  <ProtectedRoute allowedRoles={RoleGroup.Reports}>
+                    <DesktopOnlyGuard>
+                      <ReportsHub />
+                    </DesktopOnlyGuard>
                   </ProtectedRoute>
                 } 
               />
@@ -317,7 +378,7 @@ function App() {
               <Route 
                 path="/incidents" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Reports}>
                     <GlobalIncidents />
                   </ProtectedRoute>
                 } 
@@ -326,8 +387,12 @@ function App() {
               <Route 
                 path="/projects/:projectId/reports/boq" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
-                    <BoqVsActualReport />
+                  <ProtectedRoute>
+                    <ProjectRoute>
+                      <DesktopOnlyGuard>
+                        <BoqVsActualReport />
+                      </DesktopOnlyGuard>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
@@ -335,82 +400,93 @@ function App() {
               <Route 
                 path="/projects/:projectId/reports/cost" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'accountant']}>
-                    <CostReferenceReport />
+                  <ProtectedRoute>
+                    <ProjectRoute>
+                      <DesktopOnlyGuard>
+                        <CostReferenceReport />
+                      </DesktopOnlyGuard>
+                    </ProjectRoute>
                   </ProtectedRoute>
                 } 
               />
 
               <Route 
-                path="/tasks/:taskId"
+                path="/tasks/:taskId" 
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
+                  <ProtectedRoute>
                     <TaskDetailSE />
                   </ProtectedRoute>
                 } 
               />
 
-              {/* Purchase Orders - Accountant */}
-              <Route
-                path="/purchase-orders"
+              <Route 
+                path="/purchase-orders" 
                 element={
-                  <ProtectedRoute allowedRoles={['accountant']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Procurement}>
                     <PurchaseOrderList />
                   </ProtectedRoute>
-                }
+                } 
               />
-              <Route
-                path="/purchase-orders/new"
+
+              <Route 
+                path="/purchase-orders/new" 
                 element={
-                  <ProtectedRoute allowedRoles={['accountant']}>
-                    <CreatePOPage />
+                  <ProtectedRoute>
+                    <ProjectOrRoleRoute
+                      allowedRoles={RoleGroup.Procurement}
+                    >
+                      <CreatePOPage />
+                    </ProjectOrRoleRoute>
                   </ProtectedRoute>
-                }
+                } 
               />
-              <Route
-                path="/purchase-orders/:id"
+
+              <Route 
+                path="/purchase-orders/:id" 
                 element={
-                  <ProtectedRoute allowedRoles={['accountant', 'technicalmanager', 'siteengineer', 'director']}>
+                  <ProtectedRoute>
                     <PODetailPage />
                   </ProtectedRoute>
-                }
+                } 
               />
 
-              {/* Direct Purchases - Leader + Accountant */}
-              <Route
-                path="/direct-purchases"
+              <Route 
+                path="/direct-purchases" 
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'siteengineer', 'projectleader', 'accountant', 'admin']}>
+                  <ProtectedRoute>
                     <DirectPurchaseList />
                   </ProtectedRoute>
-                }
+                } 
               />
 
-              {/* System Config - Admin only */}
-              <Route
-                path="/system-config"
+              <Route 
+                path="/system-config" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <SystemConfigPage />
+                  <ProtectedRoute allowedRoles={RoleGroup.AdminOnly}>
+                    <DesktopOnlyGuard>
+                      <SystemConfigPage />
+                    </DesktopOnlyGuard>
                   </ProtectedRoute>
-                }
+                } 
               />
 
-              {/* Phase Acceptances List */}
-              <Route
-                path="/phase-acceptances"
+              <Route 
+                path="/phase-acceptances" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <PhaseAcceptances />
+                  <ProtectedRoute>
+                    <ProjectOrRoleRoute
+                      allowedRoles={RoleGroup.Reports}
+                    >
+                      <PhaseAcceptances />
+                    </ProjectOrRoleRoute>
                   </ProtectedRoute>
-                }
+                } 
               />
 
-              {/* Inventory Adjustments */}
               <Route 
                 path="/inventory-adjustments" 
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute>
                     <InventoryAdjustmentsPage />
                   </ProtectedRoute>
                 } 
@@ -429,3 +505,4 @@ function App() {
 }
 
 export default App;
+

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { directPurchaseService } from '../../services/directPurchaseService';
 import { Badge, Pagination, Button } from '../../components/ui';
 import { AlertCircle, Loader2, Plus, Search, ChevronDown } from 'lucide-react';
 import { CreateDirectPurchaseModal } from './CreateDirectPurchaseModal';
 import { DirectPurchaseDetailModal } from './DirectPurchaseDetailModal';
-import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 const AUDIT_OPTIONS = [
   { label: 'Tất cả', value: '' },
@@ -42,14 +42,14 @@ const formatDate = (dateStr: string) => {
 
 interface Props {
   projectId: number;
-  isLeader: boolean;
 }
 
-export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader }) => {
+export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { canManageExecution, canManageAccounting } = useProjectAccess(projectId);
   const { connection } = useNotification();
-  const isAccountant = user?.role === 'accountant';
+  const isAccountant = canManageAccounting;
+  const canCreate = canManageExecution;
   const [auditFilter, setAuditFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -135,7 +135,7 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
           </div>
         </div>
 
-        {isLeader && (
+        {canCreate && (
           <Button variant="primary" className="flex items-center gap-1.5 text-sm w-full lg:w-auto justify-center" onClick={() => setIsCreateOpen(true)}>
             <Plus size={16} /> Tạo phiếu mua khẩn cấp
           </Button>

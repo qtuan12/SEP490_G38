@@ -36,15 +36,6 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             }
 
             var userId = _currentUserService.GetRequiredUserId();
-            var isLeader = await _unitOfWork.Repository<ProjectMember>().Query()
-                .AnyAsync(m => m.ProjectId == request.ProjectId && m.UserId == userId && m.IsLeader, cancellationToken);
-            var isManagerOrAdmin = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
-
-            if (!isLeader && !isManagerOrAdmin)
-            {
-                throw new BusinessException(ErrorCodes.Forbidden, "Chỉ Trưởng dự án của dự án này hoặc Trưởng phòng Kĩ thuật mới có quyền tạo phiếu tăng tồn kho.");
-            }
-
             var phase = await _unitOfWork.Repository<Phase>().GetByIdAsync(request.PhaseId);
             if (phase == null)
             {

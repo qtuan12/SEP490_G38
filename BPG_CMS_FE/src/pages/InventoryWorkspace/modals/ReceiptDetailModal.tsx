@@ -3,7 +3,6 @@ import { Modal, Button, Input, FormItem, ConfirmDialog } from '../../../componen
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import type { GoodsReceiptDetail, GoodsReceiptItemDetail } from '../../../types/inventory';
-import { useAuth } from '../../../context/AuthContext';
 import {
   Calendar,
   User,
@@ -27,7 +26,7 @@ interface ReceiptDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   receiptId: number | null;
-  isAssignedLeader?: boolean;
+  canManageInventory?: boolean;
   onSuccess?: () => void;
 }
 
@@ -35,10 +34,9 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
   isOpen,
   onClose,
   receiptId,
-  isAssignedLeader,
+  canManageInventory = false,
   onSuccess
 }) => {
-  const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<GoodsReceiptDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -121,6 +119,12 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
 
     if (uploadedFiles.some(f => f.status === 'uploading')) {
       toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
+      return;
+    }
+
+    if (uploadedFiles.some(f => f.status === 'error') || uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
+      toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
+      setActionError('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
       return;
     }
 
@@ -208,10 +212,8 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     });
   };
 
-  // Check role for Cancel permission (Manager roles and Admin)
-  const isManagerOrAdmin = currentUser && ['admin', 'technicalmanager', 'accountant', 'director'].includes(currentUser.role.toLowerCase());
-  const canCancel = isManagerOrAdmin && detail?.status !== 'Cancelled';
-  const canEdit = isAssignedLeader || (currentUser && ['admin', 'technicalmanager', 'accountant', 'director'].includes(currentUser.role.toLowerCase()));
+  const canCancel = canManageInventory && detail?.status !== 'Cancelled';
+  const canEdit = canManageInventory;
 
   return (
     <>

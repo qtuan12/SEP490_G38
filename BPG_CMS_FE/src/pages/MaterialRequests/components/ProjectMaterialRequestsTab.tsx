@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { projectService } from '../../../services/projectService';
@@ -20,6 +20,7 @@ import toast from 'react-hot-toast';
 import { formatDate } from '../../../utils/dateHelpers';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import { Modal } from '../../../components/ui/Modal';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 interface ProjectMaterialRequestsTabProps {
   projectId: number;
@@ -28,6 +29,7 @@ interface ProjectMaterialRequestsTabProps {
 export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProps> = ({ projectId }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { canManageExecution, canManageAccounting, canApprove } = useProjectAccess(projectId);
   const [searchParams] = useSearchParams();
   const urlPhaseId = searchParams.get('phaseId');
   const urlRequestId = searchParams.get('requestId');
@@ -35,7 +37,6 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isLeader, setIsLeader] = useState(false);
 
   // Create Request State
   const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false);
@@ -114,27 +115,19 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const [actionNoteError, setActionNoteError] = useState('');
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
-  const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
-  const isDirector = user?.role === 'director' || user?.role === 'admin';
-  const canCreateRequest = isLeader || user?.role === 'admin' || user?.role === 'projectleader';
+  const isAccountant = canManageAccounting;
+  const isDirector = canApprove;
+  const canCreateRequest = canManageExecution;
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [reqs, pList, members] = await Promise.all([
+      const [reqs, pList] = await Promise.all([
         projectService.getMaterialRequests(projectId.toString()),
-        projectService.getPhases(projectId.toString()),
-        projectService.getMembers(projectId.toString())
+        projectService.getPhases(projectId.toString())
       ]);
       setRequests(reqs);
       setPhases(pList);
-
-      const currentMember = members.find(m => m.userId === user?.id);
-      setIsLeader(
-        (currentMember ? currentMember.isLeader : false) ||
-        user?.role === 'projectleader' ||
-        user?.role === 'admin'
-      );
     } catch (err) {
       console.error('Error fetching material requests tab data:', err);
       toast.error('Lỗi khi tải dữ liệu yêu cầu vật tư.');
@@ -177,7 +170,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
   // Kế toán mới cần biết trước yêu cầu nào còn tạo được PO, để tô màu nút phù hợp
   useEffect(() => {
-    if (user?.role !== 'accountant') return;
+    if (!isAccountant) return;
     const approvedRequests = requests.filter(r => r.status === 'approved');
     if (approvedRequests.length === 0) return;
 
@@ -199,7 +192,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       });
 
     return () => { cancelled = true; };
-  }, [requests, projectId, user]);
+  }, [requests, projectId, isAccountant]);
 
   // Realtime update via SignalR
   useSignalREvent('ReceiveNotification', (noti: any) => {
@@ -511,7 +504,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                       {/* Tạo PO: chỉ hiển thị cho Kế toán (không tính Admin) với các yêu cầu đã Approved.
                           Yêu cầu không còn đủ điều kiện (đã đặt đủ vật tư qua PO khác...) vẫn hiện nút
                           nhưng tô màu xám — bấm vào sẽ báo lý do không thể tạo thay vì bị ẩn mất. */}
-                      {user?.role === 'accountant' && req.status === 'approved' && (() => {
+                      {isAccountant && req.status === 'approved' && (() => {
                         const numericId = req.id.replace('mat-req-', '');
                         const canCreatePO = poEligibility[numericId] !== false;
                         return (
@@ -564,7 +557,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           isAccountant={isAccountant}
           isDirector={isDirector}
           user={user}
-          isLeader={isLeader}
+          canManageExecution={canCreateRequest}
           handleVerifyRequestByAccountant={(id) => openActionModal('verify', id)}
           handleDisburseRequestByAccountant={(id) => openActionModal('disburse', id)}
           handleApproveRequestByDirector={(id) => openActionModal('approve', id)}
@@ -698,7 +691,6 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           projectId={projectId.toString()}
           phase={actualPhaseForCreate}
           user={user}
-          isLeader={isLeader}
           allMaterialRequests={requests}
           requestType="normal"
         />

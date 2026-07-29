@@ -1,4 +1,5 @@
-using BPG.Application.DTOs.PurchaseOrders;
+﻿using BPG.Application.DTOs.PurchaseOrders;
+using BPG.Domain.Constants;
 using MediatR;
 
 namespace BPG.Application.Features.PurchaseOrders.Commands
@@ -16,3 +17,4 @@ namespace BPG.Application.Features.PurchaseOrders.Commands
         public List<CreatePOItemDto> Items { get; init; } = new();
     }
 }
+

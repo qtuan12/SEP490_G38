@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Modal, Button } from '../../../components/ui';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
-import { useAuth } from '../../../context/AuthContext';
 import { incidentService } from '../../../services/incidentService';
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 interface Props {
   isOpen: boolean;
@@ -16,7 +16,7 @@ interface Props {
 }
 
 export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, adjustmentId, adjustmentData }) => {
-  const { user } = useAuth();
+  const { canApprove } = useProjectAccess(adjustmentData?.projectId);
   const [loading, setLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [mode, setMode] = useState<'view' | 'reject' | 'confirmApprove'>('view');
@@ -53,7 +53,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
     }
   }, [isOpen, adjustmentData]);
 
-  const canReview = user?.role === 'director' || user?.role === 'admin';
+  const canReview = canApprove;
   const isPending = adjustmentData?.status === 'Pending';
 
   const getStatusLabel = (status: string) => {

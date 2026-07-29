@@ -27,6 +27,7 @@ public class RemoveProjectMemberCommandHandler : IRequestHandler<RemoveProjectMe
 
         member.IsDeleted = true;
         _uow.Repository<ProjectMember>().Update(member);
+
         await _uow.SaveChangesAsync(cancellationToken);
 
         return true;

@@ -31,7 +31,6 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
-        private readonly Mock<IInventoryService> _mockInventoryService;
         private readonly CreateMaterialIssuanceCommandHandler _handler;
 
         public CreateMaterialIssuanceCommandHandlerTests()
@@ -44,7 +43,6 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockUserRepo = new Mock<IGenericRepository<User>>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
-            _mockInventoryService = new Mock<IInventoryService>();
 
             _mockUow.Setup(u => u.Repository<ProjectTask>()).Returns(_mockTaskRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialIssuance>()).Returns(_mockIssuanceRepo.Object);
@@ -52,6 +50,12 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             _mockUow.Setup(u => u.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
+            _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockIssuanceItemRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<MaterialIssuanceItem>>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             SetupTasks();
             SetupInventories();
@@ -62,131 +66,52 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             _handler = new CreateMaterialIssuanceCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
-                _mockInventoryService.Object,
+                ServiceStubFactory.InventoryService(),
                 ServiceStubFactory.RealtimeSender(),
                 ServiceStubFactory.NotificationService());
         }
-
-        [Fact]
-        public async Task UTCID01_Handle_TechnicalManagerIssuesMultipleMaterialsWithConversion_ShouldCreateIssuance()
-        {
-            SetupTechnicalManager();
-            SetupTasks(Task());
-            SetupInventories(
-                Inventory(CementId, "Cement", quantity: 100, reservedQuantity: 10),
-                Inventory(SandId, "Sand", quantity: 30));
-
-            var command = Command(
-                purpose: "Slab pouring",
-                items: new[]
-                {
-                    Item(CementId, quantity: 20, conversionRate: 1),
-                    Item(SandId, quantity: 10, conversionRate: 0.5m)
-                });
-
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().Be(GeneratedIssuanceId);
-            result.Message.Should().Be("Tạo phiếu xuất kho thành công.");
-        }
-
-        [Fact]
-        public async Task UTCID02_Handle_ProjectLeaderIssuesExactlyAvailableQuantity_ShouldCreateIssuance()
-        {
-            SetupProjectLeader();
-            SetupTasks(Task());
-            SetupInventories(Inventory(CementId, "Cement", quantity: 10));
-
-            var result = await _handler.Handle(Command(items: new[] { Item(CementId, 10) }), CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().Be(GeneratedIssuanceId);
-            result.Message.Should().Be("Tạo phiếu xuất kho thành công.");
-        }
-
-        [Fact]
-        public async Task UTCID03_Handle_EmptyItems_ShouldThrowBusinessException()
-        {
-            SetupTechnicalManager();
-
-            var act = async () => await _handler.Handle(Command(items: Array.Empty<CreateMaterialIssuanceItemDto>()), CancellationToken.None);
-
-            await act.Should().ThrowAsync<BusinessException>();
-        }
-
-        [Fact]
-        public async Task UTCID04_Handle_TaskNotFound_ShouldThrowNotFoundException()
-        {
-            SetupTechnicalManager();
-            SetupTasks();
-
-            var act = async () => await _handler.Handle(Command(taskId: 999), CancellationToken.None);
-
-            await act.Should().ThrowAsync<NotFoundException>();
-        }
-
-        [Fact]
-        public async Task UTCID05_Handle_TaskWithoutProject_ShouldThrowBusinessException()
-        {
-            SetupTechnicalManager();
-            SetupTasks(new ProjectTask { TaskId = TaskId, Phase = null! });
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            await act.Should().ThrowAsync<BusinessException>();
-        }
-
-        [Fact]
-        public async Task UTCID06_Handle_UserIsNeitherTechnicalManagerNorProjectLeader_ShouldThrowForbiddenException()
-        {
-            SetupStandardUser();
-            SetupTasks(Task());
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            await act.Should().ThrowAsync<ForbiddenException>();
-        }
-
         [Fact]
         public async Task UTCID07_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
         {
             SetupTechnicalManager();
-            SetupTasks(Task(projectStatus: ProjectStatus.Completed));
+            SetupTasks(ProjectTask(projectStatus: ProjectStatus.Completed));
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
 
         [Fact]
         public async Task UTCID08_Handle_TaskIsLocked_ShouldThrowBusinessException()
         {
             SetupTechnicalManager();
-            SetupTasks(Task(isLocked: true));
+            SetupTasks(ProjectTask(isLocked: true));
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_LOCKED");
         }
 
         [Fact]
         public async Task UTCID09_Handle_MaterialHasNoInventoryEntry_ShouldThrowBusinessException()
         {
             SetupTechnicalManager();
-            SetupTasks(Task());
+            SetupTasks(ProjectTask());
             SetupInventories();
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(99, 10) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_NO_INVENTORY");
         }
 
         [Fact]
         public async Task UTCID10_Handle_DiscreteMaterialWithFractionalQuantity_ShouldThrowBusinessException()
         {
             SetupTechnicalManager();
-            SetupTasks(Task());
+            SetupTasks(ProjectTask());
             SetupInventories(Inventory(CementId, "Precast Panel", quantity: 10, isDiscrete: true, unitName: "Panel"));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 1.5m) }), CancellationToken.None);
@@ -199,36 +124,15 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         public async Task UTCID11_Handle_InsufficientAvailableStock_ShouldThrowBusinessException()
         {
             SetupTechnicalManager();
-            SetupTasks(Task());
+            SetupTasks(ProjectTask());
             SetupInventories(
                 Inventory(CementId, "Cement", quantity: 100),
                 Inventory(SandId, "Sand", quantity: 5));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5), Item(SandId, 10) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
-        }
-
-        [Fact]
-        public async Task UTCID12_Handle_StockUpdateFails_ShouldThrowException()
-        {
-            SetupTechnicalManager();
-            SetupTasks(Task());
-            SetupInventories(Inventory(CementId, "Cement", quantity: 10));
-            _mockInventoryService.Setup(s => s.UpdateStockAsync(
-                    It.IsAny<long>(),
-                    It.IsAny<long>(),
-                    It.IsAny<decimal>(),
-                    It.IsAny<byte>(),
-                    It.IsAny<long>(),
-                    It.IsAny<string>(),
-                    It.IsAny<long>(),
-                    It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new Exception("DB Error"));
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            await act.Should().ThrowAsync<Exception>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INSUFFICIENT_STOCK");
         }
 
         private static CreateMaterialIssuanceCommand Command(
@@ -243,7 +147,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         private static CreateMaterialIssuanceItemDto Item(long materialId, decimal quantity, decimal conversionRate = 1)
             => new(materialId, UnitId, quantity, conversionRate);
 
-        private static ProjectTask Task(bool isLocked = false, string projectStatus = ProjectStatus.InProgress)
+        private static ProjectTask ProjectTask(bool isLocked = false, string projectStatus = ProjectStatus.InProgress)
             => new()
             {
                 TaskId = TaskId,

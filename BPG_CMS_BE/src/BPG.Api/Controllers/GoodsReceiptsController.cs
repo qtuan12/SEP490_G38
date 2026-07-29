@@ -61,7 +61,6 @@ namespace BPG.Api.Controllers
         /// Hệ thống sẽ kiểm tra tồn kho trước khi hủy để tránh bị âm kho.
         /// </summary>
         [HttpPost("{id:long}/cancel")]
-        [Authorize(Policy = PolicyNames.RequireManagerOrAbove)]
         public async Task<IActionResult> CancelGoodsReceipt(long id)
         {
             var command = new CancelGoodsReceiptCommand(id);

@@ -1,13 +1,17 @@
-using BPG.Application.IRepositories;
+﻿using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetProcurementReport;
 
-public record GetProcurementReportQuery(long ProjectId) : IRequest<ApiResponse<ProcurementReportDto>>;
+public record GetProcurementReportQuery(long ProjectId)
+    : IRequest<ApiResponse<ProcurementReportDto>>
+{
+}
 
 public class GetProcurementReportQueryHandler
     : IRequestHandler<GetProcurementReportQuery, ApiResponse<ProcurementReportDto>>
@@ -22,7 +26,7 @@ public class GetProcurementReportQueryHandler
     public async Task<ApiResponse<ProcurementReportDto>> Handle(
         GetProcurementReportQuery request, CancellationToken cancellationToken)
     {
-        // Fetch POs linked to this project via MaterialRequest → Phase → Project
+        // Fetch POs linked to this project via MaterialRequest â†’ Phase â†’ Project
         var pos = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
             .Include(p => p.Supplier)
@@ -85,3 +89,4 @@ public class GetProcurementReportQueryHandler
         return ApiResponse<ProcurementReportDto>.SuccessResult(dto);
     }
 }
+

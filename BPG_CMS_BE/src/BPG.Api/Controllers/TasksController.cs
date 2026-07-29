@@ -49,7 +49,6 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}/progress")]
-    [Authorize(Policy = BPG.Domain.Constants.PolicyNames.RequireTechnicalManager)]
     public async Task<IActionResult> AdjustTaskProgress([FromRoute] long taskId, [FromBody] AdjustTaskProgressCommand command, CancellationToken ct)
     {
         var finalCommand = command with { TaskId = taskId };

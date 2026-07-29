@@ -1,5 +1,4 @@
-using BPG.Application.Common.Interfaces;
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Inventory;
 using BPG.Application.IRepositories;
 using MediatR;
@@ -8,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.Inventory.Queries
 {
-    public class GetInventoryTransactionsQuery : PaginationRequest, IRequest<PagedList<InventoryTransactionDto>>, IProjectRequirement
+    public class GetInventoryTransactionsQuery : PaginationRequest, IRequest<PagedList<InventoryTransactionDto>>
     {
         public long ProjectId { get; set; }
         public long? MaterialId { get; set; }
@@ -18,3 +17,4 @@ namespace BPG.Application.Features.Inventory.Queries
             => Task.FromResult(ProjectId);
     }
 }
+

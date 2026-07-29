@@ -1,4 +1,5 @@
-using BPG.Application.DTOs.DirectPurchases;
+﻿using BPG.Application.DTOs.DirectPurchases;
+using BPG.Domain.Constants;
 using MediatR;
 
 namespace BPG.Application.Features.DirectPurchases.Commands
@@ -14,3 +15,4 @@ namespace BPG.Application.Features.DirectPurchases.Commands
         public List<string> InvoicePhotoUrls { get; set; } = new();
     }
 }
+

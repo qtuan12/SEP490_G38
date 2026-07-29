@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+﻿import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../../../context/AuthContext';
 import { useNotification } from '../../../../context/NotificationContext';
 import { projectService } from '../../../../services/projectService';
@@ -10,6 +10,9 @@ import { Modal, Button } from '../../../../components/ui';
 import { DailyLogFormModal } from '../../modals/DailyLogFormModal';
 import { DailyLogFilters } from './DailyLogFilters';
 import { DailyLogCard } from './DailyLogCard';
+
+import { useSearchParams } from 'react-router-dom';
+import { useProjectAccess } from '../../../../hooks/useProjectAccess';
 
 const PAGE_SIZE = 4;
 
@@ -63,6 +66,7 @@ interface DailyLogFeedProps {
 
 export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId }) => {
   const { user } = useAuth();
+  const { canManageExecution, canManageTechnical } = useProjectAccess(projectId);
   const { connection } = useNotification();
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
@@ -113,11 +117,14 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     return list;
   }, [taskId, currentTask, currentTaskHasSubtasks, tasks]);
 
+  const [searchParams] = useSearchParams();
+  const targetLogId = searchParams.get('logId');
+
   const loadData = async () => {
     setLoading(true);
     try {
       const [logsResult, tasksData, phasesData, membersData] = await Promise.all([
-        projectService.getDailyLogsPage(projectId, 1, PAGE_SIZE, taskId),
+        projectService.getDailyLogsPage(projectId, 1, PAGE_SIZE, taskId, targetLogId || undefined),
         projectService.getTasks(projectId),
         projectService.getPhases(projectId),
         projectService.getMembers(projectId)
@@ -457,13 +464,12 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     return formatted;
   };
 
-  const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin';
   const hasAnyAssignedTask = tasks.some(t => {
     if (taskId && String(t.id).replace(/^t-/, '') !== String(taskId).replace(/^t-/, '')) return false;
     const assignedIds = t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : [];
     return user?.id && assignedIds.includes(user.id.toString());
   });
-  const canReport = !!taskId && (isPL || hasAnyAssignedTask) && !currentTaskHasSubtasks;
+  const canReport = !!taskId && (canManageExecution || hasAnyAssignedTask) && !currentTaskHasSubtasks;
 
   return (
     <div className="flex flex-col gap-6 w-full mx-auto pb-10 text-left">
@@ -534,8 +540,9 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                   key={log.id}
                   log={log}
                   user={user}
-                  members={members}
-                  tasks={tasks}
+          members={members}
+          tasks={tasks}
+          canManageExecution={canManageExecution}
                   onEditLog={(l) => {
                     setEditLog(l);
                     setIsModalOpen(true);
@@ -596,7 +603,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           editLog={editLog}
           engineerId={user.id}
           engineerName={user.name}
-          isPL={members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin'}
+          isPL={canManageExecution}
+          canManageTechnical={canManageTechnical}
           onSuccess={() => {
             loadData();
           }}

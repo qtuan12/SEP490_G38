@@ -341,6 +341,8 @@ Suppliers represent external vendors used for procurement.
 Business rules:
 
 - Supplier information supports purchase order and direct purchase workflows.
+- Supplier list and supplier detail can be viewed by Accountant, Technical Manager, Director, Project Leader, and project members.
+- Supplier creation, update, and deletion are restricted to Accountant, Technical Manager, and Director.
 - Supplier relationship health is used as reference information, not as automatic supplier blocking.
 - Suppliers used in procurement history should remain traceable.
 

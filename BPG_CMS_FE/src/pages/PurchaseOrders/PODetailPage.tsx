@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
-import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import { Button, Badge } from '../../components/ui';
 import toast from 'react-hot-toast';
@@ -10,6 +9,7 @@ import {
   ArrowLeft, ShoppingCart, Building2, CalendarDays, MapPin,
   FileText, Package, Link2, AlertCircle, Loader2, XCircle, Ban, Lock,
 } from 'lucide-react';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
@@ -70,7 +70,6 @@ export const PODetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   const { connection } = useNotification();
   const poId = Number(id);
 
@@ -111,6 +110,7 @@ export const PODetailPage: React.FC = () => {
     queryFn: () => inventoryService.getPurchaseOrderById(poId),
     enabled: !isNaN(poId) && poId > 0,
   });
+  const { canManageAccounting } = useProjectAccess(po?.projectId);
 
   // Realtime: tự làm mới nếu PO này bị người khác hủy/đóng trong khi đang xem
   const poProjectId = po?.projectId;
@@ -154,8 +154,8 @@ export const PODetailPage: React.FC = () => {
   }
 
   const receivedTotal = po.items.reduce((s, it) => s + it.totalReceived * it.unitPrice, 0);
-  const canCancel = CANCELLABLE.includes(po.status) && user?.role === 'accountant';
-  const canClose = po.status === 'PartiallyReceived' && user?.role === 'accountant';
+  const canCancel = CANCELLABLE.includes(po.status) && canManageAccounting;
+  const canClose = po.status === 'PartiallyReceived' && canManageAccounting;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1120, margin: '0 auto' }}>

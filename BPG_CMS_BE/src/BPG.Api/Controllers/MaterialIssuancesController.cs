@@ -16,7 +16,6 @@ namespace BPG.Api.Controllers
         /// Đây là thao tác nghiệp vụ thực tế: thủ kho / kỹ sư hiện trường mới có thẩm quyền xuất vật tư.
         /// </summary>
         [HttpPost]
-        [Authorize(Policy = PolicyNames.RequireFieldStaff)]
         public async Task<IActionResult> CreateMaterialIssuance([FromBody] CreateMaterialIssuanceCommand command)
         {
             var result = await Mediator.Send(command);

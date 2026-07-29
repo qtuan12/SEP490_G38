@@ -1,4 +1,4 @@
-using BPG.Application.Features.MaterialRequests.Commands;
+﻿using BPG.Application.Features.MaterialRequests.Commands;
 using BPG.Application.Features.MaterialRequests.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -19,7 +19,7 @@ namespace BPG.Api.Controllers
         {
             if (projectId != command.ProjectId)
             {
-                return ApiBadRequest("Mã dự án không khớp.");
+                return ApiBadRequest("MÃ£ dá»± Ã¡n khÃ´ng khá»›p.");
             }
             var result = await Mediator.Send(command, ct);
             return Ok(result);
@@ -33,17 +33,17 @@ namespace BPG.Api.Controllers
         {
             query.ProjectId = projectId;
             var result = await Mediator.Send(query, ct);
-            return ApiPagedOk(result, "Lấy danh sách đề xuất vật tư của dự án thành công.");
+            return ApiPagedOk(result, "Láº¥y danh sÃ¡ch Ä‘á» xuáº¥t váº­t tÆ° cá»§a dá»± Ã¡n thÃ nh cÃ´ng.");
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,Director,TechnicalManager,Accountant")]
+        [Authorize(Roles = RolePolicies.Procurement)]
         public async Task<IActionResult> GetAllMaterialRequests(
             [FromQuery] GetMaterialRequestsQuery query,
             CancellationToken ct)
         {
             var result = await Mediator.Send(query, ct);
-            return ApiPagedOk(result, "Lấy danh sách toàn bộ đề xuất vật tư thành công.");
+            return ApiPagedOk(result, "Láº¥y danh sÃ¡ch toÃ n bá»™ Ä‘á» xuáº¥t váº­t tÆ° thÃ nh cÃ´ng.");
         }
 
         [HttpGet("{id:long}")]
@@ -67,7 +67,6 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/accountant-process")]
-        [Authorize(Policy = PolicyNames.RequireAccountant)]
         public async Task<IActionResult> AccountantProcess(
             [FromRoute] long id,
             [FromBody] ProcessMaterialRequestRequest request,
@@ -79,7 +78,6 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/director-approve")]
-        [Authorize(Policy = PolicyNames.RequireDirector)]
         public async Task<IActionResult> DirectorApprove(
             [FromRoute] long id,
             [FromBody] ApproveMaterialRequestRequest request,
@@ -91,7 +89,6 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/reject")]
-        [Authorize(Roles = "Admin,Director,TechnicalManager,Accountant")]
         public async Task<IActionResult> RejectMaterialRequest(
             [FromRoute] long id,
             [FromBody] RejectMaterialRequestRequest request,
@@ -123,3 +120,4 @@ namespace BPG.Api.Controllers
         List<BPG.Application.Features.MaterialRequests.Commands.MaterialRequestItemInput> Items
     );
 }
+

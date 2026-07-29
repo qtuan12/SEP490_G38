@@ -1,4 +1,4 @@
-using BPG.Domain.Exceptions;
+﻿using BPG.Domain.Exceptions;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.Common.Models;
@@ -25,7 +25,9 @@ public record ConfirmIncidentCommand(
     string? RecoveryPlanText = null,
     decimal? RecoveryEstimateCost = null,
     string? Decision = null
-) : IRequest<ApiResponse<IncidentDto>>;
+) : IRequest<ApiResponse<IncidentDto>>
+{
+}
 
 public class ConfirmIncidentCommandValidator : AbstractValidator<ConfirmIncidentCommand>
 {
@@ -55,7 +57,12 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
     private readonly INotificationService _notificationService;
     private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public ConfirmIncidentCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
+    public ConfirmIncidentCommandHandler(
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ICurrentUserService currentUserService,
+        INotificationService notificationService,
+        IRealtimeNotificationSender realtimeSender)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
@@ -81,7 +88,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
         if (incident.Status == "Approved")
         {
-            throw new BusinessException("ERR_INCIDENT_ALREADY_CONFIRMED", "Sự cố này đã được xác nhận.");
+            throw new BusinessException("ERR_INCIDENT_ALREADY_CONFIRMED", "Sá»± cá»‘ nÃ y Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n.");
         }
 
         var isEmergencyState = incident.Status == "WaitingStopApproval" || 
@@ -92,12 +99,12 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
         {
             if (incident.Status == "WaitingStopApproval")
             {
-                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
-                    throw new BusinessException("ERR_FORBIDDEN", "Chỉ có TP Kỹ thuật hoặc Admin mới có quyền phê duyệt dừng thi công.");
+                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager))
+                    throw new BusinessException("ERR_FORBIDDEN", "Báº¡n khÃ´ng cÃ³ quyá»n phÃª duyá»‡t dá»«ng thi cÃ´ng.");
 
                 var currentUser = await _unitOfWork.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
-                var currentUserName = currentUser?.FullName ?? "Hệ thống";
-                var newReason = "Tạm dừng thi công do sự cố đặc biệt nghiêm trọng: " + incident.Description;
+                var currentUserName = currentUser?.FullName ?? "Há»‡ thá»‘ng";
+                var newReason = "Táº¡m dá»«ng thi cÃ´ng do sá»± cá»‘ Ä‘áº·c biá»‡t nghiÃªm trá»ng: " + incident.Description;
 
                 incident.Project.Status = ProjectStatus.Paused;
                 incident.Project.PauseReason = AppendStatusHistory(
@@ -118,24 +125,24 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
                 await _notificationService.SendNotificationAsync(
                     incident.ReportedBy,
-                    "Yêu cầu tạm dừng dự án đã được phê duyệt",
-                    $"Yêu cầu tạm dừng dự án {incident.Project.Name} do sự cố khẩn cấp đã được duyệt. Dự án đã chuyển sang trạng thái Tạm dừng thi công.",
+                    "YÃªu cáº§u táº¡m dá»«ng dá»± Ã¡n Ä‘Ã£ Ä‘Æ°á»£c phÃª duyá»‡t",
+                    $"YÃªu cáº§u táº¡m dá»«ng dá»± Ã¡n {incident.Project.Name} do sá»± cá»‘ kháº©n cáº¥p Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t. Dá»± Ã¡n Ä‘Ã£ chuyá»ƒn sang tráº¡ng thÃ¡i Táº¡m dá»«ng thi cÃ´ng.",
                     "IncidentAssessed",
                     $"/projects/{incident.ProjectId}/workspace/incidents"
                 );
 
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.TechnicalManager,
-                    "Cần lập kế hoạch khắc phục sự cố",
-                    $"Dự án {incident.Project.Name} đang tạm dừng thi công. Vui lòng lập báo cáo kế hoạch khắc phục.",
+                    "Cáº§n láº­p káº¿ hoáº¡ch kháº¯c phá»¥c sá»± cá»‘",
+                    $"Dá»± Ã¡n {incident.Project.Name} Ä‘ang táº¡m dá»«ng thi cÃ´ng. Vui lÃ²ng láº­p bÃ¡o cÃ¡o káº¿ hoáº¡ch kháº¯c phá»¥c.",
                     "IncidentAssessed",
                     $"/projects/{incident.ProjectId}/workspace/incidents"
                 );
 
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.Director,
-                    "Dự án đã tạm dừng thi công",
-                    $"Dự án {incident.Project.Name} đã chính thức tạm dừng thi công do sự cố khẩn cấp. Đang chờ TPKT nộp phương án khắc phục.",
+                    "Dá»± Ã¡n Ä‘Ã£ táº¡m dá»«ng thi cÃ´ng",
+                    $"Dá»± Ã¡n {incident.Project.Name} Ä‘Ã£ chÃ­nh thá»©c táº¡m dá»«ng thi cÃ´ng do sá»± cá»‘ kháº©n cáº¥p. Äang chá» TPKT ná»™p phÆ°Æ¡ng Ã¡n kháº¯c phá»¥c.",
                     "IncidentAssessed",
                     $"/projects/{incident.ProjectId}/workspace/incidents"
                 );
@@ -152,8 +159,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     {
                         await _notificationService.SendNotificationAsync(
                             pm.UserId,
-                            "Dự án tạm dừng thi công",
-                            $"Dự án {incident.Project.Name} đã chính thức tạm dừng thi công do sự cố khẩn cấp.",
+                            "Dá»± Ã¡n táº¡m dá»«ng thi cÃ´ng",
+                            $"Dá»± Ã¡n {incident.Project.Name} Ä‘Ã£ chÃ­nh thá»©c táº¡m dá»«ng thi cÃ´ng do sá»± cá»‘ kháº©n cáº¥p.",
                             "IncidentAssessed",
                             $"/projects/{incident.ProjectId}/workspace/incidents"
                         );
@@ -162,11 +169,11 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             }
             else if (incident.Status == "WaitingRecoveryPlan")
             {
-                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
-                    throw new BusinessException("ERR_FORBIDDEN", "Chỉ có TP Kỹ thuật hoặc Admin mới có quyền nộp báo cáo kế hoạch khắc phục.");
+                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager))
+                    throw new BusinessException("ERR_FORBIDDEN", "Báº¡n khÃ´ng cÃ³ quyá»n ná»™p káº¿ hoáº¡ch kháº¯c phá»¥c.");
 
                 if (string.IsNullOrWhiteSpace(request.RecoveryPlanText))
-                    throw new BusinessException("ERR_INVALID_INPUT", "Nội dung báo cáo kế hoạch khắc phục không được để trống.");
+                    throw new BusinessException("ERR_INVALID_INPUT", "Ná»™i dung bÃ¡o cÃ¡o káº¿ hoáº¡ch kháº¯c phá»¥c khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.");
 
                 incident.RecoveryPlanText = request.RecoveryPlanText;
                 incident.RecoveryEstimateCost = request.RecoveryEstimateCost;
@@ -178,16 +185,16 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.Director,
-                    "Kế hoạch khắc phục sự cố cần phê duyệt",
-                    $"TP Kỹ thuật đã nộp báo cáo và kế hoạch khắc phục cho dự án {incident.Project.Name}. Vui lòng phê duyệt.",
+                    "Káº¿ hoáº¡ch kháº¯c phá»¥c sá»± cá»‘ cáº§n phÃª duyá»‡t",
+                    $"TP Ká»¹ thuáº­t Ä‘Ã£ ná»™p bÃ¡o cÃ¡o vÃ  káº¿ hoáº¡ch kháº¯c phá»¥c cho dá»± Ã¡n {incident.Project.Name}. Vui lÃ²ng phÃª duyá»‡t.",
                     "IncidentAssessed",
                     $"/projects/{incident.ProjectId}/workspace/incidents"
                 );
             }
             else if (incident.Status == "WaitingDirectorApproval")
             {
-                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
-                    throw new BusinessException("ERR_FORBIDDEN", "Chỉ có Giám đốc hoặc Admin mới có quyền phê duyệt kế hoạch khắc phục.");
+                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Director))
+                    throw new BusinessException("ERR_FORBIDDEN", "Báº¡n khÃ´ng cÃ³ quyá»n phÃª duyá»‡t káº¿ hoáº¡ch kháº¯c phá»¥c.");
 
                 if (request.Decision == "Resubmit")
                 {
@@ -196,8 +203,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
                     await _notificationService.SendNotificationToRoleAsync(
                         BPG.Domain.Constants.UserRole.TechnicalManager,
-                        "Yêu cầu làm lại báo cáo kế hoạch khắc phục",
-                        $"Giám đốc yêu cầu chỉnh sửa lại báo cáo kế hoạch khắc phục sự cố tại dự án {incident.Project.Name}.",
+                        "YÃªu cáº§u lÃ m láº¡i bÃ¡o cÃ¡o káº¿ hoáº¡ch kháº¯c phá»¥c",
+                        $"GiÃ¡m Ä‘á»‘c yÃªu cáº§u chá»‰nh sá»­a láº¡i bÃ¡o cÃ¡o káº¿ hoáº¡ch kháº¯c phá»¥c sá»± cá»‘ táº¡i dá»± Ã¡n {incident.Project.Name}.",
                         "IncidentRejected",
                         $"/projects/{incident.ProjectId}/workspace/incidents"
                     );
@@ -214,7 +221,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     foreach (var task in unfinishedTasks)
                     {
                         task.Status = "Obsolete";
-                        task.ObsoleteReason = $"Tự động hủy (Obsolete) do Sự cố khẩn cấp của dự án: {incident.Description}";
+                        task.ObsoleteReason = $"Tá»± Ä‘á»™ng há»§y (Obsolete) do Sá»± cá»‘ kháº©n cáº¥p cá»§a dá»± Ã¡n: {incident.Description}";
                         _unitOfWork.Repository<ProjectTask>().Update(task);
 
                         var taskLog = new TaskProgressLog
@@ -222,7 +229,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                             TaskId = task.TaskId,
                             OldProgress = task.ProgressPercent,
                             NewProgress = task.ProgressPercent,
-                            UpdateReason = "Task bị đánh dấu Hủy (Obsolete) do Sự cố đặc biệt nghiêm trọng của dự án: " + incident.Description,
+                            UpdateReason = "Task bá»‹ Ä‘Ã¡nh dáº¥u Há»§y (Obsolete) do Sá»± cá»‘ Ä‘áº·c biá»‡t nghiÃªm trá»ng cá»§a dá»± Ã¡n: " + incident.Description,
                             UpdatedAt = DateTime.UtcNow
                         };
                         await _unitOfWork.Repository<TaskProgressLog>().AddAsync(taskLog);
@@ -232,17 +239,17 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     {
                         if (incident.Task == null)
                         {
-                            throw new BusinessException("ERR_NO_TASK", "Sự cố không gắn với task nào để làm lại.");
+                            throw new BusinessException("ERR_NO_TASK", "Sá»± cá»‘ khÃ´ng gáº¯n vá»›i task nÃ o Ä‘á»ƒ lÃ m láº¡i.");
                         }
 
                         incident.Task.Status = "Obsolete";
-                        incident.Task.ObsoleteReason = $"Tự động hủy (Obsolete) do Sự cố: {incident.Description}";
+                        incident.Task.ObsoleteReason = $"Tá»± Ä‘á»™ng há»§y (Obsolete) do Sá»± cá»‘: {incident.Description}";
                         var log = new TaskProgressLog
                         {
                             TaskId = incident.Task.TaskId,
                             OldProgress = incident.Task.ProgressPercent,
                             NewProgress = incident.Task.ProgressPercent,
-                            UpdateReason = "Task bị đánh dấu Hủy (Obsolete) do Sự cố: " + incident.Description,
+                            UpdateReason = "Task bá»‹ Ä‘Ã¡nh dáº¥u Há»§y (Obsolete) do Sá»± cá»‘: " + incident.Description,
                             UpdatedAt = DateTime.UtcNow
                         };
                         await _unitOfWork.Repository<TaskProgressLog>().AddAsync(log);
@@ -277,7 +284,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     {
                         if (request.DecreaseProgressTo.Value > incident.Task.ProgressPercent)
                         {
-                            throw new BusinessException("ERR_INVALID_PROGRESS", "Tiến độ mới phải nhỏ hơn tiến độ hiện tại.");
+                            throw new BusinessException("ERR_INVALID_PROGRESS", "Tiáº¿n Ä‘á»™ má»›i pháº£i nhá» hÆ¡n tiáº¿n Ä‘á»™ hiá»‡n táº¡i.");
                         }
 
                         var progressLog = new TaskProgressLog
@@ -286,8 +293,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                             OldProgress = incident.Task.ProgressPercent,
                             NewProgress = (byte)request.DecreaseProgressTo.Value,
                             UpdateReason = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason)
-                                ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}"
-                                : $"Giảm tiến độ do sự cố: {incident.Description}",
+                                ? $"Pháº¡t giáº£m tiáº¿n Ä‘á»™: {request.DecreaseProgressReason}"
+                                : $"Giáº£m tiáº¿n Ä‘á»™ do sá»± cá»‘: {incident.Description}",
                             UpdatedAt = DateTime.UtcNow
                         };
                         await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
@@ -298,8 +305,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                             LogDate = DateOnly.FromDateTime(DateTime.UtcNow),
                             NewProgressPercent = (byte)request.DecreaseProgressTo.Value,
                             Description = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason)
-                                ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}"
-                                : $"Giảm tiến độ do sự cố: {incident.Description}",
+                                ? $"Pháº¡t giáº£m tiáº¿n Ä‘á»™: {request.DecreaseProgressReason}"
+                                : $"Giáº£m tiáº¿n Ä‘á»™ do sá»± cá»‘: {incident.Description}",
                             CreatedBy = currentUserId,
                             CreatedAt = DateTime.UtcNow
                         };
@@ -322,16 +329,16 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
                     await _notificationService.SendNotificationAsync(
                         incident.ReportedBy,
-                        "Kế hoạch khắc phục sự cố đã được phê duyệt",
-                        $"Báo cáo kế hoạch khắc phục sự cố tại dự án {incident.Project.Name} đã được phê duyệt. Vui lòng thiết lập Phase/Task khắc phục tại Kế hoạch thi công.",
+                        "Káº¿ hoáº¡ch kháº¯c phá»¥c sá»± cá»‘ Ä‘Ã£ Ä‘Æ°á»£c phÃª duyá»‡t",
+                        $"BÃ¡o cÃ¡o káº¿ hoáº¡ch kháº¯c phá»¥c sá»± cá»‘ táº¡i dá»± Ã¡n {incident.Project.Name} Ä‘Ã£ Ä‘Æ°á»£c phÃª duyá»‡t. Vui lÃ²ng thiáº¿t láº­p Phase/Task kháº¯c phá»¥c táº¡i Káº¿ hoáº¡ch thi cÃ´ng.",
                         "IncidentApproved",
                         $"/projects/{incident.ProjectId}/workspace/incidents"
                     );
 
                     await _notificationService.SendNotificationToRoleAsync(
                         BPG.Domain.Constants.UserRole.TechnicalManager,
-                        "Kế hoạch khắc phục sự cố đã được phê duyệt",
-                        $"Báo cáo kế hoạch khắc phục sự cố tại dự án {incident.Project.Name} đã được Giám đốc phê duyệt. Vui lòng thiết lập Phase/Task khắc phục tại Kế hoạch thi công và kích hoạt lại dự án.",
+                        "Káº¿ hoáº¡ch kháº¯c phá»¥c sá»± cá»‘ Ä‘Ã£ Ä‘Æ°á»£c phÃª duyá»‡t",
+                        $"BÃ¡o cÃ¡o káº¿ hoáº¡ch kháº¯c phá»¥c sá»± cá»‘ táº¡i dá»± Ã¡n {incident.Project.Name} Ä‘Ã£ Ä‘Æ°á»£c GiÃ¡m Ä‘á»‘c phÃª duyá»‡t. Vui lÃ²ng thiáº¿t láº­p Phase/Task kháº¯c phá»¥c táº¡i Káº¿ hoáº¡ch thi cÃ´ng vÃ  kÃ­ch hoáº¡t láº¡i dá»± Ã¡n.",
                         "IncidentApproved",
                         $"/projects/{incident.ProjectId}/workspace/incidents"
                     );
@@ -344,12 +351,12 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             {
                 if (incident.Task == null)
                 {
-                    throw new BusinessException("ERR_NO_TASK", "Sự cố không gắn với task nào để làm lại.");
+                    throw new BusinessException("ERR_NO_TASK", "Sá»± cá»‘ khÃ´ng gáº¯n vá»›i task nÃ o Ä‘á»ƒ lÃ m láº¡i.");
                 }
 
                 // Mark old task as Obsolete
                 incident.Task.Status = "Obsolete";
-                incident.Task.ObsoleteReason = $"Tự động hủy (Obsolete) do Sự cố: {incident.Description}";
+                incident.Task.ObsoleteReason = $"Tá»± Ä‘á»™ng há»§y (Obsolete) do Sá»± cá»‘: {incident.Description}";
                 
                 // Log reason
                 var log = new TaskProgressLog
@@ -357,7 +364,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     TaskId = incident.Task.TaskId,
                     OldProgress = incident.Task.ProgressPercent,
                     NewProgress = incident.Task.ProgressPercent,
-                    UpdateReason = "Task bị đánh dấu Hủy (Obsolete) do Sự cố: " + incident.Description,
+                    UpdateReason = "Task bá»‹ Ä‘Ã¡nh dáº¥u Há»§y (Obsolete) do Sá»± cá»‘: " + incident.Description,
                     UpdatedAt = DateTime.UtcNow
                 };
                 await _unitOfWork.Repository<TaskProgressLog>().AddAsync(log);
@@ -396,7 +403,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 {
                     if (request.DecreaseProgressTo.Value > incident.Task.ProgressPercent)
                     {
-                        throw new BusinessException("ERR_INVALID_PROGRESS", "Tiến độ mới phải nhỏ hơn tiến độ hiện tại.");
+                        throw new BusinessException("ERR_INVALID_PROGRESS", "Tiáº¿n Ä‘á»™ má»›i pháº£i nhá» hÆ¡n tiáº¿n Ä‘á»™ hiá»‡n táº¡i.");
                     }
 
                     // Log decrease in TaskProgressLog
@@ -406,8 +413,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         OldProgress = incident.Task.ProgressPercent,
                         NewProgress = (byte)request.DecreaseProgressTo.Value,
                         UpdateReason = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason) 
-                            ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}" 
-                            : $"Giảm tiến độ do sự cố: {incident.Description}",
+                            ? $"Pháº¡t giáº£m tiáº¿n Ä‘á»™: {request.DecreaseProgressReason}" 
+                            : $"Giáº£m tiáº¿n Ä‘á»™ do sá»± cá»‘: {incident.Description}",
                         UpdatedAt = DateTime.UtcNow
                     };
                     await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
@@ -419,8 +426,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         LogDate = DateOnly.FromDateTime(DateTime.UtcNow),
                         NewProgressPercent = (byte)request.DecreaseProgressTo.Value,
                         Description = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason) 
-                            ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}" 
-                            : $"Giảm tiến độ do sự cố: {incident.Description}",
+                            ? $"Pháº¡t giáº£m tiáº¿n Ä‘á»™: {request.DecreaseProgressReason}" 
+                            : $"Giáº£m tiáº¿n Ä‘á»™ do sá»± cá»‘: {incident.Description}",
                         CreatedBy = currentUserId,
                         CreatedAt = DateTime.UtcNow
                     };
@@ -440,8 +447,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             {
                 if (incident.Status == "WaitingAccountant")
                 {
-                    if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Accountant) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
-                        throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền xác minh sự cố vật tư.");
+                    if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant))
+                        throw new BusinessException("ERR_FORBIDDEN", "Báº¡n khÃ´ng cÃ³ quyá»n xÃ¡c minh sá»± cá»‘ váº­t tÆ°.");
                     
                     incident.Status = "WaitingDirector";
                     if (!string.IsNullOrWhiteSpace(request.HandlingInstruction))
@@ -451,16 +458,16 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
                     await _notificationService.SendNotificationToRoleAsync(
                         BPG.Domain.Constants.UserRole.Director,
-                        "Báo cáo sự cố cần phê duyệt",
-                        $"Kế toán đã xác minh sự cố vật tư tại dự án. Vui lòng phê duyệt.",
+                        "BÃ¡o cÃ¡o sá»± cá»‘ cáº§n phÃª duyá»‡t",
+                        $"Káº¿ toÃ¡n Ä‘Ã£ xÃ¡c minh sá»± cá»‘ váº­t tÆ° táº¡i dá»± Ã¡n. Vui lÃ²ng phÃª duyá»‡t.",
                         "IncidentAssessed",
                         $"/projects/{incident.ProjectId}/workspace/incidents"
                     );
                 }
                 else if (incident.Status == "WaitingDirector")
                 {
-                    if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
-                        throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt sự cố vật tư.");
+                    if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Director))
+                        throw new BusinessException("ERR_FORBIDDEN", "Báº¡n khÃ´ng cÃ³ quyá»n phÃª duyá»‡t sá»± cá»‘ váº­t tÆ°.");
 
                     incident.Status = "Approved";
                     incident.ReviewedBy = currentUserId;
@@ -469,7 +476,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         incident.HandlingInstruction = request.HandlingInstruction;
                     }
 
-                    // Tìm phiếu giảm tồn kho liên kết đang chờ duyệt
+                    // TÃ¬m phiáº¿u giáº£m tá»“n kho liÃªn káº¿t Ä‘ang chá» duyá»‡t
                     var adjustment = await _unitOfWork.Repository<InventoryAdjustment>().Query()
                         .Include(a => a.Items)
                         .Where(a => a.ProjectId == incident.ProjectId && a.PhaseId == incident.PhaseId && a.Status == InventoryAdjustmentStatus.Pending)
@@ -478,13 +485,13 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
                     if (adjustment != null)
                     {
-                        // Phê duyệt phiếu giảm tồn kho
+                        // PhÃª duyá»‡t phiáº¿u giáº£m tá»“n kho
                         adjustment.Status = InventoryAdjustmentStatus.Approved;
                         adjustment.ApprovedBy = currentUserId;
                         adjustment.ApprovedAt = System.DateTime.UtcNow;
                         _unitOfWork.Repository<InventoryAdjustment>().Update(adjustment);
 
-                        // Trừ kho và ghi log Thẻ kho (InventoryTransaction) cho từng vật tư
+                        // Trá»« kho vÃ  ghi log Tháº» kho (InventoryTransaction) cho tá»«ng váº­t tÆ°
                         foreach (var item in adjustment.Items)
                         {
                             var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
@@ -492,7 +499,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
                             if (currentInventory == null || currentInventory.Quantity < item.Quantity)
                             {
-                                throw new BusinessException("ERR_INSUFFICIENT_STOCK", $"Không đủ tồn kho cho vật tư ID {item.MaterialId}");
+                                throw new BusinessException("ERR_INSUFFICIENT_STOCK", $"KhÃ´ng Ä‘á»§ tá»“n kho cho váº­t tÆ° ID {item.MaterialId}");
                             }
 
                             currentInventory.Quantity -= item.Quantity;
@@ -503,8 +510,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                             {
                                 ProjectId = adjustment.ProjectId,
                                 MaterialId = item.MaterialId,
-                                TransactionType = 9, // IncidentLoss (Giảm tồn do sự cố)
-                                QuantityChange = -item.Quantity, // Âm
+                                TransactionType = 9, // IncidentLoss (Giáº£m tá»“n do sá»± cá»‘)
+                                QuantityChange = -item.Quantity, // Ã‚m
                                 BalanceAfter = currentInventory.Quantity,
                                 ReferenceId = adjustment.AdjustmentId,
                                 ReferenceType = EntityType.InventoryAdjustment,
@@ -517,15 +524,15 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
                     await _notificationService.SendNotificationAsync(
                         incident.ReportedBy,
-                        "Báo cáo sự cố đã được phê duyệt",
-                        $"Sự cố vật tư bạn báo cáo đã được Giám đốc phê duyệt.",
+                        "BÃ¡o cÃ¡o sá»± cá»‘ Ä‘Ã£ Ä‘Æ°á»£c phÃª duyá»‡t",
+                        $"Sá»± cá»‘ váº­t tÆ° báº¡n bÃ¡o cÃ¡o Ä‘Ã£ Ä‘Æ°á»£c GiÃ¡m Ä‘á»‘c phÃª duyá»‡t.",
                         "IncidentApproved",
                         $"/projects/{incident.ProjectId}/workspace/incidents"
                     );
                 }
                 else
                 {
-                    throw new BusinessException("ERR_INVALID_STATUS", "Sự cố vật tư không ở trạng thái có thể duyệt.");
+                    throw new BusinessException("ERR_INVALID_STATUS", "Sá»± cá»‘ váº­t tÆ° khÃ´ng á»Ÿ tráº¡ng thÃ¡i cÃ³ thá»ƒ duyá»‡t.");
                 }
             }
             else
@@ -539,8 +546,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
                 await _notificationService.SendNotificationAsync(
                     incident.ReportedBy,
-                    "Báo cáo sự cố đã được phê duyệt",
-                    $"Sự cố thi công bạn báo cáo đã được TPKT phê duyệt.",
+                    "BÃ¡o cÃ¡o sá»± cá»‘ Ä‘Ã£ Ä‘Æ°á»£c phÃª duyá»‡t",
+                    $"Sá»± cá»‘ thi cÃ´ng báº¡n bÃ¡o cÃ¡o Ä‘Ã£ Ä‘Æ°á»£c TPKT phÃª duyá»‡t.",
                     "IncidentApproved",
                     $"/projects/{incident.ProjectId}/workspace/incidents"
                 );
@@ -583,7 +590,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             updatedIncident.ProjectId,
             cancellationToken);
 
-        return ApiResponse<IncidentDto>.SuccessResult(_mapper.Map<IncidentDto>(updatedIncident), "Sự cố đã được xác nhận và xử lý.");
+        return ApiResponse<IncidentDto>.SuccessResult(_mapper.Map<IncidentDto>(updatedIncident), "Sá»± cá»‘ Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n vÃ  xá»­ lÃ½.");
     }
 
     private string AppendStatusHistory(string? currentReason, string type, string? reason, DateTime timestamp, string userName)
@@ -610,7 +617,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     Type = "pause",
                     Reason = currentReason,
                     Timestamp = DateTime.UtcNow,
-                    User = "Hệ thống"
+                    User = "Há»‡ thá»‘ng"
                 });
             }
         }
@@ -634,3 +641,6 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
         public string User { get; set; } = string.Empty;
     }
 }
+
+
+

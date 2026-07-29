@@ -1,5 +1,4 @@
-using BPG.Application.DTOs.DailyLogs;
-using BPG.Application.Common.Interfaces;
+﻿using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -12,7 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.DailyLogs.Queries
 {
-    public class GetTaskProgressHistoryQuery : IRequest<List<TaskProgressLogDto>>, IProjectRequirement
+    public class GetTaskProgressHistoryQuery : IRequest<List<TaskProgressLogDto>>
     {
         public long TaskId { get; set; }
 
@@ -35,3 +34,4 @@ namespace BPG.Application.Features.DailyLogs.Queries
         }
     }
 }
+

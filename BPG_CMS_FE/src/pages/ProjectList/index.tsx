@@ -20,11 +20,13 @@ import {
   AlertTriangle,
   Trash2
 } from 'lucide-react';
+import { RoleGroup } from '../../auth/roles';
 
 export const ProjectList: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isTPKT = user?.role === 'technicalmanager';
+  const { hasAnyRole } = useAuth();
+  const canCreateProject = hasAnyRole(RoleGroup.ProjectManagers);
+  const canDeleteProject = hasAnyRole(RoleGroup.ProjectManagers);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,9 +142,9 @@ export const ProjectList: React.FC = () => {
       )}
 
       {/* Control Actions Header */}
-      <div className="glass-panel p-5 sm:px-6 flex justify-between items-center flex-wrap gap-4">
+      <div className="glass-panel p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
         {/* Filters */}
-        <div className="flex items-center gap-3 flex-1 min-w-0 max-w-3xl">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 min-w-0">
           <div className="relative flex-1 min-w-0">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] pointer-events-none z-10" />
             <Input
@@ -153,7 +155,7 @@ export const ProjectList: React.FC = () => {
               className="pl-9 h-10 w-full"
             />
           </div>
-          <div className="w-52 shrink-0">
+          <div className="w-full sm:w-52 shrink-0">
             <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -170,14 +172,14 @@ export const ProjectList: React.FC = () => {
         </div>
 
         {/* Add Project Button */}
-        {isTPKT && (
+        {canCreateProject && (
           <Button
             variant="primary"
             onClick={() => {
               setError(null);
               setIsOpen(true);
             }}
-            className="h-10 font-semibold"
+            className="h-10 font-semibold w-full sm:w-auto flex items-center justify-center gap-1.5"
           >
             <FolderPlus size={18} />
             <span>Khởi tạo Dự án</span>
@@ -210,7 +212,7 @@ export const ProjectList: React.FC = () => {
                 <div className="flex justify-between items-start gap-2">
                   <h3 className="text-[1.1rem] font-bold leading-tight">{p.name}</h3>
                   <div className="flex items-center gap-2">
-                    {isTPKT && p.status === 'draft' && (
+                    {canDeleteProject && p.status === 'draft' && (
                       <button
                         onClick={(e) => openDeleteConfirm(e, p.id, p.name)}
                         className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors"
