@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Button } from '../../../components/ui';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
 import { useAuth } from '../../../context/AuthContext';
+import { useLoading } from '../../../context/LoadingContext';
 import { incidentService } from '../../../services/incidentService';
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
@@ -17,6 +18,7 @@ interface Props {
 
 export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, adjustmentId, adjustmentData }) => {
   const { user } = useAuth();
+  const { withLoading } = useLoading();
   const [loading, setLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [mode, setMode] = useState<'view' | 'reject' | 'confirmApprove'>('view');
@@ -80,9 +82,11 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
   const handleConfirmApprove = async () => {
     setLoading(true);
     try {
-      await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
-        isApproved: true
-      });
+      await withLoading(async () => {
+        await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
+          isApproved: true
+        });
+      }, 'Đang duyệt phiếu kiểm kê...');
       onSuccess();
     } catch (err: any) {
       if (onError) onError(err.message || 'Lỗi khi duyệt phiếu.');
@@ -99,10 +103,12 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
 
     setLoading(true);
     try {
-      await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
-        isApproved: false,
-        rejectedReason: rejectReason
-      });
+      await withLoading(async () => {
+        await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
+          isApproved: false,
+          rejectedReason: rejectReason
+        });
+      }, 'Đang xử lý từ chối phiếu...');
       onSuccess();
     } catch (err: any) {
       if (onError) onError(err.message || 'Lỗi khi từ chối phiếu.');

@@ -4,6 +4,7 @@ import { useCompany } from '../../context/CompanyContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, Mail, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
+import { useLoading } from '../../context/LoadingContext';
 
 import { isPWAMode } from '../../utils/pwaHelpers';
 
@@ -26,6 +27,7 @@ const getRoleDashboard = (role: string): string => {
 };
 
 export const Login: React.FC = () => {
+  const { withLoading } = useLoading();
   const { login } = useAuth();
   const { companyName, companyLogoUrl } = useCompany();
   const navigate = useNavigate();
@@ -104,7 +106,9 @@ export const Login: React.FC = () => {
     const attemptsKey = `bpg_failed_attempts_${emailKey}`;
 
     try {
-      const loggedInUser = await login({ email, password });
+      const loggedInUser = await withLoading(async () => {
+        return await login({ email, password });
+      }, 'Đang xác thực tài khoản...');
       localStorage.removeItem(attemptsKey);
       localStorage.removeItem(`bpg_lock_time_${emailKey}`);
       navigate(getRoleDashboard(loggedInUser.role), { replace: true });

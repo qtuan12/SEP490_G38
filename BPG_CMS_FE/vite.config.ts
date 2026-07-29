@@ -1,14 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { VitePWA } from 'vite-plugin-pwa'
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    tailwindcss(),
-    react(),
-    VitePWA({
+let pwaPlugin: any = null;
+try {
+  // @ts-ignore
+  const pwaModule = await import('vite-plugin-pwa');
+  const VitePWA = pwaModule.VitePWA || pwaModule.default;
+  if (VitePWA) {
+    pwaPlugin = VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script-defer',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
@@ -34,6 +34,16 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
-    }),
+    });
+  }
+} catch {
+  // Ignore if vite-plugin-pwa package is not present in local node_modules
+}
+
+export default defineConfig({
+  plugins: [
+    tailwindcss(),
+    react(),
+    ...(pwaPlugin ? [pwaPlugin] : []),
   ],
 })

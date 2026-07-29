@@ -7,6 +7,7 @@ import { materialService } from '../../../../services/materialService';
 import { unitService } from '../../../../services/unitService';
 import { materialCategoryService } from '../../../../services/materialCategoryService';
 import { Modal, Button, Input, FormItem, SearchSelect } from '../../../../components/ui';
+import { useLoading } from '../../../../context/LoadingContext';
 import type { MaterialCatalog } from '../../../../types/material';
 
 const materialSchema = z.object({
@@ -27,6 +28,7 @@ interface MaterialFormModalProps {
 }
 
 export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, onClose, material, onSuccess }) => {
+  const { withLoading } = useLoading();
   const queryClient = useQueryClient();
 
   // Load dropdown data (we can use page 1, size 1000 for simplicity in master data)
@@ -98,7 +100,9 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
   });
 
   const onSubmit = (data: MaterialFormData) => {
-    mutation.mutate(data);
+    withLoading(async () => {
+      await mutation.mutateAsync(data);
+    }, material ? 'Đang cập nhật vật tư...' : 'Đang thêm vật tư mới...');
   };
 
 

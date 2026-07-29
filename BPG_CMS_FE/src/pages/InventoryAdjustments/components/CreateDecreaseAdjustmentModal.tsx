@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, FormItem } from '../../../components/ui';
+import { useLoading } from '../../../context/LoadingContext';
 import { inventoryAdjustmentService } from '../../../services/inventoryAdjustmentService';
 import { inventoryService } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId, incident }) => {
+  const { withLoading } = useLoading();
   const [loading, setLoading] = useState(false);
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
   const [phases, setPhases] = useState<any[]>([]);
@@ -170,20 +172,22 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         ? `${description}\n\n--- Thông tin sự cố gốc ---\n${originalIncidentDesc}\n\n[System] Liên kết sự cố #${incident.id}`
         : description;
 
-      await inventoryAdjustmentService.createDecrease(projectId, {
-        reason,
-        description: finalDesc,
-        phaseId: Number(phaseId),
-        items
-      });
-
-      if (incident) {
-        await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
-          incidentId: Number(incident.id || (incident as any).incidentId),
-          createReworkTask: false,
-          handlingInstruction: description || 'Kế toán đã xác minh.'
+      await withLoading(async () => {
+        await inventoryAdjustmentService.createDecrease(projectId, {
+          reason,
+          description: finalDesc,
+          phaseId: Number(phaseId),
+          items
         });
-      }
+
+        if (incident) {
+          await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
+            incidentId: Number(incident.id || (incident as any).incidentId),
+            createReworkTask: false,
+            handlingInstruction: description || 'Kế toán đã xác minh.'
+          });
+        }
+      }, 'Đang tạo phiếu giảm tồn kho...');
 
       onSuccess();
     } catch (err: any) {
