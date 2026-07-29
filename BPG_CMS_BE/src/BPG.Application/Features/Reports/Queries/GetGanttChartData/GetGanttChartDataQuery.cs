@@ -1,13 +1,20 @@
 using BPG.Application.IRepositories;
+using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetGanttChartData;
 
-public record GetGanttChartDataQuery(long ProjectId) : IRequest<ApiResponse<GanttChartDataDto>>;
+public record GetGanttChartDataQuery(long ProjectId)
+    : IRequest<ApiResponse<GanttChartDataDto>>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
+    public string RequiredPermission => ProjectPermission.ReportsView;
+}
 
 public class GetGanttChartDataQueryHandler : IRequestHandler<GetGanttChartDataQuery, ApiResponse<GanttChartDataDto>>
 {

@@ -1,14 +1,21 @@
 
 using BPG.Application.IRepositories;
+using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetBoqVsActualReport;
 
-public record GetBoqVsActualReportQuery(long ProjectId) : IRequest<ApiResponse<BoqVsActualReportDto>>;
+public record GetBoqVsActualReportQuery(long ProjectId)
+    : IRequest<ApiResponse<BoqVsActualReportDto>>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
+    public string RequiredPermission => ProjectPermission.ReportsView;
+}
 
 public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualReportQuery, ApiResponse<BoqVsActualReportDto>>
 {

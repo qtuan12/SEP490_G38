@@ -2,12 +2,13 @@ using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Commands;
 using BPG.Application.Features.Users.Queries;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BPG.Api.Controllers;
 
-[Authorize]
+[Authorize(Policy = SystemPermission.UsersManage)]
 public class UsersController : BaseApiController
 {
     [HttpGet]
@@ -18,7 +19,6 @@ public class UsersController : BaseApiController
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateUser(CreateUserCommand command)
     {
         var result = await Mediator.Send(command);
@@ -26,7 +26,6 @@ public class UsersController : BaseApiController
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateUser(long id, UpdateUserRequest request)
     {
         var result = await Mediator.Send(new UpdateUserCommand(id, request.Name, request.Email, request.Role, request.PhoneNumber));
@@ -34,7 +33,6 @@ public class UsersController : BaseApiController
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteUser(long id)
     {
         await Mediator.Send(new DeleteUserCommand(id));
@@ -42,7 +40,6 @@ public class UsersController : BaseApiController
     }
 
     [HttpPost("{id}/toggle-status")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ToggleUserStatus(long id)
     {
         var result = await Mediator.Send(new ToggleUserStatusCommand(id));

@@ -1,4 +1,5 @@
 using BPG.Application.Common.Models;
+using BPG.Application.Common.Authorization;
 using BPG.Application.DTOs.Incidents;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -12,7 +13,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Incidents.Commands.RejectIncident;
 
-public record RejectIncidentCommand(long IncidentId, string Reason) : IRequest<ApiResponse<IncidentDto>>;
+public record RejectIncidentCommand(long IncidentId, string Reason)
+    : IRequest<ApiResponse<IncidentDto>>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Incident(IncidentId);
+    public string RequiredPermission => ProjectPermission.TechnicalManage;
+}
 
 public class RejectIncidentCommandValidator : AbstractValidator<RejectIncidentCommand>
 {

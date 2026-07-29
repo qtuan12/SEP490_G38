@@ -22,6 +22,7 @@ interface TaskDetailModalProps {
   user: any;
   materialRequests: MaterialRequest[];
   isTPKTOrPL: boolean;
+  isTPKT: boolean;
   isPL: boolean;
   onCreateMatReqOpen: (type: 'normal' | 'emergency') => void;
   onObsolete: () => void;
@@ -44,7 +45,7 @@ const getAvatarColor = (userId: string) => {
 };
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
-  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isPL,
+  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isTPKT, isPL,
   onObsolete,
   onReportIncidentOpen,
   onSuccess, onError
@@ -365,7 +366,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       <UserPlus size={16} /><span>Phân công</span>
                     </button>
                   )}
-                  {(user?.role === 'technicalmanager' || user?.role === 'admin') && !isParentTask && (
+                  {isTPKT && !isParentTask && (
                     <button onClick={() => setActiveForm(activeForm === 'adjust' ? null : 'adjust')} className={`btn ${activeForm === 'adjust' ? 'btn-primary' : 'btn-secondary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', borderColor: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))', color: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))' }} disabled={isBlocked}>
                       <TrendingUp size={16} /><span>Điều chỉnh tiến độ trực tiếp</span>
                     </button>
@@ -483,7 +484,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <ObsoleteTaskForm task={selectedTask} onSuccess={handleFormSuccess} onCancel={() => setActiveForm(null)} />
             )}
             {activeForm === 'log' && (
-              <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} isPL={isPL} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
+              <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} isPL={isPL} canManageTechnical={isTPKT} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
             )}
           </div>
         )}

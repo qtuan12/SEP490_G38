@@ -1,13 +1,20 @@
 using BPG.Application.Common.Models;
+using BPG.Application.Common.Authorization;
 using BPG.Application.DTOs.Reports;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetExecutiveDashboard;
 
-public record GetExecutiveDashboardQuery(long ProjectId) : IRequest<ApiResponse<ExecutiveDashboardDto>>;
+public record GetExecutiveDashboardQuery(long ProjectId)
+    : IRequest<ApiResponse<ExecutiveDashboardDto>>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
+    public string RequiredPermission => ProjectPermission.View;
+}
 
 public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDashboardQuery, ApiResponse<ExecutiveDashboardDto>>
 {

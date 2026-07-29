@@ -9,6 +9,8 @@ import { Badge, LoadingSpinner, Select } from '../../components/ui';
 import { getRoleLabel, getRoleBadgeVariant } from '../../utils/roleHelpers';
 import { resolveNotificationUrl } from '../Notifications';
 import type { Project, WBSTask, DailyLog } from '../../types/common';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { ProjectPermission } from '../../auth/permissions';
 
 const LAST_PROJECT_KEY = 'field_workbench_last_project';
 
@@ -24,6 +26,8 @@ export const FieldWorkbench: React.FC = () => {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [logModalTaskId, setLogModalTaskId] = useState<string | null>(null);
+  const { hasProjectPermission } = useProjectAccess(projectId);
+  const canManageTechnical = hasProjectPermission(ProjectPermission.TechnicalManage);
 
   useEffect(() => {
     projectService.getProjects().then(list => {
@@ -253,6 +257,7 @@ export const FieldWorkbench: React.FC = () => {
           tasks={tasks}
           engineerId={user.id}
           engineerName={user.name}
+          canManageTechnical={canManageTechnical}
           onSuccess={() => setLogModalTaskId(null)}
         />
       )}

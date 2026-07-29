@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using BPG.Application.Features.MaterialConversions.Queries;
 using BPG.Application.Features.MaterialConversions.Commands;
 using BPG.Application.DTOs.MaterialConversions;
+using BPG.Domain.Constants;
 namespace BPG.Api.Controllers;
 
 [Authorize]
@@ -18,9 +19,8 @@ public class MaterialCatalogsController : BaseApiController
         return ApiPagedOk(result);
     }
 
-    [Authorize(Roles = "Admin")]
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = SystemPermission.MasterDataManage)]
     public async Task<IActionResult> Create([FromBody] CreateMaterialCatalogRequest request, CancellationToken ct)
     {
         var command = new CreateMaterialCatalogCommand(
@@ -35,9 +35,8 @@ public class MaterialCatalogsController : BaseApiController
         return ApiOk(result, "Tạo vật tư thành công.");
     }
 
-    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = SystemPermission.MasterDataManage)]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateMaterialCatalogRequest request, CancellationToken ct)
     {
         var command = new UpdateMaterialCatalogCommand(
@@ -53,9 +52,8 @@ public class MaterialCatalogsController : BaseApiController
         return ApiOk(result, "Cập nhật vật tư thành công.");
     }
 
-    [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = SystemPermission.MasterDataManage)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await Mediator.Send(new DeleteMaterialCatalogCommand(id), ct);
@@ -69,9 +67,8 @@ public class MaterialCatalogsController : BaseApiController
         return ApiOk(result);
     }
 
-    [Authorize(Roles = "Admin")]
     [HttpPut("{id}/conversions")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = SystemPermission.MasterDataManage)]
     public async Task<IActionResult> SyncConversions(long id, [FromBody] List<MaterialConversionRequest> request, CancellationToken ct)
     {
         await Mediator.Send(new SyncMaterialConversionsCommand(id, request), ct);

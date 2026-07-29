@@ -20,7 +20,7 @@ const getAvatarColor = (userId: string) => {
 export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => { };
   const {
-    phases, tasks, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, user, project,
+    phases, tasks, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, project,
     expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -224,8 +224,7 @@ export const WBSTree = () => {
                     )}
 
                     {/* Action buttons */}
-                    {(canEdit || user?.role === 'accountant' || user?.role === 'director' || user?.role === 'siteengineer') && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }}>
                         {/* + Task */}
                         {!isFrozen && canEdit && (
                           <button
@@ -360,8 +359,7 @@ export const WBSTree = () => {
                             </div>
                           )}
                         </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
 
                   {/* Task children */}

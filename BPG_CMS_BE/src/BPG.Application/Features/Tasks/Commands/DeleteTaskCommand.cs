@@ -7,17 +7,13 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using BPG.Domain.Exceptions;
+using BPG.Application.Common.Authorization;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Tasks.Commands;
 
-public record DeleteTaskCommand(long TaskId) : IRequest<ApiResponse>, IRequireProjectLeader
+public record DeleteTaskCommand(long TaskId) : IRequest<ApiResponse>, IProjectResourceRequirement
 {
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        var task = await unitOfWork.Repository<ProjectTask>().Query()
-            .Include(t => t.Phase)
-            .FirstOrDefaultAsync(t => t.TaskId == TaskId, cancellationToken);
-        if (task == null) throw new NotFoundException("ProjectTask", TaskId);
-        return task.Phase.ProjectId;
-    }
+    public ProjectResource ProjectResource => ProjectResource.Task(TaskId);
+    public string RequiredPermission => ProjectPermission.ExecutionManage;
 }

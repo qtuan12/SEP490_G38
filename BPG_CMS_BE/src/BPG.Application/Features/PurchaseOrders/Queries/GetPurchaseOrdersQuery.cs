@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.PurchaseOrders.Queries
 {
-    public class GetPurchaseOrdersQuery : PaginationRequest, IRequest<PagedList<PurchaseOrderDto>>, IProjectRequirement
+    public class GetPurchaseOrdersQuery : PaginationRequest, IRequest<PagedList<PurchaseOrderDto>>, IProjectScopedListRequest
     {
         public long? ProjectId { get; set; }
         public string? Status { get; set; }
@@ -20,9 +20,9 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
 
         // Không truyền ProjectId → xem danh sách PO của TẤT CẢ dự án (chỉ role full-access
         // trong ProjectAuthorizationBehavior mới được phép xem global, role khác vẫn bị chặn).
-        public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+        public Task<long?> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
-            return Task.FromResult(ProjectId ?? 0L);
+            return Task.FromResult(ProjectId);
         }
     }
 }

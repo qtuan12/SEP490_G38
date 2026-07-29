@@ -2,6 +2,7 @@ using BPG.Domain.Exceptions;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.Common.Models;
+using BPG.Application.Common.Authorization;
 using BPG.Application.DTOs.Incidents;
 using BPG.Domain.Entities;
 using BPG.Domain.Constants;
@@ -25,7 +26,11 @@ public record ConfirmIncidentCommand(
     string? RecoveryPlanText = null,
     decimal? RecoveryEstimateCost = null,
     string? Decision = null
-) : IRequest<ApiResponse<IncidentDto>>;
+) : IRequest<ApiResponse<IncidentDto>>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Incident(IncidentId);
+    public string RequiredPermission => ProjectPermission.View;
+}
 
 public class ConfirmIncidentCommandValidator : AbstractValidator<ConfirmIncidentCommand>
 {
@@ -52,14 +57,22 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPermissionService _permissionService;
     private readonly INotificationService _notificationService;
     private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public ConfirmIncidentCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, ICurrentUserService currentUserService, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
+    public ConfirmIncidentCommandHandler(
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        ICurrentUserService currentUserService,
+        IPermissionService permissionService,
+        INotificationService notificationService,
+        IRealtimeNotificationSender realtimeSender)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _currentUserService = currentUserService;
+        _permissionService = permissionService;
         _notificationService = notificationService;
         _realtimeSender = realtimeSender;
     }
@@ -92,8 +105,11 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
         {
             if (incident.Status == "WaitingStopApproval")
             {
-                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
-                    throw new BusinessException("ERR_FORBIDDEN", "Chỉ có TP Kỹ thuật hoặc Admin mới có quyền phê duyệt dừng thi công.");
+                if (!await _permissionService.HasProjectPermissionAsync(
+                        incident.ProjectId,
+                        ProjectPermission.TechnicalManage,
+                        cancellationToken))
+                    throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt dừng thi công.");
 
                 var currentUser = await _unitOfWork.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
                 var currentUserName = currentUser?.FullName ?? "Hệ thống";
@@ -162,8 +178,11 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             }
             else if (incident.Status == "WaitingRecoveryPlan")
             {
-                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
-                    throw new BusinessException("ERR_FORBIDDEN", "Chỉ có TP Kỹ thuật hoặc Admin mới có quyền nộp báo cáo kế hoạch khắc phục.");
+                if (!await _permissionService.HasProjectPermissionAsync(
+                        incident.ProjectId,
+                        ProjectPermission.TechnicalManage,
+                        cancellationToken))
+                    throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền nộp kế hoạch khắc phục.");
 
                 if (string.IsNullOrWhiteSpace(request.RecoveryPlanText))
                     throw new BusinessException("ERR_INVALID_INPUT", "Nội dung báo cáo kế hoạch khắc phục không được để trống.");
@@ -186,8 +205,11 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             }
             else if (incident.Status == "WaitingDirectorApproval")
             {
-                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
-                    throw new BusinessException("ERR_FORBIDDEN", "Chỉ có Giám đốc hoặc Admin mới có quyền phê duyệt kế hoạch khắc phục.");
+                if (!await _permissionService.HasProjectPermissionAsync(
+                        incident.ProjectId,
+                        ProjectPermission.Approve,
+                        cancellationToken))
+                    throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt kế hoạch khắc phục.");
 
                 if (request.Decision == "Resubmit")
                 {
@@ -440,7 +462,10 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             {
                 if (incident.Status == "WaitingAccountant")
                 {
-                    if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Accountant) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
+                    if (!await _permissionService.HasProjectPermissionAsync(
+                            incident.ProjectId,
+                            ProjectPermission.AccountingManage,
+                            cancellationToken))
                         throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền xác minh sự cố vật tư.");
                     
                     incident.Status = "WaitingDirector";
@@ -459,7 +484,10 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 }
                 else if (incident.Status == "WaitingDirector")
                 {
-                    if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director) && !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin))
+                    if (!await _permissionService.HasProjectPermissionAsync(
+                            incident.ProjectId,
+                            ProjectPermission.Approve,
+                            cancellationToken))
                         throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt sự cố vật tư.");
 
                     incident.Status = "Approved";

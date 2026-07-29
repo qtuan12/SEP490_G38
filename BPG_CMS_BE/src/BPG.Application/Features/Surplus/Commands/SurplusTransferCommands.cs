@@ -8,6 +8,8 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using BPG.Domain.Exceptions;
+using BPG.Application.Common.Authorization;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Surplus.Commands;
 
@@ -19,16 +21,10 @@ public record CreateSurplusTransferActionCommand(
     long SurplusRequestItemId,
     long ToProjectId,
     decimal TransferQuantity
-) : IRequest<ApiResponse<long>>, IRequireProjectLeader
+) : IRequest<ApiResponse<long>>, IProjectResourceRequirement
 {
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        var item = await unitOfWork.Repository<SurplusRequestItem>().Query()
-            .Include(i => i.SurplusRequest)
-            .FirstOrDefaultAsync(i => i.SurplusRequestItemId == SurplusRequestItemId, cancellationToken);
-        if (item == null) throw new NotFoundException("SurplusRequestItem", SurplusRequestItemId);
-        return item.SurplusRequest.ProjectId;
-    }
+    public ProjectResource ProjectResource => ProjectResource.SurplusRequestItem(SurplusRequestItemId);
+    public string RequiredPermission => ProjectPermission.ExecutionManage;
 }
 
 /// <summary>
@@ -37,41 +33,28 @@ public record CreateSurplusTransferActionCommand(
 public record ReviewSurplusTransferCommand(
     long SurplusTransferId,
     bool IsApproved
-) : IRequest<ApiResponse>, IRequireTechnicalManager
+) : IRequest<ApiResponse>, IProjectResourceRequirement
 {
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        var transfer = await unitOfWork.Repository<SurplusTransfer>().Query()
-            .FirstOrDefaultAsync(t => t.SurplusTransferId == SurplusTransferId, cancellationToken);
-        if (transfer == null) throw new NotFoundException("SurplusTransfer", SurplusTransferId);
-        return transfer.FromProjectId;
-    }
+    public ProjectResource ProjectResource => ProjectResource.SurplusTransferSource(SurplusTransferId);
+    public string RequiredPermission => ProjectPermission.TechnicalManage;
 }
 
 /// <summary>
 /// Bên gửi xác nhận đã vận chuyển (Dispatched).
 /// </summary>
-public record DispatchSurplusTransferCommand(long SurplusTransferId, List<IFormFile>? Attachments) : IRequest<ApiResponse>, IRequireProjectLeader
+public record DispatchSurplusTransferCommand(long SurplusTransferId, List<IFormFile>? Attachments)
+    : IRequest<ApiResponse>, IProjectResourceRequirement
 {
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        var transfer = await unitOfWork.Repository<SurplusTransfer>().Query()
-            .FirstOrDefaultAsync(t => t.SurplusTransferId == SurplusTransferId, cancellationToken);
-        if (transfer == null) throw new NotFoundException("SurplusTransfer", SurplusTransferId);
-        return transfer.FromProjectId;
-    }
+    public ProjectResource ProjectResource => ProjectResource.SurplusTransferSource(SurplusTransferId);
+    public string RequiredPermission => ProjectPermission.ExecutionManage;
 }
 
 /// <summary>
 /// Bên nhận xác nhận đã nhận hàng (Received) → cập nhật tồn kho 2 chiều.
 /// </summary>
-public record ReceiveSurplusTransferCommand(long SurplusTransferId, List<IFormFile>? Attachments) : IRequest<ApiResponse>, IRequireProjectLeader
+public record ReceiveSurplusTransferCommand(long SurplusTransferId, List<IFormFile>? Attachments)
+    : IRequest<ApiResponse>, IProjectResourceRequirement
 {
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        var transfer = await unitOfWork.Repository<SurplusTransfer>().Query()
-            .FirstOrDefaultAsync(t => t.SurplusTransferId == SurplusTransferId, cancellationToken);
-        if (transfer == null) throw new NotFoundException("SurplusTransfer", SurplusTransferId);
-        return transfer.ToProjectId;
-    }
+    public ProjectResource ProjectResource => ProjectResource.SurplusTransferDestination(SurplusTransferId);
+    public string RequiredPermission => ProjectPermission.ExecutionManage;
 }

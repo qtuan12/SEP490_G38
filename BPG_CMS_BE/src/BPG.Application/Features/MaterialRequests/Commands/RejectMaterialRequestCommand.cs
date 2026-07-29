@@ -1,4 +1,5 @@
 using MediatR;
+using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -12,22 +13,29 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Commands
 {
-    public record RejectMaterialRequestCommand(long RequestId, string Reason) : IRequest<ApiResponse<bool>>;
+    public record RejectMaterialRequestCommand(long RequestId, string Reason)
+        : IRequest<ApiResponse<bool>>, IProjectResourceRequirement
+    {
+        public ProjectResource ProjectResource => ProjectResource.MaterialRequest(RequestId);
+    }
 
     public class RejectMaterialRequestCommandHandler : IRequestHandler<RejectMaterialRequestCommand, ApiResponse<bool>>
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
         private readonly INotificationService _notificationService;
+        private readonly IPermissionService _permissionService;
 
         public RejectMaterialRequestCommandHandler(
             IUnitOfWork uow, 
             ICurrentUserService currentUserService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IPermissionService permissionService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
+            _permissionService = permissionService;
         }
 
         public async Task<ApiResponse<bool>> Handle(RejectMaterialRequestCommand request, CancellationToken cancellationToken)
@@ -53,6 +61,17 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             {
                 throw new BusinessException("ERR_INVALID_STATUS_FOR_REJECT", 
                     $"Không thể từ chối yêu cầu vật tư đang ở trạng thái: {mr.Status}. Chỉ hỗ trợ từ chối phiếu ở trạng thái Chờ duyệt (Pending) hoặc Chờ Giám đốc (WaitingApproval).");
+            }
+
+            var requiredPermission = mr.Status == MaterialRequestStatus.Pending
+                ? ProjectPermission.AccountingManage
+                : ProjectPermission.Approve;
+            if (!await _permissionService.HasProjectPermissionAsync(
+                    mr.Phase.ProjectId,
+                    requiredPermission,
+                    cancellationToken))
+            {
+                throw new ForbiddenException();
             }
 
             if (mr.Status == MaterialRequestStatus.Pending)

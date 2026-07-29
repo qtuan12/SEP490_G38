@@ -110,6 +110,16 @@ namespace BPG.Application.UnitTests.DailyLogs
 
 
         [Fact]
+        public void Command_ShouldRequireProjectViewPermissionForDailyLogResource()
+        {
+            var command = Command();
+
+            command.RequiredPermission.Should().Be(ProjectPermission.View);
+            command.ProjectResource.Type.Should().Be(BPG.Application.Common.Authorization.ProjectResourceType.DailyLog);
+            command.ProjectResource.Id.Should().Be(LogId);
+        }
+
+        [Fact]
         public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnDailyLogDto()
         {
             // Arrange
@@ -181,7 +191,9 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("DailyLog với ID [999] không tồn tại.");
         }
 
         [Fact]
@@ -211,7 +223,9 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ForbiddenException>();
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be("AUTH_002");
+            exception.Which.Message.Should().Be("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép chỉnh sửa nhật ký thi công.");
         }
 
         [Fact]
@@ -234,7 +248,9 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be("Dự án không ở trạng thái hoạt động, không thể thực hiện thao tác này.");
         }
 
         [Fact]
@@ -261,7 +277,9 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_LOCKED");
+            exception.Which.Message.Should().Be("Công việc này đã được nghiệm thu và khóa tiến độ, không thể chỉnh sửa nhật ký thi công.");
         }
 
         [Fact]
@@ -448,6 +466,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
             // Assert
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_EDIT_WINDOW_EXPIRED");
+            exception.Which.Message.Should().Be("Nhật ký thi công chỉ được phép chỉnh sửa trong vòng 24 giờ kể từ lúc tạo (cấu hình bởi Quản trị viên). Quá thời han, vui lòng tạo nhật ký mới hoặc liên hệ Quản trị viên.");
         }
 
         [Fact]
@@ -487,6 +506,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
             // Assert
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_TASK_OBSOLETE");
+            exception.Which.Message.Should().Be("Không thể chỉnh sửa nhật ký vì công việc hoặc cấp cha [Obsolete parent] đã bị loại bỏ (obsolete).");
         }
 
         [Fact]

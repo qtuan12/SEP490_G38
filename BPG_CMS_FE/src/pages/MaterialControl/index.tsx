@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type { MaterialRequest } from '../../types/common';
+import { hasPermission, ProjectPermission } from '../../auth/permissions';
 import { MaterialRequestTable } from '../Dashboard/components/MaterialRequestTable';
 import { Modal } from '../../components/ui/Modal';
 import { Pagination, Input, Select } from '../../components/ui';
@@ -13,9 +14,7 @@ export const MaterialControl: React.FC = () => {
   const { user } = useAuth();
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
-
-  const [isAccountant, setIsAccountant] = useState(false);
-  const [isDirector, setIsDirector] = useState(false);
+  const [projectPermissions, setProjectPermissions] = useState<Record<string, readonly string[]>>({});
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,11 +25,6 @@ export const MaterialControl: React.FC = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-
-  useEffect(() => {
-    setIsAccountant(user?.role === 'accountant' || user?.role === 'admin');
-    setIsDirector(user?.role === 'director' || user?.role === 'admin');
-  }, [user]);
 
   // States for custom request processing modal
   const [actionModalOpen, setActionModalOpen] = useState(false);
@@ -45,6 +39,18 @@ export const MaterialControl: React.FC = () => {
     try {
       const list = await projectService.getAllMaterialRequests();
       setMaterialRequests(list);
+      const projectIds = [...new Set(list.map(request => request.projectId))];
+      const permissionEntries = await Promise.all(
+        projectIds.map(async projectId => {
+          try {
+            const access = await projectService.getMyAccess(projectId);
+            return [projectId, access.permissions] as const;
+          } catch {
+            return [projectId, []] as const;
+          }
+        }),
+      );
+      setProjectPermissions(Object.fromEntries(permissionEntries));
     } catch (err) {
       console.error('Error loading material requests:', err);
       toast.error('Lỗi khi tải danh sách yêu cầu vật tư.');
@@ -233,8 +239,14 @@ export const MaterialControl: React.FC = () => {
         <MaterialRequestTable
           materialRequests={paginatedRequests}
           loadingRequests={loadingRequests}
-          isAccountant={isAccountant}
-          isDirector={isDirector}
+          canAccountForRequest={(request) => hasPermission(
+            projectPermissions[request.projectId],
+            ProjectPermission.AccountingManage,
+          )}
+          canApproveRequest={(request) => hasPermission(
+            projectPermissions[request.projectId],
+            ProjectPermission.Approve,
+          )}
           handleVerifyRequestByAccountant={(id) => openActionModal('verify', id)}
           handleDisburseRequestByAccountant={(id) => openActionModal('disburse', id)}
           handleApproveRequestByDirector={(id) => openActionModal('approve', id)}

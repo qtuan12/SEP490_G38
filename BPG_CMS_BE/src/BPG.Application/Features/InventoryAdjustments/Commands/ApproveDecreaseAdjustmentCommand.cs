@@ -1,12 +1,16 @@
 using BPG.Application.Common.Models;
+using BPG.Application.Common.Authorization;
+using BPG.Domain.Constants;
 using FluentValidation;
 using MediatR;
 
 namespace BPG.Application.Features.InventoryAdjustments.Commands
 {
-    public class ApproveDecreaseAdjustmentCommand : IRequest<ApiResponse<bool>>
+    public class ApproveDecreaseAdjustmentCommand : IRequest<ApiResponse<bool>>, IProjectResourceRequirement
     {
         public long AdjustmentId { get; set; }
+        public ProjectResource ProjectResource => ProjectResource.InventoryAdjustment(AdjustmentId);
+        public string RequiredPermission => ProjectPermission.Approve;
         public bool IsApproved { get; set; }
         public string? RejectedReason { get; set; }
     }

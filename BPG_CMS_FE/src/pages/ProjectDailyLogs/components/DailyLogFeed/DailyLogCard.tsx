@@ -10,6 +10,7 @@ interface DailyLogCardProps {
   user: any;
   members: any[];
   tasks: WBSTask[];
+  canManageExecution: boolean;
   onEditLog: (log: DailyLog) => void;
   onZoomImage: (img: string) => void;
   onReloadLogs: () => Promise<void>;
@@ -33,6 +34,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
   user,
   members,
   tasks,
+  canManageExecution,
   onEditLog,
   onZoomImage,
   onReloadLogs
@@ -84,11 +86,10 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
   }
 
   // Permissions to edit the main daily log
-  const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin';
   const logTask = tasks.find(t => String(t.id).replace(/^t-/, '') === String(log.taskId).replace(/^t-/, ''));
   const assignedIds = logTask?.assignedTo ? logTask.assignedTo.split(',').map(s => s.trim()) : [];
   const isAssigned = user?.id && assignedIds.includes(user.id.toString());
-  const canEditLog = isPL || isAssigned;
+  const canEditLog = canManageExecution || isAssigned;
 
   // Comment Actions
   const handleCommentSubmit = async (e: React.FormEvent) => {
@@ -341,7 +342,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
           )}
 
           {/* Comment Form */}
-          {user && (members.some(m => m.userId === user?.id) || user?.role === 'technicalmanager' || user?.role === 'admin') && (
+          {user && (members.some(m => m.userId === user?.id) || canManageExecution) && (
             <form onSubmit={handleCommentSubmit} className="flex gap-2">
               <Input
                 type="text"

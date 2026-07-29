@@ -8,7 +8,6 @@ import { UploadCloud, X, AlertCircle, Loader2, Camera, RotateCcw } from 'lucide-
 import { projectService } from '../../../services/projectService';
 import type { WBSTask, DailyLog, WBSPhase } from '../../../types/common';
 import { Modal, Button, Textarea } from '../../../components/ui';
-import { useAuth } from '../../../context/AuthContext';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
 
@@ -30,6 +29,7 @@ interface DailyLogFormProps {
   engineerId: string;
   engineerName: string;
   isPL?: boolean;
+  canManageTechnical?: boolean;
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
   hideHeader?: boolean;
@@ -43,10 +43,10 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   editLog,
   engineerId,
   engineerName,
+  canManageTechnical = false,
   onSuccess,
   hideHeader = false
 }) => {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const isEditMode = !!editLog;
 
@@ -66,12 +66,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
     return tasks.find(t => String(t.id).replace(/^t-/, '') === String(activeId).replace(/^t-/, ''));
   }, [task, taskId, tasks, editLog]);
 
-  const isTMOrAdmin = user?.role === 'admin' || user?.role === 'technicalmanager';
   const minProgress = currentTask ? currentTask.progress : 0;
-  const isProgressDisabled = !currentTask || (!isTMOrAdmin && currentTask.progress === 100);
+  const isProgressDisabled = !currentTask || (!canManageTechnical && currentTask.progress === 100);
 
   const schema = React.useMemo(() => {
-    const minVal = isTMOrAdmin ? 0 : minProgress;
+    const minVal = canManageTechnical ? 0 : minProgress;
     return z.object({
       progress: z.number()
         .min(minVal, `Tiến độ không được nhỏ hơn tiến độ hiện tại (${minVal}%).`)
@@ -94,7 +93,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       message: 'Vui lòng nhập chi tiết diễn biến thi công (tối thiểu 5 ký tự).',
       path: ['content']
     });
-  }, [minProgress, isTMOrAdmin]);
+  }, [minProgress, canManageTechnical]);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<DailyLogForm>({
     resolver: zodResolver(schema),
@@ -257,7 +256,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
           content: data.content,
           weather: '',
           images: allImages
-        }, engineerName, user?.role, undefined);
+        }, engineerName, canManageTechnical, undefined);
       }
     },
     onSuccess: (resLog) => {
@@ -330,12 +329,12 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                     valueAsNumber: true,
                     onChange: (e) => {
                       const val = Number(e.target.value);
-                      if (!isTMOrAdmin && val < minProgress) {
+                      if (!canManageTechnical && val < minProgress) {
                         setValue('progress', minProgress);
                       }
                     }
                   })}
-                  min={isTMOrAdmin ? 0 : minProgress}
+                  min={canManageTechnical ? 0 : minProgress}
                   max={100}
                   className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={isProgressDisabled}
@@ -343,7 +342,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 <span className="text-xs text-slate-500 whitespace-nowrap">100%</span>
               </div>
               <span className="text-xs text-slate-500 block mt-1.5">
-                {isTMOrAdmin
+                {canManageTechnical
                   ? '* Quyền TPKT: Bạn có thể điều chỉnh giảm tiến độ nếu cần (yêu cầu nhập lý do giảm).'
                   : '* Khóa cứng chiều lùi: Bạn chỉ có thể kéo tiến độ tiến lên hoặc giữ nguyên.'}
               </span>

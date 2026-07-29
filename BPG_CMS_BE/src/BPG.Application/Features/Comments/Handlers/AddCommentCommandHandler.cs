@@ -52,20 +52,7 @@ namespace BPG.Application.Features.Comments.Handlers
                 throw new NotFoundException(nameof(DailyLog), request.LogId);
             }
 
-            // 2. Kiểm tra quyền truy cập (phải là Giám đốc/Kế toán/TM hoặc là thành viên dự án)
-            bool isDROrTMOrAcc = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Director, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Accountant);
-            if (!isDROrTMOrAcc)
-            {
-                var isMember = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == dailyLog.Task.Phase.ProjectId && m.UserId == currentUserId, cancellationToken);
-
-                if (!isMember)
-                {
-                    throw new ForbiddenException("Bạn không phải thành viên của dự án này.");
-                }
-            }
-
-            // 3. Tạo comment
+            // 2. Tạo comment
             var comment = new Comment
             {
                 LogId = request.LogId,

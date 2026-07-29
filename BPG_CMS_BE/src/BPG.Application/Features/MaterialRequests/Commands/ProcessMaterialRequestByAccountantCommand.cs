@@ -1,4 +1,5 @@
 using MediatR;
+using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -14,7 +15,12 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Commands
 {
-    public record ProcessMaterialRequestByAccountantCommand(long RequestId, string? Note) : IRequest<ApiResponse<bool>>;
+    public record ProcessMaterialRequestByAccountantCommand(long RequestId, string? Note)
+        : IRequest<ApiResponse<bool>>, IProjectResourceRequirement
+    {
+        public ProjectResource ProjectResource => ProjectResource.MaterialRequest(RequestId);
+        public string RequiredPermission => ProjectPermission.AccountingManage;
+    }
 
     public class ProcessMaterialRequestByAccountantCommandHandler : IRequestHandler<ProcessMaterialRequestByAccountantCommand, ApiResponse<bool>>
     {

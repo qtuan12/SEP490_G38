@@ -116,7 +116,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: Array.Empty<CreateGoodsReceiptItemDto>()), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_EMPTY_ITEMS");
+            exception.Which.Message.Should().Be("Danh sách vật tư nhận thực tế không được để trống.");
         }
 
         [Fact]
@@ -127,7 +129,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(poId: 999, items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("PurchaseOrder với ID [999] không tồn tại.");
         }
 
         [Fact]
@@ -144,7 +148,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
+            exception.Which.Message.Should().Be("Không tìm thấy dự án liên kết với đơn mua hàng này.");
         }
 
         [Fact]
@@ -155,18 +161,19 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be("Dự án không ở trạng thái hoạt động, không thể thực hiện thao tác này.");
         }
 
         [Fact]
-        public async Task UTCID07_Handle_UserIsNeitherTechnicalManagerNorProjectLeader_ShouldThrowForbiddenException()
+        public void UTCID07_Command_ShouldDeclareExecutionPermissionForPurchaseOrderResource()
         {
-            SetupStandardUser();
-            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
+            var command = Command();
 
-            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
-
-            await act.Should().ThrowAsync<ForbiddenException>();
+            command.RequiredPermission.Should().Be(ProjectPermission.ExecutionManage);
+            command.ProjectResource.Id.Should().Be(POId);
+            command.ProjectResource.Type.ToString().Should().Be("PurchaseOrder");
         }
 
         [Fact]
@@ -177,7 +184,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INVALID_PO_STATUS");
+            exception.Which.Message.Should().Be("Không thể nhập kho cho đơn hàng có trạng thái: Closed. Chỉ chấp nhận đơn hàng ở trạng thái Đã đặt hàng hoặc Nhận một phần.");
         }
 
         [Fact]
@@ -188,7 +197,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(99, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_MATERIAL_NOT_IN_PO");
+            exception.Which.Message.Should().Be("Vật tư ID 99 không tồn tại trong đơn hàng này.");
         }
 
         [Fact]
@@ -199,7 +210,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, -1) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INVALID_QUANTITY");
+            exception.Which.Message.Should().Be("Số lượng nhận của vật tư [Cement] phải lớn hơn hoặc bằng 0.");
         }
 
         [Fact]
@@ -212,6 +225,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            exception.Which.Message.Should().Be("Đơn vị tính 'Bag' của vật tư [Cement Bag] yêu cầu số lượng nhận phải là số nguyên.");
         }
 
         [Fact]
@@ -228,7 +242,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_QUANTITY_EXCEEDED");
+            exception.Which.Message.Should().Be("Số lượng nhận (5) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [Cement] (còn thiếu 4).");
         }
 
         [Fact]
@@ -239,7 +255,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 0) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_EMPTY_ITEMS");
+            exception.Which.Message.Should().Be("Danh sách vật tư nhận thực tế phải chứa ít nhất một vật tư có số lượng lớn hơn 0.");
         }
 
         private static CreateGoodsReceiptCommand Command(

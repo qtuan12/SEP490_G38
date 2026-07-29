@@ -22,10 +22,12 @@ export const phaseAcceptanceService = {
     const queryParams = new URLSearchParams();
     queryParams.append('PageNumber', params.pageIndex.toString());
     queryParams.append('PageSize', params.pageSize.toString());
-    if (params.projectId) queryParams.append('ProjectId', params.projectId.toString());
     if (params.phaseId) queryParams.append('PhaseId', params.phaseId.toString());
 
-    const res = await apiClient.get<ApiResponse<PagedResult<PhaseAcceptance>>>(`${API_PATH}?${queryParams.toString()}`);
+    const endpoint = params.projectId
+      ? `/projects/${params.projectId}/phase-acceptances`
+      : API_PATH;
+    const res = await apiClient.get<ApiResponse<PagedResult<PhaseAcceptance>>>(`${endpoint}?${queryParams.toString()}`);
     return unwrap(res);
   },
 

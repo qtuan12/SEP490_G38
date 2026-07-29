@@ -3,6 +3,7 @@ using BPG.Application.Features.Tasks.Commands;
 using BPG.Application.Features.Tasks.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
@@ -127,33 +128,14 @@ namespace BPG.Application.UnitTests.Tasks
         }
 
         [Fact]
-        public async Task UTCID03_Handle_UserIsNormalMember_ShouldThrowForbiddenException()
+        public void UTCID03_Command_ShouldDeclareExecutionPermissionForTaskResource()
         {
-            // Arrange
-            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(100);
-            _mockCurrentUserService.Setup(s => s.IsInRole("TechnicalManager")).Returns(false);
+            var command = new MarkTaskObsoleteCommand(1, "Cancel");
 
-            var task = new ProjectTask
-            {
-                TaskId = 1,
-                Status = BPG.Domain.Constants.TaskStatus.InProgress,
-                Phase = new Phase { PhaseId = 1, ProjectId = 10 }
-            };
-            var member = new ProjectMember { ProjectId = 10, UserId = 100, IsLeader = false }; // Not a leader
-            
-            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
-            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember> { member }.AsQueryable().BuildMock());
-
-            var command = new MarkTaskObsoleteCommand(1, "Hủy");
-
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            await act.Should().ThrowAsync<ForbiddenException>()
-                .WithMessage("*Chỉ Quản lý dự án hoặc Trưởng phòng Kỹ thuật mới có quyền*");
+            command.RequiredPermission.Should().Be(ProjectPermission.ExecutionManage);
+            command.ProjectResource.Id.Should().Be(1);
+            command.ProjectResource.Type.ToString().Should().Be("Task");
         }
-
         [Fact]
         public async Task UTCID04_Handle_TaskNotFound_ShouldThrowNotFoundException()
         {
@@ -313,29 +295,13 @@ namespace BPG.Application.UnitTests.Tasks
         }
 
         [Fact]
-        public async Task UTCID10_Handle_LeaderOfDifferentProject_ShouldThrowForbiddenException()
+        public void UTCID10_Command_ShouldResolveAuthorizationThroughTaskResource()
         {
-            // Arrange
-            _mockCurrentUserService.Setup(s => s.GetRequiredUserId()).Returns(100);
-            _mockCurrentUserService.Setup(s => s.IsInRole("TechnicalManager")).Returns(false);
+            var command = new MarkTaskObsoleteCommand(1, "Cancel");
 
-            var task = new ProjectTask
-            {
-                TaskId = 1,
-                Phase = new Phase { PhaseId = 1, ProjectId = 10 }
-            };
-            var member = new ProjectMember { ProjectId = 99, UserId = 100, IsLeader = true }; // Leader of project 99, not 10
-            
-            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
-            _mockMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember> { member }.AsQueryable().BuildMock());
-
-            var command = new MarkTaskObsoleteCommand(1, "Hủy");
-
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            await act.Should().ThrowAsync<ForbiddenException>();
+            command.RequiredPermission.Should().Be(ProjectPermission.ExecutionManage);
+            command.ProjectResource.Id.Should().Be(1);
+            command.ProjectResource.Type.ToString().Should().Be("Task");
         }
     }
 }

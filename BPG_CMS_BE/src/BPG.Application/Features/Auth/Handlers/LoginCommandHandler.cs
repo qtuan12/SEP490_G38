@@ -1,3 +1,4 @@
+using BPG.Application.Common.Authorization;
 using BPG.Application.DTOs.Auth;
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
@@ -73,13 +74,23 @@ namespace BPG.Application.Features.Auth.Handlers
             }, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            var role = user.UserRoles.FirstOrDefault()?.Role;
+            var roles = user.UserRoles
+                .Where(userRole => userRole.Role != null)
+                .Select(userRole => userRole.Role!.RoleName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(role => role, StringComparer.Ordinal)
+                .ToList();
+
             return new LoginResponse
             {
                 UserId = user.UserId,
                 FullName = user.FullName,
                 Email = user.Email,
-                Role = role?.RoleName ?? string.Empty,
+                Role = roles.FirstOrDefault() ?? string.Empty,
+                Roles = roles,
+                SystemPermissions = PermissionGrantCatalog.GetSystemPermissions(roles)
+                    .OrderBy(permission => permission, StringComparer.Ordinal)
+                    .ToList(),
                 AccessToken = _jwtService.GenerateToken(user),
                 RefreshToken = rawRefreshToken
             };

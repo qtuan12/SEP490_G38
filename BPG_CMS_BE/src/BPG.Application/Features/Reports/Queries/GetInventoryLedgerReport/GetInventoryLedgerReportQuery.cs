@@ -1,13 +1,20 @@
 using BPG.Application.IRepositories;
+using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetInventoryLedgerReport;
 
-public record GetInventoryLedgerReportQuery(long ProjectId) : IRequest<ApiResponse<InventoryLedgerReportDto>>;
+public record GetInventoryLedgerReportQuery(long ProjectId)
+    : IRequest<ApiResponse<InventoryLedgerReportDto>>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
+    public string RequiredPermission => ProjectPermission.ReportsView;
+}
 
 public class GetInventoryLedgerReportQueryHandler
     : IRequestHandler<GetInventoryLedgerReportQuery, ApiResponse<InventoryLedgerReportDto>>

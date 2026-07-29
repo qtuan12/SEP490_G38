@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Behaviors;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,8 @@ namespace BPG.Application
             });
 
             services.AddAutoMapper(typeof(DependencyInjection).Assembly);
+            services.AddScoped<BPG.Application.IServices.IPermissionService, PermissionService>();
+            services.AddScoped<IProjectResourceResolver, ProjectResourceResolver>();
 
             return services;
         }

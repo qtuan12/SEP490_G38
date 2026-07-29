@@ -10,6 +10,10 @@
 
         public string Role { get; set; } = string.Empty;
 
+        public IReadOnlyList<string> Roles { get; set; } = [];
+
+        public IReadOnlyList<string> SystemPermissions { get; set; } = [];
+
         public string AccessToken { get; set; } = string.Empty;
 
         public string RefreshToken { get; set; } = string.Empty;

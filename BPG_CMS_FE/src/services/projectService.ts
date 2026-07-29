@@ -1,5 +1,6 @@
-import type { Project, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, TaskHistory, WBSTask, DailyLogComment, DailyLog, TaskProgressLog } from '../types/common';
+import type { Project, ProjectAccess, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, TaskHistory, WBSTask, DailyLogComment, DailyLog, TaskProgressLog } from '../types/common';
 import { apiClient, USE_MOCK_API } from './api';
+import { getBaselineProjectPermissions } from '../auth/permissions';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -155,10 +156,9 @@ export const projectService = {
     return [];
   },
 
-  async getProjects(ignoreRoleFilter: boolean = false): Promise<Project[]> {
+  async getProjects(): Promise<Project[]> {
     if (!USE_MOCK_API) {
-      const url = `/projects?pageSize=100${ignoreRoleFilter ? '&ignoreRoleFilter=true' : ''}`;
-      const res = await apiClient.get<ApiResponse<{ items: import('../types/common').ProjectDto[], totalCount: number }>>(url);
+      const res = await apiClient.get<ApiResponse<{ items: import('../types/common').ProjectDto[], totalCount: number }>>('/projects?pageSize=100');
       if (!res.success) throw new Error(res.message || 'Lỗi lấy danh sách dự án');
       
       const mapped = res.data.items.map(p => ({
@@ -410,6 +410,41 @@ export const projectService = {
     const normalizedProjectId = projectId.match(/^\d+$/) ? `p-${projectId}` : projectId;
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     return allMembers.filter(m => m.projectId === normalizedProjectId || m.projectId === projectId);
+  },
+
+  async getMyAccess(projectId: string): Promise<ProjectAccess> {
+    const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+    if (!USE_MOCK_API) {
+      const response = await apiClient.get<ApiResponse<ProjectAccess>>(
+        `/projects/${parsedId}/access`,
+      );
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Không thể tải quyền dự án.');
+      }
+      return response.data;
+    }
+
+    const storedUser = localStorage.getItem('bpg_user');
+    if (!storedUser) throw new Error('Chưa đăng nhập.');
+    const user = JSON.parse(storedUser) as {
+      id: string;
+      role: string;
+      roles?: string[];
+    };
+    const members = await this.getMembers(projectId);
+    const member = members.find((item) => item.userId === user.id);
+    const roles = user.roles?.length ? user.roles : [user.role];
+    const baseline = getBaselineProjectPermissions(
+      roles,
+      Boolean(member),
+      member?.isLeader ?? false,
+    );
+    return {
+      projectId: Number(parsedId),
+      isMember: Boolean(member),
+      isLeader: member?.isLeader ?? false,
+      permissions: baseline,
+    };
   },
 
   async addMember(projectId: string, user: { id: string; name: string; email: string; role: string }): Promise<ProjectMember> {
@@ -976,7 +1011,7 @@ export const projectService = {
   async createDailyLog(
     logData: Omit<DailyLog, 'id' | 'date' | 'comments'>,
     engineerName: string,
-    userRole: string = 'siteengineer',
+    canDecreaseProgress: boolean = false,
     incidentCategory?: 'khach_quan' | 'chu_quan'
   ): Promise<DailyLog> {
     if (!USE_MOCK_API) {
@@ -1068,7 +1103,7 @@ export const projectService = {
 
     // Validate decrease
     if (logData.progressTo < task.progress) {
-      if (userRole !== 'technicalmanager' && userRole !== 'admin') {
+      if (!canDecreaseProgress) {
         throw new Error(`Tiến độ báo cáo (${logData.progressTo}%) không thể nhỏ hơn tiến độ hiện tại (${task.progress}%). Vui lòng báo cáo TPKT để xử lý sự cố.`);
       }
     }
@@ -1630,9 +1665,7 @@ export const projectService = {
   },
 
   async createMaterialRequest(
-    request: Omit<MaterialRequest, 'id' | 'status' | 'date'> & { isOverBOQ?: boolean },
-    userRole?: string,
-    isLeader?: boolean
+    request: Omit<MaterialRequest, 'id' | 'status' | 'date'> & { isOverBOQ?: boolean }
   ): Promise<MaterialRequest> {
     if (!USE_MOCK_API) {
       const parsedProjectId = request.projectId.startsWith('p-') ? request.projectId.substring(2) : request.projectId;
@@ -1676,8 +1709,6 @@ export const projectService = {
 
     if (isEmergency) {
       initialStatus = 'pending_disbursement';
-    } else if (userRole === 'siteengineer' && !isLeader) {
-      initialStatus = 'pending_leader';
     }
 
     const newRequest: MaterialRequest = {
@@ -2013,9 +2044,7 @@ export const projectService = {
 
   async resubmitMaterialRequest(
     requestId: string,
-    updates: Partial<Pick<MaterialRequest, 'items' | 'reason' | 'invoiceImage' | 'type' | 'isOverBOQ'>>,
-    userRole?: string,
-    isLeader?: boolean
+    updates: Partial<Pick<MaterialRequest, 'items' | 'reason' | 'invoiceImage' | 'type' | 'isOverBOQ'>>
   ): Promise<MaterialRequest> {
     if (!USE_MOCK_API) {
       const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
@@ -2050,12 +2079,6 @@ export const projectService = {
     let newStatus: MaterialRequest['status'] = 'pending_accountant';
     if (isEmergency) {
       newStatus = 'pending_disbursement';
-    } else if (request.taskId) {
-      if (userRole === 'siteengineer' && !isLeader) {
-        newStatus = 'pending_leader';
-      } else if (userRole === 'siteengineer' && isLeader) {
-        newStatus = 'pending_tpkt';
-      }
     }
 
     list[idx] = {

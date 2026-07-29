@@ -2,6 +2,7 @@ using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Suppliers;
 using BPG.Application.Features.Suppliers.Commands;
 using BPG.Application.Features.Suppliers.Queries;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -11,7 +12,7 @@ namespace BPG.Api.Controllers
     public class SuppliersController : BaseApiController
     {
         [HttpGet]
-        [Authorize(Roles = "Accountant,TechnicalManager,Director,ProjectLeader,SiteEngineer")]
+        [Authorize(Policy = SystemPermission.SuppliersView)]
         public async Task<IActionResult> GetSuppliers([FromQuery] GetSuppliersQuery query)
         {
             var result = await Mediator.Send(query);
@@ -19,7 +20,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "Accountant,TechnicalManager,Director,ProjectLeader,SiteEngineer")]
+        [Authorize(Policy = SystemPermission.SuppliersView)]
         public async Task<IActionResult> GetSupplierById(long id)
         {
             var result = await Mediator.Send(new GetSupplierByIdQuery(id));
@@ -27,7 +28,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Accountant,TechnicalManager,Director")]
+        [Authorize(Policy = SystemPermission.SuppliersManage)]
         public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierCommand command)
         {
             var result = await Mediator.Send(command);
@@ -35,7 +36,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Accountant,TechnicalManager,Director")]
+        [Authorize(Policy = SystemPermission.SuppliersManage)]
         public async Task<IActionResult> UpdateSupplier(long id, [FromBody] UpdateSupplierRequest request)
         {
             var result = await Mediator.Send(new UpdateSupplierCommand(
@@ -52,7 +53,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Accountant,TechnicalManager,Director")]
+        [Authorize(Policy = SystemPermission.SuppliersManage)]
         public async Task<IActionResult> DeleteSupplier(long id)
         {
             await Mediator.Send(new DeleteSupplierCommand(id));

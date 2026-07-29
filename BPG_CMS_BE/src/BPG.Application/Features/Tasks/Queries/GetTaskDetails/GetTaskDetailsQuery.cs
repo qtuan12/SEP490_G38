@@ -1,4 +1,5 @@
 using BPG.Domain.Exceptions;
+using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
@@ -8,7 +9,11 @@ using BPG.Application.DTOs.Tasks;
 
 namespace BPG.Application.Features.Tasks.Queries.GetTaskDetails;
 
-public record GetTaskDetailsQuery(long TaskId) : IRequest<ApiResponse<TaskDetailsDto>>;
+public record GetTaskDetailsQuery(long TaskId)
+    : IRequest<ApiResponse<TaskDetailsDto>>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Task(TaskId);
+}
 
 public class GetTaskDetailsQueryHandler : IRequestHandler<GetTaskDetailsQuery, ApiResponse<TaskDetailsDto>>
 {

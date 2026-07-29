@@ -1,4 +1,4 @@
-﻿using BPG.Application.Features.MaterialIssuances.Commands;
+using BPG.Application.Features.MaterialIssuances.Commands;
 using BPG.Application.Features.MaterialIssuances.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -92,7 +92,6 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             result.Success.Should().BeTrue();
             result.Data.Should().Be(GeneratedIssuanceId);
-            result.Message.Should().Be("Tạo phiếu xuất kho thành công.");
         }
 
         [Fact]
@@ -106,7 +105,6 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             result.Success.Should().BeTrue();
             result.Data.Should().Be(GeneratedIssuanceId);
-            result.Message.Should().Be("Tạo phiếu xuất kho thành công.");
         }
 
         [Fact]
@@ -116,7 +114,8 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var act = async () => await _handler.Handle(Command(items: Array.Empty<CreateMaterialIssuanceItemDto>()), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_EMPTY_ITEMS");
         }
 
         [Fact]
@@ -127,7 +126,8 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var act = async () => await _handler.Handle(Command(taskId: 999), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
         }
 
         [Fact]
@@ -138,20 +138,19 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
         }
 
         [Fact]
-        public async Task UTCID06_Handle_UserIsNeitherTechnicalManagerNorProjectLeader_ShouldThrowForbiddenException()
+        public void UTCID06_Command_ShouldDeclareExecutionPermissionForTaskResource()
         {
-            SetupStandardUser();
-            SetupTasks(ProjectTask());
+            var command = Command();
 
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            await act.Should().ThrowAsync<ForbiddenException>();
+            command.RequiredPermission.Should().Be(ProjectPermission.ExecutionManage);
+            command.ProjectResource.Id.Should().Be(TaskId);
+            command.ProjectResource.Type.ToString().Should().Be("Task");
         }
-
         [Fact]
         public async Task UTCID07_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
         {
@@ -160,7 +159,8 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
 
         [Fact]
@@ -171,7 +171,8 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_LOCKED");
         }
 
         [Fact]
@@ -183,7 +184,8 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(99, 10) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_NO_INVENTORY");
         }
 
         [Fact]
@@ -210,7 +212,8 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5), Item(SandId, 10) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INSUFFICIENT_STOCK");
         }
 
         private static CreateMaterialIssuanceCommand Command(

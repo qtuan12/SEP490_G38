@@ -1,12 +1,20 @@
+using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using System.Threading.Tasks;
 
 namespace BPG.Api.Hubs
 {
     [Authorize]
     public class NotificationHub : Hub
     {
+        private readonly IPermissionService _permissionService;
+
+        public NotificationHub(IPermissionService permissionService)
+        {
+            _permissionService = permissionService;
+        }
+
         public override async Task OnConnectedAsync()
         {
             // SignalR tự động ánh xạ UserIdentifier thông qua ClaimTypes.NameIdentifier của JWT Token
@@ -18,6 +26,14 @@ namespace BPG.Api.Hubs
 
         public async Task JoinProjectGroup(long projectId)
         {
+            if (!await _permissionService.HasProjectPermissionAsync(
+                    projectId,
+                    ProjectPermission.View,
+                    Context.ConnectionAborted))
+            {
+                throw new HubException("Bạn không có quyền truy cập dự án này.");
+            }
+
             await Groups.AddToGroupAsync(Context.ConnectionId, $"Project_{projectId}");
         }
 

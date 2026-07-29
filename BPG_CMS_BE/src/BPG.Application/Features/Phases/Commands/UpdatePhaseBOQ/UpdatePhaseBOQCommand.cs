@@ -1,3 +1,5 @@
+using BPG.Application.Common.Authorization;
+using BPG.Domain.Constants;
 using MediatR;
 using System.Collections.Generic;
 
@@ -7,7 +9,11 @@ public record UpdatePhaseBOQCommand(
     long ProjectId,
     long PhaseId,
     List<BOQItemInput> Items
-) : IRequest<bool>;
+) : IRequest<bool>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Phase(PhaseId);
+    public string RequiredPermission => ProjectPermission.TechnicalManage;
+}
 
 public record BOQItemInput(
     long MaterialId,

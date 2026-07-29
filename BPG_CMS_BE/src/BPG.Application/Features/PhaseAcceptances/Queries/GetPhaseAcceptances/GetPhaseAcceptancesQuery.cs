@@ -3,6 +3,8 @@ using BPG.Application.Common.Interfaces;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.PhaseAcceptances;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -11,42 +13,29 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.PhaseAcceptances.Queries.GetPhaseAcceptances;
 
-public class GetPhaseAcceptancesQuery : PaginationRequest, IRequest<PagedList<PhaseAcceptanceDto>>, IProjectRequirement
+public class GetPhaseAcceptancesQuery : PaginationRequest, IRequest<PagedList<PhaseAcceptanceDto>>, IProjectScopedListRequest
 {
     public long? ProjectId { get; set; }
     public long? PhaseId { get; set; }
 
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        if (ProjectId.HasValue && ProjectId.Value > 0)
-        {
-            return ProjectId.Value;
-        }
-
-        if (PhaseId.HasValue && PhaseId.Value > 0)
-        {
-            var phase = await unitOfWork.Repository<Phase>().Query()
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.PhaseId == PhaseId.Value, cancellationToken);
-            if (phase != null)
-            {
-                return phase.ProjectId;
-            }
-        }
-
-        return 0;
-    }
+    public Task<long?> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+        => Task.FromResult(ProjectId);
 }
 
 public class GetPhaseAcceptancesQueryHandler : IRequestHandler<GetPhaseAcceptancesQuery, PagedList<PhaseAcceptanceDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly IPermissionService _permissionService;
 
-    public GetPhaseAcceptancesQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+    public GetPhaseAcceptancesQueryHandler(
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        IPermissionService permissionService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _permissionService = permissionService;
     }
 
     public async Task<PagedList<PhaseAcceptanceDto>> Handle(GetPhaseAcceptancesQuery request, CancellationToken ct)
@@ -58,6 +47,18 @@ public class GetPhaseAcceptancesQueryHandler : IRequestHandler<GetPhaseAcceptanc
                 .ThenInclude(p => p.Project)
             .Include(x => x.Acceptor)
             .AsNoTracking();
+
+        if (!request.ProjectId.HasValue)
+        {
+            if (!_permissionService.HasSystemPermission(SystemPermission.ReportsView))
+                throw new BPG.Domain.Exceptions.ForbiddenException(
+                    "Bạn không có quyền xem nghiệm thu toàn hệ thống.");
+
+            var accessibleProjectIds = await _permissionService.GetProjectIdsWithPermissionAsync(
+                ProjectPermission.View,
+                ct);
+            query = query.Where(item => accessibleProjectIds.Contains(item.Phase.ProjectId));
+        }
 
         if (request.PhaseId.HasValue)
         {

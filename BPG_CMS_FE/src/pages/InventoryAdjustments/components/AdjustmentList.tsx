@@ -1,8 +1,6 @@
 // Force IDE TS Server to re-parse this file
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../context/AuthContext';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
-import { projectService } from '../../../services/projectService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import { Button, Badge, Pagination } from '../../../components/ui';
 import { Plus, Minus, CheckCircle, XCircle, Clock, Search } from 'lucide-react';
@@ -11,13 +9,15 @@ import { CreateDecreaseAdjustmentModal } from './CreateDecreaseAdjustmentModal';
 import { ReviewAdjustmentModal } from './ReviewAdjustmentModal';
 import { useNotification } from '../../../context/NotificationContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { ProjectPermission } from '../../../auth/permissions';
 
 interface AdjustmentListProps {
   projectId: number;
 }
 
 export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => {
-  const { user } = useAuth();
+  const { hasProjectPermission } = useProjectAccess(projectId > 0 ? projectId : null);
   const [data, setData] = useState<InventoryAdjustmentDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -28,7 +28,6 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isProjectLeader, setIsProjectLeader] = useState(false);
 
   // Modals state
   const [isIncreaseOpen, setIsIncreaseOpen] = useState(false);
@@ -64,29 +63,6 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     }, 500); // debounce search
     return () => clearTimeout(timeout);
   }, [projectId, page, pageSize, typeFilter, statusFilter, searchTerm]);
-
-  useEffect(() => {
-    if (projectId === null || projectId === undefined || projectId <= 0) return;
-    const checkLeader = async () => {
-      if (!user) return;
-      if (user.role === 'admin') {
-        setIsProjectLeader(true);
-        return;
-      }
-      try {
-        const members = await projectService.getMembers(projectId.toString());
-        const me = members.find(m => m.userId === user.id?.toString() || m.userId === user.id);
-        if (me && me.isLeader) {
-          setIsProjectLeader(true);
-        } else {
-          setIsProjectLeader(false);
-        }
-      } catch (err) {
-        console.error('Failed to check leader role:', err);
-      }
-    };
-    checkLeader();
-  }, [projectId, user]);
 
   // Tham gia SignalR group của dự án (hoặc group chung Project_0 nếu projectId = 0)
   useEffect(() => {
@@ -149,8 +125,13 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     return <span>{type}</span>;
   };
 
-  const canCreateIncrease = projectId > 0 && (isProjectLeader || user?.role === 'admin');
-  const canCreateDecrease = projectId > 0 && (user?.role === 'accountant' || user?.role === 'admin');
+  const canCreateIncrease =
+    projectId > 0 &&
+    hasProjectPermission(ProjectPermission.ExecutionManage);
+  const canCreateDecrease =
+    projectId > 0 &&
+    hasProjectPermission(ProjectPermission.AccountingManage);
+  const canApprove = hasProjectPermission(ProjectPermission.Approve);
 
   return (
     <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl shadow-sm overflow-hidden flex flex-col">
@@ -245,7 +226,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
                   <td className="px-4 py-3">{item.approverName || '-'}</td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" size="sm" onClick={() => setReviewId(item.adjustmentId)}>
-                      {item.status === 'Pending' && (user?.role === 'director' || user?.role === 'admin') ? 'Chi tiết' : 'Xem chi tiết'}
+                      {item.status === 'Pending' && canApprove ? 'Chi tiết' : 'Xem chi tiết'}
                     </Button>
                   </td>
                 </tr>

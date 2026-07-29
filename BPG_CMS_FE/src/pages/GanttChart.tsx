@@ -14,6 +14,8 @@ import {
   List,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useProjectAccess } from '../hooks/useProjectAccess';
+import { ProjectPermission } from '../auth/permissions';
 
 import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 
@@ -48,7 +50,6 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
   const [project, setProject] = useState<Project | null>(null);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('Week');
@@ -56,6 +57,9 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const { hasProjectPermission } = useProjectAccess(projectId);
+  const canManageExecution = hasProjectPermission(ProjectPermission.ExecutionManage);
+  const canManageTechnical = hasProjectPermission(ProjectPermission.TechnicalManage);
 
   const [isAdjustModalOpen, setAdjustModalOpen] = useState(false);
   const [selectedTaskToAdjust, setSelectedTaskToAdjust] = useState<WBSTask | null>(null);
@@ -65,14 +69,12 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
     if (!projectId) return;
     (async () => {
       try {
-        const [projs, pList, tList, mList] = await Promise.all([
+        const [projs, pList, tList] = await Promise.all([
           projectService.getProjects(),
           projectService.getPhases(projectId),
-          projectService.getTasks(projectId),
-          projectService.getMembers(projectId)
+          projectService.getTasks(projectId)
         ]);
         setProject(projs.find(p => p.id === projectId) ?? null);
-        setMembers(mList || []);
         setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
         setTasks(
           tList
@@ -274,12 +276,11 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
       const taskObj = gantt.getTask(id);
       if (taskObj.type !== gantt.config.types.project && taskObj.rawTask) {
         const wbsTask = taskObj.rawTask as WBSTask;
-        const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin';
         const currentTaskHasSubtasks = tasks.some(t => t.parentTaskId === wbsTask.id && t.status !== 'obsolete');
         const assignedIds = wbsTask.assignedTo ? wbsTask.assignedTo.split(',').map(s => s.trim()) : [];
         const hasAnyAssignedTask = user?.id && assignedIds.includes(user.id.toString());
 
-        const canReport = (isPL || hasAnyAssignedTask) && !currentTaskHasSubtasks && wbsTask.status !== 'obsolete';
+        const canReport = (canManageExecution || hasAnyAssignedTask) && !currentTaskHasSubtasks && wbsTask.status !== 'obsolete';
 
         if (canReport) {
           setSelectedTaskToAdjust(wbsTask);
@@ -293,7 +294,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
       gantt.detachEvent(clickEventId);
       gantt.clearAll();
     };
-  }, [loading, phases, tasks, members, buildDhtmlxData, user]);
+  }, [loading, phases, tasks, buildDhtmlxData, user, canManageExecution]);
 
   // ── change view mode ──────────────────────────────────────────────────
   const handleViewMode = (mode: ViewMode) => {
@@ -456,6 +457,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
           task={selectedTaskToAdjust}
           engineerId={user?.id || ''}
           engineerName={user?.name || ''}
+          canManageTechnical={canManageTechnical}
           onSuccess={async () => {
             // Refresh Gantt data
             try {

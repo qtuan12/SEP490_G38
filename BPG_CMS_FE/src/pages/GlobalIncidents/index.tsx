@@ -27,7 +27,7 @@ export const GlobalIncidents: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { connection } = useNotification();
   const [activeTab, setActiveTab] = useState<'construction' | 'inventory'>(
-    user?.role === 'accountant' ? 'inventory' : 'construction'
+    'construction'
   );
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -286,14 +286,12 @@ export const GlobalIncidents: React.FC = () => {
       </div>
 
       <div className="flex gap-2 border-b border-[hsl(var(--border))] mb-4">
-        {user?.role !== 'accountant' && (
-          <button
-            className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
-            onClick={() => setActiveTab('construction')}
-          >
-            Sự cố Thi công
-          </button>
-        )}
+        <button
+          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
+          onClick={() => setActiveTab('construction')}
+        >
+          Sự cố Thi công
+        </button>
         <button
           className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
           onClick={() => setActiveTab('inventory')}

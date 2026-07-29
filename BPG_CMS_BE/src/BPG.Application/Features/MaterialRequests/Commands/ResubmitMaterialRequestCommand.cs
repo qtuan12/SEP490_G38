@@ -1,4 +1,5 @@
 using MediatR;
+using BPG.Application.Common.Authorization;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -18,7 +19,10 @@ namespace BPG.Application.Features.MaterialRequests.Commands
         long RequestId,
         string Reason,
         List<MaterialRequestItemInput> Items
-    ) : IRequest<ApiResponse<bool>>;
+    ) : IRequest<ApiResponse<bool>>, IProjectResourceRequirement
+    {
+        public ProjectResource ProjectResource => ProjectResource.MaterialRequest(RequestId);
+    }
 
     public class ResubmitMaterialRequestCommandHandler : IRequestHandler<ResubmitMaterialRequestCommand, ApiResponse<bool>>
     {

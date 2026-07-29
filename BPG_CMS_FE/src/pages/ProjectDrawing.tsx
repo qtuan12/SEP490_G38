@@ -4,6 +4,7 @@ import { projectService } from '../services/projectService';
 
 import type {Project} from '../types/common';
 import { useAuth } from '../context/AuthContext';
+import { SystemPermission } from '../auth/permissions';
 import { Modal } from '../components/ui/Modal';
 import {
   ArrowLeft,
@@ -21,7 +22,7 @@ import {
 export const ProjectDrawing: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { hasSystemPermission } = useAuth();
   
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,8 +33,9 @@ export const ProjectDrawing: React.FC = () => {
   const [blobUrl, setBlobUrl] = useState<string>('');
   const [showSelectModal, setShowSelectModal] = useState(false);
 
-  const isTPKTOrAdmin = user?.role === 'technicalmanager' || user?.role === 'admin';
-  const canEdit = isTPKTOrAdmin && project?.status !== 'done';
+  const canEdit =
+    hasSystemPermission(SystemPermission.ProjectsUpdate) &&
+    project?.status !== 'done';
 
   const loadProject = async () => {
     if (!projectId) return;

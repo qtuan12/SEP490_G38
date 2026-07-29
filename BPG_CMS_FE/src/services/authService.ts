@@ -1,10 +1,20 @@
 import { apiClient, USE_MOCK_API } from './api';
+import { getSystemPermissionsForRoles } from '../auth/permissions';
+
+export type UserRole =
+  | 'admin'
+  | 'technicalmanager'
+  | 'siteengineer'
+  | 'accountant'
+  | 'director';
 
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'technicalmanager' | 'projectleader' | 'siteengineer' | 'accountant' | 'director';
+  role: UserRole;
+  roles?: UserRole[];
+  systemPermissions?: string[];
   status: 'active' | 'locked';
   avatarUrl?: string | null;
   phoneNumber?: string | null;
@@ -17,6 +27,8 @@ export interface UserDetailProfile {
   phoneNumber: string | null;
   avatarUrl: string | null;
   role: string;
+  roles: string[];
+  systemPermissions: string[];
   isActive: boolean;
   lastLoginAt: string | null;
   passwordChangedAt: string | null;
@@ -31,6 +43,39 @@ export interface LoginResponse {
 export type LoginCredentials = {
   email: string;
   password?: string;
+};
+
+const VALID_ROLES: readonly UserRole[] = [
+  'admin',
+  'technicalmanager',
+  'siteengineer',
+  'accountant',
+  'director',
+];
+
+const normalizeRole = (role: string): UserRole => {
+  const normalized = role.toLowerCase() as UserRole;
+  if (!VALID_ROLES.includes(normalized)) {
+    throw new Error(`Vai trò tài khoản không được hỗ trợ: ${role || '(trống)'}.`);
+  }
+  return normalized;
+};
+
+const toUserProfile = (profile: UserDetailProfile): UserProfile => {
+  const roles = (profile.roles?.length ? profile.roles : [profile.role]).map(normalizeRole);
+  return {
+    id: String(profile.userId),
+    name: profile.fullName,
+    email: profile.email,
+    phoneNumber: profile.phoneNumber,
+    avatarUrl: profile.avatarUrl,
+    role: normalizeRole(profile.role || roles[0]),
+    roles,
+    systemPermissions: profile.systemPermissions?.length
+      ? profile.systemPermissions
+      : getSystemPermissionsForRoles(roles),
+    status: profile.isActive ? 'active' : 'locked',
+  };
 };
 
 // Define predefined mock users matching roles in "Mô tả chi tiết.md"
@@ -97,6 +142,8 @@ export const authService = {
           name: mockUser.name,
           email: mockUser.email,
           role: mockUser.role,
+          roles: [mockUser.role],
+          systemPermissions: getSystemPermissionsForRoles([mockUser.role]),
           status: mockUser.status
         }
       };
@@ -111,6 +158,8 @@ export const authService = {
         fullName: string;
         email: string;
         role: string;
+        roles?: string[];
+        systemPermissions?: string[];
         accessToken: string;
         refreshToken: string;
       };
@@ -123,6 +172,7 @@ export const authService = {
     }
 
     const { data } = response;
+    const roles = (data.roles?.length ? data.roles : [data.role]).map(normalizeRole);
     return {
       token: data.accessToken,
       refreshToken: data.refreshToken,
@@ -130,7 +180,11 @@ export const authService = {
         id: String(data.userId),
         name: data.fullName,
         email: data.email,
-        role: data.role.toLowerCase() as UserProfile['role'],
+        role: normalizeRole(data.role || roles[0]),
+        roles,
+        systemPermissions: data.systemPermissions?.length
+          ? data.systemPermissions
+          : getSystemPermissionsForRoles(roles),
         status: 'active'
       }
     };
@@ -144,7 +198,20 @@ export const authService = {
       const u: UserProfile = JSON.parse(storedUser);
       const updated = { ...u, name: fullName };
       localStorage.setItem('bpg_user', JSON.stringify(updated));
-      return { userId: Number(u.id), fullName, email: u.email, phoneNumber, avatarUrl: avatarUrl ?? null, role: u.role, isActive: u.status === 'active', lastLoginAt: null, passwordChangedAt: null };
+      const roles = u.roles?.length ? u.roles : [u.role];
+      return {
+        userId: Number(u.id),
+        fullName,
+        email: u.email,
+        phoneNumber,
+        avatarUrl: avatarUrl ?? null,
+        role: u.role,
+        roles,
+        systemPermissions: u.systemPermissions ?? getSystemPermissionsForRoles(roles),
+        isActive: u.status === 'active',
+        lastLoginAt: null,
+        passwordChangedAt: null,
+      };
     }
 
     interface BackendResponse { success: boolean; message: string; data: UserDetailProfile; }
@@ -195,7 +262,20 @@ export const authService = {
       const storedUser = localStorage.getItem('bpg_user');
       if (!storedUser) throw new Error('Chưa đăng nhập.');
       const u: UserProfile = JSON.parse(storedUser);
-      return { userId: Number(u.id), fullName: u.name, email: u.email, phoneNumber: null, avatarUrl: null, role: u.role, isActive: u.status === 'active', lastLoginAt: null, passwordChangedAt: null };
+      const roles = u.roles?.length ? u.roles : [u.role];
+      return {
+        userId: Number(u.id),
+        fullName: u.name,
+        email: u.email,
+        phoneNumber: u.phoneNumber ?? null,
+        avatarUrl: u.avatarUrl ?? null,
+        role: u.role,
+        roles,
+        systemPermissions: u.systemPermissions ?? getSystemPermissionsForRoles(roles),
+        isActive: u.status === 'active',
+        lastLoginAt: null,
+        passwordChangedAt: null,
+      };
     }
 
     interface BackendResponse {
@@ -206,6 +286,22 @@ export const authService = {
     const response = await apiClient.get<BackendResponse>('/auth/me');
     if (!response.success || !response.data) throw new Error(response.message || 'Không thể tải thông tin.');
     return response.data;
+  },
+
+  async getSessionUser(): Promise<UserProfile> {
+    if (USE_MOCK_API) {
+      const storedUser = localStorage.getItem('bpg_user');
+      if (!storedUser) throw new Error('Chưa đăng nhập.');
+      const user = JSON.parse(storedUser) as UserProfile;
+      const roles = user.roles?.length ? user.roles : [user.role];
+      return {
+        ...user,
+        roles,
+        systemPermissions: user.systemPermissions ?? getSystemPermissionsForRoles(roles),
+      };
+    }
+
+    return toUserProfile(await this.getMe());
   },
 
   async forgotPassword(email: string): Promise<void> {

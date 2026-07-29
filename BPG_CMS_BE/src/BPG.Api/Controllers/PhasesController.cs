@@ -36,7 +36,6 @@ public class PhasesController : BaseApiController
     }
 
     [HttpPut("{phaseId}/boq")]
-    [Authorize(Policy = PolicyNames.RequireTechnicalManager)]
     public async Task<IActionResult> UpdatePhaseBOQ([FromRoute] long projectId, [FromRoute] long phaseId, [FromBody] UpdatePhaseBOQRequest request, CancellationToken ct)
     {
         var result = await Mediator.Send(new UpdatePhaseBOQCommand(projectId, phaseId, request.Items), ct);
@@ -44,7 +43,6 @@ public class PhasesController : BaseApiController
     }
 
     [HttpGet("{phaseId}/boq")]
-    [Authorize(Roles = "SiteEngineer,TechnicalManager,ProjectLeader,Director,Accountant,Admin")]
     public async Task<IActionResult> GetPhaseBOQ([FromRoute] long projectId, [FromRoute] long phaseId, CancellationToken ct)
     {
         var result = await Mediator.Send(new GetPhaseBOQQuery(phaseId), ct);

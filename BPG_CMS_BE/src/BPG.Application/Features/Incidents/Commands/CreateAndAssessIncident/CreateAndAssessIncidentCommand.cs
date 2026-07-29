@@ -2,6 +2,7 @@ using BPG.Domain.Exceptions;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.Common.Models;
+using BPG.Application.Common.Authorization;
 using BPG.Application.DTOs.Incidents;
 using BPG.Domain.Entities;
 using BPG.Domain.Constants;
@@ -24,7 +25,11 @@ public record CreateAndAssessIncidentCommand(
     int? EstimatedDelayDays,
     string? ProposedAction,
     bool IsEmergency = false
-) : IRequest<ApiResponse<IncidentDto>>;
+) : IRequest<ApiResponse<IncidentDto>>, IProjectResourceRequirement
+{
+    public ProjectResource ProjectResource => ProjectResource.Project(ProjectId);
+    public string RequiredPermission => ProjectPermission.View;
+}
 
 public class CreateAndAssessIncidentCommandValidator : AbstractValidator<CreateAndAssessIncidentCommand>
 {
@@ -66,17 +71,6 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
     public async Task<ApiResponse<IncidentDto>> Handle(CreateAndAssessIncidentCommand request, CancellationToken cancellationToken)
     {
         var currentUserId = Convert.ToInt64(_currentUserService.UserId);
-
-        // Security check: Ensure the SiteEngineer is actually the ProjectLeader (or Admin/TPKT)
-        var isLeader = await _unitOfWork.Repository<ProjectMember>()
-            .Query()
-            .AnyAsync(pm => pm.ProjectId == request.ProjectId && pm.UserId == currentUserId && pm.IsLeader, cancellationToken);
-        var isPrivileged = _currentUserService.Roles.Contains(BPG.Domain.Constants.UserRole.TechnicalManager) || _currentUserService.Roles.Contains(BPG.Domain.Constants.UserRole.Admin);
-
-        if (!isLeader && !isPrivileged)
-        {
-            throw new ForbiddenException("Chỉ có Project Leader của dự án mới được quyền báo cáo sự cố.");
-        }
 
         var project = await _unitOfWork.Repository<Project>()
             .Query()
