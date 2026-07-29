@@ -38,6 +38,7 @@ import { SystemConfigPage } from './pages/SystemConfig';
 import { DirectPurchaseList } from './pages/DirectPurchases';
 import { ReportsHub } from './pages/ReportsHub';
 import { FieldWorkbench } from './pages/FieldWorkbench';
+import { FieldTaskList } from './pages/FieldTaskList';
 import { isPWAMode } from './utils/pwaHelpers';
 import { DesktopOnlyGuard } from './components/DesktopOnlyGuard';
 import { RoleGroup } from './auth/roles';
@@ -69,7 +70,7 @@ const ProtectedRoute: React.FC<{
         backgroundColor: 'hsl(var(--bg-main))',
         color: 'hsl(var(--text-primary))'
       }}>
-        <h3>Äang táº£i phiÃªn lÃ m viá»‡c...</h3>
+        <h3>Đang tải phiên làm việc...</h3>
       </div>
     );
   }
@@ -115,19 +116,21 @@ const ProjectOrRoleRoute: React.FC<{
 };
 
 // Route wrapper for redirecting authenticated users away from Login page
+const FIELD_ROLES = ['technicalmanager', 'siteengineer'] as const;
+
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, hasAnyRole } = useAuth();
+  const { user, isAuthenticated, isLoading, hasAnyRole } = useAuth();
 
   if (isLoading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'hsl(var(--bg-main))' }}>
-        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Äang táº£i...</h3>
+        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Đang tải...</h3>
       </div>
     );
   }
 
   if (isAuthenticated) {
-    if (isPWAMode()) {
+    if (isPWAMode() && user?.role && (FIELD_ROLES as readonly string[]).includes(user.role)) {
       return <Navigate to="/field?standalone=true" replace />;
     }
     if (hasAnyRole(RoleGroup.AdminOnly)) {
@@ -216,8 +219,17 @@ function App() {
               <Route
                 path="/field"
                 element={
-                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                  <ProtectedRoute allowedRoles={FIELD_ROLES}>
                     <FieldWorkbench />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/field/tasks"
+                element={
+                  <ProtectedRoute allowedRoles={FIELD_ROLES}>
+                    <FieldTaskList />
                   </ProtectedRoute>
                 }
               />
@@ -375,13 +387,13 @@ function App() {
                 } 
               />
 
-              <Route 
-                path="/incidents" 
+              <Route
+                path="/incidents"
                 element={
-                  <ProtectedRoute allowedRoles={RoleGroup.Reports}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <GlobalIncidents />
                   </ProtectedRoute>
-                } 
+                }
               />
 
               <Route 
