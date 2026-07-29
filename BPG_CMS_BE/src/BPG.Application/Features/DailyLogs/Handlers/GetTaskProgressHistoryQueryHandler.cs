@@ -40,21 +40,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 throw new NotFoundException(nameof(ProjectTask), request.TaskId);
             }
 
-            // 2. Kiểm tra quyền truy cập (Admin/TM hoặc thành viên dự án)
-            bool isAdminOrTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isAdminOrTM)
-            {
-                var currentUserId = _currentUserService.GetRequiredUserId();
-                var isMember = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == task.Phase.ProjectId && m.UserId == currentUserId, cancellationToken);
-
-                if (!isMember)
-                {
-                    throw new ForbiddenException("Bạn không phải thành viên của dự án này.");
-                }
-            }
-
-            // 3. Lấy lịch sử thay đổi tiến độ công việc
+            // 2. Lấy lịch sử thay đổi tiến độ công việc
             var logs = await _uow.Repository<TaskProgressLog>().Query()
                 .AsNoTracking()
                 .Where(tpl => tpl.TaskId == request.TaskId)

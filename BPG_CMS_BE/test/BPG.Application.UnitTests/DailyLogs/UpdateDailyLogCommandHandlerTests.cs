@@ -107,8 +107,6 @@ namespace BPG.Application.UnitTests.DailyLogs
             );
         }
 
-
-
         [Fact]
         public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnDailyLogDto()
         {
@@ -181,7 +179,8 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
         }
 
         [Fact]
@@ -211,7 +210,8 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ForbiddenException>();
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be("AUTH_002");
         }
 
         [Fact]
@@ -234,7 +234,8 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
 
         [Fact]
@@ -261,7 +262,8 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_LOCKED");
         }
 
         [Fact]

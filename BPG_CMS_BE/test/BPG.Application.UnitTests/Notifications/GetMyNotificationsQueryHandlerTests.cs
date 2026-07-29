@@ -193,7 +193,8 @@ namespace BPG.Application.UnitTests.Notifications
             Func<Task> act = async () => await _handler.Handle(query, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<UnauthorizedAccessException>();
+            var exception = await act.Should().ThrowAsync<UnauthorizedAccessException>();
+            exception.Which.Message.Should().Be("User is not authenticated.");
         }
 
         [Fact]

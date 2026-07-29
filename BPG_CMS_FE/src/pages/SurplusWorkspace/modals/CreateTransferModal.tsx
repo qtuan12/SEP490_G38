@@ -38,7 +38,7 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
 
   const loadProjects = async () => {
     try {
-      const data = await projectService.getProjects(true); // ignoreRoleFilter = true
+      const data = await projectService.getProjects();
       // Exclude current project; id is string
       setProjects(
         data

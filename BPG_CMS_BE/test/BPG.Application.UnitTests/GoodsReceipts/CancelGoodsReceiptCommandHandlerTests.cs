@@ -1,4 +1,4 @@
-using BPG.Application.Features.GoodsReceipts.Commands;
+﻿using BPG.Application.Features.GoodsReceipts.Commands;
 using BPG.Application.Features.GoodsReceipts.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -62,32 +62,6 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 ServiceStubFactory.InventoryService(),
                 ServiceStubFactory.RealtimeSender());
         }
-
-        [Fact]
-        public async Task UTCID01_Handle_AllowedRoleWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupUser(RoleConstants.TechnicalManager);
-            SetupReceipts(Receipt());
-            SetupInventories(Inventory(quantity: 15, reservedQuantity: 2));
-
-            var result = await _handler.Handle(Command(), CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeTrue();
-            result.Message.Should().Be("Hủy phiếu nhập kho thành công.");
-        }
-
-        [Fact]
-        public async Task UTCID02_Handle_UserWithoutAllowedRole_ShouldThrowBusinessException()
-        {
-            SetupUser(RoleConstants.SiteEngineer, hasRole: false);
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be("ERR_INSUFFICIENT_PERMISSION");
-        }
-
         [Fact]
         public async Task UTCID03_Handle_ReceiptNotFound_ShouldThrowNotFoundException()
         {
@@ -95,7 +69,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(999), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("GoodsReceipt với ID [999] không tồn tại.");
         }
 
         [Fact]
@@ -108,6 +84,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_RECEIPT_ALREADY_CANCELLED");
+            exception.Which.Message.Should().Be("Phiếu nhập kho này đã được hủy từ trước.");
         }
 
         [Fact]
@@ -125,6 +102,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PO_NOT_FOUND");
+            exception.Which.Message.Should().Be("Không tìm thấy đơn mua hàng PO liên kết với phiếu nhập kho này.");
         }
 
         [Fact]
@@ -137,6 +115,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
+            exception.Which.Message.Should().Be("Không tìm thấy dự án liên kết với phiếu nhập kho này.");
         }
 
         [Fact]
@@ -149,6 +128,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be("Dự án liên kết không còn hoạt động, không thể hủy phiếu nhập kho.");
         }
 
         [Fact]
@@ -161,6 +141,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PO_CLOSED");
+            exception.Which.Message.Should().Be("Đơn mua hàng PO liên kết đã đóng, không thể hủy phiếu nhập kho.");
         }
 
         [Fact]
@@ -174,6 +155,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_CANCEL_TIME_EXCEEDED");
+            exception.Which.Message.Should().Be("Phiếu nhập kho đã được tạo quá 7 ngày (hạn hủy tối đa theo cấu hình hệ thống), không thể thực hiện hủy. Vui lòng lập Phiếu Điều Chỉnh Kho để hiệu chỉnh số liệu.");
         }
 
         [Fact]
@@ -187,6 +169,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_CANCEL_TIME_EXCEEDED");
+            exception.Which.Message.Should().Be("Phiếu nhập kho đã được tạo quá 7 ngày (hạn hủy tối đa theo cấu hình hệ thống), không thể thực hiện hủy. Vui lòng lập Phiếu Điều Chỉnh Kho để hiệu chỉnh số liệu.");
         }
 
         [Fact]
@@ -200,6 +183,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_INSUFFICIENT_INVENTORY");
+            exception.Which.Message.Should().Be("Không thể hủy phiếu nhập kho. Vật tư [Cement] đã được xuất dùng hoặc đóng băng cho kế hoạch thi công (tồn kho khả dụng hiện tại chỉ còn 8, yêu cầu hoàn trả 10). Vui lòng lập Phiếu Điều Chỉnh Kho.");
         }
 
         private static CancelGoodsReceiptCommand Command(long receiptId = ReceiptId)

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../services/projectService';
@@ -44,6 +44,8 @@ import { useSignalREvent } from '../hooks/useSignalREvent';
 import { ProjectMaterialRequestsTab } from './MaterialRequests/components/ProjectMaterialRequestsTab';
 import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 import { isPWAMode } from '../utils/pwaHelpers';
+import { useProjectAccess } from '../hooks/useProjectAccess';
+import { RoleGroup } from '../auth/roles';
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
@@ -140,15 +142,16 @@ export const ProjectLayoutHub: React.FC = () => {
   });
   const hasApprovedEmergencyIncident = incidents?.some(i => i.isEmergency && i.status === 'Approved') ?? false;
 
-  const { user } = useAuth();
+  const { hasAnyRole } = useAuth();
+  const { canManageExecution, canManageTechnical, canManageAccounting, canViewReports } = useProjectAccess(projectId);
   const { connection } = useNotification();
-  const [isPL, setIsPL] = useState(false);
-  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const isTPKT = canManageTechnical;
+  const canEditProject = hasAnyRole(RoleGroup.ProjectManagers);
+  const canChangeProjectStatus = hasAnyRole(RoleGroup.ProjectManagers) || hasAnyRole(RoleGroup.Approval);
+  const canManageDirectPurchase = canManageExecution || canManageAccounting;
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const isAccountant = user?.role === 'accountant';
-  const [isAssignedLeader, setIsAssignedLeader] = useState(false);
 
   type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'directpurchases' | 'materialrequests';
   const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'directpurchases', 'materialrequests'];
@@ -192,11 +195,6 @@ export const ProjectLayoutHub: React.FC = () => {
       const data = await projectService.getProjectById(projectId);
       setProject(data);
 
-      const members = await projectService.getMembers(projectId);
-      const currentMember = members.find(m => m.userId === user?.id);
-      const memberIsLeader = currentMember?.isLeader ?? false;
-      setIsAssignedLeader(memberIsLeader);
-      setIsPL(memberIsLeader || user?.role === 'admin' || user?.role === 'technicalmanager');
     } catch (err) {
       console.error('Error loading project details:', err);
     } finally {
@@ -437,7 +435,7 @@ export const ProjectLayoutHub: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {(user?.role === 'admin' || user?.role === 'accountant') && (
+            {canViewReports && (
               <>
                 <button onClick={() => navigate(`/projects/${projectId}/reports/boq`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Package size={16} /> Báo cáo BOQ
@@ -449,14 +447,14 @@ export const ProjectLayoutHub: React.FC = () => {
             )}
 
             {/* Nút Sửa chỉ dành cho TPKT */}
-            {user?.role === 'technicalmanager' && project.status !== 'done' && project.status !== 'paused' && (
+            {canEditProject && project.status !== 'done' && project.status !== 'paused' && (
               <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Edit3 size={16} /> Sửa
               </button>
             )}
 
             {/* Project Status Actions cho PL và TPKT */}
-            {isPL && (
+            {canChangeProjectStatus && (
               <>
                 {project.status === 'draft' && (
                   <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -465,11 +463,9 @@ export const ProjectLayoutHub: React.FC = () => {
                 )}
                 {project.status === 'inprogress' && (
                   <>
-                    {(user?.role === 'technicalmanager' || user?.role === 'director' || user?.role === 'admin') && (
-                      <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
-                        <Pause size={16} /> Tạm dừng
-                      </button>
-                    )}
+                    <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
+                      <Pause size={16} /> Tạm dừng
+                    </button>
                     <button
                       onClick={() => handleStatusChange('done')}
                       disabled={project.progress < 100}
@@ -489,7 +485,7 @@ export const ProjectLayoutHub: React.FC = () => {
                     </button>
                   </>
                 )}
-                {project.status === 'paused' && (user?.role === 'technicalmanager' || user?.role === 'director' || user?.role === 'admin') && (
+                {project.status === 'paused' && (
                   <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Play size={16} /> Tiếp tục Dự án
                   </button>
@@ -753,7 +749,7 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Đơn hàng</span>
         </button>
 
-        {(isAccountant || isAssignedLeader) && (
+        {canManageDirectPurchase && (
           <button
             onClick={() => handleTabChange('directpurchases')}
             style={{
@@ -867,8 +863,8 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} projectName={project.name} />}
         {activeTab === 'inventoryincidents' && <GlobalInventoryIncidents projectId={Number(project.id)} />}
-        {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
-        {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
+        {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} />}
+        {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} />}
       </div>
 
       {isEditOpen && project && (

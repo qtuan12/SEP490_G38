@@ -22,13 +22,14 @@ import {
   Trash2,
   ClipboardList
 } from 'lucide-react';
+import { RoleGroup } from '../../auth/roles';
 
 export const ProjectList: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const isTPKT = user?.role === 'technicalmanager';
-  const fieldRoles = ['technicalmanager', 'projectleader', 'siteengineer'];
-  const showFieldShortcut = isPWAMode() && !!user?.role && fieldRoles.includes(user.role);
+  const { hasAnyRole } = useAuth();
+  const canCreateProject = hasAnyRole(RoleGroup.ProjectManagers);
+  const canDeleteProject = hasAnyRole(RoleGroup.ProjectManagers);
+  const showFieldShortcut = isPWAMode() && hasAnyRole(['technicalmanager', 'siteengineer']);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,7 +175,7 @@ export const ProjectList: React.FC = () => {
         </div>
 
         {/* Add Project Button */}
-        {isTPKT && (
+        {canCreateProject && (
           <Button
             variant="primary"
             onClick={() => {
@@ -214,7 +215,7 @@ export const ProjectList: React.FC = () => {
                 <div className="flex justify-between items-start gap-2">
                   <h3 className="text-[1.1rem] font-bold leading-tight">{p.name}</h3>
                   <div className="flex items-center gap-2">
-                    {isTPKT && p.status === 'draft' && (
+                    {canDeleteProject && p.status === 'draft' && (
                       <button
                         onClick={(e) => openDeleteConfirm(e, p.id, p.name)}
                         className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors"

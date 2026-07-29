@@ -37,16 +37,6 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
                 ?? throw new NotFoundException(nameof(PurchaseOrder), request.POId);
 
-            // SiteEngineer chỉ được xem PO thuộc dự án mình được phân công.
-            if (_currentUserService.IsInRole(UserRole.SiteEngineer))
-            {
-                var currentUserId = _currentUserService.GetRequiredUserId();
-                var isMember = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == po.ProjectId && m.UserId == currentUserId, cancellationToken);
-                if (!isMember)
-                    throw new ForbiddenException("Bạn không được phân công vào dự án này nên không có quyền xem đơn hàng.");
-            }
-
             // TotalReceived per material from approved GR items
             var receivedItems = await _uow.Repository<GoodsReceiptItem>().Query()
                 .AsNoTracking()

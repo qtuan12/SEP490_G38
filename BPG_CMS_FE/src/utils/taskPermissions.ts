@@ -1,24 +1,19 @@
-import type { WBSTask, ProjectMember } from '../types/common';
+import type { WBSTask } from '../types/common';
 
 /**
- * TM luôn quản lý toàn hệ thống. Với các role khác, "Trưởng dự án" không phải role toàn cục cố định —
- * một Site Engineer vẫn có thể được gán làm Trưởng dự án cho MỘT dự án cụ thể qua cờ ProjectMember.isLeader.
- * Vì vậy phải check cả role lẫn membership của đúng dự án đang xem, không chỉ dựa vào role string.
+ * "Trưởng dự án" không phải role toàn cục (đã bỏ role `projectleader`) — một Site Engineer
+ * vẫn có thể được gán làm leader cho MỘT dự án cụ thể qua ProjectMember.isLeader, lấy được
+ * qua hook `useProjectAccess(projectId).isProjectLeader`. Admin/TechnicalManager quản lý toàn
+ * hệ thống nên luôn coi như leader ở mọi dự án (khớp với backend: IsInAnyRole(Admin, TechnicalManager)).
  */
-export const isLeaderOfProject = (
-  user: { id: string; role: string } | null | undefined,
-  members: ProjectMember[]
-): boolean => {
-  if (!user) return false;
-  if (user.role === 'technicalmanager') return true;
-  return members.some(m => String(m.userId) === String(user.id) && m.isLeader);
-};
+export const isManagerRole = (user: { role: string } | null | undefined): boolean =>
+  user?.role === 'admin' || user?.role === 'technicalmanager';
 
-/** TM/Trưởng dự án (leader thật của dự án này) xem toàn bộ công việc; còn lại chỉ xem đúng việc được gán cho mình. */
+/** TM/Admin hoặc leader thật của dự án này xem toàn bộ công việc; còn lại chỉ xem đúng việc được gán cho mình. */
 export const isProjectWideView = (
-  user: { id: string; role: string } | null | undefined,
-  members: ProjectMember[]
-): boolean => isLeaderOfProject(user, members);
+  user: { role: string } | null | undefined,
+  isProjectLeader: boolean
+): boolean => isManagerRole(user) || isProjectLeader;
 
 const isAssignedTo = (task: WBSTask, userId?: string): boolean =>
   !!userId && (task.assignedTo?.split(',').map(s => s.trim()).includes(String(userId)) ?? false);
@@ -26,8 +21,8 @@ const isAssignedTo = (task: WBSTask, userId?: string): boolean =>
 /**
  * Danh sách task hiển thị theo view của user:
  * - Không phải project-wide (Site Engineer thường): chỉ lấy task được gán cho mình.
- * - Project-wide (TM/leader): lấy toàn bộ task của dự án, nhưng ưu tiên đưa task được gán cho chính mình lên đầu
- *   (ví dụ leader vẫn có thể được gán trực tiếp 1 vài task cụ thể).
+ * - Project-wide (TM/Admin/leader): lấy toàn bộ task của dự án, nhưng ưu tiên đưa task được gán cho
+ *   chính mình lên đầu (ví dụ leader vẫn có thể được gán trực tiếp 1 vài task cụ thể).
  */
 export const getVisibleTasksForUser = (
   tasks: WBSTask[],
@@ -39,13 +34,13 @@ export const getVisibleTasksForUser = (
   return [...tasks].sort((a, b) => Number(isAssignedTo(b, user.id)) - Number(isAssignedTo(a, user.id)));
 };
 
-/** Backend chỉ cho TM / Trưởng dự án (leader) / người được gán vào đúng task đó tạo nhật ký (403 với người khác). */
+/** Backend chỉ cho TM/Admin / Trưởng dự án (leader) / người được gán vào đúng task đó tạo nhật ký (403 với người khác). */
 export const canCreateDailyLog = (
   task: WBSTask,
   user: { id: string; role: string } | null | undefined,
-  members: ProjectMember[]
+  isProjectLeader: boolean
 ): boolean => {
-  if (isLeaderOfProject(user, members)) return true;
+  if (isManagerRole(user) || isProjectLeader) return true;
   if (!user) return false;
-  return task.assignedTo?.split(',').map(s => s.trim()).includes(String(user.id)) ?? false;
+  return isAssignedTo(task, user.id);
 };

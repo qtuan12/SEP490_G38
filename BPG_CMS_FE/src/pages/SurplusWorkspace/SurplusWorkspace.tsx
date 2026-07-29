@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Button } from '../../components/ui';
 import { RefreshCw, PackageX } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { projectService } from '../../services/projectService';
 import { surplusService } from '../../services/surplusService';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useNotification } from '../../context/NotificationContext';
@@ -16,6 +14,7 @@ import { CreateReturnModal } from './modals/CreateReturnModal';
 import { CreateTransferModal } from './modals/CreateTransferModal';
 import { CreateLiquidationModal } from './modals/CreateLiquidationModal';
 import type { SurplusRequestItem } from '../../types/surplus';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 interface SurplusWorkspaceProps {
   projectId: number;
@@ -26,37 +25,12 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   projectId,
   projectName,
 }) => {
-  const { user } = useAuth();
   const { connection } = useNotification();
-  const [isLeader, setIsLeader] = useState(false);
-  
-  const isAccountant = user?.role === 'accountant';
-  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
-
-  // isLeader = true nếu user là SiteEngineer VÀ được gán làm trưởng dự án trong bảng ProjectMembers
-  useEffect(() => {
-    const checkLeaderStatus = async () => {
-      if (user?.role === 'siteengineer') {
-        try {
-          const members = await projectService.getMembers(projectId.toString());
-          const me = members.find(m => m.userId === user.id);
-          setIsLeader(!!me?.isLeader);
-        } catch (err) {
-          console.error('Error checking leader status:', err);
-          setIsLeader(false);
-        }
-      } else {
-        setIsLeader(false);
-      }
-    };
-    checkLeaderStatus();
-  }, [projectId, user]);
-
-  // Quyền tạo đề xuất xử lý vật tư thừa:
-  // - Trưởng phòng kỹ thuật (TechnicalManager) hoặc Admin: luôn được tạo
-  // - Trưởng dự án (SiteEngineer có isLeader=true trong dự án): được tạo
-  // - Nhân viên kỹ thuật thường (SiteEngineer không phải leader): KHÔNG được tạo
-  const canCreateSurplusRequest = isTPKT || isLeader;
+  const { canManageExecution, canManageTechnical, canManageAccounting, access } = useProjectAccess(projectId);
+  const isLeader = access?.isLeader ?? false;
+  const isAccountant = canManageAccounting;
+  const isTPKT = canManageTechnical;
+  const canCreateSurplusRequest = canManageExecution;
 
   const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>('outbound');
   const [view, setView] = useState<'list' | 'detail'>('list');

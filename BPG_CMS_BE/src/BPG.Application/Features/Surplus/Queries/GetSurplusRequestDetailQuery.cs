@@ -1,6 +1,5 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Surplus;
-using BPG.Application.Common.Interfaces;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -11,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Surplus.Queries;
 
-public record GetSurplusRequestDetailQuery(long SurplusRequestId) : IRequest<ApiResponse<SurplusRequestDetailDto>>, IProjectRequirement
+public record GetSurplusRequestDetailQuery(long SurplusRequestId) : IRequest<ApiResponse<SurplusRequestDetailDto>>
 {
     public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
     {
@@ -26,3 +25,4 @@ public record GetSurplusRequestDetailQuery(long SurplusRequestId) : IRequest<Api
         return projectId;
     }
 }
+

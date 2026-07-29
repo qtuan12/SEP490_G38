@@ -1,13 +1,17 @@
-using BPG.Application.IRepositories;
+﻿using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetInventoryLedgerReport;
 
-public record GetInventoryLedgerReportQuery(long ProjectId) : IRequest<ApiResponse<InventoryLedgerReportDto>>;
+public record GetInventoryLedgerReportQuery(long ProjectId)
+    : IRequest<ApiResponse<InventoryLedgerReportDto>>
+{
+}
 
 public class GetInventoryLedgerReportQueryHandler
     : IRequestHandler<GetInventoryLedgerReportQuery, ApiResponse<InventoryLedgerReportDto>>
@@ -88,3 +92,4 @@ public class GetInventoryLedgerReportQueryHandler
         return ApiResponse<InventoryLedgerReportDto>.SuccessResult(dto);
     }
 }
+

@@ -1,12 +1,13 @@
-using BPG.Application.Features.MaterialCategories.Commands;
+﻿using BPG.Application.Features.MaterialCategories.Commands;
 using BPG.Application.Features.MaterialCategories.Queries;
 using BPG.Application.DTOs.MaterialCategories;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BPG.Api.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = RolePolicies.MasterData)]
 public class MaterialCategoriesController : BaseApiController
 {
     [HttpGet]
@@ -20,7 +21,7 @@ public class MaterialCategoriesController : BaseApiController
     public async Task<IActionResult> Create([FromBody] CreateMaterialCategoryCommand command, CancellationToken ct)
     {
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result, "Tạo loại vật tư thành công.");
+        return ApiOk(result, "Táº¡o loáº¡i váº­t tÆ° thÃ nh cÃ´ng.");
     }
 
     [HttpPut("{id}")]
@@ -34,13 +35,14 @@ public class MaterialCategoriesController : BaseApiController
         };
 
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result, "Cập nhật loại vật tư thành công.");
+        return ApiOk(result, "Cáº­p nháº­t loáº¡i váº­t tÆ° thÃ nh cÃ´ng.");
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await Mediator.Send(new DeleteMaterialCategoryCommand(id), ct);
-        return ApiOk("Xóa loại vật tư thành công.");
+        return ApiOk("XÃ³a loáº¡i váº­t tÆ° thÃ nh cÃ´ng.");
     }
 }
+

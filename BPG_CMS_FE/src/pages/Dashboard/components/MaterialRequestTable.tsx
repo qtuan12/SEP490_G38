@@ -8,8 +8,8 @@ import { formatDate } from '../../../utils/dateHelpers';
 interface MaterialRequestTableProps {
   materialRequests: MaterialRequest[];
   loadingRequests: boolean;
-  isAccountant: boolean;
-  isDirector: boolean;
+  canAccountForRequest: (request: MaterialRequest) => boolean;
+  canApproveRequest: (request: MaterialRequest) => boolean;
   handleVerifyRequestByAccountant: (id: string) => void;
   handleDisburseRequestByAccountant: (id: string) => void;
   handleApproveRequestByDirector: (id: string) => void;
@@ -19,8 +19,8 @@ interface MaterialRequestTableProps {
 export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
   materialRequests,
   loadingRequests,
-  isAccountant,
-  isDirector,
+  canAccountForRequest,
+  canApproveRequest,
   handleVerifyRequestByAccountant,
   handleDisburseRequestByAccountant,
   handleApproveRequestByDirector,
@@ -119,7 +119,7 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                       <td className="whitespace-nowrap">{getStatusBadgeMR(req.status)}</td>
                       <td className="text-center align-middle">
                         {req.status === 'pending_accountant' && (
-                          isAccountant ? (
+                          canAccountForRequest(req) ? (
                             <div className="flex gap-1.5 justify-center flex-wrap">
                               <Button
                                 variant="secondary"
@@ -143,7 +143,7 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                         )}
 
                         {req.status === 'pending_disbursement' && (
-                          isAccountant ? (
+                          canAccountForRequest(req) ? (
                             <div className="flex gap-1.5 justify-center flex-wrap">
                               <Button
                                 variant="primary"
@@ -166,7 +166,7 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                         )}
 
                         {req.status === 'pending_director' && (
-                          isDirector ? (
+                          canApproveRequest(req) ? (
                             <div className="flex gap-1.5 justify-center flex-wrap">
                               <Button
                                 variant="primary"
@@ -232,8 +232,8 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
             setSelectedRequest(null);
           }}
           request={selectedRequest}
-          isAccountant={isAccountant}
-          isDirector={isDirector}
+          isAccountant={canAccountForRequest(selectedRequest)}
+          isDirector={canApproveRequest(selectedRequest)}
           handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
           handleDisburseRequestByAccountant={handleDisburseRequestByAccountant}
           handleApproveRequestByDirector={handleApproveRequestByDirector}

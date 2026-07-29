@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -7,8 +7,8 @@ import type { PurchaseOrderDto } from '../../services/inventoryService';
 import { Badge, Pagination, Button, DateInput } from '../../components/ui';
 import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus, ChevronDown, SlidersHorizontal, X, Plus } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
-import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 const menuItemStyle: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 8,
@@ -136,15 +136,14 @@ const formatDate = (dateStr: string) => {
 
 interface Props {
   projectId: number;
-  isLeader: boolean;
 }
 
-export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
+export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { connection } = useNotification();
-  const { user } = useAuth();
-  const isAccountant = user?.role === 'accountant';
+  const { canManageExecution, canManageAccounting } = useProjectAccess(projectId);
+  const isAccountant = canManageAccounting;
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -297,7 +296,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
       return items;
     }
 
-    const canReceive = (isLeader || user?.role === 'technicalmanager') && (po.status === 'Sent' || po.status === 'PartiallyReceived');
+    const canReceive = canManageExecution && (po.status === 'Sent' || po.status === 'PartiallyReceived');
     if (canReceive) {
       items.push({
         key: 'receive',

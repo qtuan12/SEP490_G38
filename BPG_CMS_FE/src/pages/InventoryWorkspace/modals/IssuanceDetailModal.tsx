@@ -3,7 +3,6 @@ import { Modal, Button, Input, FormItem } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import type { MaterialIssuanceDetail, MaterialIssuanceItemDetail, MaterialReturn } from '../../../types/inventory';
-import { useAuth } from '../../../context/AuthContext';
 import {
   Calendar,
   User,
@@ -22,7 +21,7 @@ interface IssuanceDetailModalProps {
   onClose: () => void;
   issuanceId: number | null;
   projectId?: number;
-  isAssignedLeader?: boolean;
+  canManageExecution?: boolean;
   onSuccess?: () => void; // Triggered when a return succeeds, to refresh parent lists
 }
 
@@ -42,7 +41,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
   isOpen,
   onClose,
   issuanceId,
-  isAssignedLeader,
+  canManageExecution = false,
   onSuccess
 }) => {
   const [loading, setLoading] = useState(false);
@@ -239,9 +238,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
   // Determine if there is any returnable item remaining
   const isAnyItemReturnable = returnItems.some(item => item.maxReturnableQty > 0);
 
-  const { user: currentUser } = useAuth();
-  const userRole = currentUser?.role?.toLowerCase() || '';
-  const canReturnMaterial = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin';
+  const canReturnMaterial = canManageExecution;
 
   return (
     <Modal

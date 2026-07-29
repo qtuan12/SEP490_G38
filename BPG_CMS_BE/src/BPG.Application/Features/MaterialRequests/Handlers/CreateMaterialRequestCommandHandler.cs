@@ -53,14 +53,6 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án hiện không ở trạng thái hoạt động (InProgress).");
             }
 
-            // Kiểm tra xem người dùng hiện tại có phải là Project Leader (IsLeader == true) của dự án này không
-            var isLeader = await _uow.Repository<ProjectMember>().Query()
-                .AnyAsync(pm => pm.ProjectId == request.ProjectId && pm.UserId == currentUserId && pm.IsLeader, cancellationToken);
-            if (!isLeader)
-            {
-                throw new ForbiddenException("Chỉ có trưởng nhóm của dự án mới được phép lập đề xuất yêu cầu vật tư.");
-            }
-
             // 2. Kiểm tra Phase tồn tại và thuộc dự án
             var phase = await _uow.Repository<Phase>().Query()
                 .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, cancellationToken);

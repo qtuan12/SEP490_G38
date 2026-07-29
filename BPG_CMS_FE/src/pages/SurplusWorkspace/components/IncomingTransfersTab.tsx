@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { LoadingSpinner } from '../../../components/ui';
 import { surplusService } from '../../../services/surplusService';
 import type { IncomingTransfer } from '../../../types/surplus';
 import { getSurplusTransferStatusDetails, formatDateVN } from '../../../utils/surplusHelpers';
-import { useAuth } from '../../../context/AuthContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import toast from 'react-hot-toast';
 import { RefreshCw, Package } from 'lucide-react';
 import { ReceiveTransferModal } from '../modals/ReceiveTransferModal';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 interface IncomingTransfersTabProps {
   projectId: number;
@@ -17,8 +17,8 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
   const [list, setList] = useState<IncomingTransfer[]>([]);
   const [loading, setLoading] = useState(false);
   const [receivingTransferId, setReceivingTransferId] = useState<number | null>(null);
-  const { user } = useAuth(); // Leader is a type of Site Engineer
-  const isSiteEngineer = user?.role === 'siteengineer';
+  const { canManageExecution } = useProjectAccess(projectId);
+  const canReceiveTransfer = canManageExecution;
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -129,7 +129,7 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      {item.status === 'Dispatched' && isSiteEngineer && (
+                      {item.status === 'Dispatched' && canReceiveTransfer && (
                         <button
                           onClick={() => handleReceive(item.surplusTransferId)}
                           className="px-3 py-1.5 text-xs font-bold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm"

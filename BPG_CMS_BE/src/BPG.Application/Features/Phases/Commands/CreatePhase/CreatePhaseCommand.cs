@@ -1,13 +1,13 @@
-using BPG.Domain.Exceptions;
+﻿using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using BPG.Application.Common.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Phases.Commands.CreatePhase;
 
@@ -18,10 +18,8 @@ public record CreatePhaseCommand(
     int OrderIndex,
     DateOnly? StartDate,
     DateOnly? EndDate
-) : IRequest<ApiResponse<long>>, IRequireTechnicalManager
+) : IRequest<ApiResponse<long>>
 {
-    public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-        => Task.FromResult(ProjectId);
 }
 
 public class CreatePhaseCommandValidator : AbstractValidator<CreatePhaseCommand>
@@ -34,7 +32,7 @@ public class CreatePhaseCommandValidator : AbstractValidator<CreatePhaseCommand>
         RuleFor(x => x.EndDate)
             .GreaterThanOrEqualTo(x => x.StartDate)
             .When(x => x.StartDate.HasValue && x.EndDate.HasValue)
-            .WithMessage("Ngày kết thúc không được nhỏ hơn ngày bắt đầu.");
+            .WithMessage("NgÃ y káº¿t thÃºc khÃ´ng Ä‘Æ°á»£c nhá» hÆ¡n ngÃ y báº¯t Ä‘áº§u.");
     }
 }
 
@@ -58,12 +56,12 @@ public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, Api
 
         if (request.StartDate.HasValue && request.StartDate.Value < project.PlannedStart)
         {
-            throw new BusinessException("ERR_PHASE_DATE_INVALID", $"Ngày bắt đầu của giai đoạn ({request.StartDate.Value:dd/MM/yyyy}) không được trước ngày bắt đầu của dự án ({project.PlannedStart:dd/MM/yyyy}).");
+            throw new BusinessException("ERR_PHASE_DATE_INVALID", $"NgÃ y báº¯t Ä‘áº§u cá»§a giai Ä‘oáº¡n ({request.StartDate.Value:dd/MM/yyyy}) khÃ´ng Ä‘Æ°á»£c trÆ°á»›c ngÃ y báº¯t Ä‘áº§u cá»§a dá»± Ã¡n ({project.PlannedStart:dd/MM/yyyy}).");
         }
         
         if (request.EndDate.HasValue && request.EndDate.Value > project.PlannedEnd)
         {
-            throw new BusinessException("ERR_PHASE_DATE_INVALID", $"Ngày kết thúc của giai đoạn ({request.EndDate.Value:dd/MM/yyyy}) không được sau ngày kết thúc của dự án ({project.PlannedEnd:dd/MM/yyyy}).");
+            throw new BusinessException("ERR_PHASE_DATE_INVALID", $"NgÃ y káº¿t thÃºc cá»§a giai Ä‘oáº¡n ({request.EndDate.Value:dd/MM/yyyy}) khÃ´ng Ä‘Æ°á»£c sau ngÃ y káº¿t thÃºc cá»§a dá»± Ã¡n ({project.PlannedEnd:dd/MM/yyyy}).");
         }
 
         var phase = new Phase
@@ -80,6 +78,7 @@ public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, Api
         await _unitOfWork.Repository<Phase>().AddAsync(phase);
         await _unitOfWork.SaveChangesAsync(ct);
 
-        return ApiResponse<long>.SuccessResult(phase.PhaseId, "Tạo phase thành công.");
+        return ApiResponse<long>.SuccessResult(phase.PhaseId, "Táº¡o phase thÃ nh cÃ´ng.");
     }
 }
+

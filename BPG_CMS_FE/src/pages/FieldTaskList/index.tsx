@@ -7,28 +7,25 @@ import { DailyLogFormModal } from '../ProjectDailyLogs/modals/DailyLogFormModal'
 import { LoadingSpinner, Input } from '../../components/ui';
 import { TaskRow } from '../../components/field/TaskRow';
 import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVisibleTasksForUser } from '../../utils/taskPermissions';
-import type { Project, WBSTask, ProjectMember } from '../../types/common';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
+import type { Project, WBSTask } from '../../types/common';
 
 export const FieldTaskList: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('projectId') || '';
+  const { isProjectLeader, canManageTechnical } = useProjectAccess(projectId);
 
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
-  const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [logModalTaskId, setLogModalTaskId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const loadTasks = useCallback((pid: string) => {
-    return Promise.all([
-      projectService.getTasks(pid),
-      projectService.getMembers(pid),
-    ]).then(([tasksData, membersData]) => {
+    return projectService.getTasks(pid).then((tasksData) => {
       setTasks(tasksData.filter(t => t.status !== 'obsolete'));
-      setMembers(membersData || []);
     }).catch(console.error);
   }, []);
 
@@ -46,7 +43,7 @@ export const FieldTaskList: React.FC = () => {
     }).catch(console.error).finally(() => setLoading(false));
   }, [projectId, loadTasks]);
 
-  const isProjectWideView = computeIsProjectWideView(user, members);
+  const isProjectWideView = computeIsProjectWideView(user, isProjectLeader);
 
   const myTasks = useMemo(
     () => getVisibleTasksForUser(tasks, user, isProjectWideView),
@@ -118,7 +115,7 @@ export const FieldTaskList: React.FC = () => {
               key={task.id}
               task={task}
               currentUserId={user?.id}
-              canCreateLog={canCreateDailyLog(task, user, members)}
+              canCreateLog={canCreateDailyLog(task, user, isProjectLeader)}
               showAssignee={isProjectWideView}
               onOpen={() => navigate(`/tasks/${task.id.replace(/^t-/, '')}`)}
               onCreateLog={() => setLogModalTaskId(task.id)}
@@ -135,6 +132,7 @@ export const FieldTaskList: React.FC = () => {
           tasks={tasks}
           engineerId={user.id}
           engineerName={user.name}
+          canManageTechnical={canManageTechnical}
           onSuccess={() => {
             setLogModalTaskId(null);
             loadTasks(projectId);

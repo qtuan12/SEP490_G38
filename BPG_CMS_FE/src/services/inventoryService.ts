@@ -225,11 +225,13 @@ export const inventoryService = {
   // Get POs for dropdown (Sent and PartiallyReceived) — pass large pageSize to load all
   getPurchaseOrdersForReceipt: async (projectId: number): Promise<PurchaseOrderDto[]> => {
     const params: Record<string, string> = {
-      projectId: projectId.toString(),
       pageSize: '100',
     };
     const paged = unwrap(
-      await apiClient.get<ApiResponse<PagedList<PurchaseOrderDto>>>('/purchaseorders', { params })
+      await apiClient.get<ApiResponse<PagedList<PurchaseOrderDto>>>(
+        `/projects/${projectId}/purchase-orders`,
+        { params },
+      )
     );
     return paged.items ?? [];
   },
@@ -296,11 +298,13 @@ export const inventoryService = {
     };
     if (params.search) q.search = params.search;
     if (params.status) q.status = params.status;
-    if (params.projectId) q.projectId = params.projectId.toString();
     if (params.orderDateFrom) q.orderDateFrom = params.orderDateFrom;
     if (params.orderDateTo) q.orderDateTo = params.orderDateTo;
+    const endpoint = params.projectId
+      ? `/projects/${params.projectId}/purchase-orders`
+      : '/purchaseorders';
     return unwrap(
-      await apiClient.get<ApiResponse<PagedList<PurchaseOrderDto>>>('/purchaseorders', { params: q })
+      await apiClient.get<ApiResponse<PagedList<PurchaseOrderDto>>>(endpoint, { params: q })
     );
   },
 

@@ -7,7 +7,35 @@ public static class UserRole
     public const string TechnicalManager = "TechnicalManager";
     public const string SiteEngineer = "SiteEngineer";
     public const string Accountant = "Accountant";
-    public const string ProjectLeader = "ProjectLeader";
+}
+
+public static class RolePolicies
+{
+    public const string Admin = UserRole.Admin;
+    public const string AdminOrTechnicalManager = UserRole.Admin + "," + UserRole.TechnicalManager;
+    public const string AdminOrDirector = UserRole.Admin + "," + UserRole.Director;
+    public const string ProjectViewers =
+        UserRole.Admin + "," +
+        UserRole.Director + "," +
+        UserRole.TechnicalManager + "," +
+        UserRole.SiteEngineer + "," +
+        UserRole.Accountant;
+    public const string SupplierViewers = ProjectViewers;
+    public const string SupplierManagers =
+        UserRole.Admin + "," +
+        UserRole.TechnicalManager + "," +
+        UserRole.Accountant;
+    public const string Procurement =
+        UserRole.Admin + "," +
+        UserRole.Accountant + "," +
+        UserRole.TechnicalManager + "," +
+        UserRole.Director;
+    public const string Reports =
+        UserRole.Admin + "," +
+        UserRole.Director + "," +
+        UserRole.TechnicalManager + "," +
+        UserRole.Accountant;
+    public const string MasterData = UserRole.Admin + "," + UserRole.TechnicalManager;
 }
 
 public static class SupplierRelationshipHealth

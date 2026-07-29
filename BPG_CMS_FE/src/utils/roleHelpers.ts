@@ -7,7 +7,6 @@ export const getRoleLabel = (role: string): string => {
     case 'admin': return 'Admin';
     case 'technicalmanager': return 'Trưởng phòng Kĩ thuật';
     case 'siteengineer': return 'Nhân viên kỹ thuật';
-    case 'projectleader': return 'Trưởng Dự án';
     case 'director': return 'Giám đốc';
     case 'accountant': return 'Kế toán';
     default: return role;
@@ -22,7 +21,6 @@ export const getRoleBadgeVariant = (role: string): BadgeVariant => {
     case 'director': return 'warning';
     case 'siteengineer': return 'success';
     case 'technicalmanager':
-    case 'projectleader':
     case 'accountant':
       return 'default';
     default:

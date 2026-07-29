@@ -57,7 +57,9 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         {
             var act = async () => await _handler.Handle(Command(isApproved: true), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("InventoryAdjustment với ID [1] không tồn tại.");
         }
 
         [Fact]
@@ -69,6 +71,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_INVALID_STATUS");
+            exception.Which.Message.Should().Be("Phiếu không ở trạng thái chờ duyệt");
         }
 
         [Fact]
@@ -93,6 +96,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_INSUFFICIENT_STOCK");
+            exception.Which.Message.Should().Be("Không đủ tồn kho cho vật tư ID 20");
         }
 
         [Fact]

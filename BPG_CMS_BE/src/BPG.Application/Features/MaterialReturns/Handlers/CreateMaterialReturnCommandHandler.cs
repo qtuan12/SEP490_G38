@@ -73,20 +73,6 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
             {
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án phải ở trạng thái đang tiến hành để hoàn trả vật tư.");
             }
-            // 1.5 Kiểm tra quyền: Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án (Leader) mới được phép tạo yêu cầu xuất dùng vật tư
-            bool isOfficeRole = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
-
-            if (!isOfficeRole)
-            {
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
-
-                if (!isLeader)
-                {
-                    throw new ForbiddenException("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
-                }
-            }
-
             // 2. Xây dựng map số lượng đã xuất từ phiếu xuất gốc (theo đơn vị cơ bản)
             // Key: MaterialId, Value: tổng base qty đã xuất trong phiếu đó
             var issuedBaseQtyMap = issuance.Items

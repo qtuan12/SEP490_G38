@@ -16,7 +16,6 @@ namespace BPG.Api.Controllers
         /// Phiếu hoàn trả phải gắn với phiếu xuất kho gốc (OriginalIssuanceId).
         /// </summary>
         [HttpPost]
-        [Authorize(Policy = PolicyNames.RequireFieldStaff)]
         public async Task<IActionResult> CreateMaterialReturn([FromBody] CreateMaterialReturnCommand command)
         {
             var result = await Mediator.Send(command);

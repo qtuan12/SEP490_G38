@@ -1,7 +1,8 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Suppliers;
 using BPG.Application.Features.Suppliers.Commands;
 using BPG.Application.Features.Suppliers.Queries;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -11,31 +12,31 @@ namespace BPG.Api.Controllers
     public class SuppliersController : BaseApiController
     {
         [HttpGet]
-        [Authorize(Roles = "Accountant,TechnicalManager,Director,ProjectLeader,SiteEngineer")]
+        [Authorize(Roles = RolePolicies.SupplierViewers)]
         public async Task<IActionResult> GetSuppliers([FromQuery] GetSuppliersQuery query)
         {
             var result = await Mediator.Send(query);
-            return ApiPagedOk(result, "Lấy danh sách nhà cung cấp thành công");
+            return ApiPagedOk(result, "Láº¥y danh sÃ¡ch nhÃ  cung cáº¥p thÃ nh cÃ´ng");
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "Accountant,TechnicalManager,Director,ProjectLeader,SiteEngineer")]
+        [Authorize(Roles = RolePolicies.SupplierViewers)]
         public async Task<IActionResult> GetSupplierById(long id)
         {
             var result = await Mediator.Send(new GetSupplierByIdQuery(id));
-            return ApiOk(result, "Lấy thông tin nhà cung cấp thành công");
+            return ApiOk(result, "Láº¥y thÃ´ng tin nhÃ  cung cáº¥p thÃ nh cÃ´ng");
         }
 
         [HttpPost]
-        [Authorize(Roles = "Accountant,TechnicalManager,Director")]
+        [Authorize(Roles = RolePolicies.SupplierManagers)]
         public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierCommand command)
         {
             var result = await Mediator.Send(command);
-            return ApiOk(result, "Tạo nhà cung cấp thành công");
+            return ApiOk(result, "Táº¡o nhÃ  cung cáº¥p thÃ nh cÃ´ng");
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Accountant,TechnicalManager,Director")]
+        [Authorize(Roles = RolePolicies.SupplierManagers)]
         public async Task<IActionResult> UpdateSupplier(long id, [FromBody] UpdateSupplierRequest request)
         {
             var result = await Mediator.Send(new UpdateSupplierCommand(
@@ -48,15 +49,16 @@ namespace BPG.Api.Controllers
                 request.EvaluationNote,
                 request.CollaborationStatus
             ));
-            return ApiOk(result, "Cập nhật nhà cung cấp thành công");
+            return ApiOk(result, "Cáº­p nháº­t nhÃ  cung cáº¥p thÃ nh cÃ´ng");
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Accountant,TechnicalManager,Director")]
+        [Authorize(Roles = RolePolicies.SupplierManagers)]
         public async Task<IActionResult> DeleteSupplier(long id)
         {
             await Mediator.Send(new DeleteSupplierCommand(id));
-            return ApiOk("Xóa nhà cung cấp thành công");
+            return ApiOk("XÃ³a nhÃ  cung cáº¥p thÃ nh cÃ´ng");
         }
     }
 }
+

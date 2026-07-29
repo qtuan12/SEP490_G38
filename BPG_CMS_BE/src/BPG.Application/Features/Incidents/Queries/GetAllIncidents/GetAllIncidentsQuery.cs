@@ -2,6 +2,7 @@ using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Incidents;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using AutoMapper;
@@ -15,17 +16,24 @@ public class GetAllIncidentsQueryHandler : IRequestHandler<GetAllIncidentsQuery,
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetAllIncidentsQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+    public GetAllIncidentsQueryHandler(
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        IProjectAccessService projectAccessService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<ApiResponse<List<IncidentDto>>> Handle(GetAllIncidentsQuery request, CancellationToken cancellationToken)
     {
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
         var incidents = await _unitOfWork.Repository<Incident>()
             .Query()
+            .Where(incident => accessibleProjectIds.Contains(incident.ProjectId))
             .Include(i => i.Reporter)
             .Include(i => i.Reviewer)
             .Include(i => i.Project)

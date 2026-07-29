@@ -1,4 +1,4 @@
-using BPG.Application.Features.Incidents.Commands.CreateAndAssessIncident;
+﻿using BPG.Application.Features.Incidents.Commands.CreateAndAssessIncident;
 using BPG.Application.Features.Incidents.Commands.ConfirmIncident;
 using BPG.Application.Features.Incidents.Queries.GetIncidents;
 using BPG.Domain.Constants;
@@ -11,7 +11,7 @@ namespace BPG.Api.Controllers;
 public class IncidentsController : BaseApiController
 {
     [HttpGet("all")]
-    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin},{UserRole.Accountant},{UserRole.Director}")]
+    [Authorize(Roles = RolePolicies.Reports)]
     public async Task<IActionResult> GetAllIncidents(CancellationToken ct)
     {
         var result = await Mediator.Send(new BPG.Application.Features.Incidents.Queries.GetAllIncidents.GetAllIncidentsQuery(), ct);
@@ -26,7 +26,6 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{UserRole.SiteEngineer},{UserRole.TechnicalManager},{UserRole.Admin}")]
     public async Task<IActionResult> CreateAndAssessIncident([FromBody] CreateAndAssessIncidentCommand command, CancellationToken ct)
     {
         var result = await Mediator.Send(command, ct);
@@ -34,7 +33,6 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPut("{id}/confirm")]
-    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin},{UserRole.Accountant},{UserRole.Director}")]
     public async Task<IActionResult> ConfirmIncident(long id, [FromBody] ConfirmIncidentCommand command, CancellationToken ct)
     {
         if (id != command.IncidentId)
@@ -47,7 +45,6 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPut("{id}/reject")]
-    [Authorize(Roles = $"{UserRole.TechnicalManager},{UserRole.Admin},{UserRole.Accountant},{UserRole.Director}")]
     public async Task<IActionResult> RejectIncident(long id, [FromBody] BPG.Application.Features.Incidents.Commands.RejectIncident.RejectIncidentCommand command, CancellationToken ct)
     {
         if (id != command.IncidentId)
@@ -59,3 +56,4 @@ public class IncidentsController : BaseApiController
         return ApiOk(result.Data, result.Message ?? "Success");
     }
 }
+

@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.Features.DailyLogs.Commands;
 using BPG.Application.IRepositories;
@@ -46,7 +46,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         {
             var currentUserId = _currentUserService.GetRequiredUserId();
 
-            // 1. Kiểm tra Task có tồn tại hay không
+            // 1. Kiá»ƒm tra Task cÃ³ tá»“n táº¡i hay khÃ´ng
             var task = await _uow.Repository<ProjectTask>().Query()
                 .Include(t => t.SubTasks)
                 .Include(t => t.Phase)
@@ -60,37 +60,38 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = task.Phase.Project;
 
-            // 2. Kiểm tra quyền của User (Chỉ TM, Project Leader hoặc Assigned Engineer mới được tạo daily log)
-            bool isTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isTM)
+            var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
+            if (!isManager)
             {
-                // Kiểm tra xem User có phải là Project Leader của dự án này không
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
+                var isProjectLeader = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(
+                        m => m.ProjectId == project.ProjectId
+                            && m.UserId == currentUserId
+                            && m.IsLeader,
+                        cancellationToken);
 
-                // Kiểm tra xem User có được gán vào công việc này không
                 var isAssignee = await _uow.Repository<TaskAssignee>().Query()
                     .AnyAsync(ta => ta.TaskId == task.TaskId && ta.UserId == currentUserId, cancellationToken);
 
-                if (!isLeader && !isAssignee)
+                if (!isProjectLeader && !isAssignee)
                 {
-                    throw new ForbiddenException("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
+                    throw new ForbiddenException("Chá»‰ TrÆ°á»Ÿng dá»± Ã¡n (Leader), Ban quáº£n lÃ½ hoáº·c Ká»¹ sÆ° Ä‘Æ°á»£c gÃ¡n vÃ o cÃ´ng viá»‡c má»›i Ä‘Æ°á»£c phÃ©p táº¡o nháº­t kÃ½ thi cÃ´ng.");
                 }
             }
 
-            // 3. Kiểm tra trạng thái dự án
+            // 3. Kiá»ƒm tra tráº¡ng thÃ¡i dá»± Ã¡n
             if (project.Status != ProjectStatus.InProgress)
             {
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }
 
-            // Kiểm tra xem công việc hoặc bất kỳ công việc cha nào có bị khóa (đã nghiệm thu) không
+            // Kiá»ƒm tra xem cÃ´ng viá»‡c hoáº·c báº¥t ká»³ cÃ´ng viá»‡c cha nÃ o cÃ³ bá»‹ khÃ³a (Ä‘Ã£ nghiá»‡m thu) khÃ´ng
             var tempTask = task;
             while (tempTask != null)
             {
                 if (tempTask.IsLocked)
                 {
-                    throw new BusinessException("ERR_TASK_LOCKED", $"Không thể cập nhật tiến độ vì công việc hoặc cấp cha [{tempTask.Name}] đã được nghiệm thu và khóa.");
+                    throw new BusinessException("ERR_TASK_LOCKED", $"KhÃ´ng thá»ƒ cáº­p nháº­t tiáº¿n Ä‘á»™ vÃ¬ cÃ´ng viá»‡c hoáº·c cáº¥p cha [{tempTask.Name}] Ä‘Ã£ Ä‘Æ°á»£c nghiá»‡m thu vÃ  khÃ³a.");
                 }
                 if (tempTask.ParentTaskId.HasValue)
                 {
@@ -104,14 +105,14 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             }
 
 
-            // 4. Kiểm tra xem Task có phải là Task cha (có subtasks) không
+            // 4. Kiá»ƒm tra xem Task cÃ³ pháº£i lÃ  Task cha (cÃ³ subtasks) khÃ´ng
             if (task.SubTasks != null && task.SubTasks.Any(s => !s.IsDeleted))
             {
                 throw new BusinessException("ERR_TASK_HAS_SUBTASKS", 
-                    "Không thể cập nhật tiến độ thủ công cho công việc cha có chứa các công việc con.");
+                    "KhÃ´ng thá»ƒ cáº­p nháº­t tiáº¿n Ä‘á»™ thá»§ cÃ´ng cho cÃ´ng viá»‡c cha cÃ³ chá»©a cÃ¡c cÃ´ng viá»‡c con.");
             }
 
-            // 4.5. Kiểm tra điều kiện phụ thuộc (Finish-to-Start)
+            // 4.5. Kiá»ƒm tra Ä‘iá»u kiá»‡n phá»¥ thuá»™c (Finish-to-Start)
             if (request.NewProgressPercent > 0)
             {
                 var incompletePredecessors = await _uow.Repository<TaskDependency>()
@@ -124,7 +125,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
                 if (incompletePredecessors.Any())
                 {
-                    // Tìm tất cả các ancestor IDs để loại trừ khỏi danh sách chặn
+                    // TÃ¬m táº¥t cáº£ cÃ¡c ancestor IDs Ä‘á»ƒ loáº¡i trá»« khá»i danh sÃ¡ch cháº·n
                     var ancestorIds = new System.Collections.Generic.HashSet<long>();
                     long? currentParentId = task.ParentTaskId;
                     while (currentParentId.HasValue)
@@ -145,39 +146,39 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     {
                         var names = string.Join(", ", blockedPredecessors.Select(td => td.Predecessor.Name));
                         throw new BusinessException("ERR_TASK_DEPENDENCY_BLOCKED",
-                            $"Không thể cập nhật tiến độ. Các công việc tiên quyết chưa hoàn thành: {names}");
+                            $"KhÃ´ng thá»ƒ cáº­p nháº­t tiáº¿n Ä‘á»™. CÃ¡c cÃ´ng viá»‡c tiÃªn quyáº¿t chÆ°a hoÃ n thÃ nh: {names}");
                     }
                 }
             }
 
-            // 5. Kiểm tra lùi tiến độ (chỉ Admin/TM được phép lùi tiến độ)
+            // 5. Kiá»ƒm tra lÃ¹i tiáº¿n Ä‘á»™ (chá»‰ Admin/TM Ä‘Æ°á»£c phÃ©p lÃ¹i tiáº¿n Ä‘á»™)
             byte oldProgress = task.ProgressPercent;
             if (request.NewProgressPercent < oldProgress)
             {
-                if (!isTM)
+                if (!isManager)
                 {
                     throw new BusinessException("ERR_DECREASE_PROGRESS_FORBIDDEN", 
-                        "Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
+                        "Chá»‰ Quáº£n trá»‹ viÃªn hoáº·c TrÆ°á»Ÿng phÃ²ng ká»¹ thuáº­t má»›i cÃ³ quyá»n giáº£m tiáº¿n Ä‘á»™ cÃ´ng viá»‡c.");
                 }
 
                 if (string.IsNullOrWhiteSpace(request.Description))
                 {
                     throw new BusinessException("ERR_DECREASE_PROGRESS_REASON_REQUIRED", 
-                        "Vui lòng nhập lý do giảm tiến độ công việc.");
+                        "Vui lÃ²ng nháº­p lÃ½ do giáº£m tiáº¿n Ä‘á»™ cÃ´ng viá»‡c.");
                 }
             }
 
-            // Bắt đầu một transaction để đảm bảo lưu dữ liệu nhất quán
+            // Báº¯t Ä‘áº§u má»™t transaction Ä‘á»ƒ Ä‘áº£m báº£o lÆ°u dá»¯ liá»‡u nháº¥t quÃ¡n
             await _uow.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                // Giải quyết tranh chấp đồng thời khi nhiều kỹ sư báo cáo tiến độ cùng lúc cho cùng một dự án:
-                // Sử dụng sp_getapplock của SQL Server ở cấp độ dự án trong suốt thời gian chạy transaction
+                // Giáº£i quyáº¿t tranh cháº¥p Ä‘á»“ng thá»i khi nhiá»u ká»¹ sÆ° bÃ¡o cÃ¡o tiáº¿n Ä‘á»™ cÃ¹ng lÃºc cho cÃ¹ng má»™t dá»± Ã¡n:
+                // Sá»­ dá»¥ng sp_getapplock cá»§a SQL Server á»Ÿ cáº¥p Ä‘á»™ dá»± Ã¡n trong suá»‘t thá»i gian cháº¡y transaction
                 var lockResource = $"Project_WbsClimb_Lock_{project.ProjectId}";
                 await _uow.ExecuteSqlAsync($"EXEC sp_getapplock @Resource = {lockResource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction'", cancellationToken);
 
-                // 6. Tạo DailyLog
+                // 6. Táº¡o DailyLog
                 var log = new DailyLog
                 {
                     TaskId = request.TaskId,
@@ -189,9 +190,9 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 };
 
                 await _uow.Repository<DailyLog>().AddAsync(log, cancellationToken);
-                await _uow.SaveChangesAsync(cancellationToken); // Save để có LogId cho Attachments
+                await _uow.SaveChangesAsync(cancellationToken); // Save Ä‘á»ƒ cÃ³ LogId cho Attachments
 
-                // 7. Lưu Attachments (hình ảnh hợp lệ)
+                // 7. LÆ°u Attachments (hÃ¬nh áº£nh há»£p lá»‡)
                 if (request.Images != null && request.Images.Any())
                 {
                     var validUrls = request.Images
@@ -217,10 +218,10 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     }
                 }
 
-                // 8. Cập nhật tiến độ của Task hiện tại
+                // 8. Cáº­p nháº­t tiáº¿n Ä‘á»™ cá»§a Task hiá»‡n táº¡i
                 task.ProgressPercent = request.NewProgressPercent;
                 
-                // Cập nhật trạng thái của Task dựa trên tiến độ
+                // Cáº­p nháº­t tráº¡ng thÃ¡i cá»§a Task dá»±a trÃªn tiáº¿n Ä‘á»™
                 if (task.ProgressPercent == 100)
                 {
                     task.Status = BPG.Domain.Constants.TaskStatus.Completed;
@@ -232,7 +233,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
                 _uow.Repository<ProjectTask>().Update(task);
 
-                // Ghi nhận lịch sử thay đổi tiến độ cho Task hiện tại
+                // Ghi nháº­n lá»‹ch sá»­ thay Ä‘á»•i tiáº¿n Ä‘á»™ cho Task hiá»‡n táº¡i
                 var progressLog = new TaskProgressLog
                 {
                     TaskId = task.TaskId,
@@ -243,7 +244,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 };
                 await _uow.Repository<TaskProgressLog>().AddAsync(progressLog, cancellationToken);
 
-                // 9. Đồng bộ ngược tiến độ của các Task cha (Parent Tasks) nếu có
+                // 9. Äá»“ng bá»™ ngÆ°á»£c tiáº¿n Ä‘á»™ cá»§a cÃ¡c Task cha (Parent Tasks) náº¿u cÃ³
                 if (task.ParentTaskId.HasValue)
                 {
                     await _progressRollupService.RecalculateParentTaskProgressAsync(
@@ -255,7 +256,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
 
-                // Fetch Creator Name & Roles để trả về DTO hoàn chỉnh
+                // Fetch Creator Name & Roles Ä‘á»ƒ tráº£ vá» DTO hoÃ n chá»‰nh
                 var creator = await _uow.Repository<User>().Query()
                     .Include(u => u.UserRoles)
                         .ThenInclude(ur => ur.Role)
@@ -267,7 +268,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.Images = request.Images ?? new List<string>();
                 dto.OldProgressPercent = oldProgress;
 
-                // Vừa tạo luôn nằm trong cửa sổ chỉnh sửa; lấy config để FE biết giới hạn
+                // Vá»«a táº¡o luÃ´n náº±m trong cá»­a sá»• chá»‰nh sá»­a; láº¥y config Ä‘á»ƒ FE biáº¿t giá»›i háº¡n
                 var editWindowConfig = await _uow.Repository<SystemConfig>().Query()
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.DailyLogEditWindowHours, cancellationToken);
@@ -277,10 +278,10 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.EditWindowHours = editWindowHours;
                 dto.CanEdit = true;
 
-                // 10. Gửi thông báo đến những người liên quan
-                await SendNotificationsAsync(task, creator?.FullName ?? "Kỹ sư", request.NewProgressPercent, cancellationToken);
+                // 10. Gá»­i thÃ´ng bÃ¡o Ä‘áº¿n nhá»¯ng ngÆ°á»i liÃªn quan
+                await SendNotificationsAsync(task, creator?.FullName ?? "Ká»¹ sÆ°", request.NewProgressPercent, cancellationToken);
 
-                // 11. Gửi realtime cho client dòng thời gian dự án
+                // 11. Gá»­i realtime cho client dÃ²ng thá»i gian dá»± Ã¡n
                 await _realtimeSender.SendToGroupAsync($"Project_{project.ProjectId}", "ReceiveDailyLogCreated", dto, cancellationToken);
 
                 return dto;
@@ -297,7 +298,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             var project = task.Phase.Project;
             var currentUserId = _currentUserService.GetRequiredUserId();
 
-            // 1. Lấy danh sách tất cả Project Leaders của dự án (loại trừ người tạo)
+            // 1. Láº¥y danh sÃ¡ch táº¥t cáº£ Project Leaders cá»§a dá»± Ã¡n (loáº¡i trá»« ngÆ°á»i táº¡o)
             var leaders = await _uow.Repository<ProjectMember>().Query()
                 .Where(m => m.ProjectId == project.ProjectId && m.IsLeader && m.UserId != currentUserId)
                 .Select(m => m.UserId)
@@ -308,8 +309,8 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             {
                 await _notificationService.SendNotificationAsync(
                     leaderId,
-                    "Cập nhật nhật ký tiến độ",
-                    $"Thành viên [{creatorName}] đã cập nhật nhật ký cho công việc [{task.Name}] với tiến độ mới là {newProgress}%.",
+                    "Cáº­p nháº­t nháº­t kÃ½ tiáº¿n Ä‘á»™",
+                    $"ThÃ nh viÃªn [{creatorName}] Ä‘Ã£ cáº­p nháº­t nháº­t kÃ½ cho cÃ´ng viá»‡c [{task.Name}] vá»›i tiáº¿n Ä‘á»™ má»›i lÃ  {newProgress}%.",
                     NotificationType.Progress,
                     $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                     task.TaskId,
@@ -317,7 +318,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 );
             }
 
-            // 2. Lấy danh sách tất cả các thành viên khác được gán cùng vào Task này (loại trừ người tạo)
+            // 2. Láº¥y danh sÃ¡ch táº¥t cáº£ cÃ¡c thÃ nh viÃªn khÃ¡c Ä‘Æ°á»£c gÃ¡n cÃ¹ng vÃ o Task nÃ y (loáº¡i trá»« ngÆ°á»i táº¡o)
             var otherAssignees = await _uow.Repository<TaskAssignee>().Query()
                 .Where(ta => ta.TaskId == task.TaskId && ta.UserId != currentUserId)
                 .Select(ta => ta.UserId)
@@ -326,13 +327,13 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             foreach (var assigneeId in otherAssignees)
             {
-                // Tránh gửi trùng lặp nếu leader cũng đồng thời được gán vào Task này
+                // TrÃ¡nh gá»­i trÃ¹ng láº·p náº¿u leader cÅ©ng Ä‘á»“ng thá»i Ä‘Æ°á»£c gÃ¡n vÃ o Task nÃ y
                 if (leaders.Contains(assigneeId)) continue;
 
                 await _notificationService.SendNotificationAsync(
                     assigneeId,
-                    "Đồng nghiệp cập nhật tiến độ",
-                    $"Thành viên [{creatorName}] cùng thực hiện công việc [{task.Name}] đã cập nhật nhật ký tiến độ mới là {newProgress}%.",
+                    "Äá»“ng nghiá»‡p cáº­p nháº­t tiáº¿n Ä‘á»™",
+                    $"ThÃ nh viÃªn [{creatorName}] cÃ¹ng thá»±c hiá»‡n cÃ´ng viá»‡c [{task.Name}] Ä‘Ã£ cáº­p nháº­t nháº­t kÃ½ tiáº¿n Ä‘á»™ má»›i lÃ  {newProgress}%.",
                     NotificationType.Progress,
                     $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                     task.TaskId,
@@ -340,11 +341,11 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 );
             }
 
-            // 3. Gửi thông báo cho Technical Manager
+            // 3. Gá»­i thÃ´ng bÃ¡o cho Technical Manager
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.TechnicalManager,
-                "Cập nhật nhật ký tiến độ",
-                $"Nhật ký tiến độ mới cho công việc [{task.Name}] tại dự án [{project.Name}] vừa được cập nhật ({newProgress}%).",
+                "Cáº­p nháº­t nháº­t kÃ½ tiáº¿n Ä‘á»™",
+                $"Nháº­t kÃ½ tiáº¿n Ä‘á»™ má»›i cho cÃ´ng viá»‡c [{task.Name}] táº¡i dá»± Ã¡n [{project.Name}] vá»«a Ä‘Æ°á»£c cáº­p nháº­t ({newProgress}%).",
                 NotificationType.Progress,
                 $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                 task.TaskId,
@@ -353,3 +354,5 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         }
     }
 }
+
+

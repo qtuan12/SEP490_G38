@@ -1,6 +1,5 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialReturns;
-using BPG.Application.Common.Interfaces;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -11,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.MaterialReturns.Queries
 {
-    public record GetMaterialReturnDetailQuery(long ReturnId) : IRequest<ApiResponse<MaterialReturnDetailDto>>, IProjectRequirement
+    public record GetMaterialReturnDetailQuery(long ReturnId) : IRequest<ApiResponse<MaterialReturnDetailDto>>
     {
         public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
@@ -27,3 +26,4 @@ namespace BPG.Application.Features.MaterialReturns.Queries
         }
     }
 }
+

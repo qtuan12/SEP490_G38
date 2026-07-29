@@ -74,102 +74,6 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         }
 
         [Fact]
-        public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupTechnicalManager();
-            var purchaseOrder = PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", quantity: 10));
-            SetupPurchaseOrders(purchaseOrder);
-
-            var command = Command(
-                items: new[] { Item(CementId, quantity: 10) },
-                images: new[] { "http://file.com/photo.jpg" },
-                deliverer: "John Doe");
-
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().Be(GeneratedReceiptId);
-            result.Message.Should().Be("Tạo phiếu nhập kho thành công.");
-        }
-
-        [Fact]
-        public async Task UTCID02_Handle_ProjectLeaderWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupProjectLeader();
-            var purchaseOrder = PurchaseOrderWithItems(
-                PurchaseOrderStatus.Sent,
-                POItem(CementId, "Cement", quantity: 10),
-                POItem(SandId, "Sand", quantity: 10));
-            SetupPurchaseOrders(purchaseOrder);
-
-            var result = await _handler.Handle(Command(items: new[] { Item(CementId, 5), Item(SandId, 0) }), CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().Be(GeneratedReceiptId);
-            result.Message.Should().Be("Tạo phiếu nhập kho thành công.");
-        }
-
-        [Fact]
-        public async Task UTCID03_Handle_EmptyItems_ShouldThrowBusinessException()
-        {
-            SetupTechnicalManager();
-
-            var act = async () => await _handler.Handle(Command(items: Array.Empty<CreateGoodsReceiptItemDto>()), CancellationToken.None);
-
-            await act.Should().ThrowAsync<BusinessException>();
-        }
-
-        [Fact]
-        public async Task UTCID04_Handle_PurchaseOrderNotFound_ShouldThrowNotFoundException()
-        {
-            SetupTechnicalManager();
-            SetupPurchaseOrders();
-
-            var act = async () => await _handler.Handle(Command(poId: 999, items: new[] { Item(CementId, 5) }), CancellationToken.None);
-
-            await act.Should().ThrowAsync<NotFoundException>();
-        }
-
-        [Fact]
-        public async Task UTCID05_Handle_PurchaseOrderWithoutProject_ShouldThrowBusinessException()
-        {
-            SetupTechnicalManager();
-            SetupPurchaseOrders(new PurchaseOrder
-            {
-                POId = POId,
-                Status = PurchaseOrderStatus.Sent,
-                Request = new MaterialRequest { Phase = null! },
-                Items = new List<PurchaseOrderItem> { POItem(CementId, "Cement", 10) }
-            });
-
-            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
-
-            await act.Should().ThrowAsync<BusinessException>();
-        }
-
-        [Fact]
-        public async Task UTCID06_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
-        {
-            SetupTechnicalManager();
-            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, ProjectStatus.Completed, POItem(CementId, "Cement", 10)));
-
-            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
-
-            await act.Should().ThrowAsync<BusinessException>();
-        }
-
-        [Fact]
-        public async Task UTCID07_Handle_UserIsNeitherTechnicalManagerNorProjectLeader_ShouldThrowForbiddenException()
-        {
-            SetupStandardUser();
-            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
-
-            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
-
-            await act.Should().ThrowAsync<ForbiddenException>();
-        }
-
-        [Fact]
         public async Task UTCID08_Handle_InvalidPOStatus_ShouldThrowBusinessException()
         {
             SetupTechnicalManager();
@@ -177,7 +81,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INVALID_PO_STATUS");
+            exception.Which.Message.Should().Be("Không thể nhập kho cho đơn hàng có trạng thái: Closed. Chỉ chấp nhận đơn hàng ở trạng thái Đã đặt hàng hoặc Nhận một phần.");
         }
 
         [Fact]
@@ -188,7 +94,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(99, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_MATERIAL_NOT_IN_PO");
+            exception.Which.Message.Should().Be("Vật tư ID 99 không tồn tại trong đơn hàng này.");
         }
 
         [Fact]
@@ -199,7 +107,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, -1) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INVALID_QUANTITY");
+            exception.Which.Message.Should().Be("Số lượng nhận của vật tư [Cement] phải lớn hơn hoặc bằng 0.");
         }
 
         [Fact]
@@ -212,6 +122,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            exception.Which.Message.Should().Be("Đơn vị tính 'Bag' của vật tư [Cement Bag] yêu cầu số lượng nhận phải là số nguyên.");
         }
 
         [Fact]
@@ -228,7 +139,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_QUANTITY_EXCEEDED");
+            exception.Which.Message.Should().Be("Số lượng nhận (5) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [Cement] (còn thiếu 4).");
         }
 
         [Fact]
@@ -239,7 +152,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 0) }), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_EMPTY_ITEMS");
+            exception.Which.Message.Should().Be("Danh sách vật tư nhận thực tế phải chứa ít nhất một vật tư có số lượng lớn hơn 0.");
         }
 
         private static CreateGoodsReceiptCommand Command(

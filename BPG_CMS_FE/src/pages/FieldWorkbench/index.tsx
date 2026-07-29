@@ -9,7 +9,8 @@ import { getRoleLabel, getRoleBadgeVariant } from '../../utils/roleHelpers';
 import { IOSInstallBanner } from '../../components/IOSInstallBanner';
 import { TaskRow, formatAssignees } from '../../components/field/TaskRow';
 import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVisibleTasksForUser } from '../../utils/taskPermissions';
-import type { Project, WBSTask, DailyLog, ProjectMember } from '../../types/common';
+import type { Project, WBSTask, DailyLog } from '../../types/common';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 const LAST_PROJECT_KEY = 'field_workbench_last_project';
 
@@ -63,10 +64,10 @@ export const FieldWorkbench: React.FC = () => {
   const [projectId, setProjectId] = useState<string>('');
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [recentLogs, setRecentLogs] = useState<DailyLog[]>([]);
-  const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [logModalTaskId, setLogModalTaskId] = useState<string | null>(null);
+  const { isProjectLeader, canManageTechnical } = useProjectAccess(projectId);
 
   useEffect(() => {
     projectService.getProjects().then(list => {
@@ -85,11 +86,9 @@ export const FieldWorkbench: React.FC = () => {
     return Promise.all([
       projectService.getTasks(pid),
       projectService.getDailyLogsPage(pid, 1, 5),
-      projectService.getMembers(pid),
-    ]).then(([tasksData, logsResult, membersData]) => {
+    ]).then(([tasksData, logsResult]) => {
       setTasks(tasksData.filter(t => t.status !== 'obsolete'));
       setRecentLogs(logsResult.items);
-      setMembers(membersData || []);
     }).catch(console.error).finally(() => { if (!silent) setLoadingDetail(false); });
   }, []);
 
@@ -99,10 +98,10 @@ export const FieldWorkbench: React.FC = () => {
     loadProjectDetail(projectId);
   }, [projectId, loadProjectDetail]);
 
-  const canCreateLogFor = (task: WBSTask) => canCreateDailyLog(task, user, members);
+  const canCreateLogFor = (task: WBSTask) => canCreateDailyLog(task, user, isProjectLeader);
 
-  // TM/PL quản lý cả dự án nên xem toàn bộ công việc; Site Engineer chỉ xem đúng việc được gán cho mình.
-  const isProjectWideView = computeIsProjectWideView(user, members);
+  // TM/Admin/leader thật của dự án này xem toàn bộ công việc; Site Engineer chỉ xem đúng việc được gán cho mình.
+  const isProjectWideView = computeIsProjectWideView(user, isProjectLeader);
 
   const allMyTasks = useMemo(
     () => getVisibleTasksForUser(tasks, user, isProjectWideView),
@@ -111,7 +110,10 @@ export const FieldWorkbench: React.FC = () => {
 
   const myTasks = allMyTasks.slice(0, 5);
 
-  const creatableTasks = useMemo(() => tasks.filter(t => canCreateDailyLog(t, user, members)), [tasks, user, members]);
+  const creatableTasks = useMemo(
+    () => tasks.filter(t => canCreateDailyLog(t, user, isProjectLeader)),
+    [tasks, user, isProjectLeader]
+  );
 
   const [taskPickerOpen, setTaskPickerOpen] = useState(false);
   const [taskPickerQuery, setTaskPickerQuery] = useState('');
@@ -343,6 +345,7 @@ export const FieldWorkbench: React.FC = () => {
           tasks={tasks}
           engineerId={user.id}
           engineerName={user.name}
+          canManageTechnical={canManageTechnical}
           onSuccess={() => {
             setLogModalTaskId(null);
             if (projectId) loadProjectDetail(projectId, true);

@@ -139,7 +139,8 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(taskId: 999, progress: 50), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
         }
 
         [Fact]
@@ -150,7 +151,8 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
 
         [Fact]
@@ -163,7 +165,8 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_LOCKED");
         }
 
         [Fact]
@@ -174,7 +177,8 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_HAS_SUBTASKS");
         }
 
         [Fact]
@@ -188,7 +192,8 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 10, description: "Trying to progress despite incomplete predecessor"), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_DEPENDENCY_BLOCKED");
         }
 
         [Fact]
@@ -200,7 +205,8 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 30, description: "Correction needed"), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_DECREASE_PROGRESS_FORBIDDEN");
         }
 
         [Fact]
@@ -211,7 +217,8 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 30, description: string.Empty), CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_DECREASE_PROGRESS_REASON_REQUIRED");
         }
 
         [Fact]
@@ -239,7 +246,8 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
 
-            await act.Should().ThrowAsync<ForbiddenException>();
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be("AUTH_002");
         }
 
         [Fact]

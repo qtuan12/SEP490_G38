@@ -1,7 +1,7 @@
-using BPG.Application.Common.Interfaces;
-using BPG.Application.IRepositories;
+﻿using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -9,10 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace BPG.Application.Features.Reports.Queries.GetIncidentReport;
 
 public record GetIncidentReportQuery(long ProjectId)
-    : IRequest<ApiResponse<IncidentReportDto>>, IProjectRequirement
+    : IRequest<ApiResponse<IncidentReportDto>>
 {
-    public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-        => Task.FromResult(ProjectId);
 }
 
 
@@ -73,3 +71,4 @@ public class GetIncidentReportQueryHandler
         return ApiResponse<IncidentReportDto>.SuccessResult(dto);
     }
 }
+

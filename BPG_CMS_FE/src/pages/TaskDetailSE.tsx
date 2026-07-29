@@ -3,12 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ArrowLeft, Calendar, Users, FileText, Plus, ClipboardList } from 'lucide-react';
 import { isPWAMode } from '../utils/pwaHelpers';
 import { wbsService } from '../services/wbsService';
-import { projectService } from '../services/projectService';
 import type { TaskDetails } from '../types/wbs';
-import type { WBSTask, ProjectMember } from '../types/common';
+import type { WBSTask } from '../types/common';
 import { Badge } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
+import { useProjectAccess } from '../hooks/useProjectAccess';
+import { isManagerRole } from '../utils/taskPermissions';
 import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -44,9 +45,9 @@ export const TaskDetailSE: React.FC = () => {
 
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<TaskDetails | null>(null);
-  const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [logModalOpen, setLogModalOpen] = useState(false);
+  const { isProjectLeader, canManageTechnical } = useProjectAccess(detail ? String(detail.projectId) : undefined);
 
   const loadDetail = () => {
     if (!taskId) return;
@@ -59,7 +60,6 @@ export const TaskDetailSE: React.FC = () => {
           return;
         }
         setDetail(details);
-        projectService.getMembers(String(details.projectId)).then(setMembers).catch(console.error);
       })
       .catch((err: any) => setError(err.message || 'Không tìm thấy thông tin công việc.'))
       .finally(() => setLoading(false));
@@ -96,10 +96,9 @@ export const TaskDetailSE: React.FC = () => {
 
   const overdue = !['Completed', 'Approved', 'Obsolete'].includes(detail.status) && new Date(detail.endDate) < new Date();
 
-  // Backend chỉ cho TM / Trưởng dự án (leader) / người được gán vào đúng task này tạo nhật ký (403 với người khác).
+  // Backend chỉ cho TM/Admin / Trưởng dự án (leader) / người được gán vào đúng task này tạo nhật ký (403 với người khác).
   const isAssignee = !!user && detail.assignees.some(a => String(a.userId) === String(user.id));
-  const isLeader = !!user && members.some(m => String(m.userId) === String(user.id) && m.isLeader);
-  const canCreateLog = detail.status !== 'Obsolete' && (isAssignee || user?.role === 'technicalmanager' || isLeader);
+  const canCreateLog = detail.status !== 'Obsolete' && (isAssignee || isManagerRole(user) || isProjectLeader);
 
   const taskForModal: WBSTask = {
     id: String(detail.taskId),
@@ -209,6 +208,7 @@ export const TaskDetailSE: React.FC = () => {
           task={taskForModal}
           engineerId={user.id}
           engineerName={user.name}
+          canManageTechnical={canManageTechnical}
           onSuccess={() => {
             setLogModalOpen(false);
             loadDetail();

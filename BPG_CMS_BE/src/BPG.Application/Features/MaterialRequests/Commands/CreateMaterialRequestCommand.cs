@@ -1,5 +1,6 @@
-using MediatR;
+﻿using MediatR;
 using BPG.Application.Common.Models;
+using BPG.Domain.Constants;
 using System.Collections.Generic;
 
 namespace BPG.Application.Features.MaterialRequests.Commands
@@ -11,7 +12,9 @@ namespace BPG.Application.Features.MaterialRequests.Commands
         string Type, // "normal" or "emergency"
         string? InvoiceImage,
         List<MaterialRequestItemInput> Items
-    ) : IRequest<ApiResponse<long>>;
+    ) : IRequest<ApiResponse<long>>
+    {
+    }
 
     public record MaterialRequestItemInput(
         string Name,
@@ -19,3 +22,4 @@ namespace BPG.Application.Features.MaterialRequests.Commands
         string Unit
     );
 }
+

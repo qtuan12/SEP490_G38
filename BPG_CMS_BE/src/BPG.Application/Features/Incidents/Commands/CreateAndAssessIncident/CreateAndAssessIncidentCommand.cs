@@ -1,4 +1,4 @@
-using BPG.Domain.Exceptions;
+﻿using BPG.Domain.Exceptions;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.Common.Models;
@@ -24,7 +24,9 @@ public record CreateAndAssessIncidentCommand(
     int? EstimatedDelayDays,
     string? ProposedAction,
     bool IsEmergency = false
-) : IRequest<ApiResponse<IncidentDto>>;
+) : IRequest<ApiResponse<IncidentDto>>
+{
+}
 
 public class CreateAndAssessIncidentCommandValidator : AbstractValidator<CreateAndAssessIncidentCommand>
 {
@@ -37,12 +39,12 @@ public class CreateAndAssessIncidentCommandValidator : AbstractValidator<CreateA
         RuleFor(v => v.TaskId)
             .NotNull()
             .When(v => v.IncidentType == "Construction" && !v.IsEmergency)
-            .WithMessage("Sự cố thi công yêu cầu TaskId.");
+            .WithMessage("Sá»± cá»‘ thi cÃ´ng yÃªu cáº§u TaskId.");
 
         RuleFor(v => v.PhaseId)
             .NotNull()
             .When(v => v.IncidentType == "InventoryLoss" || v.IncidentType == "InventoryDamage")
-            .WithMessage("Sự cố vật tư yêu cầu PhaseId.");
+            .WithMessage("Sá»± cá»‘ váº­t tÆ° yÃªu cáº§u PhaseId.");
     }
 }
 
@@ -66,17 +68,6 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
     public async Task<ApiResponse<IncidentDto>> Handle(CreateAndAssessIncidentCommand request, CancellationToken cancellationToken)
     {
         var currentUserId = Convert.ToInt64(_currentUserService.UserId);
-
-        // Security check: Ensure the SiteEngineer is actually the ProjectLeader (or Admin/TPKT)
-        var isLeader = await _unitOfWork.Repository<ProjectMember>()
-            .Query()
-            .AnyAsync(pm => pm.ProjectId == request.ProjectId && pm.UserId == currentUserId && pm.IsLeader, cancellationToken);
-        var isPrivileged = _currentUserService.Roles.Contains(BPG.Domain.Constants.UserRole.TechnicalManager) || _currentUserService.Roles.Contains(BPG.Domain.Constants.UserRole.Admin);
-
-        if (!isLeader && !isPrivileged)
-        {
-            throw new ForbiddenException("Chỉ có Project Leader của dự án mới được quyền báo cáo sự cố.");
-        }
 
         var project = await _unitOfWork.Repository<Project>()
             .Query()
@@ -146,8 +137,8 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         {
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Accountant,
-                "Báo cáo sự cố mới",
-                $"Có một sự cố vật tư mới tại dự án {project.Name} đang chờ kế toán xác minh.",
+                "BÃ¡o cÃ¡o sá»± cá»‘ má»›i",
+                $"CÃ³ má»™t sá»± cá»‘ váº­t tÆ° má»›i táº¡i dá»± Ã¡n {project.Name} Ä‘ang chá» káº¿ toÃ¡n xÃ¡c minh.",
                 "IncidentReported",
                 $"/projects/{project.ProjectId}/workspace/incidents"
             );
@@ -158,16 +149,16 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             {
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.TechnicalManager,
-                    "🚨 Yêu cầu dừng thi công khẩn cấp",
-                    $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng. Vui lòng thẩm định ngay!",
+                    "ðŸš¨ YÃªu cáº§u dá»«ng thi cÃ´ng kháº©n cáº¥p",
+                    $"Dá»± Ã¡n {project.Name} vá»«a gá»­i yÃªu cáº§u táº¡m dá»«ng thi cÃ´ng kháº©n cáº¥p do sá»± cá»‘ nghiÃªm trá»ng. Vui lÃ²ng tháº©m Ä‘á»‹nh ngay!",
                     "EmergencyStop",
                     $"/projects/{project.ProjectId}/workspace/incidents"
                 );
 
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.Director,
-                    "🚨 Yêu cầu dừng thi công khẩn cấp",
-                    $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng.",
+                    "ðŸš¨ YÃªu cáº§u dá»«ng thi cÃ´ng kháº©n cáº¥p",
+                    $"Dá»± Ã¡n {project.Name} vá»«a gá»­i yÃªu cáº§u táº¡m dá»«ng thi cÃ´ng kháº©n cáº¥p do sá»± cá»‘ nghiÃªm trá»ng.",
                     "EmergencyStop",
                     $"/projects/{project.ProjectId}/workspace/incidents"
                 );
@@ -176,8 +167,8 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             {
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.TechnicalManager,
-                    "Báo cáo sự cố mới",
-                    $"Có một sự cố thi công mới tại dự án {project.Name} đang chờ Trưởng phòng Kỹ thuật thẩm định.",
+                    "BÃ¡o cÃ¡o sá»± cá»‘ má»›i",
+                    $"CÃ³ má»™t sá»± cá»‘ thi cÃ´ng má»›i táº¡i dá»± Ã¡n {project.Name} Ä‘ang chá» TrÆ°á»Ÿng phÃ²ng Ká»¹ thuáº­t tháº©m Ä‘á»‹nh.",
                     "IncidentReported",
                     $"/projects/{project.ProjectId}/workspace/incidents"
                 );
@@ -200,6 +191,7 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             incident.IncidentId,
             cancellationToken);
 
-        return ApiResponse<IncidentDto>.SuccessResult(dto, "Sự cố đã được báo cáo và đánh giá.");
+        return ApiResponse<IncidentDto>.SuccessResult(dto, "Sá»± cá»‘ Ä‘Ã£ Ä‘Æ°á»£c bÃ¡o cÃ¡o vÃ  Ä‘Ã¡nh giÃ¡.");
     }
 }
+

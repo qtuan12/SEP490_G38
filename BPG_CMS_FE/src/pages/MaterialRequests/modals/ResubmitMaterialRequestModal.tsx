@@ -65,8 +65,6 @@ export interface ResubmitMaterialRequestModalProps {
   onClose: () => void;
   request: MaterialRequest;
   projectId: string;
-  user: any;
-  isLeader?: boolean;
   onSuccess: (msg: string) => void;
   onError?: (msg: string) => void;
 }
@@ -75,8 +73,6 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   isOpen,
   onClose,
   request,
-  user,
-  isLeader,
   onSuccess
 }) => {
   const queryClient = useQueryClient();
@@ -140,7 +136,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
         invoiceImage: data.type === 'emergency' ? data.invoiceImage?.trim() : undefined,
         reason: data.reason?.trim() || undefined,
         isOverBOQ: data.isOverBOQ
-      }, user?.role, isLeader);
+      });
     },
     onSuccess: (_, variables) => {
       const msg = variables.type === 'emergency'

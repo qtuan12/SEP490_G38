@@ -21,6 +21,7 @@ import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils
 import { HeaderNotification } from './HeaderNotification';
 import { PWABottomNav } from './PWABottomNav';
 import { OfflineBanner } from './OfflineBanner';
+import { RoleGroup } from '../../auth/roles';
 
 // Thanh điều hướng PWA chỉ hiện trong phạm vi "Việc của tôi" (field workflow) —
 // ẩn đi khi người dùng thoát ra các tab chung (dashboard, danh sách dự án, WBS hub, quản trị...).
@@ -35,7 +36,7 @@ const isFieldScopedRoute = (pathname: string): boolean => {
 };
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasAnyRole } = useAuth();
   const { companyName, companyLogoUrl } = useCompany();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -47,24 +48,28 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     navigate('/login');
   };
 
-  const navItems: Array<{ name: string; path: string; icon: React.ReactNode; roles: string[]; disabled?: boolean }> = [
-    { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
-    { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, roles: ['admin'] },
-    { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, roles: ['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant'] },
-    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, roles: [] },
-    { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, roles: ['accountant', 'technicalmanager', 'director', 'projectleader', 'siteengineer'] },
-    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, roles: ['admin'] },
-    { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, roles: ['admin'] },
-    { name: 'Danh sách Vật tư', path: '/materials', icon: <Package size={20} />, roles: ['admin'] },
-    { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, roles: ['director', 'accountant', 'technicalmanager'] },
-    { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, roles: ['admin'] },
+  const navItems: Array<{
+    name: string;
+    path: string;
+    icon: React.ReactNode;
+    allowedRoles?: readonly string[];
+    disabled?: boolean;
+  }> = [
+    { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, allowedRoles: RoleGroup.AdminOnly },
+    { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, allowedRoles: RoleGroup.ProjectViewers },
+    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, allowedRoles: RoleGroup.Procurement },
+    { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, allowedRoles: RoleGroup.SupplierViewers },
+    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, allowedRoles: RoleGroup.MasterData },
+    { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, allowedRoles: RoleGroup.MasterData },
+    { name: 'Danh sách Vật tư', path: '/materials', icon: <Package size={20} />, allowedRoles: RoleGroup.MasterData },
+    { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, allowedRoles: RoleGroup.Reports },
+    { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, allowedRoles: RoleGroup.AdminOnly },
   ];
 
-  const filteredNavItems = navItems.filter(item => {
-    if (!user || !user.role) return false;
-    const userRole = user.role.toLowerCase();
-    return item.roles.map(r => r.toLowerCase()).includes(userRole);
-  });
+  const filteredNavItems = navItems.filter(
+    (item) => !item.allowedRoles || hasAnyRole(item.allowedRoles),
+  );
 
   const showBottomNav = isFieldScopedRoute(location.pathname);
 

@@ -1,6 +1,5 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
 using BPG.Application.DTOs.GoodsReceipts;
-using BPG.Application.Common.Interfaces;
 using BPG.Application.IRepositories;
 using BPG.Domain.Exceptions;
 using MediatR;
@@ -9,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.GoodsReceipts.Queries
 {
-    public class GetGoodsReceiptsQuery : PaginationRequest, IRequest<PagedList<GoodsReceiptDto>>, IProjectRequirement
+    public class GetGoodsReceiptsQuery : PaginationRequest, IRequest<PagedList<GoodsReceiptDto>>
     {
         public long? ProjectId { get; set; }
 
@@ -21,3 +20,4 @@ namespace BPG.Application.Features.GoodsReceipts.Queries
         }
     }
 }
+

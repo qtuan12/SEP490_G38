@@ -33,14 +33,15 @@ export const GlobalIncidents: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { connection } = useNotification();
   const [activeTab, setActiveTab] = useState<'construction' | 'inventory'>(
-    user?.role === 'accountant' ? 'inventory' : 'construction'
+    'construction'
   );
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
   // GET /incidents/all chỉ cho phép technicalmanager/admin/accountant/director.
-  // siteengineer/projectleader xem sự cố theo đúng dự án đang chọn ở "Việc của tôi" (không có quyền xem toàn hệ thống).
+  // siteengineer (kể cả khi được gán làm leader của một dự án cụ thể) xem sự cố theo đúng dự án
+  // đang chọn ở "Việc của tôi" — không có quyền xem toàn hệ thống.
   const isPrivileged = !!user?.role && ['technicalmanager', 'admin', 'accountant', 'director'].includes(user.role);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
 
@@ -342,14 +343,12 @@ export const GlobalIncidents: React.FC = () => {
       </div>
 
       <div className="flex gap-2 border-b border-[hsl(var(--border))] mb-4">
-        {user?.role !== 'accountant' && (
-          <button
-            className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
-            onClick={() => setActiveTab('construction')}
-          >
-            Sự cố Thi công
-          </button>
-        )}
+        <button
+          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
+          onClick={() => setActiveTab('construction')}
+        >
+          Sự cố Thi công
+        </button>
         <button
           className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
           onClick={() => setActiveTab('inventory')}

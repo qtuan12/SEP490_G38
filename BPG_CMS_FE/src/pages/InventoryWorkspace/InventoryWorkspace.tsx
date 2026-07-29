@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button, LoadingSpinner } from '../../components/ui';
 import { inventoryService } from '../../services/inventoryService';
 import type { CurrentInventory } from '../../types/inventory';
-import { useAuth } from '../../context/AuthContext';
-import { projectService } from '../../services/projectService';
 import { useNotification } from '../../context/NotificationContext';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 
@@ -29,6 +27,7 @@ import {
   AlertTriangle,
   Plus
 } from 'lucide-react';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 interface InventoryWorkspaceProps {
   projectId: number;
@@ -89,21 +88,9 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const [isCreateIssuanceOpen, setIsCreateIssuanceOpen] = useState(false);
   const [selectedIssuanceId, setSelectedIssuanceId] = useState<number | null>(null);
 
-  const { user } = useAuth();
-  const [isAssignedLeader, setIsAssignedLeader] = useState(false);
-
-  useEffect(() => {
-    if (projectId) {
-      projectService.getMembers(projectId.toString()).then(members => {
-        const currentMember = members.find(m => m.userId === user?.id);
-        setIsAssignedLeader(currentMember?.isLeader ?? false);
-      }).catch(console.error);
-    }
-  }, [projectId, user]);
-
-  const userRole = user?.role?.toLowerCase() || '';
-  const canCreateReceipt = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin';
-  const canCreateIssuance = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin';
+  const { canManageExecution, canManageInventory } = useProjectAccess(projectId);
+  const canCreateReceipt = canManageExecution;
+  const canCreateIssuance = canManageExecution;
 
   // Tải thông tin kho hiện tại để làm dữ liệu thống kê
   useEffect(() => {
@@ -352,7 +339,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           isOpen={selectedReceiptId !== null}
           onClose={() => setSelectedReceiptId(null)}
           receiptId={selectedReceiptId}
-          isAssignedLeader={isAssignedLeader}
+          canManageInventory={canManageInventory}
           onSuccess={handleRefreshAll}
         />
       )}
@@ -372,7 +359,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           onClose={() => setSelectedIssuanceId(null)}
           issuanceId={selectedIssuanceId}
           projectId={projectId}
-          isAssignedLeader={isAssignedLeader}
+          canManageExecution={canManageExecution}
           onSuccess={() => setRefreshKey(prev => prev + 1)}
         />
       )}

@@ -127,7 +127,9 @@ namespace BPG.Application.UnitTests.Notifications
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("Notification với ID [123] không tồn tại.");
 
         }
 

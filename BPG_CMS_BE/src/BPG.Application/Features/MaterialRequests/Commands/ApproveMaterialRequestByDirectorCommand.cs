@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -14,7 +14,10 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Commands
 {
-    public record ApproveMaterialRequestByDirectorCommand(long RequestId, string? Note) : IRequest<ApiResponse<bool>>;
+    public record ApproveMaterialRequestByDirectorCommand(long RequestId, string? Note)
+        : IRequest<ApiResponse<bool>>
+    {
+    }
 
     public class ApproveMaterialRequestByDirectorCommandHandler : IRequestHandler<ApproveMaterialRequestByDirectorCommand, ApiResponse<bool>>
     {
@@ -50,13 +53,13 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             if (mr.Status != MaterialRequestStatus.WaitingApproval)
             {
                 throw new BusinessException("ERR_INVALID_STATUS_FOR_APPROVAL", 
-                    $"Phiếu yêu cầu vật tư đang ở trạng thái: {mr.Status}. Chỉ hỗ trợ duyệt phiếu ở trạng thái Chờ Giám đốc duyệt (WaitingApproval).");
+                    $"Phiáº¿u yÃªu cáº§u váº­t tÆ° Ä‘ang á»Ÿ tráº¡ng thÃ¡i: {mr.Status}. Chá»‰ há»— trá»£ duyá»‡t phiáº¿u á»Ÿ tráº¡ng thÃ¡i Chá» GiÃ¡m Ä‘á»‘c duyá»‡t (WaitingApproval).");
             }
 
             await _uow.BeginTransactionAsync(cancellationToken);
             try
             {
-                // 1. Phê duyệt yêu cầu và lưu thông tin
+                // 1. PhÃª duyá»‡t yÃªu cáº§u vÃ  lÆ°u thÃ´ng tin
                 mr.Status = MaterialRequestStatus.Approved;
                 mr.ApprovedBy = currentUserId;
                 mr.ApprovalNote = request.Note;
@@ -68,30 +71,30 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
 
-                // Gửi thông báo realtime
+                // Gá»­i thÃ´ng bÃ¡o realtime
                 try
                 {
                     var directorUser = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
-                    var directorName = directorUser?.FullName ?? "Giám đốc";
+                    var directorName = directorUser?.FullName ?? "GiÃ¡m Ä‘á»‘c";
 
-                    // 1. Thông báo cho Project Leader (người tạo)
+                    // 1. ThÃ´ng bÃ¡o cho Project Leader (ngÆ°á»i táº¡o)
                     if (mr.CreatedBy.HasValue)
                     {
                         await _notificationService.SendNotificationAsync(
                             mr.CreatedBy.Value,
-                            "Yêu cầu vượt định mức đã được duyệt",
-                            $"Yêu cầu vượt định mức cho giai đoạn '{mr.Phase?.Name}' của bạn đã được Giám đốc '{directorName}' phê duyệt.",
+                            "YÃªu cáº§u vÆ°á»£t Ä‘á»‹nh má»©c Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t",
+                            $"YÃªu cáº§u vÆ°á»£t Ä‘á»‹nh má»©c cho giai Ä‘oáº¡n '{mr.Phase?.Name}' cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c GiÃ¡m Ä‘á»‘c '{directorName}' phÃª duyá»‡t.",
                             NotificationType.Procurement,
                             $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
                             mr.RequestId,
                             cancellationToken);
                     }
 
-                    // 2. Thông báo cho bộ phận Kế toán
+                    // 2. ThÃ´ng bÃ¡o cho bá»™ pháº­n Káº¿ toÃ¡n
                     await _notificationService.SendNotificationToRoleAsync(
                         BPG.Domain.Constants.UserRole.Accountant,
-                        "Yêu cầu vượt định mức đã được duyệt",
-                        $"Giám đốc '{directorName}' đã phê duyệt yêu cầu vượt định mức giai đoạn '{mr.Phase?.Name}' thuộc dự án '{mr.Phase?.Project?.Name}'",
+                        "YÃªu cáº§u vÆ°á»£t Ä‘á»‹nh má»©c Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t",
+                        $"GiÃ¡m Ä‘á»‘c '{directorName}' Ä‘Ã£ phÃª duyá»‡t yÃªu cáº§u vÆ°á»£t Ä‘á»‹nh má»©c giai Ä‘oáº¡n '{mr.Phase?.Name}' thuá»™c dá»± Ã¡n '{mr.Phase?.Project?.Name}'",
                         NotificationType.Procurement,
                         $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
                         mr.RequestId,
@@ -102,7 +105,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                     Console.WriteLine($"Error sending notification: {ex.Message}");
                 }
 
-                return ApiResponse<bool>.SuccessResult(true, "Giám đốc phê duyệt yêu cầu vật tư thành công.");
+                return ApiResponse<bool>.SuccessResult(true, "GiÃ¡m Ä‘á»‘c phÃª duyá»‡t yÃªu cáº§u váº­t tÆ° thÃ nh cÃ´ng.");
             }
             catch (Exception)
             {
@@ -112,3 +115,4 @@ namespace BPG.Application.Features.MaterialRequests.Commands
         }
     }
 }
+
