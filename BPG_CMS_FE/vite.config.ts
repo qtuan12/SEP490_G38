@@ -1,12 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { createRequire } from 'node:module'
 
-let pwaPlugin: any = null;
+const require = createRequire(import.meta.url)
+
+let pwaPlugin: any = null
 try {
-  // @ts-ignore
-  const pwaModule = await import('vite-plugin-pwa');
-  const VitePWA = pwaModule.VitePWA || pwaModule.default;
+  const { VitePWA } = require('vite-plugin-pwa')
   if (VitePWA) {
     pwaPlugin = VitePWA({
       registerType: 'autoUpdate',
@@ -34,10 +35,10 @@ try {
         navigateFallbackDenylist: [/^\/api/],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
-    });
+    })
   }
 } catch {
-  // Ignore if vite-plugin-pwa package is not present in local node_modules
+  // Fallback cleanly if vite-plugin-pwa is not in node_modules
 }
 
 export default defineConfig({
