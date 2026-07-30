@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { projectService } from '../../../services/projectService';
@@ -16,6 +16,7 @@ import {
   Plus
 } from 'lucide-react';
 import { CreateMaterialRequestModal } from '../modals/CreateMaterialRequestModal';
+import { ResubmitMaterialRequestModal } from '../modals/ResubmitMaterialRequestModal';
 import toast from 'react-hot-toast';
 import { formatDate } from '../../../utils/dateHelpers';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
@@ -106,6 +107,10 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   // Modals state
   const [selectedRequest, setSelectedRequest] = useState<MaterialRequest | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Resubmit state
+  const [isResubmitOpen, setIsResubmitOpen] = useState(false);
+  const [selectedResubmitRequest, setSelectedResubmitRequest] = useState<MaterialRequest | null>(null);
 
   // Custom action modal state
   const [actionModalOpen, setActionModalOpen] = useState(false);
@@ -501,6 +506,21 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                         <span>Chi tiết</span>
                       </Button>
 
+                      {canCreateRequest && req.status === 'rejected' && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedResubmitRequest(req);
+                            setIsResubmitOpen(true);
+                          }}
+                          className="py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white border-none"
+                          title="Chỉnh sửa và gửi lại yêu cầu bị từ chối"
+                        >
+                          <span>Gửi lại</span>
+                        </Button>
+                      )}
+
                       {/* Tạo PO: chỉ hiển thị cho Kế toán (không tính Admin) với các yêu cầu đã Approved.
                           Yêu cầu không còn đủ điều kiện (đã đặt đủ vật tư qua PO khác...) vẫn hiện nút
                           nhưng tô màu xám — bấm vào sẽ báo lý do không thể tạo thay vì bị ẩn mất. */}
@@ -693,6 +713,24 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           user={user}
           allMaterialRequests={requests}
           requestType="normal"
+        />
+      )}
+
+      {isResubmitOpen && selectedResubmitRequest && (
+        <ResubmitMaterialRequestModal
+          isOpen={isResubmitOpen}
+          onClose={() => {
+            setIsResubmitOpen(false);
+            setSelectedResubmitRequest(null);
+          }}
+          onSuccess={(msg) => {
+            setIsResubmitOpen(false);
+            setSelectedResubmitRequest(null);
+            toast.success(msg);
+            fetchData();
+          }}
+          projectId={projectId.toString()}
+          request={selectedResubmitRequest}
         />
       )}
     </div>
