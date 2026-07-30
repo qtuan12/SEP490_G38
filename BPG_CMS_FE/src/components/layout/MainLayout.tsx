@@ -13,7 +13,6 @@ import {
   Ruler,
   Tags,
   Package,
-  ShoppingCart,
   SlidersHorizontal,
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
@@ -58,7 +57,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, allowedRoles: RoleGroup.AdminOnly },
     { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, allowedRoles: RoleGroup.ProjectViewers },
-    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, allowedRoles: RoleGroup.Procurement },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, allowedRoles: RoleGroup.SupplierViewers },
     { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, allowedRoles: RoleGroup.MasterData },
     { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, allowedRoles: RoleGroup.MasterData },
