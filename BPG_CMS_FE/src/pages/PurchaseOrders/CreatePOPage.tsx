@@ -60,6 +60,13 @@ export const CreatePOPage: React.FC = () => {
       }
     }
   }, [queryProjectId]);
+
+  // Rời trang (huỷ / tạo xong) → quay về tab Đơn hàng của dự án nếu biết dự án,
+  // ngược lại mới về danh sách đơn hàng chung.
+  const backPath = projectId > 0
+    ? `/projects/${projectId}?tab=purchaseorders`
+    : '/purchase-orders';
+
   const [orderDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [supplierId, setSupplierId] = useState(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -189,7 +196,7 @@ export const CreatePOPage: React.FC = () => {
       }),
     onSuccess: () => {
       toast.success('Tạo đơn mua hàng thành công!');
-      navigate('/purchase-orders');
+      navigate(backPath);
     },
     onError: (err: any) => {
       const msg = err.message || 'Tạo đơn hàng thất bại.';
@@ -234,7 +241,7 @@ export const CreatePOPage: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(backPath)}
           style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             padding: 8, borderRadius: 6, border: '1px solid hsl(var(--border))',
@@ -537,7 +544,7 @@ export const CreatePOPage: React.FC = () => {
       <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingBottom: 24 }}>
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(backPath)}
           style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             padding: '8px 16px', borderRadius: 6, border: '1px solid hsl(var(--border))',
