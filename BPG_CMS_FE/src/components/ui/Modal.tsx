@@ -29,8 +29,32 @@ export const Modal: React.FC<ModalProps> = ({
   );
 
   useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    if (!isOpen) return;
+    // Chỉ set overflow:hidden thôi không đủ để chặn scroll nền trên mobile (Safari/WebView vẫn
+    // cho touchmove kéo cả trang phía sau modal) — phải "đóng băng" body bằng position: fixed rồi
+    // khôi phục đúng vị trí scroll cũ khi đóng modal.
+    const scrollY = window.scrollY;
+    const { body } = document;
+    const prev = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      overflow: body.style.overflow,
+    };
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.overflow = 'hidden';
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.left = prev.left;
+      body.style.right = prev.right;
+      body.style.overflow = prev.overflow;
+      window.scrollTo(0, scrollY);
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -48,7 +72,9 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, zIndex: 50,
+        // Cao hơn PWABottomNav và sidebar (đều z-50) — nếu không, thanh nav dưới cùng của PWA
+        // (position: fixed, z-50, render sau trong DOM) sẽ đè lên trên modal.
+        position: 'fixed', inset: 0, zIndex: 1000,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: fullScreen ? 0 : '16px',
       }}

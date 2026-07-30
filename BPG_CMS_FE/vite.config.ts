@@ -5,6 +5,14 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    // Chỉ có hiệu lực khi biến môi trường VITE_DEV_TUNNEL_HOST được set (dùng bởi
+    // test-mobile-pwa.ps1 khi test qua tunnel HTTPS) — mặc định không ảnh hưởng gì.
+    // Cho phép cả dải ".trycloudflare.com" (không khớp đúng 1 subdomain cụ thể) vì
+    // cloudflared quick tunnel sinh domain ngẫu nhiên mỗi lần chạy — khớp cứng 1 domain
+    // rất dễ lệch (dùng nhầm link cũ, tunnel tự nối lại với domain khác...).
+    allowedHosts: process.env.VITE_DEV_TUNNEL_HOST ? ['.trycloudflare.com'] : undefined,
+  },
   plugins: [
     tailwindcss(),
     react(),

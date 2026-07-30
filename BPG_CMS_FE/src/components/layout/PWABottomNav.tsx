@@ -1,16 +1,13 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ClipboardList, BookOpen, AlertTriangle, Bell, User } from 'lucide-react';
-import { useNotification } from '../../context/NotificationContext';
+import { ClipboardList, BookOpen, AlertTriangle, ListChecks, User } from 'lucide-react';
+import { getActiveProjectId } from '../../utils/activeProject';
 
 export const PWABottomNav: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { unreadCount } = useNotification();
 
-  // Extract project ID from URL if inside a project path, or get last active project from localStorage
-  const matchProject = location.pathname.match(/\/projects\/([^/]+)/);
-  const activeProjectId = matchProject ? matchProject[1] : localStorage.getItem('field_workbench_last_project');
+  const activeProjectId = getActiveProjectId(location.pathname);
 
   const navItems = [
     {
@@ -31,16 +28,15 @@ export const PWABottomNav: React.FC = () => {
       id: 'incidents',
       label: 'Sự cố',
       icon: AlertTriangle,
-      path: '/incidents',
+      path: activeProjectId ? `/incidents?projectId=${activeProjectId}` : '/incidents',
       isActive: location.pathname.startsWith('/incidents')
     },
     {
-      id: 'notifications',
-      label: 'Thông báo',
-      icon: Bell,
-      path: '/notifications',
-      isActive: location.pathname === '/notifications',
-      badge: unreadCount > 0 ? unreadCount : undefined
+      id: 'tasks',
+      label: 'Công việc',
+      icon: ListChecks,
+      path: activeProjectId ? `/field/tasks?projectId=${activeProjectId}` : '/field/tasks',
+      isActive: location.pathname === '/field/tasks'
     },
     {
       id: 'profile',
@@ -52,7 +48,10 @@ export const PWABottomNav: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg px-2 py-1.5 flex justify-around items-center md:hidden">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg px-2 pt-1.5 flex justify-around items-center md:hidden"
+      style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
+    >
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = item.isActive;
@@ -66,14 +65,7 @@ export const PWABottomNav: React.FC = () => {
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <div className="relative">
-              <Icon size={20} className={active ? 'scale-110 transition-transform text-blue-600' : 'text-slate-500'} />
-              {item.badge !== undefined && (
-                <span className="absolute -top-1.5 -right-2.5 bg-red-500 text-white text-[9px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center border border-white animate-pulse">
-                  {item.badge > 99 ? '99+' : item.badge}
-                </span>
-              )}
-            </div>
+            <Icon size={20} className={active ? 'scale-110 transition-transform text-blue-600' : 'text-slate-500'} />
             <span className="text-[10px] mt-1 tracking-tight truncate w-full text-center">
               {item.label}
             </span>

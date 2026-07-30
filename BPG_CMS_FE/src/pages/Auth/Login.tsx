@@ -7,11 +7,13 @@ import { Button, Input, FormItem } from '../../components/ui';
 
 import { isPWAMode } from '../../utils/pwaHelpers';
 
+const FIELD_ROLES = ['technicalmanager', 'siteengineer'];
+
 const getRoleDashboard = (role: string): string => {
-  if (isPWAMode()) {
+  const normRole = role?.toLowerCase() || '';
+  if (isPWAMode() && FIELD_ROLES.includes(normRole)) {
     return '/field?standalone=true';
   }
-  const normRole = role?.toLowerCase() || '';
   switch (normRole) {
     case 'admin':
       return '/users';
