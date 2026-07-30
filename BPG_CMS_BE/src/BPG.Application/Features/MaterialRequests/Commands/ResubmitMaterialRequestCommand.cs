@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -39,7 +39,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
 
             if (request.Items == null || !request.Items.Any())
             {
-                throw new BusinessException("ERR_ITEMS_REQUIRED", "Pháº£i cÃ³ Ã­t nháº¥t 1 váº­t tÆ° trong Ä‘á» xuáº¥t.");
+                throw new BusinessException("ERR_ITEMS_REQUIRED", "Phải có ít nhất 1 vật tư trong đề xuất.");
             }
 
             var mr = await _uow.Repository<MaterialRequest>().Query()
@@ -52,26 +52,26 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
             }
 
-            // Chá»‰ ngÆ°á»i táº¡o má»›i Ä‘Æ°á»£c gá»­i láº¡i
+            // Chỉ người tạo mới được gửi lại
             if (mr.CreatedBy != currentUserId)
             {
-                throw new ForbiddenException("Báº¡n khÃ´ng cÃ³ quyá»n gá»­i láº¡i yÃªu cáº§u váº­t tÆ° nÃ y. Chá»‰ ngÆ°á»i táº¡o phiáº¿u má»›i Ä‘Æ°á»£c thá»±c hiá»‡n.");
+                throw new ForbiddenException("Bạn không có quyền gửi lại yêu cầu vật tư này. Chỉ người tạo phiếu mới được thực hiện.");
             }
 
-            // Chá»‰ cho phÃ©p gá»­i láº¡i khi Ä‘ang á»Ÿ tráº¡ng thÃ¡i Rejected
+            // Chỉ cho phép gửi lại khi đang ở trạng thái Rejected
             if (mr.Status != MaterialRequestStatus.Rejected)
             {
                 throw new BusinessException("ERR_INVALID_STATUS_FOR_RESUBMIT",
-                    $"Chá»‰ cÃ³ thá»ƒ gá»­i láº¡i yÃªu cáº§u Ä‘ang á»Ÿ tráº¡ng thÃ¡i Tá»« chá»‘i (Rejected). Tráº¡ng thÃ¡i hiá»‡n táº¡i: {mr.Status}.");
+                    $"Chỉ có thể gửi lại yêu cầu đang ở trạng thái Từ chối (Rejected). Trạng thái hiện tại: {mr.Status}.");
             }
 
-            // Kiá»ƒm tra phase chÆ°a bá»‹ Ä‘Ã³ng bÄƒng
+            // Kiểm tra phase chưa bị đóng băng
             if (mr.Phase.Status == PhaseStatus.Approved)
             {
-                throw new BusinessException("ERR_PHASE_FROZEN", "Giai Ä‘oáº¡n Ä‘Ã£ Ä‘Æ°á»£c nghiá»‡m thu vÃ  Ä‘Ã³ng bÄƒng, khÃ´ng thá»ƒ gá»­i láº¡i yÃªu cáº§u váº­t tÆ°.");
+                throw new BusinessException("ERR_PHASE_FROZEN", "Giai đoạn đã được nghiệm thu và đóng băng, không thể gửi lại yêu cầu vật tư.");
             }
 
-            // Xá»­ lÃ½ danh sÃ¡ch váº­t tÆ° má»›i
+            // Xử lý danh sách vật tư mới
             bool anyItemOverBOQ = false;
             var newItems = new List<MaterialRequestItem>();
 
@@ -101,7 +101,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                     if (conversion == null)
                     {
                         throw new BusinessException("ERR_INVALID_UNIT",
-                            $"ÄÆ¡n vá»‹ tÃ­nh '{item.Unit}' khÃ´ng Ä‘Æ°á»£c há»— trá»£ cho váº­t tÆ° '{material.Name}'.");
+                            $"Đơn vị tính '{item.Unit}' không được hỗ trợ cho vật tư '{material.Name}'.");
                     }
                     conversionRate = conversion.ConversionRate;
                 }
@@ -121,7 +121,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 {
                     decimal boqLimitInBase = boq.Quantity / (boq.ConversionRate == 0 ? 1m : boq.ConversionRate);
 
-                    // TÃ­nh lÅ©y káº¿ sá»‘ lÆ°á»£ng Ä‘Ã£ yÃªu cáº§u á»Ÿ cÃ¡c phiáº¿u KHÃC (khÃ´ng tÃ­nh phiáº¿u Ä‘ang resubmit nÃ y)
+                    // Tính lũy kế số lượng đã yêu cầu ở các phiếu KHÁC (không tính phiếu đang resubmit này)
                     var totalRequestedBeforeInBase = await _uow.Repository<MaterialRequestItem>().Query()
                         .Where(ri => ri.Request.PhaseId == mr.Phase.PhaseId &&
                                      ri.MaterialId == material.MaterialId &&
@@ -146,15 +146,15 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                     Quantity = item.Quantity,
                     ConversionRate = conversionRate,
                     IsOverBOQ = isOverBOQ,
-                    Explanation = isOverBOQ ? "YÃªu cáº§u vÆ°á»£t quÃ¡ háº¡n má»©c Ä‘á»‹nh má»©c BOQ cá»§a Phase." : null
+                    Explanation = isOverBOQ ? "Yêu cầu vượt quá hạn mức định mức BOQ của Phase." : null
                 });
             }
 
-            // XÃ³a cÃ¡c item cÅ©
+            // Xóa các item cũ
             var oldItems = mr.Items.ToList();
             _uow.Repository<MaterialRequestItem>().RemoveRange(oldItems);
 
-            // Cáº­p nháº­t phiáº¿u: reset vá» Pending Ä‘á»ƒ báº¯t Ä‘áº§u láº¡i quy trÃ¬nh duyá»‡t
+            // Cập nhật phiếu: reset về Pending để bắt đầu lại quy trình duyệt
             mr.Status = MaterialRequestStatus.Pending;
             mr.BOQCheckStatus = anyItemOverBOQ ? BOQCheckStatus.OverBOQ : BOQCheckStatus.WithinBOQ;
             mr.Reason = request.Reason.Trim();
@@ -168,7 +168,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             _uow.Repository<MaterialRequest>().Update(mr);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            // ThÃªm cÃ¡c item má»›i
+            // Thêm các item mới
             foreach (var newItem in newItems)
             {
                 newItem.RequestId = mr.RequestId;
@@ -176,8 +176,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             await _uow.Repository<MaterialRequestItem>().AddRangeAsync(newItems, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            return ApiResponse<bool>.SuccessResult(true, "ÄÃ£ gá»­i láº¡i yÃªu cáº§u váº­t tÆ° thÃ nh cÃ´ng. Phiáº¿u Ä‘ang chá» Káº¿ toÃ¡n xem xÃ©t.");
+            return ApiResponse<bool>.SuccessResult(true, "Đã gửi lại yêu cầu vật tư thành công. Phiếu đang chờ Kế toán xem xét.");
         }
     }
 }
-

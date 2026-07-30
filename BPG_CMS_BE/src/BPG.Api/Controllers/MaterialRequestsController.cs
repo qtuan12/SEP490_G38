@@ -1,4 +1,4 @@
-﻿using BPG.Application.Features.MaterialRequests.Commands;
+using BPG.Application.Features.MaterialRequests.Commands;
 using BPG.Application.Features.MaterialRequests.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -19,7 +19,7 @@ namespace BPG.Api.Controllers
         {
             if (projectId != command.ProjectId)
             {
-                return ApiBadRequest("MÃ£ dá»± Ã¡n khÃ´ng khá»›p.");
+                return ApiBadRequest("Mã dự án không khớp.");
             }
             var result = await Mediator.Send(command, ct);
             return Ok(result);
@@ -33,7 +33,7 @@ namespace BPG.Api.Controllers
         {
             query.ProjectId = projectId;
             var result = await Mediator.Send(query, ct);
-            return ApiPagedOk(result, "Láº¥y danh sÃ¡ch Ä‘á» xuáº¥t váº­t tÆ° cá»§a dá»± Ã¡n thÃ nh cÃ´ng.");
+            return ApiPagedOk(result, "Lấy danh sách đề xuất vật tư của dự án thành công.");
         }
 
         [HttpGet]
@@ -43,7 +43,7 @@ namespace BPG.Api.Controllers
             CancellationToken ct)
         {
             var result = await Mediator.Send(query, ct);
-            return ApiPagedOk(result, "Láº¥y danh sÃ¡ch toÃ n bá»™ Ä‘á» xuáº¥t váº­t tÆ° thÃ nh cÃ´ng.");
+            return ApiPagedOk(result, "Lấy danh sách toàn bộ đề xuất vật tư thành công.");
         }
 
         [HttpGet("{id:long}")]

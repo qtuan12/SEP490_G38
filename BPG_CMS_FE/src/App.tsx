@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -69,7 +69,7 @@ const ProtectedRoute: React.FC<{
         backgroundColor: 'hsl(var(--bg-main))',
         color: 'hsl(var(--text-primary))'
       }}>
-        <h3>Äang táº£i phiÃªn lÃ m viá»‡c...</h3>
+        <h3>Đang tải phiên làm việc...</h3>
       </div>
     );
   }
@@ -121,7 +121,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (isLoading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'hsl(var(--bg-main))' }}>
-        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Äang táº£i...</h3>
+        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Đang tải...</h3>
       </div>
     );
   }

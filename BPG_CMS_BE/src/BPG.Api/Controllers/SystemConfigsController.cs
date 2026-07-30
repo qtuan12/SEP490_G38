@@ -1,4 +1,4 @@
-﻿using BPG.Application.Features.SystemConfigs;
+using BPG.Application.Features.SystemConfigs;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +9,7 @@ namespace BPG.Api.Controllers
     public class SystemConfigsController : BaseApiController
     {
         /// <summary>
-        /// Láº¥y danh sÃ¡ch toÃ n bá»™ cáº¥u hÃ¬nh há»‡ thá»‘ng.
+        /// Lấy danh sách toàn bộ cấu hình hệ thống.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetSystemConfigs(CancellationToken ct)
@@ -19,18 +19,18 @@ namespace BPG.Api.Controllers
         }
 
         /// <summary>
-        /// Admin cáº­p nháº­t giÃ¡ trá»‹ má»™t tham sá»‘ cáº¥u hÃ¬nh.
+        /// Admin cập nhật giá trị một tham số cấu hình.
         /// </summary>
         [HttpPut("{key}")]
         [Authorize(Roles = RolePolicies.Admin)]
         public async Task<IActionResult> UpdateSystemConfig(string key, [FromBody] UpdateConfigBody body, CancellationToken ct)
         {
             await Mediator.Send(new UpdateSystemConfigCommand { ConfigKey = key, ConfigValue = body.ConfigValue }, ct);
-            return ApiOk(true, "Cáº­p nháº­t cáº¥u hÃ¬nh thÃ nh cÃ´ng");
+            return ApiOk(true, "Cập nhật cấu hình thành công");
         }
 
         /// <summary>
-        /// Láº¥y tÃªn vÃ  logo cÃ´ng ty. KhÃ´ng yÃªu cáº§u Ä‘Äƒng nháº­p vÃ¬ trang login cÅ©ng cáº§n hiá»ƒn thá»‹.
+        /// Lấy tên và logo công ty. Không yêu cầu đăng nhập vì trang login cũng cần hiển thị.
         /// </summary>
         [AllowAnonymous]
         [HttpGet("company")]
@@ -41,14 +41,14 @@ namespace BPG.Api.Controllers
         }
 
         /// <summary>
-        /// Admin cáº­p nháº­t tÃªn vÃ  logo cÃ´ng ty.
+        /// Admin cập nhật tên và logo công ty.
         /// </summary>
         [HttpPut("company")]
         [Authorize(Roles = RolePolicies.Admin)]
         public async Task<IActionResult> UpdateCompanySettings([FromBody] UpdateCompanySettingsCommand command, CancellationToken ct)
         {
             await Mediator.Send(command, ct);
-            return ApiOk(true, "Cáº­p nháº­t thÃ´ng tin cÃ´ng ty thÃ nh cÃ´ng");
+            return ApiOk(true, "Cập nhật thông tin công ty thành công");
         }
     }
 

@@ -1,4 +1,4 @@
-﻿using BPG.Application.DTOs.DirectPurchases;
+using BPG.Application.DTOs.DirectPurchases;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;

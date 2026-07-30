@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.PhaseAcceptances;
 using BPG.Application.IRepositories;
@@ -54,7 +54,7 @@ public class GetPhaseAcceptancesQueryHandler : IRequestHandler<GetPhaseAcceptanc
         {
             if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Director, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Accountant))
                 throw new BPG.Domain.Exceptions.ForbiddenException(
-                    "Báº¡n khÃ´ng cÃ³ quyá»n xem nghiá»‡m thu toÃ n há»‡ thá»‘ng.");
+                    "Bạn không có quyền xem nghiệm thu toàn hệ thống.");
 
             var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(ct);
             query = query.Where(item => accessibleProjectIds.Contains(item.Phase.ProjectId));

@@ -1,4 +1,4 @@
-﻿using BPG.Api.Controllers;
+using BPG.Api.Controllers;
 using BPG.Application.Features.Units.Commands;
 using BPG.Application.Features.Units.Queries;
 using BPG.Domain.Constants;
@@ -22,7 +22,7 @@ public class UnitsController : BaseApiController
     public async Task<IActionResult> Create([FromBody] CreateUnitCommand command, CancellationToken ct)
     {
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result, "Táº¡o Ä‘Æ¡n vá»‹ tÃ­nh thÃ nh cÃ´ng.");
+        return ApiOk(result, "Tạo đơn vị tính thành công.");
     }
 
     [HttpPut("{id}")]
@@ -30,14 +30,14 @@ public class UnitsController : BaseApiController
     {
         var command = new UpdateUnitCommand(id, request.UnitCode, request.UnitName, request.IsDiscrete);
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result, "Cáº­p nháº­t Ä‘Æ¡n vá»‹ tÃ­nh thÃ nh cÃ´ng.");
+        return ApiOk(result, "Cập nhật đơn vị tính thành công.");
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         await Mediator.Send(new DeleteUnitCommand(id), ct);
-        return ApiOk("XÃ³a Ä‘Æ¡n vá»‹ tÃ­nh thÃ nh cÃ´ng.");
+        return ApiOk("Xóa đơn vị tính thành công.");
     }
 }
 

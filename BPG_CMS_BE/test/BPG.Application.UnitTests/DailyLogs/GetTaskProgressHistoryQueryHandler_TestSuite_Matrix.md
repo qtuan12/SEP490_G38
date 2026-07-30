@@ -12,7 +12,7 @@ Test requirement: Passed `0`, Failed `0`, Untested `5`, N/A/B `2 / 2 / 1`, Total
 | Condition | Task 100 exists | O | O |  | O | O |
 |  | Task 999 does NOT exist |  |  | O |  |  |
 |  | User is a project member without privileged role |  | O |  |  |  |
-|  | User has neither global project permission grant nor project membership |  |  |  | O |  |
+|  | User is not a global project-view role and is not a project member |  |  |  | O |  |
 |  | Task progress logs exist | O | O |  |  |  |
 |  | Task has no progress logs |  |  |  |  | O |
 | Input | GetTaskProgressHistoryQuery |  |  |  |  |  |
@@ -31,4 +31,4 @@ Test requirement: Passed `0`, Failed `0`, Untested `5`, N/A/B `2 / 2 / 1`, Total
 |  | Executed Date |  |  |  |  |  |
 |  | Defect ID |  |  |  |  |  |
 
-Note: Admin and TechnicalManager share one permission branch; one representative privileged-role case is sufficient.
+Note: Admin and TechnicalManager share one global project-view role branch; one representative privileged-role case is sufficient.

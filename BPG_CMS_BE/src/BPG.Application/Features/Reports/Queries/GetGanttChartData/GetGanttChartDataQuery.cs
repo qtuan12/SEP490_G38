@@ -1,4 +1,4 @@
-﻿using BPG.Application.IRepositories;
+using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;

@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialRequests;
@@ -59,13 +59,13 @@ namespace BPG.Application.Features.MaterialRequests.Queries
             if (!request.ProjectId.HasValue)
             {
                 if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Director))
-                    throw new ForbiddenException("Báº¡n khÃ´ng cÃ³ quyá»n xem Ä‘á» xuáº¥t váº­t tÆ° toÃ n há»‡ thá»‘ng.");
+                    throw new ForbiddenException("Bạn không có quyền xem đề xuất vật tư toàn hệ thống.");
 
                 var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
                 query = query.Where(mr => accessibleProjectIds.Contains(mr.Phase.ProjectId));
             }
 
-            // Ãp dá»¥ng bá»™ lá»c
+            // Áp dụng bộ lọc
             if (request.ProjectId.HasValue)
             {
                 query = query.Where(mr => mr.Phase.ProjectId == request.ProjectId.Value);
@@ -81,16 +81,16 @@ namespace BPG.Application.Features.MaterialRequests.Queries
                 query = query.Where(mr => mr.Status == request.Status);
             }
 
-            // Sáº¯p xáº¿p máº·c Ä‘á»‹nh theo ngÃ y táº¡o má»›i nháº¥t
+            // Sắp xếp mặc định theo ngày tạo mới nhất
             query = query.OrderByDescending(mr => mr.CreatedAt);
 
-            // PhÃ¢n trang
+            // Ph?n trang
             var pagedEntities = await query.ToPagedListAsync(request, cancellationToken);
 
             // Mapping sang DTO
             var mappedItems = _mapper.Map<List<MaterialRequestDto>>(pagedEntities.Items);
 
-            // Äiá»n tÃªn ngÆ°á»i táº¡o (CreatedByName)
+            // Điền tên người tạo (CreatedByName)
             var creatorIds = pagedEntities.Items
                 .Where(x => x.CreatedBy.HasValue)
                 .Select(x => x.CreatedBy!.Value)

@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialReturns;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
@@ -14,8 +14,8 @@ namespace BPG.Application.Features.MaterialReturns.Queries
     {
         public long? ProjectId { get; set; }
         /// <summary>
-        /// Lá»c theo phiáº¿u xuáº¥t kho gá»‘c â€” dÃ¹ng khi FE cáº§n hiá»ƒn thá»‹ lá»‹ch sá»­ hoÃ n tráº£
-        /// trong modal chi tiáº¿t phiáº¿u xuáº¥t.
+        /// Lọc theo phiếu xuất kho gốc — dùng khi FE cần hiển thị lịch sử hoàn trả
+        /// trong modal chi tiết phiếu xuất.
         /// </summary>
         public long? IssuanceId { get; set; }
 
@@ -24,8 +24,8 @@ namespace BPG.Application.Features.MaterialReturns.Queries
             if (ProjectId != null)
                 return ProjectId.Value;
 
-            // FE xem lá»‹ch sá»­ hoÃ n tráº£ cá»§a 1 phiáº¿u xuáº¥t (modal chi tiáº¿t phiáº¿u xuáº¥t)
-            // mÃ  khÃ´ng truyá»n ProjectId â†’ suy luáº­n ProjectId tá»« graph Issuance â†’ Task â†’ Phase.
+            // FE xem lịch sử hoàn trả của 1 phiếu xuất (modal chi tiết phiếu xuất)
+            // mà không truyền ProjectId → suy luận ProjectId từ graph Issuance → Task → Phase.
             if (IssuanceId == null)
                 throw new NotFoundException("ProjectId");
 

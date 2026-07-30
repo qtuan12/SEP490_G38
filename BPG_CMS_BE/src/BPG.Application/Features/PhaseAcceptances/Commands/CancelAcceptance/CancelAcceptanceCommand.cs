@@ -1,4 +1,4 @@
-﻿using BPG.Domain.Exceptions;
+using BPG.Domain.Exceptions;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
@@ -19,10 +19,10 @@ public class CancelAcceptanceCommandValidator : AbstractValidator<CancelAcceptan
     public CancelAcceptanceCommandValidator()
     {
         RuleFor(x => x.AcceptanceId)
-            .GreaterThan(0).WithMessage("AcceptanceId khÃ´ng há»£p lá»‡.");
+            .GreaterThan(0).WithMessage("AcceptanceId không hợp lệ.");
 
         RuleFor(x => x.CancellationReason)
-            .NotEmpty().WithMessage("LÃ½ do há»§y khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.");
+            .NotEmpty().WithMessage("Lý do hủy không được để trống.");
     }
 }
 
@@ -56,12 +56,12 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
             throw new NotFoundException(nameof(PhaseAcceptance), request.AcceptanceId);
 
         if (acceptance.IsCancelled)
-            throw new BusinessException("INVALID_STATUS", "BiÃªn báº£n nghiá»‡m thu nÃ y Ä‘Ã£ bá»‹ há»§y trÆ°á»›c Ä‘Ã³.");
+            throw new BusinessException("INVALID_STATUS", "Biên bản nghiệm thu này đã bị hủy trước đó.");
 
         // Rule: Only allow cancellation within 7 days
         var daysPassed = (DateTime.Now - acceptance.AcceptanceDate).TotalDays;
         if (daysPassed > 7)
-            throw new BusinessException("INVALID_OPERATION", "Chá»‰ Ä‘Æ°á»£c phÃ©p há»§y nghiá»‡m thu trong vÃ²ng 7 ngÃ y ká»ƒ tá»« lÃºc láº­p biÃªn báº£n.");
+            throw new BusinessException("INVALID_OPERATION", "Chỉ được phép hủy nghiệm thu trong vòng 7 ngày kể từ lúc lập biên bản.");
 
         // Update Acceptance
         acceptance.IsCancelled = true;
@@ -79,24 +79,24 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
 
         await _unitOfWork.SaveChangesAsync(ct);
 
-        // Gá»­i thÃ´ng bÃ¡o realtime
+        // Gửi thông báo realtime
         try
         {
             var project = acceptance.Phase?.Project;
-            var phaseName = acceptance.Phase?.Name ?? "Giai Ä‘oáº¡n";
-            var projectName = project?.Name ?? "Dá»± Ã¡n";
+            var phaseName = acceptance.Phase?.Name ?? "Giai đoạn";
+            var projectName = project?.Name ?? "Dự án";
 
-            // 1. Gá»­i thÃ´ng bÃ¡o Ä‘áº¿n GiÃ¡m Ä‘á»‘c
+            // 1. Gửi thông báo đến Giám đốc
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Director,
-                "Há»§y nghiá»‡m thu giai Ä‘oáº¡n",
-                $"BiÃªn báº£n nghiá»‡m thu cá»§a giai Ä‘oáº¡n '{phaseName}' thuá»™c dá»± Ã¡n '{projectName}' Ä‘Ã£ bá»‹ há»§y.",
+                "Hủy nghiệm thu giai đoạn",
+                $"Biên bản nghiệm thu của giai đoạn '{phaseName}' thuộc dự án '{projectName}' đã bị hủy.",
                 NotificationType.Progress,
                 $"/projects/{acceptance.Phase?.ProjectId}/phases/{acceptance.Phase?.PhaseId}/acceptance",
                 acceptance.AcceptanceId,
                 ct);
 
-            // 2. Gá»­i thÃ´ng bÃ¡o tá»›i Project Leader (Chá»‰ huy trÆ°á»Ÿng) cá»§a dá»± Ã¡n
+            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án
             if (project != null)
             {
                 var projectLeader = await _unitOfWork.Repository<ProjectMember>().Query()
@@ -105,8 +105,8 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
                 {
                     await _notificationService.SendNotificationAsync(
                         projectLeader.UserId,
-                        "Há»§y nghiá»‡m thu giai Ä‘oáº¡n",
-                        $"BiÃªn báº£n nghiá»‡m thu cá»§a giai Ä‘oáº¡n '{phaseName}' thuá»™c dá»± Ã¡n '{projectName}' Ä‘Ã£ bá»‹ há»§y.",
+                        "Hủy nghiệm thu giai đoạn",
+                        $"Biên bản nghiệm thu của giai đoạn '{phaseName}' thuộc dự án '{projectName}' đã bị hủy.",
                         NotificationType.Progress,
                         $"/projects/{acceptance.Phase?.ProjectId}/phases/{acceptance.Phase?.PhaseId}/acceptance",
                         acceptance.AcceptanceId,

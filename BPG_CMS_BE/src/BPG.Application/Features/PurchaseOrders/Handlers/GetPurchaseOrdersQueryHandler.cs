@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Application.DTOs.PurchaseOrders;
 using BPG.Application.Features.PurchaseOrders.Queries;
 using BPG.Application.IRepositories;
@@ -33,7 +33,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 !_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Director))
             {
                 throw new ForbiddenException(
-                    "Báº¡n chá»‰ Ä‘Æ°á»£c xem Ä‘Æ¡n hÃ ng trong pháº¡m vi dá»± Ã¡n Ä‘Æ°á»£c cáº¥p quyá»n.");
+                    "Bạn chỉ được xem đơn hàng trong phạm vi dự án được cấp quyền.");
             }
 
             var query = _uow.Repository<PurchaseOrder>().Query()

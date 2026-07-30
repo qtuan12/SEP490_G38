@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +11,7 @@ using BPG.Domain.Constants;
 namespace BPG.Application.Features.Surplus.Commands;
 
 /// <summary>
-/// Káº¿ toÃ¡n xá»­ lÃ½ tráº£ NCC: nháº­p sá»‘ tiá»n thu há»“i vÃ  hoÃ n táº¥t action.
+/// Kế toán xử lý trả NCC: nhập số tiền thu hồi và hoàn tất action.
 /// </summary>
 public record CreateSurplusReturnActionCommand(
     long SurplusRequestItemId,

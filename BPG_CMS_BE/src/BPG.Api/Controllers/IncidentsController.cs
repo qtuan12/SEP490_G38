@@ -1,4 +1,4 @@
-﻿using BPG.Application.Features.Incidents.Commands.CreateAndAssessIncident;
+using BPG.Application.Features.Incidents.Commands.CreateAndAssessIncident;
 using BPG.Application.Features.Incidents.Commands.ConfirmIncident;
 using BPG.Application.Features.Incidents.Queries.GetIncidents;
 using BPG.Domain.Constants;

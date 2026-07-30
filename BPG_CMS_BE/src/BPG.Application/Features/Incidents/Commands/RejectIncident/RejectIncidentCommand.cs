@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Incidents;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -22,7 +22,7 @@ public class RejectIncidentCommandValidator : AbstractValidator<RejectIncidentCo
     public RejectIncidentCommandValidator()
     {
         RuleFor(v => v.IncidentId).GreaterThan(0);
-        RuleFor(v => v.Reason).NotEmpty().WithMessage("LÃ½ do tá»« chá»‘i lÃ  báº¯t buá»™c.");
+        RuleFor(v => v.Reason).NotEmpty().WithMessage("Lý do từ chối là bắt buộc.");
     }
 }
 
@@ -55,11 +55,11 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
             throw new NotFoundException(nameof(Incident), request.IncidentId);
 
         if (incident.Status == "Approved" || incident.Status == "Rejected")
-            throw new BusinessException("ERR_INCIDENT_ALREADY_PROCESSED", "Sá»± cá»‘ nÃ y Ä‘Ã£ Ä‘Æ°á»£c xá»­ lÃ½.");
+            throw new BusinessException("ERR_INCIDENT_ALREADY_PROCESSED", "Sự cố này đã được xử lý.");
 
         incident.Status = "Rejected";
         incident.ReviewedBy = currentUserId;
-        incident.HandlingInstruction = request.Reason; // LÆ°u lÃ½ do vÃ o HandlingInstruction
+        incident.HandlingInstruction = request.Reason; // Lưu lý do vào HandlingInstruction
 
         var isInventoryIncident = incident.IncidentType == "InventoryLoss" || incident.IncidentType == "InventoryDamage";
         if (isInventoryIncident)
@@ -90,8 +90,8 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
 
         await _notificationService.SendNotificationAsync(
             incident.ReportedBy,
-            "BÃ¡o cÃ¡o sá»± cá»‘ bá»‹ tá»« chá»‘i",
-            $"Sá»± cá»‘ báº¡n bÃ¡o cÃ¡o Ä‘Ã£ bá»‹ tá»« chá»‘i. LÃ½ do: {request.Reason}",
+            "Báo cáo sự cố bị từ chối",
+            $"Sự cố bạn báo cáo đã bị từ chối. Lý do: {request.Reason}",
             "IncidentRejected",
             $"/projects/{incident.ProjectId}/workspace/incidents"
         );
@@ -112,7 +112,6 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
             updatedIncident.IncidentId,
             cancellationToken);
 
-        return ApiResponse<IncidentDto>.SuccessResult(dto, "ÄÃ£ bÃ¡c bá» sá»± cá»‘.");
+        return ApiResponse<IncidentDto>.SuccessResult(dto, "Đã bác bỏ sự cố.");
     }
 }
-

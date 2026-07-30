@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Application.DTOs.PurchaseOrders;
 using MediatR;
 namespace BPG.Application.Features.PurchaseOrders.Queries
@@ -8,7 +8,7 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
         public long? ProjectId { get; set; }
         public string? Status { get; set; }
 
-        // Search (káº¿ thá»«a tá»« PaginationRequest): tÃ¬m theo sá»‘ Ä‘Æ¡n hÃ ng hoáº·c tÃªn nhÃ  cung cáº¥p
+        // Search (kế thừa từ PaginationRequest): tìm theo số đơn hàng hoặc tên nhà cung cấp
 
         public DateOnly? OrderDateFrom { get; set; }
         public DateOnly? OrderDateTo { get; set; }

@@ -1,4 +1,4 @@
-﻿using BPG.Application.Features.PurchaseOrders.Commands;
+using BPG.Application.Features.PurchaseOrders.Commands;
 using BPG.Application.Features.PurchaseOrders.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -10,7 +10,7 @@ namespace BPG.Api.Controllers
     public class PurchaseOrdersController : BaseApiController
     {
         /// <summary>
-        /// Danh sÃ¡ch PO, há»— trá»£ tÃ¬m kiáº¿m theo sá»‘ PO, lá»c theo tráº¡ng thÃ¡i vÃ  phÃ¢n trang.
+        /// Danh sách PO, hỗ trợ tìm kiếm theo số PO, lọc theo trạng thái và phân trang.
         /// </summary>
         [HttpGet]
         [Authorize(Roles = RolePolicies.Procurement)]
@@ -18,7 +18,7 @@ namespace BPG.Api.Controllers
         {
             query.ProjectId = null;
             var result = await Mediator.Send(query, ct);
-            return ApiPagedOk(result, "Láº¥y danh sÃ¡ch Ä‘Æ¡n mua hÃ ng thÃ nh cÃ´ng");
+            return ApiPagedOk(result, "Lấy danh sách đơn mua hàng thành công");
         }
 
         [HttpGet("/api/projects/{projectId:long}/purchase-orders")]
@@ -29,11 +29,11 @@ namespace BPG.Api.Controllers
         {
             query.ProjectId = projectId;
             var result = await Mediator.Send(query, ct);
-            return ApiPagedOk(result, "Láº¥y danh sÃ¡ch Ä‘Æ¡n mua hÃ ng cá»§a dá»± Ã¡n thÃ nh cÃ´ng");
+            return ApiPagedOk(result, "Lấy danh sách đơn mua hàng của dự án thành công");
         }
 
         /// <summary>
-        /// Láº¥y danh sÃ¡ch yÃªu cáº§u váº­t tÆ° Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t cá»§a má»™t dá»± Ã¡n Ä‘á»ƒ táº¡o PO.
+        /// Lấy danh sách yêu cầu vật tư đã được duyệt của một dự án để tạo PO.
         /// </summary>
         [HttpGet("approved-requests")]
         public async Task<IActionResult> GetApprovedRequests([FromQuery] long projectId, CancellationToken ct)
@@ -43,7 +43,7 @@ namespace BPG.Api.Controllers
         }
 
         /// <summary>
-        /// Láº¥y chi tiáº¿t má»™t Ä‘Æ¡n mua hÃ ng theo ID.
+        /// Lấy chi tiết một đơn mua hàng theo ID.
         /// </summary>
         [HttpGet("{id:long}")]
         public async Task<IActionResult> GetPurchaseOrderById(long id, CancellationToken ct)
@@ -53,46 +53,46 @@ namespace BPG.Api.Controllers
         }
 
         /// <summary>
-        /// Xem trÆ°á»›c mÃ£ PO sáº½ Ä‘Æ°á»£c sinh náº¿u táº¡o Ä‘Æ¡n hÃ ng vÃ o ngÃ y chá»‰ Ä‘á»‹nh (chá»‰ tham kháº£o, cÃ³ thá»ƒ lá»‡ch
-        /// náº¿u cÃ³ PO khÃ¡c Ä‘Æ°á»£c táº¡o xen giá»¯a lÃºc xem vÃ  lÃºc submit).
+        /// Xem trước mã PO sẽ được sinh nếu tạo đơn hàng vào ngày chỉ định (chỉ tham khảo, có thể lệch
+        /// nếu có PO khác được tạo xen giữa lúc xem và lúc submit).
         /// </summary>
         [HttpGet("next-number")]
         [Authorize(Roles = RolePolicies.Procurement)]
         public async Task<IActionResult> GetNextPoNumber([FromQuery] DateTime orderDate, CancellationToken ct)
         {
             var result = await Mediator.Send(new GetNextPoNumberQuery(orderDate), ct);
-            return ApiOk(result, "Láº¥y mÃ£ Ä‘Æ¡n hÃ ng dá»± kiáº¿n thÃ nh cÃ´ng");
+            return ApiOk(result, "Lấy mã đơn hàng dự kiến thành công");
         }
 
         /// <summary>
-        /// Táº¡o Ä‘Æ¡n mua hÃ ng (PO) tá»« cÃ¡c yÃªu cáº§u váº­t tÆ° Ä‘Ã£ duyá»‡t.
+        /// Tạo đơn mua hàng (PO) từ các yêu cầu vật tư đã duyệt.
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreatePurchaseOrder([FromBody] CreatePurchaseOrderCommand command, CancellationToken ct)
         {
             var poId = await Mediator.Send(command, ct);
-            return ApiOk(poId, "Táº¡o Ä‘Æ¡n mua hÃ ng thÃ nh cÃ´ng");
+            return ApiOk(poId, "Tạo đơn mua hàng thành công");
         }
 
         /// <summary>
-        /// Há»§y Ä‘Æ¡n mua hÃ ng (chá»‰ khi chÆ°a cÃ³ hÃ ng nháº­n), ghi lÃ½ do há»§y.
+        /// Hủy đơn mua hàng (chỉ khi chưa có hàng nhận), ghi lý do hủy.
         /// </summary>
         [HttpPost("{id:long}/cancel")]
         public async Task<IActionResult> CancelPurchaseOrder(long id, [FromBody] CancelPORequestBody body, CancellationToken ct)
         {
             await Mediator.Send(new CancelPurchaseOrderCommand { POId = id, Reason = body.Reason }, ct);
-            return ApiOk(true, "Há»§y Ä‘Æ¡n mua hÃ ng thÃ nh cÃ´ng");
+            return ApiOk(true, "Hủy đơn mua hàng thành công");
         }
 
         /// <summary>
-        /// ÄÃ³ng Ä‘Æ¡n mua hÃ ng Ä‘ang nháº­n má»™t pháº§n. Pháº§n váº­t tÆ° chÆ°a nháº­n sáº½ Ä‘Æ°á»£c tráº£ láº¡i
-        /// yÃªu cáº§u váº­t tÆ°, cho phÃ©p táº¡o Ä‘Æ¡n mua hÃ ng khÃ¡c cho pháº§n cÃ²n thiáº¿u.
+        /// Đóng đơn mua hàng đang nhận một phần. Phần vật tư chưa nhận sẽ được trả lại
+        /// yêu cầu vật tư, cho phép tạo đơn mua hàng khác cho phần còn thiếu.
         /// </summary>
         [HttpPost("{id:long}/close")]
         public async Task<IActionResult> ClosePurchaseOrder(long id, [FromBody] CancelPORequestBody body, CancellationToken ct)
         {
             await Mediator.Send(new ClosePurchaseOrderCommand { POId = id, Reason = body.Reason }, ct);
-            return ApiOk(true, "ÄÃ³ng Ä‘Æ¡n mua hÃ ng thÃ nh cÃ´ng");
+            return ApiOk(true, "Đóng đơn mua hàng thành công");
         }
     }
 
@@ -101,4 +101,3 @@ namespace BPG.Api.Controllers
         public string Reason { get; set; } = string.Empty;
     }
 }
-
