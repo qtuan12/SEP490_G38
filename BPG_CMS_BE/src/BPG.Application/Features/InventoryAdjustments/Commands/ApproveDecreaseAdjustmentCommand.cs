@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Domain.Constants;
 using FluentValidation;
 using MediatR;
@@ -19,7 +19,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             RuleFor(x => x.AdjustmentId).GreaterThan(0).WithMessage("ERR_VALIDATION");
             When(x => !x.IsApproved, () =>
             {
-                RuleFor(x => x.RejectedReason).NotEmpty().WithMessage("LÃ½ do tá»« chá»‘i khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng khi tá»« chá»‘i.");
+                RuleFor(x => x.RejectedReason).NotEmpty().WithMessage("Lý do từ chối không được để trống khi từ chối.");
             });
         }
     }

@@ -13,7 +13,7 @@ Test requirement: Passed `13`, Failed `0`, Untested `0`, N/A/B `3 / 8 / 2`, Tota
 |  | Task exists in DB | O | O |  | O | O | O | O | O | O | O | O | O |
 |  | Task does NOT exist |  |  | O |  |  |  |  |  |  |  |  |  |
 |  | User is assigned engineer; handler business rule allows field log editing/reporting |  |  |  |  |  |  |  |  |  |  |  | O |
-|  | User lacks execution permission, project leader membership, and task assignment |  |  |  |  |  |  |  |  |  |  | O |  |
+|  | User is not Admin/TechnicalManager, not Project Leader, and not assigned engineer |  |  |  |  |  |  |  |  |  |  | O |  |
 |  | Project status is NOT InProgress |  |  |  | O |  |  |  |  |  |  |  |  |
 |  | Ancestor task is locked |  |  |  |  | O |  |  |  |  |  |  |  |
 |  | Task has active subtasks |  |  |  |  |  | O |  |  |  |  |  |  |

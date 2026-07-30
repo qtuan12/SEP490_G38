@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;

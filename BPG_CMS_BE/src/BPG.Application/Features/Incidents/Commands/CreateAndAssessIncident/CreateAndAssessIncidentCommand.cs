@@ -1,4 +1,4 @@
-﻿using BPG.Domain.Exceptions;
+using BPG.Domain.Exceptions;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.Common.Models;
@@ -39,12 +39,12 @@ public class CreateAndAssessIncidentCommandValidator : AbstractValidator<CreateA
         RuleFor(v => v.TaskId)
             .NotNull()
             .When(v => v.IncidentType == "Construction" && !v.IsEmergency)
-            .WithMessage("Sá»± cá»‘ thi cÃ´ng yÃªu cáº§u TaskId.");
+            .WithMessage("Sự cố thi công yêu cầu TaskId.");
 
         RuleFor(v => v.PhaseId)
             .NotNull()
             .When(v => v.IncidentType == "InventoryLoss" || v.IncidentType == "InventoryDamage")
-            .WithMessage("Sá»± cá»‘ váº­t tÆ° yÃªu cáº§u PhaseId.");
+            .WithMessage("Sự cố vật tư yêu cầu PhaseId.");
     }
 }
 
@@ -137,8 +137,8 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         {
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Accountant,
-                "BÃ¡o cÃ¡o sá»± cá»‘ má»›i",
-                $"CÃ³ má»™t sá»± cá»‘ váº­t tÆ° má»›i táº¡i dá»± Ã¡n {project.Name} Ä‘ang chá» káº¿ toÃ¡n xÃ¡c minh.",
+                "Báo cáo sự cố mới",
+                $"Có một sự cố vật tư mới tại dự án {project.Name} đang chờ kế toán xác minh.",
                 "IncidentReported",
                 $"/projects/{project.ProjectId}/workspace/incidents"
             );
@@ -149,16 +149,16 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             {
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.TechnicalManager,
-                    "ðŸš¨ YÃªu cáº§u dá»«ng thi cÃ´ng kháº©n cáº¥p",
-                    $"Dá»± Ã¡n {project.Name} vá»«a gá»­i yÃªu cáº§u táº¡m dá»«ng thi cÃ´ng kháº©n cáº¥p do sá»± cá»‘ nghiÃªm trá»ng. Vui lÃ²ng tháº©m Ä‘á»‹nh ngay!",
+                    "🚨 Yêu cầu dừng thi công khẩn cấp",
+                    $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng. Vui lòng thẩm định ngay!",
                     "EmergencyStop",
                     $"/projects/{project.ProjectId}/workspace/incidents"
                 );
 
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.Director,
-                    "ðŸš¨ YÃªu cáº§u dá»«ng thi cÃ´ng kháº©n cáº¥p",
-                    $"Dá»± Ã¡n {project.Name} vá»«a gá»­i yÃªu cáº§u táº¡m dá»«ng thi cÃ´ng kháº©n cáº¥p do sá»± cá»‘ nghiÃªm trá»ng.",
+                    "🚨 Yêu cầu dừng thi công khẩn cấp",
+                    $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng.",
                     "EmergencyStop",
                     $"/projects/{project.ProjectId}/workspace/incidents"
                 );
@@ -167,8 +167,8 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             {
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.TechnicalManager,
-                    "BÃ¡o cÃ¡o sá»± cá»‘ má»›i",
-                    $"CÃ³ má»™t sá»± cá»‘ thi cÃ´ng má»›i táº¡i dá»± Ã¡n {project.Name} Ä‘ang chá» TrÆ°á»Ÿng phÃ²ng Ká»¹ thuáº­t tháº©m Ä‘á»‹nh.",
+                    "Báo cáo sự cố mới",
+                    $"Có một sự cố thi công mới tại dự án {project.Name} đang chờ Trưởng phòng Kỹ thuật thẩm định.",
                     "IncidentReported",
                     $"/projects/{project.ProjectId}/workspace/incidents"
                 );
@@ -191,7 +191,7 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             incident.IncidentId,
             cancellationToken);
 
-        return ApiResponse<IncidentDto>.SuccessResult(dto, "Sá»± cá»‘ Ä‘Ã£ Ä‘Æ°á»£c bÃ¡o cÃ¡o vÃ  Ä‘Ã¡nh giÃ¡.");
+        return ApiResponse<IncidentDto>.SuccessResult(dto, "Sự cố đã được báo cáo và đánh giá.");
     }
 }
 

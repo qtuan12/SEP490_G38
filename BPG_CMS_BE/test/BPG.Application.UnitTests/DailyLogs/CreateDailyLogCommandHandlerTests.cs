@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.Features.DailyLogs.Commands;
 using BPG.Application.Features.DailyLogs.Handlers;

@@ -1,4 +1,4 @@
-﻿using BPG.Application.IRepositories;
+using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;
@@ -26,7 +26,7 @@ public class GetProcurementReportQueryHandler
     public async Task<ApiResponse<ProcurementReportDto>> Handle(
         GetProcurementReportQuery request, CancellationToken cancellationToken)
     {
-        // Fetch POs linked to this project via MaterialRequest â†’ Phase â†’ Project
+        // Fetch POs linked to this project via MaterialRequest → Phase → Project
         var pos = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
             .Include(p => p.Supplier)

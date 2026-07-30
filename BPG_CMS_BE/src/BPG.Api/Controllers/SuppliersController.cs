@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Suppliers;
 using BPG.Application.Features.Suppliers.Commands;
 using BPG.Application.Features.Suppliers.Queries;
@@ -16,7 +16,7 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> GetSuppliers([FromQuery] GetSuppliersQuery query)
         {
             var result = await Mediator.Send(query);
-            return ApiPagedOk(result, "Láº¥y danh sÃ¡ch nhÃ  cung cáº¥p thÃ nh cÃ´ng");
+            return ApiPagedOk(result, "Lấy danh sách nhà cung cấp thành công");
         }
 
         [HttpGet("{id}")]
@@ -24,7 +24,7 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> GetSupplierById(long id)
         {
             var result = await Mediator.Send(new GetSupplierByIdQuery(id));
-            return ApiOk(result, "Láº¥y thÃ´ng tin nhÃ  cung cáº¥p thÃ nh cÃ´ng");
+            return ApiOk(result, "Lấy thông tin nhà cung cấp thành công");
         }
 
         [HttpPost]
@@ -32,7 +32,7 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierCommand command)
         {
             var result = await Mediator.Send(command);
-            return ApiOk(result, "Táº¡o nhÃ  cung cáº¥p thÃ nh cÃ´ng");
+            return ApiOk(result, "Tạo nhà cung cấp thành công");
         }
 
         [HttpPut("{id}")]
@@ -49,7 +49,7 @@ namespace BPG.Api.Controllers
                 request.EvaluationNote,
                 request.CollaborationStatus
             ));
-            return ApiOk(result, "Cáº­p nháº­t nhÃ  cung cáº¥p thÃ nh cÃ´ng");
+            return ApiOk(result, "Cập nhật nhà cung cấp thành công");
         }
 
         [HttpDelete("{id}")]
@@ -57,7 +57,7 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> DeleteSupplier(long id)
         {
             await Mediator.Send(new DeleteSupplierCommand(id));
-            return ApiOk("XÃ³a nhÃ  cung cáº¥p thÃ nh cÃ´ng");
+            return ApiOk("Xóa nhà cung cấp thành công");
         }
     }
 }

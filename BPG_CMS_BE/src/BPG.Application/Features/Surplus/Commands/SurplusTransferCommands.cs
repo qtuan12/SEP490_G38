@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using System.Threading;
@@ -12,8 +12,8 @@ using BPG.Domain.Constants;
 namespace BPG.Application.Features.Surplus.Commands;
 
 /// <summary>
-/// Leader táº¡o action chuyá»ƒn kho surplus sang dá»± Ã¡n nháº­n.
-/// Sau khi táº¡o, TPKT sáº½ duyá»‡t (ReviewSurplusTransferCommand).
+/// Leader tạo action chuyển kho surplus sang dự án nhận.
+/// Sau khi tạo, TPKT sẽ duyệt (ReviewSurplusTransferCommand).
 /// </summary>
 public record CreateSurplusTransferActionCommand(
     long SurplusRequestItemId,
@@ -24,7 +24,7 @@ public record CreateSurplusTransferActionCommand(
 }
 
 /// <summary>
-/// TPKT duyá»‡t hoáº·c tá»« chá»‘i Ä‘á» xuáº¥t chuyá»ƒn kho.
+/// TPKT duyệt hoặc từ chối đề xuất chuyển kho.
 /// </summary>
 public record ReviewSurplusTransferCommand(
     long SurplusTransferId,
@@ -34,7 +34,7 @@ public record ReviewSurplusTransferCommand(
 }
 
 /// <summary>
-/// BÃªn gá»­i xÃ¡c nháº­n Ä‘Ã£ váº­n chuyá»ƒn (Dispatched).
+/// Bên gửi xác nhận đã vận chuyển (Dispatched).
 /// </summary>
 public record DispatchSurplusTransferCommand(long SurplusTransferId, List<IFormFile>? Attachments)
     : IRequest<ApiResponse>
@@ -42,7 +42,7 @@ public record DispatchSurplusTransferCommand(long SurplusTransferId, List<IFormF
 }
 
 /// <summary>
-/// BÃªn nháº­n xÃ¡c nháº­n Ä‘Ã£ nháº­n hÃ ng (Received) â†’ cáº­p nháº­t tá»“n kho 2 chiá»u.
+/// Bên nhận xác nhận đã nhận hàng (Received) → cập nhật tồn kho 2 chiều.
 /// </summary>
 public record ReceiveSurplusTransferCommand(long SurplusTransferId, List<IFormFile>? Attachments)
     : IRequest<ApiResponse>

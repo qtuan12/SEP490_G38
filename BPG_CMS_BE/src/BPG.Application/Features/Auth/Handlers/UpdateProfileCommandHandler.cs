@@ -1,4 +1,4 @@
-﻿using BPG.Application.DTOs.Auth;
+using BPG.Application.DTOs.Auth;
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
@@ -22,7 +22,7 @@ namespace BPG.Application.Features.Auth.Handlers
             var user = await _uow.Repository<User>().Query()
                 .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.UserId == request.UserId && !u.IsDeleted, cancellationToken)
-                ?? throw new NotFoundException("KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng.");
+                ?? throw new NotFoundException("Không tìm thấy người dùng.");
 
             user.FullName = request.FullName.Trim();
             user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber)

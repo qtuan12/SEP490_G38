@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +11,7 @@ using BPG.Domain.Constants;
 namespace BPG.Application.Features.Surplus.Commands;
 
 /// <summary>
-/// Káº¿ toÃ¡n xá»­ lÃ½ thanh lÃ½ váº­t tÆ° thá»«a: nháº­p giÃ¡ trá»‹ thu há»“i vÃ  hoÃ n táº¥t.
+/// Kế toán xử lý thanh lý vật tư thừa: nhập giá trị thu hồi và hoàn tất.
 /// </summary>
 public record CreateSurplusLiquidationActionCommand(
     long SurplusRequestItemId,
