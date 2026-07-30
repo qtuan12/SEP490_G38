@@ -56,6 +56,11 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
             if (parentTask == null)
                 throw new NotFoundException("ParentTask", request.ParentTaskId.Value);
 
+            // Chặn tạo task cấp 3 trở lên (chỉ cho phép tối đa 2 cấp: cha → con)
+            if (parentTask.ParentTaskId.HasValue)
+                throw new BusinessException("ERR_MAX_DEPTH_EXCEEDED",
+                    "Hệ thống chỉ hỗ trợ tối đa 2 cấp công việc (cha → con). Không thể tạo công việc con cho một công việc đã là sub-task.");
+
             if (request.StartDate < parentTask.StartDate || request.EndDate > parentTask.EndDate)
             {
                 throw new BusinessException("ERR_TASK_DATE_INVALID",

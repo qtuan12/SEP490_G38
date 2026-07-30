@@ -13,15 +13,26 @@ import {
   Ruler,
   Tags,
   Package,
-  ShoppingCart,
   SlidersHorizontal,
-  Smartphone,
 } from 'lucide-react';
 import { Button, Avatar, Badge } from '../ui';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
 import { HeaderNotification } from './HeaderNotification';
 import { PWABottomNav } from './PWABottomNav';
+import { OfflineBanner } from './OfflineBanner';
 import { RoleGroup } from '../../auth/roles';
+
+// Thanh điều hướng PWA chỉ hiện trong phạm vi "Việc của tôi" (field workflow) —
+// ẩn đi khi người dùng thoát ra các tab chung (dashboard, danh sách dự án, WBS hub, quản trị...).
+const isFieldScopedRoute = (pathname: string): boolean => {
+  if (pathname.startsWith('/field')) return true;
+  if (pathname.startsWith('/tasks/')) return true;
+  if (pathname.startsWith('/incidents')) return true;
+  if (pathname === '/notifications') return true;
+  if (pathname === '/profile') return true;
+  if (pathname.startsWith('/projects/') && pathname.includes('/logs')) return true;
+  return false;
+};
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout, hasAnyRole } = useAuth();
@@ -46,8 +57,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, allowedRoles: RoleGroup.AdminOnly },
     { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, allowedRoles: RoleGroup.ProjectViewers },
-    { name: 'Việc của tôi', path: '/field', icon: <Smartphone size={20} />, allowedRoles: RoleGroup.ProjectViewers },
-    { name: 'Danh sách đơn hàng', path: '/purchase-orders', icon: <ShoppingCart size={20} />, allowedRoles: RoleGroup.Procurement },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, allowedRoles: RoleGroup.SupplierViewers },
     { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, allowedRoles: RoleGroup.MasterData },
     { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, allowedRoles: RoleGroup.MasterData },
@@ -59,6 +68,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const filteredNavItems = navItems.filter(
     (item) => !item.allowedRoles || hasAnyRole(item.allowedRoles),
   );
+
+  const showBottomNav = isFieldScopedRoute(location.pathname);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[hsl(var(--bg-main))]">
@@ -130,7 +141,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
         {user && (
           <div className="p-4 border-t border-[hsl(var(--border))] flex flex-col gap-3">
-            <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+            <div
+              className={`flex items-center gap-3 cursor-pointer p-1 -m-1 rounded-sm transition-colors hover:bg-[hsl(var(--bg-main))] ${isCollapsed ? 'justify-center' : ''}`}
+              onClick={() => navigate('/profile')}
+              title="Xem trang cá nhân"
+            >
               <Avatar name={user.name} src={user.avatarUrl} size="md" />
               {!isCollapsed && (
                 <div className="overflow-hidden">
@@ -151,6 +166,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       </aside>
 
       <div className="flex flex-col flex-1 overflow-hidden">
+        <OfflineBanner />
         <header className="h-[60px] md:h-[70px] bg-[hsl(var(--bg-card))] border-b border-[hsl(var(--border))] flex items-center sticky top-0 z-30 lg:px-12 px-4 md:px-6">
           <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -179,15 +195,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto lg:p-12 p-4 md:p-6 pb-20 md:pb-6">
+        <main
+          className="flex-1 overflow-y-auto lg:p-12 p-4 md:p-6 md:pb-6"
+          style={showBottomNav ? { paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' } : undefined}
+        >
           <div className="max-w-[1400px] mx-auto w-full">
             {children}
           </div>
         </main>
       </div>
 
-      {/* PWA Mobile Bottom Navigation Bar */}
-      <PWABottomNav />
+      {/* PWA Mobile Bottom Navigation Bar — chỉ hiện trong phạm vi "Việc của tôi" */}
+      {showBottomNav && <PWABottomNav />}
     </div>
   );
 };

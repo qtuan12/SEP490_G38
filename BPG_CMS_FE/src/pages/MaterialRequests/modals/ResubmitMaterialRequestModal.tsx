@@ -162,7 +162,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
         <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-600">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <div className="text-sm">
-            Lý do từ chối trước đó: <strong>{request.rejectionReason || 'Không có'}</strong>
+            Lý do: <strong>{request.rejectionReason || 'Không có'}</strong>
           </div>
         </div>
 

@@ -7,6 +7,7 @@ import { Button, Input, Select, Badge, Pagination } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../../components/ui/Modal';
 import type { BadgeVariant } from '../../components/ui';
+import { isPWAMode } from '../../utils/pwaHelpers';
 import {
   Search,
   FolderPlus,
@@ -18,7 +19,8 @@ import {
   Loader2,
   CheckCircle2,
   AlertTriangle,
-  Trash2
+  Trash2,
+  ClipboardList
 } from 'lucide-react';
 import { RoleGroup } from '../../auth/roles';
 
@@ -27,6 +29,7 @@ export const ProjectList: React.FC = () => {
   const { hasAnyRole } = useAuth();
   const canCreateProject = hasAnyRole(RoleGroup.ProjectManagers);
   const canDeleteProject = hasAnyRole(RoleGroup.ProjectManagers);
+  const showFieldShortcut = isPWAMode() && hasAnyRole(['technicalmanager', 'siteengineer']);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -259,9 +262,25 @@ export const ProjectList: React.FC = () => {
                 </div>
 
                 {/* Action button mock */}
-                <div className="flex items-center gap-1.5 text-[hsl(var(--primary))] text-[0.9rem] font-semibold mt-1 border-t border-[hsl(var(--border)/0.5)] pt-3">
-                  <span>Xem chi tiết dự án </span>
-                  <ArrowRight size={16} />
+                <div className="flex items-center justify-between gap-2 mt-1 border-t border-[hsl(var(--border)/0.5)] pt-3">
+                  <div className="flex items-center gap-1.5 text-[hsl(var(--primary))] text-[0.9rem] font-semibold">
+                    <span>Xem chi tiết dự án </span>
+                    <ArrowRight size={16} />
+                  </div>
+                  {showFieldShortcut && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/field?projectId=${p.id}&standalone=true`);
+                      }}
+                      className="shrink-0 flex items-center gap-1 h-9 px-3 rounded-md bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] text-xs font-semibold"
+                      title="Việc của tôi trong dự án này"
+                    >
+                      <ClipboardList size={14} />
+                      Việc của tôi
+                    </button>
+                  )}
                 </div>
               </div>
             ))

@@ -26,11 +26,16 @@ namespace BPG.Application.Features.MaterialRequests.Commands
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly INotificationService _notificationService;
 
-        public ResubmitMaterialRequestCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public ResubmitMaterialRequestCommandHandler(
+            IUnitOfWork uow, 
+            ICurrentUserService currentUserService,
+            INotificationService notificationService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<bool>> Handle(ResubmitMaterialRequestCommand request, CancellationToken cancellationToken)

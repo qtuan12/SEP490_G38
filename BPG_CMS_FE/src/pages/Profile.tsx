@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import type { UserDetailProfile } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/ui/Modal';
-import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X } from 'lucide-react';
+import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X, LogOut } from 'lucide-react';
 import { passwordRules, validatePassword } from '../utils/passwordPolicy';
 import { validateFullName, validatePhoneNumber } from '../utils/profileValidation';
 
@@ -29,7 +30,8 @@ const formatDateTime = (iso: string | null): string => {
 };
 
 export const Profile: React.FC = () => {
-  const { updateUser } = useAuth();
+  const { updateUser, logout } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserDetailProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -146,6 +148,11 @@ export const Profile: React.FC = () => {
     setShowModal(true);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   const closeModal = () => {
     if (pwLoading) return;
     setShowModal(false);
@@ -260,6 +267,10 @@ export const Profile: React.FC = () => {
               <button className="btn btn-secondary flex items-center gap-2 text-sm px-4 py-2.5" onClick={openModal}>
                 <KeyRound size={16} />
                 Đổi mật khẩu
+              </button>
+              <button className="btn btn-secondary flex items-center gap-2 text-sm px-4 py-2.5 text-[hsl(var(--danger))]" onClick={handleLogout}>
+                <LogOut size={16} />
+                Đăng xuất
               </button>
             </div>
           </div>

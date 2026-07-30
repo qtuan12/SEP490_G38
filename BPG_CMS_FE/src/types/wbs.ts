@@ -66,6 +66,7 @@ export interface TaskProgressLog {
 export interface TaskDetails {
   taskId: number;
   phaseId: number;
+  projectId: number;
   parentTaskId: number | null;
   name: string;
   description: string | null;
