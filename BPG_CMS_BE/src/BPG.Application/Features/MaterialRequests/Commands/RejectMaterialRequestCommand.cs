@@ -69,12 +69,12 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             if (mr.Status == MaterialRequestStatus.Pending)
             {
                 mr.CheckedBy = currentUserId;
-                mr.AccountantNote = $"Tá»« chá»‘i: {request.Reason}";
+                mr.AccountantNote = $"{request.Reason}";
             }
             else // WaitingApproval
             {
                 mr.ApprovedBy = currentUserId;
-                mr.ApprovalNote = $"Tá»« chá»‘i: {request.Reason}";
+                mr.ApprovalNote = $"{request.Reason}";
             }
 
             mr.Status = MaterialRequestStatus.Rejected;
