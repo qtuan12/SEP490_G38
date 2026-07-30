@@ -731,7 +731,6 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           }}
           projectId={projectId.toString()}
           request={selectedResubmitRequest}
-          user={user}
         />
       )}
     </div>
