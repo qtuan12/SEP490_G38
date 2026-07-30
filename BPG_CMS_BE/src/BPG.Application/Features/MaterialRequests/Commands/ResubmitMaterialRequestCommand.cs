@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -26,11 +26,16 @@ namespace BPG.Application.Features.MaterialRequests.Commands
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly INotificationService _notificationService;
 
-        public ResubmitMaterialRequestCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public ResubmitMaterialRequestCommandHandler(
+            IUnitOfWork uow, 
+            ICurrentUserService currentUserService,
+            INotificationService notificationService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _notificationService = notificationService;
         }
 
         public async Task<ApiResponse<bool>> Handle(ResubmitMaterialRequestCommand request, CancellationToken cancellationToken)
@@ -176,8 +181,27 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             await _uow.Repository<MaterialRequestItem>().AddRangeAsync(newItems, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            return ApiResponse<bool>.SuccessResult(true, "ÄÃ£ gá»­i láº¡i yÃªu cáº§u váº­t tÆ° thÃ nh cÃ´ng. Phiáº¿u Ä‘ang chá» Káº¿ toÃ¡n xem xÃ©t.");
+            // Gửi thông báo realtime đến bộ phận Kế toán
+            try
+            {
+                var senderUser = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+                var senderName = senderUser?.FullName ?? "Project Leader";
+
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.Accountant,
+                    "Yêu cầu vật tư được gửi lại",
+                    $"Yêu cầu vật tư cho giai đoạn '{mr.Phase?.Name}' đã được '{senderName}' chỉnh sửa và gửi lại chờ duyệt.",
+                    NotificationType.Procurement,
+                    $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
+                    mr.RequestId,
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending notification: {ex.Message}");
+            }
+
+            return ApiResponse<bool>.SuccessResult(true, "Ä Ã£ gá»­i láº¡i yÃªu cáº§u váº­t tÆ° thÃ nh cÃ´ng. Phiáº¿u Ä‘ang chá»  Káº¿ toÃ¡n xem xÃ©t.");
         }
     }
 }
-
