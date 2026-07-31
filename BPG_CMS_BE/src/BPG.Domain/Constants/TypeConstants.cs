@@ -24,7 +24,8 @@ public static class RolePolicies
     public const string SupplierManagers =
         UserRole.Admin + "," +
         UserRole.TechnicalManager + "," +
-        UserRole.Accountant;
+        UserRole.Accountant + "," +
+        UserRole.Director;
     public const string Procurement =
         UserRole.Admin + "," +
         UserRole.Accountant + "," +
