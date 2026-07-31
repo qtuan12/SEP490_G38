@@ -13,7 +13,7 @@ Test requirement: Passed `13`, Failed `0`, Untested `0`, N/A/B `6 / 5 / 2`, Tota
 |  | DailyLog exists in DB | O |  | O | O | O | O | O | O | O | O | O | O |
 |  | DailyLog does NOT exist |  | O |  |  |  |  |  |  |  |  |  |  |
 |  | User is assigned engineer; handler business rule allows field log editing/reporting |  |  |  |  |  |  | O |  |  |  |  |  |
-|  | User lacks the required project permission or handler-specific authorization |  |  | O |  |  |  |  |  |  |  |  |  |
+|  | User is not Admin/TechnicalManager, not Project Leader, and not assigned engineer |  |  | O |  |  |  |  |  |  |  |  |  |
 |  | Project status is NOT InProgress |  |  |  | O |  |  |  |  |  |  |  |  |
 |  | Task is locked |  |  |  |  | O |  |  |  |  |  |  |  |
 |  | Ancestor task is obsolete |  |  |  |  |  |  |  |  |  |  | O |  |

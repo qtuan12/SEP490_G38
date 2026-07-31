@@ -1,4 +1,4 @@
-﻿using BPG.Application.DTOs.Files;
+using BPG.Application.DTOs.Files;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -20,7 +20,7 @@ namespace BPG.Api.Controllers
         }
 
         /// <summary>
-        /// Tải lên một tệp đơn lẻ (Ảnh, PDF, v.v.) lÃªn Cloudinary.
+        /// Tải lên một tệp đơn lẻ (Ảnh, PDF, v.v.) lên Cloudinary.
         /// </summary>
         [HttpPost("upload")]
         [Consumes("multipart/form-data")]

@@ -1,4 +1,4 @@
-﻿using BPG.Application.Features.MaterialCategories.Commands;
+using BPG.Application.Features.MaterialCategories.Commands;
 using BPG.Application.Features.MaterialCategories.Queries;
 using BPG.Application.DTOs.MaterialCategories;
 using BPG.Domain.Constants;
@@ -21,7 +21,7 @@ public class MaterialCategoriesController : BaseApiController
     public async Task<IActionResult> Create([FromBody] CreateMaterialCategoryCommand command, CancellationToken ct)
     {
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result, "Táº¡o loáº¡i váº­t tÆ° thÃ nh cÃ´ng.");
+        return ApiOk(result, "Tạo loại vật tư thành công.");
     }
 
     [HttpPut("{id}")]
@@ -35,14 +35,14 @@ public class MaterialCategoriesController : BaseApiController
         };
 
         var result = await Mediator.Send(command, ct);
-        return ApiOk(result, "Cáº­p nháº­t loáº¡i váº­t tÆ° thÃ nh cÃ´ng.");
+        return ApiOk(result, "Cập nhật loại vật tư thành công.");
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
         await Mediator.Send(new DeleteMaterialCategoryCommand(id), ct);
-        return ApiOk("XÃ³a loáº¡i váº­t tÆ° thÃ nh cÃ´ng.");
+        return ApiOk("Xóa loại vật tư thành công.");
     }
 }
 

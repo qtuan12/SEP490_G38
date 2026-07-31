@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -52,19 +52,19 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                     cancellationToken);
             if (mr.CreatedBy != currentUserId && !isManager && !isProjectLeader)
             {
-                throw new ForbiddenException("Báº¡n khÃ´ng cÃ³ quyá»n há»§y yÃªu cáº§u váº­t tÆ° nÃ y.");
+                throw new ForbiddenException("Bạn không có quyền hủy yêu cầu vật tư này.");
             }
 
-            // Chá»‰ cho phÃ©p há»§y khi Ä‘ang chá» duyá»‡t
+            // Chỉ cho phép hủy khi đang chờ duyệt
             if (mr.Status != MaterialRequestStatus.Pending && mr.Status != MaterialRequestStatus.WaitingApproval)
             {
                 throw new BusinessException("ERR_INVALID_STATUS_FOR_CANCEL", 
-                    $"KhÃ´ng thá»ƒ há»§y yÃªu cáº§u váº­t tÆ° Ä‘ang á»Ÿ tráº¡ng thÃ¡i: {mr.Status}. Chá»‰ há»— trá»£ há»§y phiáº¿u á»Ÿ tráº¡ng thÃ¡i Chá» duyá»‡t (Pending) hoáº·c Chá» GiÃ¡m Ä‘á»‘c (WaitingApproval).");
+                    $"Không thể hủy yêu cầu vật tư đang ở trạng thái: {mr.Status}. Chỉ hỗ trợ hủy phiếu ở trạng thái Chờ duyệt (Pending) hoặc Chờ Giám đốc (WaitingApproval).");
             }
 
             mr.Status = MaterialRequestStatus.Cancelled;
             mr.AccountantNote = string.IsNullOrWhiteSpace(request.Reason) 
-                ? "Há»§y yÃªu cáº§u" 
+                ? "Hủy yêu cầu" 
                 : request.Reason.Trim();
             mr.UpdatedAt = DateTime.UtcNow;
             mr.UpdatedBy = currentUserId;
@@ -72,7 +72,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             _uow.Repository<MaterialRequest>().Update(mr);
             await _uow.SaveChangesAsync(cancellationToken);
 
-            return ApiResponse<bool>.SuccessResult(true, "Há»§y yÃªu cáº§u váº­t tÆ° thÃ nh cÃ´ng.");
+            return ApiResponse<bool>.SuccessResult(true, "Hủy yêu cầu vật tư thành công.");
         }
     }
 }

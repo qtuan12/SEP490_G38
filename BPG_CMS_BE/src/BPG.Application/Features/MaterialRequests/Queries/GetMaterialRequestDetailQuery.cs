@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialRequests;
@@ -57,7 +57,7 @@ namespace BPG.Application.Features.MaterialRequests.Queries
 
             var dto = _mapper.Map<MaterialRequestDto>(mr);
 
-            // Äiá»n tÃªn ngÆ°á»i táº¡o (CreatedByName)
+            // Điền tên người tạo (CreatedByName)
             if (mr.CreatedBy.HasValue)
             {
                 var creator = await _uow.Repository<User>().Query()
@@ -68,7 +68,7 @@ namespace BPG.Application.Features.MaterialRequests.Queries
                 }
             }
 
-            return ApiResponse<MaterialRequestDto>.SuccessResult(dto, "Láº¥y thÃ´ng tin chi tiáº¿t yÃªu cáº§u váº­t tÆ° thÃ nh cÃ´ng.");
+            return ApiResponse<MaterialRequestDto>.SuccessResult(dto, "Lấy thông tin chi tiết yêu cầu vật tư thành công.");
         }
     }
 }

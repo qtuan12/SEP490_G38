@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Application.IRepositories;
 using BPG.Domain.Constants;
@@ -75,7 +75,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                 continue;
             }
 
-            // At risk: â‰¤ 3 days left and behind schedule by 20%+
+            // At risk: ≤ 3 days left and behind schedule by 20%+
             var daysLeft = (endDt - now).TotalDays;
             if (daysLeft <= 3)
             {

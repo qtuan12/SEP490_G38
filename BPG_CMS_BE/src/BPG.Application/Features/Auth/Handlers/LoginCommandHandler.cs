@@ -1,4 +1,4 @@
-﻿using BPG.Application.DTOs.Auth;
+using BPG.Application.DTOs.Auth;
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -31,14 +31,14 @@ namespace BPG.Application.Features.Auth.Handlers
                 .FirstOrDefaultAsync(x => x.Email == request.Email && !x.IsDeleted, cancellationToken);
 
             if (user == null || !user.IsActive)
-                throw new UnauthorizedException("Email hoáº·c máº­t kháº©u khÃ´ng chÃ­nh xÃ¡c.");
+                throw new UnauthorizedException("Email hoặc mật khẩu không chính xác.");
 
             if (user.LockedUntil.HasValue && user.LockedUntil > DateTime.UtcNow)
             {
                 var remaining = user.LockedUntil.Value - DateTime.UtcNow;
                 var mins = (int)remaining.TotalMinutes;
                 var secs = remaining.Seconds;
-                throw new UnauthorizedException($"TÃ i khoáº£n Ä‘ang bá»‹ khÃ³a. Vui lÃ²ng thá»­ láº¡i sau {mins} phÃºt {secs} giÃ¢y.");
+                throw new UnauthorizedException($"Tài khoản đang bị khóa. Vui lòng thử lại sau {mins} phút {secs} giây.");
             }
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
@@ -50,12 +50,12 @@ namespace BPG.Application.Features.Auth.Handlers
                     user.LockedUntil = DateTime.UtcNow.Add(LockoutDuration);
                     user.FailedLoginCount = 0;
                     await _uow.SaveChangesAsync(cancellationToken);
-                    throw new UnauthorizedException($"TÃ i khoáº£n Ä‘Ã£ bá»‹ khÃ³a {(int)LockoutDuration.TotalMinutes} phÃºt do nháº­p sai máº­t kháº©u quÃ¡ {MaxFailedAttempts} láº§n.");
+                    throw new UnauthorizedException($"Tài khoản đã bị khóa {(int)LockoutDuration.TotalMinutes} phút do nhập sai mật khẩu quá {MaxFailedAttempts} lần.");
                 }
 
                 await _uow.SaveChangesAsync(cancellationToken);
                 var attemptsLeft = MaxFailedAttempts - user.FailedLoginCount;
-                throw new UnauthorizedException($"Email hoáº·c máº­t kháº©u khÃ´ng chÃ­nh xÃ¡c. (CÃ²n {attemptsLeft} láº§n thá»­)");
+                throw new UnauthorizedException($"Email hoặc mật khẩu không chính xác. (Còn {attemptsLeft} lần thử)");
             }
 
             user.FailedLoginCount = 0;

@@ -47,4 +47,4 @@ Test requirement: Passed `0`, Failed `0`, Untested `10`, N/A/B `8 / 0 / 2`, Tota
 |  | Executed Date |  |  |  |  |  |  |  |  |  |  |
 |  | Defect ID |  |  |  |  |  |  |  |  |  |  |
 
-Note: System permission authorization is enforced by API policy/PermissionAttribute outside this Handle method, so it is not duplicated in handler unit tests.
+Note: System role authorization is enforced by `[Authorize(Roles = ...)]` at API Controller level, so it is not duplicated in handler unit tests.
