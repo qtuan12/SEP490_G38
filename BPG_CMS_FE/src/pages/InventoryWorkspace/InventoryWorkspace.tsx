@@ -5,8 +5,17 @@ import { inventoryService } from '../../services/inventoryService';
 import type { CurrentInventory } from '../../types/inventory';
 import { useNotification } from '../../context/NotificationContext';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../constants/realtimeEntities';
 
 const PROJECT_ZERO = 0;
+const INVENTORY_REALTIME_ENTITIES = [
+  ...RealtimeEntities.inventory,
+  ...RealtimeEntities.materials,
+] as const;
 
 // Import các sub-components được bóc tách
 import { InventoryOverviewCards } from './components/InventoryOverviewCards';
@@ -81,6 +90,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
   // Key để bắt các sub-components gọi lại API khi có thay đổi dữ liệu (tạo mới/hủy)
   const [refreshKey, setRefreshKey] = useState(0);
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Quản lý trạng thái đóng/mở Modals
   const [isCreateReceiptOpen, setIsCreateReceiptOpen] = useState(false);
@@ -111,21 +121,37 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     }
   };
 
-  const handleRefreshAll = () => {
-    setRefreshKey(prev => prev + 1);
-  };
+  const handleRefreshAll = React.useCallback(() => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      setRefreshKey(prev => prev + 1);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  }, [projectId]);
+
+  useEffect(() => () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [projectId]);
 
   // Realtime: tham gia group dự án + group toàn cục (Project_0) để nhận cập nhật kho
   useEffect(() => {
     if (!connection) return;
+    let active = true;
 
     const joinGroups = () => {
+      if (!active || connection.state !== 'Connected') return;
       connection.invoke('JoinProjectGroup', Number(projectId)).catch((e) =>
         console.error('[SignalR] JoinProjectGroup error:', e)
       );
-      connection.invoke('JoinProjectGroup', PROJECT_ZERO).catch((e) =>
-        console.error('[SignalR] JoinProjectGroup (global) error:', e)
-      );
+      if (canManageInventory) {
+        connection.invoke('JoinProjectGroup', PROJECT_ZERO).catch((e) =>
+          console.error('[SignalR] JoinProjectGroup (global) error:', e)
+        );
+      }
     };
 
     if (connection.state === 'Connected') {
@@ -134,12 +160,15 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     connection.onreconnected(joinGroups);
 
     return () => {
+      active = false;
       if (connection.state === 'Connected') {
         connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
-        connection.invoke('LeaveProjectGroup', PROJECT_ZERO).catch(console.error);
+        if (canManageInventory) {
+          connection.invoke('LeaveProjectGroup', PROJECT_ZERO).catch(console.error);
+        }
       }
     };
-  }, [connection, projectId]);
+  }, [canManageInventory, connection, projectId]);
 
   // Realtime: khi có biến động kho từ SignalR, làm mới toàn bộ workspace
   useSignalREvent('GoodsReceiptChanged', () => handleRefreshAll());
@@ -147,6 +176,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   useSignalREvent('MaterialReturnChanged', () => handleRefreshAll());
   useSignalREvent('InventoryAdjustmentCreated', () => handleRefreshAll());
   useSignalREvent('InventoryAdjustmentUpdated', () => handleRefreshAll());
+  useRealtimeDataRefresh(handleRefreshAll, INVENTORY_REALTIME_ENTITIES, 0);
 
   const handleCreateReceiptSuccess = () => {
     setIsCreateReceiptOpen(false);

@@ -54,7 +54,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     allowedRoles?: readonly string[];
     disabled?: boolean;
   }> = [
-    { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Tổng quan', path: '/dashboard', icon: <LayoutDashboard size={20} />, allowedRoles: RoleGroup.ProjectViewers },
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, allowedRoles: RoleGroup.AdminOnly },
     { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, allowedRoles: RoleGroup.ProjectViewers },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, allowedRoles: RoleGroup.SupplierViewers },

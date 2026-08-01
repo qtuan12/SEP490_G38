@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Input, FormItem, ConfirmDialog } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
@@ -20,6 +20,12 @@ import {
 import { toast } from 'react-hot-toast';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
+import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../../../constants/realtimeEntities';
+
+const GOODS_RECEIPT_REALTIME_ENTITIES = RealtimeEntities.inventory.filter(
+  entity => entity === 'GoodsReceipt' || entity === 'GoodsReceiptItem',
+);
 
 
 interface ReceiptDetailModalProps {
@@ -44,6 +50,8 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
 
   // Edit states
   const [isEditing, setIsEditing] = useState(false);
+  const isEditingRef = useRef(false);
+  isEditingRef.current = isEditing;
   const [delivererInfo, setDelivererInfo] = useState('');
   const [deliveryDocNo, setDeliveryDocNo] = useState('');
   const [existingImages, setExistingImages] = useState<string[]>([]);
@@ -75,25 +83,37 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     };
   }, [uploadedFiles]);
 
-  const fetchDetail = async () => {
+  const fetchDetail = async (showLoading = true, preserveEditForm = false) => {
     if (!receiptId) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const data = await inventoryService.getGoodsReceiptDetail(receiptId);
       setDetail(data);
+      setError(null);
 
-      // Initialize edit fields
-      setDelivererInfo(data.delivererInfo || '');
-      setDeliveryDocNo(data.deliveryDocNo || '');
-      setExistingImages(data.images || []);
-      setUploadedFiles([]);
+      // A realtime request may have started just before the user entered edit mode.
+      // Keep the freshly fetched detail, but never replace fields/files being edited.
+      if (!preserveEditForm || !isEditingRef.current) {
+        setDelivererInfo(data.delivererInfo || '');
+        setDeliveryDocNo(data.deliveryDocNo || '');
+        setExistingImages(data.images || []);
+        setUploadedFiles([]);
+      }
     } catch (err: any) {
       console.error('Error fetching receipt detail:', err);
-      setError(err.message || 'Không thể tải chi tiết phiếu nhập kho.');
+      if (showLoading) setError(err.message || 'Không thể tải chi tiết phiếu nhập kho.');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
+
+  useRealtimeDataRefresh(
+    () => {
+      if (!isOpen || !receiptId || isEditing) return;
+      return fetchDetail(false, true);
+    },
+    GOODS_RECEIPT_REALTIME_ENTITIES,
+  );
 
   const handleCancelReceipt = async () => {
     if (!receiptId || !detail) return;

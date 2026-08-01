@@ -13,6 +13,7 @@ namespace BPG.Api.Controllers;
 public class MaterialCatalogsController : BaseApiController
 {
     [HttpGet]
+    [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> Get([FromQuery] GetMaterialCatalogsQuery query, CancellationToken ct)
     {
         var result = await Mediator.Send(query, ct);
@@ -61,6 +62,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpGet("{id}/conversions")]
+    [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetConversions(long id, CancellationToken ct)
     {
         var result = await Mediator.Send(new GetConversionsByMaterialIdQuery(id), ct);

@@ -56,25 +56,35 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
     queryFn: () => materialService.getMaterials({ pageNumber: 1, pageSize: 1000 }),
     enabled: isOpen
   });
-  const materialList = materialsData?.items || [];
+  const materialList = React.useMemo(() => materialsData?.items ?? [], [materialsData?.items]);
 
-  const { register, control, handleSubmit, reset, setValue, formState: { errors } } = useForm<PhaseBOQForm>({
+  const { register, control, handleSubmit, reset, setValue, getValues, formState: { errors, isDirty } } = useForm<PhaseBOQForm>({
     resolver: zodResolver(phaseBOQSchema),
     defaultValues: {
       materials: [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }]
     }
   });
+  const initializedPhaseRef = React.useRef<string | null>(null);
+  const isDirtyRef = React.useRef(isDirty);
+  isDirtyRef.current = isDirty;
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'materials'
   });
 
-  // Map initial values from phase.materials using material names and pre-load their units
+  // Khởi tạo lại khi mở một phiên modal/phase mới. Khi modal đang mở và form đã
+  // thay đổi, catalog refetch realtime chỉ cập nhật option, không reset dữ liệu nhập.
   useEffect(() => {
-    if (isOpen && materialList.length > 0) {
-      const initialMaterials = phase.materials && phase.materials.length > 0
-        ? phase.materials.map(it => {
+    if (!isOpen) {
+      initializedPhaseRef.current = null;
+      return;
+    }
+    if (materialList.length > 0) {
+      const phaseIdAtLoad = phase.id;
+      const isNewSession = initializedPhaseRef.current !== phase.id;
+      const formMaterials = isNewSession || !isDirtyRef.current
+        ? (phase.materials || []).map(it => {
           return {
             materialId: it.materialId,
             quantity: it.quantity,
@@ -82,12 +92,20 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
             unit: it.unit
           };
         })
-        : [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }];
+        : (getValues('materials') || []);
 
-      reset({ materials: initialMaterials });
+      if (isNewSession || !isDirtyRef.current) {
+        reset({
+          materials: formMaterials.length > 0
+            ? formMaterials
+            : [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }],
+        });
+        initializedPhaseRef.current = phase.id;
+        if (isNewSession) setRowConversions({});
+      }
 
       // Fetch units options for each material
-      initialMaterials.forEach(async (item, idx) => {
+      formMaterials.forEach(async (item, idx) => {
         if (item.materialId > 0) {
           const matchMat = materialList.find(m => m.materialId === item.materialId);
           if (matchMat) {
@@ -97,7 +115,12 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
                 { unitId: matchMat.baseUnitId, unitName: matchMat.baseUnitName || 'bao' },
                 ...convs.map(c => ({ unitId: c.alternativeUnitId, unitName: c.alternativeUnitName || '' }))
               ];
-              setRowConversions(prev => ({ ...prev, [idx]: options }));
+              if (
+                initializedPhaseRef.current === phaseIdAtLoad
+                && getValues(`materials.${idx}.materialId`) === item.materialId
+              ) {
+                setRowConversions(prev => ({ ...prev, [idx]: options }));
+              }
             } catch (err) {
               console.error(err);
             }
@@ -105,14 +128,14 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
         }
       });
     }
-  }, [isOpen, phase, reset, materialList]);
+  }, [getValues, isOpen, phase, reset, materialList]);
 
   // Load conversions when user changes material dropdown
   const handleMaterialChange = async (idx: number, selectedId: number) => {
     const mat = materialList.find(m => m.materialId === selectedId);
     if (mat) {
-      setValue(`materials.${idx}.unitId` as any, mat.baseUnitId);
-      setValue(`materials.${idx}.unit` as any, mat.baseUnitName || 'bao');
+      setValue(`materials.${idx}.unitId` as any, mat.baseUnitId, { shouldDirty: true, shouldValidate: true });
+      setValue(`materials.${idx}.unit` as any, mat.baseUnitName || 'bao', { shouldDirty: true });
 
       try {
         const convs = await materialService.getConversions(selectedId);
@@ -120,14 +143,18 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
           { unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' },
           ...convs.map(c => ({ unitId: c.alternativeUnitId, unitName: c.alternativeUnitName || '' }))
         ];
-        setRowConversions(prev => ({ ...prev, [idx]: options }));
+        if (getValues(`materials.${idx}.materialId`) === selectedId) {
+          setRowConversions(prev => ({ ...prev, [idx]: options }));
+        }
       } catch (err) {
         console.error(err);
-        setRowConversions(prev => ({ ...prev, [idx]: [{ unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' }] }));
+        if (getValues(`materials.${idx}.materialId`) === selectedId) {
+          setRowConversions(prev => ({ ...prev, [idx]: [{ unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' }] }));
+        }
       }
     } else {
-      setValue(`materials.${idx}.unitId` as any, 0);
-      setValue(`materials.${idx}.unit` as any, '');
+      setValue(`materials.${idx}.unitId` as any, 0, { shouldDirty: true, shouldValidate: true });
+      setValue(`materials.${idx}.unit` as any, '', { shouldDirty: true });
       setRowConversions(prev => ({ ...prev, [idx]: [] }));
     }
   };
@@ -204,7 +231,8 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
                       disabled={hasActiveMRs}
                       onChange={(e) => {
                         const selectedId = parseInt(e.target.value);
-                        handleMaterialChange(idx, selectedId);
+                        setValue(`materials.${idx}.materialId`, selectedId, { shouldDirty: true, shouldValidate: true });
+                        void handleMaterialChange(idx, selectedId);
                       }}
                       className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.materialId ? 'border-red-500' : 'border-slate-200'} ${hasActiveMRs ? 'bg-slate-100' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
                     >
@@ -237,10 +265,11 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
                       disabled={hasActiveMRs}
                       onChange={(e) => {
                         const uId = parseInt(e.target.value);
+                        setValue(`materials.${idx}.unitId`, uId, { shouldDirty: true, shouldValidate: true });
                         const opts = rowConversions[idx] || [];
                         const opt = opts.find(o => o.unitId === uId);
                         if (opt) {
-                          setValue(`materials.${idx}.unit` as any, opt.unitName);
+                          setValue(`materials.${idx}.unit` as any, opt.unitName, { shouldDirty: true });
                         }
                       }}
                       className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.unitId ? 'border-red-500' : 'border-slate-200'} ${hasActiveMRs ? 'bg-slate-100' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}

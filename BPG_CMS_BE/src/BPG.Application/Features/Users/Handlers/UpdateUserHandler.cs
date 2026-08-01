@@ -1,8 +1,10 @@
 using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Commands;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
+using HubMethodNames = BPG.Domain.Constants.HubMethodNames;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,10 +13,12 @@ namespace BPG.Application.Features.Users.Handlers;
 public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserDto>
 {
     private readonly IUnitOfWork _uow;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public UpdateUserHandler(IUnitOfWork uow)
+    public UpdateUserHandler(IUnitOfWork uow, IRealtimeNotificationSender realtimeSender)
     {
         _uow = uow;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<UserDto> Handle(UpdateUserCommand cmd, CancellationToken ct)
@@ -78,6 +82,24 @@ public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserDto>
                 .Where(ur => ur.UserId == cmd.Id)
                 .FirstOrDefaultAsync(ct);
             roleName = currentRole?.Role?.RoleName ?? string.Empty;
+        }
+
+        try
+        {
+            await _realtimeSender.SendToAllAsync(
+                HubMethodNames.DataChanged,
+                new
+                {
+                    Entities = string.IsNullOrWhiteSpace(cmd.Role)
+                        ? new[] { nameof(User) }
+                        : new[] { nameof(User), nameof(UserRole) },
+                    ChangedAt = DateTimeOffset.UtcNow
+                },
+                CancellationToken.None);
+        }
+        catch
+        {
+            // Cập nhật người dùng đã thành công; client sẽ đồng bộ lại khi SignalR reconnect.
         }
 
         return new UserDto

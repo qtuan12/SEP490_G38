@@ -11,7 +11,7 @@ public class PhaseAcceptancesController : BaseApiController
     /// [TPKT] Lấy danh sách các biên bản nghiệm thu (phân trang, lọc theo Phase/Project)
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = RolePolicies.Reports)]
+    [Authorize(Roles = RolePolicies.DirectorTechnicalManagerAccountant)]
     public async Task<IActionResult> GetPhaseAcceptances([FromQuery] BPG.Application.Features.PhaseAcceptances.Queries.GetPhaseAcceptances.GetPhaseAcceptancesQuery request, CancellationToken ct)
     {
         request.ProjectId = null;
@@ -20,6 +20,7 @@ public class PhaseAcceptancesController : BaseApiController
     }
 
     [HttpGet("/api/projects/{projectId:long}/phase-acceptances")]
+    [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetProjectPhaseAcceptances(
         [FromRoute] long projectId,
         [FromQuery] BPG.Application.Features.PhaseAcceptances.Queries.GetPhaseAcceptances.GetPhaseAcceptancesQuery request,
@@ -34,6 +35,7 @@ public class PhaseAcceptancesController : BaseApiController
     /// [TPKT] Nghiệm thu Phase (Kiểm tra 100% Task, tạo PDF, khóa Phase)
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> AcceptPhase([FromBody] BPG.Application.Features.PhaseAcceptances.Commands.AcceptPhase.AcceptPhaseCommand command, CancellationToken ct)
     {
         var acceptanceId = await Mediator.Send(command, ct);
@@ -44,6 +46,7 @@ public class PhaseAcceptancesController : BaseApiController
     /// [TPKT] Hủy nghiệm thu (Trong vòng 7 ngày, bắt buộc lý do)
     /// </summary>
     [HttpPut("{id}/cancel")]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> CancelAcceptance(long id, [FromBody] BPG.Application.DTOs.PhaseAcceptances.CancelAcceptanceRequest request, CancellationToken ct)
     {
         var command = new BPG.Application.Features.PhaseAcceptances.Commands.CancelAcceptance.CancelAcceptanceCommand(id, request.CancellationReason);

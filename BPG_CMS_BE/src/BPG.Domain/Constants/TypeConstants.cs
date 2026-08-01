@@ -12,21 +12,26 @@ public static class UserRole
 public static class RolePolicies
 {
     public const string Admin = UserRole.Admin;
+    public const string TechnicalManager = UserRole.TechnicalManager;
+    public const string DirectorOrTechnicalManager = UserRole.Director + "," + UserRole.TechnicalManager;
+    public const string TechnicalManagerOrSiteEngineer = UserRole.TechnicalManager + "," + UserRole.SiteEngineer;
+    public const string Accountant = UserRole.Accountant;
+    public const string Director = UserRole.Director;
+    public const string DirectorTechnicalManagerAccountant =
+        UserRole.Director + "," + UserRole.TechnicalManager + "," + UserRole.Accountant;
+    public const string BusinessUsers =
+        UserRole.Director + "," + UserRole.TechnicalManager + "," +
+        UserRole.SiteEngineer + "," + UserRole.Accountant;
     public const string AdminOrTechnicalManager = UserRole.Admin + "," + UserRole.TechnicalManager;
     public const string AdminOrDirector = UserRole.Admin + "," + UserRole.Director;
     public const string ProjectViewers =
-        UserRole.Admin + "," +
         UserRole.Director + "," +
         UserRole.TechnicalManager + "," +
         UserRole.SiteEngineer + "," +
         UserRole.Accountant;
     public const string SupplierViewers = ProjectViewers;
-    public const string SupplierManagers =
-        UserRole.Admin + "," +
-        UserRole.TechnicalManager + "," +
-        UserRole.Accountant;
+    public const string SupplierManagers = UserRole.TechnicalManager + "," + UserRole.Accountant;
     public const string Procurement =
-        UserRole.Admin + "," +
         UserRole.Accountant + "," +
         UserRole.TechnicalManager + "," +
         UserRole.Director;
@@ -35,7 +40,7 @@ public static class RolePolicies
         UserRole.Director + "," +
         UserRole.TechnicalManager + "," +
         UserRole.Accountant;
-    public const string MasterData = UserRole.Admin + "," + UserRole.TechnicalManager;
+    public const string MasterData = UserRole.TechnicalManager + "," + UserRole.Accountant;
 }
 
 public static class SupplierRelationshipHealth

@@ -177,8 +177,10 @@ export const GlobalIncidents: React.FC = () => {
   // Tham gia SignalR group chung (Project_0)
   useEffect(() => {
     if (!connection) return;
+    let active = true;
 
     const joinGroup = () => {
+      if (!active || connection.state !== 'Connected') return;
       connection.invoke('JoinProjectGroup', 0)
         .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
     };
@@ -190,6 +192,7 @@ export const GlobalIncidents: React.FC = () => {
     connection.onreconnected(joinGroup);
 
     return () => {
+      active = false;
       if (connection.state === 'Connected') {
         connection.invoke('LeaveProjectGroup', 0).catch(console.error);
       }

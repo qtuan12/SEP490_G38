@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ArrowLeft, Calendar, Users, FileText, Plus, ClipboardList } from 'lucide-react';
 import { isPWAMode } from '../utils/pwaHelpers';
@@ -11,6 +11,8 @@ import { useAuth } from '../context/AuthContext';
 import { useProjectAccess } from '../hooks/useProjectAccess';
 import { isManagerRole } from '../utils/taskPermissions';
 import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
+import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../constants/realtimeEntities';
 
 const STATUS_LABEL: Record<string, string> = {
   New: 'Mới',
@@ -49,26 +51,34 @@ export const TaskDetailSE: React.FC = () => {
   const [logModalOpen, setLogModalOpen] = useState(false);
   const { isProjectLeader, canManageTechnical } = useProjectAccess(detail ? String(detail.projectId) : undefined);
 
-  const loadDetail = () => {
+  const loadDetail = useCallback((silent = false) => {
     if (!taskId) return;
-    setLoading(true);
-    wbsService.getTaskDetails(Number(taskId))
+    if (!silent) setLoading(true);
+    return wbsService.getTaskDetails(Number(taskId))
       .then(details => {
         // Ngoài PWA (desktop): giữ hành vi cũ — mở task trong WBS hub đầy đủ thay vì trang gọn này.
         if (!pwa) {
           navigate(`/projects/${details.projectId}?tab=wbs&taskId=${taskId}`, { replace: true });
           return;
         }
+        setError(null);
         setDetail(details);
       })
-      .catch((err: any) => setError(err.message || 'Không tìm thấy thông tin công việc.'))
-      .finally(() => setLoading(false));
-  };
+      .catch((err: any) => {
+        if (silent) console.error(err);
+        else setError(err.message || 'Không tìm thấy thông tin công việc.');
+      })
+      .finally(() => { if (!silent) setLoading(false); });
+  }, [navigate, pwa, taskId]);
 
   useEffect(() => {
     loadDetail();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId]);
+  }, [loadDetail]);
+
+  useRealtimeDataRefresh(
+    () => pwa ? loadDetail(true) : undefined,
+    RealtimeEntities.projects,
+  );
 
   if (error) {
     return (

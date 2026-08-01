@@ -46,6 +46,23 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
   const [closeReason, setCloseReason] = useState('');
   const [closeError, setCloseError] = useState<string | null>(null);
 
+  const loadDetail = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    if (showLoading) setError(null);
+    try {
+      const data = await surplusService.getDetail(surplusRequestId);
+      setDetail(data);
+    } catch (err: any) {
+      if (showLoading) {
+        setError(err.message || 'Không thể tải chi tiết.');
+      } else {
+        console.error('Error refreshing surplus request detail:', err);
+      }
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
   const openCloseModal = (item: SurplusRequestItem) => {
     setCloseItem(item);
     setCloseReason('');
@@ -82,21 +99,10 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
   };
 
   useEffect(() => {
-    loadDetail();
+    // Subsequent refreshes run in the background so expanded rows and any
+    // action modal inside them are not unmounted.
+    loadDetail(detail === null);
   }, [surplusRequestId, refreshKey]);
-
-  const loadDetail = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await surplusService.getDetail(surplusRequestId);
-      setDetail(data);
-    } catch (err: any) {
-      setError(err.message || 'Không thể tải chi tiết.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DailyLogFeed } from './components/DailyLogFeed';
 import { TaskProgressHistoryPanel } from '../../components/TaskProgressHistoryPanel';
@@ -6,6 +6,7 @@ import { Drawer } from '../../components/ui';
 import { ArrowLeft, BarChart2 } from 'lucide-react';
 import { projectService } from '../../services/projectService';
 import type { Project } from '../../types/common';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 
 export const ProjectDailyLogs: React.FC = () => {
   const { projectId, taskId } = useParams<{ projectId: string; taskId?: string }>();
@@ -14,17 +15,28 @@ export const ProjectDailyLogs: React.FC = () => {
   const [taskName, setTaskName] = useState<string>('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  useEffect(() => {
-    if (projectId) {
-      projectService.getProjectById(projectId).then(setProject).catch(console.error);
-    }
-    if (projectId && taskId) {
-      projectService.getTasks(projectId).then(tasks => {
+  const loadHeader = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const [projectData, tasks] = await Promise.all([
+        projectService.getProjectById(projectId),
+        taskId ? projectService.getTasks(projectId) : Promise.resolve([]),
+      ]);
+      setProject(projectData);
+      if (taskId) {
         const found = tasks.find(t => t.id === taskId || t.id.replace(/^t-/, '') === taskId.replace(/^t-/, ''));
-        if (found) setTaskName(found.name);
-      }).catch(console.error);
+        setTaskName(found?.name || '');
+      }
+    } catch (err) {
+      console.error(err);
     }
   }, [projectId, taskId]);
+
+  useEffect(() => {
+    void loadHeader();
+  }, [loadHeader]);
+
+  useRealtimeDataRefresh(loadHeader, ['Project', 'ProjectTask']);
 
   if (!projectId) return null;
 

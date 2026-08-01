@@ -17,6 +17,8 @@ import html2pdf from 'html2pdf.js';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { toast } from 'react-hot-toast';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../../constants/realtimeEntities';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -51,10 +53,12 @@ export const PhaseAcceptance: React.FC = () => {
 
   const isTPKT = canManageTechnical;
 
-  const loadData = React.useCallback(async () => {
+  const loadData = React.useCallback(async (silent = false) => {
     if (!projectId || !phaseId) return;
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const proj = await projectService.getProjectById(projectId);
       setProject(proj);
@@ -97,9 +101,10 @@ export const PhaseAcceptance: React.FC = () => {
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi tải thông tin nghiệm thu.');
+      if (silent) console.error(err);
+      else setError(err.message || 'Lỗi khi tải thông tin nghiệm thu.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [projectId, phaseId, historyId]);
 
@@ -110,10 +115,14 @@ export const PhaseAcceptance: React.FC = () => {
   // Realtime notification via SignalR
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'PhaseAcceptance' || noti?.referenceType === 'Project' || noti?.referenceType?.includes('/acceptance') || noti?.referenceType?.includes('/phases')) {
-      loadData();
       toast('Thông tin nghiệm thu giai đoạn vừa được cập nhật!', { icon: '📝' });
     }
   });
+
+  useRealtimeDataRefresh(
+    () => loadData(true),
+    [...RealtimeEntities.projects, ...RealtimeEntities.phaseAcceptances],
+  );
 
   const handleRevoke = async (e: React.FormEvent) => {
     e.preventDefault();

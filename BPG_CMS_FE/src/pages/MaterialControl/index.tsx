@@ -9,11 +9,18 @@ import { Pagination, Input, Select } from '../../components/ui';
 import toast from 'react-hot-toast';
 import { Boxes, Search } from 'lucide-react';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../constants/realtimeEntities';
 
 export const MaterialControl: React.FC = () => {
   const { user, hasAnyRole } = useAuth();
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchRequestIdRef = React.useRef(0);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,23 +40,51 @@ export const MaterialControl: React.FC = () => {
   const [actionNoteError, setActionNoteError] = useState('');
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
-  const fetchMaterialRequests = async () => {
-    setLoadingRequests(true);
+  const fetchMaterialRequests = async (showLoading = true) => {
+    const requestId = ++fetchRequestIdRef.current;
+    if (showLoading) setLoadingRequests(true);
     try {
       const list = await projectService.getAllMaterialRequests();
+      if (requestId !== fetchRequestIdRef.current) return;
       setMaterialRequests(list);
     } catch (err) {
+      if (requestId !== fetchRequestIdRef.current) return;
       console.error('Error loading material requests:', err);
-      toast.error('Lỗi khi tải danh sách yêu cầu vật tư.');
+      if (showLoading) toast.error('Lỗi khi tải danh sách yêu cầu vật tư.');
     } finally {
-      setLoadingRequests(false);
+      if (requestId === fetchRequestIdRef.current) setLoadingRequests(false);
     }
   };
+
+  const scheduleRealtimeRefresh = () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      void fetchMaterialRequests(false);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  };
+
+  useEffect(() => () => {
+    fetchRequestIdRef.current += 1;
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, []);
+
+  // Also refresh for changes made in sessions that do not receive the same
+  // personal notification.
+  useRealtimeDataRefresh(
+    scheduleRealtimeRefresh,
+    RealtimeEntities.materialRequests,
+    0,
+  );
 
   // ─── SignalR: tự động reload khi có notification liên quan đến yêu cầu vật tư ───
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'MaterialRequest' || noti?.referenceType?.includes('/materialrequests')) {
-      fetchMaterialRequests();
+      scheduleRealtimeRefresh();
       toast('Danh sách yêu cầu vật tư vừa được cập nhật!', { icon: '📋' });
     }
   });

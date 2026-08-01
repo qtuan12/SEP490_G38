@@ -26,6 +26,21 @@ namespace BPG.Api.Hubs
 
         public async Task JoinProjectGroup(long projectId)
         {
+            // Project_0 là nhóm realtime toàn cục đã được các màn kho/sự cố dùng từ trước.
+            // Chỉ các vai trò có quyền xem dữ liệu toàn hệ thống mới được tham gia nhóm này.
+            if (projectId == 0)
+            {
+                var canJoinGlobalGroup = Context.User?.IsInRole(UserRole.Director) == true
+                    || Context.User?.IsInRole(UserRole.TechnicalManager) == true
+                    || Context.User?.IsInRole(UserRole.Accountant) == true;
+
+                if (!canJoinGlobalGroup)
+                    throw new HubException("Bạn không có quyền truy cập dữ liệu toàn hệ thống.");
+
+                await Groups.AddToGroupAsync(Context.ConnectionId, "Project_0");
+                return;
+            }
+
             var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(Context.ConnectionAborted);
             if (!accessibleProjectIds.Contains(projectId))
             {

@@ -8,6 +8,11 @@ import toast from 'react-hot-toast';
 import { RefreshCw, Package } from 'lucide-react';
 import { ReceiveTransferModal } from '../modals/ReceiveTransferModal';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../../constants/realtimeEntities';
 
 interface IncomingTransfersTabProps {
   projectId: number;
@@ -20,28 +25,53 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
   const { canManageExecution } = useProjectAccess(projectId);
   const canReceiveTransfer = canManageExecution;
   const [refreshKey, setRefreshKey] = useState(0);
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadRequestIdRef = React.useRef(0);
+
+  const loadData = async (showLoading = true) => {
+    const requestId = ++loadRequestIdRef.current;
+    if (showLoading) setLoading(true);
+    try {
+      const data = await surplusService.getIncomingTransfers(projectId);
+      if (requestId !== loadRequestIdRef.current) return;
+      setList(data);
+    } catch (err: any) {
+      if (requestId !== loadRequestIdRef.current) return;
+      if (showLoading) toast.error(err.message || 'Lỗi tải danh sách hàng đến');
+      else console.error('Error refreshing incoming transfers:', err);
+    } finally {
+      if (requestId === loadRequestIdRef.current) setLoading(false);
+    }
+  };
+
+  const scheduleRealtimeRefresh = () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      void loadData(false);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  };
 
   useEffect(() => {
     if (projectId) loadData();
   }, [projectId, refreshKey]);
 
+  useEffect(() => () => {
+    loadRequestIdRef.current += 1;
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [projectId]);
+
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'SurplusRequest') {
-      setRefreshKey(k => k + 1);
+      scheduleRealtimeRefresh();
     }
   });
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const data = await surplusService.getIncomingTransfers(projectId);
-      setList(data);
-    } catch (err: any) {
-      toast.error(err.message || 'Lỗi tải danh sách hàng đến');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useRealtimeDataRefresh(scheduleRealtimeRefresh, RealtimeEntities.surplus, 0);
 
   const handleReceive = (transferId: number) => {
     setReceivingTransferId(transferId);
@@ -150,7 +180,7 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
         <ReceiveTransferModal
           isOpen={!!receivingTransferId}
           onClose={() => setReceivingTransferId(null)}
-          onSuccess={() => setRefreshKey(k => k + 1)}
+          onSuccess={scheduleRealtimeRefresh}
           surplusTransferId={receivingTransferId}
         />
       )}

@@ -7,11 +7,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace BPG.Api.Controllers;
 
-[Authorize(Roles = RolePolicies.MasterData)]
+[Authorize]
 [Route("api/[controller]")]
 public class UnitsController : BaseApiController
 {
     [HttpGet]
+    [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> Get([FromQuery] GetUnitsQuery query, CancellationToken ct)
     {
         var result = await Mediator.Send(query, ct);
@@ -19,6 +20,7 @@ public class UnitsController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Create([FromBody] CreateUnitCommand command, CancellationToken ct)
     {
         var result = await Mediator.Send(command, ct);
@@ -26,6 +28,7 @@ public class UnitsController : BaseApiController
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Update(int id, [FromBody] BPG.Application.DTOs.Units.UpdateUnitRequest request, CancellationToken ct)
     {
         var command = new UpdateUnitCommand(id, request.UnitCode, request.UnitName, request.IsDiscrete);
@@ -34,6 +37,7 @@ public class UnitsController : BaseApiController
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         await Mediator.Send(new DeleteUnitCommand(id), ct);

@@ -14,6 +14,11 @@ import {
 import { Badge } from '../../../components/ui';
 import { useNotification } from '../../../context/NotificationContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
+import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../../constants/realtimeEntities';
 
 interface GlobalInventoryIncidentsProps {
   projectId: number;
@@ -24,6 +29,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [loading, setLoading] = useState(true);
   const { connection } = useNotification();
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Modals & Selected States
   const [selectedIncident, setSelectedIncident] = useState<IncidentReport | null>(null);
@@ -40,8 +46,8 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
     return inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage';
   });
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const incListDto = projectId > 0 ? await incidentService.getIncidents(projectId) : await incidentService.getAllIncidents();
       const incList: IncidentReport[] = incListDto.map(dto => {
@@ -97,9 +103,9 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
       setIncidents(incList);
     } catch (err: any) {
       console.error(err);
-      setError('Lỗi khi tải dữ liệu sự cố.');
+      if (showLoading) setError('Lỗi khi tải dữ liệu sự cố.');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -110,8 +116,10 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
   // Tham gia SignalR group
   useEffect(() => {
     if (!connection || projectId === null || projectId === undefined || projectId < 0) return;
+    let active = true;
 
     const joinGroup = () => {
+      if (!active || connection.state !== 'Connected') return;
       connection.invoke('JoinProjectGroup', Number(projectId))
         .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
     };
@@ -123,19 +131,32 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
     connection.onreconnected(joinGroup);
 
     return () => {
+      active = false;
       if (connection.state === 'Connected') {
         connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
       }
     };
   }, [connection, projectId]);
 
-  useSignalREvent('IncidentCreated', () => {
-    loadData();
-  });
+  const scheduleRealtimeRefresh = () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      void loadData(false);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  };
 
-  useSignalREvent('IncidentUpdated', () => {
-    loadData();
-  });
+  useEffect(() => () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [projectId]);
+
+  useSignalREvent('IncidentCreated', scheduleRealtimeRefresh);
+  useSignalREvent('IncidentUpdated', scheduleRealtimeRefresh);
+  useRealtimeDataRefresh(scheduleRealtimeRefresh, RealtimeEntities.incidents, 0);
 
   useEffect(() => {
     if (selectedIncident && isDetailOpen) {
@@ -322,7 +343,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
             setIsDetailOpen(false);
             setIsDecreaseOpen(true);
           }}
-          onSuccessAction={loadData}
+          onSuccessAction={scheduleRealtimeRefresh}
         />
       )}
 
@@ -332,7 +353,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           onClose={() => setIsDecreaseOpen(false)}
           onSuccess={() => {
             setIsDecreaseOpen(false);
-            loadData();
+            scheduleRealtimeRefresh();
           }}
           projectId={projectId}
           incident={selectedIncident}

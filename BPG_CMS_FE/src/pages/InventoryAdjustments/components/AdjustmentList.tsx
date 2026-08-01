@@ -10,6 +10,15 @@ import { ReviewAdjustmentModal } from './ReviewAdjustmentModal';
 import { useNotification } from '../../../context/NotificationContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../../constants/realtimeEntities';
+
+const INVENTORY_ADJUSTMENT_REALTIME_ENTITIES = RealtimeEntities.inventory.filter(
+  entity => entity === 'InventoryAdjustment' || entity === 'AdjustmentItem',
+);
 
 interface AdjustmentListProps {
   projectId: number;
@@ -23,6 +32,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   const [pageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const { connection } = useNotification();
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -36,8 +46,8 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await inventoryAdjustmentService.getAdjustments(projectId, {
         pageNumber: page,
@@ -51,7 +61,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -66,8 +76,10 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   // Tham gia SignalR group của dự án (hoặc group chung Project_0 nếu projectId = 0)
   useEffect(() => {
     if (!connection || projectId === null || projectId === undefined || projectId < 0) return;
+    let active = true;
 
     const joinGroup = () => {
+      if (!active || connection.state !== 'Connected') return;
       connection.invoke('JoinProjectGroup', Number(projectId))
         .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
     };
@@ -79,19 +91,39 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     connection.onreconnected(joinGroup);
 
     return () => {
+      active = false;
       if (connection.state === 'Connected') {
         connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
       }
     };
   }, [connection, projectId]);
 
-  useSignalREvent('InventoryAdjustmentCreated', () => {
-    loadData();
-  });
+  const scheduleRealtimeRefresh = () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      void loadData(false);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  };
 
-  useSignalREvent('InventoryAdjustmentUpdated', () => {
-    loadData();
-  });
+  useEffect(() => () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [projectId, page, pageSize, typeFilter, statusFilter, searchTerm]);
+
+  useSignalREvent('InventoryAdjustmentCreated', scheduleRealtimeRefresh);
+  useSignalREvent('InventoryAdjustmentUpdated', scheduleRealtimeRefresh);
+
+  // Covers inventory/incident writes that do not emit the legacy named event.
+  // loadData only replaces the table rows, so any open review/create modal stays open.
+  useRealtimeDataRefresh(
+    scheduleRealtimeRefresh,
+    INVENTORY_ADJUSTMENT_REALTIME_ENTITIES,
+    0,
+  );
 
   const handleSuccess = (msg?: string) => {
     setIsIncreaseOpen(false);
@@ -101,7 +133,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
       setSuccess(msg);
       setTimeout(() => setSuccess(null), 3000);
     }
-    loadData();
+    scheduleRealtimeRefresh();
   };
 
   const handleError = (msg: string) => {

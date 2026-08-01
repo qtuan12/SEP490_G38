@@ -17,6 +17,8 @@ import { useAuth } from '../context/AuthContext';
 import { useProjectAccess } from '../hooks/useProjectAccess';
 
 import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
+import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../constants/realtimeEntities';
 
 // ── helpers ───────────────────────────────────────────────────────────────
 const formatDate = (s: string) => {
@@ -62,29 +64,39 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
   const [selectedTaskToAdjust, setSelectedTaskToAdjust] = useState<WBSTask | null>(null);
 
   // ── load data ────────────────────────────────────────────────────────
-  useEffect(() => {
+  const loadGanttData = useCallback(async (silent = false) => {
     if (!projectId) return;
-    (async () => {
-      try {
-        const [projs, pList, tList] = await Promise.all([
-          projectService.getProjects(),
-          projectService.getPhases(projectId),
-          projectService.getTasks(projectId)
-        ]);
-        setProject(projs.find(p => p.id === projectId) ?? null);
-        setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
-        setTasks(
-          tList
-            .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
-            .sort((a, b) => a.sortOrder - b.sortOrder)
-        );
-      } catch (e: any) {
-        setError(e.message ?? 'Lỗi tải dữ liệu.');
-      } finally {
-        setLoading(false);
-      }
-    })();
+    if (!silent) setLoading(true);
+    try {
+      const [projs, pList, tList] = await Promise.all([
+        projectService.getProjects(),
+        projectService.getPhases(projectId),
+        projectService.getTasks(projectId)
+      ]);
+      setProject(projs.find(p => p.id === projectId) ?? null);
+      setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
+      setTasks(
+        tList
+          .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+      );
+      setError(null);
+    } catch (e: any) {
+      if (silent) console.error(e);
+      else setError(e.message ?? 'Lỗi tải dữ liệu.');
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, [projectId]);
+
+  useEffect(() => {
+    void loadGanttData();
+  }, [loadGanttData]);
+
+  useRealtimeDataRefresh(
+    () => loadGanttData(true),
+    RealtimeEntities.projects,
+  );
 
   // ── build DHTMLX data ────────────────────────────────────────────────
   const buildDhtmlxData = useCallback(() => {
@@ -455,25 +467,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
           engineerId={user?.id || ''}
           engineerName={user?.name || ''}
           canManageTechnical={canManageTechnical}
-          onSuccess={async () => {
-            // Refresh Gantt data
-            try {
-              const [projs, pList, tList] = await Promise.all([
-                projectService.getProjects(),
-                projectService.getPhases(projectId!),
-                projectService.getTasks(projectId!),
-              ]);
-              setProject(projs.find(p => p.id === projectId) ?? null);
-              setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
-              setTasks(
-                tList
-                  .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
-                  .sort((a, b) => a.sortOrder - b.sortOrder)
-              );
-            } catch (e) {
-              console.error("Error refreshing gantt data after log update", e);
-            }
-          }}
+          onSuccess={() => loadGanttData(true)}
         />
       )}
 
