@@ -4,7 +4,6 @@ import type { ProjectMember } from '../types/common';
 import type { UserProfile } from '../services/authService';
 import { Modal } from './ui/Modal';
 import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
-import { useNotification } from '../context/NotificationContext';
 import { useSignalREvent } from '../hooks/useSignalREvent';
 import { useAuth } from '../context/AuthContext';
 import { RoleGroup } from '../auth/roles';
@@ -18,7 +17,6 @@ interface ProjectMembersProps {
 }
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => {
-  const { connection } = useNotification();
   const { hasAnyRole } = useAuth();
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);
@@ -100,10 +98,13 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     loadRequestIdRef.current += 1;
   }, [projectId, canManageMembers]);
 
-  useRealtimeDataRefresh(
-    () => loadData(true, true),
-    PROJECT_MEMBER_REALTIME_ENTITIES,
-  );
+  useSignalREvent('ProjectLeaderUpdated', () => {
+    loadData(true, true);
+  });
+
+  useSignalREvent('ProjectMemberAdded', () => {
+    loadData(true, true);
+  });
 
   const openAddModal = () => {
     setSelectedUserIds([]);
