@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Input, FormItem } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
@@ -15,6 +15,17 @@ import {
   Sparkles,
   CheckCircle2
 } from 'lucide-react';
+import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../../../constants/realtimeEntities';
+
+const MATERIAL_ISSUANCE_REALTIME_ENTITIES = RealtimeEntities.inventory.filter(
+  entity => [
+    'MaterialIssuance',
+    'MaterialIssuanceItem',
+    'MaterialReturn',
+    'MaterialReturnItem',
+  ].includes(entity),
+);
 
 interface IssuanceDetailModalProps {
   isOpen: boolean;
@@ -54,6 +65,8 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
 
   // Side-by-side mode control
   const [isReturning, setIsReturning] = useState(false);
+  const isReturningRef = useRef(false);
+  isReturningRef.current = isReturning;
 
   // Return form states
   const [reason, setReason] = useState('');
@@ -83,10 +96,12 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
     })));
   };
 
-  const fetchDetailAndHistory = async () => {
+  const fetchDetailAndHistory = async (showLoading = true, preserveReturnForm = false) => {
     if (!issuanceId) return;
-    setLoading(true);
-    setError(null);
+    if (showLoading) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const [issuanceData, returnsData] = await Promise.all([
         inventoryService.getMaterialIssuanceDetail(issuanceId),
@@ -96,6 +111,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
       setDetail(issuanceData);
       const prevReturns = returnsData.items ?? [];
       setReturns(prevReturns);
+      setError(null);
 
       // Initialize return items calculation based on remaining qty
       const items: ReturnItemInput[] = issuanceData.items.map((i: MaterialIssuanceItemDetail) => {
@@ -118,14 +134,27 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         };
       });
 
-      setReturnItems(items);
+      // Do not let an earlier realtime request overwrite a return form that the
+      // user opened while that request was still in flight.
+      if (!preserveReturnForm || !isReturningRef.current) {
+        setReturnItems(items);
+      }
     } catch (err: any) {
       console.error('Error fetching data:', err);
-      setError(err.message || 'Không thể tải chi tiết phiếu xuất kho.');
+      if (showLoading) setError(err.message || 'Không thể tải chi tiết phiếu xuất kho.');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
+
+  useRealtimeDataRefresh(
+    () => {
+      // Never overwrite quantities/reason while the return form is being filled.
+      if (!isOpen || !issuanceId || isReturning) return;
+      return fetchDetailAndHistory(false, true);
+    },
+    MATERIAL_ISSUANCE_REALTIME_ENTITIES,
+  );
 
   const refreshReturnsOnly = async () => {
     if (!issuanceId || !detail) return;

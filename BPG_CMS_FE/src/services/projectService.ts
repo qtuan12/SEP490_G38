@@ -1,5 +1,7 @@
 import type { Project, ProjectAccess, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, TaskHistory, WBSTask, DailyLogComment, DailyLog, TaskProgressLog } from '../types/common';
 import { apiClient, USE_MOCK_API } from './api';
+import { userService } from './userService';
+import type { UserProfile } from './authService';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -437,6 +439,26 @@ export const projectService = {
       isMember: Boolean(member),
       isLeader: member?.isLeader ?? false,
     };
+  },
+
+  async getAvailableMembers(projectId: string): Promise<UserProfile[]> {
+    const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+    if (!USE_MOCK_API) {
+      const response = await apiClient.get<ApiResponse<UserProfile[]>>(
+        `/projects/${parsedId}/available-members`,
+      );
+      if (!response.success) {
+        throw new Error(response.message || 'Không thể tải danh sách kỹ sư có thể thêm.');
+      }
+      return response.data;
+    }
+
+    const [usersResponse, members] = await Promise.all([
+      userService.getUsers({ pageSize: 1000, role: 'siteengineer' }),
+      this.getMembers(projectId),
+    ]);
+    return usersResponse.items.filter(user =>
+      user.status === 'active' && !members.some(member => member.userId === user.id));
   },
 
   async addMember(projectId: string, user: { id: string; name: string; email: string; role: string }): Promise<ProjectMember> {

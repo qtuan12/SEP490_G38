@@ -1,5 +1,6 @@
 using BPG.Application.Features.Tasks.Commands;
 using BPG.Application.Features.Tasks.Queries.GetTaskDetails;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,6 +12,7 @@ namespace BPG.Api.Controllers;
 public class TasksController : BaseApiController
 {
     [HttpGet("{taskId}")]
+    [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetTaskDetails([FromRoute] long taskId, CancellationToken ct)
     {
         var result = await Mediator.Send(new GetTaskDetailsQuery(taskId), ct);
@@ -18,6 +20,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPost("phases/{phaseId}")]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> CreateTask([FromRoute] long phaseId, [FromBody] CreateTaskCommand command, CancellationToken ct)
     {
         var finalCommand = command with { PhaseId = phaseId };
@@ -26,6 +29,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}")]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> UpdateTask([FromRoute] long taskId, [FromBody] UpdateTaskCommand command, CancellationToken ct)
     {
         var finalCommand = command with { TaskId = taskId };
@@ -34,6 +38,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpDelete("{taskId}")]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> DeleteTask([FromRoute] long taskId, CancellationToken ct)
     {
         var result = await Mediator.Send(new DeleteTaskCommand(taskId), ct);
@@ -41,6 +46,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}/assignees")]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> AssignTask([FromRoute] long taskId, [FromBody] AssignTaskCommand command, CancellationToken ct)
     {
         var finalCommand = command with { TaskId = taskId };
@@ -49,6 +55,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}/progress")]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> AdjustTaskProgress([FromRoute] long taskId, [FromBody] AdjustTaskProgressCommand command, CancellationToken ct)
     {
         var finalCommand = command with { TaskId = taskId };
@@ -57,6 +64,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}/obsolete")]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> MarkTaskObsolete([FromRoute] long taskId, [FromBody] MarkTaskObsoleteCommand command, CancellationToken ct)
     {
         var finalCommand = command with { TaskId = taskId };
@@ -65,6 +73,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}/restore")]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> RestoreTask([FromRoute] long taskId, CancellationToken ct)
     {
         var command = new RestoreTaskCommand(taskId);
@@ -73,6 +82,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPost("{taskId}/dependencies/{predecessorTaskId}")]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> AddDependency([FromRoute] long taskId, [FromRoute] long predecessorTaskId, CancellationToken ct)
     {
         var result = await Mediator.Send(new AddTaskDependencyCommand(taskId, predecessorTaskId), ct);
@@ -80,6 +90,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpDelete("{taskId}/dependencies/{predecessorTaskId}")]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> RemoveDependency([FromRoute] long taskId, [FromRoute] long predecessorTaskId, CancellationToken ct)
     {
         var result = await Mediator.Send(new RemoveTaskDependencyCommand(taskId, predecessorTaskId), ct);

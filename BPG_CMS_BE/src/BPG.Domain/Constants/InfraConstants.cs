@@ -18,6 +18,7 @@ public static class HubMethodNames
     public const string ProjectUpdated = "ProjectUpdated";                 // Trạng thái dự án cập nhật
     public const string InventoryAdjustmentCreated = "InventoryAdjustmentCreated"; // Phiếu điều chỉnh kho mới
     public const string InventoryAdjustmentUpdated = "InventoryAdjustmentUpdated"; // Phiếu điều chỉnh kho được cập nhật
+    public const string DataChanged = "DataChanged";                       // Dữ liệu hệ thống đã thay đổi
 
     public const string GoodsReceiptChanged = "GoodsReceiptChanged";       // Nhập kho thay đổi (tạo/hủy phiếu)
     public const string MaterialIssuanceChanged = "MaterialIssuanceChanged"; // Xuất dùng thay đổi

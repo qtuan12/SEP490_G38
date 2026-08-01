@@ -1,5 +1,6 @@
 using BPG.Application.Features.DirectPurchases.Commands;
 using BPG.Application.Features.DirectPurchases.Queries;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,6 +10,7 @@ namespace BPG.Api.Controllers
     public class DirectPurchasesController : BaseApiController
     {
         [HttpGet]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetDirectPurchaseRequests([FromQuery] GetDirectPurchaseRequestsQuery query, CancellationToken ct)
         {
             var result = await Mediator.Send(query, ct);
@@ -16,6 +18,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> CreateDirectPurchaseRequest([FromBody] CreateDirectPurchaseRequestCommand command, CancellationToken ct)
         {
             var id = await Mediator.Send(command, ct);
@@ -23,6 +26,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetDirectPurchaseById([FromRoute] long id, CancellationToken ct)
         {
             var result = await Mediator.Send(new GetDirectPurchaseByIdQuery(id), ct);
@@ -34,6 +38,7 @@ namespace BPG.Api.Controllers
         /// Không ảnh hưởng đến tồn kho.
         /// </summary>
         [HttpPatch("{id}/audit")]
+        [Authorize(Roles = RolePolicies.Accountant)]
         public async Task<IActionResult> AuditDirectPurchase([FromRoute] long id, [FromBody] AuditDirectPurchaseCommand command, CancellationToken ct)
         {
             command.DirectPurchaseId = id;

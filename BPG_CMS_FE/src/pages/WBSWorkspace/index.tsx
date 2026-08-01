@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { wbsService } from '../../services/wbsService';
 import { incidentService } from '../../services/incidentService';
-import { useNotification } from '../../context/NotificationContext';
 import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
@@ -24,7 +23,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { user } = useAuth();
   const { canManageExecution, canManageTechnical } = useProjectAccess(projectId);
   const navigate = useNavigate();
-  const { connection } = useNotification();
 
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -188,29 +186,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
       }
     }
   }, [searchParams, tasks, setSearchParams]);
-
-  useEffect(() => {
-    if (!connection) return;
-
-    const numericProjectId = Number(projectId);
-    connection.invoke('JoinProjectGroup', numericProjectId)
-      .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
-      .catch(err => console.error('SignalR JoinProjectGroup error:', err));
-
-    const handleWbsUpdated = (payload: any) => {
-      console.log('SignalR: WbsTreeUpdated', payload);
-      queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
-    };
-
-    connection.on('WbsTreeUpdated', handleWbsUpdated);
-
-    return () => {
-      connection.off('WbsTreeUpdated', handleWbsUpdated);
-      connection.invoke('LeaveProjectGroup', numericProjectId)
-        .then(() => console.log(`Left SignalR project group: Project_${numericProjectId}`))
-        .catch(err => console.error('SignalR LeaveProjectGroup error:', err));
-    };
-  }, [connection, projectId]);
 
   const loadWBSData = async () => {
     await queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });

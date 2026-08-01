@@ -88,7 +88,7 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
         </div>
       )}
 
-      {loading ? (
+      {loading && receiptsList.length === 0 ? (
         <div className="flex justify-center items-center py-10 gap-2">
           <LoadingSpinner />
           <span className="text-slate-500 text-sm">Đang tải phiếu nhập kho...</span>

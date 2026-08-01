@@ -23,6 +23,7 @@ import {
   ClipboardList
 } from 'lucide-react';
 import { RoleGroup } from '../../auth/roles';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 
 export const ProjectList: React.FC = () => {
   const navigate = useNavigate();
@@ -44,23 +45,35 @@ export const ProjectList: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<{ id: string, name: string } | null>(null);
+  const loadRequestIdRef = React.useRef(0);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  const loadProjects = async () => {
-    setLoading(true);
-    setError(null);
+  const loadProjects = async (silent = false) => {
+    const requestId = ++loadRequestIdRef.current;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const data = await projectService.getProjects();
+      if (requestId !== loadRequestIdRef.current) return;
       setProjects(data);
     } catch (err: any) {
-      setError(err.message || 'Không thể tải danh sách dự án.');
+      if (requestId !== loadRequestIdRef.current) return;
+      if (silent) console.error(err);
+      else setError(err.message || 'Không thể tải danh sách dự án.');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) setLoading(false);
     }
   };
+
+  useRealtimeDataRefresh(
+    () => loadProjects(true),
+    ['Project', 'ProjectMember', 'Phase', 'ProjectTask'],
+  );
 
   const openDeleteConfirm = (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
@@ -89,6 +102,9 @@ export const ProjectList: React.FC = () => {
 
   useEffect(() => {
     loadProjects();
+    return () => {
+      loadRequestIdRef.current += 1;
+    };
   }, []);
 
   useEffect(() => {

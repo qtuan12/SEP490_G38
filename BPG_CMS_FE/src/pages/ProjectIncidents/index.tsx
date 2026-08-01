@@ -161,8 +161,10 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   // Tham gia SignalR group của dự án
   useEffect(() => {
     if (!connection) return;
+    let active = true;
 
     const joinGroup = () => {
+      if (!active || connection.state !== 'Connected') return;
       connection.invoke('JoinProjectGroup', Number(projectId))
         .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
     };
@@ -174,6 +176,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
     connection.onreconnected(joinGroup);
 
     return () => {
+      active = false;
       if (connection.state === 'Connected') {
         connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
       }

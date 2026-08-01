@@ -87,7 +87,6 @@ namespace BPG.Api.Controllers
         /// xóa tệp qua URL.
         /// </summary>
         [HttpDelete("delete")]
-        [Authorize(Roles = RolePolicies.AdminOrTechnicalManager)]
         public async Task<IActionResult> DeleteFile([FromQuery] string fileUrl)
         {
             if (string.IsNullOrWhiteSpace(fileUrl))

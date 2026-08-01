@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 
@@ -6,6 +6,7 @@ import type {Project} from '../types/common';
 import { useAuth } from '../context/AuthContext';
 import { RoleGroup } from '../auth/roles';
 import { Modal } from '../components/ui/Modal';
+import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import {
   ArrowLeft,
   FileText,
@@ -37,22 +38,29 @@ export const ProjectDrawing: React.FC = () => {
     hasAnyRole(RoleGroup.ProjectManagers) &&
     project?.status !== 'done';
 
-  const loadProject = async () => {
+  const loadProject = useCallback(async (silent = false) => {
     if (!projectId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const p = await projectService.getProjectById(projectId);
       setProject(p);
+      setError(null);
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi tải thông tin dự án.');
+      if (silent) console.error(err);
+      else setError(err.message || 'Lỗi khi tải thông tin dự án.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [projectId]);
 
   useEffect(() => {
-    loadProject();
-  }, [projectId]);
+    void loadProject();
+  }, [loadProject]);
+
+  useRealtimeDataRefresh(
+    () => loadProject(true),
+    ['Project'],
+  );
 
   useEffect(() => {
     if (project && !currentViewUrl && project.drawingUrl) {

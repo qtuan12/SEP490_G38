@@ -19,6 +19,7 @@ import {
   Mail
 } from 'lucide-react';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 
 const PAGE_SIZE = 20;
 
@@ -39,25 +40,37 @@ export const UserManagement: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const loadRequestIdRef = React.useRef(0);
 
-  const loadAllUsers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const loadAllUsers = useCallback(async (silent = false) => {
+    const requestId = ++loadRequestIdRef.current;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const data = await userService.getUsers({
         pageNumber: 1,
         pageSize: 1000,
       });
+      if (requestId !== loadRequestIdRef.current) return;
       setAllUsers(data.items);
     } catch (err: any) {
-      setError(err.message || 'Không thể tải danh sách người dùng.');
+      if (requestId !== loadRequestIdRef.current) return;
+      if (silent) console.error(err);
+      else setError(err.message || 'Không thể tải danh sách người dùng.');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) setLoading(false);
     }
   }, []);
 
+  useRealtimeDataRefresh(() => loadAllUsers(true), ['User', 'UserRole']);
+
   useEffect(() => {
     loadAllUsers();
+    return () => {
+      loadRequestIdRef.current += 1;
+    };
   }, [loadAllUsers]);
 
   const filteredUsers = React.useMemo(() => {

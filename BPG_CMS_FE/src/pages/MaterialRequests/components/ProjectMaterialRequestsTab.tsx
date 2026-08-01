@@ -22,6 +22,17 @@ import { formatDate } from '../../../utils/dateHelpers';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import { Modal } from '../../../components/ui/Modal';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../../constants/realtimeEntities';
+
+const MATERIAL_REQUEST_REALTIME_ENTITIES = [
+  ...RealtimeEntities.materialRequests,
+  ...RealtimeEntities.procurement,
+  ...RealtimeEntities.projects.filter(entity => entity === 'Phase'),
+] as const;
 
 interface ProjectMaterialRequestsTabProps {
   projectId: number;
@@ -38,6 +49,8 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [loading, setLoading] = useState(true);
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchRequestIdRef = React.useRef(0);
 
   // Create Request State
   const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false);
@@ -124,22 +137,52 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const isDirector = canApprove;
   const canCreateRequest = canManageExecution;
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (showLoading = true) => {
+    const requestId = ++fetchRequestIdRef.current;
+    if (showLoading) setLoading(true);
     try {
       const [reqs, pList] = await Promise.all([
         projectService.getMaterialRequests(projectId.toString()),
         projectService.getPhases(projectId.toString())
       ]);
+      if (requestId !== fetchRequestIdRef.current) return;
       setRequests(reqs);
       setPhases(pList);
+      // Do not close an open form/detail while its backing row is refreshed.
+      setSelectedRequest(current => current
+        ? reqs.find(request => request.id === current.id) ?? current
+        : current);
     } catch (err) {
+      if (requestId !== fetchRequestIdRef.current) return;
       console.error('Error fetching material requests tab data:', err);
-      toast.error('Lỗi khi tải dữ liệu yêu cầu vật tư.');
+      if (showLoading) toast.error('Lỗi khi tải dữ liệu yêu cầu vật tư.');
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestIdRef.current) setLoading(false);
     }
   };
+
+  const scheduleRealtimeRefresh = () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      void fetchData(false);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  };
+
+  useEffect(() => () => {
+    fetchRequestIdRef.current += 1;
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [projectId]);
+
+  useRealtimeDataRefresh(
+    scheduleRealtimeRefresh,
+    MATERIAL_REQUEST_REALTIME_ENTITIES,
+    0,
+  );
 
   const handleOpenCreateRequest = () => {
     if (phaseFilter) {
@@ -202,7 +245,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   // Realtime update via SignalR
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'MaterialRequest' || noti?.referenceType?.includes('/materialrequests')) {
-      fetchData();
+      scheduleRealtimeRefresh();
       toast('Yêu cầu vật tư đã được cập nhật!', { icon: '📋' });
     }
   });
@@ -217,7 +260,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       } else {
         toast.success('Yêu cầu trong định mức hợp lệ. Đã duyệt thành công.');
       }
-      fetchData();
+      scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi soát xét.');
     }
@@ -227,7 +270,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     try {
       await projectService.disburseEmergencyRequest(reqId, note);
       toast.success('Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp thành công.');
-      fetchData();
+      scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi giải ngân.');
     }
@@ -238,7 +281,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'director', note);
       const totalCost = updated.items.reduce((sum, item) => sum + (item.quantity * ((item as any).price || 0)), 0);
       toast.success(`Phê duyệt thành công! Khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND đã được ghi nhận.`);
-      fetchData();
+      scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi phê duyệt.');
     }
@@ -248,7 +291,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     try {
       await projectService.rejectMaterialRequest(reqId, reason.trim());
       toast.success('Đã từ chối yêu cầu vật tư.');
-      fetchData();
+      scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi từ chối.');
     }
@@ -258,7 +301,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     try {
       await projectService.cancelMaterialRequest(reqId, reason.trim());
       toast.success('Đã hủy yêu cầu vật tư.');
-      fetchData();
+      scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi hủy yêu cầu.');
     }
@@ -706,7 +749,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           onSuccess={(msg) => {
             setIsCreateOpen(false);
             toast.success(msg);
-            fetchData();
+            scheduleRealtimeRefresh();
           }}
           projectId={projectId.toString()}
           phase={actualPhaseForCreate}
@@ -727,7 +770,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
             setIsResubmitOpen(false);
             setSelectedResubmitRequest(null);
             toast.success(msg);
-            fetchData();
+            scheduleRealtimeRefresh();
           }}
           projectId={projectId.toString()}
           request={selectedResubmitRequest}

@@ -36,6 +36,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetProjectById(long id)
     {
         var result = await Mediator.Send(new GetProjectByIdQuery(id));
@@ -43,6 +44,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet("{id}/access")]
+    [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetMyAccess(long id, CancellationToken ct)
     {
         var result = await Mediator.Send(new GetMyProjectAccessQuery(id), ct);
@@ -50,7 +52,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPost]
-    [Authorize(Roles = RolePolicies.AdminOrTechnicalManager)]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> CreateProject([FromBody] CreateProjectCommand command)
     {
         var result = await Mediator.Send(command);
@@ -58,7 +60,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = RolePolicies.AdminOrTechnicalManager)]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> UpdateProject(long id, [FromBody] UpdateProjectCommand command)
     {
         if (id != command.ProjectId)
@@ -69,7 +71,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}/activate")]
-    [Authorize(Roles = RolePolicies.AdminOrTechnicalManager + "," + UserRole.Director)]
+    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> ActivateProject(long id)
     {
         await Mediator.Send(new ActivateProjectCommand(id));
@@ -77,7 +79,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}/pause")]
-    [Authorize(Roles = RolePolicies.AdminOrTechnicalManager + "," + UserRole.Director)]
+    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> PauseProject(long id, [FromBody] PauseProjectCommand command)
     {
         if (id != command.ProjectId)
@@ -88,7 +90,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}/resume")]
-    [Authorize(Roles = RolePolicies.AdminOrTechnicalManager + "," + UserRole.Director)]
+    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> ResumeProject(long id)
     {
         await Mediator.Send(new ResumeProjectCommand { ProjectId = id });
@@ -96,7 +98,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = RolePolicies.AdminOrTechnicalManager)]
+    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> DeleteProject(long id)
     {
         await Mediator.Send(new DeleteProjectCommand { ProjectId = id });
@@ -104,7 +106,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPost("{id}/members")]
-    [Authorize(Roles = RolePolicies.AdminOrTechnicalManager)]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> AddProjectMember(long id, [FromBody] AddProjectMemberCommand command)
     {
         if (id != command.ProjectId)
@@ -114,8 +116,16 @@ public class ProjectsController : BaseApiController
         return ApiOk(result, "Them thanh vien thanh cong.");
     }
 
+    [HttpGet("{id}/available-members")]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
+    public async Task<IActionResult> GetAvailableProjectMembers(long id, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new GetAvailableProjectMembersQuery(id), ct);
+        return ApiOk(result);
+    }
+
     [HttpDelete("{id}/members/{userId}")]
-    [Authorize(Roles = RolePolicies.AdminOrTechnicalManager)]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> RemoveProjectMember(long id, long userId)
     {
         await Mediator.Send(new RemoveProjectMemberCommand { ProjectId = id, UserId = userId });
@@ -123,7 +133,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}/members/{userId}/leader")]
-    [Authorize(Roles = RolePolicies.AdminOrTechnicalManager)]
+    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> AssignProjectLeader(long id, long userId)
     {
         await Mediator.Send(new AssignProjectLeaderCommand { ProjectId = id, UserId = userId });

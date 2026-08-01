@@ -16,6 +16,7 @@ namespace BPG.Api.Controllers;
 public class PhasesController : BaseApiController
 {
     [HttpPost]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> CreatePhase([FromRoute] long projectId, [FromBody] CreatePhaseCommand command, CancellationToken ct)
     {
         if (projectId != command.ProjectId)
@@ -26,6 +27,7 @@ public class PhasesController : BaseApiController
     }
 
     [HttpPut("{phaseId}")]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> UpdatePhase([FromRoute] long projectId, [FromRoute] long phaseId, [FromBody] UpdatePhaseCommand command, CancellationToken ct)
     {
         if (phaseId != command.PhaseId)
@@ -36,6 +38,7 @@ public class PhasesController : BaseApiController
     }
 
     [HttpPut("{phaseId}/boq")]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> UpdatePhaseBOQ([FromRoute] long projectId, [FromRoute] long phaseId, [FromBody] UpdatePhaseBOQRequest request, CancellationToken ct)
     {
         var result = await Mediator.Send(new UpdatePhaseBOQCommand(projectId, phaseId, request.Items), ct);
@@ -43,6 +46,7 @@ public class PhasesController : BaseApiController
     }
 
     [HttpGet("{phaseId}/boq")]
+    [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetPhaseBOQ([FromRoute] long projectId, [FromRoute] long phaseId, CancellationToken ct)
     {
         var result = await Mediator.Send(new GetPhaseBOQQuery(phaseId), ct);
@@ -50,6 +54,7 @@ public class PhasesController : BaseApiController
     }
 
     [HttpDelete("{phaseId}")]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> DeletePhase([FromRoute] long projectId, [FromRoute] long phaseId, CancellationToken ct)
     {
         var result = await Mediator.Send(new DeletePhaseCommand(phaseId), ct);

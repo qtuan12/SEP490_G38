@@ -47,6 +47,15 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct)
                 ?? throw new NotFoundException(nameof(Phase), request.PhaseId);
 
+            if (!_currentUserService.IsInRole(UserRole.TechnicalManager))
+            {
+                var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                    member => member.ProjectId == phase.ProjectId && member.UserId == userId && member.IsLeader,
+                    ct);
+                if (!isProjectLeader)
+                    throw new ForbiddenException("Chỉ Technical Manager hoặc Trưởng dự án được tạo đề nghị mua trực tiếp.");
+            }
+
             var purchaseDateOnly = DateOnly.FromDateTime(request.PurchaseDate.Date);
 
             if (phase.StartDate.HasValue && purchaseDateOnly < phase.StartDate.Value)

@@ -168,12 +168,18 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
     const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
     const numericProjectId = Number(parsedProjectId);
-    if (isNaN(numericProjectId)) return;
+    if (!Number.isInteger(numericProjectId) || numericProjectId <= 0) return;
+    let active = true;
 
-    // Join Project group
-    connection.invoke('JoinProjectGroup', numericProjectId)
-      .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
-      .catch((err: any) => console.error('Error joining Project Group:', err));
+    const joinGroup = () => {
+      if (!active || connection.state !== 'Connected') return;
+      connection.invoke('JoinProjectGroup', numericProjectId)
+        .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
+        .catch((err: any) => console.error('Error joining Project Group:', err));
+    };
+
+    joinGroup();
+    connection.onreconnected(joinGroup);
 
     // Map helpers
     const mapRawComment = (c: any): DailyLogComment => ({
@@ -295,6 +301,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     connection.on('ReceiveCommentDeleted', handleCommentDeleted);
 
     return () => {
+      active = false;
       // Unsubscribe
       connection.off('ReceiveDailyLogCreated', handleDailyLogCreated);
       connection.off('ReceiveDailyLogUpdated', handleDailyLogUpdated);
