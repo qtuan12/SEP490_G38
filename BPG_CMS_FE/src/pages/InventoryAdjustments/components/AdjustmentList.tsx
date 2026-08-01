@@ -1,4 +1,4 @@
-﻿// Force IDE TS Server to re-parse this file
+// Force IDE TS Server to re-parse this file
 import React, { useState, useEffect } from 'react';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
@@ -16,7 +16,7 @@ interface AdjustmentListProps {
 }
 
 export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => {
-  const { canManageExecution, canManageAccounting, canApprove } = useProjectAccess(projectId > 0 ? projectId : null);
+  const { canManageExecution, canManageAccounting, canManageTechnical, canApprove } = useProjectAccess(projectId > 0 ? projectId : null);
   const [data, setData] = useState<InventoryAdjustmentDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -224,7 +224,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
                   <td className="px-4 py-3">{item.approverName || '-'}</td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" size="sm" onClick={() => setReviewId(item.adjustmentId)}>
-                      {item.status === 'Pending' && canApprove ? 'Chi tiết' : 'Xem chi tiết'}
+                      {item.status === 'Pending' && (item.adjustmentType === 'Increase' ? (canManageTechnical || canApprove) : canApprove) ? 'Chi tiết' : 'Xem chi tiết'}
                     </Button>
                   </td>
                 </tr>
@@ -246,7 +246,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <CreateIncreaseAdjustmentModal
           isOpen={isIncreaseOpen}
           onClose={() => setIsIncreaseOpen(false)}
-          onSuccess={() => handleSuccess('Tạo phiếu tăng thành công.')}
+          onSuccess={() => handleSuccess('Tạo phiếu tăng thành công, chờ Trưởng phòng kỹ thuật phê duyệt.')}
           onError={handleError}
           projectId={projectId}
         />

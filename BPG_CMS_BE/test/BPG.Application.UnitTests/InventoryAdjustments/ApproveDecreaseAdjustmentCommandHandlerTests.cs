@@ -112,6 +112,31 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             result.Message.Should().Be("Phê duyệt phiếu điều chỉnh giảm tồn thành công");
         }
 
+        [Fact]
+        public async Task UTCID06_Handle_ApproveIncreaseAdjustment_ShouldReturnSuccessResponse()
+        {
+            SetupAdjustments(Adjustment(adjustmentType: BPG.Domain.Constants.InventoryAdjustmentType.Increase, quantity: 15));
+            SetupInventories(Inventory(quantity: 10));
+
+            var result = await _handler.Handle(Command(isApproved: true), CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().BeTrue();
+            result.Message.Should().Be("Phê duyệt phiếu điều chỉnh tăng tồn thành công");
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_RejectIncreaseAdjustment_ShouldReturnSuccessResponse()
+        {
+            SetupAdjustments(Adjustment(adjustmentType: BPG.Domain.Constants.InventoryAdjustmentType.Increase, quantity: 15));
+
+            var result = await _handler.Handle(Command(isApproved: false, rejectedReason: "Số lượng sai thực tế"), CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().BeTrue();
+            result.Message.Should().Be("Đã từ chối phiếu điều chỉnh tăng tồn");
+        }
+
         private static ApproveDecreaseAdjustmentCommand Command(bool isApproved, string? rejectedReason = null)
             => new()
             {
@@ -122,11 +147,13 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
         private static InventoryAdjustment Adjustment(
             string status = InventoryAdjustmentStatus.Pending,
+            string adjustmentType = BPG.Domain.Constants.InventoryAdjustmentType.Decrease,
             decimal quantity = 20)
             => new()
             {
                 AdjustmentId = AdjustmentId,
                 ProjectId = ProjectId,
+                AdjustmentType = adjustmentType,
                 Status = status,
                 CreatedBy = 10,
                 Items = new List<AdjustmentItem>

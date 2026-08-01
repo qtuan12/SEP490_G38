@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { projectService } from '../services/projectService';
 import type { ProjectMember } from '../types/common';
 import { userService } from '../services/userService';
@@ -7,7 +7,8 @@ import { Modal } from './ui/Modal';
 import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { useSignalREvent } from '../hooks/useSignalREvent';
-import { useProjectAccess } from '../hooks/useProjectAccess';
+import { useAuth } from '../context/AuthContext';
+import { RoleGroup } from '../auth/roles';
 
 interface AvailableEngineer extends UserProfile {
   leaderProjectName?: string;
@@ -19,7 +20,7 @@ interface ProjectMembersProps {
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => {
   const { connection } = useNotification();
-  const { canManageTechnical } = useProjectAccess(projectId);
+  const { hasAnyRole } = useAuth();
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +34,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<{id: string, name: string} | null>(null);
 
-  const canManageMembers = canManageTechnical;
+  // Only Admin & Technical Manager (TPKT) can manage project members
+  const canManageMembers = hasAnyRole(RoleGroup.Technical);
   const hasLeader = members.some(m => m.isLeader);
 
   const loadData = async (bustCache = false) => {

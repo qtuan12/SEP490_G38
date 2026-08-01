@@ -72,6 +72,8 @@ export interface BoqVsActualItemDto {
   unitName: string;
   boqLimit: number;
   totalIssued: number;
+  totalReturned: number;
+  netConsumption: number;
   stockRemaining: number;
   pendingPoQuantity: number;
   pendingMrQuantity: number;
@@ -237,36 +239,74 @@ export interface ProcurementReportDto {
 }
 
 // ============================================================
+// Inventory Movement & Reconciliation Report
+// ============================================================
+export interface InventoryMovementItemDto {
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  unitName: string;
+  openingBalance: number;
+  totalReceived: number;
+  totalIssued: number;
+  totalReturned: number;
+  totalTransferredIn: number;
+  totalTransferredOut: number;
+  totalAdjustments: number;
+  closingBalance: number;
+}
+
+export interface InventoryMovementReportDto {
+  projectId: number;
+  fromDate?: string;
+  toDate?: string;
+  totalMaterials: number;
+  items: InventoryMovementItemDto[];
+}
+
+export interface ReportFilterParams {
+  [key: string]: string | number | boolean | undefined;
+  fromDate?: string;
+  toDate?: string;
+}
+
+// ============================================================
 // Service Methods
 // ============================================================
 export const reportService = {
-  async getExecutiveDashboard(projectId: number): Promise<ExecutiveDashboardDto> {
-    const response = await apiClient.get<ApiResponse<ExecutiveDashboardDto>>(`/reports/project/${projectId}/executive-dashboard`);
+  async getExecutiveDashboard(projectId: number, params?: ReportFilterParams): Promise<ExecutiveDashboardDto> {
+    const response = await apiClient.get<ApiResponse<ExecutiveDashboardDto>>(`/reports/project/${projectId}/executive-dashboard`, { params });
     return response.data;
   },
 
-  async getGanttChart(projectId: number): Promise<GanttChartDataDto> {
-    const response = await apiClient.get<ApiResponse<GanttChartDataDto>>(`/reports/project/${projectId}/gantt-chart`);
-    return response.data;
-  },
-
-  async getBoqVsActual(projectId: number): Promise<BoqVsActualReportDto> {
-    const response = await apiClient.get<ApiResponse<BoqVsActualReportDto>>(`/reports/project/${projectId}/boq-vs-actual`);
+  async getBoqVsActual(projectId: number, params?: ReportFilterParams): Promise<BoqVsActualReportDto> {
+    const response = await apiClient.get<ApiResponse<BoqVsActualReportDto>>(`/reports/project/${projectId}/boq-vs-actual`, { params });
     return response.data;
   },
 
   async getCostReference(projectId: number): Promise<CostReferenceReportDto> {
-    const response = await apiClient.get<ApiResponse<CostReferenceReportDto>>(`/reports/project/${projectId}/cost-reference`);
+    const response = await apiClient.get<ApiResponse<ProcurementReportDto>>(`/reports/project/${projectId}/procurement`);
+    const proc = response.data;
+    return {
+      projectId: proc.projectId,
+      totalPoCost: proc.totalPoCost,
+      totalDirectPurchaseCost: proc.totalDirectPurchaseCost,
+      totalCost: proc.totalCost
+    };
+  },
+
+  async getConstructionProgress(projectId: number, params?: ReportFilterParams): Promise<ConstructionProgressReportDto> {
+    const response = await apiClient.get<ApiResponse<ConstructionProgressReportDto>>(`/reports/project/${projectId}/construction-progress`, { params });
     return response.data;
   },
 
-  async getConstructionProgress(projectId: number): Promise<ConstructionProgressReportDto> {
-    const response = await apiClient.get<ApiResponse<ConstructionProgressReportDto>>(`/reports/project/${projectId}/construction-progress`);
+  async getIncidentReport(projectId: number, params?: ReportFilterParams): Promise<IncidentReportDto> {
+    const response = await apiClient.get<ApiResponse<IncidentReportDto>>(`/reports/project/${projectId}/incidents`, { params });
     return response.data;
   },
 
-  async getIncidentReport(projectId: number): Promise<IncidentReportDto> {
-    const response = await apiClient.get<ApiResponse<IncidentReportDto>>(`/reports/project/${projectId}/incidents`);
+  async getInventoryMovement(projectId: number, params?: ReportFilterParams): Promise<InventoryMovementReportDto> {
+    const response = await apiClient.get<ApiResponse<InventoryMovementReportDto>>(`/reports/project/${projectId}/inventory-movement`, { params });
     return response.data;
   },
 
@@ -275,8 +315,8 @@ export const reportService = {
     return response.data;
   },
 
-  async getProcurementReport(projectId: number): Promise<ProcurementReportDto> {
-    const response = await apiClient.get<ApiResponse<ProcurementReportDto>>(`/reports/project/${projectId}/procurement`);
+  async getProcurementReport(projectId: number, params?: ReportFilterParams): Promise<ProcurementReportDto> {
+    const response = await apiClient.get<ApiResponse<ProcurementReportDto>>(`/reports/project/${projectId}/procurement`, { params });
     return response.data;
   },
 };

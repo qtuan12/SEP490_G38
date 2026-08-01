@@ -1,4 +1,5 @@
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;
@@ -8,37 +9,66 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetIncidentReport;
 
-public record GetIncidentReportQuery(long ProjectId)
-    : IRequest<ApiResponse<IncidentReportDto>>
-{
-}
-
+public record GetIncidentReportQuery(long ProjectId, DateTime? FromDate = null, DateTime? ToDate = null)
+    : IRequest<ApiResponse<IncidentReportDto>>;
 
 public class GetIncidentReportQueryHandler
     : IRequestHandler<GetIncidentReportQuery, ApiResponse<IncidentReportDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetIncidentReportQueryHandler(IUnitOfWork unitOfWork)
+    public GetIncidentReportQueryHandler(
+        IUnitOfWork unitOfWork,
+        IProjectAccessService projectAccessService)
     {
         _unitOfWork = unitOfWork;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<ApiResponse<IncidentReportDto>> Handle(
         GetIncidentReportQuery request, CancellationToken cancellationToken)
     {
-        var incidents = await _unitOfWork.Repository<Incident>()
+        var accessibleIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+        if (request.ProjectId > 0 && !accessibleIds.Contains(request.ProjectId))
+        {
+            throw new BPG.Domain.Exceptions.BusinessException("ERR_FORBIDDEN", "Bạn không có quyền xem báo cáo của dự án này.");
+        }
+
+        var query = _unitOfWork.Repository<Incident>()
             .Query()
             .Include(i => i.Reporter)
             .Include(i => i.Reviewer)
             .Include(i => i.Task)
             .Include(i => i.Phase)
             .Include(i => i.ReworkTask)
-            .Where(i => i.ProjectId == request.ProjectId)
+            .AsNoTracking();
+
+        if (request.ProjectId > 0)
+        {
+            query = query.Where(i => i.ProjectId == request.ProjectId);
+        }
+        else
+        {
+            query = query.Where(i => accessibleIds.Contains(i.ProjectId));
+        }
+
+        if (request.FromDate.HasValue)
+        {
+            var fromDt = request.FromDate.Value.Date;
+            query = query.Where(i => i.CreatedAt >= fromDt);
+        }
+        if (request.ToDate.HasValue)
+        {
+            var toDt = request.ToDate.Value.Date.AddDays(1).AddTicks(-1);
+            query = query.Where(i => i.CreatedAt <= toDt);
+        }
+
+        var incidents = await query
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        var resolvedStatuses = new[] { "Resolved", "Closed", "Completed" };
+        var resolvedStatuses = new[] { "Approved", "Resolved", "Closed", "Completed" };
 
         var summaries = incidents.Select(i => new IncidentSummaryDto
         {
