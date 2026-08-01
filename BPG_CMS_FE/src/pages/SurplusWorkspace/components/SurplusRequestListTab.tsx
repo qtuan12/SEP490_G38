@@ -100,7 +100,7 @@ export const SurplusRequestListTab: React.FC<SurplusRequestListTabProps> = ({
         <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg">{error}</div>
       )}
 
-      {loading ? (
+      {loading && list.length === 0 ? (
         <div className="flex justify-center items-center py-10 gap-2">
           <LoadingSpinner />
           <span className="text-slate-500 text-sm">Đang tải...</span>

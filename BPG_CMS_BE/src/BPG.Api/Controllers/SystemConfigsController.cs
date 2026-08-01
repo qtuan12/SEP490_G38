@@ -12,6 +12,7 @@ namespace BPG.Api.Controllers
         /// Lấy danh sách toàn bộ cấu hình hệ thống.
         /// </summary>
         [HttpGet]
+        [Authorize(Roles = RolePolicies.Admin)]
         public async Task<IActionResult> GetSystemConfigs(CancellationToken ct)
         {
             var result = await Mediator.Send(new GetSystemConfigsQuery(), ct);

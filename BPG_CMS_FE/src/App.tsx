@@ -192,7 +192,7 @@ function App() {
               <Route 
                 path="/dashboard" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <Dashboard />
                   </ProtectedRoute>
                 } 
@@ -300,7 +300,7 @@ function App() {
               <Route 
                 path="/projects/:projectId" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectRoute>
                       <ProjectLayoutHub />
                     </ProjectRoute>
@@ -311,7 +311,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/logs" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectRoute>
                       <ProjectDailyLogs />
                     </ProjectRoute>
@@ -322,7 +322,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/tasks/:taskId/logs" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectRoute>
                       <ProjectDailyLogs />
                     </ProjectRoute>
@@ -333,7 +333,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/phases/:phaseId/boq" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectRoute>
                       <PhaseBOQ />
                     </ProjectRoute>
@@ -344,7 +344,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/phases/:phaseId/acceptance" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectRoute>
                       <PhaseAcceptance />
                     </ProjectRoute>
@@ -355,7 +355,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/gantt" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectRoute>
                       <DesktopOnlyGuard>
                         <GanttChart />
@@ -368,7 +368,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/drawing" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectRoute>
                       <ProjectDrawing />
                     </ProjectRoute>
@@ -399,7 +399,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/reports/boq" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectRoute>
                       <DesktopOnlyGuard>
                         <BoqVsActualReport />
@@ -412,7 +412,7 @@ function App() {
               <Route 
                 path="/projects/:projectId/reports/cost" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.Reports}>
                     <ProjectRoute>
                       <DesktopOnlyGuard>
                         <CostReferenceReport />
@@ -425,7 +425,7 @@ function App() {
               <Route 
                 path="/tasks/:taskId" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <TaskDetailSE />
                   </ProtectedRoute>
                 } 
@@ -443,7 +443,7 @@ function App() {
               <Route 
                 path="/purchase-orders/new" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.Procurement}>
                     <ProjectOrRoleRoute
                       allowedRoles={RoleGroup.Procurement}
                     >
@@ -456,7 +456,7 @@ function App() {
               <Route 
                 path="/purchase-orders/:id" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <PODetailPage />
                   </ProtectedRoute>
                 } 
@@ -465,7 +465,7 @@ function App() {
               <Route 
                 path="/direct-purchases" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <DirectPurchaseList />
                   </ProtectedRoute>
                 } 
@@ -485,7 +485,7 @@ function App() {
               <Route 
                 path="/phase-acceptances" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectOrRoleRoute
                       allowedRoles={RoleGroup.Reports}
                     >
@@ -498,7 +498,7 @@ function App() {
               <Route 
                 path="/inventory-adjustments" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <InventoryAdjustmentsPage />
                   </ProtectedRoute>
                 } 

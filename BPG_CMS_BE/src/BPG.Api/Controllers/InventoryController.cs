@@ -1,4 +1,5 @@
 using BPG.Application.Features.Inventory.Queries;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ namespace BPG.Api.Controllers
         /// Lấy tồn kho hiện tại của một dự án.
         /// </summary>
         [HttpGet]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetCurrentInventory(long projectId)
         {
             var query = new GetCurrentInventoryQuery(projectId);
@@ -24,6 +26,7 @@ namespace BPG.Api.Controllers
         /// Lấy lịch sử biến động kho (thẻ kho) của một dự án, có phân trang.
         /// </summary>
         [HttpGet("transactions")]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetInventoryTransactions(long projectId, [FromQuery] GetInventoryTransactionsQuery query)
         {
             query.ProjectId = projectId;

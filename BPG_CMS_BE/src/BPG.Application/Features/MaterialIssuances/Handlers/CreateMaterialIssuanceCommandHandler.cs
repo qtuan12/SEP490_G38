@@ -64,6 +64,15 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với công việc này.");
             }
 
+            if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+            {
+                var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                    member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                    cancellationToken);
+                if (!isProjectLeader)
+                    throw new ForbiddenException("Chỉ Trưởng dự án mới được tạo phiếu xuất vật tư.");
+            }
+
             // 2. Kiểm tra trạng thái dự án
             if (project.Status != ProjectStatus.InProgress)
             {

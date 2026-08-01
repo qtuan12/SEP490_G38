@@ -1,5 +1,5 @@
 ﻿import * as React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
 
@@ -31,6 +31,8 @@ import type { Project, MaterialRequest } from '../../types/common';
 import { useNavigate } from 'react-router-dom';
 import { DashboardStats } from '../Dashboard/components/DashboardStats';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities, RealtimeEntityGroups } from '../../constants/realtimeEntities';
 
 export const Dashboard: React.FC = () => {
   const { user, hasAnyRole } = useAuth();
@@ -45,6 +47,10 @@ export const Dashboard: React.FC = () => {
   const [projectExecData, setProjectExecData] = useState<any>(null);
   const [loadingProjectExec, setLoadingProjectExec] = useState<boolean>(false);
   const [hasLeaderProject, setHasLeaderProject] = useState(false);
+  const selectedProjectIdRef = React.useRef(selectedProjectId);
+  const executiveRequestSequenceRef = React.useRef(0);
+  const dashboardProjectsRequestSequenceRef = React.useRef(0);
+  selectedProjectIdRef.current = selectedProjectId;
 
   const navigate = useNavigate();
   const canManageUsers = hasAnyRole(RoleGroup.AdminOnly);
@@ -92,6 +98,90 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const fetchExecutiveDashboard = useCallback(async (projectId: string, showLoading = false) => {
+    const requestSequence = ++executiveRequestSequenceRef.current;
+    if (showLoading) setLoadingProjectExec(true);
+
+    try {
+      const numericId = parseInt(projectId.replace('p-', '')) || 0;
+      const data = await reportService.getExecutiveDashboard(numericId);
+      if (
+        executiveRequestSequenceRef.current === requestSequence
+        && selectedProjectIdRef.current === projectId
+      ) {
+        setProjectExecData(data);
+      }
+    } catch (err) {
+      console.error('Error loading project exec dashboard:', err);
+    } finally {
+      if (
+        executiveRequestSequenceRef.current === requestSequence
+        && selectedProjectIdRef.current === projectId
+      ) {
+        setLoadingProjectExec(false);
+      }
+    }
+  }, []);
+
+  const fetchDashboardProjects = useCallback(async (preserveSelection = false): Promise<string> => {
+    if (user?.role !== 'siteengineer') return selectedProjectIdRef.current;
+    const requestSequence = ++dashboardProjectsRequestSequenceRef.current;
+
+    try {
+      const data = await projectService.getProjects();
+      const activeProjects = data.filter(p => p.status !== 'draft');
+      const projectAccess = await Promise.all(
+        activeProjects.map(project => projectService.getMyAccess(project.id)),
+      );
+      const dashboardProjects = activeProjects.filter((_, index) =>
+        projectAccess[index]?.isMember || projectAccess[index]?.isLeader,
+      );
+      if (dashboardProjectsRequestSequenceRef.current !== requestSequence) {
+        return selectedProjectIdRef.current;
+      }
+
+      setProjects(dashboardProjects);
+      setHasLeaderProject(projectAccess.some(access => access.isLeader));
+      const currentSelection = selectedProjectIdRef.current;
+      const nextSelection = preserveSelection
+        && dashboardProjects.some(project => project.id === currentSelection)
+        ? currentSelection
+        : (dashboardProjects[0]?.id ?? '');
+      setSelectedProjectId(nextSelection);
+      return nextSelection;
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      return selectedProjectIdRef.current;
+    }
+  }, [user?.role]);
+
+  useRealtimeDataRefresh(async () => {
+    const refreshes: Promise<unknown>[] = [fetchWarnings(), fetchMetrics()];
+    if (canManageUsers) refreshes.push(fetchUsers());
+    if (canViewProcurement) refreshes.push(fetchMaterialRequests());
+    const requestedProjectId = selectedProjectIdRef.current;
+    if (requestedProjectId) {
+      refreshes.push(fetchExecutiveDashboard(requestedProjectId));
+    }
+    await Promise.all(refreshes);
+  }, [...RealtimeEntityGroups.projectOverview, ...RealtimeEntities.users].filter(
+    entity => entity !== 'Project' && entity !== 'ProjectMember',
+  ));
+
+  useRealtimeDataRefresh(async () => {
+    const previousProjectId = selectedProjectIdRef.current;
+    const projectIdToRefresh = await fetchDashboardProjects(true);
+    const refreshes: Promise<unknown>[] = [fetchWarnings(), fetchMetrics()];
+
+    // Nếu danh sách vẫn giữ lựa chọn cũ thì refresh dashboard tại đây. Nếu lựa
+    // chọn buộc đổi, effect selectedProjectId bên dưới sẽ tải đúng dự án mới.
+    if (projectIdToRefresh && projectIdToRefresh === previousProjectId) {
+      refreshes.push(fetchExecutiveDashboard(projectIdToRefresh));
+    }
+
+    await Promise.all(refreshes);
+  }, ['Project', 'ProjectMember']);
+
   useEffect(() => {
     if (canManageUsers) {
       fetchUsers();
@@ -103,42 +193,18 @@ export const Dashboard: React.FC = () => {
     fetchMetrics();
 
     // Fetch project list for dropdown filters
-    if (user?.role === 'siteengineer') {
-      projectService.getProjects()
-        .then(async (data) => {
-          const activeProjects = data.filter(p => p.status !== 'draft');
-          const projectAccess = await Promise.all(
-            activeProjects.map((project) => projectService.getMyAccess(project.id)),
-          );
-          const dashboardProjects = activeProjects.filter((_, index) =>
-            projectAccess[index]?.isMember || projectAccess[index]?.isLeader,
-          );
-          setProjects(dashboardProjects);
-          setHasLeaderProject(
-            projectAccess.some((access) => access.isLeader),
-          );
-          if (dashboardProjects.length > 0) {
-            setSelectedProjectId(dashboardProjects[0].id);
-          }
-        })
-        .catch((err) => console.error('Error fetching projects:', err));
-    }
-  }, [canManageUsers, canViewProcurement, user]);
+    void fetchDashboardProjects();
+  }, [canManageUsers, canViewProcurement, user, fetchDashboardProjects]);
 
   useEffect(() => {
     if (selectedProjectId) {
-      setLoadingProjectExec(true);
-      const numericId = parseInt(selectedProjectId.replace('p-', '')) || 0;
-      reportService.getExecutiveDashboard(numericId)
-        .then((data) => {
-          setProjectExecData(data);
-        })
-        .catch((err) => console.error('Error loading project exec dashboard:', err))
-        .finally(() => setLoadingProjectExec(false));
+      void fetchExecutiveDashboard(selectedProjectId, true);
     } else {
+      executiveRequestSequenceRef.current += 1;
       setProjectExecData(null);
+      setLoadingProjectExec(false);
     }
-  }, [selectedProjectId]);
+  }, [fetchExecutiveDashboard, selectedProjectId]);
 
   const pendingRequestsCount = materialRequests.filter(r => r.status === 'pending_accountant' || r.status === 'pending_director' || r.status === 'pending_disbursement').length;
   const overBOQPendingCount = materialRequests.filter(r => r.isOverBOQ && (r.status === 'pending_accountant' || r.status === 'pending_director')).length;

@@ -2,6 +2,7 @@ using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.Features.Comments.Commands;
 using BPG.Application.Features.DailyLogs.Commands;
 using BPG.Application.Features.DailyLogs.Queries;
+using BPG.Domain.Constants;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +17,7 @@ namespace BPG.Api.Controllers
         /// Lấy danh sách nhật ký thi công phân trang theo dự án (và tùy chọn theo công việc).
         /// </summary>
         [HttpGet]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetDailyLogs([FromQuery] GetDailyLogsQuery query)
         {
             var result = await Mediator.Send(query);
@@ -25,6 +27,7 @@ namespace BPG.Api.Controllers
         /// Lấy lịch sử thay đổi tiến độ của một công việc (Task progress history log).
         /// </summary>
         [HttpGet("tasks/{taskId:long}/progress-history")]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetTaskProgressHistory(long taskId)
         {
             var query = new GetTaskProgressHistoryQuery(taskId);
@@ -35,6 +38,7 @@ namespace BPG.Api.Controllers
         /// Tạo nhật ký thi công mới (bao gồm cập nhật tiến độ công việc và đính kèm danh sách URLs ảnh).
         /// </summary>
         [HttpPost]
+        [Authorize(Roles = UserRole.SiteEngineer)]
         public async Task<IActionResult> CreateDailyLog([FromBody] CreateDailyLogCommand command)
         {
             var result = await Mediator.Send(command);
@@ -45,6 +49,7 @@ namespace BPG.Api.Controllers
         /// Cập nhật nội dung nhật ký thi công (chỉ cập nhật mô tả và danh sách hình ảnh đính kèm).
         /// </summary>
         [HttpPut("{logId:long}")]
+        [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> UpdateDailyLog(long logId, [FromBody] UpdateDailyLogBody body)
         {
             var command = new UpdateDailyLogCommand
@@ -61,6 +66,7 @@ namespace BPG.Api.Controllers
         /// Thêm bình luận mới dưới một nhật ký thi công cụ thể.
         /// </summary>
         [HttpPost("{logId:long}/comments")]
+        [Authorize(Roles = RolePolicies.BusinessUsers)]
         public async Task<IActionResult> AddComment(long logId, [FromBody] AddCommentBody body)
         {
             var command = new AddCommentCommand

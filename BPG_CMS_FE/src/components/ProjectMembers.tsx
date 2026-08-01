@@ -1,13 +1,18 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { projectService } from '../services/projectService';
 import type { ProjectMember } from '../types/common';
-import { userService } from '../services/userService';
 import type { UserProfile } from '../services/authService';
 import { Modal } from './ui/Modal';
 import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
-import { useNotification } from '../context/NotificationContext';
-import { useSignalREvent } from '../hooks/useSignalREvent';
 import { useProjectAccess } from '../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../constants/realtimeEntities';
+
+const PROJECT_MEMBER_REALTIME_ENTITIES = [
+  ...RealtimeEntities.users,
+  'Project',
+  'ProjectMember',
+] as const;
 
 interface AvailableEngineer extends UserProfile {
   leaderProjectName?: string;
@@ -18,7 +23,6 @@ interface ProjectMembersProps {
 }
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => {
-  const { connection } = useNotification();
   const { canManageTechnical } = useProjectAccess(projectId);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);
@@ -32,30 +36,31 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<{id: string, name: string} | null>(null);
+  const loadRequestIdRef = React.useRef(0);
 
   const canManageMembers = canManageTechnical;
   const hasLeader = members.some(m => m.isLeader);
 
-  const loadData = async (bustCache = false) => {
-    setLoading(true);
-    setError(null);
+  const loadData = async (bustCache = false, silent = false) => {
+    const requestId = ++loadRequestIdRef.current;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const projMembers = await projectService.getMembers(projectId, bustCache);
+      if (requestId !== loadRequestIdRef.current) return;
       setMembers(projMembers);
 
-      // Only TPKT/Admin needs to load all users to add them
+      // TPKT hoặc trưởng dự án chỉ tải danh sách kỹ sư đủ điều kiện từ endpoint dự án.
       if (canManageMembers) {
-        const usersResponse = await userService.getUsers({ pageSize: 1000 });
-        const allUsers = usersResponse.items;
-        // Filter out those who are not engineers or are already members of this project
-        const engineers = allUsers.filter(u =>
-          u.role?.toLowerCase() === 'siteengineer' && !projMembers.some(m => m.userId === u.id)
-        );
+        const engineers = await projectService.getAvailableMembers(projectId);
 
         // Lấy tất cả dự án và thành viên để tìm thông tin trưởng nhóm
         const allProjects = await projectService.getProjects();
         const allMembersPromises = allProjects.map(p => projectService.getMembers(p.id));
         const allMembersArrays = await Promise.all(allMembersPromises);
+        if (requestId !== loadRequestIdRef.current) return;
         
         const leaderMap = new Map<string, string>();
         allMembersArrays.forEach((mems, index) => {
@@ -77,11 +82,16 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         }));
 
         setAvailableEngineers(engineersWithLeaderInfo);
+        setSelectedUserIds(current =>
+          current.filter(id => engineersWithLeaderInfo.some(engineer => engineer.id === id)),
+        );
       }
     } catch (err: any) {
-      setError(err.message || 'Không thể tải thành viên dự án.');
+      if (requestId !== loadRequestIdRef.current) return;
+      if (silent) console.error(err);
+      else setError(err.message || 'Không thể tải thành viên dự án.');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) setLoading(false);
     }
   };
 
@@ -89,34 +99,14 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     loadData();
   }, [projectId, canManageMembers]);
 
-  useEffect(() => {
-    if (!connection) return;
+  useEffect(() => () => {
+    loadRequestIdRef.current += 1;
+  }, [projectId, canManageMembers]);
 
-    const joinGroup = () => {
-      connection.invoke('JoinProjectGroup', Number(projectId))
-        .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
-    };
-
-    if (connection.state === 'Connected') {
-      joinGroup();
-    }
-
-    connection.onreconnected(joinGroup);
-
-    return () => {
-      if (connection.state === 'Connected') {
-        connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
-      }
-    };
-  }, [connection, projectId]);
-
-  useSignalREvent('ProjectLeaderUpdated', () => {
-    loadData(true); // bust cache to fetch fresh data
-  });
-
-  useSignalREvent('ProjectMemberAdded', () => {
-    loadData(true); // bust cache to refresh member list
-  });
+  useRealtimeDataRefresh(
+    () => loadData(true, true),
+    PROJECT_MEMBER_REALTIME_ENTITIES,
+  );
 
   const openAddModal = () => {
     setSelectedUserIds([]);
@@ -129,25 +119,23 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     if (selectedUserIds.length === 0) return;
 
     try {
-      const usersResponse = await userService.getUsers({ pageSize: 1000 });
-      const allUsers = usersResponse.items;
-
       await Promise.all(selectedUserIds.map(id => {
-        const targetUser = allUsers.find(u => u.id === id);
-        if (targetUser) {
-          return projectService.addMember(projectId, {
-            id: targetUser.id,
-            name: targetUser.name,
-            email: targetUser.email,
-            role: targetUser.role
-          });
-        }
+        const targetUser = availableEngineers.find(user => user.id === id);
+        if (!targetUser)
+          throw new Error('Kỹ sư đã chọn không còn khả dụng để thêm vào dự án.');
+
+        return projectService.addMember(projectId, {
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+          role: targetUser.role
+        });
       }));
 
       setSuccess(`Đã thêm ${selectedUserIds.length} kỹ sư vào dự án.`);
       setIsAddOpen(false);
       setTimeout(() => setSuccess(null), 3000);
-      loadData();
+      void loadData(true, true);
     } catch (err: any) {
       setError(err.message || 'Lỗi khi gán thành viên. Có thể một số thành viên đã tồn tại.');
     }
@@ -165,7 +153,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       await projectService.removeMember(projectId, memberToDelete.id);
       setSuccess(`Đã xóa kỹ sư ${memberToDelete.name} khỏi dự án.`);
       setTimeout(() => setSuccess(null), 3000);
-      loadData();
+      void loadData(true, true);
     } catch (err: any) {
       setError(err.message || 'Lỗi khi xóa thành viên.');
     } finally {
@@ -461,7 +449,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
               disabled={selectedUserIds.length === 0}
             >
               <UserPlus size={16} className="mr-1.5 sm:mr-2" />
-              Gán ({selectedUserIds.length})
+              Thêm ({selectedUserIds.length})
             </button>
           </div>
         </form>

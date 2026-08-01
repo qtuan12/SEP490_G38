@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../../components/ui';
 import { RefreshCw, PackageX } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -15,6 +15,18 @@ import { CreateTransferModal } from './modals/CreateTransferModal';
 import { CreateLiquidationModal } from './modals/CreateLiquidationModal';
 import type { SurplusRequestItem } from '../../types/surplus';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../constants/realtimeEntities';
+
+const SURPLUS_WORKSPACE_REALTIME_ENTITIES = [
+  ...RealtimeEntities.surplus,
+  ...RealtimeEntities.inventory.filter(
+    entity => entity === 'CurrentInventory' || entity === 'InventoryTransaction',
+  ),
+] as const;
 
 interface SurplusWorkspaceProps {
   projectId: number;
@@ -45,7 +57,28 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   const [liquidationItem, setLiquidationItem] = useState<SurplusRequestItem | null>(null);
 
 
-  const handleRefresh = () => setRefreshKey(k => k + 1);
+  const realtimeRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
+  const scheduleRealtimeRefresh = useCallback(() => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      handleRefresh();
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  }, [handleRefresh]);
+
+  useEffect(() => () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [projectId]);
+
+  // Some surplus actions do not send the legacy SurplusUpdated/notification
+  // event to every viewer. DataChanged keeps list/detail state in sync and the
+  // refresh key deliberately leaves the active view and parent modals intact.
+  useRealtimeDataRefresh(scheduleRealtimeRefresh, SURPLUS_WORKSPACE_REALTIME_ENTITIES, 0);
 
   // ── Join/Leave SignalR project group khi mở tab Xử lý Vật tư thừa ──
   useEffect(() => {
@@ -56,7 +89,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
       .catch(err => console.error('SurplusWorkspace: JoinProjectGroup error', err));
 
     const handleSurplusUpdated = (_payload: any) => {
-      handleRefresh();
+      scheduleRealtimeRefresh();
       toast('Dữ liệu Vật tư thừa đã được cập nhật!', { icon: '🔄' });
     };
 
@@ -67,13 +100,12 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
       connection.invoke('LeaveProjectGroup', numericProjectId)
         .catch(err => console.error('SurplusWorkspace: LeaveProjectGroup error', err));
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connection, projectId]);
+  }, [connection, projectId, scheduleRealtimeRefresh]);
 
   // ── Giữ lại listener ReceiveNotification cho các user có notification cá nhân ──
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'SurplusRequest') {
-      handleRefresh();
+      scheduleRealtimeRefresh();
     }
   });
 
@@ -114,7 +146,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
 
   const handleActionSuccess = () => {
     toast.success('Thao tác thành công!');
-    handleRefresh();
+    scheduleRealtimeRefresh();
   };
 
   return (
@@ -178,7 +210,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
           <SurplusRequestDetailTab
             surplusRequestId={selectedBatchId}
             onBack={handleBack}
-            onRefresh={handleRefresh}
+            onRefresh={scheduleRealtimeRefresh}
             onCreateReturn={item => setReturnItem(item)}
             onCreateTransfer={item => setTransferItem(item)}
             onCreateLiquidation={item => setLiquidationItem(item)}

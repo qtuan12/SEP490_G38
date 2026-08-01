@@ -126,7 +126,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
         </div>
       )}
 
-      {loading ? (
+      {loading && transactionsList.length === 0 ? (
         <div className="flex justify-center items-center py-10 gap-2">
           <LoadingSpinner />
           <span className="text-slate-500 text-sm">Đang tải lịch sử thẻ kho...</span>

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { materialService } from '../../../../services/materialService';
@@ -20,6 +20,7 @@ interface MaterialConversionDrawerProps {
 
 export const MaterialConversionDrawer: React.FC<MaterialConversionDrawerProps> = ({ isOpen, onClose, material, onSuccess }) => {
   const queryClient = useQueryClient();
+  const initializedMaterialIdRef = useRef<number | null>(null);
 
   const { data: unitsData } = useQuery({
     queryKey: ['units', 'all'],
@@ -39,7 +40,7 @@ export const MaterialConversionDrawer: React.FC<MaterialConversionDrawerProps> =
     reset,
     watch,
     setValue,
-    formState: { isSubmitting },
+    formState: { isSubmitting, isDirty },
   } = useForm<ConversionFormData>({
     defaultValues: { conversions: [] },
   });
@@ -50,15 +51,24 @@ export const MaterialConversionDrawer: React.FC<MaterialConversionDrawerProps> =
   });
 
   useEffect(() => {
+    if (!isOpen) {
+      initializedMaterialIdRef.current = null;
+      return;
+    }
+
+    const materialId = material?.materialId ?? null;
+    const materialChanged = initializedMaterialIdRef.current !== materialId;
     if (isOpen && conversions && !isLoadingConversions) {
+      if (!materialChanged && isDirty) return;
       reset({
         conversions: conversions.map(c => ({
           alternativeUnitId: c.alternativeUnitId,
           conversionRate: c.conversionRate,
         })),
       });
+      initializedMaterialIdRef.current = materialId;
     }
-  }, [isOpen, conversions, isLoadingConversions, reset]);
+  }, [isOpen, material?.materialId, conversions, isLoadingConversions, reset, isDirty]);
 
   const mutation = useMutation({
     mutationFn: async (data: ConversionFormData) => {
@@ -143,7 +153,11 @@ export const MaterialConversionDrawer: React.FC<MaterialConversionDrawerProps> =
                       <Select
                         options={[{ label: 'Chọn Đơn vị', value: '' }, ...unitOptions]}
                         value={watch(`conversions.${index}.alternativeUnitId`)?.toString() || ''}
-                        onChange={(e) => setValue(`conversions.${index}.alternativeUnitId`, Number(e.target.value))}
+                        onChange={(e) => setValue(
+                          `conversions.${index}.alternativeUnitId`,
+                          Number(e.target.value),
+                          { shouldDirty: true },
+                        )}
                         disabled={isSubmitting || mutation.isPending}
                         style={{ height: '36px' }}
                       />

@@ -24,7 +24,6 @@ public sealed class ProjectAccessService : IProjectAccessService
             throw new UnauthorizedException();
 
         if (_currentUser.IsInAnyRole(
-                BPG.Domain.Constants.UserRole.Admin,
                 BPG.Domain.Constants.UserRole.Director,
                 BPG.Domain.Constants.UserRole.TechnicalManager,
                 BPG.Domain.Constants.UserRole.Accountant))

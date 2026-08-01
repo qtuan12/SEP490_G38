@@ -11,6 +11,8 @@ import { TaskRow, formatAssignees } from '../../components/field/TaskRow';
 import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVisibleTasksForUser } from '../../utils/taskPermissions';
 import type { Project, WBSTask, DailyLog } from '../../types/common';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntityGroups } from '../../constants/realtimeEntities';
 
 const LAST_PROJECT_KEY = 'field_workbench_last_project';
 
@@ -91,6 +93,11 @@ export const FieldWorkbench: React.FC = () => {
       setRecentLogs(logsResult.items);
     }).catch(console.error).finally(() => { if (!silent) setLoadingDetail(false); });
   }, []);
+
+  useRealtimeDataRefresh(
+    () => projectId ? loadProjectDetail(projectId, true) : undefined,
+    RealtimeEntityGroups.projectOverview,
+  );
 
   useEffect(() => {
     if (!projectId) return;

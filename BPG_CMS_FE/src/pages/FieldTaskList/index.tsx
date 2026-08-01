@@ -9,6 +9,8 @@ import { TaskRow } from '../../components/field/TaskRow';
 import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVisibleTasksForUser } from '../../utils/taskPermissions';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import type { Project, WBSTask } from '../../types/common';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../../constants/realtimeEntities';
 
 export const FieldTaskList: React.FC = () => {
   const { user } = useAuth();
@@ -28,6 +30,19 @@ export const FieldTaskList: React.FC = () => {
       setTasks(tasksData.filter(t => t.status !== 'obsolete'));
     }).catch(console.error);
   }, []);
+
+  useRealtimeDataRefresh(async () => {
+    if (!projectId) return;
+    try {
+      const [projectData] = await Promise.all([
+        projectService.getProjectById(projectId),
+        loadTasks(projectId),
+      ]);
+      setProject(projectData);
+    } catch (err) {
+      console.error(err);
+    }
+  }, RealtimeEntities.projects);
 
   useEffect(() => {
     if (!projectId) {

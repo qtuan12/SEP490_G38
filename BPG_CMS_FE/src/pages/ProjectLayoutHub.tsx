@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../services/projectService';
@@ -152,6 +152,8 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const projectFetchRequestId = useRef(0);
 
   type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'directpurchases' | 'materialrequests';
   const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'directpurchases', 'materialrequests'];
@@ -189,16 +191,20 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const fetchProjectDetails = async (isInitial = true) => {
     if (!projectId) return;
+    const requestId = ++projectFetchRequestId.current;
     if (isInitial) setLoading(true);
     try {
       queryClient.invalidateQueries({ queryKey: ['projectIncidents', projectId] });
       const data = await projectService.getProjectById(projectId);
+      if (requestId !== projectFetchRequestId.current) return;
       setProject(data);
 
     } catch (err) {
       console.error('Error loading project details:', err);
     } finally {
-      if (isInitial) setLoading(false);
+      // A silent realtime request may supersede the initial request. Whichever
+      // request is newest must also be allowed to release the initial spinner.
+      if (requestId === projectFetchRequestId.current) setLoading(false);
     }
   };
 
@@ -206,14 +212,32 @@ export const ProjectLayoutHub: React.FC = () => {
     fetchProjectDetails(true);
   }, [projectId]);
 
+  useEffect(() => () => {
+    if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
+    realtimeRefreshTimer.current = null;
+    projectFetchRequestId.current += 1;
+  }, [projectId]);
+
+  const refreshProjectFromRealtime = () => {
+    if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
+    realtimeRefreshTimer.current = setTimeout(() => {
+      realtimeRefreshTimer.current = null;
+      fetchProjectDetails(false);
+      queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-access', String(projectId)] });
+    }, 120);
+  };
+
   useEffect(() => {
     if (!connection || !projectId) return;
 
     const numericProjectId = Number(projectId.replace('p-', ''));
-    if (isNaN(numericProjectId)) return;
+    if (!Number.isInteger(numericProjectId) || numericProjectId <= 0) return;
+
+    let active = true;
 
     const joinGroup = () => {
-      if (connection.state === 'Connected') {
+      if (active && connection.state === 'Connected') {
         connection.invoke('JoinProjectGroup', numericProjectId)
           .catch(err => console.error('SignalR JoinProjectGroup error in ProjectLayoutHub:', err));
       }
@@ -226,6 +250,7 @@ export const ProjectLayoutHub: React.FC = () => {
     connection.onreconnected(joinGroup);
 
     return () => {
+      active = false;
       if (connection.state === 'Connected') {
         connection.invoke('LeaveProjectGroup', numericProjectId)
           .catch(err => console.error('SignalR LeaveProjectGroup error in ProjectLayoutHub:', err));
@@ -233,34 +258,33 @@ export const ProjectLayoutHub: React.FC = () => {
     };
   }, [connection, projectId]);
 
+  // Một số workspace con cũng dùng chung project group và sẽ Leave khi đổi tab.
+  // Join lại sau mỗi lần đổi tab để màn hình cha luôn tiếp tục nhận realtime.
   useEffect(() => {
-    if (!connection || !projectId) return;
+    if (!connection || connection.state !== 'Connected' || !projectId) return;
+    const numericProjectId = Number(projectId.replace('p-', ''));
+    if (!Number.isInteger(numericProjectId) || numericProjectId <= 0) return;
+    connection.invoke('JoinProjectGroup', numericProjectId)
+      .catch(err => console.error('SignalR rejoin after tab change failed:', err));
+  }, [connection, projectId, activeTab]);
 
-    const handleWbsUpdated = () => {
-      console.log('ProjectLayoutHub received WbsTreeUpdated, reloading project details for progress...');
-      fetchProjectDetails(false);
-    };
-
-    connection.on('WbsTreeUpdated', handleWbsUpdated);
-
-    return () => {
-      connection.off('WbsTreeUpdated', handleWbsUpdated);
-    };
-  }, [connection, projectId]);
+  useSignalREvent('WbsTreeUpdated', refreshProjectFromRealtime);
+  useSignalREvent('ReceiveDailyLogCreated', refreshProjectFromRealtime);
+  useSignalREvent('ReceiveDailyLogUpdated', refreshProjectFromRealtime);
+  useSignalREvent('ProjectMemberAdded', refreshProjectFromRealtime);
+  useSignalREvent('ProjectMemberRemoved', refreshProjectFromRealtime);
+  useSignalREvent('ProjectLeaderUpdated', refreshProjectFromRealtime);
 
   useSignalREvent('IncidentUpdated', () => {
-    console.log('SignalR: IncidentUpdated received in ProjectLayoutHub, reloading project...');
-    fetchProjectDetails(false);
+    refreshProjectFromRealtime();
   });
 
   useSignalREvent('ProjectUpdated', () => {
-    console.log('SignalR: ProjectUpdated received in ProjectLayoutHub, reloading project...');
-    fetchProjectDetails(false);
+    refreshProjectFromRealtime();
   });
 
   useSignalREvent('IncidentCreated', () => {
-    console.log('SignalR: IncidentCreated received in ProjectLayoutHub, reloading project...');
-    fetchProjectDetails(false);
+    refreshProjectFromRealtime();
   });
 
   const handleStatusChange = async (newStatus: 'inprogress' | 'paused' | 'done') => {

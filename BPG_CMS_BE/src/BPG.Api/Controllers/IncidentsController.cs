@@ -11,7 +11,7 @@ namespace BPG.Api.Controllers;
 public class IncidentsController : BaseApiController
 {
     [HttpGet("all")]
-    [Authorize(Roles = RolePolicies.Reports)]
+    [Authorize(Roles = RolePolicies.DirectorTechnicalManagerAccountant)]
     public async Task<IActionResult> GetAllIncidents(CancellationToken ct)
     {
         var result = await Mediator.Send(new BPG.Application.Features.Incidents.Queries.GetAllIncidents.GetAllIncidentsQuery(), ct);
@@ -19,6 +19,7 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpGet("project/{projectId}")]
+    [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetIncidents(long projectId, CancellationToken ct)
     {
         var result = await Mediator.Send(new GetIncidentsQuery(projectId), ct);
@@ -26,6 +27,7 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> CreateAndAssessIncident([FromBody] CreateAndAssessIncidentCommand command, CancellationToken ct)
     {
         var result = await Mediator.Send(command, ct);
@@ -33,6 +35,7 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPut("{id}/confirm")]
+    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> ConfirmIncident(long id, [FromBody] ConfirmIncidentCommand command, CancellationToken ct)
     {
         if (id != command.IncidentId)
@@ -45,6 +48,7 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPut("{id}/reject")]
+    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> RejectIncident(long id, [FromBody] BPG.Application.Features.Incidents.Commands.RejectIncident.RejectIncidentCommand command, CancellationToken ct)
     {
         if (id != command.IncidentId)
