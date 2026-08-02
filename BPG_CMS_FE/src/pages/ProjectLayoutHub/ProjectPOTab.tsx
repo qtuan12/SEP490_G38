@@ -142,7 +142,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { connection } = useNotification();
-  const { canManageExecution, canManageAccounting } = useProjectAccess(projectId);
+  const { isProjectLeader, canManageAccounting } = useProjectAccess(projectId);
   const isAccountant = canManageAccounting;
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -296,7 +296,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
       return items;
     }
 
-    const canReceive = canManageExecution && (po.status === 'Sent' || po.status === 'PartiallyReceived');
+    const canReceive = isProjectLeader && (po.status === 'Sent' || po.status === 'PartiallyReceived');
     if (canReceive) {
       items.push({
         key: 'receive',

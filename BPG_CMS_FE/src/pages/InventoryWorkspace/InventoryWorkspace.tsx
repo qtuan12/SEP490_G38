@@ -48,6 +48,10 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const [activeSubTab, setActiveSubTab] = useState<'current' | 'receipts' | 'issuances' | 'ledger'>(
     (searchParams.get('subTab') as any) || 'current'
   );
+  const { isProjectLeader, canManageInventory } = useProjectAccess(projectId);
+  const canManageProjectInventory = isProjectLeader;
+  const canCreateReceipt = canManageProjectInventory;
+  const canCreateIssuance = canManageProjectInventory;
 
   useEffect(() => {
     const subTab = searchParams.get('subTab');
@@ -68,13 +72,17 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
   useEffect(() => {
     const openCreate = searchParams.get('openCreate');
-    if (openCreate === 'receipt' && activeSubTab === 'receipts') {
+    if (openCreate === 'receipt' && activeSubTab === 'receipts' && canCreateReceipt) {
       setIsCreateReceiptOpen(true);
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('openCreate');
       setSearchParams(newParams);
+    } else if (openCreate === 'receipt' && !canCreateReceipt) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('openCreate');
+      setSearchParams(newParams, { replace: true });
     }
-  }, [searchParams, activeSubTab]);
+  }, [searchParams, activeSubTab, canCreateReceipt, setSearchParams]);
 
   const handleSubTabChange = (subTab: 'current' | 'receipts' | 'issuances' | 'ledger') => {
     setActiveSubTab(subTab);
@@ -97,11 +105,6 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
   const [isCreateIssuanceOpen, setIsCreateIssuanceOpen] = useState(false);
   const [selectedIssuanceId, setSelectedIssuanceId] = useState<number | null>(null);
-
-  const { isProjectLeader, canManageInventory } = useProjectAccess(projectId);
-  const canUseProjectLeaderInventoryActions = isProjectLeader;
-  const canCreateReceipt = canUseProjectLeaderInventoryActions;
-  const canCreateIssuance = canUseProjectLeaderInventoryActions;
 
   // Tải thông tin kho hiện tại để làm dữ liệu thống kê
   useEffect(() => {
@@ -370,7 +373,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           isOpen={selectedReceiptId !== null}
           onClose={() => setSelectedReceiptId(null)}
           receiptId={selectedReceiptId}
-          canManageInventory={canManageInventory}
+          canManageInventory={canManageProjectInventory}
           onSuccess={handleRefreshAll}
         />
       )}
@@ -390,7 +393,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           onClose={() => setSelectedIssuanceId(null)}
           issuanceId={selectedIssuanceId}
           projectId={projectId}
-          canReturnMaterial={canUseProjectLeaderInventoryActions}
+          canReturnMaterial={canManageProjectInventory}
           onSuccess={() => setRefreshKey(prev => prev + 1)}
         />
       )}
