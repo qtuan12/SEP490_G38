@@ -7,7 +7,7 @@ const REFRESH_TOKEN_KEY = 'bpg_refresh_token';
 const USER_KEY = 'bpg_user';
 
 interface RequestOptions extends RequestInit {
-  params?: Record<string, string>;
+  params?: Record<string, string | number | boolean | undefined>;
 }
 
 function clearSessionAndRedirect() {
@@ -61,8 +61,14 @@ export const apiClient = {
     // Build URL with query params
     let url = `${BASE_URL}${endpoint}`;
     if (options.params) {
-      const searchParams = new URLSearchParams(options.params);
-      url += `?${searchParams.toString()}`;
+      const cleanParams = Object.entries(options.params)
+        .filter(([_, v]) => v !== undefined && v !== null && v !== '')
+        .reduce((acc, [k, v]) => ({ ...acc, [k]: String(v) }), {} as Record<string, string>);
+      const searchParams = new URLSearchParams(cleanParams);
+      const queryStr = searchParams.toString();
+      if (queryStr) {
+        url += `?${queryStr}`;
+      }
     }
 
     const config: RequestInit = {

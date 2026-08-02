@@ -87,13 +87,44 @@ public record BoqVsActualItemDto
     public string UnitName { get; init; } = string.Empty;
     public decimal BoqLimit { get; init; }
     public decimal TotalIssued { get; init; }
+    public decimal TotalReturned { get; init; }
+    public decimal NetConsumption => Math.Max(0, TotalIssued - TotalReturned);
     public decimal StockRemaining { get; init; }
     public decimal PendingPoQuantity { get; init; }
     public decimal PendingMrQuantity { get; init; }
-    public decimal TotalExpectedUsage => TotalIssued + StockRemaining + PendingPoQuantity + PendingMrQuantity;
-    public bool IsExceeding => TotalExpectedUsage > BoqLimit;
-    public decimal ExceededAmount => IsExceeding ? TotalExpectedUsage - BoqLimit : 0;
-    public decimal UsagePercent => BoqLimit > 0 ? Math.Round(TotalExpectedUsage / BoqLimit * 100, 1) : 0;
+    public decimal TotalExpectedUsage => NetConsumption + StockRemaining;
+    public bool IsExceeding => NetConsumption > BoqLimit;
+    public decimal ExceededAmount => IsExceeding ? NetConsumption - BoqLimit : 0;
+    public decimal UsagePercent => BoqLimit > 0 ? Math.Round(NetConsumption / BoqLimit * 100, 1) : 0;
+}
+
+// ============================================================
+// Inventory Movement & Reconciliation Report
+// ============================================================
+
+public record InventoryMovementReportDto
+{
+    public long ProjectId { get; init; }
+    public DateTime? FromDate { get; init; }
+    public DateTime? ToDate { get; init; }
+    public int TotalMaterials { get; init; }
+    public List<InventoryMovementItemDto> Items { get; init; } = new();
+}
+
+public record InventoryMovementItemDto
+{
+    public long MaterialId { get; init; }
+    public string MaterialCode { get; init; } = string.Empty;
+    public string MaterialName { get; init; } = string.Empty;
+    public string UnitName { get; init; } = string.Empty;
+    public decimal OpeningBalance { get; init; }
+    public decimal TotalReceived { get; init; }
+    public decimal TotalIssued { get; init; }
+    public decimal TotalReturned { get; init; }
+    public decimal TotalTransferredIn { get; init; }
+    public decimal TotalTransferredOut { get; init; }
+    public decimal TotalAdjustments { get; init; }
+    public decimal ClosingBalance { get; init; }
 }
 
 // ============================================================
