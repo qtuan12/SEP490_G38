@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Input, FormItem } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
-import { formatDateVN } from '../../../utils/inventoryHelpers';
+import { formatDateVN, formatQuantity, isGreaterThanQuantity, parseQuantityInput } from '../../../utils/inventoryHelpers';
 import type { MaterialIssuanceDetail, MaterialIssuanceItemDetail, MaterialReturn } from '../../../types/inventory';
 import {
   Calendar,
@@ -179,7 +179,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
           return {
             ...item,
             maxReturnableQty: maxReturnable,
-            quantity: parseFloat(item.quantity) > maxReturnable ? '' : item.quantity,
+            quantity: isGreaterThanQuantity(parseQuantityInput(item.quantity), maxReturnable) ? '' : item.quantity,
             error: null
           };
         })
@@ -198,11 +198,11 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
       let err: string | null = null;
 
       if (val !== '') {
-        const parsed = parseFloat(val);
+        const parsed = parseQuantityInput(val);
         if (isNaN(parsed) || parsed <= 0) {
           err = 'Số lượng phải lớn hơn 0.';
-        } else if (parsed > maxQty) {
-          err = `Tối đa: ${maxQty.toLocaleString('vi-VN')}`;
+        } else if (isGreaterThanQuantity(parsed, maxQty)) {
+          err = `Tối đa: ${formatQuantity(maxQty)}`;
         }
       }
 
@@ -241,7 +241,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         items: activeItems.map(i => ({
           materialId: i.materialId,
           unitId: i.unitId,
-          quantity: parseFloat(i.quantity),
+          quantity: parseQuantityInput(i.quantity),
           conversionRate: i.conversionRate
         }))
       });
@@ -411,7 +411,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
                             {item.quantity.toLocaleString('vi-VN')} <span className="text-slate-500 font-normal">{item.unitName}</span>
                             {returnable < item.quantity && (
                               <span className="block text-[10px] text-amber-600 font-semibold">
-                                (Còn có thể trả: {returnable.toLocaleString('vi-VN')} {item.unitName})
+                                (Còn có thể trả: {formatQuantity(returnable)} {item.unitName})
                               </span>
                             )}
                           </td>
@@ -536,7 +536,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
 
                             {/* Khả dụng còn lại */}
                             <div className="text-slate-500">
-                              Tối đa: <span className="font-semibold text-slate-700">{item.maxReturnableQty.toLocaleString('vi-VN')}</span> {item.unitName}
+                              Tối đa: <span className="font-semibold text-slate-700">{formatQuantity(item.maxReturnableQty)}</span> {item.unitName}
                             </div>
 
                             {/* Input số lượng trả */}

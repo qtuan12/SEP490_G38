@@ -63,3 +63,20 @@ export const formatDateVN = (dateString: string): string => {
   const year = d.getFullYear();
   return `${day}/${month}/${year}`;
 };
+
+export const parseQuantityInput = (value: string): number => {
+  return Number(value.trim().replace(',', '.'));
+};
+
+export const formatQuantity = (value: number, maximumFractionDigits = 3): string => {
+  if (!Number.isFinite(value)) return '0';
+  const normalized = Math.abs(value) < 1e-9 ? 0 : value;
+  return new Intl.NumberFormat('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  }).format(normalized);
+};
+
+export const isGreaterThanQuantity = (value: number, max: number, epsilon = 1e-9): boolean => {
+  return value - max > epsilon;
+};
