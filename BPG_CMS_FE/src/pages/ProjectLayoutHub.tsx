@@ -28,6 +28,7 @@ import {
   PackageMinus,
   ShoppingCart,
   ShoppingBag,
+  Truck,
   FileSignature,
   ClipboardList,
   History,
@@ -37,6 +38,7 @@ import { SurplusWorkspace } from './SurplusWorkspace/SurplusWorkspace';
 import { ProjectIncidents } from './ProjectIncidents';
 import { ProjectPOTab } from './ProjectLayoutHub/ProjectPOTab';
 import { ProjectDirectPurchaseTab } from './ProjectLayoutHub/ProjectDirectPurchaseTab';
+import { ProjectRelatedSuppliersTab } from './ProjectLayoutHub/ProjectRelatedSuppliersTab';
 import { AdjustmentList } from './InventoryAdjustments/components/AdjustmentList';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
@@ -157,8 +159,8 @@ export const ProjectLayoutHub: React.FC = () => {
   const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectFetchRequestId = useRef(0);
 
-  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'directpurchases' | 'materialrequests';
-  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'directpurchases', 'materialrequests'];
+  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'suppliers' | 'directpurchases' | 'materialrequests';
+  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'suppliers', 'directpurchases', 'materialrequests'];
 
   const [activeTab, setActiveTab] = useState<TabKey>(
     (() => {
@@ -783,6 +785,28 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Đơn hàng</span>
         </button>
 
+        <button
+          onClick={() => handleTabChange('suppliers')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'suppliers' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'suppliers' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'suppliers' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <Truck size={18} />
+          <span>{'NCC \u0111\u00e3 giao d\u1ecbch'}</span>
+        </button>
+
         {canManageDirectPurchase && (
           <button
             onClick={() => handleTabChange('directpurchases')}
@@ -898,6 +922,7 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} projectName={project.name} />}
         {activeTab === 'inventoryincidents' && <GlobalInventoryIncidents projectId={Number(project.id)} />}
         {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} />}
+        {activeTab === 'suppliers' && <ProjectRelatedSuppliersTab projectId={Number(project.id)} />}
         {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} />}
       </div>
 
