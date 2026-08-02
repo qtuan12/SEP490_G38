@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Modal, Button } from '../../../components/ui';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
 import { incidentService } from '../../../services/incidentService';
@@ -16,7 +16,7 @@ interface Props {
 }
 
 export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, adjustmentId, adjustmentData }) => {
-  const { canApprove } = useProjectAccess(adjustmentData?.projectId);
+  const { canManageTechnical, canApprove } = useProjectAccess(adjustmentData?.projectId);
   const [loading, setLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [mode, setMode] = useState<'view' | 'reject' | 'confirmApprove'>('view');
@@ -53,15 +53,15 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
     }
   }, [isOpen, adjustmentData]);
 
-  const canReview = canApprove;
+  const canReview = adjustmentData?.adjustmentType === 'Increase' ? (canManageTechnical || canApprove) : canApprove;
   const isPending = adjustmentData?.status === 'Pending';
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'Pending':    return 'Chờ duyệt';
-      case 'Approved':   return 'Đã duyệt';
-      case 'Rejected':   return 'Đã từ chối';
-      default:           return status;
+      case 'Pending': return 'Chờ duyệt';
+      case 'Approved': return 'Đã duyệt';
+      case 'Rejected': return 'Đã từ chối';
+      default: return status;
     }
   };
 
@@ -69,7 +69,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
     switch (status) {
       case 'Approved': return 'text-[hsl(var(--success))]';
       case 'Rejected': return 'text-[hsl(var(--danger))]';
-      default:         return 'text-amber-600';
+      default: return 'text-amber-600';
     }
   };
 
@@ -170,7 +170,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Chi tiết Phiếu Kiểm Kê #${adjustmentData.adjustmentId}`} width="lg">
       <div className="flex flex-col gap-4">
-        
+
         <div className="border border-gray-800 rounded-2xl p-5 bg-white flex flex-col gap-4 text-sm">
           <h4 className="font-semibold text-sm text-gray-900 border-b border-gray-300 pb-3">
             Thông tin chung
@@ -200,16 +200,16 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
               <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Lý do điều chỉnh</span>
               <strong className="text-gray-900">{adjustmentData.reason}</strong>
             </div>
-            
+
             {accountantNote && (
               <div className="col-span-2 flex flex-col gap-1 mt-2">
-                <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Ghi chú của kế toán</span>
+                <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Ghi chú</span>
                 <div className="bg-slate-50 p-3 rounded-xl border border-gray-200 text-gray-800 whitespace-pre-wrap leading-relaxed mt-1">
                   {accountantNote}
                 </div>
               </div>
             )}
-            
+
             {adjustmentData.rejectedReason && (
               <div className="col-span-2 flex flex-col gap-1 mt-2">
                 <span className="text-red-500 text-xs uppercase tracking-wider font-semibold">Lý do từ chối</span>
@@ -226,7 +226,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
             <h4 className="font-semibold text-sm text-gray-900 border-b border-gray-300 pb-3">
               Thông tin sự cố đính kèm
             </h4>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: allImages.length > 0 ? '1.8fr 1fr' : '1fr', gap: '20px' }}>
               <div className="flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-4">
