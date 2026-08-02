@@ -14,6 +14,7 @@ import { DailyLogCard } from './DailyLogCard';
 import { useSearchParams } from 'react-router-dom';
 import { useProjectAccess } from '../../../../hooks/useProjectAccess';
 import { canCreateDailyLog } from '../../../../utils/taskPermissions';
+import { RoleGroup } from '../../../../auth/roles';
 
 const PAGE_SIZE = 4;
 
@@ -66,8 +67,9 @@ interface DailyLogFeedProps {
 }
 
 export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId }) => {
-  const { user } = useAuth();
-  const { canManageExecution, canManageTechnical, isProjectLeader } = useProjectAccess(projectId);
+  const { user, hasAnyRole } = useAuth();
+  const { canManageExecution, isProjectLeader } = useProjectAccess(projectId);
+  const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
   const { connection } = useNotification();
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
@@ -609,8 +611,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           editLog={editLog}
           engineerId={user.id}
           engineerName={user.name}
-          isPL={canManageExecution}
-          canManageTechnical={canManageTechnical}
+          isPL={isProjectLeader}
+          canManageTechnical={canDecreaseDailyLogProgress}
           onSuccess={() => {
             loadData();
           }}

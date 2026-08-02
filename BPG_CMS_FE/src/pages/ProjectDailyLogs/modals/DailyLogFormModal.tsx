@@ -73,17 +73,18 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   }, [task, taskId, tasks, editLog]);
 
   const minProgress = currentTask ? currentTask.progress : 0;
+  const sliderMin = canManageTechnical ? 0 : minProgress;
   const isProgressDisabled = !currentTask || (!canManageTechnical && currentTask.progress === 100);
+  const hasTaskAssignee = currentTask?.assignedTo?.split(',').some(id => id.trim().length > 0) ?? false;
   const isAssignedEngineer = !!currentTask
     && !!engineerId
     && (currentTask.assignedTo?.split(',').map(id => id.trim()).includes(String(engineerId)) ?? false);
-  const canCreateForCurrentTask = isEditMode || canManageTechnical || isPL || isAssignedEngineer;
+  const canCreateForCurrentTask = isEditMode || (hasTaskAssignee && (canManageTechnical || isPL || isAssignedEngineer));
 
   const schema = React.useMemo(() => {
-    const minVal = canManageTechnical ? 0 : minProgress;
     return z.object({
       progress: z.number()
-        .min(minVal, `Tiến độ không được nhỏ hơn tiến độ hiện tại (${minVal}%).`)
+        .min(sliderMin, `Tiến độ không được nhỏ hơn tiến độ hiện tại (${sliderMin}%).`)
         .max(100),
       content: z.string().trim()
     }).refine(data => {
@@ -103,7 +104,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       message: 'Vui lòng nhập chi tiết diễn biến thi công (tối thiểu 5 ký tự).',
       path: ['content']
     });
-  }, [minProgress, canManageTechnical]);
+  }, [minProgress, sliderMin]);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<DailyLogForm>({
     resolver: zodResolver(schema),
@@ -114,6 +115,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   });
 
   const progress = watch('progress');
+  const displayedProgress = !isEditMode && progress < sliderMin ? sliderMin : progress;
 
   useEffect(() => {
     setUploadedFiles([]);
@@ -128,13 +130,19 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       setExistingImages([]);
       if (currentTask) {
         reset({
-          progress: currentTask.progress,
+          progress: sliderMin,
           content: ''
         });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTask?.id, editLog]);
+  }, [currentTask?.id, editLog, sliderMin]);
+
+  useEffect(() => {
+    if (!isEditMode && progress < sliderMin) {
+      setValue('progress', sliderMin);
+    }
+  }, [isEditMode, progress, setValue, sliderMin]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -255,7 +263,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
         return projectService.updateDailyLog(editLog.id, data.content, allImages);
       } else {
         if (!currentTask) throw new Error('Vui lòng chọn công việc hợp lệ.');
-        if (!canCreateForCurrentTask) throw new Error('Bạn không có quyền tạo nhật ký cho công việc này.');
+        if (!canCreateForCurrentTask) throw new Error('Công việc chưa được phân công hoặc bạn không có quyền tạo nhật ký cho công việc này.');
         return projectService.createDailyLog({
           projectId: currentTask.projectId,
           taskId: currentTask.id,
@@ -291,7 +299,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
   const onSubmit = (data: DailyLogForm) => {
     if (!canCreateForCurrentTask) {
-      toast.error('Bạn không có quyền tạo nhật ký cho công việc này.');
+      toast.error('Công việc chưa được phân công hoặc bạn không có quyền tạo nhật ký cho công việc này.');
       return;
     }
 
@@ -334,7 +342,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-sm font-medium text-slate-700">Tiến độ hoàn thành (%)</label>
-                <strong className="text-blue-600 text-lg">{progress}%</strong>
+                <strong className="text-blue-600 text-lg">{displayedProgress}%</strong>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-slate-500 whitespace-nowrap">
@@ -343,16 +351,19 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 <input
                   type="range"
                   {...register('progress', { 
-                    valueAsNumber: true,
-                    onChange: (e) => {
-                      const val = Number(e.target.value);
-                      if (!canManageTechnical && val < minProgress) {
-                        setValue('progress', minProgress);
-                      }
-                    }
+                    valueAsNumber: true
                   })}
-                  min={canManageTechnical ? 0 : minProgress}
+                  value={displayedProgress}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setValue('progress', Math.max(val, sliderMin), {
+                      shouldDirty: true,
+                      shouldValidate: true
+                    });
+                  }}
+                  min={sliderMin}
                   max={100}
+                  step={1}
                   className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={isProgressDisabled}
                 />
@@ -578,7 +589,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
           {!canCreateForCurrentTask && !isEditMode && (
             <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              Bạn không được phân công vào công việc này nên không thể tạo nhật ký.
+              Công việc chưa được phân công hoặc bạn không có quyền tạo nhật ký cho công việc này.
             </div>
           )}
 

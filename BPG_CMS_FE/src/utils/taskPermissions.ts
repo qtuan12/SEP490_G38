@@ -18,6 +18,9 @@ export const isProjectWideView = (
 const isAssignedTo = (task: WBSTask, userId?: string): boolean =>
   !!userId && (task.assignedTo?.split(',').map(s => s.trim()).includes(String(userId)) ?? false);
 
+const hasAssignee = (task: WBSTask): boolean =>
+  task.assignedTo?.split(',').some(id => id.trim().length > 0) ?? false;
+
 /**
  * Danh sách task hiển thị theo view của user:
  * - Không phải project-wide (Site Engineer thường): chỉ lấy task được gán cho mình.
@@ -40,6 +43,7 @@ export const canCreateDailyLog = (
   user: { id: string; role: string } | null | undefined,
   isProjectLeader: boolean
 ): boolean => {
+  if (!hasAssignee(task)) return false;
   if (isManagerRole(user) || isProjectLeader) return true;
   if (!user) return false;
   return isAssignedTo(task, user.id);
