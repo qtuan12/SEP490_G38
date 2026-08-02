@@ -121,6 +121,22 @@ public static class NotificationReferenceType
     public const string Project = "Project";
 }
 
+/// <summary>
+/// Đường dẫn workspace gửi kèm thông báo, đặt vào chỗ referenceType.
+/// Frontend nhận diện chuỗi bắt đầu bằng '/' là đường dẫn (xem resolveNotificationUrl) và
+/// dựng URL mở thẳng chi tiết phiếu trong phạm vi dự án, để bấm quay lại thì về đúng
+/// danh sách của dự án đó thay vì danh sách tổng.
+/// referenceId đi kèm phải là id của chính phiếu được nhắc tới.
+/// </summary>
+public static class NotificationLink
+{
+    public static string ProjectDirectPurchases(long projectId) =>
+        $"/projects/{projectId}/workspace/directpurchases";
+
+    public static string ProjectPurchaseOrders(long projectId) =>
+        $"/projects/{projectId}/workspace/purchaseorders";
+}
+
 public static class EntityType
 {
     public const string Project = "Project";
