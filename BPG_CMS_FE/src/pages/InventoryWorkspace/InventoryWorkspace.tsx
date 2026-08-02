@@ -200,15 +200,15 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   useSignalREvent('InventoryAdjustmentUpdated', () => handleRefreshAll());
   useRealtimeDataRefresh(handleRefreshAll, INVENTORY_REALTIME_ENTITIES, 0);
 
-  const handleCreateReceiptSuccess = () => {
+  const handleCreateReceiptSuccess = (message?: string) => {
     setIsCreateReceiptOpen(false);
-    toast.success('Đã tạo phiếu nhập kho. Tồn kho đã được cập nhật.');
+    toast.success(message || 'Đã tạo phiếu nhập kho. Tồn kho đã được cập nhật.');
     handleRefreshAll();
   };
 
-  const handleCreateIssuanceSuccess = () => {
+  const handleCreateIssuanceSuccess = (message?: string) => {
     setIsCreateIssuanceOpen(false);
-    toast.success('Đã tạo phiếu xuất kho. Tồn kho đã được cập nhật.');
+    toast.success(message || 'Đã tạo phiếu xuất kho. Tồn kho đã được cập nhật.');
     handleRefreshAll();
   };
 

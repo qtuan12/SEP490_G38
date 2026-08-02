@@ -255,8 +255,8 @@ export const CreateRecoveryPlanForm: React.FC<CreateRecoveryPlanFormProps> = ({
         recoveryEstimateCost: undefined,
       });
     },
-    onSuccess: () => {
-      toast.success('Đã trình hồ sơ lên Giám đốc phê duyệt');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã trình hồ sơ lên Giám đốc phê duyệt');
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['globalIncidents'] });
       onSuccess('Trình hồ sơ thành công');

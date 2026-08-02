@@ -103,9 +103,9 @@ export const UserManagement: React.FC = () => {
   const handleDeleteSubmit = async () => {
     if (!selectedUser) return;
     try {
-      await userService.deleteUser(selectedUser.id);
+      const result = await userService.deleteUser(selectedUser.id);
       setIsDeleteOpen(false);
-      showSuccess(`Đã xoá tài khoản ${selectedUser.name} khỏi hệ thống.`);
+      showSuccess(result.message || `Đã xoá tài khoản ${selectedUser.name} khỏi hệ thống.`);
       setSelectedUser(null);
       loadAllUsers();
     } catch (err: any) {
@@ -115,8 +115,8 @@ export const UserManagement: React.FC = () => {
 
   const handleToggleStatus = async (id: string, name: string) => {
     try {
-      const updated = await userService.toggleUserStatus(id);
-      showSuccess(`Đã ${updated.status === 'active' ? 'mở khoá' : 'khoá'} tài khoản ${name}.`);
+      const result = await userService.toggleUserStatus(id);
+      showSuccess(result.message || `Đã ${result.data.status === 'active' ? 'mở khoá' : 'khoá'} tài khoản ${name}.`);
       loadAllUsers();
     } catch (err: any) {
       toast.error(err.message || 'Không thể thay đổi trạng thái tài khoản.');

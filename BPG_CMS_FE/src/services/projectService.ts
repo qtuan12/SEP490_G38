@@ -248,7 +248,7 @@ export const projectService = {
     return projects.find(p => p.id === normalizedId || p.id === id) || null;
   },
 
-  async createProject(project: Omit<Project, 'id' | 'progress'>): Promise<Project> {
+  async createProject(project: Omit<Project, 'id' | 'progress'>): Promise<Project & { __message?: string }> {
     if (!USE_MOCK_API) {
       let attachments = [];
       
@@ -301,7 +301,8 @@ export const projectService = {
         status: res.data.status.toLowerCase() as any,
         drawingUrl: project.drawingUrl || (project.drawingUrls?.[0]),
         drawingUrls: project.drawingUrls,
-        progress: 0
+        progress: 0,
+        __message: res.message || ''
       };
     }
     const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
@@ -316,17 +317,18 @@ export const projectService = {
     return newProj;
   },
 
-  async deleteProject(projectId: string): Promise<void> {
+  async deleteProject(projectId: string): Promise<string> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}`);
       if (!res.success) throw new Error(res.message || 'Không thể xóa dự án.');
-      return;
+      return res.message || '';
     }
     const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
     const updated = projects.filter(p => p.id !== projectId);
     if (updated.length === projects.length) throw new Error('Không tìm thấy dự án để xóa');
     setStorage('bpg_projects', updated);
+    return '';
   },
 
   async updateProject(id: string, updates: Partial<Project>): Promise<Project> {
@@ -474,7 +476,7 @@ export const projectService = {
       user.status === 'active' && !members.some(member => member.userId === user.id));
   },
 
-  async addMember(projectId: string, user: { id: string; name: string; email: string; role: string }): Promise<ProjectMember> {
+  async addMember(projectId: string, user: { id: string; name: string; email: string; role: string }): Promise<ProjectMember & { __message?: string }> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.post<ApiResponse<any>>(`/projects/${parsedId}/members`, { 
@@ -489,7 +491,8 @@ export const projectService = {
         userName: user.name,
         userEmail: user.email,
         userRole: user.role,
-        isLeader: false
+        isLeader: false,
+        __message: res.message || ''
       };
     }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
@@ -512,26 +515,29 @@ export const projectService = {
     return newMember;
   },
 
-  async removeMember(projectId: string, userId: string): Promise<void> {
+  async removeMember(projectId: string, userId: string): Promise<string> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}`);
       if (!res.success) throw new Error(res.message || 'Không thể xóa thành viên.');
       projectDetailCache.delete(parsedId);
-      return;
+      return res.message || '';
     }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     const filtered = allMembers.filter(m => !(m.projectId === projectId && m.userId === userId));
     setStorage('bpg_project_members', filtered);
+    return '';
   },
 
-  async toggleLeader(projectId: string, userId: string): Promise<ProjectMember[]> {
+  async toggleLeader(projectId: string, userId: string): Promise<ProjectMember[] & { __message?: string }> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}/leader`);
       if (!res.success) throw new Error(res.message || 'Không thể thay đổi quyền nhóm trưởng.');
       projectDetailCache.delete(parsedId);
-      return this.getMembers(projectId);
+      const members = await this.getMembers(projectId) as ProjectMember[] & { __message?: string };
+      members.__message = res.message || '';
+      return members;
     }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     const updated = allMembers.map(m => {
@@ -1818,15 +1824,15 @@ export const projectService = {
     return total;
   },
 
-  async cancelMaterialRequest(requestId: string, reason: string): Promise<void> {
+  async cancelMaterialRequest(requestId: string, reason: string): Promise<string> {
     if (!USE_MOCK_API) {
       const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
       const res = await apiClient.post<ApiResponse<any>>(`/materialrequests/${parsedRequestId}/cancel`, {
         requestId: parseInt(parsedRequestId),
         reason: reason
       });
-      if (!res.success) throw new Error(res.message || 'Không thể hủy yêu cầu.');
-      return;
+      if (!res.success) throw new Error(res.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0068\u1ee7\u0079 \u0079\u00eau \u0063\u1ea7\u0075.');
+      return res.message || '';
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -1840,6 +1846,7 @@ export const projectService = {
     list[idx].status = 'rejected';
     list[idx].rejectionReason = `Người tạo tự hủy: ${reason}`;
     setStorage('bpg_material_requests', list);
+    return '';
   },
 
   async processMaterialRequestByAccountant(requestId: string, note?: string): Promise<MaterialRequest> {
@@ -1852,8 +1859,8 @@ export const projectService = {
       if (!res.success) throw new Error(res.message || 'Kế toán không thể xử lý yêu cầu.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu.');
-      return this.mapRequestDtoToCommon(detailRes.data);
+      if (!detailRes.success) throw new Error(detailRes.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0074\u1ea3\u0069 \u0074\u0068\u00f4\u006e\u0067 \u0074\u0069\u006e \u0079\u00eau \u0063\u1ea7\u0075.');
+      return { ...this.mapRequestDtoToCommon(detailRes.data), __message: res.message || '' } as MaterialRequest & { __message?: string };
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -1902,8 +1909,8 @@ export const projectService = {
       if (!res.success) throw new Error(res.message || 'Không thể giải ngân.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu.');
-      return this.mapRequestDtoToCommon(detailRes.data);
+      if (!detailRes.success) throw new Error(detailRes.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0074\u1ea3\u0069 \u0074\u0068\u00f4\u006e\u0067 \u0074\u0069\u006e \u0079\u00eau \u0063\u1ea7\u0075.');
+      return { ...this.mapRequestDtoToCommon(detailRes.data), __message: res.message || '' } as MaterialRequest & { __message?: string };
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -1929,8 +1936,8 @@ export const projectService = {
       if (!res.success) throw new Error(res.message || 'Giám đốc không thể phê duyệt yêu cầu.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu.');
-      return this.mapRequestDtoToCommon(detailRes.data);
+      if (!detailRes.success) throw new Error(detailRes.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0074\u1ea3\u0069 \u0074\u0068\u00f4\u006e\u0067 \u0074\u0069\u006e \u0079\u00eau \u0063\u1ea7\u0075.');
+      return { ...this.mapRequestDtoToCommon(detailRes.data), __message: res.message || '' } as MaterialRequest & { __message?: string };
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -1977,8 +1984,8 @@ export const projectService = {
       if (!res.success) throw new Error(res.message || 'Không thể từ chối yêu cầu.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu.');
-      return this.mapRequestDtoToCommon(detailRes.data);
+      if (!detailRes.success) throw new Error(detailRes.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0074\u1ea3\u0069 \u0074\u0068\u00f4\u006e\u0067 \u0074\u0069\u006e \u0079\u00eau \u0063\u1ea7\u0075.');
+      return { ...this.mapRequestDtoToCommon(detailRes.data), __message: res.message || '' } as MaterialRequest & { __message?: string };
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -2087,8 +2094,8 @@ export const projectService = {
 
       // Lấy lại chi tiết phiếu sau khi resubmit
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu.');
-      return this.mapRequestDtoToCommon(detailRes.data);
+      if (!detailRes.success) throw new Error(detailRes.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0074\u1ea3\u0069 \u0074\u0068\u00f4\u006e\u0067 \u0074\u0069\u006e \u0079\u00eau \u0063\u1ea7\u0075.');
+      return { ...this.mapRequestDtoToCommon(detailRes.data), __message: res.message || '' } as MaterialRequest & { __message?: string };
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);

@@ -87,8 +87,8 @@ export const ProjectList: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      await projectService.deleteProject(projectToDelete.id);
-      toast.success('Đã xóa dự án.');
+      const message = await projectService.deleteProject(projectToDelete.id);
+      toast.success(message || 'Đã xóa dự án.');
       loadProjects();
     } catch (err: any) {
       toast.error(err.message || 'Không thể xóa dự án.');
@@ -320,8 +320,8 @@ export const ProjectList: React.FC = () => {
       <CreateProjectModal
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        onSuccess={() => {
-          toast.success('Đã khởi tạo dự án.');
+        onSuccess={(message) => {
+          toast.success(message || 'Đã khởi tạo dự án.');
           loadProjects();
         }}
       />

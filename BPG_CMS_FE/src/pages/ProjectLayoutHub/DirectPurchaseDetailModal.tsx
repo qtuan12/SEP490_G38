@@ -77,11 +77,11 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
   // Giám đốc chỉ thao tác khi Kế toán đã soát và phiếu vượt định mức.
   const canDoDirector = !!canApproveSpending && detail?.status === DP_STATUS.WaitingApproval;
 
-  const run = async (fn: () => Promise<unknown>, successMsg: string) => {
+  const run = async (fn: () => Promise<{ message?: string }>, successMsg: string) => {
     setSubmitting(true);
     try {
-      await fn();
-      toast.success(successMsg);
+      const result = await fn();
+      toast.success(result.message || successMsg);
       onAudited();
       onClose();
     } catch (err: any) {

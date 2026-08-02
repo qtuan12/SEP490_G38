@@ -50,11 +50,10 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, o
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
       if (!user) throw new Error('Không có user');
-      await userService.updateUser(user.id, data);
-      return data;
+      return userService.updateUser(user.id, data);
     },
-    onSuccess: (data) => {
-      onSuccess(`Đã cập nhật tài khoản ${data.name} thành công.`);
+    onSuccess: (result) => {
+      onSuccess(result.message || `Đã cập nhật tài khoản ${result.data.name} thành công.`);
       onClose();
     }
   });

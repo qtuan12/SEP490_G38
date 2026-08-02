@@ -56,13 +56,11 @@ export const SupplierManagement: React.FC = () => {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await supplierService.deleteSupplier(id);
-    },
-    onSuccess: () => {
+    mutationFn: async (id: number) => supplierService.deleteSupplier(id),
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
       setIsDeleteOpen(false);
-      showSuccess(`Đã xóa nhà cung cấp ${selectedSupplier?.supplierName} thành công.`);
+      showSuccess(result.message || `Đã xóa nhà cung cấp ${selectedSupplier?.supplierName} thành công.`);
       setSelectedSupplier(null);
     },
     onError: (err: any) => {

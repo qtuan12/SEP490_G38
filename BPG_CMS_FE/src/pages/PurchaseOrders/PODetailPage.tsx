@@ -88,8 +88,8 @@ export const PODetailPage: React.FC = () => {
 
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(poId, cancelReason),
-    onSuccess: () => {
-      toast.success('Đã hủy đơn mua hàng.');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã hủy đơn mua hàng.');
       setShowCancelModal(false);
       setCancelReason('');
       queryClient.invalidateQueries({ queryKey: ['po-detail', poId] });
@@ -104,8 +104,8 @@ export const PODetailPage: React.FC = () => {
 
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(poId, closeReason),
-    onSuccess: () => {
-      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
       setShowCloseModal(false);
       setCloseReason('');
       queryClient.invalidateQueries({ queryKey: ['po-detail', poId] });

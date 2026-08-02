@@ -1,5 +1,6 @@
 import { apiClient } from './api';
 import type { Notification } from '../types/notification';
+import type { ApiResult } from '../types/api';
 
 export interface PagedList<T> {
   items: T[];
@@ -18,6 +19,11 @@ const unwrap = <T>(res: ApiResponse<T>): T => {
   return res.data;
 };
 
+const unwrapWithMessage = <T>(res: ApiResponse<T>): ApiResult<T> => {
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
+  return { data: res.data, message: res.message || '' };
+};
+
 export const notificationService = {
   async getNotifications(page: number = 1, size: number = 10): Promise<PagedList<Notification>> {
     return unwrap(
@@ -27,8 +33,8 @@ export const notificationService = {
     );
   },
 
-  async markAsRead(notificationId?: number, markAll: boolean = false): Promise<boolean> {
-    return unwrap(
+  async markAsRead(notificationId?: number, markAll: boolean = false): Promise<ApiResult<boolean>> {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<boolean>>('/notifications/mark-read', {
         notificationId,
         markAll

@@ -1,12 +1,18 @@
 import { apiClient } from './api';
 import type { Supplier, GetSuppliersQuery } from '../types/supplier';
 import type { PagedList } from './notificationService';
+import type { ApiResult } from '../types/api';
 
 type ApiResponse<T> = { success: boolean; message?: string; data: T };
 
 const unwrap = <T>(res: ApiResponse<T>): T => {
   if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
   return res.data;
+};
+
+const unwrapWithMessage = <T>(res: ApiResponse<T>): ApiResult<T> => {
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
+  return { data: res.data, message: res.message || '' };
 };
 
 export const supplierService = {
@@ -28,15 +34,15 @@ export const supplierService = {
     return unwrap(await apiClient.get<ApiResponse<Supplier>>(`/suppliers/${id}`));
   },
 
-  async createSupplier(supplierData: Omit<Supplier, 'supplierId'>): Promise<Supplier> {
-    return unwrap(await apiClient.post<ApiResponse<Supplier>>('/suppliers', supplierData));
+  async createSupplier(supplierData: Omit<Supplier, 'supplierId'>): Promise<ApiResult<Supplier>> {
+    return unwrapWithMessage(await apiClient.post<ApiResponse<Supplier>>('/suppliers', supplierData));
   },
 
-  async updateSupplier(id: number, supplierData: Omit<Supplier, 'supplierId'>): Promise<Supplier> {
-    return unwrap(await apiClient.put<ApiResponse<Supplier>>(`/suppliers/${id}`, supplierData));
+  async updateSupplier(id: number, supplierData: Omit<Supplier, 'supplierId'>): Promise<ApiResult<Supplier>> {
+    return unwrapWithMessage(await apiClient.put<ApiResponse<Supplier>>(`/suppliers/${id}`, supplierData));
   },
 
-  async deleteSupplier(id: number): Promise<void> {
-    await apiClient.delete<ApiResponse<null>>(`/suppliers/${id}`);
+  async deleteSupplier(id: number): Promise<ApiResult<null>> {
+    return unwrapWithMessage(await apiClient.delete<ApiResponse<null>>(`/suppliers/${id}`));
   }
 };

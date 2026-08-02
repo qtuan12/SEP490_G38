@@ -254,11 +254,11 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const handleVerifyRequestByAccountant = async (reqId: string, note?: string) => {
     try {
       const req = requests.find(r => r.id === reqId);
-      await projectService.processMaterialRequestByAccountant(reqId, note);
+      const updated = await projectService.processMaterialRequestByAccountant(reqId, note);
       if (req?.isOverBOQ) {
-        toast.success('Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
+        toast.success((updated as any).__message || 'Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
       } else {
-        toast.success('Đã duyệt yêu cầu vật tư trong định mức.');
+        toast.success((updated as any).__message || 'Đã duyệt yêu cầu vật tư trong định mức.');
       }
       scheduleRealtimeRefresh();
     } catch (err: any) {
@@ -268,8 +268,8 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
   const handleDisburseRequestByAccountant = async (reqId: string, note?: string) => {
     try {
-      await projectService.disburseEmergencyRequest(reqId, note);
-      toast.success('Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp.');
+      const updated = await projectService.disburseEmergencyRequest(reqId, note);
+      toast.success((updated as any).__message || 'Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp.');
       scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Không thể phê duyệt giải ngân.');
@@ -280,7 +280,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     try {
       const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'director', note);
       const totalCost = updated.items.reduce((sum, item) => sum + (item.quantity * ((item as any).price || 0)), 0);
-      toast.success(`Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
+      toast.success((updated as any).__message || `Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
       scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Không thể phê duyệt yêu cầu vật tư.');
@@ -289,8 +289,8 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
   const handleRejectRequest = async (reqId: string, reason: string) => {
     try {
-      await projectService.rejectMaterialRequest(reqId, reason.trim());
-      toast.success('Đã từ chối yêu cầu vật tư.');
+      const updated = await projectService.rejectMaterialRequest(reqId, reason.trim());
+      toast.success((updated as any).__message || 'Đã từ chối yêu cầu vật tư.');
       scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Không thể từ chối yêu cầu vật tư.');
@@ -299,8 +299,8 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
   const handleCancelRequest = async (reqId: string, reason: string) => {
     try {
-      await projectService.cancelMaterialRequest(reqId, reason.trim());
-      toast.success('Đã hủy yêu cầu vật tư.');
+      const message = await projectService.cancelMaterialRequest(reqId, reason.trim());
+      toast.success(message || 'Đã hủy yêu cầu vật tư.');
       scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Không thể hủy yêu cầu vật tư.');

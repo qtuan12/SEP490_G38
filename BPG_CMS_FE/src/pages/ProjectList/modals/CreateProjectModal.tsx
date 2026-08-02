@@ -43,7 +43,7 @@ type FormData = z.infer<typeof schema>;
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
 }
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose, onSuccess }) => {
@@ -86,7 +86,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
         .filter(f => f.status === 'success' && f.url)
         .map(f => f.url!);
 
-      await projectService.createProject({
+      const result = await projectService.createProject({
         name: data.name,
         address: data.address,
         startDate: data.startDate,
@@ -100,9 +100,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
           attachmentType: 'design'
         }))
       });
+      return result.__message;
     },
-    onSuccess: () => {
-      onSuccess();
+    onSuccess: (message) => {
+      onSuccess(message);
       reset();
       setUploadedFiles([]);
       onClose();

@@ -121,8 +121,8 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     setCancelling(true);
     setActionError(null);
     try {
-      await inventoryService.cancelGoodsReceipt(receiptId);
-      toast.success('Đã hủy phiếu nhập kho. Tồn kho đã được cập nhật.');
+      const result = await inventoryService.cancelGoodsReceipt(receiptId);
+      toast.success(result.message || 'Đã hủy phiếu nhập kho. Tồn kho đã được cập nhật.');
       setIsConfirmCancelOpen(false);
       await fetchDetail();
       if (onSuccess) onSuccess();
@@ -158,14 +158,14 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
 
       const finalImages = [...existingImages, ...uploadedUrls];
 
-      await inventoryService.patchGoodsReceiptMetadata(receiptId, {
+      const result = await inventoryService.patchGoodsReceiptMetadata(receiptId, {
         receiptId,
         delivererInfo: delivererInfo.trim() || null,
         deliveryDocNo: deliveryDocNo.trim() || null,
         images: finalImages
       });
 
-      toast.success('Đã cập nhật thông tin phiếu nhập kho.');
+      toast.success(result.message || 'Đã cập nhật thông tin phiếu nhập kho.');
       setIsEditing(false);
       await fetchDetail();
       if (onSuccess) onSuccess();

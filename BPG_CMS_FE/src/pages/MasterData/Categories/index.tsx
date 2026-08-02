@@ -42,13 +42,11 @@ export const CategoryManagement: React.FC = () => {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await materialCategoryService.deleteCategory(id);
-    },
-    onSuccess: () => {
+    mutationFn: async (id: number) => materialCategoryService.deleteCategory(id),
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsDeleteOpen(false);
-      showSuccess(`Đã xóa danh mục ${selectedCategory?.categoryName} thành công.`);
+      showSuccess(result.message || `Đã xóa danh mục ${selectedCategory?.categoryName} thành công.`);
       setSelectedCategory(null);
     },
     onError: (err: any) => {

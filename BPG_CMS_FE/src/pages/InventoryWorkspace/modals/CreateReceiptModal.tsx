@@ -11,7 +11,7 @@ import { isDiscreteUnit } from '../../../utils/unitHelpers';
 interface CreateReceiptModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
   projectId: number;
 }
 
@@ -308,7 +308,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         .filter(f => f.status === 'success' && f.url)
         .map(f => f.url!);
 
-      await inventoryService.createGoodsReceipt({
+      const result = await inventoryService.createGoodsReceipt({
         poId: selectedPO.poId,
         delivererInfo: delivererInfo.trim() ? `[Kiểm hàng: ${qcNote.trim() || 'Đạt'}] ${delivererInfo.trim()}` : `[Kiểm hàng: ${qcNote.trim() || 'Đạt'}]`,
         deliveryDocNo: deliveryDocNo.trim() || null,
@@ -316,7 +316,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         images: imageUrls
       });
 
-      onSuccess();
+      onSuccess(result.message);
       onClose();
     } catch (err: any) {
       console.error('Error creating goods receipt:', err);

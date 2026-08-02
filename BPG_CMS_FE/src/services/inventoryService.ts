@@ -1,5 +1,5 @@
 import { apiClient } from './api';
-import type { ApiResponse, PagedList } from '../types/api';
+import type { ApiResponse, ApiResult, PagedList } from '../types/api';
 import type {
   CurrentInventory,
   InventoryTransaction,
@@ -141,6 +141,11 @@ const unwrap = <T>(res: ApiResponse<T>): T => {
   return res.data;
 };
 
+const unwrapWithMessage = <T>(res: ApiResponse<T>): ApiResult<T> => {
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
+  return { data: res.data, message: res.message };
+};
+
 export const inventoryService = {
   // Current Inventory
   getCurrentInventory: async (projectId: number): Promise<CurrentInventory[]> => {
@@ -202,22 +207,22 @@ export const inventoryService = {
   },
 
   // Create Goods Receipt
-  createGoodsReceipt: async (command: CreateGoodsReceiptCommand): Promise<number> => {
-    return unwrap(
+  createGoodsReceipt: async (command: CreateGoodsReceiptCommand): Promise<ApiResult<number>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<number>>('/goodsreceipts', command)
     );
   },
 
   // Patch Goods Receipt Metadata
-  patchGoodsReceiptMetadata: async (receiptId: number, command: PatchGoodsReceiptMetadataCommand): Promise<boolean> => {
-    return unwrap(
+  patchGoodsReceiptMetadata: async (receiptId: number, command: PatchGoodsReceiptMetadataCommand): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.patch<ApiResponse<boolean>>(`/goodsreceipts/${receiptId}/metadata`, command)
     );
   },
 
   // Cancel Goods Receipt
-  cancelGoodsReceipt: async (receiptId: number): Promise<boolean> => {
-    return unwrap(
+  cancelGoodsReceipt: async (receiptId: number): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<boolean>>(`/goodsreceipts/${receiptId}/cancel`, {})
     );
   },
@@ -255,15 +260,15 @@ export const inventoryService = {
   },
 
   // Cancel PO
-  cancelPurchaseOrder: async (poId: number, reason: string): Promise<boolean> => {
-    return unwrap(
+  cancelPurchaseOrder: async (poId: number, reason: string): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<boolean>>(`/purchaseorders/${poId}/cancel`, { reason })
     );
   },
 
   // Close PO (nhận một phần) — phần chưa nhận được trả lại yêu cầu vật tư
-  closePurchaseOrder: async (poId: number, reason: string): Promise<boolean> => {
-    return unwrap(
+  closePurchaseOrder: async (poId: number, reason: string): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<boolean>>(`/purchaseorders/${poId}/close`, { reason })
     );
   },
@@ -276,8 +281,8 @@ export const inventoryService = {
   },
 
   // Create Purchase Order
-  createPurchaseOrder: async (command: CreatePurchaseOrderCommand): Promise<number> => {
-    return unwrap(
+  createPurchaseOrder: async (command: CreatePurchaseOrderCommand): Promise<ApiResult<number>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<number>>('/purchaseorders', command)
     );
   },
@@ -335,8 +340,8 @@ export const inventoryService = {
   },
 
   // Create Material Issuance
-  createMaterialIssuance: async (command: CreateMaterialIssuanceCommand): Promise<number> => {
-    return unwrap(
+  createMaterialIssuance: async (command: CreateMaterialIssuanceCommand): Promise<ApiResult<number>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<number>>('/materialissuances', command)
     );
   },
@@ -371,8 +376,8 @@ export const inventoryService = {
   },
 
   /** Tạo phiếu hoàn trả vật tư mới */
-  createMaterialReturn: async (command: CreateMaterialReturnCommand): Promise<number> => {
-    return unwrap(
+  createMaterialReturn: async (command: CreateMaterialReturnCommand): Promise<ApiResult<number>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<number>>('/materialreturns', command)
     );
   }
