@@ -1,10 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal } from '../../components/ui/Modal';
-import { Button } from '../../components/ui';
-import { directPurchaseService, type PhaseBOQItemDto } from '../../services/directPurchaseService';
+import { Button, ConfirmDialog } from '../../components/ui';
+import {
+  directPurchaseService,
+  type PhaseBOQItemDto,
+  type CreateDirectPurchaseItemInput,
+} from '../../services/directPurchaseService';
+import { materialService } from '../../services/materialService';
 import { projectService } from '../../services/projectService';
+import type { MaterialCatalog } from '../../types/material';
 import type { WBSPhase } from '../../types/common';
-import { Plus, Trash2, Upload, X, AlertTriangle, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Upload, X, AlertTriangle, Loader2, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { compressAndUploadFile } from '../../utils/uploadHelper';
 import type { UploadedFileState } from '../../utils/uploadHelper';
@@ -14,6 +20,8 @@ interface Props {
   onClose: () => void;
   onSuccess: () => void;
   projectId: number;
+  /** Truyền id để mở ở chế độ sửa phiếu nháp. */
+  draftId?: number | null;
 }
 
 // Chuyển yyyy-mm-dd (giá trị input date) sang dd-mm-yyyy để hiển thị
@@ -27,70 +35,166 @@ interface ItemRow {
   materialId: number;
   materialName: string;
   materialCode: string;
-  unitName: string;
-  remainingQty: number;
   quantity: string;
   unitPrice: string;
 }
 
-export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId }) => {
+const emptyRow = (): ItemRow => ({
+  materialId: 0,
+  materialName: '',
+  materialCode: '',
+  quantity: '',
+  unitPrice: '',
+});
+
+export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId, draftId }) => {
+  const isEditing = !!draftId;
+
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [selectedPhaseId, setSelectedPhaseId] = useState<string>('');
   const [boqItems, setBoqItems] = useState<PhaseBOQItemDto[]>([]);
+  const [catalog, setCatalog] = useState<MaterialCatalog[]>([]);
   const [loadingBOQ, setLoadingBOQ] = useState(false);
+  const [loadingDraft, setLoadingDraft] = useState(false);
   const [rows, setRows] = useState<ItemRow[]>([]);
   const [reason, setReason] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
-  const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState<'draft' | 'submit' | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [purchaseDateError, setPurchaseDateError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ---------- Nạp dữ liệu nền ----------
   useEffect(() => {
     if (!isOpen) return;
     projectService.getPhases(String(projectId)).then(setPhases).catch(() => setPhases([]));
-    setSelectedPhaseId('');
-    setBoqItems([]);
-    setRows([]);
-    setReason('');
-    setUploadedFiles([]);
-  }, [isOpen, projectId]);
+    materialService
+      .getMaterials({ pageNumber: 1, pageSize: 1000 })
+      .then(res => setCatalog(res.items ?? []))
+      .catch(() => setCatalog([]));
+
+    if (!draftId) {
+      setSelectedPhaseId('');
+      setBoqItems([]);
+      setRows([]);
+      setReason('');
+      setPurchaseDate(new Date().toISOString().split('T')[0]);
+      setUploadedFiles([]);
+      setPurchaseDateError(null);
+    }
+  }, [isOpen, projectId, draftId]);
+
+  // Nạp nội dung phiếu nháp khi mở ở chế độ sửa.
+  // Phải chờ danh mục vật tư nạp xong: loadUnitOptions lấy đơn vị cơ bản từ đó,
+  // thiếu nó thì ô đơn vị của các dòng đã lưu sẽ hiển thị trống.
+  useEffect(() => {
+    if (!isOpen || !draftId || catalog.length === 0) return;
+    setLoadingDraft(true);
+    directPurchaseService
+      .getById(draftId)
+      .then(async dp => {
+        setSelectedPhaseId(String(dp.phaseId));
+        setReason(dp.reason);
+        setPurchaseDate(new Date(dp.purchaseDate).toISOString().split('T')[0]);
+        setUploadedFiles(
+          dp.invoicePhotoUrls.map((url, i) => ({
+            id: `existing-${i}`,
+            name: url.split('/').pop() || `hoa-don-${i + 1}`,
+            url,
+            status: 'success' as const,
+          }))
+        );
+        setRows(dp.items.map(it => ({
+          materialId: it.materialId,
+          materialName: it.materialName,
+          materialCode: it.materialCode,
+          quantity: String(it.quantity),
+          unitPrice: String(it.unitPrice),
+        })));
+      })
+      .catch(() => toast.error('Không tải được phiếu nháp.'))
+      .finally(() => setLoadingDraft(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, draftId, catalog.length]);
 
   useEffect(() => {
     if (!selectedPhaseId) {
       setBoqItems([]);
-      setRows([]);
       return;
     }
     setLoadingBOQ(true);
-    directPurchaseService.getPhaseBOQ(projectId, Number(selectedPhaseId))
-      .then(items => {
-        setBoqItems(items.filter(i => i.remainingQuantity > 0));
-      })
+    directPurchaseService
+      .getPhaseBOQ(projectId, Number(selectedPhaseId))
+      .then(setBoqItems)
       .catch(() => setBoqItems([]))
       .finally(() => setLoadingBOQ(false));
-    setRows([]);
   }, [selectedPhaseId, projectId]);
 
-  const addRow = () => {
-    setRows(prev => [...prev, { materialId: 0, materialName: '', materialCode: '', unitName: '', remainingQty: 0, quantity: '', unitPrice: '' }]);
+  /**
+   * Đơn vị tính không do người dùng chọn - suy ra từ vật tư, khớp với backend:
+   * đơn vị của dòng BOQ nếu vật tư nằm trong định mức, ngược lại là đơn vị cơ bản.
+   */
+  const unitNameOf = (materialId: number): string => {
+    const boq = boqItems.find(b => b.materialId === materialId);
+    if (boq) return boq.unitName;
+    return catalog.find(m => m.materialId === materialId)?.baseUnitName ?? '';
   };
 
+  const addRow = () => setRows(prev => [...prev, emptyRow()]);
   const removeRow = (i: number) => setRows(prev => prev.filter((_, idx) => idx !== i));
 
   const updateRowMaterial = (i: number, materialId: number) => {
-    const boq = boqItems.find(b => b.materialId === materialId);
-    if (!boq) return;
+    const material = catalog.find(m => m.materialId === materialId);
+    if (!material) return;
+
     setRows(prev => prev.map((r, idx) => idx === i
-      ? { ...r, materialId: boq.materialId, materialName: boq.materialName, materialCode: boq.materialCode, unitName: boq.unitName, remainingQty: boq.remainingQuantity, quantity: '', unitPrice: '' }
-      : r
-    ));
+      ? { ...r, materialId, materialName: material.name, materialCode: material.code, quantity: '', unitPrice: '' }
+      : r));
   };
 
-  const updateRowField = (i: number, field: 'quantity' | 'unitPrice', value: string) => {
-    setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
-  };
+  const updateRowField = (i: number, field: 'quantity' | 'unitPrice', value: string) =>
+    setRows(prev => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
 
+  // ---------- Khoảng ngày mua hợp lệ ----------
+  // Phiếu mua trực tiếp là hậu kiểm nên ngày mua không được ở tương lai,
+  // đồng thời phải nằm trong khoảng thi công của giai đoạn. Backend chốt lại ở bước Gửi.
+  const todayStr = new Date().toISOString().split('T')[0];
+  const selectedPhase = phases.find(p => String(p.id) === selectedPhaseId);
+  const phaseStart = selectedPhase?.startDate?.split('T')[0];
+  const phaseEnd = selectedPhase?.endDate?.split('T')[0];
+  const maxPurchaseDate = phaseEnd && phaseEnd < todayStr ? phaseEnd : todayStr;
+  const minPurchaseDate = phaseStart;
+
+  const purchaseDateHint = (): string | null => {
+    if (!purchaseDate) return null;
+    if (purchaseDate > todayStr) return 'Ngày mua không được ở tương lai.';
+    if (minPurchaseDate && purchaseDate < minPurchaseDate)
+      return `Ngày mua phải từ ${toDisplayDate(minPurchaseDate)} (ngày bắt đầu giai đoạn) trở đi.`;
+    if (phaseEnd && purchaseDate > phaseEnd)
+      return `Ngày mua vượt quá ngày kết thúc giai đoạn (${toDisplayDate(phaseEnd)}).`;
+    return null;
+  };
+  const dateHint = purchaseDateHint();
+
+  // ---------- Đối chiếu định mức BOQ (chỉ để cảnh báo, backend mới là nơi chốt) ----------
+  // Số lượng nhập vào luôn cùng đơn vị với dòng BOQ nên so trực tiếp, không cần quy đổi.
+  const rowBoqState = useMemo(() => rows.map(row => {
+    if (!row.materialId) return { isOver: false, notInBoq: false, remainingLabel: '-' };
+
+    const boq = boqItems.find(b => b.materialId === row.materialId);
+    if (!boq) return { isOver: true, notInBoq: true, remainingLabel: 'Ngoài BOQ' };
+
+    return {
+      isOver: (parseFloat(row.quantity) || 0) > boq.remainingQuantity,
+      notInBoq: false,
+      remainingLabel: `${boq.remainingQuantity} ${boq.unitName}`,
+    };
+  }), [rows, boqItems]);
+
+  const anyOverBOQ = rowBoqState.some(s => s.isOver);
+
+  // ---------- Ảnh hóa đơn ----------
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -102,28 +206,17 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       const tempId = Math.random().toString(36).substring(7);
       const localUrl = URL.createObjectURL(file);
 
-      const newFileState: UploadedFileState = {
-        id: tempId,
-        name: file.name,
-        url: localUrl,
-        status: 'uploading'
-      };
-
-      setUploadedFiles(prev => [...prev, newFileState]);
+      setUploadedFiles(prev => [...prev, { id: tempId, name: file.name, url: localUrl, status: 'uploading' }]);
 
       compressAndUploadFile(
         file,
         'direct-purchases/invoices',
-        (uploadedUrl) => {
-          setUploadedFiles(prev =>
-            prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
-          );
+        uploadedUrl => {
+          setUploadedFiles(prev => prev.map(f => (f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)));
         },
         () => {
           toast.error(`Tải hóa đơn ${file.name} lên thất bại.`);
-          setUploadedFiles(prev =>
-            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
-          );
+          setUploadedFiles(prev => prev.map(f => (f.id === tempId ? { ...f, status: 'error' } : f)));
         }
       );
     });
@@ -134,16 +227,26 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const removeFile = (id: string) => {
     setUploadedFiles(prev => {
       const target = prev.find(f => f.id === id);
-      if (target && target.url && target.url.startsWith('blob:')) {
-        URL.revokeObjectURL(target.url);
-      }
+      if (target?.url?.startsWith('blob:')) URL.revokeObjectURL(target.url);
       return prev.filter(f => f.id !== id);
     });
   };
 
-  const validate = (): string | null => {
+  // ---------- Validate ----------
+  /** Nháp chỉ cần đủ thông tin để lưu; phần còn lại backend chốt ở bước Gửi. */
+  const validateDraft = (): string | null => {
     if (!selectedPhaseId) return 'Vui lòng chọn giai đoạn.';
     if (!purchaseDate) return 'Vui lòng chọn ngày mua.';
+    const filled = rows.filter(r => r.materialId);
+    const dupe = filled.find((r, i) => filled.findIndex(x => x.materialId === r.materialId) !== i);
+    if (dupe) return `Vật tư "${dupe.materialName}" bị trùng lặp.`;
+    return null;
+  };
+
+  const validateSubmit = (): string | null => {
+    const draftErr = validateDraft();
+    if (draftErr) return draftErr;
+    if (dateHint) return dateHint;
     if (!reason.trim()) return 'Vui lòng nhập lý do mua khẩn cấp.';
     if (uploadedFiles.length === 0) return 'Bắt buộc phải tải ảnh hóa đơn.';
     if (rows.length === 0) return 'Vui lòng thêm ít nhất một vật tư.';
@@ -151,59 +254,101 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       if (!r.materialId) return 'Vui lòng chọn vật tư cho tất cả các dòng.';
       const qty = parseFloat(r.quantity);
       if (!qty || qty <= 0) return `Số lượng không hợp lệ cho vật tư "${r.materialName}".`;
-      if (qty > r.remainingQty) return `Vật tư "${r.materialName}" vượt định mức BOQ (còn được phép: ${r.remainingQty} ${r.unitName}).`;
       const price = parseFloat(r.unitPrice);
       if (!price || price <= 0) return `Đơn giá không hợp lệ cho vật tư "${r.materialName}".`;
     }
-    const dupe = rows.find((r, i) => rows.findIndex(x => x.materialId === r.materialId) !== i);
-    if (dupe) return `Vật tư "${dupe.materialName}" bị trùng lặp.`;
     return null;
   };
 
-  const handleSubmit = async () => {
+  const buildItems = (): CreateDirectPurchaseItemInput[] =>
+    rows
+      .filter(r => r.materialId)
+      .map(r => ({
+        materialId: r.materialId,
+        quantity: parseFloat(r.quantity) || 0,
+        unitPrice: parseFloat(r.unitPrice) || 0,
+      }));
+
+  const invoiceUrls = () =>
+    uploadedFiles.filter(f => f.status === 'success' && f.url).map(f => f.url!);
+
+  const persist = async (): Promise<number> => {
+    const payloadBody = {
+      phaseId: Number(selectedPhaseId),
+      reason: reason.trim(),
+      purchaseDate: new Date(purchaseDate).toISOString(),
+      items: buildItems(),
+      invoicePhotoUrls: invoiceUrls(),
+    };
+
+    if (isEditing) {
+      await directPurchaseService.updateDraft(draftId!, payloadBody);
+      return draftId!;
+    }
+    const created = await directPurchaseService.create({ projectId, ...payloadBody });
+    return created.directPurchaseId;
+  };
+
+  const handleSaveDraft = async () => {
     setPurchaseDateError(null);
-    const err = validate();
+    const err = validateDraft();
+    if (err) { toast.error(err); return; }
+    if (uploadedFiles.some(f => f.status === 'uploading')) {
+      toast.error('Vui lòng chờ hình ảnh hóa đơn tải lên hoàn tất.');
+      return;
+    }
+
+    setSaving('draft');
+    try {
+      await persist();
+      toast.success('Đã lưu nháp. Phiếu chưa được gửi và chưa ảnh hưởng tồn kho.');
+      onSuccess();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message || 'Lưu nháp thất bại.', { position: 'top-center' });
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  /** Kiểm tra hợp lệ rồi mở hộp xác nhận - việc gửi thực sự nằm ở doSubmit. */
+  const handleSubmit = () => {
+    setPurchaseDateError(null);
+    const err = validateSubmit();
     if (err) { toast.error(err); return; }
 
     if (uploadedFiles.some(f => f.status === 'uploading')) {
       toast.error('Vui lòng chờ hình ảnh hóa đơn tải lên hoàn tất.');
       return;
     }
-
-    if (uploadedFiles.some(f => f.status === 'error') || uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
+    if (uploadedFiles.some(f => f.status === 'error' || !f.url?.startsWith('http'))) {
       toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
       return;
     }
 
-    setSubmitting(true);
+    setIsConfirmOpen(true);
+  };
+
+  const doSubmit = async () => {
+    setSaving('submit');
     try {
-      const urls = uploadedFiles
-        .filter(f => f.status === 'success' && f.url)
-        .map(f => f.url!);
-        
-      await directPurchaseService.create({
-        projectId,
-        phaseId: Number(selectedPhaseId),
-        reason: reason.trim(),
-        purchaseDate: new Date(purchaseDate).toISOString(),
-        items: rows.map(r => ({
-          materialId: r.materialId,
-          quantity: parseFloat(r.quantity),
-          unitPrice: parseFloat(r.unitPrice),
-        })),
-        invoicePhotoUrls: urls,
-      });
-      toast.success('Tạo phiếu mua khẩn cấp thành công! Tồn kho đã được cập nhật.');
+      const id = await persist();
+      await directPurchaseService.submit(id);
+      toast.success(
+        anyOverBOQ
+          ? 'Đã gửi phiếu. Tồn kho đã cập nhật, phiếu đang chờ Kế toán soát hóa đơn.'
+          : 'Đã gửi phiếu. Tồn kho đã cập nhật, phiếu đang chờ Kế toán kiểm toán.'
+      );
+      setIsConfirmOpen(false);
       onSuccess();
       onClose();
-    } catch (err: any) {
-      const msg = err.message || 'Tạo phiếu thất bại.';
+    } catch (e: any) {
+      const msg = e.message || 'Gửi phiếu thất bại.';
+      setIsConfirmOpen(false);
       toast.error(msg, { position: 'top-center' });
-      if (msg.includes('Ngày mua')) {
-        setPurchaseDateError(msg);
-      }
+      if (msg.includes('Ngày mua')) setPurchaseDateError(msg);
     } finally {
-      setSubmitting(false);
+      setSaving(null);
     }
   };
 
@@ -214,42 +359,61 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   }, 0);
 
   const usedMaterialIds = rows.map(r => r.materialId).filter(Boolean);
-  const availableForNew = boqItems.filter(b => !usedMaterialIds.includes(b.materialId));
+  const busy = saving !== null;
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px',
+    color: 'hsl(var(--text-secondary))',
+  };
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 10px', border: '1px solid hsl(var(--border))',
+    borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))',
+    color: 'hsl(var(--text-primary))', fontSize: '0.9rem',
+  };
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
-      onClose={() => !submitting && onClose()}
-      title="Tạo phiếu mua khẩn cấp"
+      onClose={() => !busy && onClose()}
+      title={isEditing ? 'Sửa phiếu mua khẩn cấp (nháp)' : 'Tạo phiếu mua khẩn cấp'}
       width="xl"
       footer={
-        <>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>Hủy</Button>
-          <Button variant="primary" onClick={handleSubmit} isLoading={submitting} disabled={submitting}>
-            Xác nhận & Tạo phiếu
+        <div className="flex flex-wrap justify-end items-center gap-2 w-full">
+          <Button variant="outline" onClick={onClose} disabled={busy}>Hủy</Button>
+          <Button variant="outline" onClick={handleSaveDraft} isLoading={saving === 'draft'} disabled={busy}>
+            Lưu nháp
           </Button>
-        </>
+          <Button variant="primary" onClick={handleSubmit} isLoading={saving === 'submit'} disabled={busy}>
+            Gửi phiếu
+          </Button>
+        </div>
       }
     >
+      {loadingDraft ? (
+        <div style={{ padding: '40px 0', textAlign: 'center', color: 'hsl(var(--text-muted))' }}>
+          <Loader2 size={20} className="animate-spin" style={{ display: 'inline-block' }} /> Đang tải phiếu nháp...
+        </div>
+      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
         {/* Info banner */}
         <div style={{ display: 'flex', gap: '8px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', border: '1px solid hsl(var(--warning) / 0.3)', borderRadius: 'var(--radius-sm)', color: 'hsl(var(--warning))', fontSize: '0.85rem' }}>
-          <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
-          <span>Hệ thống sẽ tự động sinh Đơn hàng và Phiếu nhập kho. Tồn kho ảo tăng ngay để thợ sử dụng. Chỉ áp dụng vật tư trong định mức BOQ.</span>
+          <Info size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+          <span>
+            <b>Lưu nháp</b> chỉ lưu lại, chưa ảnh hưởng gì. <b>Gửi phiếu</b> sẽ sinh Đơn hàng + Phiếu nhập kho và
+            cộng tồn kho ngay để thợ dùng — sau đó không sửa được nữa.
+            Được phép mua vượt định mức BOQ, nhưng khoản chi sẽ phải qua Kế toán soát hóa đơn rồi Giám đốc duyệt.
+          </span>
         </div>
 
         {/* Row 1: Phase + Date */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'hsl(var(--text-secondary))' }}>
+            <label style={labelStyle}>
               Giai đoạn <span style={{ color: 'hsl(var(--danger))' }}>*</span>
             </label>
-            <select
-              value={selectedPhaseId}
-              onChange={e => setSelectedPhaseId(e.target.value)}
-              style={{ width: '100%', padding: '8px 10px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.9rem' }}
-            >
+            <select value={selectedPhaseId} onChange={e => setSelectedPhaseId(e.target.value)} style={inputStyle}>
               <option value="">-- Chọn giai đoạn --</option>
               {phases.map(ph => (
                 <option key={ph.id} value={ph.id}>{ph.name}</option>
@@ -257,15 +421,17 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             </select>
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'hsl(var(--text-secondary))' }}>
+            <label style={labelStyle}>
               Ngày mua <span style={{ color: 'hsl(var(--danger))' }}>*</span>
             </label>
             <div style={{ position: 'relative' }}>
               <input
                 type="date"
                 value={purchaseDate}
+                min={minPurchaseDate}
+                max={maxPurchaseDate}
                 onChange={e => { setPurchaseDate(e.target.value); setPurchaseDateError(null); }}
-                style={{ width: '100%', padding: '8px 10px', border: `1px solid ${purchaseDateError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'transparent', fontSize: '0.9rem' }}
+                style={{ ...inputStyle, border: `1px solid ${(purchaseDateError || dateHint) ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, color: 'transparent' }}
               />
               <span
                 style={{
@@ -277,15 +443,15 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                 {purchaseDate ? toDisplayDate(purchaseDate) : 'dd-mm-yyyy'}
               </span>
             </div>
-            {purchaseDateError && (
-              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{purchaseDateError}</p>
+            {(purchaseDateError || dateHint) && (
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{purchaseDateError || dateHint}</p>
             )}
           </div>
         </div>
 
         {/* Reason */}
         <div>
-          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'hsl(var(--text-secondary))' }}>
+          <label style={labelStyle}>
             Lý do mua khẩn cấp <span style={{ color: 'hsl(var(--danger))' }}>*</span>
           </label>
           <textarea
@@ -293,7 +459,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             onChange={e => setReason(e.target.value)}
             rows={2}
             placeholder="Mô tả ngắn gọn lý do cần mua ngoài gấp..."
-            style={{ width: '100%', padding: '8px 10px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.9rem', resize: 'vertical', fontFamily: 'inherit' }}
+            style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
           />
         </div>
 
@@ -304,32 +470,29 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
               Danh sách vật tư <span style={{ color: 'hsl(var(--danger))' }}>*</span>
             </label>
             {selectedPhaseId && !loadingBOQ && (
-              <Button variant="outline" onClick={addRow} disabled={availableForNew.length === 0} style={{ padding: '4px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Button variant="outline" onClick={addRow} style={{ padding: '4px 10px', fontSize: '0.8rem', gap: '4px' }}>
                 <Plus size={14} /> Thêm vật tư
               </Button>
             )}
           </div>
 
           {!selectedPhaseId && (
-            <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', textAlign: 'center', padding: '20px 0' }}>Chọn giai đoạn để xem danh sách vật tư BOQ.</p>
+            <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', textAlign: 'center', padding: '20px 0' }}>
+              Chọn giai đoạn để bắt đầu thêm vật tư.
+            </p>
           )}
 
           {loadingBOQ && (
             <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', textAlign: 'center', padding: '20px 0' }}>Đang tải định mức BOQ...</p>
           )}
 
-          {selectedPhaseId && !loadingBOQ && boqItems.length === 0 && (
-            <p style={{ fontSize: '0.85rem', color: 'hsl(var(--warning))', textAlign: 'center', padding: '20px 0' }}>
-              Giai đoạn này không còn định mức BOQ nào khả dụng.
-            </p>
-          )}
-
           {rows.length > 0 && (
-            <div style={{ border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <div style={{ border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '760px' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'hsl(var(--bg-sidebar))', borderBottom: '1px solid hsl(var(--border))' }}>
                     <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>Vật tư</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>Đơn vị</th>
                     <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>Còn lại (BOQ)</th>
                     <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>Số lượng</th>
                     <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>Đơn giá (VNĐ)</th>
@@ -342,29 +505,36 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                     const qty = parseFloat(row.quantity) || 0;
                     const price = parseFloat(row.unitPrice) || 0;
                     const lineTotal = qty * price;
-                    const exceeds = row.materialId > 0 && qty > row.remainingQty;
+                    const state = rowBoqState[i];
                     const qtyNegative = row.quantity !== '' && qty <= 0;
                     const priceNegative = row.unitPrice !== '' && price <= 0;
+                    const warn = state.isOver && qty > 0;
                     return (
-                      <tr key={i} style={{ borderBottom: '1px solid hsl(var(--border))', backgroundColor: (exceeds || qtyNegative || priceNegative) ? 'hsl(var(--danger-glow))' : undefined }}>
-                        <td style={{ padding: '8px 10px' }}>
+                      <tr key={i} style={{ borderBottom: '1px solid hsl(var(--border))', backgroundColor: (qtyNegative || priceNegative) ? 'hsl(var(--danger-glow))' : warn ? 'hsl(var(--warning) / 0.08)' : undefined }}>
+                        <td style={{ padding: '8px 10px', minWidth: '220px' }}>
                           <select
                             value={row.materialId || ''}
                             onChange={e => updateRowMaterial(i, Number(e.target.value))}
-                            style={{ width: '100%', padding: '4px 6px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem' }}
+                            style={{ ...inputStyle, padding: '4px 6px', fontSize: '0.85rem' }}
                           >
                             <option value="">-- Chọn --</option>
-                            {boqItems
-                              .filter(b => b.materialId === row.materialId || !usedMaterialIds.includes(b.materialId))
-                              .map(b => (
-                                <option key={b.materialId} value={b.materialId}>
-                                  [{b.materialCode}] {b.materialName}
-                                </option>
-                              ))}
+                            {catalog
+                              .filter(m => m.materialId === row.materialId || !usedMaterialIds.includes(m.materialId))
+                              .map(m => {
+                                const inBoq = boqItems.some(b => b.materialId === m.materialId);
+                                return (
+                                  <option key={m.materialId} value={m.materialId}>
+                                    [{m.code}] {m.name}{inBoq ? '' : ' — ngoài BOQ'}
+                                  </option>
+                                );
+                              })}
                           </select>
                         </td>
-                        <td style={{ padding: '8px 10px', textAlign: 'right', color: 'hsl(var(--text-secondary))' }}>
-                          {row.materialId > 0 ? `${row.remainingQty} ${row.unitName}` : '-'}
+                        <td style={{ padding: '8px 10px', color: 'hsl(var(--text-secondary))', whiteSpace: 'nowrap' }}>
+                          {row.materialId ? (unitNameOf(row.materialId) || '-') : '-'}
+                        </td>
+                        <td style={{ padding: '8px 10px', textAlign: 'right', color: state.notInBoq ? 'hsl(var(--warning))' : 'hsl(var(--text-secondary))', whiteSpace: 'nowrap' }}>
+                          {state.remainingLabel}
                         </td>
                         <td style={{ padding: '8px 10px' }}>
                           <input
@@ -375,17 +545,16 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                             value={row.quantity}
                             onChange={e => updateRowField(i, 'quantity', e.target.value)}
                             placeholder="0"
-                            style={{ width: '80px', padding: '4px 6px', border: `1px solid ${(exceeds || qtyNegative) ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
+                            style={{ width: '80px', padding: '4px 6px', border: `1px solid ${qtyNegative ? 'hsl(var(--danger))' : warn ? 'hsl(var(--warning))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
                           />
-                          {row.materialId > 0 && <span style={{ marginLeft: '4px', color: 'hsl(var(--text-muted))' }}>{row.unitName}</span>}
                           {qtyNegative && (
                             <div style={{ marginTop: '4px', fontSize: '0.75rem', color: 'hsl(var(--danger))' }}>
                               Số lượng phải lớn hơn 0
                             </div>
                           )}
-                          {!qtyNegative && exceeds && (
-                            <div style={{ marginTop: '4px', fontSize: '0.75rem', color: 'hsl(var(--danger))' }}>
-                              Vượt quá còn lại ({row.remainingQty} {row.unitName})
+                          {!qtyNegative && warn && (
+                            <div style={{ marginTop: '4px', fontSize: '0.75rem', color: 'hsl(var(--warning))' }}>
+                              {state.notInBoq ? 'Vật tư ngoài định mức BOQ' : `Vượt định mức (còn ${state.remainingLabel})`}
                             </div>
                           )}
                         </td>
@@ -428,17 +597,30 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
           )}
         </div>
 
+        {/* Cảnh báo vượt định mức. Không có ô giải trình riêng - ô "Lý do mua khẩn cấp" ở trên
+            đã đóng vai trò giải trình cho Kế toán và Giám đốc. */}
+        {anyOverBOQ && (
+          <div style={{ display: 'flex', gap: '8px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.12)', border: '1px solid hsl(var(--warning) / 0.35)', borderRadius: 'var(--radius-sm)', color: 'hsl(var(--warning))', fontSize: '0.85rem' }}>
+            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+            <span>
+              Phiếu này vượt định mức BOQ. Vật tư vẫn được nhập kho ngay khi gửi, nhưng khoản chi phải
+              qua <b>Kế toán soát hóa đơn</b> rồi <b>Giám đốc duyệt chi</b> mới được hoàn tiền.
+              Hãy nêu rõ lý do ở ô <b>Lý do mua khẩn cấp</b> để cấp duyệt có căn cứ.
+            </span>
+          </div>
+        )}
+
         {/* Invoice photo upload */}
         <div>
-          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'hsl(var(--text-secondary))' }}>
+          <label style={labelStyle}>
             Ảnh hóa đơn <span style={{ color: 'hsl(var(--danger))' }}>*</span>
           </label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-start' }}>
-            {uploadedFiles.map((file) => (
+            {uploadedFiles.map(file => (
               <div key={file.id} style={{ position: 'relative', width: '80px', height: '80px' }}>
                 <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: file.status === 'error' ? '1px solid #dc2626' : file.status === 'success' ? '1px solid #16a34a' : '1px solid hsl(var(--border))' }}>
                   <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  
+
                   {file.status === 'uploading' && (
                     <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Loader2 size={16} className="animate-spin" style={{ color: '#fff' }} />
@@ -449,7 +631,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                     <span style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#dc2626', color: '#fff', fontSize: '8px', textAlign: 'center', padding: '1px 0', fontWeight: 'bold' }}>Lỗi</span>
                   )}
                 </div>
-                
+
                 <button
                   onClick={() => removeFile(file.id)}
                   style={{ position: 'absolute', top: '-6px', right: '-6px', background: 'hsl(var(--danger))', border: 'none', borderRadius: '50%', cursor: 'pointer', color: 'white', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
@@ -470,6 +652,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         </div>
 
       </div>
+      )}
       <style>{`
         .dp-no-spinner::-webkit-outer-spin-button,
         .dp-no-spinner::-webkit-inner-spin-button {
@@ -481,5 +664,24 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         }
       `}</style>
     </Modal>
+
+    <ConfirmDialog
+      isOpen={isConfirmOpen}
+      onClose={() => setIsConfirmOpen(false)}
+      onConfirm={doSubmit}
+      title={anyOverBOQ ? 'Gửi phiếu vượt định mức BOQ' : 'Gửi phiếu mua khẩn cấp'}
+      message={
+        anyOverBOQ
+          ? 'Sau khi gửi, vật tư được nhập kho ngay và phiếu không thể sửa. '
+            + 'Vì phiếu vượt định mức BOQ, khoản chi phải qua Kế toán soát hóa đơn rồi Giám đốc duyệt mới được hoàn tiền.'
+          : 'Sau khi gửi, vật tư được nhập kho ngay và phiếu không thể sửa. '
+            + 'Phiếu sẽ chuyển sang Kế toán kiểm toán để hoàn tiền.'
+      }
+      confirmText="Gửi phiếu"
+      cancelText="Xem lại"
+      isDanger={anyOverBOQ}
+      isLoading={saving === 'submit'}
+    />
+    </>
   );
 };

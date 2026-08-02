@@ -10,6 +10,9 @@ public class DirectPurchaseItem
     public decimal ConversionRate { get; set; } = 1;
     public decimal UnitPrice { get; set; }
     public decimal LineTotal { get; set; }
+    /// <summary>Dòng này vượt định mức BOQ của Phase (hoặc vật tư không có trong BOQ).</summary>
+    public bool IsOverBOQ { get; set; }
+    public string? Explanation { get; set; }
 
     public DirectPurchaseRequest DirectPurchaseRequest { get; set; } = null!;
     public MaterialCatalog Material { get; set; } = null!;

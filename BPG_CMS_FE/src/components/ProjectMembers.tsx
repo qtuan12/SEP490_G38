@@ -1,18 +1,12 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { projectService } from '../services/projectService';
 import type { ProjectMember } from '../types/common';
 import type { UserProfile } from '../services/authService';
 import { Modal } from './ui/Modal';
 import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
-import { useProjectAccess } from '../hooks/useProjectAccess';
-import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
-import { RealtimeEntities } from '../constants/realtimeEntities';
-
-const PROJECT_MEMBER_REALTIME_ENTITIES = [
-  ...RealtimeEntities.users,
-  'Project',
-  'ProjectMember',
-] as const;
+import { useSignalREvent } from '../hooks/useSignalREvent';
+import { useAuth } from '../context/AuthContext';
+import { RoleGroup } from '../auth/roles';
 
 interface AvailableEngineer extends UserProfile {
   leaderProjectName?: string;
@@ -23,7 +17,7 @@ interface ProjectMembersProps {
 }
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => {
-  const { canManageTechnical } = useProjectAccess(projectId);
+  const { hasAnyRole } = useAuth();
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +32,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [memberToDelete, setMemberToDelete] = useState<{id: string, name: string} | null>(null);
   const loadRequestIdRef = React.useRef(0);
 
-  const canManageMembers = canManageTechnical;
+  // Only Admin & Technical Manager (TPKT) can manage project members
+  const canManageMembers = hasAnyRole(RoleGroup.Technical);
   const hasLeader = members.some(m => m.isLeader);
 
   const loadData = async (bustCache = false, silent = false) => {
@@ -103,10 +98,13 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     loadRequestIdRef.current += 1;
   }, [projectId, canManageMembers]);
 
-  useRealtimeDataRefresh(
-    () => loadData(true, true),
-    PROJECT_MEMBER_REALTIME_ENTITIES,
-  );
+  useSignalREvent('ProjectLeaderUpdated', () => {
+    loadData(true, true);
+  });
+
+  useSignalREvent('ProjectMemberAdded', () => {
+    loadData(true, true);
+  });
 
   const openAddModal = () => {
     setSelectedUserIds([]);

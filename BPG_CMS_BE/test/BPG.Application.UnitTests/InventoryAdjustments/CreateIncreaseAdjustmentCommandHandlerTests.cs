@@ -1,4 +1,4 @@
-﻿using BPG.Application.Features.InventoryAdjustments.Commands;
+using BPG.Application.Features.InventoryAdjustments.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.UnitTests.Helpers;
@@ -131,6 +131,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             result.Success.Should().BeTrue();
             result.Data.Should().Be(GeneratedAdjustmentId);
+            result.Message.Should().Be("Tạo phiếu điều chỉnh tăng tồn thành công, chờ phê duyệt");
         }
 
         [Fact]
@@ -146,6 +147,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             result.Success.Should().BeTrue();
             result.Data.Should().Be(GeneratedAdjustmentId);
+            result.Message.Should().Be("Tạo phiếu điều chỉnh tăng tồn thành công, chờ phê duyệt");
         }
 
         private static CreateIncreaseAdjustmentCommand Command(decimal quantity = 5)

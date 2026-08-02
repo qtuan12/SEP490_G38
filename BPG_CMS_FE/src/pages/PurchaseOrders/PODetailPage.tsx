@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { useNotification } from '../../context/NotificationContext';
@@ -69,9 +69,18 @@ function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string
 export const PODetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { connection } = useNotification();
   const poId = Number(id);
+
+  // Vào từ thông báo thì không có lịch sử duyệt để lùi lại, và người dùng mong đợi
+  // quay về danh sách đơn hàng của chính dự án đó chứ không phải danh sách tổng.
+  const fromProject = searchParams.get('fromProject');
+  const goBack = () => {
+    if (fromProject) navigate(`/projects/${fromProject}?tab=purchaseorders`);
+    else navigate(-1);
+  };
 
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -146,7 +155,7 @@ export const PODetailPage: React.FC = () => {
         <p style={{ color: 'hsl(var(--text-secondary))', textAlign: 'center' }}>
           {(error as any)?.message || 'Không thể tải thông tin đơn mua hàng.'}
         </p>
-        <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
+        <Button type="button" variant="secondary" onClick={goBack}>
           <ArrowLeft size={16} /> Quay lại
         </Button>
       </div>
@@ -161,7 +170,7 @@ export const PODetailPage: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1120, margin: '0 auto' }}>
       {/* Title bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <Button type="button" variant="secondary" className="p-2 h-auto" onClick={() => navigate(-1)}>
+        <Button type="button" variant="secondary" className="p-2 h-auto" onClick={goBack}>
           <ArrowLeft size={18} />
         </Button>
         <ShoppingCart size={22} style={{ color: 'hsl(var(--primary))' }} />
@@ -345,7 +354,7 @@ export const PODetailPage: React.FC = () => {
 
       {/* Back button */}
       <div style={{ paddingBottom: 24 }}>
-        <Button type="button" variant="secondary" onClick={() => navigate(-1)}>
+        <Button type="button" variant="secondary" onClick={goBack}>
           <ArrowLeft size={16} /> Quay lại
         </Button>
       </div>

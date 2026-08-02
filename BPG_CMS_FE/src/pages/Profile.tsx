@@ -7,6 +7,8 @@ import { Modal } from '../components/ui/Modal';
 import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X, LogOut } from 'lucide-react';
 import { passwordRules, validatePassword } from '../utils/passwordPolicy';
 import { validateFullName, validatePhoneNumber } from '../utils/profileValidation';
+import { usePWA } from '../context/PWAContext';
+import { PWARestrictedNotice } from '../components/PWARestrictedNotice';
 
 import imageCompression from 'browser-image-compression';
 
@@ -31,6 +33,7 @@ const formatDateTime = (iso: string | null): string => {
 
 export const Profile: React.FC = () => {
   const { updateUser, logout } = useAuth();
+  const { shouldBlock } = usePWA();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserDetailProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -204,6 +207,13 @@ export const Profile: React.FC = () => {
 
   return (
     <div className="animate-fade-in flex flex-col gap-8 w-full">
+
+      {/* PWA: chức vụ không nằm trong nhóm được tối ưu — cảnh báo và lối đi tiếp nằm ngay tại đây */}
+      {shouldBlock && (
+        <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] shadow-sm px-4 py-2">
+          <PWARestrictedNotice />
+        </div>
+      )}
 
       {/* Profile Card */}
       <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] shadow-sm overflow-hidden">

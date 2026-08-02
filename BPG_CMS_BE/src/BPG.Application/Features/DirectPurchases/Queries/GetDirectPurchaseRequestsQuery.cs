@@ -13,6 +13,8 @@ namespace BPG.Application.Features.DirectPurchases.Queries
         public long? ProjectId { get; set; }
         public string? Status { get; set; }
         public string? AuditStatus { get; set; }
+        /// <summary>Lọc theo WithinBOQ | OverBOQ.</summary>
+        public string? BOQCheckStatus { get; set; }
         public long? RequestedBy { get; set; }
         public string? SearchTerm { get; set; }
 

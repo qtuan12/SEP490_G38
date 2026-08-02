@@ -309,6 +309,12 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<long>("DirectPurchaseId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("Explanation")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsOverBOQ")
+                        .HasColumnType("bit");
+
                     b.Property<decimal>("LineTotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -347,6 +353,15 @@ namespace BPG.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("DirectPurchaseId"));
 
+                    b.Property<string>("ApprovalNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("AuditNote")
                         .HasColumnType("nvarchar(max)");
 
@@ -365,6 +380,11 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<long?>("AutoReceiptId")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("BOQCheckStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -395,6 +415,9 @@ namespace BPG.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<long?>("TaskId")
                         .HasColumnType("bigint");
 
@@ -409,6 +432,8 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("DirectPurchaseId");
+
+                    b.HasIndex("ApprovedBy");
 
                     b.HasIndex("AuditedBy");
 
@@ -2434,6 +2459,11 @@ namespace BPG.Infrastructure.Migrations
 
             modelBuilder.Entity("BPG.Domain.Entities.DirectPurchaseRequest", b =>
                 {
+                    b.HasOne("BPG.Domain.Entities.User", "Approver")
+                        .WithMany()
+                        .HasForeignKey("ApprovedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BPG.Domain.Entities.User", "Auditor")
                         .WithMany()
                         .HasForeignKey("AuditedBy")
@@ -2461,6 +2491,8 @@ namespace BPG.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Approver");
 
                     b.Navigation("Auditor");
 

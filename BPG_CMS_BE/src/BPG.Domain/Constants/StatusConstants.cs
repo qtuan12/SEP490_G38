@@ -100,10 +100,20 @@ public static class InventoryAdjustmentStatus
     public const string Rejected = "Rejected";
 }
 
+/// <summary>
+/// Trạng thái DUYỆT CHI của phiếu mua trực tiếp (có được hoàn tiền hay không).
+/// Không gác tồn kho: tồn kho được cộng ngay tại bước Submit, độc lập với các trạng thái dưới đây.
+/// </summary>
 public static class DirectPurchaseStatus
 {
+    /// <summary>Nháp, chưa gửi. Chưa sinh PO/GR/tồn kho, chỉ người tạo nhìn thấy.</summary>
     public const string Draft = "Draft";
+    /// <summary>Đã gửi, vượt định mức BOQ, chờ Kế toán đối chiếu hóa đơn.</summary>
+    public const string Pending = "Pending";
+    /// <summary>Kế toán đã soát hóa đơn, chờ Giám đốc duyệt chi vượt định mức.</summary>
+    public const string WaitingApproval = "WaitingApproval";
     public const string Approved = "Approved";
+    /// <summary>Không được hoàn tiền. Vật tư vẫn đã nhập kho và vẫn tiêu thụ định mức BOQ.</summary>
     public const string Rejected = "Rejected";
 }
 

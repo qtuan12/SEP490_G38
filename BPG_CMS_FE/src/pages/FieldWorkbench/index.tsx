@@ -12,6 +12,7 @@ import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVi
 import type { Project, WBSTask, DailyLog } from '../../types/common';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import { isPWAMode } from '../../utils/pwaHelpers';
 import { RealtimeEntityGroups } from '../../constants/realtimeEntities';
 
 const LAST_PROJECT_KEY = 'field_workbench_last_project';
@@ -74,6 +75,11 @@ export const FieldWorkbench: React.FC = () => {
   useEffect(() => {
     projectService.getProjects().then(list => {
       setProjects(list);
+      // PWA: chưa thuộc dự án nào thì đưa thẳng về màn hình danh sách dự án (có thông báo ở đó).
+      if (list.length === 0 && isPWAMode()) {
+        navigate('/projects', { replace: true });
+        return;
+      }
       const saved = localStorage.getItem(LAST_PROJECT_KEY);
       const initial = (requestedProjectId && list.some(p => p.id === requestedProjectId))
         ? requestedProjectId
@@ -227,14 +233,13 @@ export const FieldWorkbench: React.FC = () => {
                     <ClipboardList size={16} />
                     {isProjectWideView ? 'Công việc dự án' : 'Việc của tôi'}
                   </h3>
-                  {allMyTasks.length > 5 && (
-                    <button
-                      onClick={() => navigate(`/field/tasks?projectId=${projectId}`)}
-                      className="text-xs font-medium text-[hsl(var(--primary))] flex items-center gap-0.5"
-                    >
-                      Xem thêm <ChevronRight size={12} />
-                    </button>
-                  )}
+                  {/* Bottom nav không còn tab "Công việc" — đây là lối vào duy nhất tới trang công việc */}
+                  <button
+                    onClick={() => navigate(`/field/tasks?projectId=${projectId}`)}
+                    className="text-xs font-medium text-[hsl(var(--primary))] flex items-center gap-0.5"
+                  >
+                    Xem thêm <ChevronRight size={12} />
+                  </button>
                 </div>
                 {myTasks.length === 0 ? (
                   <p className="text-xs text-[hsl(var(--text-muted))] m-0">

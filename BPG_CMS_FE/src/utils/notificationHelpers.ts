@@ -23,6 +23,17 @@ export const resolveNotificationUrl = (noti: any): string | null => {
         if (tab === 'inventoryincidents') return '/materials-control';
       }
 
+      // Mở thẳng chi tiết phiếu ngay trong phạm vi dự án, để đóng/quay lại thì thấy
+      // danh sách của dự án đó chứ không phải danh sách tổng toàn hệ thống.
+      if (referenceId) {
+        if (tab === 'directpurchases') {
+          return `/projects/${projectId}?tab=directpurchases&directPurchaseId=${referenceId}`;
+        }
+        if (tab === 'purchaseorders') {
+          return `/purchase-orders/${referenceId}?fromProject=${projectId}`;
+        }
+      }
+
       return `/projects/${projectId}?tab=${tab}`;
     }
 
