@@ -320,7 +320,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error creating goods receipt:', err);
-      setGeneralError(err.message || 'Lỗi hệ thống khi tạo phiếu nhập kho.');
+      setGeneralError(err.message || 'Không thể tạo phiếu nhập kho.');
     } finally {
       setSubmitting(false);
     }

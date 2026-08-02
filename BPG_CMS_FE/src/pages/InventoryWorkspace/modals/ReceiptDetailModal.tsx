@@ -122,12 +122,13 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     setActionError(null);
     try {
       await inventoryService.cancelGoodsReceipt(receiptId);
+      toast.success('Đã hủy phiếu nhập kho. Tồn kho đã được cập nhật.');
       setIsConfirmCancelOpen(false);
       await fetchDetail();
       if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Error cancelling goods receipt:', err);
-      setActionError(err.message || 'Lỗi hệ thống khi hủy phiếu nhập kho.');
+      setActionError(err.message || 'Không thể hủy phiếu nhập kho.');
       setIsConfirmCancelOpen(false);
     } finally {
       setCancelling(false);
@@ -164,12 +165,13 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
         images: finalImages
       });
 
+      toast.success('Đã cập nhật thông tin phiếu nhập kho.');
       setIsEditing(false);
       await fetchDetail();
       if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Error updating metadata:', err);
-      setActionError(err.message || 'Lỗi hệ thống khi cập nhật thông tin phiếu.');
+      setActionError(err.message || 'Không thể cập nhật thông tin phiếu nhập kho.');
     } finally {
       setSaving(false);
     }
@@ -213,7 +215,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
           );
         },
         () => {
-          toast.error(`Tải ảnh ${file.name} lên thất bại.`);
+          toast.error(`Không thể tải ảnh ${file.name} lên.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
           );

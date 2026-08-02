@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { projectService } from '../services/projectService';
 
 import type {Project} from '../types/common';
@@ -233,7 +234,7 @@ export const ProjectDrawing: React.FC = () => {
             {/* Download button */}
             <button
               onClick={() => {
-                alert(`Đang chuẩn bị tải xuống file bản vẽ: ${project.drawingUrl}. (Tính năng giả lập)`);
+                toast('Đang chuẩn bị tải xuống file bản vẽ.');
               }}
               className="btn btn-primary"
               style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', padding: '6px 12px' }}

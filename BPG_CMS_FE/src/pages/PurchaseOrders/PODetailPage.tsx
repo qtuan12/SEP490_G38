@@ -89,13 +89,13 @@ export const PODetailPage: React.FC = () => {
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(poId, cancelReason),
     onSuccess: () => {
-      toast.success('Đã hủy đơn mua hàng thành công.');
+      toast.success('Đã hủy đơn mua hàng.');
       setShowCancelModal(false);
       setCancelReason('');
       queryClient.invalidateQueries({ queryKey: ['po-detail', poId] });
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
-    onError: (err: any) => setCancelError(err.message || 'Hủy đơn hàng thất bại.'),
+    onError: (err: any) => setCancelError(err.message || 'Không thể hủy đơn mua hàng.'),
   });
 
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -105,13 +105,13 @@ export const PODetailPage: React.FC = () => {
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(poId, closeReason),
     onSuccess: () => {
-      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận được trả lại yêu cầu vật tư.');
+      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
       setShowCloseModal(false);
       setCloseReason('');
       queryClient.invalidateQueries({ queryKey: ['po-detail', poId] });
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
-    onError: (err: any) => setCloseError(err.message || 'Đóng đơn hàng thất bại.'),
+    onError: (err: any) => setCloseError(err.message || 'Không thể đóng đơn mua hàng.'),
   });
 
   const { data: po, isLoading, isError, error } = useQuery({

@@ -53,7 +53,7 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
       }
       setData(filteredRes);
     } catch (err: any) {
-      toast.error(err.message || 'Không thể tải actions.');
+      toast.error(err.message || 'Không thể tải danh sách thao tác xử lý vật tư thừa.');
     } finally {
       setLoading(false);
     }
@@ -74,11 +74,11 @@ export const SurplusActionListModal: React.FC<SurplusActionListModalProps> = ({
       if (action === 'review-approve') await surplusService.reviewTransfer(transferId, true);
       else if (action === 'review-reject') await surplusService.reviewTransfer(transferId, false);
 
-      toast.success('Thao tác thành công!');
+      toast.success(action === 'review-approve' ? 'Đã duyệt phiếu điều chuyển vật tư.' : 'Đã từ chối phiếu điều chuyển vật tư.');
       await loadData();
       onRefresh();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi hệ thống.');
+      toast.error(err.message || 'Không thể xử lý phiếu điều chuyển vật tư.');
     } finally {
       setActioning(null);
     }

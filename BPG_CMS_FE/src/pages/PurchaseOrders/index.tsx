@@ -208,21 +208,21 @@ export const PurchaseOrderList: React.FC = () => {
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: () => {
-      toast.success('Đã hủy đơn mua hàng thành công.');
+      toast.success('Đã hủy đơn mua hàng.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
-    onError: (err: any) => setActionError(err.message || 'Hủy đơn hàng thất bại.'),
+    onError: (err: any) => setActionError(err.message || 'Không thể hủy đơn mua hàng.'),
   });
 
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: () => {
-      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận được trả lại yêu cầu vật tư.');
+      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
-    onError: (err: any) => setActionError(err.message || 'Đóng đơn hàng thất bại.'),
+    onError: (err: any) => setActionError(err.message || 'Không thể đóng đơn mua hàng.'),
   });
 
   const handleSearch = useCallback((val: string) => {

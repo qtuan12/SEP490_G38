@@ -9,7 +9,7 @@ import { useProjectAccess } from '../../../hooks/useProjectAccess';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (approved: boolean) => void;
   onError?: (msg: string) => void;
   adjustmentId: number;
   adjustmentData?: InventoryAdjustmentDto;
@@ -83,9 +83,9 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
       await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
         isApproved: true
       });
-      onSuccess();
+      onSuccess(true);
     } catch (err: any) {
-      if (onError) onError(err.message || 'Lỗi khi duyệt phiếu.');
+      if (onError) onError(err.message || 'Không thể duyệt phiếu điều chỉnh tồn.');
     } finally {
       setLoading(false);
     }
@@ -103,9 +103,9 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
         isApproved: false,
         rejectedReason: rejectReason
       });
-      onSuccess();
+      onSuccess(false);
     } catch (err: any) {
-      if (onError) onError(err.message || 'Lỗi khi từ chối phiếu.');
+      if (onError) onError(err.message || 'Không thể từ chối phiếu điều chỉnh tồn.');
     } finally {
       setLoading(false);
     }

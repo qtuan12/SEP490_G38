@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Clock, Send, MessageSquare, Eye, Edit2, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { Badge, Button, Input, ConfirmDialog } from '../../../../components/ui';
 import { projectService } from '../../../../services/projectService';
 import type { DailyLog, WBSTask } from '../../../../types/common';
@@ -112,7 +113,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
       setCommentInput('');
       await onReloadLogs();
     } catch (err: any) {
-      alert(err.message || 'Không thể gửi bình luận.');
+      toast.error(err.message || 'Không thể gửi bình luận.');
     } finally {
       setIsSubmittingComment(false);
     }
@@ -131,7 +132,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
       setEditingCommentId(null);
       await onReloadLogs();
     } catch (err: any) {
-      alert(err.message || 'Không thể cập nhật bình luận.');
+      toast.error(err.message || 'Không thể cập nhật bình luận.');
     } finally {
       setIsUpdatingComment(false);
     }
@@ -147,7 +148,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
       }
       setDeleteCommentId(null);
     } catch (err: any) {
-      alert(err.message || 'Không thể xóa bình luận.');
+      toast.error(err.message || 'Không thể xóa bình luận.');
     } finally {
       setIsDeletingComment(false);
     }

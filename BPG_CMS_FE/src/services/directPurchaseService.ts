@@ -170,12 +170,12 @@ export interface DirectorRejectDirectPurchasePayload {
 }
 
 const unwrapPaged = <T>(res: ApiPagedResponse<T>): PagedList<T> => {
-  if (!res.success) throw new Error(res.message || 'Yêu cầu thất bại.');
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
   return res.data;
 };
 
 const unwrap = <T>(res: ApiResponse<T>): T => {
-  if (!res.success) throw new Error(res.message || 'Yêu cầu thất bại.');
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
   return res.data;
 };
 
