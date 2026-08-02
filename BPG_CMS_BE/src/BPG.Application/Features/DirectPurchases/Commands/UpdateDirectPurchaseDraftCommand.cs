@@ -3,16 +3,12 @@ using MediatR;
 
 namespace BPG.Application.Features.DirectPurchases.Commands
 {
-    /// <summary>
-    /// Tạo phiếu mua trực tiếp ở trạng thái NHÁP. Chưa sinh PO/GR/tồn kho.
-    /// Dùng <see cref="SubmitDirectPurchaseCommand"/> để gửi phiếu.
-    /// </summary>
-    public class CreateDirectPurchaseRequestCommand : IRequest<long>
+    /// <summary>Sửa phiếu nháp. Chỉ người tạo và chỉ khi Status = Draft.</summary>
+    public class UpdateDirectPurchaseDraftCommand : IRequest<bool>
     {
-        public long ProjectId { get; set; }
+        public long DirectPurchaseId { get; set; }
         public long PhaseId { get; set; }
         public long? TaskId { get; set; }
-        /// <summary>Lý do mua khẩn cấp - cũng là phần giải trình khi phiếu vượt định mức BOQ.</summary>
         public string Reason { get; set; } = string.Empty;
         public DateTime PurchaseDate { get; set; }
         public List<DirectPurchaseItemInput> Items { get; set; } = new();

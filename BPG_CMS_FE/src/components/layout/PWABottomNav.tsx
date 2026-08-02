@@ -1,21 +1,33 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ClipboardList, BookOpen, AlertTriangle, ListChecks, User } from 'lucide-react';
+import { ClipboardList, BookOpen, Bell, User } from 'lucide-react';
 import { getActiveProjectId } from '../../utils/activeProject';
+import { useNotification } from '../../context/NotificationContext';
+import { usePWA } from '../../context/PWAContext';
 
 export const PWABottomNav: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { unreadCount, hasEmergencyUnread } = useNotification();
+  const { shouldBlock } = usePWA();
 
   const activeProjectId = getActiveProjectId(location.pathname);
 
-  const navItems = [
+  const navItems: Array<{
+    id: string;
+    label: string;
+    icon: React.ElementType;
+    path: string;
+    isActive: boolean;
+    badge?: number;
+    emergency?: boolean;
+  }> = [
     {
       id: 'field',
       label: 'Việc tôi',
       icon: ClipboardList,
       path: '/field?standalone=true',
-      isActive: location.pathname === '/field' || location.pathname.startsWith('/tasks/')
+      isActive: location.pathname.startsWith('/field') || location.pathname.startsWith('/tasks/')
     },
     {
       id: 'logs',
@@ -25,18 +37,13 @@ export const PWABottomNav: React.FC = () => {
       isActive: location.pathname.includes('/logs')
     },
     {
-      id: 'incidents',
-      label: 'Sự cố',
-      icon: AlertTriangle,
-      path: activeProjectId ? `/incidents?projectId=${activeProjectId}` : '/incidents',
-      isActive: location.pathname.startsWith('/incidents')
-    },
-    {
-      id: 'tasks',
-      label: 'Công việc',
-      icon: ListChecks,
-      path: activeProjectId ? `/field/tasks?projectId=${activeProjectId}` : '/field/tasks',
-      isActive: location.pathname === '/field/tasks'
+      id: 'notifications',
+      label: 'Thông báo',
+      icon: Bell,
+      path: '/notifications',
+      isActive: location.pathname === '/notifications',
+      badge: unreadCount,
+      emergency: hasEmergencyUnread
     },
     {
       id: 'profile',
@@ -47,12 +54,15 @@ export const PWABottomNav: React.FC = () => {
     }
   ];
 
+  // Chức vụ ngoài nhóm field chỉ còn trang Cá nhân — nơi hiển thị cảnh báo và các lựa chọn tiếp theo.
+  const visibleItems = shouldBlock ? navItems.filter(item => item.id === 'profile') : navItems;
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg px-2 pt-1.5 flex justify-around items-center md:hidden"
       style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
     >
-      {navItems.map((item) => {
+      {visibleItems.map((item) => {
         const Icon = item.icon;
         const active = item.isActive;
         return (
@@ -65,7 +75,27 @@ export const PWABottomNav: React.FC = () => {
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <Icon size={20} className={active ? 'scale-110 transition-transform text-blue-600' : 'text-slate-500'} />
+            <span className="relative flex items-center justify-center">
+              <Icon
+                size={20}
+                className={
+                  item.emergency
+                    ? 'text-red-500'
+                    : active
+                      ? 'scale-110 transition-transform text-blue-600'
+                      : 'text-slate-500'
+                }
+              />
+              {!!item.badge && item.badge > 0 && (
+                <span
+                  className={`absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white flex items-center justify-center ${
+                    item.emergency ? 'bg-red-500 animate-pulse' : 'bg-red-500'
+                  }`}
+                >
+                  {item.badge > 99 ? '99+' : item.badge}
+                </span>
+              )}
+            </span>
             <span className="text-[10px] mt-1 tracking-tight truncate w-full text-center">
               {item.label}
             </span>

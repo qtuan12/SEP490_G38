@@ -10,17 +10,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.DirectPurchases.Handlers
 {
-    /// <summary>
-    /// Tạo phiếu mua trực tiếp ở trạng thái NHÁP.
-    /// Validate nhẹ (dự án/giai đoạn/quyền/đơn vị tính) - phần validate đầy đủ nằm ở bước Submit.
-    /// </summary>
-    public class CreateDirectPurchaseRequestCommandHandler : IRequestHandler<CreateDirectPurchaseRequestCommand, long>
+    public class UpdateDirectPurchaseDraftCommandHandler : IRequestHandler<UpdateDirectPurchaseDraftCommand, bool>
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
         private readonly IDirectPurchaseFulfillmentService _fulfillment;
 
-        public CreateDirectPurchaseRequestCommandHandler(
+        public UpdateDirectPurchaseDraftCommandHandler(
             IUnitOfWork uow,
             ICurrentUserService currentUserService,
             IDirectPurchaseFulfillmentService fulfillment)
@@ -30,45 +26,48 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             _fulfillment = fulfillment;
         }
 
-        public async Task<long> Handle(CreateDirectPurchaseRequestCommand request, CancellationToken ct)
+        public async Task<bool> Handle(UpdateDirectPurchaseDraftCommand request, CancellationToken ct)
         {
             long userId = _currentUserService.GetRequiredUserId();
+
+            var dp = await _uow.Repository<DirectPurchaseRequest>().Query()
+                .FirstOrDefaultAsync(r => r.DirectPurchaseId == request.DirectPurchaseId && !r.IsDeleted, ct)
+                ?? throw new NotFoundException(nameof(DirectPurchaseRequest), request.DirectPurchaseId);
+
+            if (dp.Status != DirectPurchaseStatus.Draft)
+                throw new BusinessException("ERR_NOT_DRAFT",
+                    $"Chỉ sửa được phiếu ở trạng thái Nháp. Trạng thái hiện tại: {dp.Status}.");
+
+            if (dp.RequestedBy != userId)
+                throw new ForbiddenException("Chỉ người tạo mới được sửa phiếu nháp này.");
 
             var phase = await _uow.Repository<Phase>().Query()
                 .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct)
                 ?? throw new NotFoundException(nameof(Phase), request.PhaseId);
 
-            if (phase.ProjectId != request.ProjectId)
-                throw new BusinessException("ERR_PHASE_PROJECT_MISMATCH", "Giai đoạn không thuộc dự án đã chọn.");
+            if (phase.ProjectId != dp.ProjectId)
+                throw new BusinessException("ERR_PHASE_PROJECT_MISMATCH", "Giai đoạn không thuộc dự án của phiếu.");
 
-            await DirectPurchaseGuard.EnsureCanManageAsync(_uow, _currentUserService, phase.ProjectId, userId, ct);
+            await DirectPurchaseGuard.EnsureCanManageAsync(_uow, _currentUserService, dp.ProjectId, userId, ct);
 
             DirectPurchaseDraftWriter.EnsureNoDuplicateMaterial(request.Items);
 
             var resolved = await _fulfillment.ResolveItemsAsync(request.PhaseId, request.Items, ct);
-            bool anyOverBOQ = await _fulfillment.EvaluateBoqAsync(request.PhaseId, null, resolved, ct);
+            bool anyOverBOQ = await _fulfillment.EvaluateBoqAsync(request.PhaseId, dp.DirectPurchaseId, resolved, ct);
 
             await _uow.BeginTransactionAsync(ct);
             try
             {
-                var dp = new DirectPurchaseRequest
-                {
-                    ProjectId = request.ProjectId,
-                    PhaseId = request.PhaseId,
-                    TaskId = request.TaskId,
-                    RequestedBy = userId,
-                    Reason = request.Reason?.Trim() ?? string.Empty,
-                    Status = DirectPurchaseStatus.Draft,
-                    AuditStatus = DirectPurchaseAuditStatus.PendingAudit,
-                    BOQCheckStatus = anyOverBOQ ? BOQCheckStatus.OverBOQ : BOQCheckStatus.WithinBOQ,
-                    TotalAmount = resolved.Sum(i => i.LineTotal),
-                    PurchaseDate = request.PurchaseDate,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = userId,
-                };
+                dp.PhaseId = request.PhaseId;
+                dp.TaskId = request.TaskId;
+                dp.Reason = request.Reason?.Trim() ?? string.Empty;
+                dp.PurchaseDate = request.PurchaseDate;
+                dp.BOQCheckStatus = anyOverBOQ ? BOQCheckStatus.OverBOQ : BOQCheckStatus.WithinBOQ;
+                dp.TotalAmount = resolved.Sum(i => i.LineTotal);
+                dp.UpdatedAt = DateTime.UtcNow;
+                dp.UpdatedBy = userId;
 
-                await _uow.Repository<DirectPurchaseRequest>().AddAsync(dp, ct);
-                await _uow.SaveChangesAsync(ct);
+                _uow.Repository<DirectPurchaseRequest>().Update(dp);
 
                 await DirectPurchaseDraftWriter.ReplaceItemsAsync(_uow, dp.DirectPurchaseId, resolved, ct);
                 await DirectPurchaseDraftWriter.ReplaceInvoicePhotosAsync(
@@ -77,7 +76,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 await _uow.SaveChangesAsync(ct);
                 await _uow.CommitTransactionAsync(ct);
 
-                return dp.DirectPurchaseId;
+                return true;
             }
             catch
             {

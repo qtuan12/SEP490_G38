@@ -41,7 +41,8 @@ import { DirectPurchaseList } from './pages/DirectPurchases';
 import { ReportsHub } from './pages/ReportsHub';
 import { FieldWorkbench } from './pages/FieldWorkbench';
 import { FieldTaskList } from './pages/FieldTaskList';
-import { isPWAMode } from './utils/pwaHelpers';
+import { isPWAMode, isPWAOptimizedRole } from './utils/pwaHelpers';
+import { PWAProvider } from './context/PWAContext';
 import { DesktopOnlyGuard } from './components/DesktopOnlyGuard';
 import { RoleGroup } from './auth/roles';
 
@@ -117,8 +118,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   if (isAuthenticated) {
-    if (isPWAMode() && user?.role && (FIELD_ROLES as readonly string[]).includes(user.role)) {
-      return <Navigate to="/field?standalone=true" replace />;
+    if (isPWAMode()) {
+      // PWA chỉ tối ưu cho Nhân viên kỹ thuật (gồm project leader) — chức vụ khác về trang cá nhân.
+      return <Navigate to={isPWAOptimizedRole(user?.role) ? '/field?standalone=true' : '/profile'} replace />;
     }
     if (hasAnyRole(RoleGroup.AdminOnly)) {
       return <Navigate to="/users" replace />;
@@ -137,6 +139,7 @@ function App() {
           <AuthProvider>
             <NotificationProvider>
           <Router>
+            <PWAProvider>
             <Routes>
               {/* Root route */}
               <Route 
@@ -495,6 +498,7 @@ function App() {
               {/* Fallback route */}
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
+            </PWAProvider>
           </Router>
         </NotificationProvider>
       </AuthProvider>

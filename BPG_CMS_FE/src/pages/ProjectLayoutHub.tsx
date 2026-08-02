@@ -144,12 +144,13 @@ export const ProjectLayoutHub: React.FC = () => {
   const hasApprovedEmergencyIncident = incidents?.some(i => i.isEmergency && i.status === 'Approved') ?? false;
 
   const { hasAnyRole } = useAuth();
-  const { canManageExecution, canManageTechnical, canManageAccounting, canViewReports } = useProjectAccess(projectId);
+  const { canManageExecution, canManageTechnical, canManageAccounting, canViewReports, canApprove } = useProjectAccess(projectId);
   const { connection } = useNotification();
   const isTPKT = canManageTechnical;
   const canEditProject = hasAnyRole(RoleGroup.ProjectManagers);
   const canChangeProjectStatus = hasAnyRole(RoleGroup.ProjectManagers) || hasAnyRole(RoleGroup.Approval);
-  const canManageDirectPurchase = canManageExecution || canManageAccounting;
+  // Giám đốc phải thấy tab này để duyệt chi các phiếu mua khẩn cấp vượt định mức BOQ.
+  const canManageDirectPurchase = canManageExecution || canManageAccounting || canApprove;
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
