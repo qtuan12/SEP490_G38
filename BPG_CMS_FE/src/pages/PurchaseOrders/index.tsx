@@ -8,6 +8,8 @@ import { projectService } from '../../services/projectService';
 import { Badge, Pagination, Button, DateInput } from '../../components/ui';
 import { Search, AlertCircle, Loader2, Plus, ChevronDown, MoreVertical, Eye, Lock, Ban, SlidersHorizontal, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
+import { RoleGroup } from '../../auth/roles';
 
 const CANCELLABLE = ['Draft', 'Sent'];
 
@@ -133,6 +135,8 @@ const formatDate = (dateStr: string) => {
 export const PurchaseOrderList: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { hasAnyRole } = useAuth();
+  const canManagePurchaseOrders = hasAnyRole(RoleGroup.Accounting);
   const [searchPO, setSearchPO] = useState('');
   const [debouncedSearchPO, setDebouncedSearchPO] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -204,21 +208,21 @@ export const PurchaseOrderList: React.FC = () => {
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: () => {
-      toast.success('Đã hủy đơn mua hàng thành công.');
+      toast.success('Đã hủy đơn mua hàng.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
-    onError: (err: any) => setActionError(err.message || 'Hủy đơn hàng thất bại.'),
+    onError: (err: any) => setActionError(err.message || 'Không thể hủy đơn mua hàng.'),
   });
 
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: () => {
-      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận được trả lại yêu cầu vật tư.');
+      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
-    onError: (err: any) => setActionError(err.message || 'Đóng đơn hàng thất bại.'),
+    onError: (err: any) => setActionError(err.message || 'Không thể đóng đơn mua hàng.'),
   });
 
   const handleSearch = useCallback((val: string) => {
@@ -277,8 +281,8 @@ export const PurchaseOrderList: React.FC = () => {
       },
     ];
 
-    const canClose = po.status === 'PartiallyReceived';
-    const canCancel = CANCELLABLE.includes(po.status);
+    const canClose = canManagePurchaseOrders && po.status === 'PartiallyReceived';
+    const canCancel = canManagePurchaseOrders && CANCELLABLE.includes(po.status);
     if (canClose) {
       items.push({
         key: 'close',
@@ -347,9 +351,11 @@ export const PurchaseOrderList: React.FC = () => {
           )}
         </div>
 
-        <Button variant="primary" onClick={() => navigate('/purchase-orders/new')} className="flex items-center gap-1.5 text-sm">
-          <Plus size={16} /> Tạo đơn hàng
-        </Button>
+        {canManagePurchaseOrders && (
+          <Button variant="primary" onClick={() => navigate('/purchase-orders/new')} className="flex items-center gap-1.5 text-sm">
+            <Plus size={16} /> Tạo đơn hàng
+          </Button>
+        )}
       </div>
 
       {isFilterOpen && filterPos && createPortal(

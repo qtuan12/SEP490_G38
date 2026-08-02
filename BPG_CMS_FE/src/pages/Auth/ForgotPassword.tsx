@@ -24,7 +24,7 @@ export const ForgotPassword: React.FC = () => {
       setStep('otp');
       startResendCooldown();
     } catch (err: any) {
-      setError(err.message || 'Gửi OTP thất bại. Vui lòng thử lại.');
+      setError(err.message || 'Không thể gửi OTP. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -38,7 +38,7 @@ export const ForgotPassword: React.FC = () => {
       const resetToken = await authService.verifyOtp(email, otp.trim());
       navigate(`/reset-password?token=${encodeURIComponent(resetToken)}`);
     } catch (err: any) {
-      setError(err.message || 'Xác thực OTP thất bại.');
+      setError(err.message || 'Không thể xác thực OTP.');
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,7 @@ export const ForgotPassword: React.FC = () => {
       setOtp('');
       startResendCooldown();
     } catch (err: any) {
-      setError(err.message || 'Gửi lại OTP thất bại.');
+      setError(err.message || 'Không thể gửi lại OTP.');
     } finally {
       setLoading(false);
     }

@@ -434,9 +434,9 @@ function App() {
               <Route 
                 path="/purchase-orders/new" 
                 element={
-                  <ProtectedRoute allowedRoles={RoleGroup.Procurement}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Accounting}>
                     <ProjectOrRoleRoute
-                      allowedRoles={RoleGroup.Procurement}
+                      allowedRoles={RoleGroup.Accounting}
                     >
                       <CreatePOPage />
                     </ProjectOrRoleRoute>

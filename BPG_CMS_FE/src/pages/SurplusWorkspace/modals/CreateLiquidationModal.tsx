@@ -55,7 +55,7 @@ export const CreateLiquidationModal: React.FC<CreateLiquidationModalProps> = ({
       onSuccess();
       handleClose();
     } catch (err: any) {
-      setError(err.message || 'Lỗi hệ thống.');
+      setError(err.message || 'Không thể tạo phiếu thanh lý vật tư thừa.');
     } finally {
       setSubmitting(false);
     }

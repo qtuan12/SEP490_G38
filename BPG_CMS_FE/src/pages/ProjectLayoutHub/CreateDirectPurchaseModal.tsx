@@ -113,7 +113,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
           unitPrice: String(it.unitPrice),
         })));
       })
-      .catch(() => toast.error('Không tải được phiếu nháp.'))
+      .catch(() => toast.error('Không thể tải phiếu nháp.'))
       .finally(() => setLoadingDraft(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, draftId, catalog.length]);
@@ -215,7 +215,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
           setUploadedFiles(prev => prev.map(f => (f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)));
         },
         () => {
-          toast.error(`Tải hóa đơn ${file.name} lên thất bại.`);
+          toast.error(`Không thể tải hóa đơn ${file.name} lên.`);
           setUploadedFiles(prev => prev.map(f => (f.id === tempId ? { ...f, status: 'error' } : f)));
         }
       );
@@ -305,7 +305,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       onSuccess();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || 'Lưu nháp thất bại.', { position: 'top-center' });
+      toast.error(e.message || 'Không thể lưu phiếu nháp.');
     } finally {
       setSaving(null);
     }
@@ -336,16 +336,16 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       await directPurchaseService.submit(id);
       toast.success(
         anyOverBOQ
-          ? 'Đã gửi phiếu. Tồn kho đã cập nhật, phiếu đang chờ Kế toán soát hóa đơn.'
-          : 'Đã gửi phiếu. Tồn kho đã cập nhật, phiếu đang chờ Kế toán kiểm toán.'
+          ? 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán soát hóa đơn.'
+          : 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán kiểm toán.'
       );
       setIsConfirmOpen(false);
       onSuccess();
       onClose();
     } catch (e: any) {
-      const msg = e.message || 'Gửi phiếu thất bại.';
+      const msg = e.message || 'Không thể gửi phiếu mua trực tiếp.';
       setIsConfirmOpen(false);
-      toast.error(msg, { position: 'top-center' });
+      toast.error(msg);
       if (msg.includes('Ngày mua')) setPurchaseDateError(msg);
     } finally {
       setSaving(null);

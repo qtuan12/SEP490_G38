@@ -87,7 +87,7 @@ ${conclusion2 ? `- ${conclusion2}` : ''}`;
       return data;
     },
     onSuccess: () => {
-      onSuccess('Đã nghiệm thu giai đoạn thành công!');
+      onSuccess('Đã nghiệm thu giai đoạn.');
       onPhaseUpdated();
     },
     onError: (err: any) => {

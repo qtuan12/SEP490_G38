@@ -187,7 +187,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
       onSuccess();
     } catch (err: any) {
-      setLocalError(err.message || 'Lỗi khi tạo phiếu giảm tồn.');
+      setLocalError(err.message || 'Không thể tạo phiếu giảm tồn.');
     } finally {
       setLoading(false);
     }

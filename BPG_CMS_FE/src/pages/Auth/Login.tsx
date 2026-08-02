@@ -125,7 +125,7 @@ export const Login: React.FC = () => {
         setLockoutTimeLeft(15 * 60);
         setError('Tài khoản đã bị khóa trong 15 phút do nhập sai mật khẩu 5 lần.');
       } else {
-        setError(err.message || 'Đăng nhập thất bại.');
+        setError(err.message || 'Không thể đăng nhập.');
       }
     } finally {
       setLoading(false);

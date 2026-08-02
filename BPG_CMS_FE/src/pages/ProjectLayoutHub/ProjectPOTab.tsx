@@ -142,7 +142,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { connection } = useNotification();
-  const { canManageExecution, canManageAccounting } = useProjectAccess(projectId);
+  const { isProjectLeader, canManageAccounting } = useProjectAccess(projectId);
   const isAccountant = canManageAccounting;
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -215,21 +215,21 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: () => {
-      toast.success('Đã hủy đơn mua hàng thành công.');
+      toast.success('Đã hủy đơn mua hàng.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['project-purchase-orders', projectId] });
     },
-    onError: (err: any) => setActionError(err.message || 'Hủy đơn hàng thất bại.'),
+    onError: (err: any) => setActionError(err.message || 'Không thể hủy đơn mua hàng.'),
   });
 
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: () => {
-      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận được trả lại yêu cầu vật tư.');
+      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['project-purchase-orders', projectId] });
     },
-    onError: (err: any) => setActionError(err.message || 'Đóng đơn hàng thất bại.'),
+    onError: (err: any) => setActionError(err.message || 'Không thể đóng đơn mua hàng.'),
   });
 
   const { data, isLoading, isError } = useQuery({
@@ -296,7 +296,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
       return items;
     }
 
-    const canReceive = canManageExecution && (po.status === 'Sent' || po.status === 'PartiallyReceived');
+    const canReceive = isProjectLeader && (po.status === 'Sent' || po.status === 'PartiallyReceived');
     if (canReceive) {
       items.push({
         key: 'receive',

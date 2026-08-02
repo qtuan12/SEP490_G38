@@ -174,7 +174,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
   const addFiles = (files: File[]) => {
     const totalSize = files.reduce((acc, f) => acc + f.size, 0);
     if (totalSize > 20 * 1024 * 1024) {
-      alert(`Tổng dung lượng các file không được vượt quá 20MB.`);
+      toast.error('Tổng dung lượng các file không được vượt quá 20MB.');
       return;
     }
 
@@ -204,7 +204,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
           });
         },
         () => {
-          toast.error(`Tải file ${file.name} lên thất bại.`);
+          toast.error(`Không thể tải file ${file.name} lên.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' as const } : f)
           );

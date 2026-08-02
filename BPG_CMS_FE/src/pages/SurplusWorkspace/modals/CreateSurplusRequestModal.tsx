@@ -37,7 +37,7 @@ export const CreateSurplusRequestModal: React.FC<CreateSurplusRequestModalProps>
       onSuccess();
       handleClose();
     } catch (err: any) {
-      setError(err.message || 'Lỗi hệ thống khi tạo đề xuất.');
+      setError(err.message || 'Không thể tạo đề xuất xử lý vật tư thừa.');
     } finally {
       setSubmitting(false);
     }

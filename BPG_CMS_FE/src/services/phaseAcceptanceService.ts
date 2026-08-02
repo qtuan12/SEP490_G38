@@ -12,7 +12,7 @@ const API_PATH = '/PhaseAcceptances';
 type ApiResponse<T> = { success: boolean; message?: string; data: T };
 
 const unwrap = <T>(res: ApiResponse<T>): T => {
-  if (!res.success) throw new Error(res.message || 'Yêu cầu thất bại.');
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
   return res.data;
 };
 

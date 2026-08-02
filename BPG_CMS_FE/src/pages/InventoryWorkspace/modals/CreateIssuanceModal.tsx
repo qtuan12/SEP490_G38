@@ -272,7 +272,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error creating material issuance:', err);
-      setGeneralError(err.message || 'Lỗi hệ thống khi tạo phiếu xuất kho.');
+      setGeneralError(err.message || 'Không thể tạo phiếu xuất kho.');
     } finally {
       setSubmitting(false);
     }

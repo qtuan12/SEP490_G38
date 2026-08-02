@@ -170,7 +170,7 @@ export const PhaseAcceptance: React.FC = () => {
       await phaseAcceptanceService.cancelAcceptance(targetId, { cancellationReason: revokeReason });
       setIsRevoking(false);
       setRevokeReason('');
-      setSuccess('Đã hủy nghiệm thu giai đoạn thành công!');
+      setSuccess('Đã hủy nghiệm thu giai đoạn.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => setSuccess(null), 3000);
       
