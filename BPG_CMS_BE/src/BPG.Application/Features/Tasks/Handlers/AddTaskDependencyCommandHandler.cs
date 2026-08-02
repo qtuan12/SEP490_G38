@@ -75,8 +75,8 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
             currentChildParentId = parent?.ParentTaskId;
         }
 
-        if (task.Phase.ProjectId != predecessor.Phase.ProjectId)
-            throw new BusinessException("ERR_DEPENDENCY_DIFFERENT_PROJECTS", "Hai công việc phải thuộc cùng một dự án.");
+        if (task.PhaseId != predecessor.PhaseId)
+            throw new BusinessException("ERR_DEPENDENCY_DIFFERENT_PHASES", "Hai công việc phải thuộc cùng một giai đoạn.");
 
         // Check if dependency already exists
         var existing = await _unitOfWork.Repository<TaskDependency>()
