@@ -1,3 +1,5 @@
+import { triggerGlobalLoading, triggerGlobalHideLoading } from '../context/LoadingContext';
+
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5160/api';
 
 export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
@@ -5,6 +7,8 @@ export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 const ACCESS_TOKEN_KEY = 'bpg_token';
 const REFRESH_TOKEN_KEY = 'bpg_refresh_token';
 const USER_KEY = 'bpg_user';
+
+let activeApiRequestsCount = 0;
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
@@ -76,6 +80,13 @@ export const apiClient = {
       headers,
     };
 
+    const isSilentEndpoint = endpoint.includes('/notifications/unread-count') || endpoint.includes('/company-info');
+
+    if (!isSilentEndpoint) {
+      activeApiRequestsCount++;
+      triggerGlobalLoading('Hệ thống đang xử lý dữ liệu...');
+    }
+
     try {
       const response = await fetch(url, config);
 
@@ -107,8 +118,6 @@ export const apiClient = {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         let errMsg = '';
-        // Ưu tiên "errors" (thông điệp validate chi tiết) trước "message" (thường chỉ là
-        // câu chung chung kiểu "Dữ liệu đầu vào không hợp lệ." đi kèm errorCode VAL_001)
         if (errorData.errors) {
           if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
             errMsg = errorData.errors.join(' ');
@@ -151,6 +160,13 @@ export const apiClient = {
       }
       
       throw error;
+    } finally {
+      if (!isSilentEndpoint) {
+        activeApiRequestsCount = Math.max(0, activeApiRequestsCount - 1);
+        if (activeApiRequestsCount === 0) {
+          triggerGlobalHideLoading();
+        }
+      }
     }
   },
 

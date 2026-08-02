@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CompanyProvider } from './context/CompanyContext';
+import { LoadingProvider } from './context/LoadingContext';
+import { FullScreenLoading } from './components/ui/FullScreenLoading';
 import { Layout } from './components/layout/MainLayout';
 import { Login } from './pages/Auth/Login';
 import { PhaseAcceptances } from './pages/PhaseAcceptances';
@@ -61,18 +63,7 @@ const ProtectedRoute: React.FC<{
   const { isAuthenticated, isLoading, hasAnyRole } = useAuth();
 
   if (isLoading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'hsl(var(--bg-main))',
-        color: 'hsl(var(--text-primary))'
-      }}>
-        <h3>Đang tải phiên làm việc...</h3>
-      </div>
-    );
+    return <FullScreenLoading message="Đang kết nối hệ thống..." />;
   }
 
   if (!isAuthenticated) {
@@ -122,11 +113,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated, isLoading, hasAnyRole } = useAuth();
 
   if (isLoading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'hsl(var(--bg-main))' }}>
-        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Đang tải...</h3>
-      </div>
-    );
+    return <FullScreenLoading message="Đang tải dữ liệu..." />;
   }
 
   if (isAuthenticated) {
@@ -146,8 +133,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <CompanyProvider>
-      <AuthProvider>
-        <NotificationProvider>
+        <LoadingProvider>
+          <AuthProvider>
+            <NotificationProvider>
           <Router>
             <Routes>
               {/* Root route */}
@@ -510,7 +498,8 @@ function App() {
           </Router>
         </NotificationProvider>
       </AuthProvider>
-      </CompanyProvider>
+    </LoadingProvider>
+  </CompanyProvider>
       <Toaster position="top-right" />
     </QueryClientProvider>
   );

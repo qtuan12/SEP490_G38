@@ -28,9 +28,7 @@ public class DeleteProjectCommandHandler : IRequestHandler<DeleteProjectCommand,
         if (project.Status != ProjectStatus.Draft)
             throw new BusinessException("ERR_PROJECT_DELETE", $"Chỉ có thể xóa dự án khi đang ở trạng thái Draft. Trạng thái hiện tại: {project.Status}");
 
-        project.IsDeleted = true;
-
-        _uow.Repository<Project>().Update(project);
+        _uow.Repository<Project>().Remove(project);
         await _uow.SaveChangesAsync(cancellationToken);
 
         return true;
