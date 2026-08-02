@@ -12,9 +12,9 @@ import {
   AlertCircle,
   RotateCcw,
   RefreshCw,
-  Sparkles,
-  CheckCircle2
+  Sparkles
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../../../constants/realtimeEntities';
 
@@ -74,7 +74,6 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
   const [returnItems, setReturnItems] = useState<ReturnItemInput[]>([]);
   const [submittingReturn, setSubmittingReturn] = useState(false);
   const [returnError, setReturnError] = useState<string | null>(null);
-  const [returnSuccessMsg, setReturnSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && issuanceId) {
@@ -88,7 +87,6 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
     setReason('');
     setReasonError(null);
     setReturnError(null);
-    setReturnSuccessMsg(null);
     setReturnItems(prev => prev.map(item => ({
       ...item,
       quantity: '',
@@ -246,19 +244,18 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         }))
       });
 
-      setReturnSuccessMsg('Đã tạo phiếu hoàn trả vật tư. Tồn kho đã được cập nhật.');
+      toast.success('Đã tạo phiếu hoàn trả vật tư. Tồn kho đã được cập nhật.');
       
       // Reload history and state
       await fetchDetailAndHistory();
       if (onSuccess) onSuccess();
 
       setTimeout(() => {
-        setReturnSuccessMsg(null);
         setIsReturning(false);
         resetReturnForm();
       }, 1500);
     } catch (err: any) {
-      setReturnError(err.message || 'Không thể tạo phiếu hoàn trả vật tư.');
+      toast.error(err.message || 'Không thể tạo phiếu hoàn trả vật tư.');
     } finally {
       setSubmittingReturn(false);
     }
@@ -496,13 +493,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
                 <span className="text-xs text-slate-500 font-mono">PTra-Auto</span>
               </div>
 
-              {returnSuccessMsg ? (
-                <div className="flex flex-col items-center justify-center py-10 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 gap-2">
-                  <CheckCircle2 size={36} className="text-emerald-600" />
-                  <span className="font-semibold text-sm">{returnSuccessMsg}</span>
-                </div>
-              ) : (
-                <div className="space-y-4">
+              <div className="space-y-4">
                   {/* Lý do hoàn trả */}
                   <FormItem label="Lý do hoàn trả" required error={reasonError ?? undefined}>
                     <textarea
@@ -570,8 +561,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
                       <span>{returnError}</span>
                     </div>
                   )}
-                </div>
-              )}
+              </div>
             </div>
           )}
 

@@ -46,14 +46,21 @@ interface InventoryWorkspaceProps {
 export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectId }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { connection } = useNotification();
-  const [activeSubTab, setActiveSubTab] = useState<'current' | 'receipts' | 'issuances' | 'ledger'>(
-    (searchParams.get('subTab') as any) || 'current'
+  type InventorySubTab = 'current' | 'receipts' | 'issuances' | 'ledger';
+  const normalizeSubTab = (subTab: string | null): InventorySubTab => {
+    if (subTab === 'receipts' || subTab === 'issuances' || subTab === 'ledger') return subTab;
+    if (subTab === 'returns') return 'issuances';
+    return 'current';
+  };
+
+  const [activeSubTab, setActiveSubTab] = useState<InventorySubTab>(
+    normalizeSubTab(searchParams.get('subTab'))
   );
 
   useEffect(() => {
     const subTab = searchParams.get('subTab');
-    if (subTab && ['current', 'receipts', 'issuances', 'ledger', 'returns'].includes(subTab)) {
-      setActiveSubTab(subTab as any);
+    if (subTab) {
+      setActiveSubTab(normalizeSubTab(subTab));
     }
     const receiptId = searchParams.get('receiptId');
     if (receiptId) {
@@ -64,6 +71,16 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     if (issuanceId) {
       setSelectedIssuanceId(Number(issuanceId));
       setActiveSubTab('issuances');
+    }
+    const returnId = searchParams.get('returnId');
+    if (returnId && !issuanceId) {
+      setActiveSubTab('issuances');
+      inventoryService.getMaterialReturnDetail(Number(returnId))
+        .then(detail => setSelectedIssuanceId(detail.originalIssuanceId))
+        .catch((err) => {
+          console.error('Error resolving material return notification:', err);
+          toast.error('Không thể mở phiếu hoàn trả vật tư từ thông báo.');
+        });
     }
   }, [searchParams]);
 
@@ -77,7 +94,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     }
   }, [searchParams, activeSubTab]);
 
-  const handleSubTabChange = (subTab: 'current' | 'receipts' | 'issuances' | 'ledger') => {
+  const handleSubTabChange = (subTab: InventorySubTab) => {
     setActiveSubTab(subTab);
     const newParams = new URLSearchParams(searchParams);
     newParams.set('subTab', subTab);

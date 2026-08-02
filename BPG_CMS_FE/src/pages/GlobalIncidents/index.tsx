@@ -18,6 +18,7 @@ import { Badge, Button, Pagination, Select } from '../../components/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import type { Project } from '../../types/common';
+import toast from 'react-hot-toast';
 
 export const GlobalIncidents: React.FC = () => {
   const { user } = useAuth();
@@ -75,7 +76,6 @@ export const GlobalIncidents: React.FC = () => {
   const [loadingRowAction, setLoadingRowAction] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const visibleIncidents = incidents.filter(inc => {
     const matchesProject = !selectedProjectId || inc.projectId === selectedProjectId;
@@ -140,6 +140,7 @@ export const GlobalIncidents: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       let incListDto: IncidentDto[];
 
@@ -218,15 +219,13 @@ export const GlobalIncidents: React.FC = () => {
 
   const handleSuccess = (msg?: string) => {
     if (msg) {
-      setSuccess(msg);
-      setTimeout(() => setSuccess(null), 3000);
+      toast.success(msg);
     }
     loadData();
   };
 
   const handleError = (msg: string) => {
-    setError(msg);
-    setTimeout(() => setError(null), 4000);
+    toast.error(msg);
   };
 
   const handleRowClick = async (inc: IncidentReport) => {
@@ -297,11 +296,6 @@ export const GlobalIncidents: React.FC = () => {
   return (
     <div className="flex flex-col gap-5">
 
-      {success && (
-        <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
-          {success}
-        </div>
-      )}
       {error && (
         <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
           {error}

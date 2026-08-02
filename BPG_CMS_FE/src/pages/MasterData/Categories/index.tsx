@@ -4,7 +4,8 @@ import { materialCategoryService } from '../../../services/materialCategoryServi
 import { CategoryFormModal } from './modals/CategoryFormModal';
 import { ConfirmDialog, Button, DataTable, Pagination } from '../../../components/ui';
 import type { MaterialCategory } from '../../../types/materialCategory';
-import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, CheckCircle2, Tags } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, Tags } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export const CategoryManagement: React.FC = () => {
   const queryClient = useQueryClient();
@@ -20,7 +21,6 @@ export const CategoryManagement: React.FC = () => {
 
   // Message states
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   // Selected category for edit/delete
   const [selectedCategory, setSelectedCategory] = useState<MaterialCategory | null>(null);
@@ -37,8 +37,7 @@ export const CategoryManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(null), 3000);
+    toast.success(message);
   };
 
   // Delete mutation
@@ -53,7 +52,7 @@ export const CategoryManagement: React.FC = () => {
       setSelectedCategory(null);
     },
     onError: (err: any) => {
-      setError(err.message || 'Không thể xóa danh mục.');
+      toast.error(err.message || 'Không thể xóa danh mục.');
       setIsDeleteOpen(false);
     },
   });
@@ -137,13 +136,6 @@ export const CategoryManagement: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {success && (
-        <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-solid border-[hsl(var(--success))]/0.3 rounded px-4 py-3 text-emerald-800 text-sm font-medium">
-          <CheckCircle2 size={18} className="text-[hsl(var(--success))] shrink-0" />
-          <span>{success}</span>
-        </div>
-      )}
-
       {(error || isError) && (
         <div className="flex items-center gap-2.5 bg-[hsl(var(--danger-glow))] border border-solid border-[hsl(var(--danger))]/0.3 rounded px-4 py-3 text-rose-800 text-sm font-medium">
           <AlertCircle size={18} className="text-[hsl(var(--danger))] shrink-0" />
