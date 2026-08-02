@@ -203,8 +203,8 @@ export const PurchaseOrderList: React.FC = () => {
 
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(actionModal!.po.poId, actionReason),
-    onSuccess: () => {
-      toast.success('Đã hủy đơn mua hàng.');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã hủy đơn mua hàng.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
@@ -213,8 +213,8 @@ export const PurchaseOrderList: React.FC = () => {
 
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(actionModal!.po.poId, actionReason),
-    onSuccess: () => {
-      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },

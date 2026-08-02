@@ -13,7 +13,7 @@ import { formatQuantity, isGreaterThanQuantity, parseQuantityInput } from '../..
 interface CreateIssuanceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
   projectId: number;
 }
 
@@ -258,7 +258,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
       // Chuẩn hóa TaskId (bỏ tiền tố 't-' nếu có)
       const numericTaskId = parseInt(selectedTaskId.replace('t-', ''));
 
-      await inventoryService.createMaterialIssuance({
+      const result = await inventoryService.createMaterialIssuance({
         taskId: numericTaskId,
         purpose: purpose.trim(),
         items: selectedItems.map(i => ({
@@ -269,7 +269,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
         }))
       });
 
-      onSuccess();
+      onSuccess(result.message);
       onClose();
     } catch (err: any) {
       console.error('Error creating material issuance:', err);

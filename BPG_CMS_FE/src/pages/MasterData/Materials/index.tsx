@@ -51,10 +51,10 @@ export const MaterialManagement: React.FC = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => materialService.deleteMaterial(id),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['materials'] });
       setIsDeleteOpen(false);
-      showSuccess(`Đã xóa vật tư ${selectedMaterial?.name} thành công.`);
+      showSuccess(result.message || `Đã xóa vật tư ${selectedMaterial?.name} thành công.`);
       setSelectedMaterial(null);
     },
     onError: (err: any) => {

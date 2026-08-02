@@ -1,5 +1,5 @@
 import { apiClient } from './api';
-import type { ApiResponse } from '../types/api';
+import type { ApiResponse, ApiResult } from '../types/api';
 
 export interface IncidentDto {
   incidentId: number;
@@ -53,9 +53,9 @@ export const incidentService = {
     estimatedDelayDays?: number;
     proposedAction?: string;
     isEmergency?: boolean;
-  }): Promise<IncidentDto> {
+  }): Promise<ApiResult<IncidentDto>> {
     const response = await apiClient.post<ApiResponse<IncidentDto>>('/incidents', data);
-    return response.data;
+    return { data: response.data, message: response.message || '' };
   },
 
   async confirmIncident(
@@ -74,13 +74,13 @@ export const incidentService = {
       recoveryEstimateCost?: number;
       decision?: string;
     }
-  ): Promise<IncidentDto> {
+  ): Promise<ApiResult<IncidentDto>> {
     const response = await apiClient.put<ApiResponse<IncidentDto>>(`/incidents/${id}/confirm`, data);
-    return response.data;
+    return { data: response.data, message: response.message || '' };
   },
 
-  async rejectIncident(id: number, reason: string): Promise<IncidentDto> {
+  async rejectIncident(id: number, reason: string): Promise<ApiResult<IncidentDto>> {
     const response = await apiClient.put<ApiResponse<IncidentDto>>(`/incidents/${id}/reject`, { incidentId: id, reason });
-    return response.data;
+    return { data: response.data, message: response.message || '' };
   }
 };

@@ -42,13 +42,11 @@ export const UnitManagement: React.FC = () => {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await unitService.deleteUnit(id);
-    },
-    onSuccess: () => {
+    mutationFn: async (id: number) => unitService.deleteUnit(id),
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['units'] });
       setIsDeleteOpen(false);
-      showSuccess(`Đã xóa đơn vị tính ${selectedUnit?.unitName} thành công.`);
+      showSuccess(result.message || `Đã xóa đơn vị tính ${selectedUnit?.unitName} thành công.`);
       setSelectedUnit(null);
     },
     onError: (err: any) => {

@@ -1,12 +1,18 @@
 import { apiClient } from './api';
 import type { MaterialCategory, CreateMaterialCategoryRequest, UpdateMaterialCategoryRequest } from '../types/materialCategory';
 import type { PagedList } from './notificationService';
+import type { ApiResult } from '../types/api';
 
 type ApiResponse<T> = { success: boolean; message?: string; data: T };
 
 const unwrap = <T>(res: ApiResponse<T>): T => {
   if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
   return res.data;
+};
+
+const unwrapWithMessage = <T>(res: ApiResponse<T>): ApiResult<T> => {
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
+  return { data: res.data, message: res.message || '' };
 };
 
 export const materialCategoryService = {
@@ -19,13 +25,13 @@ export const materialCategoryService = {
       }
     }));
   },
-  createCategory: async (data: CreateMaterialCategoryRequest): Promise<number> => {
-    return unwrap(await apiClient.post<ApiResponse<number>>('/MaterialCategories', data));
+  createCategory: async (data: CreateMaterialCategoryRequest): Promise<ApiResult<number>> => {
+    return unwrapWithMessage(await apiClient.post<ApiResponse<number>>('/MaterialCategories', data));
   },
-  updateCategory: async (id: number, data: UpdateMaterialCategoryRequest): Promise<MaterialCategory> => {
-    return unwrap(await apiClient.put<ApiResponse<MaterialCategory>>(`/MaterialCategories/${id}`, data));
+  updateCategory: async (id: number, data: UpdateMaterialCategoryRequest): Promise<ApiResult<MaterialCategory>> => {
+    return unwrapWithMessage(await apiClient.put<ApiResponse<MaterialCategory>>(`/MaterialCategories/${id}`, data));
   },
-  deleteCategory: async (id: number): Promise<void> => {
-    await apiClient.delete<ApiResponse<null>>(`/MaterialCategories/${id}`);
+  deleteCategory: async (id: number): Promise<ApiResult<null>> => {
+    return unwrapWithMessage(await apiClient.delete<ApiResponse<null>>(`/MaterialCategories/${id}`));
   }
 };

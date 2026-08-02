@@ -272,7 +272,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const invoiceUrls = () =>
     uploadedFiles.filter(f => f.status === 'success' && f.url).map(f => f.url!);
 
-  const persist = async (): Promise<number> => {
+  const persist = async (): Promise<{ id: number; message: string }> => {
     const payloadBody = {
       phaseId: Number(selectedPhaseId),
       reason: reason.trim(),
@@ -282,11 +282,11 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     };
 
     if (isEditing) {
-      await directPurchaseService.updateDraft(draftId!, payloadBody);
-      return draftId!;
+      const result = await directPurchaseService.updateDraft(draftId!, payloadBody);
+      return { id: draftId!, message: result.message };
     }
     const created = await directPurchaseService.create({ projectId, ...payloadBody });
-    return created.directPurchaseId;
+    return { id: created.data.directPurchaseId, message: created.message };
   };
 
   const handleSaveDraft = async () => {
@@ -300,8 +300,8 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
 
     setSaving('draft');
     try {
-      await persist();
-      toast.success('Đã lưu nháp. Phiếu chưa được gửi và chưa ảnh hưởng tồn kho.');
+      const result = await persist();
+      toast.success(result.message || 'Đã lưu nháp. Phiếu chưa được gửi và chưa ảnh hưởng tồn kho.');
       onSuccess();
       onClose();
     } catch (e: any) {
@@ -332,13 +332,12 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const doSubmit = async () => {
     setSaving('submit');
     try {
-      const id = await persist();
-      await directPurchaseService.submit(id);
-      toast.success(
-        anyOverBOQ
-          ? 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán soát hóa đơn.'
-          : 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán kiểm toán.'
-      );
+      const persisted = await persist();
+      const result = await directPurchaseService.submit(persisted.id);
+      toast.success(result.message || (anyOverBOQ
+        ? 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán soát hóa đơn.'
+        : 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán kiểm toán.'
+      ));
       setIsConfirmOpen(false);
       onSuccess();
       onClose();

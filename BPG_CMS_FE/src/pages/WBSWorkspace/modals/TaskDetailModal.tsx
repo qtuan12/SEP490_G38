@@ -67,10 +67,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const restoreMutation = useMutation({
     mutationFn: () => wbsService.restoreTask(parseInt(selectedTask.id.replace('t-', ''))),
-    onSuccess: () => {
-      toast.success('Đã khôi phục công việc.');
+    onSuccess: (result) => {
+      const message = result.message || 'Đã khôi phục công việc.';
+      toast.success(message);
       setIsRestoreConfirmOpen(false);
-      if (onSuccess) onSuccess('Đã khôi phục công việc.');
+      if (onSuccess) onSuccess(message);
       onClose();
     },
     onError: (err: any) => {

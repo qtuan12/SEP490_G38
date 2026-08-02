@@ -1,5 +1,5 @@
 import { apiClient } from './api';
-import type { ApiResponse, PagedList } from '../types/api';
+import type { ApiResponse, ApiResult, PagedList } from '../types/api';
 import type {
   SurplusRequest,
   SurplusRequestDetail,
@@ -8,8 +8,13 @@ import type {
 } from '../types/surplus';
 
 const unwrap = <T>(res: ApiResponse<T>): T => {
-  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
+  if (!res.success) throw new Error(res.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0078\u1eed \u006c\u00fd \u0079\u00eau \u0063\u1ea7\u0075.');
   return res.data;
+};
+
+const unwrapWithMessage = <T>(res: ApiResponse<T>): ApiResult<T> => {
+  if (!res.success) throw new Error(res.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0078\u1eed \u006c\u00fd \u0079\u00eau \u0063\u1ea7\u0075.');
+  return { data: res.data, message: res.message || '' };
 };
 
 export const surplusService = {
@@ -77,14 +82,14 @@ export const surplusService = {
   ): Promise<number> =>
     unwrap(await apiClient.post<ApiResponse<number>>(`/surplus/items/${surplusRequestItemId}/transfer`, body)),
 
-  reviewTransfer: async (surplusTransferId: number, isApproved: boolean): Promise<void> =>
-    unwrap(await apiClient.put<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/review`, { isApproved })),
+  reviewTransfer: async (surplusTransferId: number, isApproved: boolean): Promise<ApiResult<void>> =>
+    unwrapWithMessage(await apiClient.put<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/review`, { isApproved })),
 
-  dispatchTransfer: async (surplusTransferId: number, formData: FormData): Promise<void> =>
-    unwrap(await apiClient.putFormData<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/dispatch`, formData)),
+  dispatchTransfer: async (surplusTransferId: number, formData: FormData): Promise<ApiResult<void>> =>
+    unwrapWithMessage(await apiClient.putFormData<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/dispatch`, formData)),
 
-  receiveTransfer: async (surplusTransferId: number, formData: FormData): Promise<void> =>
-    unwrap(await apiClient.putFormData<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/receive`, formData)),
+  receiveTransfer: async (surplusTransferId: number, formData: FormData): Promise<ApiResult<void>> =>
+    unwrapWithMessage(await apiClient.putFormData<ApiResponse<void>>(`/surplus/transfers/${surplusTransferId}/receive`, formData)),
 
   // ─── Liquidation (Accountant) ─────────────────────────────────────────────
   createLiquidation: async (

@@ -233,7 +233,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
 
     setSubmittingReturn(true);
     try {
-      await inventoryService.createMaterialReturn({
+      const result = await inventoryService.createMaterialReturn({
         originalIssuanceId: issuanceId!,
         reason: reason.trim(),
         items: activeItems.map(i => ({
@@ -244,7 +244,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         }))
       });
 
-      toast.success('Đã tạo phiếu hoàn trả vật tư. Tồn kho đã được cập nhật.');
+      toast.success(result.message || 'Đã tạo phiếu hoàn trả vật tư. Tồn kho đã được cập nhật.');
       
       // Reload history and state
       await fetchDetailAndHistory();

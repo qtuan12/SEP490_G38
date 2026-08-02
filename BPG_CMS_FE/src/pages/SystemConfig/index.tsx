@@ -48,8 +48,8 @@ const CompanySettingsCard: React.FC = () => {
 
   const saveMutation = useMutation({
     mutationFn: () => systemConfigService.updateCompanySettings(name.trim(), logoUrl),
-    onSuccess: () => {
-      toast.success('Đã cập nhật thông tin công ty.');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã cập nhật thông tin công ty.');
       queryClient.invalidateQueries({ queryKey: ['company-info'] });
       refetch();
     },
@@ -177,8 +177,8 @@ const SystemParametersCard: React.FC = () => {
 
   const updateMutation = useMutation({
     mutationFn: ({ key, value }: EditState) => systemConfigService.update(key, value),
-    onSuccess: () => {
-      toast.success('Đã cập nhật cấu hình hệ thống.');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã cập nhật cấu hình hệ thống.');
       setEditing(null);
       setEditError(null);
       queryClient.invalidateQueries({ queryKey: ['system-configs'] });

@@ -117,7 +117,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     if (selectedUserIds.length === 0) return;
 
     try {
-      await Promise.all(selectedUserIds.map(id => {
+      const results = await Promise.all(selectedUserIds.map(id => {
         const targetUser = availableEngineers.find(user => user.id === id);
         if (!targetUser)
           throw new Error('Kỹ sư đã chọn không còn khả dụng để thêm vào dự án.');
@@ -130,7 +130,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         });
       }));
 
-      toast.success(`Đã thêm ${selectedUserIds.length} kỹ sư vào dự án.`);
+      toast.success(selectedUserIds.length === 1 && results[0]?.__message ? results[0].__message : `Đã thêm ${selectedUserIds.length} kỹ sư vào dự án.`);
       setIsAddOpen(false);
       void loadData(true, true);
     } catch (err: any) {
@@ -147,8 +147,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     if (!memberToDelete) return;
 
     try {
-      await projectService.removeMember(projectId, memberToDelete.id);
-      toast.success(`Đã xóa kỹ sư ${memberToDelete.name} khỏi dự án.`);
+      const message = await projectService.removeMember(projectId, memberToDelete.id);
+      toast.success(message || `Đã xóa kỹ sư ${memberToDelete.name} khỏi dự án.`);
       void loadData(true, true);
     } catch (err: any) {
       toast.error(err.message || 'Không thể xóa thành viên khỏi dự án.');
@@ -164,7 +164,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       setMembers(updatedList);
 
       const target = updatedList.find(m => m.userId === userId);
-      toast.success(`Đã ${target?.isLeader ? 'gán' : 'hủy'} vai trò Trưởng nhóm cho ${name}.`);
+      toast.success(updatedList.__message || `Đã ${target?.isLeader ? 'gán' : 'hủy'} vai trò Trưởng nhóm cho ${name}.`);
     } catch (err: any) {
       toast.error(err.message || 'Không thể cập nhật vai trò trưởng nhóm.');
     }

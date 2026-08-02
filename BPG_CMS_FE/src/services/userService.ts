@@ -1,11 +1,12 @@
 import { apiClient, USE_MOCK_API } from './api';
 import type { UserProfile } from './authService';
+import type { ApiResult } from '../types/api';
 
 const getLocalUsers = (): UserProfile[] => {
   const usersStr = localStorage.getItem('bpg_users_list');
   const defaults: UserProfile[] = [
     { id: 'u-1', name: 'Hệ thống Admin', email: 'admin@bpg.com', role: 'admin', status: 'active' },
-    { id: 'u-2', name: 'Nguyễn Văn Kỹ', email: 'tpkt@bpg.com', role: 'technicalmanager', status: 'active' },
+    { id: 'u-2', name: 'Nguyễn Văn Kỷ', email: 'tpkt@bpg.com', role: 'technicalmanager', status: 'active' },
     { id: 'u-3', name: 'Trần Văn Công', email: 'engineer@bpg.com', role: 'siteengineer', status: 'active' },
     { id: 'u-6', name: 'Nguyễn Văn Nam', email: 'se1@bpg.com', role: 'siteengineer', status: 'active' },
     { id: 'u-7', name: 'Phạm Minh Hải', email: 'se2@bpg.com', role: 'siteengineer', status: 'active' },
@@ -45,6 +46,11 @@ type ApiResponse<T> = { success: boolean; message?: string; data: T };
 const unwrap = <T>(res: ApiResponse<T>): T => {
   if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
   return res.data;
+};
+
+const unwrapWithMessage = <T>(res: ApiResponse<T>): ApiResult<T> => {
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
+  return { data: res.data, message: res.message || '' };
 };
 
 export interface PaginatedUsers {
@@ -90,7 +96,7 @@ export const userService = {
     return unwrap(await apiClient.get<ApiResponse<PaginatedUsers>>('/users', { params: queryParams }));
   },
 
-  async createUser(userData: Omit<UserProfile, 'id' | 'status'>): Promise<UserProfile> {
+  async createUser(userData: Omit<UserProfile, 'id' | 'status'>): Promise<ApiResult<UserProfile>> {
     if (USE_MOCK_API) {
       await new Promise(resolve => setTimeout(resolve, 400));
       const users = getLocalUsers();
@@ -100,12 +106,12 @@ export const userService = {
       const newUser: UserProfile = { ...userData, id: `u-${Date.now()}`, status: 'active' };
       users.push(newUser);
       saveLocalUsers(users);
-      return newUser;
+      return { data: newUser, message: '' };
     }
-    return unwrap(await apiClient.post<ApiResponse<UserProfile>>('/users', userData));
+    return unwrapWithMessage(await apiClient.post<ApiResponse<UserProfile>>('/users', userData));
   },
 
-  async updateUser(id: string, userData: Partial<UserProfile>): Promise<UserProfile> {
+  async updateUser(id: string, userData: Partial<UserProfile>): Promise<ApiResult<UserProfile>> {
     if (USE_MOCK_API) {
       await new Promise(resolve => setTimeout(resolve, 400));
       const users = getLocalUsers();
@@ -119,22 +125,22 @@ export const userService = {
       const updatedUser = { ...users[userIndex], ...userData };
       users[userIndex] = updatedUser;
       saveLocalUsers(users);
-      return updatedUser;
+      return { data: updatedUser, message: '' };
     }
-    return unwrap(await apiClient.put<ApiResponse<UserProfile>>(`/users/${id}`, userData));
+    return unwrapWithMessage(await apiClient.put<ApiResponse<UserProfile>>(`/users/${id}`, userData));
   },
 
-  async deleteUser(id: string): Promise<void> {
+  async deleteUser(id: string): Promise<ApiResult<null>> {
     if (USE_MOCK_API) {
       await new Promise(resolve => setTimeout(resolve, 300));
       const users = getLocalUsers();
       saveLocalUsers(users.filter(u => u.id !== id));
-      return;
+      return { data: null, message: '' };
     }
-    await apiClient.delete<ApiResponse<null>>(`/users/${id}`);
+    return unwrapWithMessage(await apiClient.delete<ApiResponse<null>>(`/users/${id}`));
   },
 
-  async toggleUserStatus(id: string): Promise<UserProfile> {
+  async toggleUserStatus(id: string): Promise<ApiResult<UserProfile>> {
     if (USE_MOCK_API) {
       await new Promise(resolve => setTimeout(resolve, 300));
       const users = getLocalUsers();
@@ -143,8 +149,8 @@ export const userService = {
       const updatedUser: UserProfile = { ...users[userIndex], status: users[userIndex].status === 'active' ? 'locked' : 'active' };
       users[userIndex] = updatedUser;
       saveLocalUsers(users);
-      return updatedUser;
+      return { data: updatedUser, message: '' };
     }
-    return unwrap(await apiClient.post<ApiResponse<UserProfile>>(`/users/${id}/toggle-status`, {}));
+    return unwrapWithMessage(await apiClient.post<ApiResponse<UserProfile>>(`/users/${id}/toggle-status`, {}));
   }
 };

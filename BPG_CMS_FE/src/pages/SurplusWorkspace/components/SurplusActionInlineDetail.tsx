@@ -99,10 +99,11 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
 
     setActioning(transferId);
     try {
-      if (action === 'review-approve') await surplusService.reviewTransfer(transferId, true);
-      else if (action === 'review-reject') await surplusService.reviewTransfer(transferId, false);
+      let result: { message?: string } | undefined;
+      if (action === 'review-approve') result = await surplusService.reviewTransfer(transferId, true);
+      else if (action === 'review-reject') result = await surplusService.reviewTransfer(transferId, false);
 
-      toast.success(action === 'review-approve' ? 'Đã duyệt phiếu điều chuyển vật tư.' : 'Đã từ chối phiếu điều chuyển vật tư.');
+      toast.success(result?.message || (action === 'review-approve' ? 'Đã duyệt phiếu điều chuyển vật tư.' : 'Đã từ chối phiếu điều chuyển vật tư.'));
       scheduleRealtimeRefresh();
       onRefresh();
     } catch (err: any) {

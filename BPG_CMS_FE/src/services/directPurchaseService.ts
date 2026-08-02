@@ -1,5 +1,5 @@
 import { apiClient } from './api';
-import type { ApiPagedResponse, ApiResponse, PagedList } from '../types/api';
+import type { ApiPagedResponse, ApiResponse, ApiResult, PagedList } from '../types/api';
 
 /** Trạng thái duyệt chi. Không gác tồn kho - tồn kho cộng ngay ở bước Submit. */
 export const DP_STATUS = {
@@ -175,8 +175,13 @@ const unwrapPaged = <T>(res: ApiPagedResponse<T>): PagedList<T> => {
 };
 
 const unwrap = <T>(res: ApiResponse<T>): T => {
-  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
+  if (!res.success) throw new Error(res.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0078\u1eed \u006c\u00fd \u0079\u00eau \u0063\u1ea7\u0075.');
   return res.data;
+};
+
+const unwrapWithMessage = <T>(res: ApiResponse<T>): ApiResult<T> => {
+  if (!res.success) throw new Error(res.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0078\u1eed \u006c\u00fd \u0079\u00eau \u0063\u1ea7\u0075.');
+  return { data: res.data, message: res.message || '' };
 };
 
 export const directPurchaseService = {
@@ -202,27 +207,27 @@ export const directPurchaseService = {
   },
 
   /** Tạo phiếu NHÁP. Chưa sinh Đơn hàng/Phiếu nhập kho/tồn kho. */
-  create: async (payload: CreateDirectPurchaseRequestPayload): Promise<{ directPurchaseId: number }> => {
-    return unwrap(
+  create: async (payload: CreateDirectPurchaseRequestPayload): Promise<ApiResult<{ directPurchaseId: number }>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<{ directPurchaseId: number }>>('/directpurchases', payload)
     );
   },
 
-  updateDraft: async (id: number, payload: UpdateDirectPurchaseDraftPayload): Promise<boolean> => {
-    return unwrap(
+  updateDraft: async (id: number, payload: UpdateDirectPurchaseDraftPayload): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.put<ApiResponse<boolean>>(`/directpurchases/${id}`, payload)
     );
   },
 
-  deleteDraft: async (id: number): Promise<boolean> => {
-    return unwrap(
+  deleteDraft: async (id: number): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.delete<ApiResponse<boolean>>(`/directpurchases/${id}`)
     );
   },
 
   /** Gửi phiếu: validate đầy đủ, cộng tồn kho, không thể quay lại. */
-  submit: async (id: number): Promise<boolean> => {
-    return unwrap(
+  submit: async (id: number): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<boolean>>(`/directpurchases/${id}/submit`, {})
     );
   },
@@ -233,20 +238,20 @@ export const directPurchaseService = {
     );
   },
 
-  audit: async (id: number, payload: AuditDirectPurchasePayload): Promise<boolean> => {
-    return unwrap(
+  audit: async (id: number, payload: AuditDirectPurchasePayload): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.patch<ApiResponse<boolean>>(`/directpurchases/${id}/audit`, payload)
     );
   },
 
-  directorApprove: async (id: number, payload: DirectorApproveDirectPurchasePayload): Promise<boolean> => {
-    return unwrap(
+  directorApprove: async (id: number, payload: DirectorApproveDirectPurchasePayload): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.patch<ApiResponse<boolean>>(`/directpurchases/${id}/director-approve`, payload)
     );
   },
 
-  directorReject: async (id: number, payload: DirectorRejectDirectPurchasePayload): Promise<boolean> => {
-    return unwrap(
+  directorReject: async (id: number, payload: DirectorRejectDirectPurchasePayload): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.patch<ApiResponse<boolean>>(`/directpurchases/${id}/reject`, payload)
     );
   },
