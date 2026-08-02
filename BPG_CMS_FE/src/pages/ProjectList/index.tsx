@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import type { Project } from '../../types/common';
 import { CreateProjectModal } from './modals/CreateProjectModal';
-import { Button, Input, Select, Badge, Pagination } from '../../components/ui';
+import { Button, Input, Select, Badge, Pagination, LoadingSpinner } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../../components/ui/Modal';
 import type { BadgeVariant } from '../../components/ui';
@@ -16,7 +16,6 @@ import {
   Calendar,
   ArrowRight,
   FileText,
-  Loader2,
   CheckCircle2,
   AlertTriangle,
   Trash2,
@@ -224,9 +223,8 @@ export const ProjectList: React.FC = () => {
 
       {/* Grid Projects Content */}
       {loading ? (
-        <div className="flex justify-center items-center h-[200px] gap-2.5">
-          <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-          <span className="text-[hsl(var(--text-secondary))]">Đang tải danh sách dự án...</span>
+        <div className="flex justify-center items-center h-[240px]">
+          <LoadingSpinner size="lg" label="Đang tải danh sách dự án..." />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

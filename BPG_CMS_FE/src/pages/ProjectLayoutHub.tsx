@@ -41,6 +41,7 @@ import { AdjustmentList } from './InventoryAdjustments/components/AdjustmentList
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useSignalREvent } from '../hooks/useSignalREvent';
+import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { ProjectMaterialRequestsTab } from './MaterialRequests/components/ProjectMaterialRequestsTab';
 import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 import { isPWAMode } from '../utils/pwaHelpers';
@@ -190,13 +191,13 @@ export const ProjectLayoutHub: React.FC = () => {
   const [isPausing, setIsPausing] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
-  const fetchProjectDetails = async (isInitial = true) => {
+  const fetchProjectDetails = async (isInitial = true, forceRefresh = false) => {
     if (!projectId) return;
     const requestId = ++projectFetchRequestId.current;
     if (isInitial) setLoading(true);
     try {
       queryClient.invalidateQueries({ queryKey: ['projectIncidents', projectId] });
-      const data = await projectService.getProjectById(projectId);
+      const data = await projectService.getProjectById(projectId, forceRefresh);
       if (requestId !== projectFetchRequestId.current) return;
       setProject(data);
 
@@ -210,7 +211,7 @@ export const ProjectLayoutHub: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchProjectDetails(true);
+    fetchProjectDetails(true, true);
   }, [projectId]);
 
   useEffect(() => () => {
@@ -223,11 +224,15 @@ export const ProjectLayoutHub: React.FC = () => {
     if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
     realtimeRefreshTimer.current = setTimeout(() => {
       realtimeRefreshTimer.current = null;
-      fetchProjectDetails(false);
+      projectService.clearProjectDetailCache(projectId);
+      fetchProjectDetails(false, true);
       queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project-access', String(projectId)] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
     }, 120);
   };
+
+  useRealtimeDataRefresh(refreshProjectFromRealtime, ['Project', 'ProjectTask', 'Phase', 'DailyLog', 'TaskProgressLog']);
 
   useEffect(() => {
     if (!connection || !projectId) return;
@@ -272,6 +277,10 @@ export const ProjectLayoutHub: React.FC = () => {
   useSignalREvent('WbsTreeUpdated', refreshProjectFromRealtime);
   useSignalREvent('ReceiveDailyLogCreated', refreshProjectFromRealtime);
   useSignalREvent('ReceiveDailyLogUpdated', refreshProjectFromRealtime);
+  useSignalREvent('ReceiveDailyLogDeleted', refreshProjectFromRealtime);
+  useSignalREvent('ReceiveTaskProgressUpdated', refreshProjectFromRealtime);
+  useSignalREvent('TaskProgressUpdated', refreshProjectFromRealtime);
+  useSignalREvent('TaskUpdated', refreshProjectFromRealtime);
   useSignalREvent('ProjectMemberAdded', refreshProjectFromRealtime);
   useSignalREvent('ProjectMemberRemoved', refreshProjectFromRealtime);
   useSignalREvent('ProjectLeaderUpdated', refreshProjectFromRealtime);

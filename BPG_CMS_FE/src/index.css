@@ -100,6 +100,39 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes pulseLogoGlow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 25px rgba(37, 99, 235, 0.45), 0 0 55px rgba(37, 99, 235, 0.25);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 45px rgba(37, 99, 235, 0.75), 0 0 90px rgba(37, 99, 235, 0.45);
+  }
+}
+
+@keyframes spinSlow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes shimmerLoading {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-pulse-logo {
+  animation: pulseLogoGlow 2.4s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spinSlow 5s linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmerLoading 1.8s ease-in-out infinite;
+}
+
 .animate-fade-in {
   animation: fadeIn var(--transition-normal);
 }
@@ -107,6 +140,7 @@ body {
 .animate-slide-up {
   animation: slideUp var(--transition-normal);
 }
+
 
 /* Global Form & Input Styles */
 input, select, textarea {

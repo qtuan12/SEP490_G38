@@ -54,15 +54,19 @@ const setStorage = <T>(key: string, data: T[]) => {
 const projectDetailRequests = new Map<string, Promise<any>>();
 const projectDetailCache = new Map<string, { data: any, timestamp: number }>();
 
-async function getRawProjectDetail(projectId: string): Promise<any> {
+async function getRawProjectDetail(projectId: string, forceRefresh = false): Promise<any> {
   const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
   
-  if (projectDetailRequests.has(parsedId)) {
+  if (forceRefresh) {
+    projectDetailCache.delete(parsedId);
+  }
+  
+  if (!forceRefresh && projectDetailRequests.has(parsedId)) {
     return projectDetailRequests.get(parsedId)!;
   }
   
   const cached = projectDetailCache.get(parsedId);
-  if (cached && Date.now() - cached.timestamp < 5000) {
+  if (!forceRefresh && cached && Date.now() - cached.timestamp < 5000) {
     return cached.data;
   }
   
@@ -202,10 +206,19 @@ export const projectService = {
     return projects;
   },
 
-  async getProjectById(id: string): Promise<Project | null> {
+  clearProjectDetailCache(projectId?: string): void {
+    if (projectId) {
+      const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+      projectDetailCache.delete(parsedId);
+    } else {
+      projectDetailCache.clear();
+    }
+  },
+
+  async getProjectById(id: string, forceRefresh = false): Promise<Project | null> {
     if (!USE_MOCK_API) {
       try {
-        const p = await getRawProjectDetail(id);
+        const p = await getRawProjectDetail(id, forceRefresh);
         if (!p) return null;
         const designAttachments = p.attachments?.filter((a: any) => a.attachmentType === 'Design') || [];
         const drawingAttachment = designAttachments.length > 0 ? designAttachments[0] : null;
