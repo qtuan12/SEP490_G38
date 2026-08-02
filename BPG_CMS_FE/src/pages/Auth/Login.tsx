@@ -5,14 +5,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, Mail, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
 
-import { isPWAMode } from '../../utils/pwaHelpers';
-
-const FIELD_ROLES = ['technicalmanager', 'siteengineer'];
+import { isPWAMode, isPWAOptimizedRole } from '../../utils/pwaHelpers';
 
 const getRoleDashboard = (role: string): string => {
   const normRole = role?.toLowerCase() || '';
-  if (isPWAMode() && FIELD_ROLES.includes(normRole)) {
-    return '/field?standalone=true';
+  if (isPWAMode()) {
+    // PWA chỉ tối ưu cho Nhân viên kỹ thuật (gồm project leader);
+    // chức vụ khác vào thẳng trang cá nhân, mọi màn hình khác sẽ hiện cảnh báo.
+    return isPWAOptimizedRole(normRole) ? '/field?standalone=true' : '/profile';
   }
   switch (normRole) {
     case 'admin':
