@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+# Service worker do vite-plugin-pwa sinh ra khi chạy dev, bẩn lại mỗi lần khởi động
+dev-dist
 *.local
 .env
 .env.local
