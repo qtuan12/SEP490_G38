@@ -30,7 +30,8 @@ export const ProjectList: React.FC = () => {
   const { hasAnyRole } = useAuth();
   const canCreateProject = hasAnyRole(RoleGroup.ProjectManagers);
   const canDeleteProject = hasAnyRole(RoleGroup.ProjectManagers);
-  const showFieldShortcut = isPWAMode() && hasAnyRole(['technicalmanager', 'siteengineer']);
+  const pwa = isPWAMode();
+  const showFieldShortcut = pwa && hasAnyRole(['technicalmanager', 'siteengineer']);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,8 +143,23 @@ export const ProjectList: React.FC = () => {
     }
   };
 
+  const showNoProjectNotice = pwa && !loading && !error && projects.length === 0;
+
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
+
+      {/* PWA: người dùng chưa được gán vào dự án nào */}
+      {showNoProjectNotice && (
+        <div className="flex items-start gap-2.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm py-3 px-4 animate-fade-in">
+          <AlertTriangle size={18} className="text-[hsl(var(--danger))] shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <div className="font-semibold text-[hsl(var(--text-primary))]">Bạn đang không thuộc dự án nào</div>
+            <p className="m-0 mt-0.5 text-[hsl(var(--text-secondary))]">
+              Vui lòng liên hệ Quản lý kỹ thuật để được thêm vào dự án trước khi ghi nhật ký thi công.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Alert Messages */}
       {success && (
