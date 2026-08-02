@@ -30,7 +30,6 @@ export const PhaseAcceptance: React.FC = () => {
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const [isRevoking, setIsRevoking] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');
@@ -170,9 +169,7 @@ export const PhaseAcceptance: React.FC = () => {
       await phaseAcceptanceService.cancelAcceptance(targetId, { cancellationReason: revokeReason });
       setIsRevoking(false);
       setRevokeReason('');
-      setSuccess('Đã hủy nghiệm thu giai đoạn.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      setTimeout(() => setSuccess(null), 3000);
+      toast.success('Đã hủy nghiệm thu giai đoạn.');
       
       // Navigate to the history view of the revoked acceptance
       navigate(`/projects/${projectId}/phases/${phaseId}/acceptance?historyId=${targetId}`, { replace: true });
@@ -238,13 +235,6 @@ export const PhaseAcceptance: React.FC = () => {
         </p>
       </div>
 
-      {/* Messages */}
-      {success && (
-        <div className="animate-fade-in py-3 px-4.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.9rem] font-medium">
-          {success}
-        </div>
-      )}
-
       {error && (
         <div className="animate-fade-in py-3 px-4.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.9rem] font-medium">
           {error}
@@ -286,8 +276,8 @@ export const PhaseAcceptance: React.FC = () => {
               phase={phase!} 
               project={project}
               allCompleted={allCompleted} 
-              onSuccess={(msg) => { setSuccess(msg); setTimeout(() => setSuccess(null), 4000); }} 
-              onError={(msg) => setError(msg)} 
+              onSuccess={(msg) => toast.success(msg)}
+              onError={(msg) => toast.error(msg)}
               onPhaseUpdated={loadData} 
             />
           )}

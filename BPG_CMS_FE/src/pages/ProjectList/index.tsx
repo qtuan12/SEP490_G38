@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../../components/ui/Modal';
 import type { BadgeVariant } from '../../components/ui';
 import { isPWAMode } from '../../utils/pwaHelpers';
+import toast from 'react-hot-toast';
 import {
   Search,
   FolderPlus,
@@ -16,7 +17,6 @@ import {
   Calendar,
   ArrowRight,
   FileText,
-  CheckCircle2,
   AlertTriangle,
   Trash2,
   ClipboardList
@@ -35,7 +35,6 @@ export const ProjectList: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -87,13 +86,12 @@ export const ProjectList: React.FC = () => {
 
     setLoading(true);
     setError(null);
-    setSuccess(null);
     try {
       await projectService.deleteProject(projectToDelete.id);
-      setSuccess('Đã xóa dự án thành công.');
+      toast.success('Đã xóa dự án.');
       loadProjects();
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi xóa dự án.');
+      toast.error(err.message || 'Không thể xóa dự án.');
       setLoading(false);
     } finally {
       setProjectToDelete(null);
@@ -157,14 +155,6 @@ export const ProjectList: React.FC = () => {
               Vui lòng liên hệ Quản lý kỹ thuật để được thêm vào dự án trước khi ghi nhật ký thi công.
             </p>
           </div>
-        </div>
-      )}
-
-      {/* Alert Messages */}
-      {success && (
-        <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.3)] rounded-sm py-3 px-4 text-[hsl(142_70%_35%)] text-[0.9rem] font-medium animate-fade-in">
-          <CheckCircle2 size={18} className="text-[hsl(var(--success))]" />
-          <span>{success}</span>
         </div>
       )}
 
@@ -331,7 +321,7 @@ export const ProjectList: React.FC = () => {
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         onSuccess={() => {
-          setSuccess('Đã khởi tạo dự án.');
+          toast.success('Đã khởi tạo dự án.');
           loadProjects();
         }}
       />

@@ -185,15 +185,6 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                     .Select(u => u.FullName)
                     .FirstOrDefaultAsync(cancellationToken) ?? "Người dùng";
 
-                await _notificationService.SendNotificationAsync(
-                    currentUserId,
-                    "Xuất vật tư thành công",
-                    $"Bạn đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
-                    NotificationType.Procurement,
-                    $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
-                    issuance.MaterialIssuanceId,
-                    cancellationToken);
-
                 var assigneeIds = task.Assignees
                     .Select(a => a.UserId)
                     .Where(userId => userId != currentUserId)

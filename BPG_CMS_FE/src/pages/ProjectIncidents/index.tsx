@@ -16,6 +16,7 @@ import { Badge, Button } from '../../components/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import toast from 'react-hot-toast';
 
 interface Props {
   projectId: string;
@@ -64,11 +65,11 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const incListDtoAll = await incidentService.getIncidents(Number(projectId));
       const incListDto = incListDtoAll;
@@ -202,15 +203,13 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
 
   const handleSuccess = (msg?: string) => {
     if (msg) {
-      setSuccess(msg);
-      setTimeout(() => setSuccess(null), 3000);
+      toast.success(msg);
     }
     loadData();
   };
 
   const handleError = (msg: string) => {
-    setError(msg);
-    setTimeout(() => setError(null), 4000);
+    toast.error(msg);
   };
 
   // Help functions for UI
@@ -295,12 +294,6 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   return (
     <div className="flex flex-col gap-5">
 
-      {/* Notifications */}
-      {success && (
-        <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
-          {success}
-        </div>
-      )}
       {error && (
         <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
           {error}

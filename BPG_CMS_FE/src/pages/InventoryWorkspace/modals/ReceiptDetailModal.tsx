@@ -312,7 +312,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
               <span className="text-slate-500 font-medium">Trạng thái phiếu:</span>
               {detail.status === 'Cancelled' ? (
                 <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 uppercase tracking-wide">
-                  Đã hủy (Reversed)
+                  Đã hủy
                 </span>
               ) : (
                 <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wide">
