@@ -1,46 +1,34 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { directPurchaseService } from '../../services/directPurchaseService';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { directPurchaseService, DP_STATUS_LABEL } from '../../services/directPurchaseService';
 import type { DirectPurchaseRequestDto } from '../../services/directPurchaseService';
 import { Select, Badge } from '../../components/ui';
 import { DataTable } from '../../components/ui/DataTable';
+import { DirectPurchaseDetailModal } from '../ProjectLayoutHub/DirectPurchaseDetailModal';
+import { useAuth } from '../../context/AuthContext';
+import { RoleGroup } from '../../auth/roles';
 import { ShoppingBag, AlertCircle, Loader2 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
   { label: 'Nháp', value: 'Draft' },
+  { label: 'Chờ Kế toán', value: 'Pending' },
+  { label: 'Chờ Giám đốc', value: 'WaitingApproval' },
   { label: 'Đã duyệt', value: 'Approved' },
   { label: 'Từ chối', value: 'Rejected' },
 ];
 
-const AUDIT_STATUS_OPTIONS = [
-  { label: 'Tất cả kiểm toán', value: '' },
-  { label: 'Chờ kiểm toán', value: 'PendingAudit' },
-  { label: 'Đã kiểm toán', value: 'Audited' },
-  { label: 'Từ chối KT', value: 'Rejected' },
+const BOQ_CHECK_OPTIONS = [
+  { label: 'Tất cả định mức', value: '' },
+  { label: 'Trong định mức', value: 'WithinBOQ' },
+  { label: 'Vượt định mức', value: 'OverBOQ' },
 ];
 
-const statusLabel: Record<string, string> = {
-  Draft: 'Nháp',
-  Approved: 'Đã duyệt',
-  Rejected: 'Từ chối',
-};
-
-const statusVariant: Record<string, 'default' | 'success' | 'danger'> = {
+const statusVariant: Record<string, 'default' | 'warning' | 'success' | 'danger'> = {
   Draft: 'default',
+  Pending: 'warning',
+  WaitingApproval: 'warning',
   Approved: 'success',
-  Rejected: 'danger',
-};
-
-const auditLabel: Record<string, string> = {
-  PendingAudit: 'Chờ kiểm toán',
-  Audited: 'Đã kiểm toán',
-  Rejected: 'Từ chối',
-};
-
-const auditVariant: Record<string, 'warning' | 'info' | 'danger'> = {
-  PendingAudit: 'warning',
-  Audited: 'info',
   Rejected: 'danger',
 };
 
@@ -58,19 +46,26 @@ const formatDate = (dateStr: string) => {
 };
 
 export const DirectPurchaseList: React.FC = () => {
+  const queryClient = useQueryClient();
+  const { hasAnyRole } = useAuth();
   const [statusFilter, setStatusFilter] = useState('');
-  const [auditFilter, setAuditFilter] = useState('');
+  const [boqFilter, setBoqFilter] = useState('');
   const [page, setPage] = useState(1);
+  const [detailId, setDetailId] = useState<number | null>(null);
   const pageSize = 10;
 
+  // Trang này là nơi thông báo dẫn tới, nên Kế toán và Giám đốc phải thao tác được ngay tại đây.
+  const canAudit = hasAnyRole(RoleGroup.Accounting);
+  const canApproveSpending = hasAnyRole(RoleGroup.Approval);
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['direct-purchases', page, statusFilter, auditFilter],
+    queryKey: ['direct-purchases', page, statusFilter, boqFilter],
     queryFn: () =>
       directPurchaseService.getList({
         pageNumber: page,
         pageSize,
         status: statusFilter || undefined,
-        auditStatus: auditFilter || undefined,
+        boqCheckStatus: boqFilter || undefined,
       }),
   });
 
@@ -136,20 +131,10 @@ export const DirectPurchaseList: React.FC = () => {
     {
       key: 'status',
       header: 'Trạng thái',
-      width: '110px',
+      width: '130px',
       render: (item: DirectPurchaseRequestDto) => (
         <Badge variant={statusVariant[item.status] ?? 'default'}>
-          {statusLabel[item.status] ?? item.status}
-        </Badge>
-      ),
-    },
-    {
-      key: 'auditStatus',
-      header: 'Kiểm toán',
-      width: '120px',
-      render: (item: DirectPurchaseRequestDto) => (
-        <Badge variant={auditVariant[item.auditStatus] ?? 'default'}>
-          {auditLabel[item.auditStatus] ?? item.auditStatus}
+          {DP_STATUS_LABEL[item.status] ?? item.status}
         </Badge>
       ),
     },
@@ -182,9 +167,9 @@ export const DirectPurchaseList: React.FC = () => {
           options={STATUS_OPTIONS}
         />
         <Select
-          value={auditFilter}
-          onChange={(e) => { setAuditFilter(e.target.value); setPage(1); }}
-          options={AUDIT_STATUS_OPTIONS}
+          value={boqFilter}
+          onChange={(e) => { setBoqFilter(e.target.value); setPage(1); }}
+          options={BOQ_CHECK_OPTIONS}
         />
       </div>
 
@@ -211,8 +196,18 @@ export const DirectPurchaseList: React.FC = () => {
           currentPage={page}
           totalPages={data.totalPages}
           onPageChange={setPage}
+          onRowClick={(item) => setDetailId(item.directPurchaseId)}
         />
       )}
+
+      <DirectPurchaseDetailModal
+        isOpen={detailId !== null}
+        onClose={() => setDetailId(null)}
+        onAudited={() => queryClient.invalidateQueries({ queryKey: ['direct-purchases'] })}
+        directPurchaseId={detailId}
+        canAudit={canAudit}
+        canApproveSpending={canApproveSpending}
+      />
     </div>
   );
 };

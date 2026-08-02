@@ -17,12 +17,46 @@ namespace BPG.Api.Controllers
             return ApiPagedOk(result);
         }
 
+        /// <summary>
+        /// Tạo phiếu mua trực tiếp ở trạng thái NHÁP. Chưa sinh PO/Phiếu nhập kho/tồn kho.
+        /// </summary>
         [HttpPost]
         [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> CreateDirectPurchaseRequest([FromBody] CreateDirectPurchaseRequestCommand command, CancellationToken ct)
         {
             var id = await Mediator.Send(command, ct);
             return ApiOk(new { directPurchaseId = id });
+        }
+
+        /// <summary>Sửa phiếu nháp. Chỉ người tạo, chỉ khi Status = Draft.</summary>
+        [HttpPut("{id}")]
+        [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
+        public async Task<IActionResult> UpdateDirectPurchaseDraft([FromRoute] long id, [FromBody] UpdateDirectPurchaseDraftCommand command, CancellationToken ct)
+        {
+            command.DirectPurchaseId = id;
+            var result = await Mediator.Send(command, ct);
+            return ApiOk(result);
+        }
+
+        /// <summary>Xóa phiếu nháp. Chỉ người tạo, chỉ khi Status = Draft.</summary>
+        [HttpDelete("{id}")]
+        [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
+        public async Task<IActionResult> DeleteDirectPurchaseDraft([FromRoute] long id, CancellationToken ct)
+        {
+            var result = await Mediator.Send(new DeleteDirectPurchaseDraftCommand(id), ct);
+            return ApiOk(result);
+        }
+
+        /// <summary>
+        /// Gửi phiếu nháp. Hệ thống sinh Đơn hàng + Phiếu nhập kho và cộng tồn kho ngay.
+        /// Phiếu vượt định mức BOQ sẽ chuyển sang luồng Kế toán soát hóa đơn -> Giám đốc duyệt chi.
+        /// </summary>
+        [HttpPost("{id}/submit")]
+        [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
+        public async Task<IActionResult> SubmitDirectPurchase([FromRoute] long id, CancellationToken ct)
+        {
+            var result = await Mediator.Send(new SubmitDirectPurchaseCommand(id), ct);
+            return ApiOk(result);
         }
 
         [HttpGet("{id}")]
@@ -34,12 +68,36 @@ namespace BPG.Api.Controllers
         }
 
         /// <summary>
-        /// Kế toán kiểm toán phiếu mua khẩn cấp (đối chiếu hóa đơn để hoàn tiền/giải ngân).
-        /// Không ảnh hưởng đến tồn kho.
+        /// Kế toán đối chiếu hóa đơn. Không ảnh hưởng đến tồn kho.
+        /// Phiếu trong định mức: đây là bước cuối. Phiếu vượt định mức: trình tiếp Giám đốc.
         /// </summary>
         [HttpPatch("{id}/audit")]
         [Authorize(Roles = RolePolicies.Accountant)]
         public async Task<IActionResult> AuditDirectPurchase([FromRoute] long id, [FromBody] AuditDirectPurchaseCommand command, CancellationToken ct)
+        {
+            command.DirectPurchaseId = id;
+            var result = await Mediator.Send(command, ct);
+            return ApiOk(result);
+        }
+
+        /// <summary>
+        /// Giám đốc duyệt chi phiếu vượt định mức. Không ảnh hưởng tồn kho.
+        /// </summary>
+        [HttpPatch("{id}/director-approve")]
+        [Authorize(Roles = RolePolicies.Director)]
+        public async Task<IActionResult> DirectorApprove([FromRoute] long id, [FromBody] ApproveDirectPurchaseByDirectorCommand command, CancellationToken ct)
+        {
+            command.DirectPurchaseId = id;
+            var result = await Mediator.Send(command, ct);
+            return ApiOk(result);
+        }
+
+        /// <summary>
+        /// Giám đốc từ chối duyệt chi. Vật tư vẫn đã nhập kho, chỉ là không hoàn tiền.
+        /// </summary>
+        [HttpPatch("{id}/reject")]
+        [Authorize(Roles = RolePolicies.Director)]
+        public async Task<IActionResult> DirectorReject([FromRoute] long id, [FromBody] RejectDirectPurchaseByDirectorCommand command, CancellationToken ct)
         {
             command.DirectPurchaseId = id;
             var result = await Mediator.Send(command, ct);

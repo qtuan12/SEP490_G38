@@ -67,7 +67,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     projectLeaderId,
                     "Đơn hàng đã được đóng",
                     $"Đơn hàng {po.PONumber} đã được đóng. Phần vật tư chưa nhận được trả lại yêu cầu vật tư để tạo đơn hàng khác. Lý do: {po.ClosedReason}",
-                    NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
+                    NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
 
             return true;
         }

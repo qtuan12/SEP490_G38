@@ -505,6 +505,15 @@ public class AppDbContext : DbContext
             .HasForeignKey(d => d.AuditedBy)
             .OnDelete(DeleteBehavior.Restrict);
 
+        modelBuilder.Entity<DirectPurchaseRequest>()
+            .HasOne(d => d.Approver)
+            .WithMany()
+            .HasForeignKey(d => d.ApprovedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DirectPurchaseRequest>()
+            .Property(x => x.BOQCheckStatus).HasMaxLength(20);
+
         // MaterialCatalog BaseUnit -> Unit (int FK)
         modelBuilder.Entity<MaterialCatalog>()
             .HasOne(m => m.BaseUnit)
