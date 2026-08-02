@@ -44,6 +44,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   editLog,
   engineerId,
   engineerName,
+  isPL = false,
   canManageTechnical = false,
   onSuccess,
   hideHeader = false
@@ -73,6 +74,10 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
   const minProgress = currentTask ? currentTask.progress : 0;
   const isProgressDisabled = !currentTask || (!canManageTechnical && currentTask.progress === 100);
+  const isAssignedEngineer = !!currentTask
+    && !!engineerId
+    && (currentTask.assignedTo?.split(',').map(id => id.trim()).includes(String(engineerId)) ?? false);
+  const canCreateForCurrentTask = isEditMode || canManageTechnical || isPL || isAssignedEngineer;
 
   const schema = React.useMemo(() => {
     const minVal = canManageTechnical ? 0 : minProgress;
@@ -250,6 +255,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
         return projectService.updateDailyLog(editLog.id, data.content, allImages);
       } else {
         if (!currentTask) throw new Error('Vui lòng chọn công việc hợp lệ.');
+        if (!canCreateForCurrentTask) throw new Error('Bạn không có quyền tạo nhật ký cho công việc này.');
         return projectService.createDailyLog({
           projectId: currentTask.projectId,
           taskId: currentTask.id,
@@ -284,6 +290,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   });
 
   const onSubmit = (data: DailyLogForm) => {
+    if (!canCreateForCurrentTask) {
+      toast.error('Bạn không có quyền tạo nhật ký cho công việc này.');
+      return;
+    }
+
     // 1. Chặn submit nếu có hình ảnh đang tải lên
     if (uploadedFiles.some(f => f.status === 'uploading')) {
       toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
@@ -565,6 +576,12 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
             </div>
           </div>
 
+          {!canCreateForCurrentTask && !isEditMode && (
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              Bạn không được phân công vào công việc này nên không thể tạo nhật ký.
+            </div>
+          )}
+
           {/* Modal Buttons */}
           <div className="flex justify-end gap-3 mt-2">
             <Button 
@@ -579,6 +596,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
               type="submit" 
               variant="primary" 
               isLoading={mutation.isPending}
+              disabled={mutation.isPending || (!canCreateForCurrentTask && !isEditMode)}
             >
               {isEditMode ? 'Cập nhật' : 'Gửi báo cáo'}
             </Button>

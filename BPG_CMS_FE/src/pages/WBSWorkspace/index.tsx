@@ -21,7 +21,7 @@ interface WBSWorkspaceProps {
 
 export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { user } = useAuth();
-  const { canManageExecution, canManageTechnical } = useProjectAccess(projectId);
+  const { canManageExecution, canManageTechnical, isProjectLeader } = useProjectAccess(projectId);
   const navigate = useNavigate();
 
   const queryClient = useQueryClient();
@@ -213,7 +213,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const isTPKTOrPL = canManageExecution;
-  const isPL = isTPKTOrPL;
+  const isPL = isProjectLeader;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
