@@ -2,6 +2,7 @@ using AutoMapper;
 using BPG.Application.DTOs.Users;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
@@ -52,14 +53,27 @@ public sealed class GetAvailableProjectMembersQueryHandler
                 throw new ForbiddenException("Chỉ Trưởng dự án mới được xem danh sách kỹ sư có thể thêm.");
         }
 
+        var isTechManager = _currentUser.IsInRole(Roles.TechnicalManager) || _currentUser.IsInRole(Roles.Admin);
+
         var existingMemberIds = _unitOfWork.Repository<ProjectMember>()
             .Query()
             .AsNoTracking()
-            .Where(member => member.ProjectId == request.ProjectId)
+            .Where(member => member.ProjectId == request.ProjectId && !member.IsDeleted)
             .Select(member => member.UserId);
 
+        var activeLeaderUserIds = await _unitOfWork.Repository<ProjectMember>()
+            .Query()
+            .AsNoTracking()
+            .Where(member => member.IsLeader
+                && !member.IsDeleted
+                && member.Project.Status.ToLower() != "completed"
+                && member.Project.Status.ToLower() != "closed"
+                && member.Project.Status.ToLower() != "done")
+            .Select(member => member.UserId)
+            .ToListAsync(ct);
+
         var now = DateTime.UtcNow;
-        var candidates = await _unitOfWork.Repository<User>()
+        var candidatesQuery = _unitOfWork.Repository<User>()
             .Query()
             .AsNoTracking()
             .Include(user => user.UserRoles)
@@ -67,7 +81,15 @@ public sealed class GetAvailableProjectMembersQueryHandler
             .Where(user => user.IsActive
                 && (!user.LockedUntil.HasValue || user.LockedUntil <= now)
                 && user.UserRoles.Any(userRole => userRole.Role.RoleName == Roles.SiteEngineer)
-                && !existingMemberIds.Contains(user.UserId))
+                && !existingMemberIds.Contains(user.UserId));
+
+        if (!isTechManager)
+        {
+            // Trưởng dự án (PL) xem danh sách: Lọc bỏ những kỹ sư hiện đang làm Trưởng dự án của dự án chưa hoàn thành
+            candidatesQuery = candidatesQuery.Where(user => !activeLeaderUserIds.Contains(user.UserId));
+        }
+
+        var candidates = await candidatesQuery
             .OrderBy(user => user.FullName)
             .ToListAsync(ct);
 
