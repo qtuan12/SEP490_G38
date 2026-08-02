@@ -121,21 +121,21 @@ export const MaterialControl: React.FC = () => {
       if (req?.isOverBOQ) {
         toast.success('Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
       } else {
-        toast.success('Yêu cầu trong định mức hợp lệ. Đã duyệt thành công.');
+        toast.success('Đã duyệt yêu cầu vật tư trong định mức.');
       }
       fetchMaterialRequests();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi soát xét.');
+      toast.error(err.message || 'Không thể soát xét yêu cầu vật tư.');
     }
   };
 
   const handleDisburseRequestByAccountant = async (reqId: string, note?: string) => {
     try {
       await projectService.disburseEmergencyRequest(reqId, note);
-      toast.success('Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp thành công.');
+      toast.success('Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp.');
       fetchMaterialRequests();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi giải ngân.');
+      toast.error(err.message || 'Không thể phê duyệt giải ngân.');
     }
   };
 
@@ -143,10 +143,10 @@ export const MaterialControl: React.FC = () => {
     try {
       const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'director', note);
       const totalCost = updated.items.reduce((sum, item) => sum + (item.quantity * ((item as any).price || 0)), 0);
-      toast.success(`Phê duyệt thành công! Khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND đã được ghi nhận.`);
+      toast.success(`Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
       fetchMaterialRequests();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi phê duyệt.');
+      toast.error(err.message || 'Không thể phê duyệt yêu cầu vật tư.');
     }
   };
 
@@ -156,7 +156,7 @@ export const MaterialControl: React.FC = () => {
       toast.success('Đã từ chối yêu cầu vật tư.');
       fetchMaterialRequests();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi từ chối.');
+      toast.error(err.message || 'Không thể từ chối yêu cầu vật tư.');
     }
   };
 

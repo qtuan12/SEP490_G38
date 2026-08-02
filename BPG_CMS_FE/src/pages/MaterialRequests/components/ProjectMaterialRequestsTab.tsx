@@ -101,17 +101,17 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       const target = approvedRequests.find((r) => r.requestId === Number(numericId));
 
       if (!target) {
-        toast.error('Yêu cầu này không còn ở trạng thái có thể tạo đơn mua hàng (có thể đã bị thay đổi hoặc hủy).', { position: 'top-center' });
+        toast.error('Yêu cầu này không còn ở trạng thái có thể tạo đơn mua hàng (có thể đã bị thay đổi hoặc hủy).');
         return;
       }
       const hasRemaining = target.items.some((it) => it.remainingQuantity > 0);
       if (!hasRemaining) {
-        toast.error('Yêu cầu này đã được đặt đủ số lượng qua các đơn hàng trước, không còn vật tư nào để tạo đơn hàng mới.', { position: 'top-center' });
+        toast.error('Yêu cầu này đã được đặt đủ số lượng qua các đơn hàng trước, không còn vật tư nào để tạo đơn hàng mới.');
         return;
       }
       navigate(`/purchase-orders/new?projectId=${projectId}&requestId=${numericId}`);
     } catch (err: any) {
-      toast.error(err.message || 'Không thể kiểm tra điều kiện tạo đơn mua hàng.', { position: 'top-center' });
+      toast.error(err.message || 'Không thể kiểm tra điều kiện tạo đơn mua hàng.');
     } finally {
       setCheckingPORequestId(null);
     }
@@ -258,21 +258,21 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       if (req?.isOverBOQ) {
         toast.success('Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
       } else {
-        toast.success('Yêu cầu trong định mức hợp lệ. Đã duyệt thành công.');
+        toast.success('Đã duyệt yêu cầu vật tư trong định mức.');
       }
       scheduleRealtimeRefresh();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi soát xét.');
+      toast.error(err.message || 'Không thể soát xét yêu cầu vật tư.');
     }
   };
 
   const handleDisburseRequestByAccountant = async (reqId: string, note?: string) => {
     try {
       await projectService.disburseEmergencyRequest(reqId, note);
-      toast.success('Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp thành công.');
+      toast.success('Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp.');
       scheduleRealtimeRefresh();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi giải ngân.');
+      toast.error(err.message || 'Không thể phê duyệt giải ngân.');
     }
   };
 
@@ -280,10 +280,10 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     try {
       const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'director', note);
       const totalCost = updated.items.reduce((sum, item) => sum + (item.quantity * ((item as any).price || 0)), 0);
-      toast.success(`Phê duyệt thành công! Khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND đã được ghi nhận.`);
+      toast.success(`Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
       scheduleRealtimeRefresh();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi phê duyệt.');
+      toast.error(err.message || 'Không thể phê duyệt yêu cầu vật tư.');
     }
   };
 
@@ -293,7 +293,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       toast.success('Đã từ chối yêu cầu vật tư.');
       scheduleRealtimeRefresh();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi từ chối.');
+      toast.error(err.message || 'Không thể từ chối yêu cầu vật tư.');
     }
   };
 
@@ -303,7 +303,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       toast.success('Đã hủy yêu cầu vật tư.');
       scheduleRealtimeRefresh();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi hủy yêu cầu.');
+      toast.error(err.message || 'Không thể hủy yêu cầu vật tư.');
     }
   };
 

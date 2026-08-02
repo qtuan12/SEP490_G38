@@ -291,7 +291,7 @@ export const projectService = {
         attachments: attachments
       };
       const res = await apiClient.post<ApiResponse<import('../types/common').ProjectDto>>('/projects', payload);
-      if (!res.success) throw new Error(res.message || 'Khởi tạo dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể khởi tạo dự án.');
       return {
         id: res.data.projectId.toString(),
         name: res.data.name,
@@ -320,7 +320,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}`);
-      if (!res.success) throw new Error(res.message || 'Xóa dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể xóa dự án.');
       return;
     }
     const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
@@ -341,7 +341,7 @@ export const projectService = {
         attachments: updates.attachments
       };
       const res = await apiClient.put<ApiResponse<import('../types/common').ProjectDto>>(`/projects/${parsedId}`, payload);
-      if (!res.success) throw new Error(res.message || 'Cập nhật dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể cập nhật dự án.');
       return this.getProjectById(id) as unknown as Project;
     }
     const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
@@ -356,7 +356,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/activate`);
-      if (!res.success) throw new Error(res.message || 'Kích hoạt dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể kích hoạt dự án.');
       return this.getProjectById(projectId) as unknown as Project;
     }
     const project = await this.getProjectById(projectId);
@@ -386,7 +386,7 @@ export const projectService = {
         projectId: parsedId,
         pauseReason: reason
       });
-      if (!res.success) throw new Error(res.message || 'Tạm dừng dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể tạm dừng dự án.');
       return this.getProjectById(projectId) as unknown as Project;
     }
     return this.updateProject(projectId, { status: 'paused' });
@@ -396,7 +396,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/resume`);
-      if (!res.success) throw new Error(res.message || 'Tiếp tục dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể tiếp tục dự án.');
       return this.getProjectById(projectId) as unknown as Project;
     }
     return this.updateProject(projectId, { status: 'inprogress' });
@@ -481,7 +481,7 @@ export const projectService = {
         projectId: parseInt(parsedId), 
         userId: parseInt(user.id) 
       });
-      if (!res.success) throw new Error(res.message || 'Thêm thành viên thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể thêm thành viên.');
       projectDetailCache.delete(parsedId);
       return {
         projectId,
@@ -516,7 +516,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}`);
-      if (!res.success) throw new Error(res.message || 'Xóa thành viên thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể xóa thành viên.');
       projectDetailCache.delete(parsedId);
       return;
     }
@@ -529,7 +529,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}/leader`);
-      if (!res.success) throw new Error(res.message || 'Thay đổi quyền nhóm trưởng thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể thay đổi quyền nhóm trưởng.');
       projectDetailCache.delete(parsedId);
       return this.getMembers(projectId);
     }
@@ -633,7 +633,7 @@ export const projectService = {
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedProjectId}/phases/${parsedPhaseId}/boq`, {
         items: materials
       });
-      if (!res.success) throw new Error(res.message || 'Cập nhật BOQ thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể cập nhật BOQ.');
       return res.data;
     }
     const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
@@ -855,7 +855,7 @@ export const projectService = {
         updateReason: reason
       };
       const res = await apiClient.put<ApiResponse<any>>(`/tasks/${parsedTaskId}/progress`, payload);
-      if (!res.success) throw new Error(res.message || 'Cập nhật tiến độ thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể cập nhật tiến độ.');
       
       return {} as WBSTask;
     }
@@ -959,7 +959,7 @@ export const projectService = {
         totalCount: number;
       }>>(`/dailylogs`, { params });
 
-      if (!res.success) throw new Error(res.message || 'Lấy danh sách nhật ký thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể tải danh sách nhật ký.');
 
       const mapComment = (c: any): DailyLogComment => ({
         id: c.commentId.toString(),
@@ -1051,7 +1051,7 @@ export const projectService = {
       };
 
       const res = await apiClient.post<ApiResponse<any>>(`/dailylogs`, payload);
-      if (!res.success) throw new Error(res.message || 'Tạo nhật ký thi công thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể tạo nhật ký thi công.');
 
       const l = res.data;
       const mapComment = (c: any): DailyLogComment => ({
@@ -1187,7 +1187,7 @@ export const projectService = {
         images
       };
       const res = await apiClient.put<ApiResponse<any>>(`/dailylogs/${parsedLogId}`, payload);
-      if (!res.success) throw new Error(res.message || 'Cập nhật nhật ký thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể cập nhật nhật ký.');
 
       const l = res.data;
       const mapComment = (c: any): DailyLogComment => ({
@@ -1233,7 +1233,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedLogId = logId.startsWith('l-') ? parseInt(logId.substring(2)) : parseInt(logId);
       const res = await apiClient.post<ApiResponse<any>>(`/dailylogs/${parsedLogId}/comments`, { content });
-      if (!res.success) throw new Error(res.message || 'Thêm bình luận thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể thêm bình luận.');
 
       const c = res.data;
       return {
@@ -1268,7 +1268,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedCommentId = commentId.startsWith('c-') ? parseInt(commentId.substring(2)) : parseInt(commentId);
       const res = await apiClient.put<ApiResponse<any>>(`/dailylogs/comments/${parsedCommentId}`, { content });
-      if (!res.success) throw new Error(res.message || 'Cập nhật bình luận thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể cập nhật bình luận.');
 
       const c = res.data;
       return {
@@ -1321,7 +1321,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedTaskId = taskId.startsWith('t-') ? parseInt(taskId.substring(2)) : parseInt(taskId);
       const res = await apiClient.get<ApiResponse<TaskProgressLog[]>>(`/dailylogs/tasks/${parsedTaskId}/progress-history`);
-      if (!res.success) throw new Error(res.message || 'Lấy lịch sử tiến độ thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể tải lịch sử tiến độ.');
       return res.data ?? [];
     }
 
@@ -1352,7 +1352,7 @@ export const projectService = {
       method: 'POST',
       body: formData
     });
-    if (!res.success) throw new Error(res.message || 'Tải ảnh lên thất bại.');
+    if (!res.success) throw new Error(res.message || 'Không thể tải ảnh lên.');
     return (res.data || []).map(item => item.fileUrl);
   },
 
@@ -1675,7 +1675,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.get<ApiResponse<any>>(`/projects/${parsedProjectId}/material-requests`);
-      if (!res.success) throw new Error(res.message || 'Lấy danh sách yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể tải danh sách yêu cầu.');
       return (res.data?.items || []).map((item: any) => this.mapRequestDtoToCommon(item));
     }
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -1685,7 +1685,7 @@ export const projectService = {
   async getAllMaterialRequests(): Promise<MaterialRequest[]> {
     if (!USE_MOCK_API) {
       const res = await apiClient.get<ApiResponse<any>>('/materialrequests');
-      if (!res.success) throw new Error(res.message || 'Lấy danh sách yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể tải danh sách yêu cầu.');
       return (res.data?.items || []).map((item: any) => this.mapRequestDtoToCommon(item));
     }
     return getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS).sort((a, b) => b.date.localeCompare(a.date));
@@ -1712,11 +1712,11 @@ export const projectService = {
       };
       
       const res = await apiClient.post<ApiResponse<any>>(`/projects/${parsedProjectId}/material-requests`, payload);
-      if (!res.success) throw new Error(res.message || 'Tạo yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể tạo yêu cầu.');
       
       // Lấy chi tiết yêu cầu vừa tạo để trả về đầy đủ DTO
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${res.data}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu vừa tạo thất bại');
+      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu vừa tạo.');
       return this.mapRequestDtoToCommon(detailRes.data);
     }
 
@@ -1825,7 +1825,7 @@ export const projectService = {
         requestId: parseInt(parsedRequestId),
         reason: reason
       });
-      if (!res.success) throw new Error(res.message || 'Hủy yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể hủy yêu cầu.');
       return;
     }
 
@@ -1849,10 +1849,10 @@ export const projectService = {
         requestId: parseInt(parsedRequestId),
         note: note || 'Kế toán xử lý'
       });
-      if (!res.success) throw new Error(res.message || 'Kế toán xử lý thất bại');
+      if (!res.success) throw new Error(res.message || 'Kế toán không thể xử lý yêu cầu.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
+      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu.');
       return this.mapRequestDtoToCommon(detailRes.data);
     }
 
@@ -1899,10 +1899,10 @@ export const projectService = {
         requestId: parseInt(parsedRequestId),
         note: note || 'Đã giải ngân chi phí mua ngoài khẩn cấp'
       });
-      if (!res.success) throw new Error(res.message || 'Giải ngân thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể giải ngân.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
+      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu.');
       return this.mapRequestDtoToCommon(detailRes.data);
     }
 
@@ -1926,10 +1926,10 @@ export const projectService = {
         requestId: parseInt(parsedRequestId),
         note: note || `Giám đốc duyệt (${approvedBy})`
       });
-      if (!res.success) throw new Error(res.message || 'Giám đốc phê duyệt thất bại');
+      if (!res.success) throw new Error(res.message || 'Giám đốc không thể phê duyệt yêu cầu.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
+      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu.');
       return this.mapRequestDtoToCommon(detailRes.data);
     }
 
@@ -1974,10 +1974,10 @@ export const projectService = {
         requestId: parseInt(parsedRequestId),
         reason: reason
       });
-      if (!res.success) throw new Error(res.message || 'Từ chối yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể từ chối yêu cầu.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
+      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu.');
       return this.mapRequestDtoToCommon(detailRes.data);
     }
 
@@ -2083,11 +2083,11 @@ export const projectService = {
           unit: it.unit.trim()
         }))
       });
-      if (!res.success) throw new Error(res.message || 'Gửi lại yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể gửi lại yêu cầu.');
 
       // Lấy lại chi tiết phiếu sau khi resubmit
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
+      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu.');
       return this.mapRequestDtoToCommon(detailRes.data);
     }
 

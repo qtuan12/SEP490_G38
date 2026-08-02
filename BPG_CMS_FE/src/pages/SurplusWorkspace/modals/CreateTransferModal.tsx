@@ -65,7 +65,7 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Lỗi hệ thống.');
+      setError(err.message || 'Không thể tạo phiếu điều chuyển vật tư thừa.');
     } finally {
       setSubmitting(false);
     }

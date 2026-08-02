@@ -37,7 +37,7 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
       setList(data);
     } catch (err: any) {
       if (requestId !== loadRequestIdRef.current) return;
-      if (showLoading) toast.error(err.message || 'Lỗi tải danh sách hàng đến');
+      if (showLoading) toast.error(err.message || 'Không thể tải danh sách vật tư chuyển đến.');
       else console.error('Error refreshing incoming transfers:', err);
     } finally {
       if (requestId === loadRequestIdRef.current) setLoading(false);

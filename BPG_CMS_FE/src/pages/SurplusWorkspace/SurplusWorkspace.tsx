@@ -144,8 +144,8 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
     }
   };
 
-  const handleActionSuccess = () => {
-    toast.success('Thao tác thành công!');
+  const handleActionSuccess = (message: string) => {
+    toast.success(message);
     scheduleRealtimeRefresh();
   };
 
@@ -233,7 +233,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateSurplusRequestModal
           isOpen={showCreateBatch}
           onClose={() => setShowCreateBatch(false)}
-          onSuccess={() => { handleActionSuccess(); setShowCreateBatch(false); }}
+          onSuccess={() => { handleActionSuccess('Đã tạo đề xuất xử lý vật tư thừa.'); setShowCreateBatch(false); }}
           projectId={projectId}
           projectName={projectName}
         />
@@ -243,7 +243,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateReturnModal
           isOpen={!!returnItem}
           onClose={() => setReturnItem(null)}
-          onSuccess={() => { handleActionSuccess(); setReturnItem(null); }}
+          onSuccess={() => { handleActionSuccess('Đã tạo phiếu trả vật tư thừa cho nhà cung cấp.'); setReturnItem(null); }}
           item={returnItem}
           projectId={projectId}
         />
@@ -253,7 +253,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateTransferModal
           isOpen={!!transferItem}
           onClose={() => setTransferItem(null)}
-          onSuccess={() => { handleActionSuccess(); setTransferItem(null); }}
+          onSuccess={() => { handleActionSuccess('Đã tạo phiếu điều chuyển vật tư thừa.'); setTransferItem(null); }}
           item={transferItem}
           currentProjectId={projectId}
         />
@@ -263,7 +263,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateLiquidationModal
           isOpen={!!liquidationItem}
           onClose={() => setLiquidationItem(null)}
-          onSuccess={() => { handleActionSuccess(); setLiquidationItem(null); }}
+          onSuccess={() => { handleActionSuccess('Đã tạo phiếu thanh lý vật tư thừa.'); setLiquidationItem(null); }}
           item={liquidationItem}
         />
       )}

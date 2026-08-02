@@ -331,7 +331,7 @@ export const ProjectList: React.FC = () => {
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         onSuccess={() => {
-          setSuccess('Khởi tạo Dự án thành công!');
+          setSuccess('Đã khởi tạo dự án.');
           loadProjects();
         }}
       />

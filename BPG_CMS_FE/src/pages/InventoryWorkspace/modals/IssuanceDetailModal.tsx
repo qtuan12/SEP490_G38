@@ -246,7 +246,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         }))
       });
 
-      setReturnSuccessMsg('Hoàn trả vật tư thành công! Tồn kho đã tăng.');
+      setReturnSuccessMsg('Đã tạo phiếu hoàn trả vật tư. Tồn kho đã được cập nhật.');
       
       // Reload history and state
       await fetchDetailAndHistory();
@@ -258,7 +258,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         resetReturnForm();
       }, 1500);
     } catch (err: any) {
-      setReturnError(err.message || 'Lỗi hệ thống khi tạo phiếu hoàn trả.');
+      setReturnError(err.message || 'Không thể tạo phiếu hoàn trả vật tư.');
     } finally {
       setSubmittingReturn(false);
     }

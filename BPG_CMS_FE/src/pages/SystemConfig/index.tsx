@@ -49,11 +49,11 @@ const CompanySettingsCard: React.FC = () => {
   const saveMutation = useMutation({
     mutationFn: () => systemConfigService.updateCompanySettings(name.trim(), logoUrl),
     onSuccess: () => {
-      toast.success('Cập nhật thông tin công ty thành công.');
+      toast.success('Đã cập nhật thông tin công ty.');
       queryClient.invalidateQueries({ queryKey: ['company-info'] });
       refetch();
     },
-    onError: (err: any) => toast.error(err.message || 'Cập nhật thất bại.'),
+    onError: (err: any) => toast.error(err.message || 'Không thể cập nhật thông tin công ty.'),
   });
 
   const handlePickLogo = () => fileInputRef.current?.click();
@@ -72,7 +72,7 @@ const CompanySettingsCard: React.FC = () => {
         setIsUploading(false);
       },
       () => {
-        toast.error('Tải logo lên thất bại. Vui lòng thử lại.');
+        toast.error('Không thể tải logo lên. Vui lòng thử lại.');
         setIsUploading(false);
       }
     );
@@ -178,12 +178,12 @@ const SystemParametersCard: React.FC = () => {
   const updateMutation = useMutation({
     mutationFn: ({ key, value }: EditState) => systemConfigService.update(key, value),
     onSuccess: () => {
-      toast.success('Cập nhật cấu hình thành công.');
+      toast.success('Đã cập nhật cấu hình hệ thống.');
       setEditing(null);
       setEditError(null);
       queryClient.invalidateQueries({ queryKey: ['system-configs'] });
     },
-    onError: (err: any) => setEditError(err.message || 'Cập nhật thất bại.'),
+    onError: (err: any) => setEditError(err.message || 'Không thể cập nhật cấu hình hệ thống.'),
   });
 
   const startEdit = (cfg: SystemConfigDto) => {

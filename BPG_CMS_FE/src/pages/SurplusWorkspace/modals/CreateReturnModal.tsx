@@ -72,7 +72,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Lỗi hệ thống.');
+      setError(err.message || 'Không thể tạo phiếu trả vật tư cho nhà cung cấp.');
     } finally {
       setSubmitting(false);
     }

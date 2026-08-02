@@ -38,7 +38,7 @@ export const ResetPassword: React.FC = () => {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 3000);
     } catch (err: any) {
-      setError(err.message || 'Đặt lại mật khẩu thất bại. Vui lòng thử lại.');
+      setError(err.message || 'Không thể đặt lại mật khẩu. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -78,7 +78,7 @@ export const ResetPassword: React.FC = () => {
           <div className="animate-fade-in flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm p-4 mb-5 text-[hsl(142_72%_20%)] text-sm">
             <CheckCircle2 size={18} className="shrink-0 text-[hsl(var(--success))]" />
             <div>
-              <strong className="font-semibold block mb-1">Đặt lại mật khẩu thành công!</strong>
+              <strong className="font-semibold block mb-1">Đã đặt lại mật khẩu.</strong>
               <p className="text-[0.8rem] m-0">Đang chuyển hướng về trang Đăng nhập...</p>
             </div>
           </div>

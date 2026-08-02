@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button, LoadingSpinner } from '../../components/ui';
+import toast from 'react-hot-toast';
 import { inventoryService } from '../../services/inventoryService';
 import type { CurrentInventory } from '../../types/inventory';
 import { useNotification } from '../../context/NotificationContext';
@@ -181,11 +182,13 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
   const handleCreateReceiptSuccess = () => {
     setIsCreateReceiptOpen(false);
+    toast.success('Đã tạo phiếu nhập kho. Tồn kho đã được cập nhật.');
     handleRefreshAll();
   };
 
   const handleCreateIssuanceSuccess = () => {
     setIsCreateIssuanceOpen(false);
+    toast.success('Đã tạo phiếu xuất kho. Tồn kho đã được cập nhật.');
     handleRefreshAll();
   };
 

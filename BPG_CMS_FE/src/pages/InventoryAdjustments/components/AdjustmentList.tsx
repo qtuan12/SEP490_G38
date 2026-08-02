@@ -286,7 +286,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <CreateIncreaseAdjustmentModal
           isOpen={isIncreaseOpen}
           onClose={() => setIsIncreaseOpen(false)}
-          onSuccess={() => handleSuccess('Tạo phiếu tăng thành công, chờ Trưởng phòng kỹ thuật phê duyệt.')}
+          onSuccess={() => handleSuccess('Đã tạo phiếu tăng tồn. Phiếu đang chờ Trưởng phòng kỹ thuật phê duyệt.')}
           onError={handleError}
           projectId={projectId}
         />
@@ -296,7 +296,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <CreateDecreaseAdjustmentModal
           isOpen={isDecreaseOpen}
           onClose={() => setIsDecreaseOpen(false)}
-          onSuccess={handleSuccess}
+          onSuccess={() => handleSuccess('Đã tạo phiếu giảm tồn. Phiếu đang chờ Giám đốc phê duyệt.')}
           onError={handleError}
           projectId={projectId}
         />
@@ -306,7 +306,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <ReviewAdjustmentModal
           isOpen={reviewId !== null}
           onClose={() => setReviewId(null)}
-          onSuccess={() => handleSuccess('Duyệt phiếu thành công.')}
+          onSuccess={(approved) => handleSuccess(approved ? 'Đã duyệt phiếu điều chỉnh tồn. Tồn kho đã được cập nhật.' : 'Đã từ chối phiếu điều chỉnh tồn.')}
           onError={handleError}
           adjustmentId={reviewId}
           adjustmentData={data.find(x => x.adjustmentId === reviewId)}

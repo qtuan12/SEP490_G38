@@ -279,9 +279,9 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       }
     },
     onSuccess: (resLog) => {
-      const msg = isEditMode 
-        ? `Đã cập nhật nhật ký thi công thành công!` 
-        : `Đã báo cáo nhật ký thi công cho việc "${resLog.taskName}" thành công!`;
+      const msg = isEditMode
+        ? 'Đã cập nhật nhật ký thi công.'
+        : `Đã tạo nhật ký thi công cho công việc "${resLog.taskName}".`;
       toast.success(msg);
       onSuccess(msg);
       
@@ -293,7 +293,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       onCancel();
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Lỗi khi xử lý nhật ký thi công.');
+      toast.error(error.message || 'Không thể xử lý nhật ký thi công.');
     }
   });
 

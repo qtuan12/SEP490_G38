@@ -105,7 +105,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       });
       onSuccess();
     } catch (err: any) {
-      setLocalError(err.message || 'Lỗi khi tạo phiếu tăng tồn.');
+      setLocalError(err.message || 'Không thể tạo phiếu tăng tồn.');
     } finally {
       setLoading(false);
     }
