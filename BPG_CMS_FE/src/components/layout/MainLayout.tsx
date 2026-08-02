@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCompany } from '../../context/CompanyContext';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -21,15 +21,22 @@ import { HeaderNotification } from './HeaderNotification';
 import { PWABottomNav } from './PWABottomNav';
 import { OfflineBanner } from './OfflineBanner';
 import { RoleGroup } from '../../auth/roles';
+import { isPWAMode } from '../../utils/pwaHelpers';
+import { usePWA } from '../../context/PWAContext';
+import { PWAUnsupportedScreenNotice } from '../PWARestrictedNotice';
+
+// Màn hình duy nhất mà chức vụ ngoài nhóm field vẫn xem được ở chế độ PWA.
+const PWA_ALLOWED_WHEN_BLOCKED = ['/profile'];
 
 // Thanh điều hướng PWA chỉ hiện trong phạm vi "Việc của tôi" (field workflow) —
-// ẩn đi khi người dùng thoát ra các tab chung (dashboard, danh sách dự án, WBS hub, quản trị...).
+// ẩn đi khi người dùng thoát ra các tab chung (dashboard, WBS hub, quản trị...).
 const isFieldScopedRoute = (pathname: string): boolean => {
   if (pathname.startsWith('/field')) return true;
   if (pathname.startsWith('/tasks/')) return true;
   if (pathname.startsWith('/incidents')) return true;
   if (pathname === '/notifications') return true;
   if (pathname === '/profile') return true;
+  if (pathname === '/projects') return true;
   if (pathname.startsWith('/projects/') && pathname.includes('/logs')) return true;
   return false;
 };
@@ -41,6 +48,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
+  // Chức vụ ngoài nhóm field: khoá lại ở trang Cá nhân, mọi màn hình khác đều bị đưa về đó.
+  // Nhân viên kỹ thuật: chặn tại chỗ những màn hình chưa tối ưu cho di động (mở từ link thông báo).
+  const { shouldBlock, isUnsupportedScreen } = usePWA();
+
+  if (shouldBlock && !PWA_ALLOWED_WHEN_BLOCKED.includes(location.pathname)) {
+    return <Navigate to="/profile" replace />;
+  }
 
   const handleLogout = () => {
     logout();
@@ -69,17 +83,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     (item) => !item.allowedRoles || hasAnyRole(item.allowedRoles),
   );
 
-  const showBottomNav = isFieldScopedRoute(location.pathname);
+  // Ở chế độ PWA, điều hướng hoàn toàn bằng bottom nav — ẩn hẳn sidebar và nút mở sidebar.
+  const pwa = isPWAMode();
+  const showBottomNav = isFieldScopedRoute(location.pathname) || shouldBlock || isUnsupportedScreen;
 
   return (
     <div className="flex h-screen overflow-hidden bg-[hsl(var(--bg-main))]">
-      {isSidebarOpen && (
+      {!pwa && isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
+      {!pwa && (
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
         ${isCollapsed ? 'w-[80px]' : 'w-[260px]'} 
@@ -164,17 +181,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
         )}
       </aside>
+      )}
 
       <div className="flex flex-col flex-1 overflow-hidden">
         <OfflineBanner />
         <header className="h-[60px] md:h-[70px] bg-[hsl(var(--bg-card))] border-b border-[hsl(var(--border))] flex items-center sticky top-0 z-30 lg:px-12 px-4 md:px-6">
           <div className="max-w-[1400px] mx-auto w-full flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Menu
-                size={24}
-                className="text-[hsl(var(--text-secondary))] cursor-pointer lg:hidden"
-                onClick={() => setIsSidebarOpen(true)}
-              />
+              {!pwa && (
+                <Menu
+                  size={24}
+                  className="text-[hsl(var(--text-secondary))] cursor-pointer lg:hidden"
+                  onClick={() => setIsSidebarOpen(true)}
+                />
+              )}
               <h2 className="text-base sm:text-xl font-semibold truncate">
                 {location.pathname === '/dashboard' ? 'Bảng điều khiển' :
                   location.pathname === '/users' ? 'Quản lý Thành viên' :
@@ -189,9 +209,12 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                                   location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
               </h2>
             </div>
-            <div className="flex items-center gap-4">
-              <HeaderNotification />
-            </div>
+            {/* Chuông thông báo: ẩn khi đã có tab Thông báo dưới bottom nav, và ẩn hẳn với chức vụ bị hạn chế */}
+            {!shouldBlock && (
+              <div className={`items-center gap-4 ${showBottomNav ? 'hidden md:flex' : 'flex'}`}>
+                <HeaderNotification />
+              </div>
+            )}
           </div>
         </header>
 
@@ -200,7 +223,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           style={showBottomNav ? { paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' } : undefined}
         >
           <div className="max-w-[1400px] mx-auto w-full">
-            {children}
+            {isUnsupportedScreen ? <PWAUnsupportedScreenNotice /> : children}
           </div>
         </main>
       </div>
