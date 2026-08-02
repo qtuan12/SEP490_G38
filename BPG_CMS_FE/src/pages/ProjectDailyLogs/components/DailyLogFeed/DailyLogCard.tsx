@@ -44,6 +44,8 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
   const [editingCommentContent, setEditingCommentContent] = useState('');
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
   const [isDeletingComment, setIsDeletingComment] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [isUpdatingComment, setIsUpdatingComment] = useState(false);
 
   const isIncident = log.progressTo < log.progressFrom;
   const delta = log.progressTo - log.progressFrom;
@@ -94,11 +96,12 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
   // Comment Actions
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || isSubmittingComment) return;
 
     const content = commentInput.trim();
     if (!content) return;
 
+    setIsSubmittingComment(true);
     try {
       await projectService.addLogComment(log.id, {
         id: user.id,
@@ -110,20 +113,27 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
       await onReloadLogs();
     } catch (err: any) {
       alert(err.message || 'Không thể gửi bình luận.');
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
   const handleCommentUpdateSubmit = async (e: React.FormEvent, commentId: string) => {
     e.preventDefault();
+    if (isUpdatingComment) return;
+
     const content = editingCommentContent.trim();
     if (!content) return;
 
+    setIsUpdatingComment(true);
     try {
       await projectService.updateLogComment(commentId, content);
       setEditingCommentId(null);
       await onReloadLogs();
     } catch (err: any) {
       alert(err.message || 'Không thể cập nhật bình luận.');
+    } finally {
+      setIsUpdatingComment(false);
     }
   };
 
@@ -326,8 +336,8 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                             required
                             autoFocus
                           />
-                          <Button size="sm" type="submit" variant="primary" className="h-10 sm:h-8 px-2 py-0.5 text-xs">Lưu</Button>
-                          <Button size="sm" type="button" variant="outline" className="h-10 sm:h-8 px-2 py-0.5 text-xs" onClick={() => setEditingCommentId(null)}>Hủy</Button>
+                          <Button size="sm" type="submit" variant="primary" isLoading={isUpdatingComment} disabled={isUpdatingComment} className="h-10 sm:h-8 px-2 py-0.5 text-xs">Lưu</Button>
+                          <Button size="sm" type="button" variant="outline" disabled={isUpdatingComment} className="h-10 sm:h-8 px-2 py-0.5 text-xs" onClick={() => setEditingCommentId(null)}>Hủy</Button>
                         </form>
                       ) : (
                         <p className="text-[hsl(var(--text-primary))] mt-0.5 leading-snug">
@@ -349,12 +359,15 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                 placeholder="Nhập ý kiến chỉ đạo trực tuyến của Ban lãnh đạo..."
                 value={commentInput}
                 onChange={(e) => setCommentInput(e.target.value)}
+                disabled={isSubmittingComment}
                 className="h-11 sm:h-9 text-xs flex-1"
                 required
               />
               <Button
                 type="submit"
                 variant="primary"
+                isLoading={isSubmittingComment}
+                disabled={isSubmittingComment || !commentInput.trim()}
                 className="w-11 h-11 sm:w-9 sm:h-9 p-0 rounded-sm shrink-0 flex items-center justify-center"
               >
                 <Send size={13} />

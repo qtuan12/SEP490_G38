@@ -42,7 +42,7 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
     reset,
     setValue,
   } = useForm<FormData>({
@@ -119,10 +119,10 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
 
   const footer = (
     <>
-      <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="mr-3">
+      <Button variant="outline" onClick={onClose} disabled={mutation.isPending} className="mr-3">
         Hủy
       </Button>
-      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={isSubmitting}>
+      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={mutation.isPending} disabled={mutation.isPending}>
         Xác nhận
       </Button>
     </>

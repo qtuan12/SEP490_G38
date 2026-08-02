@@ -13,6 +13,8 @@ import { DailyLogCard } from './DailyLogCard';
 
 import { useSearchParams } from 'react-router-dom';
 import { useProjectAccess } from '../../../../hooks/useProjectAccess';
+import { canCreateDailyLog } from '../../../../utils/taskPermissions';
+import { RoleGroup } from '../../../../auth/roles';
 
 const PAGE_SIZE = 4;
 
@@ -65,8 +67,9 @@ interface DailyLogFeedProps {
 }
 
 export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId }) => {
-  const { user } = useAuth();
-  const { canManageExecution, canManageTechnical } = useProjectAccess(projectId);
+  const { user, hasAnyRole } = useAuth();
+  const { canManageExecution, isProjectLeader } = useProjectAccess(projectId);
+  const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
   const { connection } = useNotification();
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
@@ -471,12 +474,10 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     return formatted;
   };
 
-  const hasAnyAssignedTask = tasks.some(t => {
-    if (taskId && String(t.id).replace(/^t-/, '') !== String(taskId).replace(/^t-/, '')) return false;
-    const assignedIds = t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : [];
-    return user?.id && assignedIds.includes(user.id.toString());
-  });
-  const canReport = !!taskId && (canManageExecution || hasAnyAssignedTask) && !currentTaskHasSubtasks;
+  const canReport = !!currentTask
+    && canCreateDailyLog(currentTask, user, isProjectLeader)
+    && !currentTaskHasSubtasks
+    && currentTask.status !== 'obsolete';
 
   return (
     <div className="flex flex-col gap-6 w-full mx-auto pb-10 text-left">
@@ -610,8 +611,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           editLog={editLog}
           engineerId={user.id}
           engineerName={user.name}
-          isPL={canManageExecution}
-          canManageTechnical={canManageTechnical}
+          isPL={isProjectLeader}
+          canManageTechnical={canDecreaseDailyLogProgress}
           onSuccess={() => {
             loadData();
           }}

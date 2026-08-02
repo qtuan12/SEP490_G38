@@ -11,6 +11,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { wbsService } from '../../../services/wbsService';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { canCreateDailyLog } from '../../../utils/taskPermissions';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -168,6 +169,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   }
 
   const isParentTask = tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
+  const canReportDailyLog = canCreateDailyLog(selectedTask, user, isPL) && !isParentTask;
 
   const isBlocked = (() => {
     const predIds = selectedTask.predecessorTaskIds;
@@ -382,11 +384,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   </button>
                 </>
               )}
-              {(() => {
-                const assignedIds = selectedTask.assignedTo ? selectedTask.assignedTo.split(',').map(s => s.trim()) : [];
-                const isAssigned = user?.id && assignedIds.includes(user.id.toString());
-                return (isPL || isAssigned) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
-              })() && (
+              {canReportDailyLog && (
                 <>
                   <button onClick={() => setActiveForm(activeForm === 'log' ? null : 'log')} className={`btn ${activeForm === 'log' ? 'btn-secondary' : 'btn-primary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }} disabled={isBlocked}>
                     <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
@@ -483,7 +481,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             {activeForm === 'obsolete' && (
               <ObsoleteTaskForm task={selectedTask} onSuccess={handleFormSuccess} onCancel={() => setActiveForm(null)} />
             )}
-            {activeForm === 'log' && (
+            {activeForm === 'log' && canReportDailyLog && (
               <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} isPL={isPL} canManageTechnical={isTPKT} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
             )}
           </div>

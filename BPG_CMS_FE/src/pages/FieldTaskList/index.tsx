@@ -8,16 +8,18 @@ import { LoadingSpinner, Input } from '../../components/ui';
 import { TaskRow } from '../../components/field/TaskRow';
 import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVisibleTasksForUser } from '../../utils/taskPermissions';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { RoleGroup } from '../../auth/roles';
 import type { Project, WBSTask } from '../../types/common';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../../constants/realtimeEntities';
 
 export const FieldTaskList: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('projectId') || '';
-  const { isProjectLeader, canManageTechnical } = useProjectAccess(projectId);
+  const { isProjectLeader } = useProjectAccess(projectId);
+  const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
 
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
@@ -147,7 +149,7 @@ export const FieldTaskList: React.FC = () => {
           tasks={tasks}
           engineerId={user.id}
           engineerName={user.name}
-          canManageTechnical={canManageTechnical}
+          canManageTechnical={canDecreaseDailyLogProgress}
           onSuccess={() => {
             setLogModalTaskId(null);
             loadTasks(projectId);

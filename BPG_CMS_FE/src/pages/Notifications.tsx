@@ -13,6 +13,8 @@ export const NotificationsList: React.FC = () => {
   const { notifications, unreadCount, totalCount, markAsRead, markAllAsRead, isLoading, fetchNotifications } = useNotification();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [page, setPage] = useState(1);
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [markingId, setMarkingId] = useState<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,11 +26,25 @@ export const NotificationsList: React.FC = () => {
 
   const handleItemClick = async (noti: any) => {
     if (!noti.isRead) {
-      await markAsRead(noti.notificationId);
+      setMarkingId(noti.notificationId);
+      try {
+        await markAsRead(noti.notificationId);
+      } finally {
+        setMarkingId(null);
+      }
     }
     const url = resolveNotificationUrl(noti);
     if (url) {
       navigate(url);
+    }
+  };
+
+  const handleMarkAll = async () => {
+    setIsMarkingAll(true);
+    try {
+      await markAllAsRead();
+    } finally {
+      setIsMarkingAll(false);
     }
   };
 
@@ -48,7 +64,13 @@ export const NotificationsList: React.FC = () => {
           </p>
         </div>
         {unreadCount > 0 && (
-          <Button onClick={markAllAsRead} variant="secondary" className="flex items-center gap-2">
+          <Button 
+            onClick={handleMarkAll} 
+            variant="secondary" 
+            isLoading={isMarkingAll}
+            disabled={isMarkingAll}
+            className="flex items-center gap-2"
+          >
             <CheckCheck size={15} /> Đánh dấu đọc tất cả ({unreadCount})
           </Button>
         )}
@@ -121,12 +143,19 @@ export const NotificationsList: React.FC = () => {
                 {/* Action */}
                 {!noti.isRead && (
                   <Button
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      markAsRead(noti.notificationId);
+                      setMarkingId(noti.notificationId);
+                      try {
+                        await markAsRead(noti.notificationId);
+                      } finally {
+                        setMarkingId(null);
+                      }
                     }}
                     variant="secondary"
                     size="sm"
+                    isLoading={markingId === noti.notificationId}
+                    disabled={markingId === noti.notificationId}
                     className="shrink-0 text-xs"
                   >
                     Đánh dấu đã đọc

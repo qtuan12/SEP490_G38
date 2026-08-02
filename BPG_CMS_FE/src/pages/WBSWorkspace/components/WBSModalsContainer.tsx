@@ -15,6 +15,7 @@ import { DailyLogFormModal } from '../../ProjectDailyLogs/modals/DailyLogFormMod
 import { AdjustProgressModal } from '../modals/AdjustProgressModal';
 import { ReportIncidentModal } from '../../Incidents/modals/ReportIncidentModal';
 import { ReportInventoryIncidentModal } from '../modals/ReportInventoryIncidentModal';
+import { canCreateDailyLog } from '../../../utils/taskPermissions';
 
 
 export const WBSModalsContainer = () => {
@@ -41,6 +42,8 @@ export const WBSModalsContainer = () => {
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) || null : null;
+  const selectedTaskHasChildren = !!selectedTask && tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
+  const canOpenDailyLogForm = !!selectedTask && !!user && !selectedTaskHasChildren && canCreateDailyLog(selectedTask, user, isPL);
 
   return (
     <>
@@ -110,7 +113,7 @@ export const WBSModalsContainer = () => {
       )}
 
 
-      {isLogOpen && selectedTask && user && (
+      {isLogOpen && selectedTask && user && canOpenDailyLogForm && (
         <DailyLogFormModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} task={selectedTask} engineerId={user.id} engineerName={user.name} isPL={isPL} canManageTechnical={isTPKT} onSuccess={handleSuccess} onError={handleError} />
       )}
 

@@ -14,3 +14,4 @@ export * from './ConfirmDialog';
 export * from './Pagination';
 export * from './DataTable';
 export * from './SearchSelect';
+export * from './FullScreenLoading';

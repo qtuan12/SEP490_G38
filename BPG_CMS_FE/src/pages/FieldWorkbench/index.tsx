@@ -11,6 +11,7 @@ import { TaskRow, formatAssignees } from '../../components/field/TaskRow';
 import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVisibleTasksForUser } from '../../utils/taskPermissions';
 import type { Project, WBSTask, DailyLog } from '../../types/common';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { RoleGroup } from '../../auth/roles';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import { isPWAMode } from '../../utils/pwaHelpers';
 import { RealtimeEntityGroups } from '../../constants/realtimeEntities';
@@ -58,7 +59,7 @@ const FieldWorkbenchSkeleton: React.FC = () => (
 );
 
 export const FieldWorkbench: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requestedProjectId = searchParams.get('projectId');
@@ -70,7 +71,8 @@ export const FieldWorkbench: React.FC = () => {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [logModalTaskId, setLogModalTaskId] = useState<string | null>(null);
-  const { isProjectLeader, canManageTechnical } = useProjectAccess(projectId);
+  const { isProjectLeader } = useProjectAccess(projectId);
+  const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
 
   useEffect(() => {
     projectService.getProjects().then(list => {
@@ -357,7 +359,7 @@ export const FieldWorkbench: React.FC = () => {
           tasks={tasks}
           engineerId={user.id}
           engineerName={user.name}
-          canManageTechnical={canManageTechnical}
+          canManageTechnical={canDecreaseDailyLogProgress}
           onSuccess={() => {
             setLogModalTaskId(null);
             if (projectId) loadProjectDetail(projectId, true);

@@ -9,10 +9,11 @@ import { Badge } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useProjectAccess } from '../hooks/useProjectAccess';
-import { isManagerRole } from '../utils/taskPermissions';
+import { canCreateDailyLog } from '../utils/taskPermissions';
 import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../constants/realtimeEntities';
+import { RoleGroup } from '../auth/roles';
 
 const STATUS_LABEL: Record<string, string> = {
   New: 'Mới',
@@ -42,14 +43,15 @@ const formatDate = (iso?: string | null): string => {
 export const TaskDetailSE: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const pwa = isPWAMode();
 
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<TaskDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [logModalOpen, setLogModalOpen] = useState(false);
-  const { isProjectLeader, canManageTechnical } = useProjectAccess(detail ? String(detail.projectId) : undefined);
+  const { isProjectLeader } = useProjectAccess(detail ? String(detail.projectId) : undefined);
+  const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
 
   const loadDetail = useCallback((silent = false) => {
     if (!taskId) return;
@@ -107,19 +109,20 @@ export const TaskDetailSE: React.FC = () => {
   const overdue = !['Completed', 'Approved', 'Obsolete'].includes(detail.status) && new Date(detail.endDate) < new Date();
 
   // Backend chỉ cho TM/Admin / Trưởng dự án (leader) / người được gán vào đúng task này tạo nhật ký (403 với người khác).
-  const isAssignee = !!user && detail.assignees.some(a => String(a.userId) === String(user.id));
-  const canCreateLog = detail.status !== 'Obsolete' && (isAssignee || isManagerRole(user) || isProjectLeader);
-
   const taskForModal: WBSTask = {
     id: String(detail.taskId),
     phaseId: String(detail.phaseId),
     projectId: String(detail.projectId),
     name: detail.name,
+    assignedTo: detail.assignees.map(a => String(a.userId)).join(','),
+    assignedName: detail.assignees.map(a => a.fullName).join(', '),
     sortOrder: 0,
     deadline: detail.endDate,
     progress: detail.progressPercent,
+    status: detail.status === 'Obsolete' ? 'obsolete' : undefined,
     history: [],
   };
+  const canCreateLog = detail.status !== 'Obsolete' && canCreateDailyLog(taskForModal, user, isProjectLeader);
 
   return (
     <div className="max-w-md mx-auto flex flex-col gap-4 animate-fade-in pb-8">
@@ -175,15 +178,15 @@ export const TaskDetailSE: React.FC = () => {
 
       {/* Quick actions */}
       <div className="flex gap-2">
-        <button
-          onClick={() => setLogModalOpen(true)}
-          disabled={!canCreateLog}
-          title={!canCreateLog ? 'Chỉ người được gán vào công việc này, Trưởng dự án hoặc TPKT mới được tạo nhật ký.' : undefined}
-          className="flex-1 flex items-center justify-center gap-1.5 h-12 rounded-lg bg-[hsl(var(--primary))] text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Plus size={16} />
-          Nhật ký mới
-        </button>
+        {canCreateLog && (
+          <button
+            onClick={() => setLogModalOpen(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 h-12 rounded-lg bg-[hsl(var(--primary))] text-white font-semibold text-sm"
+          >
+            <Plus size={16} />
+            Nhật ký mới
+          </button>
+        )}
         <button
           onClick={() => navigate(`/projects/${detail.projectId}/tasks/${detail.taskId}/logs`)}
           className="flex-1 flex items-center justify-center gap-1.5 h-12 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] font-semibold text-sm text-[hsl(var(--text-primary))]"
@@ -218,7 +221,7 @@ export const TaskDetailSE: React.FC = () => {
           task={taskForModal}
           engineerId={user.id}
           engineerName={user.name}
-          canManageTechnical={canManageTechnical}
+          canManageTechnical={canDecreaseDailyLogProgress}
           onSuccess={() => {
             setLogModalOpen(false);
             loadDetail();

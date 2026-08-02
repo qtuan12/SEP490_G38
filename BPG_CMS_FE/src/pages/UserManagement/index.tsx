@@ -3,7 +3,7 @@ import { userService } from '../../services/userService';
 import type { UserProfile } from '../../services/authService';
 import { CreateUserModal } from './modals/CreateUserModal';
 import { EditUserModal } from './modals/EditUserModal';
-import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination } from '../../components/ui';
+import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination, LoadingSpinner } from '../../components/ui';
 import {
   Search,
   UserPlus,
@@ -12,7 +12,6 @@ import {
   Lock,
   Unlock,
   AlertCircle,
-  Loader2,
   CheckCircle2,
   User as UserIcon,
   Phone,
@@ -294,9 +293,8 @@ export const UserManagement: React.FC = () => {
 
         {/* Content Area */}
         {loading ? (
-          <div className="flex justify-center items-center h-48 gap-2.5">
-            <Loader2 className="animate-spin text-blue-600" size={24} />
-            <span className="text-slate-500 text-sm">Đang tải danh sách thành viên...</span>
+          <div className="flex justify-center items-center h-48">
+            <LoadingSpinner size="lg" label="Đang tải danh sách thành viên..." />
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="text-center py-12 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">

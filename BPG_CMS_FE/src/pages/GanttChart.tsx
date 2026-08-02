@@ -19,6 +19,7 @@ import { useProjectAccess } from '../hooks/useProjectAccess';
 import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../constants/realtimeEntities';
+import { canCreateDailyLog } from '../utils/taskPermissions';
 
 // ── helpers ───────────────────────────────────────────────────────────────
 const formatDate = (s: string) => {
@@ -58,7 +59,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
-  const { canManageExecution, canManageTechnical } = useProjectAccess(projectId);
+  const { canManageTechnical, isProjectLeader } = useProjectAccess(projectId);
 
   const [isAdjustModalOpen, setAdjustModalOpen] = useState(false);
   const [selectedTaskToAdjust, setSelectedTaskToAdjust] = useState<WBSTask | null>(null);
@@ -286,10 +287,9 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
       if (taskObj.type !== gantt.config.types.project && taskObj.rawTask) {
         const wbsTask = taskObj.rawTask as WBSTask;
         const currentTaskHasSubtasks = tasks.some(t => t.parentTaskId === wbsTask.id && t.status !== 'obsolete');
-        const assignedIds = wbsTask.assignedTo ? wbsTask.assignedTo.split(',').map(s => s.trim()) : [];
-        const hasAnyAssignedTask = user?.id && assignedIds.includes(user.id.toString());
-
-        const canReport = (canManageExecution || hasAnyAssignedTask) && !currentTaskHasSubtasks && wbsTask.status !== 'obsolete';
+        const canReport = canCreateDailyLog(wbsTask, user, isProjectLeader)
+          && !currentTaskHasSubtasks
+          && wbsTask.status !== 'obsolete';
 
         if (canReport) {
           setSelectedTaskToAdjust(wbsTask);
@@ -303,7 +303,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
       gantt.detachEvent(clickEventId);
       gantt.clearAll();
     };
-  }, [loading, phases, tasks, buildDhtmlxData, user, canManageExecution]);
+  }, [loading, phases, tasks, buildDhtmlxData, user, isProjectLeader]);
 
   // ── change view mode ──────────────────────────────────────────────────
   const handleViewMode = (mode: ViewMode) => {
