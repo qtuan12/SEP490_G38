@@ -44,7 +44,7 @@ export const canCreateDailyLog = (
   isProjectLeader: boolean
 ): boolean => {
   if (!hasAssignee(task)) return false;
-  if (isManagerRole(user) || isProjectLeader) return true;
+  if (isProjectLeader) return true;
   if (!user) return false;
-  return isAssignedTo(task, user.id);
+  return user.role === 'siteengineer' && isAssignedTo(task, user.id);
 };

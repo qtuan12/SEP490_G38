@@ -13,6 +13,7 @@ import { canCreateDailyLog } from '../utils/taskPermissions';
 import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../constants/realtimeEntities';
+import { RoleGroup } from '../auth/roles';
 
 const STATUS_LABEL: Record<string, string> = {
   New: 'Mới',
@@ -42,14 +43,15 @@ const formatDate = (iso?: string | null): string => {
 export const TaskDetailSE: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const pwa = isPWAMode();
 
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<TaskDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [logModalOpen, setLogModalOpen] = useState(false);
-  const { isProjectLeader, canManageTechnical } = useProjectAccess(detail ? String(detail.projectId) : undefined);
+  const { isProjectLeader } = useProjectAccess(detail ? String(detail.projectId) : undefined);
+  const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
 
   const loadDetail = useCallback((silent = false) => {
     if (!taskId) return;
@@ -219,7 +221,7 @@ export const TaskDetailSE: React.FC = () => {
           task={taskForModal}
           engineerId={user.id}
           engineerName={user.name}
-          canManageTechnical={canManageTechnical}
+          canManageTechnical={canDecreaseDailyLogProgress}
           onSuccess={() => {
             setLogModalOpen(false);
             loadDetail();

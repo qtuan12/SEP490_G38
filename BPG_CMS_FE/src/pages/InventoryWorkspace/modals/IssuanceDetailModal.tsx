@@ -32,7 +32,7 @@ interface IssuanceDetailModalProps {
   onClose: () => void;
   issuanceId: number | null;
   projectId?: number;
-  canManageExecution?: boolean;
+  canReturnMaterial?: boolean;
   onSuccess?: () => void; // Triggered when a return succeeds, to refresh parent lists
 }
 
@@ -52,7 +52,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
   isOpen,
   onClose,
   issuanceId,
-  canManageExecution = false,
+  canReturnMaterial = false,
   onSuccess
 }) => {
   const [loading, setLoading] = useState(false);
@@ -266,8 +266,6 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
 
   // Determine if there is any returnable item remaining
   const isAnyItemReturnable = returnItems.some(item => item.maxReturnableQty > 0);
-
-  const canReturnMaterial = canManageExecution;
 
   return (
     <Modal
