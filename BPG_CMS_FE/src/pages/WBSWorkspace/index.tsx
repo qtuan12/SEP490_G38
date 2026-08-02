@@ -13,6 +13,7 @@ import { WBSModalsContainer } from './components/WBSModalsContainer';
 import { FileText, BarChart2 } from 'lucide-react';
 import { ConfirmDialog } from '../../components/ui';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { RoleGroup } from '../../auth/roles';
 
 
 interface WBSWorkspaceProps {
@@ -20,8 +21,8 @@ interface WBSWorkspaceProps {
 }
 
 export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
-  const { user } = useAuth();
-  const { canManageExecution, canManageTechnical } = useProjectAccess(projectId);
+  const { user, hasAnyRole } = useAuth();
+  const { canManageExecution, isProjectLeader } = useProjectAccess(projectId);
   const navigate = useNavigate();
 
   const queryClient = useQueryClient();
@@ -213,7 +214,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const isTPKTOrPL = canManageExecution;
-  const isPL = isTPKTOrPL;
+  const isPL = isProjectLeader;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
@@ -221,7 +222,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return phaseTasks.every(t => t.progress === 100);
   };
 
-  const isTPKT = canManageTechnical;
+  const isTPKT = hasAnyRole(RoleGroup.Technical);
   const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
 
   const canEdit = isTPKTOrPL && (

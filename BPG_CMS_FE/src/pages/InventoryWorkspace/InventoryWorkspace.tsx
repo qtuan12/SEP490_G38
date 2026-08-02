@@ -277,7 +277,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             }`}
           >
             <History size={16} />
-            <span>Nhật Ký Biến Động Vật Tư</span>
+            <span>Lịch Sử Biến Động Kho</span>
           </button>
         </div>
 

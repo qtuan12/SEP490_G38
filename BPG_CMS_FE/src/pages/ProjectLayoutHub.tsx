@@ -683,7 +683,7 @@ export const ProjectLayoutHub: React.FC = () => {
           }}
         >
           <Package size={18} />
-          <span>Kiểm soát Vật tư</span>
+          <span>Quản lý kho</span>
         </button>
 
         <button
