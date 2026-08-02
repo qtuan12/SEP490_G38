@@ -13,11 +13,13 @@ public class AssignTaskCommandHandler : IRequestHandler<AssignTaskCommand, ApiRe
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AssignTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService)
+    public AssignTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse> Handle(AssignTaskCommand request, CancellationToken ct)
@@ -30,6 +32,16 @@ public class AssignTaskCommandHandler : IRequestHandler<AssignTaskCommand, ApiRe
 
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
+
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                ct);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được phân công công việc.");
+        }
 
         var distinctAssigneeIds = request.AssigneeIds?
             .Distinct()

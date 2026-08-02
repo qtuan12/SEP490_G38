@@ -17,11 +17,13 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AddTaskDependencyCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender)
+    public AddTaskDependencyCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _realtimeSender = realtimeSender;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse> Handle(AddTaskDependencyCommand request, CancellationToken ct)
@@ -33,6 +35,16 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
 
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
+
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                ct);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được thêm liên kết phụ thuộc.");
+        }
 
         var predecessor = await _unitOfWork.Repository<ProjectTask>()
             .Query()
