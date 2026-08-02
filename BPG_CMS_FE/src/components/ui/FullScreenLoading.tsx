@@ -8,7 +8,6 @@ interface FullScreenLoadingProps {
 
 export const FullScreenLoading: React.FC<FullScreenLoadingProps> = ({
   isOpen = true,
-  message = 'Hệ thống đang xử lý dữ liệu...'
 }) => {
   const { companyName, companyLogoUrl } = useCompany();
 
@@ -32,25 +31,14 @@ export const FullScreenLoading: React.FC<FullScreenLoadingProps> = ({
               alt={companyName}
               className="w-full h-full object-contain filter drop-shadow-md"
               onError={(e) => {
-                // Fallback if logo URL fails
                 (e.target as HTMLImageElement).src = '/logo.png';
               }}
             />
           </div>
         </div>
 
-        {/* Company Name */}
-        <h3 className="mt-5 text-lg sm:text-xl font-bold tracking-wide text-white drop-shadow-sm">
-          {companyName}
-        </h3>
-
-        {/* Loading message */}
-        <p className="mt-2 text-xs sm:text-sm font-medium text-slate-300 max-w-xs sm:max-w-md leading-relaxed">
-          {message}
-        </p>
-
         {/* Animated shimmer progress bar */}
-        <div className="mt-4 w-44 sm:w-56 h-1.5 bg-slate-800/80 rounded-full overflow-hidden relative border border-slate-700/50 shadow-inner">
+        <div className="mt-6 w-44 sm:w-56 h-1.5 bg-slate-800/80 rounded-full overflow-hidden relative border border-slate-700/50 shadow-inner">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-400 to-cyan-400 w-full h-full animate-shimmer" />
         </div>
       </div>
