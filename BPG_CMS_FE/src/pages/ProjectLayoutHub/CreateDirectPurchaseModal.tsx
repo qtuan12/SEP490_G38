@@ -379,7 +379,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       title={isEditing ? 'Sửa phiếu mua khẩn cấp (nháp)' : 'Tạo phiếu mua khẩn cấp'}
       width="xl"
       footer={
-        <>
+        <div className="flex flex-wrap justify-end items-center gap-2 w-full">
           <Button variant="outline" onClick={onClose} disabled={busy}>Hủy</Button>
           <Button variant="outline" onClick={handleSaveDraft} isLoading={saving === 'draft'} disabled={busy}>
             Lưu nháp
@@ -387,7 +387,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
           <Button variant="primary" onClick={handleSubmit} isLoading={saving === 'submit'} disabled={busy}>
             Gửi phiếu
           </Button>
-        </>
+        </div>
       }
     >
       {loadingDraft ? (
@@ -470,7 +470,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
               Danh sách vật tư <span style={{ color: 'hsl(var(--danger))' }}>*</span>
             </label>
             {selectedPhaseId && !loadingBOQ && (
-              <Button variant="outline" onClick={addRow} style={{ padding: '4px 10px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Button variant="outline" onClick={addRow} style={{ padding: '4px 10px', fontSize: '0.8rem', gap: '4px' }}>
                 <Plus size={14} /> Thêm vật tư
               </Button>
             )}

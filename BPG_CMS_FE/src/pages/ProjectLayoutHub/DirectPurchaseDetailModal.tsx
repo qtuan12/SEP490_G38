@@ -131,21 +131,30 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
     run(() => directPurchaseService.deleteDraft(directPurchaseId), 'Đã xóa phiếu nháp.');
   };
 
+  // Button đã là inline-flex sẵn - chỉ cần gap cho khoảng cách icon/chữ.
+  // Đừng đặt display:'flex' ở đây, nó biến nút thành block và làm các nút xuống dòng.
+  const iconGap: React.CSSProperties = { gap: 6 };
+
+  /** Bọc trong hàng flex căn phải để các nút luôn nằm ngang, cách đều nhau. */
+  const footerRow = (children: React.ReactNode) => (
+    <div className="flex flex-wrap justify-end items-center gap-2 w-full">{children}</div>
+  );
+
   const renderFooter = () => {
-    if (!detail) return <Button variant="outline" onClick={onClose}>Đóng</Button>;
+    if (!detail) return footerRow(<Button variant="outline" onClick={onClose}>Đóng</Button>);
 
     if (isDraft && isMine) {
-      return (
+      return footerRow(
         <>
-          <Button variant="danger" onClick={() => setConfirmAction('delete')} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Button variant="danger" onClick={() => setConfirmAction('delete')} disabled={submitting} style={iconGap}>
             <Trash2 size={16} /> Xóa nháp
           </Button>
           {onEditDraft && (
-            <Button variant="outline" onClick={() => { onClose(); onEditDraft(detail.directPurchaseId); }} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Button variant="outline" onClick={() => { onClose(); onEditDraft(detail.directPurchaseId); }} disabled={submitting} style={iconGap}>
               <Pencil size={16} /> Sửa
             </Button>
           )}
-          <Button variant="primary" onClick={() => setConfirmAction('submit')} isLoading={submitting} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Button variant="primary" onClick={() => setConfirmAction('submit')} isLoading={submitting} disabled={submitting} style={iconGap}>
             <Send size={16} /> Gửi phiếu
           </Button>
         </>
@@ -153,12 +162,12 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
     }
 
     if (canDoDirector) {
-      return (
+      return footerRow(
         <>
-          <Button variant="danger" onClick={() => handleDirector(false)} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Button variant="danger" onClick={() => handleDirector(false)} disabled={submitting} style={iconGap}>
             <XCircle size={16} /> Từ chối duyệt chi
           </Button>
-          <Button variant="primary" onClick={() => handleDirector(true)} isLoading={submitting} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Button variant="primary" onClick={() => handleDirector(true)} isLoading={submitting} disabled={submitting} style={iconGap}>
             <CheckCircle size={16} /> Duyệt chi
           </Button>
         </>
@@ -166,19 +175,19 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
     }
 
     if (canDoAudit) {
-      return (
+      return footerRow(
         <>
-          <Button variant="danger" onClick={() => handleAudit(false)} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Button variant="danger" onClick={() => handleAudit(false)} disabled={submitting} style={iconGap}>
             <XCircle size={16} /> Từ chối
           </Button>
-          <Button variant="primary" onClick={() => handleAudit(true)} isLoading={submitting} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Button variant="primary" onClick={() => handleAudit(true)} isLoading={submitting} disabled={submitting} style={iconGap}>
             <CheckCircle size={16} /> {isOverBOQ ? 'Xác nhận & trình Giám đốc' : 'Xác nhận đã hoàn tiền'}
           </Button>
         </>
       );
     }
 
-    return <Button variant="outline" onClick={onClose}>Đóng</Button>;
+    return footerRow(<Button variant="outline" onClick={onClose}>Đóng</Button>);
   };
 
   const showNoteInput = canDoAudit || canDoDirector;
