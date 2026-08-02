@@ -11,6 +11,8 @@ import { useNotification } from '../../../context/NotificationContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+import { useAuth } from '../../../context/AuthContext';
+import { RoleGroup } from '../../../auth/roles';
 import {
   REALTIME_DATA_CHANGED_AGGREGATION_MS,
   RealtimeEntities,
@@ -25,7 +27,13 @@ interface AdjustmentListProps {
 }
 
 export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => {
-  const { canManageExecution, canManageAccounting, canManageTechnical, canApprove } = useProjectAccess(projectId > 0 ? projectId : null);
+  const { hasAnyRole } = useAuth();
+  const { isProjectLeader, canManageAccounting, canApprove } = useProjectAccess(projectId > 0 ? projectId : null);
+  const canCreateIncreaseByMatrix =
+    hasAnyRole(RoleGroup.Technical) ||
+    hasAnyRole(RoleGroup.Accounting) ||
+    canApprove ||
+    isProjectLeader;
   const [data, setData] = useState<InventoryAdjustmentDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -158,7 +166,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
 
   const canCreateIncrease =
     projectId > 0 &&
-    canManageExecution;
+    canCreateIncreaseByMatrix;
   const canCreateDecrease =
     projectId > 0 &&
     canManageAccounting;
@@ -256,7 +264,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
                   <td className="px-4 py-3">{item.approverName || '-'}</td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" size="sm" onClick={() => setReviewId(item.adjustmentId)}>
-                      {item.status === 'Pending' && (item.adjustmentType === 'Increase' ? (canManageTechnical || canApprove) : canApprove) ? 'Chi tiết' : 'Xem chi tiết'}
+                      {item.status === 'Pending' && canApprove ? 'Chi tiết' : 'Xem chi tiết'}
                     </Button>
                   </td>
                 </tr>

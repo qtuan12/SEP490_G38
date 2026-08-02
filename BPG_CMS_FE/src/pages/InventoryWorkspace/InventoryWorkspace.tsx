@@ -98,9 +98,10 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const [isCreateIssuanceOpen, setIsCreateIssuanceOpen] = useState(false);
   const [selectedIssuanceId, setSelectedIssuanceId] = useState<number | null>(null);
 
-  const { canManageExecution, canManageInventory } = useProjectAccess(projectId);
-  const canCreateReceipt = canManageExecution;
-  const canCreateIssuance = canManageExecution;
+  const { isProjectLeader, canManageInventory } = useProjectAccess(projectId);
+  const canUseProjectLeaderInventoryActions = isProjectLeader;
+  const canCreateReceipt = canUseProjectLeaderInventoryActions;
+  const canCreateIssuance = canUseProjectLeaderInventoryActions;
 
   // Tải thông tin kho hiện tại để làm dữ liệu thống kê
   useEffect(() => {
@@ -389,7 +390,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           onClose={() => setSelectedIssuanceId(null)}
           issuanceId={selectedIssuanceId}
           projectId={projectId}
-          canManageExecution={canManageExecution}
+          canReturnMaterial={canUseProjectLeaderInventoryActions}
           onSuccess={() => setRefreshKey(prev => prev + 1)}
         />
       )}
