@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, AlertTriangle, AlertCircle, CheckCircle2, Info, ChevronDown, ChevronRight, Download } from 'lucide-react';
+import ExcelJS from 'exceljs';
 import type { CurrentInventory } from '../../../types/inventory';
 import { Pagination } from '../../../components/ui';
 
@@ -64,52 +65,136 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     }));
   };
 
-  // Xuất báo cáo CSV Tiếng Việt có hỗ trợ BOM để Excel đọc chuẩn font chữ
-  const exportToCSV = () => {
-    const headers = [
-      'Mã vật tư',
-      'Tên vật tư',
-      'Thông số kỹ thuật',
-      'Nhà cung cấp gần nhất',
-      'Tồn kho thực tế',
-      'Tạm khóa (Reserved)',
-      'Tồn khả dụng',
-      'Đơn vị tính',
-      'Cập nhật cuối',
-      'Cảnh báo'
-    ];
+  // Xuất báo cáo Excel (xlsx) với auto-fit cột và styling chuyên nghiệp
+  const exportToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'BPG-CMS';
+    workbook.created = new Date();
 
-    const rows = filteredInventory.map(item => {
-      let statusLabel = 'Bình thường';
-      const status = getItemStatus(item);
-      if (status === 'over_boq') statusLabel = 'Đã vượt định mức';
-      else if (status === 'approaching') statusLabel = 'Sắp vượt định mức';
-      else if (status === 'low_stock') statusLabel = 'Tồn kho thấp';
-
-      return [
-        `"${item.materialCode}"`,
-        `"${item.materialName}"`,
-        `"${item.specification || 'Chưa cập nhật'}"`,
-        `"${item.supplierName}"`,
-        item.quantity,
-        item.reservedQuantity,
-        item.availableQuantity,
-        `"${item.unitName}"`,
-        item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'Chưa cập nhật',
-        `"${statusLabel}"`
-      ];
+    const sheet = workbook.addWorksheet('Tồn kho', {
+      views: [{ state: 'frozen', ySplit: 2 }], // Freeze 2 dòng đầu (tiêu đề + header)
     });
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF"
-      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    // ─── Dòng tiêu đề lớn ───
+    sheet.mergeCells('A1:J1');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = `BÁO CÁO TỒN KHO VẬT TƯ – ${new Date().toLocaleDateString('vi-VN')}`;
+    titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(1).height = 36;
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Bao_cao_ton_kho_du_an.csv`);
+    // ─── Header cột ───
+    const headers = [
+      { header: 'Mã vật tư',              key: 'code',      width: 16 },
+      { header: 'Tên vật tư',             key: 'name',      width: 36 },
+      { header: 'Thông số kỹ thuật',      key: 'spec',      width: 32 },
+      { header: 'Nhà cung cấp gần nhất',  key: 'supplier',  width: 28 },
+      { header: 'Tồn kho thực tế',        key: 'qty',       width: 16 },
+      { header: 'Tạm khóa (Reserved)',    key: 'reserved',  width: 18 },
+      { header: 'Tồn khả dụng',           key: 'available', width: 16 },
+      { header: 'Đơn vị tính',            key: 'unit',      width: 14 },
+      { header: 'Cập nhật cuối',          key: 'updated',   width: 22 },
+      { header: 'Cảnh báo',               key: 'status',    width: 22 },
+    ];
+
+    sheet.columns = headers.map(h => ({ key: h.key, width: h.width }));
+
+    // Ghi header vào dòng 2
+    const headerRow = sheet.getRow(2);
+    headers.forEach((h, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = h.header;
+      cell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = {
+        top:    { style: 'thin', color: { argb: 'FFbfdbfe' } },
+        bottom: { style: 'thin', color: { argb: 'FFbfdbfe' } },
+        left:   { style: 'thin', color: { argb: 'FFbfdbfe' } },
+        right:  { style: 'thin', color: { argb: 'FFbfdbfe' } },
+      };
+    });
+    headerRow.height = 32;
+
+    // ─── Dữ liệu ───
+    filteredInventory.forEach((item, idx) => {
+      const status = getItemStatus(item);
+      let statusLabel = 'Bình thường';
+      if (status === 'over_boq')    statusLabel = 'Đã vượt định mức';
+      else if (status === 'approaching') statusLabel = 'Sắp vượt định mức';
+      else if (status === 'low_stock')   statusLabel = 'Tồn kho thấp';
+
+      const isEven = idx % 2 === 0;
+      const rowBg  = isEven ? 'FFF8FAFF' : 'FFFFFFFF';
+
+      const row = sheet.addRow({
+        code:      item.materialCode,
+        name:      item.materialName,
+        spec:      item.specification || 'Chưa cập nhật',
+        supplier:  item.supplierName,
+        qty:       item.quantity,
+        reserved:  item.reservedQuantity,
+        available: item.availableQuantity,
+        unit:      item.unitName,
+        updated:   item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'Chưa cập nhật',
+        status:    statusLabel,
+      });
+
+      row.eachCell((cell, colNumber) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+        cell.alignment = { vertical: 'middle', wrapText: true,
+          horizontal: colNumber >= 5 && colNumber <= 7 ? 'center' : 'left' };
+        cell.border = {
+          top:    { style: 'hair', color: { argb: 'FFe2e8f0' } },
+          bottom: { style: 'hair', color: { argb: 'FFe2e8f0' } },
+          left:   { style: 'hair', color: { argb: 'FFe2e8f0' } },
+          right:  { style: 'hair', color: { argb: 'FFe2e8f0' } },
+        };
+
+        // Tô màu cột Cảnh báo theo trạng thái
+        if (colNumber === 10) {
+          if (status === 'over_boq') {
+            cell.font = { bold: true, color: { argb: 'FFB91C1C' } };
+          } else if (status === 'approaching') {
+            cell.font = { bold: true, color: { argb: 'FFD97706' } };
+          } else if (status === 'low_stock') {
+            cell.font = { bold: true, color: { argb: 'FF0369A1' } };
+          } else {
+            cell.font = { color: { argb: 'FF16A34A' } };
+          }
+        }
+      });
+      row.height = 22;
+    });
+
+    // ─── Auto-fit chiều rộng cột dựa trên nội dung thực tế ───
+    sheet.columns.forEach((col) => {
+      if (!col || !col.eachCell) return;
+      let maxLen = col.width ?? 10;
+      col.eachCell({ includeEmpty: false }, (cell) => {
+        const val = cell.value?.toString() ?? '';
+        // Tính độ rộng ước lượng (mỗi ký tự tiếng Việt rộng hơn)
+        const lines = val.split('\n');
+        const longest = lines.reduce((a, l) => Math.max(a, l.length), 0);
+        const estimated = longest * 1.15 + 2;
+        if (estimated > maxLen) maxLen = estimated;
+      });
+      col.width = Math.min(maxLen, 52); // Giới hạn tối đa 52 để không quá rộng
+    });
+
+    // ─── Tải file ───
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const date = new Date().toISOString().split('T')[0];
+    link.download = `Bao_cao_ton_kho_${date}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getStatusBadge = (item: CurrentInventory) => {
@@ -245,9 +330,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           </div>
 
           <button
-            onClick={exportToCSV}
+            onClick={exportToExcel}
             className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm cursor-pointer"
-            title="Xuất file Excel báo cáo tồn kho hiện tại"
+            title="Xuất file Excel (.xlsx) báo cáo tồn kho hiện tại"
           >
             <Download size={14} />
             <span>Xuất Excel</span>
