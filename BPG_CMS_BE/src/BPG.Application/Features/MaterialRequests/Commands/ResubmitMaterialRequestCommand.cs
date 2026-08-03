@@ -57,10 +57,14 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
             }
 
-            // Chỉ người tạo mới được gửi lại
-            if (mr.CreatedBy != currentUserId)
+            // Chỉ Trưởng dự án mới được gửi lại
+            if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
             {
-                throw new ForbiddenException("Bạn không có quyền gửi lại yêu cầu vật tư này. Chỉ người tạo phiếu mới được thực hiện.");
+                var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                    member => member.ProjectId == mr.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                    cancellationToken);
+                if (!isProjectLeader)
+                    throw new ForbiddenException("Chỉ Trưởng dự án mới được gửi lại yêu cầu vật tư.");
             }
 
             // Chỉ cho phép gửi lại khi đang ở trạng thái Rejected

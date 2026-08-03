@@ -50,7 +50,12 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                         && m.UserId == currentUserId
                         && m.IsLeader,
                     cancellationToken);
-            if (mr.CreatedBy != currentUserId && !isManager && !isProjectLeader)
+
+            if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer) && !isProjectLeader)
+            {
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được hủy yêu cầu vật tư.");
+            }
+            else if (!isManager && !isProjectLeader && mr.CreatedBy != currentUserId)
             {
                 throw new ForbiddenException("Bạn không có quyền hủy yêu cầu vật tư này.");
             }

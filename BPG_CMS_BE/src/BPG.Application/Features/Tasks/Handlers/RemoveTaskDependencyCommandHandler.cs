@@ -15,11 +15,13 @@ public class RemoveTaskDependencyCommandHandler : IRequestHandler<RemoveTaskDepe
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly ICurrentUserService _currentUserService;
 
-    public RemoveTaskDependencyCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender)
+    public RemoveTaskDependencyCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _realtimeSender = realtimeSender;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse> Handle(RemoveTaskDependencyCommand request, CancellationToken ct)
@@ -32,6 +34,16 @@ public class RemoveTaskDependencyCommandHandler : IRequestHandler<RemoveTaskDepe
 
         if (dep == null)
             throw new NotFoundException("TaskDependency", $"{request.TaskId}-{request.PredecessorTaskId}");
+
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == dep.Task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                ct);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được xóa liên kết phụ thuộc.");
+        }
 
         _unitOfWork.Repository<TaskDependency>().Remove(dep);
         await _unitOfWork.SaveChangesAsync(ct);

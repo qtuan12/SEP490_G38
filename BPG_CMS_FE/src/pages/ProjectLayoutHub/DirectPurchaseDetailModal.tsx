@@ -21,7 +21,9 @@ interface Props {
   canAudit: boolean;
   /** Cho phép Giám đốc duyệt chi phiếu vượt định mức */
   canApproveSpending?: boolean;
-  /** Mở modal sửa phiếu nháp */
+  /** Cho phép sửa/xóa/gửi phiếu nháp */
+  canCreateDraft?: boolean;
+  /** Callback khi bấm sửa phiếu nháp */
   onEditDraft?: (id: number) => void;
 }
 
@@ -46,7 +48,7 @@ const formatDate = (dateStr?: string) => {
 };
 
 export const DirectPurchaseDetailModal: React.FC<Props> = ({
-  isOpen, onClose, onAudited, directPurchaseId, canAudit, canApproveSpending, onEditDraft,
+  isOpen, onClose, onAudited, directPurchaseId, canAudit, canApproveSpending, canCreateDraft, onEditDraft,
 }) => {
   const { user } = useAuth();
   const [detail, setDetail] = useState<DirectPurchaseDetailDto | null>(null);
@@ -143,7 +145,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
   const renderFooter = () => {
     if (!detail) return footerRow(<Button variant="outline" onClick={onClose}>Đóng</Button>);
 
-    if (isDraft && isMine) {
+    if (isDraft && isMine && canCreateDraft) {
       return footerRow(
         <>
           <Button variant="danger" onClick={() => setConfirmAction('delete')} disabled={submitting} style={iconGap}>
