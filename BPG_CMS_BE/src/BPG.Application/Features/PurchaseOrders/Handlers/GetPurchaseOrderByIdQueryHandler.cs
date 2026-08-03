@@ -13,7 +13,7 @@ using UserRole = BPG.Domain.Constants.UserRole;
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
     public class GetPurchaseOrderByIdQueryHandler
-        : IRequestHandler<GetPurchaseOrderByIdQuery, ApiResponse<PurchaseOrderDetailDto>>
+        : IRequestHandler<GetPurchaseOrderByIdQuery, PurchaseOrderDetailDto>
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
@@ -24,7 +24,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             _currentUserService = currentUserService;
         }
 
-        public async Task<ApiResponse<PurchaseOrderDetailDto>> Handle(
+        public async Task<PurchaseOrderDetailDto> Handle(
             GetPurchaseOrderByIdQuery request, CancellationToken cancellationToken)
         {
             var po = await _uow.Repository<PurchaseOrder>().Query()
@@ -35,7 +35,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .Include(p => p.Items).ThenInclude(i => i.Unit)
                 .Include(p => p.Request).ThenInclude(mr => mr!.Phase)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
-                ?? throw new NotFoundException(nameof(PurchaseOrder), request.POId);
+                ?? throw new NotFoundException("Không tìm thấy đơn mua hàng.");
 
             // TotalReceived per material from approved GR items
             var receivedItems = await _uow.Repository<GoodsReceiptItem>().Query()
@@ -100,7 +100,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     }
             };
 
-            return ApiResponse<PurchaseOrderDetailDto>.SuccessResult(dto);
+            return dto;
         }
     }
 }

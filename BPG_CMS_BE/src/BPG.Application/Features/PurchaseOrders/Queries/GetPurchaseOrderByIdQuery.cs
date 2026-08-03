@@ -1,5 +1,4 @@
-﻿using BPG.Application.Common.Models;
-using BPG.Application.DTOs.PurchaseOrders;
+﻿using BPG.Application.DTOs.PurchaseOrders;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -10,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.PurchaseOrders.Queries
 {
-    public record GetPurchaseOrderByIdQuery(long POId) : IRequest<ApiResponse<PurchaseOrderDetailDto>>
+    public record GetPurchaseOrderByIdQuery(long POId) : IRequest<PurchaseOrderDetailDto>
     {
         public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
@@ -20,7 +19,7 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (projectId == null)
-                throw new NotFoundException(nameof(PurchaseOrder), POId);
+                throw new NotFoundException("Không tìm thấy đơn mua hàng.");
 
             return projectId.Value;
         }
