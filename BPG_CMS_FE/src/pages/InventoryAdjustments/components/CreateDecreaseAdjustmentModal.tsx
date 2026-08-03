@@ -11,7 +11,7 @@ import { isDiscreteUnit } from '../../../utils/unitHelpers';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
   onError?: (msg: string) => void;
   projectId: number;
   incident?: IncidentReport; // Optional incident to link
@@ -170,7 +170,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         ? `${description}\n\n--- Thông tin sự cố gốc ---\n${originalIncidentDesc}\n\n[System] Liên kết sự cố #${incident.id}`
         : description;
 
-      await inventoryAdjustmentService.createDecrease(projectId, {
+      const result = await inventoryAdjustmentService.createDecrease(projectId, {
         reason,
         description: finalDesc,
         phaseId: Number(phaseId),
@@ -185,9 +185,9 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         });
       }
 
-      onSuccess();
+      onSuccess(result.message);
     } catch (err: any) {
-      setLocalError(err.message || 'Lỗi khi tạo phiếu giảm tồn.');
+      setLocalError(err.message || 'Không thể tạo phiếu giảm tồn.');
     } finally {
       setLoading(false);
     }

@@ -188,7 +188,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
           );
         },
         () => {
-          toast.error(`Tải ảnh ${file.name} lên thất bại.`);
+          toast.error(`Không thể tải ảnh ${file.name} lên.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
           );

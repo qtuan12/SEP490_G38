@@ -9,7 +9,7 @@ import { useProjectAccess } from '../../../hooks/useProjectAccess';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (approved: boolean, message?: string) => void;
   onError?: (msg: string) => void;
   adjustmentId: number;
   adjustmentData?: InventoryAdjustmentDto;
@@ -80,12 +80,12 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
   const handleConfirmApprove = async () => {
     setLoading(true);
     try {
-      await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
+      const result = await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
         isApproved: true
       });
-      onSuccess();
+      onSuccess(true, result.message);
     } catch (err: any) {
-      if (onError) onError(err.message || 'Lỗi khi duyệt phiếu.');
+      if (onError) onError(err.message || 'Không thể duyệt phiếu điều chỉnh tồn.');
     } finally {
       setLoading(false);
     }
@@ -99,13 +99,13 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
 
     setLoading(true);
     try {
-      await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
+      const result = await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
         isApproved: false,
         rejectedReason: rejectReason
       });
-      onSuccess();
+      onSuccess(false, result.message);
     } catch (err: any) {
-      if (onError) onError(err.message || 'Lỗi khi từ chối phiếu.');
+      if (onError) onError(err.message || 'Không thể từ chối phiếu điều chỉnh tồn.');
     } finally {
       setLoading(false);
     }

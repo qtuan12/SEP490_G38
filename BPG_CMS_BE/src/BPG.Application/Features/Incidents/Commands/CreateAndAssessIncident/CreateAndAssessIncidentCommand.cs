@@ -78,6 +78,15 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             throw new NotFoundException(nameof(Project), request.ProjectId);
         }
 
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == request.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                cancellationToken);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được báo cáo sự cố.");
+        }
+
         if (request.TaskId.HasValue)
         {
             var task = await _unitOfWork.Repository<ProjectTask>()

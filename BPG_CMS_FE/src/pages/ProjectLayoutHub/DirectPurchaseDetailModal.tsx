@@ -21,7 +21,9 @@ interface Props {
   canAudit: boolean;
   /** Cho phép Giám đốc duyệt chi phiếu vượt định mức */
   canApproveSpending?: boolean;
-  /** Mở modal sửa phiếu nháp */
+  /** Cho phép sửa/xóa/gửi phiếu nháp */
+  canCreateDraft?: boolean;
+  /** Callback khi bấm sửa phiếu nháp */
   onEditDraft?: (id: number) => void;
 }
 
@@ -46,7 +48,7 @@ const formatDate = (dateStr?: string) => {
 };
 
 export const DirectPurchaseDetailModal: React.FC<Props> = ({
-  isOpen, onClose, onAudited, directPurchaseId, canAudit, canApproveSpending, onEditDraft,
+  isOpen, onClose, onAudited, directPurchaseId, canAudit, canApproveSpending, canCreateDraft, onEditDraft,
 }) => {
   const { user } = useAuth();
   const [detail, setDetail] = useState<DirectPurchaseDetailDto | null>(null);
@@ -63,7 +65,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
     setConfirmAction(null);
     directPurchaseService.getById(directPurchaseId)
       .then(setDetail)
-      .catch(() => toast.error('Không tải được chi tiết phiếu.'))
+      .catch(() => toast.error('Không thể tải chi tiết phiếu mua trực tiếp.'))
       .finally(() => setLoading(false));
   }, [isOpen, directPurchaseId]);
 
@@ -77,15 +79,15 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
   // Giám đốc chỉ thao tác khi Kế toán đã soát và phiếu vượt định mức.
   const canDoDirector = !!canApproveSpending && detail?.status === DP_STATUS.WaitingApproval;
 
-  const run = async (fn: () => Promise<unknown>, successMsg: string) => {
+  const run = async (fn: () => Promise<{ message?: string }>, successMsg: string) => {
     setSubmitting(true);
     try {
-      await fn();
-      toast.success(successMsg);
+      const result = await fn();
+      toast.success(result.message || successMsg);
       onAudited();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'Thao tác thất bại.');
+      toast.error(err.message || 'Không thể xử lý phiếu mua trực tiếp.');
     } finally {
       setSubmitting(false);
       setConfirmAction(null);
@@ -143,7 +145,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
   const renderFooter = () => {
     if (!detail) return footerRow(<Button variant="outline" onClick={onClose}>Đóng</Button>);
 
-    if (isDraft && isMine) {
+    if (isDraft && isMine && canCreateDraft) {
       return footerRow(
         <>
           <Button variant="danger" onClick={() => setConfirmAction('delete')} disabled={submitting} style={iconGap}>

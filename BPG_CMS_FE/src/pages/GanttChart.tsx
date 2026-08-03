@@ -15,11 +15,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProjectAccess } from '../hooks/useProjectAccess';
+import { toast } from 'react-hot-toast';
+import { wbsService } from '../services/wbsService';
 
-import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
+import { TaskDetailModal } from './WBSWorkspace/modals/TaskDetailModal';
+import { ReportIncidentModal } from './Incidents/modals/ReportIncidentModal';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../constants/realtimeEntities';
-import { canCreateDailyLog } from '../utils/taskPermissions';
 
 // ── helpers ───────────────────────────────────────────────────────────────
 const formatDate = (s: string) => {
@@ -59,10 +61,11 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
-  const { canManageTechnical, isProjectLeader } = useProjectAccess(projectId);
+  const { isTechnicalManager, isProjectLeader } = useProjectAccess(projectId);
 
-  const [isAdjustModalOpen, setAdjustModalOpen] = useState(false);
-  const [selectedTaskToAdjust, setSelectedTaskToAdjust] = useState<WBSTask | null>(null);
+  const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<WBSTask | null>(null);
+  const [isReportIncidentOpen, setIsReportIncidentOpen] = useState(false);
 
   // ── load data ────────────────────────────────────────────────────────
   const loadGanttData = useCallback(async (silent = false) => {
@@ -286,24 +289,28 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
       const taskObj = gantt.getTask(id);
       if (taskObj.type !== gantt.config.types.project && taskObj.rawTask) {
         const wbsTask = taskObj.rawTask as WBSTask;
-        const currentTaskHasSubtasks = tasks.some(t => t.parentTaskId === wbsTask.id && t.status !== 'obsolete');
-        const canReport = canCreateDailyLog(wbsTask, user, isProjectLeader)
-          && !currentTaskHasSubtasks
-          && wbsTask.status !== 'obsolete';
-
-        if (canReport) {
-          setSelectedTaskToAdjust(wbsTask);
-          setAdjustModalOpen(true);
-        }
+        setSelectedTaskForDetail(wbsTask);
+        setIsTaskDetailOpen(true);
       }
       return true;
     });
 
+    const dblClickEventId = gantt.attachEvent("onTaskDblClick", function (id: string | number) {
+      const taskObj = gantt.getTask(id);
+      if (taskObj.type !== gantt.config.types.project && taskObj.rawTask) {
+        const wbsTask = taskObj.rawTask as WBSTask;
+        setSelectedTaskForDetail(wbsTask);
+        setIsTaskDetailOpen(true);
+      }
+      return false;
+    });
+
     return () => {
       gantt.detachEvent(clickEventId);
+      gantt.detachEvent(dblClickEventId);
       gantt.clearAll();
     };
-  }, [loading, phases, tasks, buildDhtmlxData, user, isProjectLeader]);
+  }, [loading, phases, tasks, buildDhtmlxData]);
 
   // ── change view mode ──────────────────────────────────────────────────
   const handleViewMode = (mode: ViewMode) => {
@@ -458,16 +465,62 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
         )}
       </div>
 
-      {/* ── Adjust Progress Modal (Using DailyLogFormModal) ──────────────── */}
-      {selectedTaskToAdjust && (
-        <DailyLogFormModal
-          isOpen={isAdjustModalOpen}
-          onClose={() => setAdjustModalOpen(false)}
-          task={selectedTaskToAdjust}
-          engineerId={user?.id || ''}
-          engineerName={user?.name || ''}
-          canManageTechnical={canManageTechnical}
-          onSuccess={() => loadGanttData(true)}
+      {/* ── Task Detail Modal (Interactive Task Management & Direct Progress Adjustment) ── */}
+      {isTaskDetailOpen && selectedTaskForDetail && (
+        <TaskDetailModal
+          isOpen={isTaskDetailOpen}
+          onClose={() => setIsTaskDetailOpen(false)}
+          selectedTask={selectedTaskForDetail}
+          selectedTaskPhase={phases.find(p => p.id === selectedTaskForDetail.phaseId) || null}
+          project={project}
+          tasks={tasks}
+          user={user}
+          materialRequests={[]}
+          isTPKTOrPL={isTechnicalManager || isProjectLeader}
+          isTPKT={isTechnicalManager}
+          isPL={isProjectLeader}
+          onCreateMatReqOpen={() => {}}
+          onObsolete={async () => {
+            if (selectedTaskForDetail.progress === 0) {
+              try {
+                const taskIdNum = parseInt(selectedTaskForDetail.id.replace('t-', ''));
+                await wbsService.deleteTask(taskIdNum);
+                toast.success(`Đã xóa công việc ${selectedTaskForDetail.name}`);
+                setIsTaskDetailOpen(false);
+                void loadGanttData(true);
+              } catch (err: any) {
+                toast.error(err.message || 'Không thể xóa công việc.');
+              }
+            }
+          }}
+          onReportIncidentOpen={() => {
+            setIsTaskDetailOpen(false);
+            setIsReportIncidentOpen(true);
+          }}
+          onSuccess={(msg) => {
+            toast.success(msg || 'Đã cập nhật tiến độ công việc thành công.');
+            setIsTaskDetailOpen(false);
+            void loadGanttData(true);
+          }}
+          onError={(msg) => toast.error(msg)}
+        />
+      )}
+
+      {/* ── Report Incident Modal ── */}
+      {isReportIncidentOpen && selectedTaskForDetail && project && (
+        <ReportIncidentModal
+          isOpen={isReportIncidentOpen}
+          onClose={() => setIsReportIncidentOpen(false)}
+          projectId={project.id.toString()}
+          taskId={selectedTaskForDetail.id.toString()}
+          taskName={selectedTaskForDetail.name}
+          user={user}
+          onSuccess={(msg) => {
+            setIsReportIncidentOpen(false);
+            toast.success(msg || 'Đã báo cáo sự cố thành công.');
+            void loadGanttData(true);
+          }}
+          onError={(msg) => toast.error(msg)}
         />
       )}
 

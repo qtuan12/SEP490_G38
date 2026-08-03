@@ -122,26 +122,52 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
         </div>
       ) : (
         <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl p-4 shadow-sm flex items-center gap-4">
-              <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl">
-                <PackageCheck size={24} />
+          {/* Financial & Volume Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
+                <span>Dự toán BOQ</span>
+                <PackageCheck size={18} className="text-indigo-500" />
               </div>
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Chủng loại vật tư BOQ</div>
-                <div className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{items.length}</div>
+              <div className="text-xl font-black text-slate-900 dark:text-white mt-2">{items.length} Chủng loại</div>
+              <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-1">
+                {items.reduce((acc, i) => acc + (i.boqTotalValue || 0), 0) > 0
+                  ? `~${(items.reduce((acc, i) => acc + (i.boqTotalValue || 0), 0) / 1000000).toFixed(1)} triệu VNĐ`
+                  : 'Chưa cập nhật giá'}
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-red-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-red-200 dark:border-red-900/50 rounded-2xl p-4 shadow-sm flex items-center gap-4">
-              <div className="p-3 bg-red-500/10 text-red-600 dark:text-red-400 rounded-2xl">
-                <AlertTriangle size={24} />
+            <div className="bg-gradient-to-br from-emerald-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
+                <span>Vật tư Tiết kiệm</span>
+                <PackageCheck size={18} className="text-emerald-500" />
               </div>
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Vật tư vượt định mức</div>
-                <div className="text-2xl font-black text-red-600 dark:text-red-400 mt-0.5">{exceedingItemsCount}</div>
+              <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
+                {items.filter(i => i.netConsumption < i.boqLimit && i.netConsumption > 0).length} Chủng loại
               </div>
+              <div className="text-xs font-semibold text-emerald-600 mt-1">Tiêu thụ ít hơn BOQ limit</div>
+            </div>
+
+            <div className="bg-gradient-to-br from-red-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-red-200 dark:border-red-900/50 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
+                <span>Vượt Định mức BOQ</span>
+                <AlertTriangle size={18} className="text-red-500" />
+              </div>
+              <div className="text-xl font-black text-red-600 dark:text-red-400 mt-2">{exceedingItemsCount} Chủng loại</div>
+              <div className="text-xs font-semibold text-red-600 mt-1">Cần phê duyệt xuất vượt BOQ</div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-purple-200 dark:border-purple-900/50 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
+                <span>Giá trị Tiêu thụ</span>
+                <PackageCheck size={18} className="text-purple-500" />
+              </div>
+              <div className="text-xl font-black text-purple-700 dark:text-purple-300 mt-2">
+                {items.reduce((acc, i) => acc + (i.consumptionValue || 0), 0) > 0
+                  ? `${(items.reduce((acc, i) => acc + (i.consumptionValue || 0), 0) / 1000000).toFixed(1)}M đ`
+                  : `${items.reduce((acc, i) => acc + i.netConsumption, 0).toLocaleString()} Đơn vị`}
+              </div>
+              <div className="text-xs font-semibold text-purple-600 mt-1">Tổng xuất kho ròng thực tế</div>
             </div>
           </div>
 

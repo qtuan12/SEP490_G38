@@ -147,13 +147,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Đánh dấu tất cả là đã đọc
   const markAllAsRead = async () => {
     try {
-      await notificationService.markAsRead(undefined, true);
+      const result = await notificationService.markAsRead(undefined, true);
       setNotifications(prev =>
         prev.map(n => ({ ...n, isRead: true, readAt: new Date().toISOString() }))
       );
       setUnreadCount(0);
       setHasEmergencyUnread(false);
-      toast.success('Đã đánh dấu đọc tất cả thông báo.');
+      toast.success(result.message || 'Đã đánh dấu đọc tất cả thông báo.');
     } catch (error) {
       console.error('Lỗi khi đánh dấu đọc tất cả:', error);
       toast.error('Không thể đánh dấu đọc tất cả.');

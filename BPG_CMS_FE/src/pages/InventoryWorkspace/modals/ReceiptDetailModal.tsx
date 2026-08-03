@@ -121,13 +121,14 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     setCancelling(true);
     setActionError(null);
     try {
-      await inventoryService.cancelGoodsReceipt(receiptId);
+      const result = await inventoryService.cancelGoodsReceipt(receiptId);
+      toast.success(result.message || 'Đã hủy phiếu nhập kho. Tồn kho đã được cập nhật.');
       setIsConfirmCancelOpen(false);
       await fetchDetail();
       if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Error cancelling goods receipt:', err);
-      setActionError(err.message || 'Lỗi hệ thống khi hủy phiếu nhập kho.');
+      setActionError(err.message || 'Không thể hủy phiếu nhập kho.');
       setIsConfirmCancelOpen(false);
     } finally {
       setCancelling(false);
@@ -157,19 +158,20 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
 
       const finalImages = [...existingImages, ...uploadedUrls];
 
-      await inventoryService.patchGoodsReceiptMetadata(receiptId, {
+      const result = await inventoryService.patchGoodsReceiptMetadata(receiptId, {
         receiptId,
         delivererInfo: delivererInfo.trim() || null,
         deliveryDocNo: deliveryDocNo.trim() || null,
         images: finalImages
       });
 
+      toast.success(result.message || 'Đã cập nhật thông tin phiếu nhập kho.');
       setIsEditing(false);
       await fetchDetail();
       if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Error updating metadata:', err);
-      setActionError(err.message || 'Lỗi hệ thống khi cập nhật thông tin phiếu.');
+      setActionError(err.message || 'Không thể cập nhật thông tin phiếu nhập kho.');
     } finally {
       setSaving(false);
     }
@@ -213,7 +215,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
           );
         },
         () => {
-          toast.error(`Tải ảnh ${file.name} lên thất bại.`);
+          toast.error(`Không thể tải ảnh ${file.name} lên.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
           );
@@ -310,7 +312,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
               <span className="text-slate-500 font-medium">Trạng thái phiếu:</span>
               {detail.status === 'Cancelled' ? (
                 <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 uppercase tracking-wide">
-                  Đã hủy (Reversed)
+                  Đã hủy
                 </span>
               ) : (
                 <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wide">

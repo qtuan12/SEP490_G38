@@ -12,9 +12,9 @@ import {
   Edit2,
   Trash2,
   AlertCircle,
-  CheckCircle2,
   Building2
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export const SupplierManagement: React.FC = () => {
   const queryClient = useQueryClient();
@@ -33,7 +33,6 @@ export const SupplierManagement: React.FC = () => {
 
   // Message states
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   // Selected supplier for edit/delete
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
@@ -52,23 +51,20 @@ export const SupplierManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(null), 3000);
+    toast.success(message);
   };
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await supplierService.deleteSupplier(id);
-    },
-    onSuccess: () => {
+    mutationFn: async (id: number) => supplierService.deleteSupplier(id),
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
       setIsDeleteOpen(false);
-      showSuccess(`Đã xóa nhà cung cấp ${selectedSupplier?.supplierName} thành công.`);
+      showSuccess(result.message || `Đã xóa nhà cung cấp ${selectedSupplier?.supplierName} thành công.`);
       setSelectedSupplier(null);
     },
     onError: (err: any) => {
-      setError(err.message || 'Không thể xóa nhà cung cấp.');
+      toast.error(err.message || 'Không thể xóa nhà cung cấp.');
       setIsDeleteOpen(false);
     },
   });
@@ -205,14 +201,6 @@ export const SupplierManagement: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      {/* Toast Alert Messages */}
-      {success && (
-        <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.3)] rounded-sm py-3 px-4 text-[hsl(142_70%_35%)] text-sm font-medium animate-fade-in">
-          <CheckCircle2 size={18} className="text-[hsl(var(--success))] shrink-0" />
-          <span>{success}</span>
-        </div>
-      )}
-
       {(error || isError) && (
         <div className="flex items-center gap-2.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm py-3 px-4 text-[hsl(346_84%_35%)] text-sm font-medium animate-fade-in">
           <AlertCircle size={18} className="text-[hsl(var(--danger))] shrink-0" />

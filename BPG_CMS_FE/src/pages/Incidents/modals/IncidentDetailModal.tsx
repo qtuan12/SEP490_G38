@@ -97,8 +97,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
 
   const rejectMutation = useMutation({
     mutationFn: () => incidentService.rejectIncident(Number(incident.id), rejectReason),
-    onSuccess: () => {
-      toast.success('Đã từ chối sự cố');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã từ chối sự cố.');
       if (onSuccessAction) onSuccessAction('Đã từ chối sự cố');
       else {
         queryClient.invalidateQueries({ queryKey: ['incidents'] });
@@ -108,7 +108,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Có lỗi xảy ra khi từ chối');
+      toast.error(err.message || 'Không thể từ chối sự cố.');
     }
   });
 
@@ -120,8 +120,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         decision: 'Resubmit',
         handlingInstruction: rejectReason,
       }),
-    onSuccess: () => {
-      toast.success('Đã yêu cầu TPKT làm lại hồ sơ khắc phục');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã yêu cầu TPKT làm lại hồ sơ khắc phục.');
       if (onSuccessAction) onSuccessAction('Yêu cầu làm lại hồ sơ');
       else {
         queryClient.invalidateQueries({ queryKey: ['incidents'] });
@@ -132,7 +132,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Lỗi khi yêu cầu làm lại hồ sơ');
+      toast.error(err.message || 'Không thể yêu cầu làm lại hồ sơ khắc phục.');
     }
   });
 
@@ -143,8 +143,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         createReworkTask: false,
         handlingInstruction: 'Phê duyệt tạm dừng thi công khẩn cấp để đánh giá thiệt hại hiện trường.',
       }),
-    onSuccess: () => {
-      toast.success('Đã phê duyệt dừng thi công & tạm dừng dự án');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã phê duyệt dừng thi công và tạm dừng dự án.');
       if (onSuccessAction) onSuccessAction('Phê duyệt dừng thi công');
       else {
         queryClient.invalidateQueries({ queryKey: ['incidents'] });
@@ -153,7 +153,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Lỗi khi duyệt dừng thi công');
+      toast.error(err.message || 'Không thể duyệt dừng thi công.');
     }
   });
 
@@ -165,8 +165,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         decision: 'Approve',
         handlingInstruction: 'Giám đốc phê duyệt Báo cáo & Kế hoạch khắc phục thiệt hại toàn dự án.',
       }),
-    onSuccess: () => {
-      toast.success('Đã phê duyệt và kích hoạt lại dự án');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã phê duyệt hồ sơ khắc phục và kích hoạt lại dự án.');
       if (onSuccessAction) onSuccessAction('Phê duyệt hồ sơ khắc phục');
       else {
         queryClient.invalidateQueries({ queryKey: ['incidents'] });
@@ -175,7 +175,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Lỗi khi phê duyệt hồ sơ.');
+      toast.error(err.message || 'Không thể phê duyệt hồ sơ khắc phục.');
     }
   });
 
@@ -186,8 +186,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         createReworkTask: false,
         handlingInstruction: 'Giám đốc phê duyệt điều chỉnh giảm tồn kho vật tư bị thiệt hại.',
       }),
-    onSuccess: () => {
-      toast.success('Đã phê duyệt phiếu giảm tồn kho thành công.');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã phê duyệt phiếu giảm tồn kho. Tồn kho đã được cập nhật.');
       if (onSuccessAction) onSuccessAction('Phê duyệt giảm tồn kho');
       else {
         queryClient.invalidateQueries({ queryKey: ['incidents'] });
@@ -196,7 +196,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Lỗi khi phê duyệt giảm tồn kho.');
+      toast.error(err.message || 'Không thể phê duyệt phiếu giảm tồn kho.');
     }
   });
 

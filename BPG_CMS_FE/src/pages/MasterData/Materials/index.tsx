@@ -6,7 +6,8 @@ import { MaterialFormModal } from './modals/MaterialFormModal';
 import { MaterialConversionDrawer } from './drawers/MaterialConversionDrawer';
 import { ConfirmDialog, Button, Select, DataTable, Pagination } from '../../../components/ui';
 import type { MaterialCatalog } from '../../../types/material';
-import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, CheckCircle2, Package, ArrowRightLeft } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, Package, ArrowRightLeft } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export const MaterialManagement: React.FC = () => {
   const queryClient = useQueryClient();
@@ -24,7 +25,6 @@ export const MaterialManagement: React.FC = () => {
 
   // State
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialCatalog | null>(null);
 
   // Categories Dropdown
@@ -46,20 +46,19 @@ export const MaterialManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(null), 3000);
+    toast.success(message);
   };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => materialService.deleteMaterial(id),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['materials'] });
       setIsDeleteOpen(false);
-      showSuccess(`Đã xóa vật tư ${selectedMaterial?.name} thành công.`);
+      showSuccess(result.message || `Đã xóa vật tư ${selectedMaterial?.name} thành công.`);
       setSelectedMaterial(null);
     },
     onError: (err: any) => {
-      setError(err.message || 'Không thể xóa vật tư.');
+      toast.error(err.message || 'Không thể xóa vật tư.');
       setIsDeleteOpen(false);
     },
   });
@@ -137,13 +136,6 @@ export const MaterialManagement: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      {success && (
-        <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-solid border-[hsl(var(--success))]/0.3 rounded px-4 py-3 text-emerald-800 text-sm font-medium">
-          <CheckCircle2 size={18} className="text-[hsl(var(--success))] shrink-0" />
-          <span>{success}</span>
-        </div>
-      )}
-
       {(error || isError) && (
         <div className="flex items-center gap-2.5 bg-[hsl(var(--danger-glow))] border border-solid border-[hsl(var(--danger))]/0.3 rounded px-4 py-3 text-rose-800 text-sm font-medium">
           <AlertCircle size={18} className="text-[hsl(var(--danger))] shrink-0" />

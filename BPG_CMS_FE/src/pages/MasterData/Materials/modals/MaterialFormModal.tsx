@@ -100,9 +100,9 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
         return materialService.createMaterial(data);
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['materials'] });
-      onSuccess(material ? 'Cập nhật vật tư thành công.' : 'Thêm vật tư thành công.');
+      onSuccess(result.message || (material ? 'Cập nhật vật tư thành công.' : 'Thêm vật tư thành công.'));
       onClose();
     },
   });

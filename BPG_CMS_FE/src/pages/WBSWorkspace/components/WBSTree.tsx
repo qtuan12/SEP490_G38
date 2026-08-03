@@ -1,5 +1,7 @@
 import { useWBS } from './WBSContext';
 import { useNavigate } from 'react-router-dom';
+import { RoleGroup } from '../../../auth/roles';
+import { useAuth } from '../../../context/AuthContext';
 import type { WBSTask } from '../../../types/common';
 import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History } from 'lucide-react';
 
@@ -35,6 +37,8 @@ export const WBSTree = () => {
   } = useWBS();
 
   const navigate = useNavigate();
+  const { hasAnyRole } = useAuth();
+  const canCreatePhase = canEdit && hasAnyRole(RoleGroup.Technical);
 
   const menuItemStyle = {
     padding: '8px 12px',
@@ -642,7 +646,7 @@ export const WBSTree = () => {
             })}
 
             {/* ── Add Phase button (Modal trigger) ─────────── */}
-            {(canEdit && isTPKT) && (
+            {canCreatePhase && (
               <div style={{ marginTop: '8px' }}>
                 <button
                   onClick={() => setIsCreatePhaseOpen(true)}
