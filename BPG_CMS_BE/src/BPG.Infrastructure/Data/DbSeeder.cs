@@ -12,6 +12,16 @@ public static class DbSeeder
 {
     public static async Task SeedAsync(AppDbContext context)
     {
+        try
+        {
+            Console.WriteLine("Attempting to delete existing database to re-seed...");
+            await context.Database.EnsureDeletedAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not delete database ({ex.Message}).");
+        }
+
         await context.Database.MigrateAsync();
         if (await context.Units.AnyAsync() && await context.Projects.AnyAsync()) return;
 
@@ -650,8 +660,6 @@ public static class DbSeeder
                     OldProgress   = previousPct,
                     NewProgress   = newPct,
                     UpdateReason  = $"Cập nhật tiến độ ngày {logDate:dd/MM/yyyy}",
-                    CreatedAt     = logTimestamp,
-                    CreatedBy     = creator.UserId,
                     UpdatedAt     = logTimestamp
                 });
                 await context.SaveChangesAsync();

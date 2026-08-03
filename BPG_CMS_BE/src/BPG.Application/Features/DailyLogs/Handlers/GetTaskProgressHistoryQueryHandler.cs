@@ -1,8 +1,6 @@
-using AutoMapper;
 using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.Features.DailyLogs.Queries;
 using BPG.Application.IRepositories;
-using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
