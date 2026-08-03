@@ -14,6 +14,25 @@ interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
 }
 
+/**
+ * Lỗi trả về từ backend, giữ nguyên errorCode để caller map lỗi vào đúng trường
+ * thay vì phải so khớp nội dung message (message có thể đổi bất cứ lúc nào).
+ * Vẫn kế thừa Error nên mọi chỗ đang dùng `err.message` không cần sửa.
+ */
+export class ApiError extends Error {
+  readonly errorCode?: string;
+  readonly errors?: string[];
+  readonly status: number;
+
+  constructor(message: string, status: number, errorCode?: string, errors?: string[]) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.errorCode = errorCode;
+    this.errors = errors;
+  }
+}
+
 function clearSessionAndRedirect() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
@@ -142,7 +161,12 @@ export const apiClient = {
             errMsg = `Không thể xử lý yêu cầu (mã lỗi: ${response.status}).`;
           }
         }
-        throw new Error(errMsg);
+        throw new ApiError(
+          errMsg,
+          response.status,
+          errorData.errorCode,
+          Array.isArray(errorData.errors) ? errorData.errors : undefined,
+        );
       }
 
       // If response is empty (e.g. 204 No Content)
@@ -154,7 +178,8 @@ export const apiClient = {
     } catch (error: any) {
       console.error('API Request Error:', error.message);
       
-      const msg = error.message || '';
+      // ApiError là lỗi nghiệp vụ đã có message từ backend — giữ nguyên, không nhầm thành lỗi mạng.
+      const msg = error instanceof ApiError ? '' : (error.message || '');
       if (msg.includes('Failed to fetch') || msg.includes('fetch') || error.name === 'TypeError') {
         throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau.');
       }
