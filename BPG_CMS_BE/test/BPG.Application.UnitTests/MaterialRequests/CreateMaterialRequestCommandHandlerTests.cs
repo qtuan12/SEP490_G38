@@ -327,7 +327,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
 
             // Assert
             await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Dự án hiện không ở trạng thái hoạt động (InProgress).");
+                .WithMessage("Dự án hiện không ở trạng thái hoạt động.");
         }
 
         [Fact]
@@ -385,7 +385,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
 
             // Assert
             await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Giai đoạn đã được nghiệm thu và đóng băng (Approved), không thể yêu cầu vật tư mới.");
+                .WithMessage("Giai đoạn đã được nghiệm thu, không thể yêu cầu vật tư mới.");
         }
 
         [Fact]
