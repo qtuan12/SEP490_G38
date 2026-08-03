@@ -41,7 +41,7 @@ interface ProjectMaterialRequestsTabProps {
 export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProps> = ({ projectId }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { canManageExecution, canManageAccounting, canApprove } = useProjectAccess(projectId);
+  const { canManageExecution, canManageTechnical, canManageAccounting, canApprove } = useProjectAccess(projectId);
   const [searchParams] = useSearchParams();
   const urlPhaseId = searchParams.get('phaseId');
   const urlRequestId = searchParams.get('requestId');
@@ -549,7 +549,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                         <span>Chi tiết</span>
                       </Button>
 
-                      {canCreateRequest && req.status === 'rejected' && (
+                      {canManageTechnical && req.status === 'rejected' && (
                         <Button
                           variant="primary"
                           size="sm"
@@ -620,7 +620,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           isAccountant={isAccountant}
           isDirector={isDirector}
           user={user}
-          canManageExecution={canCreateRequest}
+          canManageTechnical={canManageTechnical}
           handleVerifyRequestByAccountant={(id) => openActionModal('verify', id)}
           handleDisburseRequestByAccountant={(id) => openActionModal('disburse', id)}
           handleApproveRequestByDirector={(id) => openActionModal('approve', id)}
