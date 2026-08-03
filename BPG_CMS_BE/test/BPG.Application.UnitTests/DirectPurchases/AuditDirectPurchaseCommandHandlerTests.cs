@@ -68,7 +68,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             return dp;
         }
 
-        private Task<bool> Audit(bool approve, string? note = null) =>
+        private Task<string> Audit(bool approve, string? note = null) =>
             _handler.Handle(new AuditDirectPurchaseCommand
             {
                 DirectPurchaseId = DpId,
@@ -120,7 +120,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             var act = () => Audit(false, "   ");
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be("NOTE_REQUIRED");
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpAuditNoteRequired);
         }
 
         [Fact]
@@ -131,7 +131,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             var act = () => Audit(true);
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be("ERR_NOT_SUBMITTED");
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpNotSubmitted);
         }
 
         [Fact]
@@ -142,7 +142,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             var act = () => Audit(true);
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be("ALREADY_AUDITED");
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpAlreadyAudited);
         }
     }
 }

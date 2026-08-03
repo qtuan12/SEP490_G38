@@ -130,7 +130,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             _mockDpRepo.Setup(r => r.Query()).Returns(new List<DirectPurchaseRequest> { dp }.AsQueryable().BuildMock());
         }
 
-        private Task<bool> Submit() => _handler.Handle(new SubmitDirectPurchaseCommand(DpId), CancellationToken.None);
+        private Task<string> Submit() => _handler.Handle(new SubmitDirectPurchaseCommand(DpId), CancellationToken.None);
 
         [Fact]
         public async Task Submit_PurchaseDateInFuture_ShouldThrow()
@@ -140,7 +140,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             var act = Submit;
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be("ERR_PURCHASE_DATE_IN_FUTURE");
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpPurchaseDateInFuture);
         }
 
         [Fact]
@@ -165,7 +165,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             var act = Submit;
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be("ERR_PURCHASE_DATE_BEFORE_PHASE");
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpPurchaseDateBeforePhase);
         }
 
         [Fact]
@@ -176,7 +176,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             var act = Submit;
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be("ERR_PURCHASE_DATE_AFTER_PHASE");
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpPurchaseDateAfterPhase);
         }
 
         [Fact]
@@ -187,7 +187,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             var act = Submit;
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be("ERR_PHASE_FROZEN");
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpPhaseFrozen);
         }
 
         [Fact]
@@ -198,7 +198,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             var act = Submit;
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpProjectNotActive);
         }
 
         [Fact]
@@ -211,7 +211,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             var act = Submit;
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be("ERR_NOT_DRAFT");
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpNotDraft);
         }
 
         [Fact]
@@ -252,7 +252,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
             var act = Submit;
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be("NO_REASON");
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpNoReason);
         }
 
         [Fact]

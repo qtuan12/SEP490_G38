@@ -26,11 +26,11 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             var dp = await _uow.Repository<DirectPurchaseRequest>().Query()
                 .FirstOrDefaultAsync(r => r.DirectPurchaseId == request.DirectPurchaseId && !r.IsDeleted, ct)
-                ?? throw new NotFoundException(nameof(DirectPurchaseRequest), request.DirectPurchaseId);
+                ?? throw new NotFoundException("Không tìm thấy phiếu mua trực tiếp cần xóa.");
 
             if (dp.Status != DirectPurchaseStatus.Draft)
-                throw new BusinessException("ERR_NOT_DRAFT",
-                    $"Chỉ xóa được phiếu ở trạng thái Nháp. Trạng thái hiện tại: {dp.Status}.");
+                throw new BusinessException(ErrorCodes.DpNotDraft,
+                    $"Chỉ xóa được phiếu ở trạng thái Nháp. Trạng thái hiện tại: {DirectPurchaseStatus.Label(dp.Status)}.");
 
             if (dp.RequestedBy != userId)
                 throw new ForbiddenException("Chỉ người tạo mới được xóa phiếu nháp này.");

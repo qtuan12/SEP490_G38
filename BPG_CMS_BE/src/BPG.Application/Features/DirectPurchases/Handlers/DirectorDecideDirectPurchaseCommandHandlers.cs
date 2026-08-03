@@ -100,7 +100,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             long userId = _currentUserService.GetRequiredUserId();
 
             if (string.IsNullOrWhiteSpace(request.Reason))
-                throw new BusinessException("ERR_REJECTION_REASON_REQUIRED",
+                throw new BusinessException(ErrorCodes.DpRejectionReasonRequired,
                     "Bắt buộc phải nhập lý do từ chối duyệt chi.");
 
             var dp = await DirectPurchaseDirectorDecision.LoadWaitingApprovalAsync(_uow, request.DirectPurchaseId, ct);
@@ -148,12 +148,12 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 .Include(r => r.Phase)
                 .Include(r => r.Project)
                 .FirstOrDefaultAsync(r => r.DirectPurchaseId == directPurchaseId && !r.IsDeleted, ct)
-                ?? throw new NotFoundException(nameof(DirectPurchaseRequest), directPurchaseId);
+                ?? throw new NotFoundException("Không tìm thấy phiếu mua trực tiếp cần duyệt chi.");
 
             if (dp.Status != DirectPurchaseStatus.WaitingApproval)
-                throw new BusinessException("ERR_INVALID_STATUS_FOR_APPROVAL",
-                    $"Phiếu mua trực tiếp đang ở trạng thái: {dp.Status}. " +
-                    "Chỉ duyệt chi được phiếu ở trạng thái Chờ Giám đốc duyệt (WaitingApproval).");
+                throw new BusinessException(ErrorCodes.DpInvalidStatusForApproval,
+                    $"Phiếu mua trực tiếp đang ở trạng thái '{DirectPurchaseStatus.Label(dp.Status)}'. " +
+                    "Chỉ duyệt chi được phiếu đang ở trạng thái 'Chờ Giám đốc'.");
 
             return dp;
         }
