@@ -44,4 +44,32 @@ public static class ProgressCalculator
         decimal weightedSum = validTasks.Sum(t => GetEffectiveWeight(t) * GetEffectiveProgress(t));
         return Math.Round(weightedSum / totalWeight, 1);
     }
+
+    public static decimal CalculateExpectedTaskProgress(ProjectTask task, DateTime now)
+    {
+        if (IsCompleted(task.Status)) return 100m;
+
+        var sDate = task.StartDate.ToDateTime(TimeOnly.MinValue);
+        var eDate = task.EndDate.ToDateTime(TimeOnly.MaxValue);
+        var totalDays = (eDate - sDate).TotalDays;
+
+        if (totalDays <= 0) return 100m;
+        if (now < sDate) return 0m;
+        if (now >= eDate) return 100m;
+
+        var elapsedDays = (now - sDate).TotalDays;
+        return Math.Min(100m, Math.Max(0m, Math.Round((decimal)(elapsedDays / totalDays) * 100m, 1)));
+    }
+
+    public static decimal CalculateWeightedExpectedProgress(IEnumerable<ProjectTask> tasks, DateTime now)
+    {
+        var validTasks = tasks.Where(t => t.Status != TaskStatus.Obsolete).ToList();
+        if (!validTasks.Any()) return 0m;
+
+        decimal totalWeight = validTasks.Sum(t => GetEffectiveWeight(t));
+        if (totalWeight <= 0) return 0m;
+
+        decimal weightedSum = validTasks.Sum(t => GetEffectiveWeight(t) * CalculateExpectedTaskProgress(t, now));
+        return Math.Round(weightedSum / totalWeight, 1);
+    }
 }
