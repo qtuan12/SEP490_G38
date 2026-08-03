@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../../../context/AuthContext';
 import { useNotification } from '../../../../context/NotificationContext';
 import { projectService } from '../../../../services/projectService';
@@ -133,7 +133,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
         projectService.getMembers(projectId)
       ]);
       setLogs(logsResult.items);
-      setHasNextPage(logsResult.hasNextPage);
+      setHasNextPage(logsResult.items.length > 0 && logsResult.hasNextPage);
       setCurrentPage(1);
       setTasks(tasksData.filter(t => t.status !== 'obsolete'));
       setPhases(phasesData);
@@ -152,7 +152,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       const nextPage = currentPage + 1;
       const result = await projectService.getDailyLogsPage(projectId, nextPage, PAGE_SIZE, taskId);
       setLogs(prev => [...prev, ...result.items]);
-      setHasNextPage(result.hasNextPage);
+      setHasNextPage(result.items.length > 0 && result.hasNextPage);
       setCurrentPage(nextPage);
     } catch (err: any) {
       console.error('Error loading more daily logs:', err);
@@ -564,7 +564,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
         </div>
       )}
 
-      {!loading && hasNextPage && (
+      {!loading && hasNextPage && logs.length > 0 && filteredLogs.length > 0 && (
         <div className="flex justify-center pt-2 pb-4">
           <button
             onClick={handleLoadMore}
