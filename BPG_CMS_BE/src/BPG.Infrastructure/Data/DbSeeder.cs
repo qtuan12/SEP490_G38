@@ -650,6 +650,8 @@ public static class DbSeeder
                     OldProgress   = previousPct,
                     NewProgress   = newPct,
                     UpdateReason  = $"Cập nhật tiến độ ngày {logDate:dd/MM/yyyy}",
+                    CreatedAt     = logTimestamp,
+                    CreatedBy     = creator.UserId,
                     UpdatedAt     = logTimestamp
                 });
                 await context.SaveChangesAsync();

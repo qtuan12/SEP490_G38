@@ -196,7 +196,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     .ToListAsync(cancellationToken);
 
                 var progressLog = progressLogs
-                    .OrderBy(tpl => Math.Abs((tpl.UpdatedAt - log.CreatedAt).TotalSeconds))
+                    .OrderBy(tpl => Math.Abs(((tpl.UpdatedAt ?? tpl.CreatedAt) - log.CreatedAt).TotalSeconds))
                     .FirstOrDefault();
 
                 var dto = _mapper.Map<DailyLogDto>(log);

@@ -231,6 +231,7 @@ export interface TaskProgressLog {
   newProgress: number;
   updateReason?: string;
   updatedAt: string; // ISO datetime string
+  updatedByName?: string;
 }
 
 export interface AcceptanceData {

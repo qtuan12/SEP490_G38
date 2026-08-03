@@ -149,7 +149,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     // Tìm OldProgress tương ứng từ progressLogs (khớp TaskId, NewProgress và thời gian gần nhất)
                     var matchingLog = progressLogs
                         .Where(tpl => tpl.TaskId == dto.TaskId && tpl.NewProgress == dto.NewProgressPercent)
-                        .OrderBy(tpl => Math.Abs((tpl.UpdatedAt - dto.CreatedAt).TotalSeconds))
+                        .OrderBy(tpl => Math.Abs(((tpl.UpdatedAt ?? tpl.CreatedAt) - dto.CreatedAt).TotalSeconds))
                         .FirstOrDefault();
 
                     dto.OldProgressPercent = matchingLog?.OldProgress ?? 0;

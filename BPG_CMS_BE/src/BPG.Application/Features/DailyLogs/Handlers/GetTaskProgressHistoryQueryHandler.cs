@@ -3,7 +3,6 @@ using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.Features.DailyLogs.Queries;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
-using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
@@ -18,21 +17,16 @@ namespace BPG.Application.Features.DailyLogs.Handlers
     public class GetTaskProgressHistoryQueryHandler : IRequestHandler<GetTaskProgressHistoryQuery, List<TaskProgressLogDto>>
     {
         private readonly IUnitOfWork _uow;
-        private readonly IMapper _mapper;
-        private readonly ICurrentUserService _currentUserService;
 
-        public GetTaskProgressHistoryQueryHandler(IUnitOfWork uow, IMapper mapper, ICurrentUserService currentUserService)
+        public GetTaskProgressHistoryQueryHandler(IUnitOfWork uow)
         {
             _uow = uow;
-            _mapper = mapper;
-            _currentUserService = currentUserService;
         }
 
         public async Task<List<TaskProgressLogDto>> Handle(GetTaskProgressHistoryQuery request, CancellationToken cancellationToken)
         {
-            // 1. Kiểm tra Task có tồn tại hay không
             var task = await _uow.Repository<ProjectTask>().Query()
-                .Include(t => t.Phase)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, cancellationToken);
 
             if (task == null)
@@ -40,14 +34,28 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 throw new NotFoundException(nameof(ProjectTask), request.TaskId);
             }
 
-            // 2. Lấy lịch sử thay đổi tiến độ công việc
             var logs = await _uow.Repository<TaskProgressLog>().Query()
                 .AsNoTracking()
+                .Include(tpl => tpl.Creator)
                 .Where(tpl => tpl.TaskId == request.TaskId)
-                .OrderByDescending(tpl => tpl.UpdatedAt)
+                .OrderByDescending(tpl => tpl.CreatedAt != default ? tpl.CreatedAt : tpl.UpdatedAt)
                 .ToListAsync(cancellationToken);
 
-            return _mapper.Map<List<TaskProgressLogDto>>(logs);
+            return logs.Select(log => new TaskProgressLogDto
+            {
+                TaskProgressLogId = log.TaskProgressLogId,
+                TaskId = log.TaskId,
+                OldProgress = log.OldProgress,
+                NewProgress = log.NewProgress,
+                UpdateReason = log.UpdateReason,
+                UpdatedAt = log.UpdatedAt ?? log.CreatedAt,
+                CreatedBy = log.CreatedBy,
+                UpdatedByName = log.Creator != null 
+                    ? log.Creator.FullName 
+                    : (!string.IsNullOrEmpty(log.UpdateReason) && log.UpdateReason.Contains("Cập nhật tự động") 
+                        ? "Hệ thống (Tự động)" 
+                        : "Kỹ sư hiện trường")
+            }).ToList();
         }
     }
 }
