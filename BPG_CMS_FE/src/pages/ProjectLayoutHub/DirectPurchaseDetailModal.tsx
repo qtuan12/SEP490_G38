@@ -23,6 +23,8 @@ interface Props {
   canApproveSpending?: boolean;
   /** Cho phép sửa/xóa/gửi phiếu nháp */
   canCreateDraft?: boolean;
+  /** Callback khi bấm sửa phiếu nháp */
+  onEditDraft?: (id: number) => void;
 }
 
 const statusVariant: Record<string, 'default' | 'warning' | 'success' | 'danger'> = {

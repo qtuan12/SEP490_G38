@@ -17,13 +17,14 @@ public class AddTaskDependencyCommandHandlerTests
     private readonly Mock<IRealtimeNotificationSender> _realtimeSender = new();
     private readonly Mock<IGenericRepository<ProjectTask>> _taskRepository = new();
     private readonly Mock<IGenericRepository<TaskDependency>> _dependencyRepository = new();
+    private readonly Mock<ICurrentUserService> _mockCurrentUserService = new();
 
     private AddTaskDependencyCommandHandler CreateHandler()
     {
         _unitOfWork.Setup(x => x.Repository<ProjectTask>()).Returns(_taskRepository.Object);
         _unitOfWork.Setup(x => x.Repository<TaskDependency>()).Returns(_dependencyRepository.Object);
 
-        return new AddTaskDependencyCommandHandler(_unitOfWork.Object, _realtimeSender.Object);
+        return new AddTaskDependencyCommandHandler(_unitOfWork.Object, _realtimeSender.Object, _mockCurrentUserService.Object);
     }
 
     [Fact]

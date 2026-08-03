@@ -18,6 +18,7 @@ public class AssignTaskCommandHandlerTests
     private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo = new();
     private readonly Mock<IGenericRepository<ProjectMember>> _mockProjectMemberRepo = new();
     private readonly Mock<IGenericRepository<TaskAssignee>> _mockTaskAssigneeRepo = new();
+    private readonly Mock<ICurrentUserService> _mockCurrentUserService = new();
     private readonly AssignTaskCommandHandler _handler;
 
     public AssignTaskCommandHandlerTests()
@@ -37,7 +38,7 @@ public class AssignTaskCommandHandlerTests
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _handler = new AssignTaskCommandHandler(_mockUow.Object, _mockNotificationService.Object);
+        _handler = new AssignTaskCommandHandler(_mockUow.Object, _mockNotificationService.Object, _mockCurrentUserService.Object);
     }
 
     [Fact]

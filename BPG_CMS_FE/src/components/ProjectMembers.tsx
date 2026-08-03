@@ -5,8 +5,6 @@ import type { UserProfile } from '../services/authService';
 import { Modal } from './ui/Modal';
 import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
 import { useSignalREvent } from '../hooks/useSignalREvent';
-import { useAuth } from '../context/AuthContext';
-import { RoleGroup } from '../auth/roles';
 import { useProjectAccess } from '../hooks/useProjectAccess';
 
 interface AvailableEngineer extends UserProfile {
@@ -18,7 +16,6 @@ interface ProjectMembersProps {
 }
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => {
-  const { hasAnyRole } = useAuth();
   const { canManageTechnical } = useProjectAccess(projectId);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);

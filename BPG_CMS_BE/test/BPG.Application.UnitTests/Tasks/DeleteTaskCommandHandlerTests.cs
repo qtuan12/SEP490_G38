@@ -157,7 +157,7 @@ namespace BPG.Application.UnitTests.Tasks
             {
                 TaskId = 1,
                 ProgressPercent = 0,
-                Phase = null,
+                Phase = null!,
                 SubTasks = new List<ProjectTask>()
             };
             _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());

@@ -27,7 +27,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
   request,
   isAccountant,
   isDirector,
-  user,
+  user: _user,
   canManageTechnical,
   handleVerifyRequestByAccountant,
   handleDisburseRequestByAccountant,
