@@ -24,7 +24,7 @@ public class UsersController : BaseApiController
     public async Task<IActionResult> CreateUser(CreateUserCommand command)
     {
         var result = await Mediator.Send(command);
-        return ApiOk(result, "Tạo người dùng thành công");
+        return ApiOk(result, $"Đã tạo tài khoản cho '{result.Name}' thành công.");
     }
 
     [HttpPut("{id}")]
@@ -32,15 +32,15 @@ public class UsersController : BaseApiController
     public async Task<IActionResult> UpdateUser(long id, UpdateUserRequest request)
     {
         var result = await Mediator.Send(new UpdateUserCommand(id, request.Name, request.Email, request.Role, request.PhoneNumber));
-        return ApiOk(result, "Cập nhật người dùng thành công");
+        return ApiOk(result, $"Đã cập nhật tài khoản '{result.Name}' thành công.");
     }
 
     [HttpDelete("{id}")]
     [Authorize(Roles = RolePolicies.Admin)]
     public async Task<IActionResult> DeleteUser(long id)
     {
-        await Mediator.Send(new DeleteUserCommand(id));
-        return ApiOk("Xóa người dùng thành công");
+        var name = await Mediator.Send(new DeleteUserCommand(id));
+        return ApiOk($"Đã xóa tài khoản '{name}' khỏi hệ thống.");
     }
 
     [HttpPost("{id}/toggle-status")]
@@ -48,7 +48,9 @@ public class UsersController : BaseApiController
     public async Task<IActionResult> ToggleUserStatus(long id)
     {
         var result = await Mediator.Send(new ToggleUserStatusCommand(id));
-        return ApiOk(result, "Cập nhật trạng thái người dùng thành công");
+        // Nói rõ đã khóa hay mở khóa — message chung chung khiến người dùng phải tự đối chiếu lại bảng.
+        var action = result.Status == "active" ? "mở khóa" : "khóa";
+        return ApiOk(result, $"Đã {action} tài khoản '{result.Name}'.");
     }
 }
 
