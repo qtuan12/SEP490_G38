@@ -1,8 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using BPG.Application.Features.Phases.Commands.DeletePhase;
+using BPG.Application.Features.Phases.Commands.UpdatePhase;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -12,28 +13,32 @@ using Xunit;
 
 namespace BPG.Application.UnitTests.Phases
 {
-    public class DeletePhaseCommandHandlerTests
+    public class UpdatePhaseCommandHandlerTests
     {
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<Phase>> _mockPhaseRepo;
-        private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
-        private readonly DeletePhaseCommandHandler _handler;
+        private readonly UpdatePhaseCommandHandler _handler;
 
-        public DeletePhaseCommandHandlerTests()
+        public UpdatePhaseCommandHandlerTests()
         {
             _mockUow = new Mock<IUnitOfWork>();
             _mockPhaseRepo = new Mock<IGenericRepository<Phase>>();
-            _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
 
             _mockUow.Setup(u => u.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
-            _mockUow.Setup(u => u.Repository<ProjectTask>()).Returns(_mockTaskRepo.Object);
 
-            _handler = new DeletePhaseCommandHandler(_mockUow.Object);
+            _handler = new UpdatePhaseCommandHandler(_mockUow.Object);
         }
 
-        private DeletePhaseCommand Command(long phaseId = 1)
+        private UpdatePhaseCommand Command(
+            long phaseId = 1,
+            string name = "Updated Phase",
+            string? description = null,
+            int orderIndex = 1,
+            DateOnly? startDate = null,
+            DateOnly? endDate = null,
+            int status = 0)
         {
-            return new DeletePhaseCommand(phaseId);
+            return new UpdatePhaseCommand(phaseId, name, description, orderIndex, startDate, endDate, status);
         }
 
         [Fact]
@@ -43,12 +48,8 @@ namespace BPG.Application.UnitTests.Phases
             var phase = new Phase
             {
                 PhaseId = 1,
-                Status = "Draft",
-                Tasks = new List<ProjectTask>
-                {
-                    new ProjectTask { TaskId = 10, ProgressPercent = 0 },
-                    new ProjectTask { TaskId = 11, ProgressPercent = 0 }
-                }
+                Name = "Old Name",
+                Tasks = new List<ProjectTask>()
             };
             var phaseDbSet = new List<Phase> { phase }.AsQueryable().BuildMockDbSet();
             _mockPhaseRepo.Setup(r => r.Query()).Returns(phaseDbSet.Object);
@@ -59,8 +60,7 @@ namespace BPG.Application.UnitTests.Phases
             var result = await _handler.Handle(command, CancellationToken.None);
 
             Assert.True(result.Success);
-            _mockTaskRepo.Verify(r => r.Remove(It.IsAny<ProjectTask>()), Times.Exactly(2));
-            _mockPhaseRepo.Verify(r => r.Remove(phase), Times.Once);
+            _mockPhaseRepo.Verify(r => r.Update(It.Is<Phase>(p => p.Name == "Updated Phase")), Times.Once);
             _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -82,36 +82,13 @@ namespace BPG.Application.UnitTests.Phases
         }
 
         [Fact]
-        public async Task UTCID03_Handle_PhaseApproved_ShouldThrowBusinessException()
+        public async Task UTCID03_Handle_HasInProgressTasks_ShouldThrowBusinessException()
         {
             // Arrange
             var phase = new Phase
             {
                 PhaseId = 1,
-                Status = "Approved",
-                Tasks = new List<ProjectTask>()
-            };
-            var phaseDbSet = new List<Phase> { phase }.AsQueryable().BuildMockDbSet();
-            _mockPhaseRepo.Setup(r => r.Query()).Returns(phaseDbSet.Object);
-
-            var command = Command();
-
-            // Act
-            var act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            var ex = await Assert.ThrowsAsync<BusinessException>(act);
-            Assert.Equal("ERR_PHASE_APPROVED", ex.ErrorCode);
-        }
-
-        [Fact]
-        public async Task UTCID04_Handle_HasInProgressTasks_ShouldThrowBusinessException()
-        {
-            // Arrange
-            var phase = new Phase
-            {
-                PhaseId = 1,
-                Status = "Draft",
+                Name = "Phase 1",
                 Tasks = new List<ProjectTask>
                 {
                     new ProjectTask { TaskId = 10, ProgressPercent = 50 }

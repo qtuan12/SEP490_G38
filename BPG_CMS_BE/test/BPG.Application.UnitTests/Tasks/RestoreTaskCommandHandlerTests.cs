@@ -14,7 +14,7 @@ using RoleConstants = BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.UnitTests.Tasks
 {
-    public class MarkTaskObsoleteCommandHandlerTests
+    public class RestoreTaskCommandHandlerTests
     {
         private const long CurrentUserId = 10;
         private const long ProjectId = 5;
@@ -27,9 +27,9 @@ namespace BPG.Application.UnitTests.Tasks
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<IGenericRepository<TaskDependency>> _mockDependencyRepo;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
-        private readonly MarkTaskObsoleteCommandHandler _handler;
+        private readonly RestoreTaskCommandHandler _handler;
 
-        public MarkTaskObsoleteCommandHandlerTests()
+        public RestoreTaskCommandHandlerTests()
         {
             _mockUow = new Mock<IUnitOfWork>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
@@ -44,12 +44,11 @@ namespace BPG.Application.UnitTests.Tasks
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-            SetupTasks(DefaultTask());
-            SetupProjectMembers();
+            SetupTasks(ObsoleteTask());
             SetupDependencies();
             SetupUser("Admin User");
 
-            _handler = new MarkTaskObsoleteCommandHandler(
+            _handler = new RestoreTaskCommandHandler(
                 _mockUow.Object,
                 ServiceStubFactory.ProgressRollupService(),
                 ServiceStubFactory.NotificationService(),
@@ -58,7 +57,7 @@ namespace BPG.Application.UnitTests.Tasks
         }
 
         [Fact]
-        public async Task UTCID01_Handle_TechnicalManagerMarksObsolete_ShouldReturnSuccess()
+        public async Task UTCID01_Handle_ObsoleteTaskNoPredecessor_ShouldReturnSuccess()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
 
@@ -73,7 +72,7 @@ namespace BPG.Application.UnitTests.Tasks
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
             SetupTasks();
 
-            var act = async () => await _handler.Handle(Command(taskId: 999), CancellationToken.None);
+            var act = async () => await _handler.Handle(Command(999), CancellationToken.None);
 
             var exception = await act.Should().ThrowAsync<NotFoundException>();
             exception.Which.ErrorCode.Should().Be("BIZ_001");
@@ -83,7 +82,8 @@ namespace BPG.Application.UnitTests.Tasks
         public async Task UTCID03_Handle_SiteEngineerNotLeader_ShouldThrowForbiddenException()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
-            SetupProjectMembers();
+            _mockMemberRepo.Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<Func<ProjectMember, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
 
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
@@ -91,10 +91,10 @@ namespace BPG.Application.UnitTests.Tasks
         }
 
         [Fact]
-        public async Task UTCID04_Handle_TaskAlreadyObsolete_ShouldReturnSuccessIdempotent()
+        public async Task UTCID04_Handle_TaskNotObsolete_ShouldReturnSuccessMessage()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
-            SetupTasks(DefaultTask(status: BPG.Domain.Constants.TaskStatus.Obsolete));
+            SetupTasks(ObsoleteTask(status: BPG.Domain.Constants.TaskStatus.InProgress));
 
             var result = await _handler.Handle(Command(), CancellationToken.None);
 
@@ -102,43 +102,92 @@ namespace BPG.Application.UnitTests.Tasks
         }
 
         [Fact]
-        public async Task UTCID05_Handle_TaskWithParent_ShouldCallRollupService()
+        public async Task UTCID05_Handle_ObsoleteDueToEmergency_ShouldThrowBusinessException()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
-            SetupTasks(DefaultTask(parentTaskId: 90));
+            SetupTasks(ObsoleteTask(obsoleteReason: "Sự cố khẩn cấp tại công trường"));
 
-            var mockRollup = new Mock<IProgressRollupService>();
-            mockRollup.Setup(x => x.RecalculateParentTaskProgressAsync(It.IsAny<long>(), It.IsAny<long?>(), It.IsAny<CancellationToken>()))
-                .Returns(Task.CompletedTask);
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            var handler = new MarkTaskObsoleteCommandHandler(
-                _mockUow.Object,
-                mockRollup.Object,
-                ServiceStubFactory.NotificationService(),
-                ServiceStubFactory.RealtimeSender(),
-                _mockCurrentUserService.Object);
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_CANNOT_BE_RESTORED");
+        }
 
-            await handler.Handle(Command(), CancellationToken.None);
+        [Fact]
+        public async Task UTCID06_Handle_PredecessorStillObsolete_ShouldThrowBusinessException()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupDependencies(new TaskDependency
+            {
+                TaskId = TaskId,
+                PredecessorTaskId = 91,
+                Predecessor = new ProjectTask
+                {
+                    TaskId = 91,
+                    Name = "Predecessor",
+                    Status = BPG.Domain.Constants.TaskStatus.Obsolete
+                }
+            });
 
-            mockRollup.Verify(x => x.RecalculateParentTaskProgressAsync(90, TaskId, It.IsAny<CancellationToken>()), Times.Once);
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_DEPENDENCY_OBSOLETE");
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_Progress100_ShouldRestoreToCompleted()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            var task = ObsoleteTask(progress: 100);
+            SetupTasks(task);
+
+            await _handler.Handle(Command(), CancellationToken.None);
+
+            task.Status.Should().Be(BPG.Domain.Constants.TaskStatus.Completed);
+        }
+
+        [Fact]
+        public async Task UTCID08_Handle_ProgressAboveZero_ShouldRestoreToInProgress()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            var task = ObsoleteTask(progress: 50);
+            SetupTasks(task);
+
+            await _handler.Handle(Command(), CancellationToken.None);
+
+            task.Status.Should().Be(BPG.Domain.Constants.TaskStatus.InProgress);
+        }
+
+        [Fact]
+        public async Task UTCID09_Handle_ProgressZeroWithAssignees_ShouldRestoreToAssigned()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            var task = ObsoleteTask(progress: 0);
+            task.Assignees.Add(new TaskAssignee { TaskId = TaskId, UserId = 20 });
+            SetupTasks(task);
+
+            await _handler.Handle(Command(), CancellationToken.None);
+
+            task.Status.Should().Be(BPG.Domain.Constants.TaskStatus.Assigned);
         }
 
         // ==================== Factory Methods ====================
 
-        private static MarkTaskObsoleteCommand Command(long taskId = TaskId)
-            => new(taskId, "Không còn phù hợp");
+        private static RestoreTaskCommand Command(long taskId = TaskId) => new(taskId);
 
-        private static ProjectTask DefaultTask(
-            string status = "InProgress",
-            long? parentTaskId = null)
+        private static ProjectTask ObsoleteTask(
+            byte progress = 30,
+            string? obsoleteReason = "Không phù hợp",
+            string status = "Obsolete")
             => new()
             {
                 TaskId = TaskId,
                 PhaseId = PhaseId,
-                ParentTaskId = parentTaskId,
                 Name = "Test Task",
                 Status = status,
-                ProgressPercent = 30,
+                ProgressPercent = progress,
+                ObsoleteReason = obsoleteReason,
                 Phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId },
                 Assignees = new List<TaskAssignee>(),
                 ProgressLogs = new List<TaskProgressLog>(),
@@ -150,11 +199,6 @@ namespace BPG.Application.UnitTests.Tasks
         private void SetupTasks(params ProjectTask[] tasks)
         {
             _mockTaskRepo.Setup(r => r.Query()).Returns(tasks.AsQueryable().BuildMock());
-        }
-
-        private void SetupProjectMembers(params ProjectMember[] members)
-        {
-            _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
         }
 
         private void SetupDependencies(params TaskDependency[] dependencies)

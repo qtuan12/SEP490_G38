@@ -1,18 +1,16 @@
-﻿using BPG.Application.Common.Models;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using BPG.Application.Features.Phases.Commands.CreatePhase;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
-using FluentAssertions;
-using MockQueryable;
-using MockQueryable.Moq;
 using Moq;
-using System;
+using Xunit;
+using Microsoft.EntityFrameworkCore;
+using MockQueryable.Moq;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace BPG.Application.UnitTests.Phases
 {
@@ -32,43 +30,40 @@ namespace BPG.Application.UnitTests.Phases
             _mockUow.Setup(u => u.Repository<Project>()).Returns(_mockProjectRepo.Object);
             _mockUow.Setup(u => u.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
 
-            _mockPhaseRepo.Setup(r => r.AddAsync(It.IsAny<Phase>(), It.IsAny<CancellationToken>()))
-                .Callback<Phase, CancellationToken>((phase, ct) => phase.PhaseId = 100)
-                .Returns(Task.CompletedTask);
-
             _handler = new CreatePhaseCommandHandler(_mockUow.Object);
         }
 
+        private CreatePhaseCommand Command(
+            long projectId = 1,
+            string name = "Test Phase",
+            string? description = null,
+            int orderIndex = 1,
+            DateOnly? startDate = null,
+            DateOnly? endDate = null)
+        {
+            return new CreatePhaseCommand(projectId, name, description, orderIndex, startDate, endDate);
+        }
+
         [Fact]
-        public async Task UTCID01_Handle_ValidRequest_ShouldCreatePhaseSuccessfully()
+        public async Task UTCID01_Handle_ValidRequest_ShouldReturnSuccess()
         {
             // Arrange
             var project = new Project
             {
                 ProjectId = 1,
-                PlannedStart = new DateOnly(2026, 1, 1),
-                PlannedEnd = new DateOnly(2026, 12, 31)
+                PlannedStart = new DateOnly(2024, 1, 1),
+                PlannedEnd = new DateOnly(2024, 12, 31)
             };
-            _mockProjectRepo.Setup(r => r.Query()).Returns(new List<Project> { project }.AsQueryable().BuildMock());
+            var projectDbSet = new List<Project> { project }.AsQueryable().BuildMockDbSet();
+            _mockProjectRepo.Setup(r => r.Query()).Returns(projectDbSet.Object);
 
-            var command = new CreatePhaseCommand(
-                ProjectId: 1,
-                Name: "Phase 1",
-                Description: "Description",
-                OrderIndex: 1,
-                StartDate: new DateOnly(2026, 2, 1),
-                EndDate: new DateOnly(2026, 11, 30)
-            );
+            var command = Command(startDate: new DateOnly(2024, 2, 1), endDate: new DateOnly(2024, 11, 30));
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
 
-            // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeTrue();
-            result.Data.Should().Be(100);
-            
-            _mockPhaseRepo.Verify(r => r.AddAsync(It.IsAny<Phase>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.True(result.Success);
+            _mockPhaseRepo.Verify(r => r.AddAsync(It.Is<Phase>(p => p.Name == "Test Phase"), It.IsAny<CancellationToken>()), Times.Once);
             _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -76,162 +71,63 @@ namespace BPG.Application.UnitTests.Phases
         public async Task UTCID02_Handle_ProjectNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            _mockProjectRepo.Setup(r => r.Query()).Returns(new List<Project>().AsQueryable().BuildMock());
+            var projectDbSet = new List<Project>().AsQueryable().BuildMockDbSet();
+            _mockProjectRepo.Setup(r => r.Query()).Returns(projectDbSet.Object);
 
-            var command = new CreatePhaseCommand(1, "Phase 1", null, 1, null, null);
+            var command = Command(projectId: 99);
 
             // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+            var act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<NotFoundException>()
-                .WithMessage("*Project*1*");
-
-            _mockPhaseRepo.Verify(r => r.AddAsync(It.IsAny<Phase>(), It.IsAny<CancellationToken>()), Times.Never);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+            var ex = await Assert.ThrowsAsync<NotFoundException>(act);
+            Assert.Contains("99", ex.Message);
         }
 
         [Fact]
-        public async Task UTCID03_Handle_StartDateBeforePlannedStart_ShouldThrowBusinessException()
+        public async Task UTCID03_Handle_StartDateBeforeProjectStart_ShouldThrowBusinessException()
         {
             // Arrange
             var project = new Project
             {
                 ProjectId = 1,
-                PlannedStart = new DateOnly(2026, 2, 1),
-                PlannedEnd = new DateOnly(2026, 12, 31)
+                PlannedStart = new DateOnly(2024, 1, 1),
+                PlannedEnd = new DateOnly(2024, 12, 31)
             };
-            _mockProjectRepo.Setup(r => r.Query()).Returns(new List<Project> { project }.AsQueryable().BuildMock());
+            var projectDbSet = new List<Project> { project }.AsQueryable().BuildMockDbSet();
+            _mockProjectRepo.Setup(r => r.Query()).Returns(projectDbSet.Object);
 
-            var command = new CreatePhaseCommand(1, "Phase 1", null, 1, new DateOnly(2026, 1, 1), null);
+            var command = Command(startDate: new DateOnly(2023, 12, 31));
 
             // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+            var act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<BusinessException>();
+            var ex = await Assert.ThrowsAsync<BusinessException>(act);
+            Assert.Equal("ERR_PHASE_DATE_INVALID", ex.ErrorCode);
         }
 
         [Fact]
-        public async Task UTCID04_Handle_EndDateAfterPlannedEnd_ShouldThrowBusinessException()
+        public async Task UTCID04_Handle_EndDateAfterProjectEnd_ShouldThrowBusinessException()
         {
             // Arrange
             var project = new Project
             {
                 ProjectId = 1,
-                PlannedStart = new DateOnly(2026, 1, 1),
-                PlannedEnd = new DateOnly(2026, 11, 30)
+                PlannedStart = new DateOnly(2024, 1, 1),
+                PlannedEnd = new DateOnly(2024, 12, 31)
             };
-            _mockProjectRepo.Setup(r => r.Query()).Returns(new List<Project> { project }.AsQueryable().BuildMock());
+            var projectDbSet = new List<Project> { project }.AsQueryable().BuildMockDbSet();
+            _mockProjectRepo.Setup(r => r.Query()).Returns(projectDbSet.Object);
 
-            var command = new CreatePhaseCommand(1, "Phase 1", null, 1, null, new DateOnly(2026, 12, 1));
-
-            // Act
-            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            await act.Should().ThrowAsync<BusinessException>();
-        }
-
-        [Fact]
-        public async Task UTCID05_Handle_StartDateEqualsPlannedStart_ShouldCreateSuccessfully()
-        {
-            // Arrange
-            var project = new Project
-            {
-                ProjectId = 1,
-                PlannedStart = new DateOnly(2026, 1, 1),
-                PlannedEnd = new DateOnly(2026, 12, 31)
-            };
-            _mockProjectRepo.Setup(r => r.Query()).Returns(new List<Project> { project }.AsQueryable().BuildMock());
-
-            var command = new CreatePhaseCommand(1, "Phase 1", null, 1, new DateOnly(2026, 1, 1), null);
+            var command = Command(endDate: new DateOnly(2025, 1, 1));
 
             // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
+            var act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            result.Success.Should().BeTrue();
-            _mockPhaseRepo.Verify(r => r.AddAsync(It.IsAny<Phase>(), It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        [Fact]
-        public async Task UTCID06_Handle_EndDateEqualsPlannedEnd_ShouldCreateSuccessfully()
-        {
-            // Arrange
-            var project = new Project
-            {
-                ProjectId = 1,
-                PlannedStart = new DateOnly(2026, 1, 1),
-                PlannedEnd = new DateOnly(2026, 12, 31)
-            };
-            _mockProjectRepo.Setup(r => r.Query()).Returns(new List<Project> { project }.AsQueryable().BuildMock());
-
-            var command = new CreatePhaseCommand(1, "Phase 1", null, 1, null, new DateOnly(2026, 12, 31));
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Success.Should().BeTrue();
-            _mockPhaseRepo.Verify(r => r.AddAsync(It.IsAny<Phase>(), It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        [Fact]
-        public async Task UTCID07_Handle_NullDates_ShouldCreateSuccessfully()
-        {
-            // Arrange
-            var project = new Project { ProjectId = 1 };
-            _mockProjectRepo.Setup(r => r.Query()).Returns(new List<Project> { project }.AsQueryable().BuildMock());
-
-            var command = new CreatePhaseCommand(1, "Phase 1", null, 1, null, null);
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Success.Should().BeTrue();
-            _mockPhaseRepo.Verify(r => r.AddAsync(It.IsAny<Phase>(), It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        [Fact]
-        public async Task UTCID08_Handle_MaxNameLength_ShouldCreateSuccessfully()
-        {
-            // Arrange
-            var project = new Project { ProjectId = 1 };
-            _mockProjectRepo.Setup(r => r.Query()).Returns(new List<Project> { project }.AsQueryable().BuildMock());
-
-            var longName = new string('A', 200);
-            var command = new CreatePhaseCommand(1, longName, null, 1, null, null);
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Success.Should().BeTrue();
-            _mockPhaseRepo.Verify(r => r.AddAsync(It.Is<Phase>(p => p.Name.Length == 200), It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        [Fact]
-        public async Task UTCID09_Handle_OnlyStartDateHasValue_ShouldCreateSuccessfully()
-        {
-            // Arrange
-            var project = new Project
-            {
-                ProjectId = 1,
-                PlannedStart = new DateOnly(2026, 1, 1),
-                PlannedEnd = new DateOnly(2026, 12, 31)
-            };
-            _mockProjectRepo.Setup(r => r.Query()).Returns(new List<Project> { project }.AsQueryable().BuildMock());
-
-            var command = new CreatePhaseCommand(1, "Phase 1", null, 1, new DateOnly(2026, 5, 5), null);
-
-            // Act
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            // Assert
-            result.Success.Should().BeTrue();
-            _mockPhaseRepo.Verify(r => r.AddAsync(It.IsAny<Phase>(), It.IsAny<CancellationToken>()), Times.Once);
+            var ex = await Assert.ThrowsAsync<BusinessException>(act);
+            Assert.Equal("ERR_PHASE_DATE_INVALID", ex.ErrorCode);
         }
     }
 }

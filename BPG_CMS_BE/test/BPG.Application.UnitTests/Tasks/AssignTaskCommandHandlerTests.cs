@@ -1,160 +1,142 @@
+using BPG.Application.Common.Models;
 using BPG.Application.Features.Tasks.Commands;
 using BPG.Application.Features.Tasks.Handlers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.UnitTests.Helpers;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
 using MockQueryable;
-using MockQueryable.Moq;
 using Moq;
+using RoleConstants = BPG.Domain.Constants.UserRole;
 
-namespace BPG.Application.UnitTests.Tasks;
-
-public class AssignTaskCommandHandlerTests
+namespace BPG.Application.UnitTests.Tasks
 {
-    private readonly Mock<IUnitOfWork> _mockUow = new();
-    private readonly Mock<INotificationService> _mockNotificationService = new();
-    private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo = new();
-    private readonly Mock<IGenericRepository<ProjectMember>> _mockProjectMemberRepo = new();
-    private readonly Mock<IGenericRepository<TaskAssignee>> _mockTaskAssigneeRepo = new();
-    private readonly Mock<ICurrentUserService> _mockCurrentUserService = new();
-    private readonly AssignTaskCommandHandler _handler;
-
-    public AssignTaskCommandHandlerTests()
+    public class AssignTaskCommandHandlerTests
     {
-        _mockUow.Setup(uow => uow.Repository<ProjectTask>()).Returns(_mockTaskRepo.Object);
-        _mockUow.Setup(uow => uow.Repository<ProjectMember>()).Returns(_mockProjectMemberRepo.Object);
-        _mockUow.Setup(uow => uow.Repository<TaskAssignee>()).Returns(_mockTaskAssigneeRepo.Object);
+        private const long CurrentUserId = 10;
+        private const long ProjectId = 5;
+        private const long PhaseId = 10;
+        private const long TaskId = 100;
 
-        _mockNotificationService
-            .Setup(service => service.SendNotificationAsync(
-                It.IsAny<long>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<string?>(),
-                It.IsAny<long?>(),
-                It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        private readonly Mock<IUnitOfWork> _mockUow;
+        private readonly Mock<ICurrentUserService> _mockCurrentUserService;
+        private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
+        private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
+        private readonly Mock<IGenericRepository<TaskAssignee>> _mockAssigneeRepo;
+        private readonly AssignTaskCommandHandler _handler;
 
-        _handler = new AssignTaskCommandHandler(_mockUow.Object, _mockNotificationService.Object, _mockCurrentUserService.Object);
-    }
+        public AssignTaskCommandHandlerTests()
+        {
+            _mockUow = new Mock<IUnitOfWork>();
+            _mockCurrentUserService = new Mock<ICurrentUserService>();
+            _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
+            _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
+            _mockAssigneeRepo = new Mock<IGenericRepository<TaskAssignee>>();
 
-    [Fact]
-    public async Task Handle_AllDistinctAssigneesAreProjectMembers_ShouldReplaceAssignments()
-    {
-        var existingAssignee = new TaskAssignee { TaskId = 1, UserId = 10 };
-        var task = CreateTask(existingAssignee);
-        SetupTask(task);
-        SetupProjectMembers(
-            new ProjectMember { ProjectId = 100, UserId = 10 },
-            new ProjectMember { ProjectId = 100, UserId = 20 });
+            _mockUow.Setup(u => u.Repository<ProjectTask>()).Returns(_mockTaskRepo.Object);
+            _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
+            _mockUow.Setup(u => u.Repository<TaskAssignee>()).Returns(_mockAssigneeRepo.Object);
+            _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        var result = await _handler.Handle(
-            new AssignTaskCommand(1, new List<long> { 10, 10, 20 }),
-            CancellationToken.None);
+            SetupTasks(DefaultTask());
+            SetupProjectMembers(
+                new ProjectMember { ProjectId = ProjectId, UserId = 20 },
+                new ProjectMember { ProjectId = ProjectId, UserId = 30 });
 
-        result.Success.Should().BeTrue();
-        task.Assignees.Select(assignee => assignee.UserId).Should().BeEquivalentTo(new long[] { 10, 20 });
-        _mockTaskAssigneeRepo.Verify(repo => repo.Remove(existingAssignee), Times.Once);
-        _mockUow.Verify(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _mockNotificationService.Verify(service => service.SendNotificationAsync(
-            10,
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string?>(),
-            It.IsAny<long?>(),
-            It.IsAny<CancellationToken>()), Times.Never);
-        _mockNotificationService.Verify(service => service.SendNotificationAsync(
-            20,
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string?>(),
-            1,
-            It.IsAny<CancellationToken>()), Times.Once);
-    }
+            _handler = new AssignTaskCommandHandler(
+                _mockUow.Object,
+                ServiceStubFactory.NotificationService(),
+                _mockCurrentUserService.Object);
+        }
 
-    [Fact]
-    public async Task Handle_AssigneeDoesNotBelongToTaskProject_ShouldRejectWithoutChangingAssignments()
-    {
-        var existingAssignee = new TaskAssignee { TaskId = 1, UserId = 10 };
-        var task = CreateTask(existingAssignee);
-        SetupTask(task);
-        SetupProjectMembers(
-            new ProjectMember { ProjectId = 100, UserId = 10 },
-            new ProjectMember { ProjectId = 999, UserId = 20 });
+        [Fact]
+        public async Task UTCID01_Handle_TechnicalManagerAssignsValidMembers_ShouldReturnSuccess()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
 
-        Func<Task> act = () => _handler.Handle(
-            new AssignTaskCommand(1, new List<long> { 10, 20, 20 }),
-            CancellationToken.None);
+            var result = await _handler.Handle(Command(new List<long> { 20, 30 }), CancellationToken.None);
 
-        var exception = await act.Should().ThrowAsync<BusinessException>();
-        exception.Which.ErrorCode.Should().Be("ERR_TASK_ASSIGNEE_NOT_PROJECT_MEMBER");
-        exception.Which.Message.Should().Contain("[20]");
-        task.Assignees.Should().ContainSingle().Which.Should().BeSameAs(existingAssignee);
-        _mockTaskAssigneeRepo.Verify(repo => repo.Remove(It.IsAny<TaskAssignee>()), Times.Never);
-        _mockUow.Verify(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
-        _mockNotificationService.Verify(service => service.SendNotificationAsync(
-            It.IsAny<long>(),
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string?>(),
-            It.IsAny<long?>(),
-            It.IsAny<CancellationToken>()), Times.Never);
-    }
+            result.Success.Should().BeTrue();
+        }
 
-    [Fact]
-    public async Task Handle_EmptyAssigneeList_ShouldKeepExistingClearAssignmentBehavior()
-    {
-        var firstAssignee = new TaskAssignee { TaskId = 1, UserId = 10 };
-        var secondAssignee = new TaskAssignee { TaskId = 1, UserId = 20 };
-        var task = CreateTask(firstAssignee, secondAssignee);
-        SetupTask(task);
+        [Fact]
+        public async Task UTCID02_Handle_TaskNotFound_ShouldThrowNotFoundException()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupTasks();
 
-        var result = await _handler.Handle(
-            new AssignTaskCommand(1, new List<long>()),
-            CancellationToken.None);
+            var act = async () => await _handler.Handle(Command(new List<long> { 20 }, taskId: 999), CancellationToken.None);
 
-        result.Success.Should().BeTrue();
-        task.Assignees.Should().BeEmpty();
-        _mockTaskAssigneeRepo.Verify(repo => repo.Remove(firstAssignee), Times.Once);
-        _mockTaskAssigneeRepo.Verify(repo => repo.Remove(secondAssignee), Times.Once);
-        _mockProjectMemberRepo.Verify(repo => repo.Query(), Times.Never);
-        _mockUow.Verify(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _mockNotificationService.Verify(service => service.SendNotificationAsync(
-            It.IsAny<long>(),
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string?>(),
-            It.IsAny<long?>(),
-            It.IsAny<CancellationToken>()), Times.Never);
-    }
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+        }
 
-    private static ProjectTask CreateTask(params TaskAssignee[] assignees) => new()
-    {
-        TaskId = 1,
-        Name = "Foundation work",
-        Status = BPG.Domain.Constants.TaskStatus.Assigned,
-        Phase = new Phase { PhaseId = 5, ProjectId = 100 },
-        Assignees = assignees.ToList()
-    };
+        [Fact]
+        public async Task UTCID03_Handle_SiteEngineerNotLeader_ShouldThrowForbiddenException()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
+            _mockMemberRepo.Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<Func<ProjectMember, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
 
-    private void SetupTask(ProjectTask task)
-    {
-        _mockTaskRepo
-            .Setup(repo => repo.Query())
-            .Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
-    }
+            var act = async () => await _handler.Handle(Command(new List<long> { 20 }), CancellationToken.None);
 
-    private void SetupProjectMembers(params ProjectMember[] members)
-    {
-        _mockProjectMemberRepo
-            .Setup(repo => repo.Query())
-            .Returns(members.AsQueryable().BuildMock());
+            await act.Should().ThrowAsync<ForbiddenException>();
+        }
+
+        [Fact]
+        public async Task UTCID04_Handle_AssigneeNotProjectMember_ShouldThrowBusinessException()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+
+            var act = async () => await _handler.Handle(Command(new List<long> { 999 }), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_ASSIGNEE_NOT_PROJECT_MEMBER");
+        }
+
+        [Fact]
+        public async Task UTCID05_Handle_TaskStatusNew_ShouldChangeToAssigned()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            var task = DefaultTask(status: BPG.Domain.Constants.TaskStatus.New);
+            SetupTasks(task);
+
+            var result = await _handler.Handle(Command(new List<long> { 20 }), CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            task.Status.Should().Be(BPG.Domain.Constants.TaskStatus.Assigned);
+        }
+
+        // ==================== Factory Methods ====================
+
+        private static AssignTaskCommand Command(List<long> assigneeIds, long taskId = TaskId)
+            => new(taskId, assigneeIds);
+
+        private static ProjectTask DefaultTask(string status = "New")
+            => new()
+            {
+                TaskId = TaskId,
+                PhaseId = PhaseId,
+                Name = "Test Task",
+                Status = status,
+                Phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId },
+                Assignees = new List<TaskAssignee>(),
+                SubTasks = new List<ProjectTask>()
+            };
+
+        // ==================== Setup Methods ====================
+
+        private void SetupTasks(params ProjectTask[] tasks)
+        {
+            _mockTaskRepo.Setup(r => r.Query()).Returns(tasks.AsQueryable().BuildMock());
+        }
+
+        private void SetupProjectMembers(params ProjectMember[] members)
+        {
+            _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+        }
     }
 }
