@@ -12,16 +12,9 @@ public static class DbSeeder
 {
     public static async Task SeedAsync(AppDbContext context)
     {
-        try
-        {
-            Console.WriteLine("Attempting to delete existing database to re-seed...");
-            await context.Database.EnsureDeletedAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Warning: Could not delete database ({ex.Message}).");
-        }
-
+        // MigrateAsync() tạo DB nếu chưa có, áp dụng migration còn thiếu.
+        // KHÔNG dùng EnsureDeletedAsync() — lệnh đó để lại file .ldf mồ côi trên
+        // ổ đĩa SQL Server, khiến CREATE DATABASE bị lỗi Error 5170 khi chạy lại.
         await context.Database.MigrateAsync();
         if (await context.Units.AnyAsync() && await context.Projects.AnyAsync()) return;
 
