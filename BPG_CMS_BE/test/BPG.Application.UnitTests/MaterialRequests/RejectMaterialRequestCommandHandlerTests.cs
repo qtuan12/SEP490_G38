@@ -76,7 +76,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
             result.Success.Should().BeTrue();
             mr.Status.Should().Be(MaterialRequestStatus.Rejected);
             mr.CheckedBy.Should().Be(CurrentUserId);
-            mr.AccountantNote.Should().Be("Từ chối: Sai đơn giá/số lượng");
+            mr.AccountantNote.Should().Be("Sai đơn giá/số lượng");
 
             _mockMRRepo.Verify(r => r.Update(mr), Times.Once);
             _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);

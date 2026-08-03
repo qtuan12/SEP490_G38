@@ -148,14 +148,14 @@ namespace BPG.Application.UnitTests.MaterialRequests
         }
 
         [Fact]
-        public async Task UTCID03_Handle_NotProjectLeader_ShouldThrowForbiddenException()
+        public async Task UTCID03_Handle_NotOwnerUser_ShouldThrowForbiddenException()
         {
             // Arrange
-            SetupProjectLeader(false);
+            SetupProjectLeader(true);
             var mr = new MaterialRequest
             {
                 RequestId = RequestId,
-                CreatedBy = CurrentUserId,
+                CreatedBy = 999, // Different from CurrentUserId (10)
                 Status = MaterialRequestStatus.Rejected,
                 Phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.InProgress },
                 Items = new List<MaterialRequestItem>()
@@ -174,7 +174,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
 
             // Assert
             await act.Should().ThrowAsync<ForbiddenException>()
-                .WithMessage("Chỉ Trưởng dự án mới được gửi lại yêu cầu vật tư.");
+                .WithMessage("Bạn không có quyền gửi lại yêu cầu vật tư này.");
         }
 
         [Fact]
