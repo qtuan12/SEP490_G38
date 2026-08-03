@@ -203,12 +203,21 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             .GroupBy(m => m.MaterialId)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity * (x.ConversionRate > 0 ? x.ConversionRate : 1m)));
 
-        var reportDto = new BoqVsActualReportDto { ProjectId = request.ProjectId };
+        // Fetch average unit prices from PO items
+        var avgPricesMap = await _unitOfWork.Repository<PurchaseOrderItem>()
+            .Query()
+            .Where(p => p.UnitPrice > 0)
+            .GroupBy(p => p.MaterialId)
+            .Select(g => new { MaterialId = g.Key, AvgPrice = g.Average(x => x.UnitPrice) })
+            .ToDictionaryAsync(x => x.MaterialId, x => x.AvgPrice, cancellationToken);
+
+        var itemsList = new List<BoqVsActualItemDto>();
 
         foreach (var boq in boqGrouped)
         {
             var issued = issuedGrouped.ContainsKey(boq.MaterialId) ? issuedGrouped[boq.MaterialId] : 0;
             var returned = returnedGrouped.ContainsKey(boq.MaterialId) ? returnedGrouped[boq.MaterialId] : 0;
+            var price = avgPricesMap.GetValueOrDefault(boq.MaterialId, 0m);
 
             var item = new BoqVsActualItemDto
             {
@@ -216,6 +225,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
                 MaterialCode = boq.MaterialCode,
                 MaterialName = boq.MaterialName,
                 UnitName = boq.UnitName,
+                UnitPrice = price,
                 BoqLimit = boq.BoqLimit,
                 TotalIssued = issued,
                 TotalReturned = returned,
@@ -223,8 +233,30 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
                 PendingPoQuantity = poGrouped.ContainsKey(boq.MaterialId) ? poGrouped[boq.MaterialId] : 0,
                 PendingMrQuantity = mrGrouped.ContainsKey(boq.MaterialId) ? mrGrouped[boq.MaterialId] : 0
             };
-            reportDto.Items.Add(item);
+            itemsList.Add(item);
         }
+
+        int totalCount = itemsList.Count;
+        int exceedingCount = itemsList.Count(i => i.IsExceeding);
+        int savingCount = itemsList.Count(i => i.NetConsumption < i.BoqLimit && i.NetConsumption > 0);
+        int normalCount = totalCount - exceedingCount - savingCount;
+
+        decimal totalBoqVal = itemsList.Sum(i => i.BoqTotalValue);
+        decimal totalConsVal = itemsList.Sum(i => i.ConsumptionValue);
+        decimal totalVarVal = itemsList.Sum(i => i.VarianceValue);
+
+        var reportDto = new BoqVsActualReportDto
+        {
+            ProjectId = request.ProjectId,
+            TotalBoqItemsCount = totalCount,
+            ExceedingItemsCount = exceedingCount,
+            SavingItemsCount = savingCount,
+            NormalItemsCount = normalCount,
+            TotalBoqValue = totalBoqVal,
+            TotalConsumptionValue = totalConsVal,
+            TotalVarianceValue = totalVarVal,
+            Items = itemsList
+        };
 
         return ApiResponse<BoqVsActualReportDto>.SuccessResult(reportDto);
     }

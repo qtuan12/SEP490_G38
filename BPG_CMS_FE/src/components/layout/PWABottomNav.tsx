@@ -4,6 +4,7 @@ import { ClipboardList, BookOpen, Bell, User } from 'lucide-react';
 import { getActiveProjectId } from '../../utils/activeProject';
 import { useNotification } from '../../context/NotificationContext';
 import { usePWA } from '../../context/PWAContext';
+import { triggerGlobalLoading } from '../../context/LoadingContext';
 
 export const PWABottomNav: React.FC = () => {
   const navigate = useNavigate();
@@ -12,6 +13,13 @@ export const PWABottomNav: React.FC = () => {
   const { shouldBlock } = usePWA();
 
   const activeProjectId = getActiveProjectId(location.pathname);
+
+  const handleNavClick = (path: string) => {
+    if (location.pathname !== path) {
+      triggerGlobalLoading('Đang tải trang...');
+    }
+    navigate(path);
+  };
 
   const navItems: Array<{
     id: string;
@@ -68,7 +76,7 @@ export const PWABottomNav: React.FC = () => {
         return (
           <button
             key={item.id}
-            onClick={() => navigate(item.path)}
+            onClick={() => handleNavClick(item.path)}
             className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all relative ${
               active
                 ? 'text-blue-600 font-semibold'

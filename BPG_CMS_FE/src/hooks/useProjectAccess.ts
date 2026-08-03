@@ -23,6 +23,8 @@ export const useProjectAccess = (
     access: query.data,
     isProjectMember: query.data?.isMember ?? false,
     isProjectLeader: query.data?.isLeader ?? false,
+    isTechnicalManager:
+      hasAnyRole(RoleGroup.Technical) || hasAnyRole(RoleGroup.AdminOnly),
     canViewProject: hasAnyRole(RoleGroup.ProjectViewers) || (query.data?.isMember ?? false),
     canManageExecution:
       hasAnyRole(RoleGroup.Execution) || (query.data?.isLeader ?? false),

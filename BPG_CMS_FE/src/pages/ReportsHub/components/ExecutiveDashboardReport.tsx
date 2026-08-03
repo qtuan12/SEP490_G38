@@ -84,7 +84,7 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      {/* Top Metric Cards Row */}
+      {/* Top Metric Cards Row with Period-over-Period Badges */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1 */}
         <div className="relative overflow-hidden bg-gradient-to-br from-white to-indigo-50/50 dark:from-slate-900 dark:to-indigo-950/30 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
@@ -103,9 +103,11 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
               <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <TrendingUp size={14} /> {completionRate}% Hoàn thành
               </span>
-              <div className="w-20 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${completionRate}%` }} />
-              </div>
+              {execDashboard.periodComparison && (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${execDashboard.periodComparison.completedTasksDeltaPercent >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                  {execDashboard.periodComparison.completedTasksDeltaPercent >= 0 ? `+${execDashboard.periodComparison.completedTasksDeltaPercent}%` : `${execDashboard.periodComparison.completedTasksDeltaPercent}%`} vs kỳ trước
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -119,10 +121,15 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
               <AlertCircle size={20} />
             </div>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 flex items-baseline justify-between">
             <div className="text-3xl font-black text-red-600 dark:text-red-400">{execDashboard.delayedTasks}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Cần xử lý & đẩy tiến độ ngay</div>
+            {execDashboard.periodComparison && (
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                {execDashboard.periodComparison.previousCompletedTasks} xong kỳ trước
+              </span>
+            )}
           </div>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Cần xử lý & đẩy tiến độ ngay</div>
         </div>
 
         {/* KPI 3 */}
@@ -134,10 +141,15 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
               <Clock size={20} />
             </div>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 flex items-baseline justify-between">
             <div className="text-3xl font-black text-amber-600 dark:text-amber-400">{execDashboard.atRiskTasks}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Chậm tiến độ so với kế hoạch</div>
+            {execDashboard.periodComparison && (
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${execDashboard.periodComparison.incidentsDeltaPercent <= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                {execDashboard.periodComparison.currentIncidents} sự cố kỳ này
+              </span>
+            )}
           </div>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Chậm tiến độ so với kế hoạch</div>
         </div>
 
         {/* KPI 4 */}
@@ -149,12 +161,19 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
               <AlertTriangle size={20} />
             </div>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 flex items-baseline justify-between">
             <div className="text-3xl font-black text-rose-600 dark:text-rose-400">{execDashboard.materialsExceedingBOQ}</div>
-            <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Yêu cầu vật tư vượt định mức</div>
+            {execDashboard.periodComparison && (
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                {execDashboard.periodComparison.currentProcurementCost > 0 ? `${(execDashboard.periodComparison.currentProcurementCost / 1000000).toFixed(1)}M VNĐ PO` : '0 VNĐ PO'}
+              </span>
+            )}
           </div>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Yêu cầu vật tư vượt định mức</div>
         </div>
       </div>
+
+
 
       {/* Visual Analytics Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

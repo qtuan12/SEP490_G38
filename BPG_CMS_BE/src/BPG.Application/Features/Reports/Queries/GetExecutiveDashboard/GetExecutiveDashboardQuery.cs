@@ -4,6 +4,7 @@ using BPG.Application.IServices;
 using BPG.Application.DTOs.Reports;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
+using BPG.Domain.Constants;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using TaskStatus = BPG.Domain.Constants.TaskStatus;
@@ -179,6 +180,110 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             .Take(20)
             .ToList();
 
+        // 1. Period Comparison Calculation
+        DateTime curEnd = request.ToDate ?? DateTime.UtcNow;
+        DateTime curStart = request.FromDate ?? curEnd.AddDays(-30);
+        TimeSpan span = curEnd - curStart;
+        if (span.TotalDays <= 0) span = TimeSpan.FromDays(30);
+
+        DateTime prevStart = curStart - span;
+        DateTime prevEnd = curStart;
+
+        int prevCompletedTasks = phases.SelectMany(p => p.Tasks)
+            .Where(t => t.Status != TaskStatus.Obsolete)
+            .Where(t => t.UpdatedAt >= prevStart && t.UpdatedAt <= prevEnd && ProgressCalculator.IsCompleted(t.Status))
+            .Count();
+
+        int prevIncidentsCount = await _unitOfWork.Repository<Incident>()
+            .Query()
+            .Where(i => (request.ProjectId == 0 || i.ProjectId == request.ProjectId) && i.CreatedAt >= prevStart && i.CreatedAt <= prevEnd)
+            .CountAsync(cancellationToken);
+
+        int curIncidentsCount = await _unitOfWork.Repository<Incident>()
+            .Query()
+            .Where(i => (request.ProjectId == 0 || i.ProjectId == request.ProjectId) && (!fromDt.HasValue || i.CreatedAt >= fromDt.Value) && (!toDt.HasValue || i.CreatedAt <= toDt.Value))
+            .CountAsync(cancellationToken);
+
+        decimal prevPoCost = await _unitOfWork.Repository<PurchaseOrder>()
+            .Query()
+            .Where(po => po.Status == PurchaseOrderStatus.Sent || po.Status == PurchaseOrderStatus.PartiallyReceived || po.Status == PurchaseOrderStatus.FullyReceived)
+            .Where(po => (request.ProjectId == 0 || po.Request.Phase.ProjectId == request.ProjectId) && po.OrderDate >= prevStart && po.OrderDate <= prevEnd)
+            .SumAsync(po => (decimal?)po.TotalAmount, cancellationToken) ?? 0m;
+
+        decimal curPoCost = await _unitOfWork.Repository<PurchaseOrder>()
+            .Query()
+            .Where(po => po.Status == PurchaseOrderStatus.Sent || po.Status == PurchaseOrderStatus.PartiallyReceived || po.Status == PurchaseOrderStatus.FullyReceived)
+            .Where(po => (request.ProjectId == 0 || po.Request.Phase.ProjectId == request.ProjectId) && (!fromDt.HasValue || po.OrderDate >= fromDt.Value) && (!toDt.HasValue || po.OrderDate <= toDt.Value))
+            .SumAsync(po => (decimal?)po.TotalAmount, cancellationToken) ?? 0m;
+
+        decimal completedDelta = prevCompletedTasks > 0 ? Math.Round(((decimal)(completedTasks - prevCompletedTasks) / prevCompletedTasks) * 100, 1) : (completedTasks > 0 ? 100m : 0m);
+        decimal incidentsDelta = prevIncidentsCount > 0 ? Math.Round(((decimal)(curIncidentsCount - prevIncidentsCount) / prevIncidentsCount) * 100, 1) : (curIncidentsCount > 0 ? 100m : 0m);
+        decimal costDelta = prevPoCost > 0 ? Math.Round(((curPoCost - prevPoCost) / prevPoCost) * 100, 1) : (curPoCost > 0 ? 100m : 0m);
+
+        var periodComparison = new PeriodComparisonMetricsDto
+        {
+            CurrentCompletedTasks = completedTasks,
+            PreviousCompletedTasks = prevCompletedTasks,
+            CompletedTasksDeltaPercent = completedDelta,
+            CurrentIncidents = curIncidentsCount,
+            PreviousIncidents = prevIncidentsCount,
+            IncidentsDeltaPercent = incidentsDelta,
+            CurrentProcurementCost = curPoCost,
+            PreviousProcurementCost = prevPoCost,
+            ProcurementCostDeltaPercent = costDelta,
+            CurrentOverBoqMRs = overBoqMRs,
+            PreviousOverBoqMRs = 0
+        };
+
+        // 2. Cross Project Comparison Matrix
+        var crossProjectMatrix = new List<ProjectComparisonMatrixItemDto>();
+        var allAccessibleProjects = await _unitOfWork.Repository<Project>()
+            .Query()
+            .Where(p => accessibleIds.Contains(p.ProjectId) && p.Status != ProjectStatus.Draft)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        foreach (var proj in allAccessibleProjects)
+        {
+            var pPhases = phases.Where(p => p.ProjectId == proj.ProjectId).ToList();
+            var pTasks = pPhases.SelectMany(p => p.Tasks).Where(t => t.Status != TaskStatus.Obsolete).ToList();
+            decimal pProg = ProgressCalculator.CalculateWeightedProgress(pTasks);
+            int pTotal = pTasks.Count;
+            int pDelayed = pTasks.Count(t => t.EndDate.ToDateTime(TimeOnly.MinValue) < now && !ProgressCalculator.IsCompleted(t.Status));
+
+            int pOverBoq = await _unitOfWork.Repository<MaterialRequest>()
+                .Query()
+                .Where(mr => mr.Phase.ProjectId == proj.ProjectId && mr.Items.Any(i => i.IsOverBOQ))
+                .CountAsync(cancellationToken);
+
+            var projIncidents = await _unitOfWork.Repository<Incident>()
+                .Query()
+                .Where(i => i.ProjectId == proj.ProjectId)
+                .ToListAsync(cancellationToken);
+
+            int pIncidentsCount = projIncidents.Count;
+            decimal pLoss = projIncidents.Sum(i => i.EstimatedMaterialLoss ?? 0m);
+
+            string health = "Green";
+            if (pDelayed >= 3 || pLoss > 50000000m || pOverBoq >= 3) health = "Red";
+            else if (pDelayed > 0 || pIncidentsCount > 0 || pOverBoq > 0) health = "Yellow";
+
+            crossProjectMatrix.Add(new ProjectComparisonMatrixItemDto
+            {
+                ProjectId = proj.ProjectId,
+                ProjectName = proj.Name,
+                Status = proj.Status,
+                ProgressPercent = pProg,
+                TotalTasks = pTotal,
+                DelayedTasks = pDelayed,
+                AtRiskTasks = 0,
+                OverBoqCount = pOverBoq,
+                TotalIncidents = pIncidentsCount,
+                EstimatedLossVnd = pLoss,
+                HealthStatus = health
+            });
+        }
+
         var dto = new ExecutiveDashboardDto
         {
             ProjectId = request.ProjectId,
@@ -190,7 +295,9 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             OverBoqMaterialRequests = overBoqMRs,
             MaterialsExceedingBOQ = overBoqMRs,
             PhaseBreakdown = phaseBreakdown,
-            DelayedTasksList = allDelayedInfos
+            DelayedTasksList = allDelayedInfos,
+            PeriodComparison = periodComparison,
+            CrossProjectMatrix = crossProjectMatrix
         };
 
         return ApiResponse<ExecutiveDashboardDto>.SuccessResult(dto);

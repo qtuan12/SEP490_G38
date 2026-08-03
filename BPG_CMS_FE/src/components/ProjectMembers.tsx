@@ -5,8 +5,9 @@ import type { UserProfile } from '../services/authService';
 import { Modal } from './ui/Modal';
 import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
 import { useSignalREvent } from '../hooks/useSignalREvent';
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { useProjectAccess } from '../hooks/useProjectAccess';
+import { RoleGroup } from '../auth/roles';
 
 interface AvailableEngineer extends UserProfile {
   leaderProjectName?: string;
@@ -17,9 +18,10 @@ interface ProjectMembersProps {
 }
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => {
-  const { canManageTechnical } = useProjectAccess(projectId);
+  const { user, hasAnyRole } = useAuth();
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);
+  const [projectStatus, setProjectStatus] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,8 +33,15 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [memberToDelete, setMemberToDelete] = useState<{id: string, name: string} | null>(null);
   const loadRequestIdRef = React.useRef(0);
 
-  // Only Admin & Technical Manager (TPKT) can manage project members
-  const canManageMembers = canManageTechnical;
+  const isTechManagerOrAdmin = hasAnyRole(RoleGroup.Technical) || hasAnyRole(RoleGroup.AdminOnly);
+  const isCurrentProjectLeader = members.some(m => m.userId === user?.id && m.isLeader);
+
+  const isProjectCompleted = ['completed', 'closed', 'done'].includes((projectStatus || '').toLowerCase());
+
+  // TPKT/Admin hoặc Trưởng dự án (Project Leader) của dự án chưa hoàn thành đều có quyền thêm/xóa thành viên kỹ sư.
+  const canManageMembers = (isTechManagerOrAdmin || isCurrentProjectLeader) && !isProjectCompleted;
+  // Chỉ TPKT/Admin mới được chỉ định hoặc thay đổi Trưởng nhóm trong dự án chưa hoàn thành
+  const canToggleLeader = isTechManagerOrAdmin && !isProjectCompleted;
   const hasLeader = members.some(m => m.isLeader);
 
   const loadData = async (bustCache = false, silent = false) => {
@@ -46,12 +55,21 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       if (requestId !== loadRequestIdRef.current) return;
       setMembers(projMembers);
 
-      // TPKT hoặc trưởng dự án chỉ tải danh sách kỹ sư đủ điều kiện từ endpoint dự án.
-      if (canManageMembers) {
+      // Lấy tất cả dự án và thành viên để tìm thông tin dự án hiện tại và thông tin trưởng nhóm của các dự án đang làm
+      const allProjects = await projectService.getProjects();
+      if (requestId !== loadRequestIdRef.current) return;
+
+      const currentProj = allProjects.find(p => p.id === projectId || p.id === `p-${projectId}` || p.id === projectId.replace('p-', ''));
+      if (currentProj) {
+        setProjectStatus(currentProj.status || '');
+      }
+
+      const isLeader = projMembers.some(m => m.userId === user?.id && m.isLeader);
+      const canManage = isTechManagerOrAdmin || isLeader;
+
+      if (canManage) {
         const engineers = await projectService.getAvailableMembers(projectId);
 
-        // Lấy tất cả dự án và thành viên để tìm thông tin trưởng nhóm
-        const allProjects = await projectService.getProjects();
         const allMembersPromises = allProjects.map(p => projectService.getMembers(p.id));
         const allMembersArrays = await Promise.all(allMembersPromises);
         if (requestId !== loadRequestIdRef.current) return;
@@ -60,7 +78,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         allMembersArrays.forEach((mems, index) => {
           const project = allProjects[index];
           const statusLower = (project.status || '').toLowerCase();
-          if (statusLower === 'completed' || statusLower === 'closed') {
+          // Nếu dự án đã hoàn thành thì không còn tính người đó là trưởng dự án nữa
+          if (statusLower === 'completed' || statusLower === 'closed' || statusLower === 'done') {
             return;
           }
           mems.forEach(m => {
@@ -91,11 +110,11 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
 
   useEffect(() => {
     loadData();
-  }, [projectId, canManageMembers]);
+  }, [projectId, isTechManagerOrAdmin]);
 
   useEffect(() => () => {
     loadRequestIdRef.current += 1;
-  }, [projectId, canManageMembers]);
+  }, [projectId, isTechManagerOrAdmin]);
 
   useSignalREvent('ProjectLeaderUpdated', () => {
     loadData(true, true);
@@ -169,6 +188,23 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     }
   };
 
+  // Danh sách kỹ sư khả dụng hiển thị trong Modal Thêm kỹ sư vào Dự án:
+  // - TPKT/Admin: Hiển thị tất cả kỹ sư, đồng thời gán mác "Trưởng nhóm - [Tên dự án]" cho người đang làm PL ở dự án chưa hoàn thành.
+  // - Trưởng dự án (PL): Chỉ hiển thị những kỹ sư KHÔNG phải là Trưởng nhóm của dự án chưa hoàn thành.
+  const candidateEngineers = availableEngineers.filter(u => {
+    if (!isTechManagerOrAdmin && u.leaderProjectName) {
+      return false;
+    }
+    const roleLower = (u.role || '').toLowerCase();
+    if (roleLower === 'technicalmanager' || roleLower === 'admin' || roleLower === 'director') return false;
+    return true;
+  });
+
+  const searchedEngineers = candidateEngineers.filter(u =>
+    u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '150px', gap: '8px' }}>
@@ -212,42 +248,43 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
 
       {/* Member Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        {members.map((m) => (
-          <div
-            key={m.userId}
-            className="card"
-            style={{
-              padding: '20px',
-              position: 'relative',
-              border: m.isLeader ? '1px solid hsl(var(--primary) / 0.3)' : '1px solid hsl(var(--border))',
-              backgroundColor: m.isLeader ? 'hsl(var(--primary-glow) / 0.1)' : 'hsl(var(--bg-card))',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              boxShadow: m.isLeader ? 'var(--shadow-sm), 0 0 10px hsl(var(--primary-glow))' : 'var(--shadow-sm)'
-            }}
-          >
-            {/* Crown tag */}
-            {m.isLeader && (
-              <div style={{
-                position: 'absolute',
-                top: '-10px',
-                right: '16px',
-                backgroundColor: 'gold',
-                color: 'hsl(224 71% 4%)',
-                padding: '2px 8px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.7rem',
-                fontWeight: 700,
+        {members.map((m) => {
+          return (
+            <div
+              key={m.userId}
+              className="card"
+              style={{
+                padding: '20px',
+                position: 'relative',
+                border: m.isLeader ? '1px solid hsl(var(--primary) / 0.3)' : '1px solid hsl(var(--border))',
+                backgroundColor: m.isLeader ? 'hsl(var(--primary-glow) / 0.1)' : 'hsl(var(--bg-card))',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}>
-                <Crown size={12} fill="gold" />
-                <span>TRƯỞNG NHÓM</span>
-              </div>
-            )}
+                flexDirection: 'column',
+                gap: '14px',
+                boxShadow: m.isLeader ? 'var(--shadow-sm), 0 0 10px hsl(var(--primary-glow))' : 'var(--shadow-sm)'
+              }}
+            >
+              {/* Crown tag */}
+              {m.isLeader && (
+                <div style={{
+                  position: 'absolute',
+                  top: '-10px',
+                  right: '16px',
+                  backgroundColor: 'gold',
+                  color: 'hsl(224 71% 4%)',
+                  padding: '2px 8px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                  <Crown size={12} fill="gold" />
+                  <span>TRƯỞNG NHÓM</span>
+                </div>
+              )}
 
             {/* Profile info */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -281,7 +318,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
               </div>
             </div>
 
-            {/* Actions for TPKT */}
+            {/* Actions for TPKT & Project Leader */}
             {canManageMembers && (
               <div style={{
                 display: 'flex',
@@ -292,8 +329,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                 paddingTop: '12px',
                 marginTop: '4px'
               }}>
-                {/* Crown Assign Checkbox/Button */}
-                {(!hasLeader || m.isLeader) ? (
+                {/* Crown Assign Checkbox/Button: TPKT/Admin only */}
+                {canToggleLeader && (!hasLeader || m.isLeader) ? (
                   <button
                     onClick={() => handleToggleLeader(m.userId, m.userName)}
                     className={`btn ${m.isLeader ? 'btn-secondary' : 'btn-secondary'}`}
@@ -312,23 +349,25 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                   </button>
                 ) : null}
 
-                {/* Remove member button */}
-                <button
-                  onClick={() => handleRemoveMember(m.userId, m.userName)}
-                  className="btn btn-secondary"
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: '0.75rem',
-                    color: 'hsl(var(--danger))',
-                    borderColor: 'hsl(var(--danger) / 0.2)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <UserX size={14} />
-                  <span>Xóa</span>
-                </button>
+                {/* Remove member button: TPKT/Admin or Leader (on non-leader engineers) */}
+                {(canToggleLeader || !m.isLeader) && (
+                  <button
+                    onClick={() => handleRemoveMember(m.userId, m.userName)}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '0.75rem',
+                      color: 'hsl(var(--danger))',
+                      borderColor: 'hsl(var(--danger) / 0.2)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <UserX size={14} />
+                    <span>Xóa</span>
+                  </button>
+                )}
               </div>
             )}
 
@@ -340,7 +379,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
 
         {members.length === 0 && (
           <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '30px', color: 'hsl(var(--text-muted))', border: '1px dashed hsl(var(--border))', borderRadius: 'var(--radius-md)' }}>
@@ -368,8 +408,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
               className="input w-full mb-2 p-2 sm:p-2.5 text-sm sm:text-base rounded-[var(--radius-sm)] border border-[hsl(var(--border))]"
             />
             <div className="max-h-[45vh] sm:max-h-[300px] overflow-y-auto border border-[hsl(var(--border))] rounded-[var(--radius-sm)] bg-[hsl(var(--bg-card))]">
-              {availableEngineers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
-                availableEngineers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).map((eng) => (
+              {searchedEngineers.length > 0 ? (
+                searchedEngineers.map((eng) => (
                   <label
                     key={eng.id}
                     className="flex items-center gap-3 p-3 border-b border-[hsl(var(--border)/0.5)] cursor-pointer transition-colors hover:bg-[hsl(var(--primary-glow)/0.05)]"
