@@ -63,7 +63,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
     setConfirmAction(null);
     directPurchaseService.getById(directPurchaseId)
       .then(setDetail)
-      .catch(() => toast.error('Không tải được chi tiết phiếu.'))
+      .catch(() => toast.error('Không thể tải chi tiết phiếu mua trực tiếp.'))
       .finally(() => setLoading(false));
   }, [isOpen, directPurchaseId]);
 
@@ -77,15 +77,15 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
   // Giám đốc chỉ thao tác khi Kế toán đã soát và phiếu vượt định mức.
   const canDoDirector = !!canApproveSpending && detail?.status === DP_STATUS.WaitingApproval;
 
-  const run = async (fn: () => Promise<unknown>, successMsg: string) => {
+  const run = async (fn: () => Promise<{ message?: string }>, successMsg: string) => {
     setSubmitting(true);
     try {
-      await fn();
-      toast.success(successMsg);
+      const result = await fn();
+      toast.success(result.message || successMsg);
       onAudited();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'Thao tác thất bại.');
+      toast.error(err.message || 'Không thể xử lý phiếu mua trực tiếp.');
     } finally {
       setSubmitting(false);
       setConfirmAction(null);

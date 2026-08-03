@@ -154,7 +154,7 @@ export const authService = {
     const response = await apiClient.post<BackendLoginResponse>('/auth/login', credentials);
 
     if (!response.success || !response.data) {
-      throw new Error(response.message || 'Đăng nhập thất bại.');
+      throw new Error(response.message || 'Không thể đăng nhập.');
     }
 
     const { data } = response;
@@ -198,7 +198,7 @@ export const authService = {
 
     interface BackendResponse { success: boolean; message: string; data: UserDetailProfile; }
     const response = await apiClient.patch<BackendResponse>('/auth/me', { fullName, phoneNumber, avatarUrl });
-    if (!response.success || !response.data) throw new Error(response.message || 'Cập nhật thất bại.');
+    if (!response.success || !response.data) throw new Error(response.message || 'Không thể cập nhật hồ sơ.');
     return response.data;
   },
 
@@ -214,7 +214,7 @@ export const authService = {
 
     interface BackendResponse { success: boolean; message: string; data: { fileUrl: string }; }
     const response = await apiClient.postFormData<BackendResponse>('/files/upload', formData);
-    if (!response.success || !response.data) throw new Error(response.message || 'Tải ảnh lên thất bại.');
+    if (!response.success || !response.data) throw new Error(response.message || 'Không thể tải ảnh lên.');
     return response.data.fileUrl;
   },
 
@@ -235,7 +235,7 @@ export const authService = {
 
     interface BackendResponse { success: boolean; message: string; }
     const response = await apiClient.post<BackendResponse>('/auth/change-password', { currentPassword, newPassword });
-    if (!response.success) throw new Error(response.message || 'Đổi mật khẩu thất bại.');
+    if (!response.success) throw new Error(response.message || 'Không thể đổi mật khẩu.');
   },
 
   async getMe(): Promise<UserDetailProfile> {
@@ -291,7 +291,7 @@ export const authService = {
     }
     interface BackendResponse { success: boolean; message: string; }
     const response = await apiClient.post<BackendResponse>('/auth/forgot-password', { email });
-    if (!response.success) throw new Error(response.message || 'Gửi OTP thất bại.');
+    if (!response.success) throw new Error(response.message || 'Không thể gửi OTP.');
   },
 
   async verifyOtp(email: string, otp: string): Promise<string> {
@@ -302,7 +302,7 @@ export const authService = {
     }
     interface BackendResponse { success: boolean; message: string; data: { resetToken: string }; }
     const response = await apiClient.post<BackendResponse>('/auth/verify-otp', { email, otp });
-    if (!response.success || !response.data) throw new Error(response.message || 'Xác thực OTP thất bại.');
+    if (!response.success || !response.data) throw new Error(response.message || 'Không thể xác thực OTP.');
     return response.data.resetToken;
   },
 
@@ -313,7 +313,7 @@ export const authService = {
     }
     interface BackendResponse { success: boolean; message: string; }
     const response = await apiClient.post<BackendResponse>('/auth/reset-password', { resetToken, newPassword });
-    if (!response.success) throw new Error(response.message || 'Đặt lại mật khẩu thất bại.');
+    if (!response.success) throw new Error(response.message || 'Không thể đặt lại mật khẩu.');
   },
 
   logout(): void {

@@ -21,12 +21,12 @@ export const CancelAcceptanceModal: React.FC<CancelAcceptanceModalProps> = ({
 
   const cancelMutation = useMutation({
     mutationFn: () => phaseAcceptanceService.cancelAcceptance(acceptanceId, { cancellationReason: reason }),
-    onSuccess: () => {
-      toast.success('Hủy biên bản nghiệm thu thành công');
+    onSuccess: (message) => {
+      toast.success(message || 'Đã hủy biên bản nghiệm thu.');
       onSuccess();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi hủy');
+      toast.error(error.response?.data?.message || 'Không thể hủy biên bản nghiệm thu.');
     }
   });
 

@@ -140,8 +140,9 @@ export const wbsService = {
   markTaskObsolete: async (taskId: number, data: { taskId: number, obsoleteReason: string }): Promise<void> => {
     await apiClient.put(`/tasks/${taskId}/obsolete`, data);
   },
-  restoreTask: async (taskId: number): Promise<void> => {
-    await apiClient.put(`/tasks/${taskId}/restore`);
+  restoreTask: async (taskId: number): Promise<{ message?: string }> => {
+    const res = await apiClient.put<any>(`/tasks/${taskId}/restore`);
+    return { message: res?.message || '' };
   },
   addTaskDependency: async (taskId: number, predecessorTaskId: number): Promise<void> => {
     await apiClient.request(`/tasks/${taskId}/dependencies/${predecessorTaskId}`, { method: 'POST' });

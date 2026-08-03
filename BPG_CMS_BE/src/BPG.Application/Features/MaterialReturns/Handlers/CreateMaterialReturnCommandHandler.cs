@@ -190,15 +190,6 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                     .Select(u => u.FullName)
                     .FirstOrDefaultAsync(cancellationToken) ?? "Người dùng";
 
-                await _notificationService.SendNotificationAsync(
-                    currentUserId,
-                    "Hoàn trả vật tư thành công",
-                    $"Bạn đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
-                    NotificationType.Procurement,
-                    $"/projects/{project.ProjectId}?tab=inventory&subTab=returns&returnId={materialReturn.MaterialReturnId}",
-                    materialReturn.MaterialReturnId,
-                    cancellationToken);
-
                 var assigneeIds = issuance.Task?.Assignees
                     .Select(a => a.UserId)
                     .Where(userId => userId != currentUserId && userId != issuance.CreatedBy)
@@ -212,7 +203,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                         "Vật tư đã được hoàn trả",
                         $"{actorName} đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
                         NotificationType.Procurement,
-                        $"/projects/{project.ProjectId}?tab=inventory&subTab=returns&returnId={materialReturn.MaterialReturnId}",
+                        $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
                         materialReturn.MaterialReturnId,
                         cancellationToken);
                 }
@@ -224,7 +215,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                         "Có phiếu hoàn trả vật tư",
                         $"{actorName} đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
                         NotificationType.Procurement,
-                        $"/projects/{project.ProjectId}?tab=inventory&subTab=returns&returnId={materialReturn.MaterialReturnId}",
+                        $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
                         materialReturn.MaterialReturnId,
                         cancellationToken);
                 }

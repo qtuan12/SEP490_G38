@@ -194,14 +194,13 @@ export const CreatePOPage: React.FC = () => {
           notes: it.notes.trim() || undefined,
         })),
       }),
-    onSuccess: () => {
-      toast.success('Tạo đơn mua hàng thành công!');
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã tạo đơn mua hàng.');
       navigate(backPath);
     },
     onError: (err: any) => {
-      const msg = err.message || 'Tạo đơn hàng thất bại.';
-      // Hiện popup ở giữa (trên) màn hình để không bị bỏ sót lỗi
-      toast.error(msg, { position: 'top-center' });
+      const msg = err.message || 'Không thể tạo đơn mua hàng.';
+      toast.error(msg);
       // Đồng thời gắn lỗi ngay dưới trường liên quan nếu nhận diện được
       if (msg.includes('Ngày đơn hàng')) {
         setOrderDateError(msg);

@@ -6,6 +6,7 @@ import { Modal } from './ui/Modal';
 import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
 import { useSignalREvent } from '../hooks/useSignalREvent';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 import { RoleGroup } from '../auth/roles';
 import { useProjectAccess } from '../hooks/useProjectAccess';
 
@@ -24,7 +25,6 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   // Modal State
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -119,7 +119,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     if (selectedUserIds.length === 0) return;
 
     try {
-      await Promise.all(selectedUserIds.map(id => {
+      const results = await Promise.all(selectedUserIds.map(id => {
         const targetUser = availableEngineers.find(user => user.id === id);
         if (!targetUser)
           throw new Error('Kỹ sư đã chọn không còn khả dụng để thêm vào dự án.');
@@ -132,12 +132,11 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         });
       }));
 
-      setSuccess(`Đã thêm ${selectedUserIds.length} kỹ sư vào dự án.`);
+      toast.success(selectedUserIds.length === 1 && results[0]?.__message ? results[0].__message : `Đã thêm ${selectedUserIds.length} kỹ sư vào dự án.`);
       setIsAddOpen(false);
-      setTimeout(() => setSuccess(null), 3000);
       void loadData(true, true);
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi gán thành viên. Có thể một số thành viên đã tồn tại.');
+      toast.error(err.message || 'Không thể thêm thành viên vào dự án.');
     }
   };
 
@@ -150,12 +149,11 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     if (!memberToDelete) return;
 
     try {
-      await projectService.removeMember(projectId, memberToDelete.id);
-      setSuccess(`Đã xóa kỹ sư ${memberToDelete.name} khỏi dự án.`);
-      setTimeout(() => setSuccess(null), 3000);
+      const message = await projectService.removeMember(projectId, memberToDelete.id);
+      toast.success(message || `Đã xóa kỹ sư ${memberToDelete.name} khỏi dự án.`);
       void loadData(true, true);
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi xóa thành viên.');
+      toast.error(err.message || 'Không thể xóa thành viên khỏi dự án.');
     } finally {
       setDeleteConfirmOpen(false);
       setMemberToDelete(null);
@@ -168,10 +166,9 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       setMembers(updatedList);
 
       const target = updatedList.find(m => m.userId === userId);
-      setSuccess(`Đã ${target?.isLeader ? 'gán' : 'hủy'} vai trò Trưởng nhóm cho ${name}.`);
-      setTimeout(() => setSuccess(null), 3000);
+      toast.success(updatedList.__message || `Đã ${target?.isLeader ? 'gán' : 'hủy'} vai trò Trưởng nhóm cho ${name}.`);
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi cập nhật vai trò trưởng nhóm.');
+      toast.error(err.message || 'Không thể cập nhật vai trò trưởng nhóm.');
     }
   };
 
@@ -186,20 +183,6 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-      {/* Notifications */}
-      {success && (
-        <div className="animate-fade-in" style={{
-          padding: '10px 14px',
-          backgroundColor: 'hsl(var(--success-glow))',
-          border: '1px solid hsl(var(--success) / 0.2)',
-          borderRadius: 'var(--radius-sm)',
-          color: 'hsl(142 70% 30%)',
-          fontSize: '0.85rem'
-        }}>
-          {success}
-        </div>
-      )}
 
       {error && (
         <div className="animate-fade-in" style={{

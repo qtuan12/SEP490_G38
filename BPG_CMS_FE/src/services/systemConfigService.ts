@@ -1,5 +1,5 @@
 import { apiClient } from './api';
-import type { ApiResponse } from '../types/api';
+import type { ApiResponse, ApiResult } from '../types/api';
 
 export interface SystemConfigDto {
   configKey: string;
@@ -12,8 +12,13 @@ export interface SystemConfigDto {
 }
 
 const unwrap = <T>(res: ApiResponse<T>): T => {
-  if (!res.success) throw new Error(res.message || 'Yêu cầu thất bại.');
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
   return res.data;
+};
+
+const unwrapWithMessage = <T>(res: ApiResponse<T>): ApiResult<T> => {
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
+  return { data: res.data, message: res.message || '' };
 };
 
 export interface CompanyInfoDto {
@@ -25,16 +30,16 @@ export const systemConfigService = {
   getAll: async (): Promise<SystemConfigDto[]> =>
     unwrap(await apiClient.get<ApiResponse<SystemConfigDto[]>>('/systemconfigs')),
 
-  update: async (configKey: string, configValue: string): Promise<boolean> =>
-    unwrap(
+  update: async (configKey: string, configValue: string): Promise<ApiResult<boolean>> =>
+    unwrapWithMessage(
       await apiClient.put<ApiResponse<boolean>>(`/systemconfigs/${encodeURIComponent(configKey)}`, { configValue })
     ),
 
   getCompanyInfo: async (): Promise<CompanyInfoDto> =>
     unwrap(await apiClient.get<ApiResponse<CompanyInfoDto>>('/systemconfigs/company')),
 
-  updateCompanySettings: async (companyName: string, companyLogoUrl: string): Promise<boolean> =>
-    unwrap(
+  updateCompanySettings: async (companyName: string, companyLogoUrl: string): Promise<ApiResult<boolean>> =>
+    unwrapWithMessage(
       await apiClient.put<ApiResponse<boolean>>('/systemconfigs/company', { companyName, companyLogoUrl })
     ),
 };

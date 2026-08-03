@@ -248,7 +248,7 @@ export const projectService = {
     return projects.find(p => p.id === normalizedId || p.id === id) || null;
   },
 
-  async createProject(project: Omit<Project, 'id' | 'progress'>): Promise<Project> {
+  async createProject(project: Omit<Project, 'id' | 'progress'>): Promise<Project & { __message?: string }> {
     if (!USE_MOCK_API) {
       let attachments = [];
       
@@ -291,7 +291,7 @@ export const projectService = {
         attachments: attachments
       };
       const res = await apiClient.post<ApiResponse<import('../types/common').ProjectDto>>('/projects', payload);
-      if (!res.success) throw new Error(res.message || 'Khởi tạo dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể khởi tạo dự án.');
       return {
         id: res.data.projectId.toString(),
         name: res.data.name,
@@ -301,7 +301,8 @@ export const projectService = {
         status: res.data.status.toLowerCase() as any,
         drawingUrl: project.drawingUrl || (project.drawingUrls?.[0]),
         drawingUrls: project.drawingUrls,
-        progress: 0
+        progress: 0,
+        __message: res.message || ''
       };
     }
     const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
@@ -316,17 +317,18 @@ export const projectService = {
     return newProj;
   },
 
-  async deleteProject(projectId: string): Promise<void> {
+  async deleteProject(projectId: string): Promise<string> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}`);
-      if (!res.success) throw new Error(res.message || 'Xóa dự án thất bại');
-      return;
+      if (!res.success) throw new Error(res.message || 'Không thể xóa dự án.');
+      return res.message || '';
     }
     const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
     const updated = projects.filter(p => p.id !== projectId);
     if (updated.length === projects.length) throw new Error('Không tìm thấy dự án để xóa');
     setStorage('bpg_projects', updated);
+    return '';
   },
 
   async updateProject(id: string, updates: Partial<Project>): Promise<Project> {
@@ -341,7 +343,7 @@ export const projectService = {
         attachments: updates.attachments
       };
       const res = await apiClient.put<ApiResponse<import('../types/common').ProjectDto>>(`/projects/${parsedId}`, payload);
-      if (!res.success) throw new Error(res.message || 'Cập nhật dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể cập nhật dự án.');
       return this.getProjectById(id) as unknown as Project;
     }
     const projects = getStorage<Project>('bpg_projects', DEFAULT_PROJECTS);
@@ -356,7 +358,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/activate`);
-      if (!res.success) throw new Error(res.message || 'Kích hoạt dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể kích hoạt dự án.');
       return this.getProjectById(projectId) as unknown as Project;
     }
     const project = await this.getProjectById(projectId);
@@ -386,7 +388,7 @@ export const projectService = {
         projectId: parsedId,
         pauseReason: reason
       });
-      if (!res.success) throw new Error(res.message || 'Tạm dừng dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể tạm dừng dự án.');
       return this.getProjectById(projectId) as unknown as Project;
     }
     return this.updateProject(projectId, { status: 'paused' });
@@ -396,7 +398,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/resume`);
-      if (!res.success) throw new Error(res.message || 'Tiếp tục dự án thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể tiếp tục dự án.');
       return this.getProjectById(projectId) as unknown as Project;
     }
     return this.updateProject(projectId, { status: 'inprogress' });
@@ -474,14 +476,14 @@ export const projectService = {
       user.status === 'active' && !members.some(member => member.userId === user.id));
   },
 
-  async addMember(projectId: string, user: { id: string; name: string; email: string; role: string }): Promise<ProjectMember> {
+  async addMember(projectId: string, user: { id: string; name: string; email: string; role: string }): Promise<ProjectMember & { __message?: string }> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.post<ApiResponse<any>>(`/projects/${parsedId}/members`, { 
         projectId: parseInt(parsedId), 
         userId: parseInt(user.id) 
       });
-      if (!res.success) throw new Error(res.message || 'Thêm thành viên thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể thêm thành viên.');
       projectDetailCache.delete(parsedId);
       return {
         projectId,
@@ -489,7 +491,8 @@ export const projectService = {
         userName: user.name,
         userEmail: user.email,
         userRole: user.role,
-        isLeader: false
+        isLeader: false,
+        __message: res.message || ''
       };
     }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
@@ -512,26 +515,29 @@ export const projectService = {
     return newMember;
   },
 
-  async removeMember(projectId: string, userId: string): Promise<void> {
+  async removeMember(projectId: string, userId: string): Promise<string> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.delete<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}`);
-      if (!res.success) throw new Error(res.message || 'Xóa thành viên thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể xóa thành viên.');
       projectDetailCache.delete(parsedId);
-      return;
+      return res.message || '';
     }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     const filtered = allMembers.filter(m => !(m.projectId === projectId && m.userId === userId));
     setStorage('bpg_project_members', filtered);
+    return '';
   },
 
-  async toggleLeader(projectId: string, userId: string): Promise<ProjectMember[]> {
+  async toggleLeader(projectId: string, userId: string): Promise<ProjectMember[] & { __message?: string }> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/members/${userId}/leader`);
-      if (!res.success) throw new Error(res.message || 'Thay đổi quyền nhóm trưởng thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể thay đổi quyền nhóm trưởng.');
       projectDetailCache.delete(parsedId);
-      return this.getMembers(projectId);
+      const members = await this.getMembers(projectId) as ProjectMember[] & { __message?: string };
+      members.__message = res.message || '';
+      return members;
     }
     const allMembers = getStorage<ProjectMember>('bpg_project_members', DEFAULT_MEMBERS);
     const updated = allMembers.map(m => {
@@ -633,7 +639,7 @@ export const projectService = {
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedProjectId}/phases/${parsedPhaseId}/boq`, {
         items: materials
       });
-      if (!res.success) throw new Error(res.message || 'Cập nhật BOQ thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể cập nhật BOQ.');
       return res.data;
     }
     const allPhases = getStorage<WBSPhase>('bpg_wbs_phases', DEFAULT_PHASES);
@@ -855,7 +861,7 @@ export const projectService = {
         updateReason: reason
       };
       const res = await apiClient.put<ApiResponse<any>>(`/tasks/${parsedTaskId}/progress`, payload);
-      if (!res.success) throw new Error(res.message || 'Cập nhật tiến độ thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể cập nhật tiến độ.');
       
       return {} as WBSTask;
     }
@@ -959,7 +965,7 @@ export const projectService = {
         totalCount: number;
       }>>(`/dailylogs`, { params });
 
-      if (!res.success) throw new Error(res.message || 'Lấy danh sách nhật ký thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể tải danh sách nhật ký.');
 
       const mapComment = (c: any): DailyLogComment => ({
         id: c.commentId.toString(),
@@ -1051,7 +1057,7 @@ export const projectService = {
       };
 
       const res = await apiClient.post<ApiResponse<any>>(`/dailylogs`, payload);
-      if (!res.success) throw new Error(res.message || 'Tạo nhật ký thi công thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể tạo nhật ký thi công.');
 
       const l = res.data;
       const mapComment = (c: any): DailyLogComment => ({
@@ -1187,7 +1193,7 @@ export const projectService = {
         images
       };
       const res = await apiClient.put<ApiResponse<any>>(`/dailylogs/${parsedLogId}`, payload);
-      if (!res.success) throw new Error(res.message || 'Cập nhật nhật ký thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể cập nhật nhật ký.');
 
       const l = res.data;
       const mapComment = (c: any): DailyLogComment => ({
@@ -1233,7 +1239,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedLogId = logId.startsWith('l-') ? parseInt(logId.substring(2)) : parseInt(logId);
       const res = await apiClient.post<ApiResponse<any>>(`/dailylogs/${parsedLogId}/comments`, { content });
-      if (!res.success) throw new Error(res.message || 'Thêm bình luận thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể thêm bình luận.');
 
       const c = res.data;
       return {
@@ -1268,7 +1274,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedCommentId = commentId.startsWith('c-') ? parseInt(commentId.substring(2)) : parseInt(commentId);
       const res = await apiClient.put<ApiResponse<any>>(`/dailylogs/comments/${parsedCommentId}`, { content });
-      if (!res.success) throw new Error(res.message || 'Cập nhật bình luận thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể cập nhật bình luận.');
 
       const c = res.data;
       return {
@@ -1321,7 +1327,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedTaskId = taskId.startsWith('t-') ? parseInt(taskId.substring(2)) : parseInt(taskId);
       const res = await apiClient.get<ApiResponse<TaskProgressLog[]>>(`/dailylogs/tasks/${parsedTaskId}/progress-history`);
-      if (!res.success) throw new Error(res.message || 'Lấy lịch sử tiến độ thất bại.');
+      if (!res.success) throw new Error(res.message || 'Không thể tải lịch sử tiến độ.');
       return res.data ?? [];
     }
 
@@ -1352,7 +1358,7 @@ export const projectService = {
       method: 'POST',
       body: formData
     });
-    if (!res.success) throw new Error(res.message || 'Tải ảnh lên thất bại.');
+    if (!res.success) throw new Error(res.message || 'Không thể tải ảnh lên.');
     return (res.data || []).map(item => item.fileUrl);
   },
 
@@ -1675,7 +1681,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
       const res = await apiClient.get<ApiResponse<any>>(`/projects/${parsedProjectId}/material-requests`);
-      if (!res.success) throw new Error(res.message || 'Lấy danh sách yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể tải danh sách yêu cầu.');
       return (res.data?.items || []).map((item: any) => this.mapRequestDtoToCommon(item));
     }
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -1685,7 +1691,7 @@ export const projectService = {
   async getAllMaterialRequests(): Promise<MaterialRequest[]> {
     if (!USE_MOCK_API) {
       const res = await apiClient.get<ApiResponse<any>>('/materialrequests');
-      if (!res.success) throw new Error(res.message || 'Lấy danh sách yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể tải danh sách yêu cầu.');
       return (res.data?.items || []).map((item: any) => this.mapRequestDtoToCommon(item));
     }
     return getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS).sort((a, b) => b.date.localeCompare(a.date));
@@ -1712,11 +1718,11 @@ export const projectService = {
       };
       
       const res = await apiClient.post<ApiResponse<any>>(`/projects/${parsedProjectId}/material-requests`, payload);
-      if (!res.success) throw new Error(res.message || 'Tạo yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể tạo yêu cầu.');
       
       // Lấy chi tiết yêu cầu vừa tạo để trả về đầy đủ DTO
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${res.data}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu vừa tạo thất bại');
+      if (!detailRes.success) throw new Error(detailRes.message || 'Không thể tải thông tin yêu cầu vừa tạo.');
       return this.mapRequestDtoToCommon(detailRes.data);
     }
 
@@ -1818,15 +1824,15 @@ export const projectService = {
     return total;
   },
 
-  async cancelMaterialRequest(requestId: string, reason: string): Promise<void> {
+  async cancelMaterialRequest(requestId: string, reason: string): Promise<string> {
     if (!USE_MOCK_API) {
       const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
       const res = await apiClient.post<ApiResponse<any>>(`/materialrequests/${parsedRequestId}/cancel`, {
         requestId: parseInt(parsedRequestId),
         reason: reason
       });
-      if (!res.success) throw new Error(res.message || 'Hủy yêu cầu thất bại');
-      return;
+      if (!res.success) throw new Error(res.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0068\u1ee7\u0079 \u0079\u00eau \u0063\u1ea7\u0075.');
+      return res.message || '';
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -1840,6 +1846,7 @@ export const projectService = {
     list[idx].status = 'rejected';
     list[idx].rejectionReason = `Người tạo tự hủy: ${reason}`;
     setStorage('bpg_material_requests', list);
+    return '';
   },
 
   async processMaterialRequestByAccountant(requestId: string, note?: string): Promise<MaterialRequest> {
@@ -1849,11 +1856,11 @@ export const projectService = {
         requestId: parseInt(parsedRequestId),
         note: note || 'Kế toán xử lý'
       });
-      if (!res.success) throw new Error(res.message || 'Kế toán xử lý thất bại');
+      if (!res.success) throw new Error(res.message || 'Kế toán không thể xử lý yêu cầu.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
-      return this.mapRequestDtoToCommon(detailRes.data);
+      if (!detailRes.success) throw new Error(detailRes.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0074\u1ea3\u0069 \u0074\u0068\u00f4\u006e\u0067 \u0074\u0069\u006e \u0079\u00eau \u0063\u1ea7\u0075.');
+      return { ...this.mapRequestDtoToCommon(detailRes.data), __message: res.message || '' } as MaterialRequest & { __message?: string };
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -1899,11 +1906,11 @@ export const projectService = {
         requestId: parseInt(parsedRequestId),
         note: note || 'Đã giải ngân chi phí mua ngoài khẩn cấp'
       });
-      if (!res.success) throw new Error(res.message || 'Giải ngân thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể giải ngân.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
-      return this.mapRequestDtoToCommon(detailRes.data);
+      if (!detailRes.success) throw new Error(detailRes.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0074\u1ea3\u0069 \u0074\u0068\u00f4\u006e\u0067 \u0074\u0069\u006e \u0079\u00eau \u0063\u1ea7\u0075.');
+      return { ...this.mapRequestDtoToCommon(detailRes.data), __message: res.message || '' } as MaterialRequest & { __message?: string };
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -1926,11 +1933,11 @@ export const projectService = {
         requestId: parseInt(parsedRequestId),
         note: note || `Giám đốc duyệt (${approvedBy})`
       });
-      if (!res.success) throw new Error(res.message || 'Giám đốc phê duyệt thất bại');
+      if (!res.success) throw new Error(res.message || 'Giám đốc không thể phê duyệt yêu cầu.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
-      return this.mapRequestDtoToCommon(detailRes.data);
+      if (!detailRes.success) throw new Error(detailRes.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0074\u1ea3\u0069 \u0074\u0068\u00f4\u006e\u0067 \u0074\u0069\u006e \u0079\u00eau \u0063\u1ea7\u0075.');
+      return { ...this.mapRequestDtoToCommon(detailRes.data), __message: res.message || '' } as MaterialRequest & { __message?: string };
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -1974,11 +1981,11 @@ export const projectService = {
         requestId: parseInt(parsedRequestId),
         reason: reason
       });
-      if (!res.success) throw new Error(res.message || 'Từ chối yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể từ chối yêu cầu.');
       
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
-      return this.mapRequestDtoToCommon(detailRes.data);
+      if (!detailRes.success) throw new Error(detailRes.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0074\u1ea3\u0069 \u0074\u0068\u00f4\u006e\u0067 \u0074\u0069\u006e \u0079\u00eau \u0063\u1ea7\u0075.');
+      return { ...this.mapRequestDtoToCommon(detailRes.data), __message: res.message || '' } as MaterialRequest & { __message?: string };
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
@@ -2083,12 +2090,12 @@ export const projectService = {
           unit: it.unit.trim()
         }))
       });
-      if (!res.success) throw new Error(res.message || 'Gửi lại yêu cầu thất bại');
+      if (!res.success) throw new Error(res.message || 'Không thể gửi lại yêu cầu.');
 
       // Lấy lại chi tiết phiếu sau khi resubmit
       const detailRes = await apiClient.get<ApiResponse<any>>(`/materialrequests/${parsedRequestId}`);
-      if (!detailRes.success) throw new Error(detailRes.message || 'Lấy thông tin yêu cầu thất bại');
-      return this.mapRequestDtoToCommon(detailRes.data);
+      if (!detailRes.success) throw new Error(detailRes.message || '\u004b\u0068\u00f4\u006e\u0067 \u0074\u0068\u1ec3 \u0074\u1ea3\u0069 \u0074\u0068\u00f4\u006e\u0067 \u0074\u0069\u006e \u0079\u00eau \u0063\u1ea7\u0075.');
+      return { ...this.mapRequestDtoToCommon(detailRes.data), __message: res.message || '' } as MaterialRequest & { __message?: string };
     }
 
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);

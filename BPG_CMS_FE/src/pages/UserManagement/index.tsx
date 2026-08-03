@@ -12,13 +12,13 @@ import {
   Lock,
   Unlock,
   AlertCircle,
-  CheckCircle2,
   User as UserIcon,
   Phone,
   Mail
 } from 'lucide-react';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import toast from 'react-hot-toast';
 
 const PAGE_SIZE = 20;
 
@@ -26,7 +26,6 @@ export const UserManagement: React.FC = () => {
   const [allUsers, setAllUsers] = useState<UserProfile[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -98,30 +97,29 @@ export const UserManagement: React.FC = () => {
   };
 
   const showSuccess = (message: string) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(null), 3500);
+    toast.success(message);
   };
 
   const handleDeleteSubmit = async () => {
     if (!selectedUser) return;
     try {
-      await userService.deleteUser(selectedUser.id);
+      const result = await userService.deleteUser(selectedUser.id);
       setIsDeleteOpen(false);
-      showSuccess(`Đã xoá tài khoản ${selectedUser.name} khỏi hệ thống.`);
+      showSuccess(result.message || `Đã xoá tài khoản ${selectedUser.name} khỏi hệ thống.`);
       setSelectedUser(null);
       loadAllUsers();
     } catch (err: any) {
-      setError(err.message || 'Không thể xoá tài khoản.');
+      toast.error(err.message || 'Không thể xoá tài khoản.');
     }
   };
 
   const handleToggleStatus = async (id: string, name: string) => {
     try {
-      const updated = await userService.toggleUserStatus(id);
-      showSuccess(`Đã ${updated.status === 'active' ? 'mở khoá' : 'khoá'} tài khoản ${name}.`);
+      const result = await userService.toggleUserStatus(id);
+      showSuccess(result.message || `Đã ${result.data.status === 'active' ? 'mở khoá' : 'khoá'} tài khoản ${name}.`);
       loadAllUsers();
     } catch (err: any) {
-      setError(err.message || 'Không thể thay đổi trạng thái tài khoản.');
+      toast.error(err.message || 'Không thể thay đổi trạng thái tài khoản.');
     }
   };
 
@@ -236,13 +234,6 @@ export const UserManagement: React.FC = () => {
           <span>Thêm Thành viên</span>
         </Button>
       </div>
-
-      {success && (
-        <div className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-xl py-3 px-4 text-emerald-800 text-sm font-medium animate-fade-in shadow-sm">
-          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-          <span>{success}</span>
-        </div>
-      )}
 
       {error && (
         <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-xl py-3 px-4 text-red-800 text-sm font-medium animate-fade-in shadow-sm">

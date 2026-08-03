@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button, LoadingSpinner } from '../../components/ui';
+import toast from 'react-hot-toast';
 import { inventoryService } from '../../services/inventoryService';
 import type { CurrentInventory } from '../../types/inventory';
 import { useNotification } from '../../context/NotificationContext';
@@ -45,14 +46,25 @@ interface InventoryWorkspaceProps {
 export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectId }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { connection } = useNotification();
-  const [activeSubTab, setActiveSubTab] = useState<'current' | 'receipts' | 'issuances' | 'ledger'>(
-    (searchParams.get('subTab') as any) || 'current'
+  type InventorySubTab = 'current' | 'receipts' | 'issuances' | 'ledger';
+  const normalizeSubTab = (subTab: string | null): InventorySubTab => {
+    if (subTab === 'receipts' || subTab === 'issuances' || subTab === 'ledger') return subTab;
+    if (subTab === 'returns') return 'issuances';
+    return 'current';
+  };
+
+  const [activeSubTab, setActiveSubTab] = useState<InventorySubTab>(
+    normalizeSubTab(searchParams.get('subTab'))
   );
+  const { isProjectLeader, canManageInventory } = useProjectAccess(projectId);
+  const canManageProjectInventory = isProjectLeader;
+  const canCreateReceipt = canManageProjectInventory;
+  const canCreateIssuance = canManageProjectInventory;
 
   useEffect(() => {
     const subTab = searchParams.get('subTab');
-    if (subTab && ['current', 'receipts', 'issuances', 'ledger', 'returns'].includes(subTab)) {
-      setActiveSubTab(subTab as any);
+    if (subTab) {
+      setActiveSubTab(normalizeSubTab(subTab));
     }
     const receiptId = searchParams.get('receiptId');
     if (receiptId) {
@@ -64,19 +76,33 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
       setSelectedIssuanceId(Number(issuanceId));
       setActiveSubTab('issuances');
     }
+    const returnId = searchParams.get('returnId');
+    if (returnId && !issuanceId) {
+      setActiveSubTab('issuances');
+      inventoryService.getMaterialReturnDetail(Number(returnId))
+        .then(detail => setSelectedIssuanceId(detail.originalIssuanceId))
+        .catch((err) => {
+          console.error('Error resolving material return notification:', err);
+          toast.error('Không thể mở phiếu hoàn trả vật tư từ thông báo.');
+        });
+    }
   }, [searchParams]);
 
   useEffect(() => {
     const openCreate = searchParams.get('openCreate');
-    if (openCreate === 'receipt' && activeSubTab === 'receipts') {
+    if (openCreate === 'receipt' && activeSubTab === 'receipts' && canCreateReceipt) {
       setIsCreateReceiptOpen(true);
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('openCreate');
       setSearchParams(newParams);
+    } else if (openCreate === 'receipt' && !canCreateReceipt) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('openCreate');
+      setSearchParams(newParams, { replace: true });
     }
-  }, [searchParams, activeSubTab]);
+  }, [searchParams, activeSubTab, canCreateReceipt, setSearchParams]);
 
-  const handleSubTabChange = (subTab: 'current' | 'receipts' | 'issuances' | 'ledger') => {
+  const handleSubTabChange = (subTab: InventorySubTab) => {
     setActiveSubTab(subTab);
     const newParams = new URLSearchParams(searchParams);
     newParams.set('subTab', subTab);
@@ -97,11 +123,6 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
   const [isCreateIssuanceOpen, setIsCreateIssuanceOpen] = useState(false);
   const [selectedIssuanceId, setSelectedIssuanceId] = useState<number | null>(null);
-
-  const { isProjectLeader, canManageInventory } = useProjectAccess(projectId);
-  const canUseProjectLeaderInventoryActions = isProjectLeader;
-  const canCreateReceipt = canUseProjectLeaderInventoryActions;
-  const canCreateIssuance = canUseProjectLeaderInventoryActions;
 
   // Tải thông tin kho hiện tại để làm dữ liệu thống kê
   useEffect(() => {
@@ -179,13 +200,15 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   useSignalREvent('InventoryAdjustmentUpdated', () => handleRefreshAll());
   useRealtimeDataRefresh(handleRefreshAll, INVENTORY_REALTIME_ENTITIES, 0);
 
-  const handleCreateReceiptSuccess = () => {
+  const handleCreateReceiptSuccess = (message?: string) => {
     setIsCreateReceiptOpen(false);
+    toast.success(message || 'Đã tạo phiếu nhập kho. Tồn kho đã được cập nhật.');
     handleRefreshAll();
   };
 
-  const handleCreateIssuanceSuccess = () => {
+  const handleCreateIssuanceSuccess = (message?: string) => {
     setIsCreateIssuanceOpen(false);
+    toast.success(message || 'Đã tạo phiếu xuất kho. Tồn kho đã được cập nhật.');
     handleRefreshAll();
   };
 
@@ -390,7 +413,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           onClose={() => setSelectedIssuanceId(null)}
           issuanceId={selectedIssuanceId}
           projectId={projectId}
-          canReturnMaterial={canUseProjectLeaderInventoryActions}
+          canReturnMaterial={canManageProjectInventory}
           onSuccess={() => setRefreshKey(prev => prev + 1)}
         />
       )}
