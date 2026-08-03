@@ -43,7 +43,7 @@ type FormData = z.infer<typeof schema>;
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
 }
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose, onSuccess }) => {
@@ -86,7 +86,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
         .filter(f => f.status === 'success' && f.url)
         .map(f => f.url!);
 
-      await projectService.createProject({
+      const result = await projectService.createProject({
         name: data.name,
         address: data.address,
         startDate: data.startDate,
@@ -100,9 +100,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
           attachmentType: 'design'
         }))
       });
+      return result.__message;
     },
-    onSuccess: () => {
-      onSuccess();
+    onSuccess: (message) => {
+      onSuccess(message);
       reset();
       setUploadedFiles([]);
       onClose();
@@ -147,7 +148,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
   const addFiles = (files: File[]) => {
     const totalSize = files.reduce((acc, f) => acc + f.size, 0);
     if (totalSize > 20 * 1024 * 1024) {
-      alert(`Tổng dung lượng các file không được vượt quá 20MB (Đã chọn: ${(totalSize / 1024 / 1024).toFixed(2)}MB).`);
+      toast.error(`Tổng dung lượng các file không được vượt quá 20MB (đã chọn: ${(totalSize / 1024 / 1024).toFixed(2)}MB).`);
       return;
     }
 
@@ -176,7 +177,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
           });
         },
         () => {
-          toast.error(`Tải file ${file.name} lên thất bại.`);
+          toast.error(`Không thể tải file ${file.name} lên.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' as const } : f)
           );

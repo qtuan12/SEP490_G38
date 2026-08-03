@@ -74,9 +74,9 @@ export const MaterialConversionDrawer: React.FC<MaterialConversionDrawerProps> =
     mutationFn: async (data: ConversionFormData) => {
       return materialService.syncConversions(material!.materialId, data.conversions);
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['conversions', material?.materialId] });
-      onSuccess(`Đã đồng bộ tỷ lệ quy đổi cho ${material?.name}.`);
+      onSuccess(result.message || `Đã đồng bộ tỷ lệ quy đổi cho ${material?.name}.`);
       onClose();
     },
   });

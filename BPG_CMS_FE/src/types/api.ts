@@ -6,6 +6,11 @@ export interface ApiResponse<T = any> {
   errorCode?: string;
 }
 
+export interface ApiResult<T = any> {
+  data: T;
+  message: string;
+}
+
 export interface PagedList<T> {
   items: T[];
   pageIndex?: number;

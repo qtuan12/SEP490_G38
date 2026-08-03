@@ -8,11 +8,12 @@ import type { WBSTask } from '../../../types/common';
 import type { MaterialConversion } from '../../../types/material';
 import { Trash2, Plus, AlertCircle, Loader2 } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
+import { formatQuantity, isGreaterThanQuantity, parseQuantityInput } from '../../../utils/inventoryHelpers';
 
 interface CreateIssuanceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
   projectId: number;
 }
 
@@ -204,7 +205,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
     setSelectedItems(prev => {
       const copy = [...prev];
       const item = copy[index];
-      const num = parseFloat(val);
+      const num = parseQuantityInput(val);
 
       let err: string | undefined = undefined;
       if (!val) {
@@ -213,8 +214,8 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
         err = 'Số lượng xuất phải lớn hơn 0.';
       } else if (num < 0.001) {
         err = 'Số lượng xuất tối thiểu là 0.001.';
-      } else if (num > item.maxQty) {
-        err = `Không vượt quá tồn khả dụng (${item.maxQty.toFixed(3)} ${item.unitName}).`;
+      } else if (isGreaterThanQuantity(num, item.maxQty)) {
+        err = `Không vượt quá tồn khả dụng (${formatQuantity(item.maxQty)} ${item.unitName}).`;
       } else if (isDiscreteUnit(item.unitName) && num % 1 !== 0) {
         err = `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`;
       }
@@ -257,22 +258,22 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
       // Chuẩn hóa TaskId (bỏ tiền tố 't-' nếu có)
       const numericTaskId = parseInt(selectedTaskId.replace('t-', ''));
 
-      await inventoryService.createMaterialIssuance({
+      const result = await inventoryService.createMaterialIssuance({
         taskId: numericTaskId,
         purpose: purpose.trim(),
         items: selectedItems.map(i => ({
           materialId: i.materialId,
           unitId: i.unitId,
-          quantity: parseFloat(i.quantity),
+          quantity: parseQuantityInput(i.quantity),
           conversionRate: i.conversionRate
         }))
       });
 
-      onSuccess();
+      onSuccess(result.message);
       onClose();
     } catch (err: any) {
       console.error('Error creating material issuance:', err);
-      setGeneralError(err.message || 'Lỗi hệ thống khi tạo phiếu xuất kho.');
+      setGeneralError(err.message || 'Không thể tạo phiếu xuất kho.');
     } finally {
       setSubmitting(false);
     }
@@ -471,9 +472,9 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
 
                       {/* Dòng hiển thị thông tin tồn kho còn lại & lỗi validate */}
                       <div className="flex justify-between items-center px-1 text-xs min-h-[16px]">
-                        {item.quantity && !isNaN(parseFloat(item.quantity)) && parseFloat(item.quantity) > 0 && parseFloat(item.quantity) <= item.maxQty ? (
+                        {item.quantity && !isNaN(parseQuantityInput(item.quantity)) && parseQuantityInput(item.quantity) > 0 && !isGreaterThanQuantity(parseQuantityInput(item.quantity), item.maxQty) ? (
                           <span className="text-emerald-600 font-medium">
-                            Còn lại sau xuất: {(item.maxQty - parseFloat(item.quantity)).toFixed(3)} {item.unitName}
+                            Còn lại sau xuất: {formatQuantity(item.maxQty - parseQuantityInput(item.quantity))} {item.unitName}
                           </span>
                         ) : (
                           <span></span>

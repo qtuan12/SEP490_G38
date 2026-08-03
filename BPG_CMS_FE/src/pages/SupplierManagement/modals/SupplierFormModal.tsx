@@ -102,12 +102,14 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
         return await supplierService.createSupplier(payload);
       }
     },
-    onSuccess: (data) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      const savedSupplier = result.data;
       onSuccess(
-        isEdit
-          ? `Đã cập nhật thông tin nhà cung cấp ${data.supplierName} thành công.`
-          : `Đã thêm nhà cung cấp ${data.supplierName} thành công.`
+        result.message ||
+        (isEdit
+          ? `Đã cập nhật thông tin nhà cung cấp ${savedSupplier.supplierName} thành công.`
+          : `Đã thêm nhà cung cấp ${savedSupplier.supplierName} thành công.`)
       );
       onClose();
     },

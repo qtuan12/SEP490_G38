@@ -93,7 +93,7 @@ export const Profile: React.FC = () => {
       updateUser({ name: updated.fullName, avatarUrl: updated.avatarUrl });
       setShowEditModal(false);
     } catch (err: any) {
-      setEditError(err.message || 'Cập nhật thất bại.');
+      setEditError(err.message || 'Không thể cập nhật hồ sơ.');
     } finally {
       setEditLoading(false);
     }
@@ -137,7 +137,7 @@ export const Profile: React.FC = () => {
       updateUser({ name: updated.fullName, avatarUrl: updated.avatarUrl });
     } catch (err: any) {
       setProfile(prev => prev ? { ...prev, avatarUrl: previousAvatarUrl } : null);
-      setAvatarError(err.message || 'Tải ảnh đại diện thất bại.');
+      setAvatarError(err.message || 'Không thể tải ảnh đại diện lên.');
     } finally {
       setAvatarUploading(false);
       URL.revokeObjectURL(localUrl);
@@ -179,7 +179,7 @@ export const Profile: React.FC = () => {
       await authService.changePassword(currentPassword, newPassword);
       setPwSuccess(true);
     } catch (err: any) {
-      setPwError(err.message || 'Đổi mật khẩu thất bại.');
+      setPwError(err.message || 'Không thể đổi mật khẩu.');
     } finally {
       setPwLoading(false);
     }
@@ -371,7 +371,7 @@ export const Profile: React.FC = () => {
         {pwSuccess ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '10px 0 6px' }}>
             <CheckCircle2 size={48} style={{ color: 'hsl(var(--success))' }} />
-            <p style={{ fontWeight: 600, fontSize: '1rem', textAlign: 'center' }}>Đổi mật khẩu thành công!</p>
+            <p style={{ fontWeight: 600, fontSize: '1rem', textAlign: 'center' }}>Đã đổi mật khẩu.</p>
             <p style={{ fontSize: '0.875rem', color: 'hsl(var(--text-muted))', textAlign: 'center' }}>
               Mật khẩu mới của bạn đã được cập nhật.
             </p>

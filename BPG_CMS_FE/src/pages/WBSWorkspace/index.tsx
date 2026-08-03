@@ -14,6 +14,7 @@ import { FileText, BarChart2 } from 'lucide-react';
 import { ConfirmDialog } from '../../components/ui';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
+import toast from 'react-hot-toast';
 
 
 interface WBSWorkspaceProps {
@@ -64,7 +65,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const phases = wbsData?.phases || [];
   const tasks = wbsData?.tasks || [];
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -196,8 +196,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     setExpandedPhases(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
 
   const handleSuccess = (msg: string) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(null), 3000);
+    toast.success(msg);
     queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
     // Refresh supporting information in the background without blocking the tree.
     queryClient.invalidateQueries({ queryKey: ['wbsProject', projectId] });
@@ -206,8 +205,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     queryClient.invalidateQueries({ queryKey: ['wbsIncidents', projectId] });
   };
   const handleError = (msg: string) => {
-    setError(msg);
-    setTimeout(() => setError(null), 4000);
+    toast.error(msg);
   };
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
@@ -375,12 +373,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     <WBSContext.Provider value={contextValue}>
       <div className="flex flex-col gap-5">
 
-        {/* Alerts */}
-        {success && (
-          <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
-            {success}
-          </div>
-        )}
         {error && (
           <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
             {error}

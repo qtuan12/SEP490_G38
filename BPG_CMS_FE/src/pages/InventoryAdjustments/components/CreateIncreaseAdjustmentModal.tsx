@@ -9,7 +9,7 @@ import { isDiscreteUnit } from '../../../utils/unitHelpers';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
   onError?: (msg: string) => void;
   projectId: number;
 }
@@ -97,15 +97,15 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     setLoading(true);
     setLocalError(null);
     try {
-      await inventoryAdjustmentService.createIncrease(projectId, {
+      const result = await inventoryAdjustmentService.createIncrease(projectId, {
         phaseId: Number(phaseId),
         reason,
         description,
         items
       });
-      onSuccess();
+      onSuccess(result.message);
     } catch (err: any) {
-      setLocalError(err.message || 'Lỗi khi tạo phiếu tăng tồn.');
+      setLocalError(err.message || 'Không thể tạo phiếu tăng tồn.');
     } finally {
       setLoading(false);
     }

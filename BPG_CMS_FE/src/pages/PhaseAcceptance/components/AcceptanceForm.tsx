@@ -80,14 +80,13 @@ ${data.reportContent}
 - ${conclusion1 || '................................................................................'}
 ${conclusion2 ? `- ${conclusion2}` : ''}`;
 
-      await phaseAcceptanceService.acceptPhase({
+      return phaseAcceptanceService.acceptPhase({
         phaseId: Number(phase.id),
         reportContent: fullReport
       });
-      return data;
     },
-    onSuccess: () => {
-      onSuccess('Đã nghiệm thu giai đoạn thành công!');
+    onSuccess: (result) => {
+      onSuccess(result.message || 'Đã nghiệm thu giai đoạn.');
       onPhaseUpdated();
     },
     onError: (err: any) => {

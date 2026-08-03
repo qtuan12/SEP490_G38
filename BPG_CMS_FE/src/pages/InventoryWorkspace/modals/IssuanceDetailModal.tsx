@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Input, FormItem } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
-import { formatDateVN } from '../../../utils/inventoryHelpers';
+import { formatDateVN, formatQuantity, isGreaterThanQuantity, parseQuantityInput } from '../../../utils/inventoryHelpers';
 import type { MaterialIssuanceDetail, MaterialIssuanceItemDetail, MaterialReturn } from '../../../types/inventory';
 import {
   Calendar,
@@ -12,9 +12,9 @@ import {
   AlertCircle,
   RotateCcw,
   RefreshCw,
-  Sparkles,
-  CheckCircle2
+  Sparkles
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../../../constants/realtimeEntities';
 
@@ -74,7 +74,6 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
   const [returnItems, setReturnItems] = useState<ReturnItemInput[]>([]);
   const [submittingReturn, setSubmittingReturn] = useState(false);
   const [returnError, setReturnError] = useState<string | null>(null);
-  const [returnSuccessMsg, setReturnSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && issuanceId) {
@@ -88,7 +87,6 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
     setReason('');
     setReasonError(null);
     setReturnError(null);
-    setReturnSuccessMsg(null);
     setReturnItems(prev => prev.map(item => ({
       ...item,
       quantity: '',
@@ -179,7 +177,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
           return {
             ...item,
             maxReturnableQty: maxReturnable,
-            quantity: parseFloat(item.quantity) > maxReturnable ? '' : item.quantity,
+            quantity: isGreaterThanQuantity(parseQuantityInput(item.quantity), maxReturnable) ? '' : item.quantity,
             error: null
           };
         })
@@ -198,11 +196,11 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
       let err: string | null = null;
 
       if (val !== '') {
-        const parsed = parseFloat(val);
+        const parsed = parseQuantityInput(val);
         if (isNaN(parsed) || parsed <= 0) {
           err = 'Số lượng phải lớn hơn 0.';
-        } else if (parsed > maxQty) {
-          err = `Tối đa: ${maxQty.toLocaleString('vi-VN')}`;
+        } else if (isGreaterThanQuantity(parsed, maxQty)) {
+          err = `Tối đa: ${formatQuantity(maxQty)}`;
         }
       }
 
@@ -235,30 +233,29 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
 
     setSubmittingReturn(true);
     try {
-      await inventoryService.createMaterialReturn({
+      const result = await inventoryService.createMaterialReturn({
         originalIssuanceId: issuanceId!,
         reason: reason.trim(),
         items: activeItems.map(i => ({
           materialId: i.materialId,
           unitId: i.unitId,
-          quantity: parseFloat(i.quantity),
+          quantity: parseQuantityInput(i.quantity),
           conversionRate: i.conversionRate
         }))
       });
 
-      setReturnSuccessMsg('Hoàn trả vật tư thành công! Tồn kho đã tăng.');
+      toast.success(result.message || 'Đã tạo phiếu hoàn trả vật tư. Tồn kho đã được cập nhật.');
       
       // Reload history and state
       await fetchDetailAndHistory();
       if (onSuccess) onSuccess();
 
       setTimeout(() => {
-        setReturnSuccessMsg(null);
         setIsReturning(false);
         resetReturnForm();
       }, 1500);
     } catch (err: any) {
-      setReturnError(err.message || 'Lỗi hệ thống khi tạo phiếu hoàn trả.');
+      toast.error(err.message || 'Không thể tạo phiếu hoàn trả vật tư.');
     } finally {
       setSubmittingReturn(false);
     }
@@ -411,7 +408,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
                             {item.quantity.toLocaleString('vi-VN')} <span className="text-slate-500 font-normal">{item.unitName}</span>
                             {returnable < item.quantity && (
                               <span className="block text-[10px] text-amber-600 font-semibold">
-                                (Còn có thể trả: {returnable.toLocaleString('vi-VN')} {item.unitName})
+                                (Còn có thể trả: {formatQuantity(returnable)} {item.unitName})
                               </span>
                             )}
                           </td>
@@ -496,13 +493,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
                 <span className="text-xs text-slate-500 font-mono">PTra-Auto</span>
               </div>
 
-              {returnSuccessMsg ? (
-                <div className="flex flex-col items-center justify-center py-10 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 gap-2">
-                  <CheckCircle2 size={36} className="text-emerald-600" />
-                  <span className="font-semibold text-sm">{returnSuccessMsg}</span>
-                </div>
-              ) : (
-                <div className="space-y-4">
+              <div className="space-y-4">
                   {/* Lý do hoàn trả */}
                   <FormItem label="Lý do hoàn trả" required error={reasonError ?? undefined}>
                     <textarea
@@ -536,7 +527,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
 
                             {/* Khả dụng còn lại */}
                             <div className="text-slate-500">
-                              Tối đa: <span className="font-semibold text-slate-700">{item.maxReturnableQty.toLocaleString('vi-VN')}</span> {item.unitName}
+                              Tối đa: <span className="font-semibold text-slate-700">{formatQuantity(item.maxReturnableQty)}</span> {item.unitName}
                             </div>
 
                             {/* Input số lượng trả */}
@@ -570,8 +561,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
                       <span>{returnError}</span>
                     </div>
                   )}
-                </div>
-              )}
+              </div>
             </div>
           )}
 

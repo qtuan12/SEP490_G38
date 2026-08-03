@@ -12,6 +12,7 @@ import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
 import { useAuth } from '../../../context/AuthContext';
+import toast from 'react-hot-toast';
 import { RoleGroup } from '../../../auth/roles';
 import {
   REALTIME_DATA_CHANGED_AGGREGATION_MS,
@@ -50,9 +51,6 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   const [isIncreaseOpen, setIsIncreaseOpen] = useState(false);
   const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
   const [reviewId, setReviewId] = useState<number | null>(null);
-
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const loadData = async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -138,15 +136,13 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     setIsDecreaseOpen(false);
     setReviewId(null);
     if (msg) {
-      setSuccess(msg);
-      setTimeout(() => setSuccess(null), 3000);
+      toast.success(msg);
     }
     scheduleRealtimeRefresh();
   };
 
   const handleError = (msg: string) => {
-    setError(msg);
-    setTimeout(() => setError(null), 4000);
+    toast.error(msg);
   };
 
   const getStatusBadge = (status: string) => {
@@ -173,16 +169,6 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
 
   return (
     <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl shadow-sm overflow-hidden flex flex-col">
-      {success && (
-        <div className="m-4 mb-0 animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="m-4 mb-0 animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
-          {error}
-        </div>
-      )}
       <div className="p-4 border-b border-[hsl(var(--border))] flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div className="flex flex-col md:flex-row gap-2 w-full lg:w-auto">
           <div className="relative">
@@ -286,7 +272,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <CreateIncreaseAdjustmentModal
           isOpen={isIncreaseOpen}
           onClose={() => setIsIncreaseOpen(false)}
-          onSuccess={() => handleSuccess('Tạo phiếu tăng thành công, chờ Trưởng phòng kỹ thuật phê duyệt.')}
+          onSuccess={(message) => handleSuccess(message || 'Đã tạo phiếu tăng tồn. Phiếu đang chờ Trưởng phòng kỹ thuật phê duyệt.')}
           onError={handleError}
           projectId={projectId}
         />
@@ -296,7 +282,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <CreateDecreaseAdjustmentModal
           isOpen={isDecreaseOpen}
           onClose={() => setIsDecreaseOpen(false)}
-          onSuccess={handleSuccess}
+          onSuccess={(message) => handleSuccess(message || 'Đã tạo phiếu giảm tồn. Phiếu đang chờ Giám đốc phê duyệt.')}
           onError={handleError}
           projectId={projectId}
         />
@@ -306,7 +292,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <ReviewAdjustmentModal
           isOpen={reviewId !== null}
           onClose={() => setReviewId(null)}
-          onSuccess={() => handleSuccess('Duyệt phiếu thành công.')}
+          onSuccess={(approved, message) => handleSuccess(message || (approved ? 'Đã duyệt phiếu điều chỉnh tồn. Tồn kho đã được cập nhật.' : 'Đã từ chối phiếu điều chỉnh tồn.'))}
           onError={handleError}
           adjustmentId={reviewId}
           adjustmentData={data.find(x => x.adjustmentId === reviewId)}
