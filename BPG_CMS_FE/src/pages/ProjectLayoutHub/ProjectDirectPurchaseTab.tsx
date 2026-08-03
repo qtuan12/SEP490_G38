@@ -275,6 +275,7 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
         directPurchaseId={detailId}
         canAudit={isAccountant}
         canApproveSpending={canApprove}
+        canCreateDraft={canCreate}
         onEditDraft={(id) => setEditingDraftId(id)}
       />
     </div>

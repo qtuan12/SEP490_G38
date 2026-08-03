@@ -13,11 +13,13 @@ public class AssignTaskCommandHandler : IRequestHandler<AssignTaskCommand, ApiRe
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AssignTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService)
+    public AssignTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse> Handle(AssignTaskCommand request, CancellationToken ct)
@@ -31,6 +33,42 @@ public class AssignTaskCommandHandler : IRequestHandler<AssignTaskCommand, ApiRe
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
 
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                ct);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được phân công công việc.");
+        }
+
+        var distinctAssigneeIds = request.AssigneeIds?
+            .Distinct()
+            .ToList() ?? new List<long>();
+
+        if (distinctAssigneeIds.Count > 0)
+        {
+            var projectMemberUserIds = await _unitOfWork.Repository<ProjectMember>()
+                .Query()
+                .Where(pm => pm.ProjectId == task.Phase.ProjectId && distinctAssigneeIds.Contains(pm.UserId))
+                .Select(pm => pm.UserId)
+                .Distinct()
+                .ToListAsync(ct);
+
+            var invalidAssigneeIds = distinctAssigneeIds
+                .Except(projectMemberUserIds)
+                .OrderBy(userId => userId)
+                .ToList();
+
+            if (invalidAssigneeIds.Count > 0)
+            {
+                throw new BusinessException(
+                    "ERR_TASK_ASSIGNEE_NOT_PROJECT_MEMBER",
+                    $"Không thể phân công công việc vì người dùng có ID [{string.Join(", ", invalidAssigneeIds)}] không thuộc dự án.");
+            }
+        }
+
         // Remove old assignees
         var oldAssignees = task.Assignees.ToList();
         foreach (var assignee in oldAssignees)
@@ -42,9 +80,9 @@ public class AssignTaskCommandHandler : IRequestHandler<AssignTaskCommand, ApiRe
 
         // Add new assignees
         var newUsersToNotify = new List<long>();
-        if (request.AssigneeIds != null && request.AssigneeIds.Any())
+        if (distinctAssigneeIds.Count > 0)
         {
-            foreach (var userId in request.AssigneeIds.Distinct())
+            foreach (var userId in distinctAssigneeIds)
             {
                 task.Assignees.Add(new TaskAssignee
                 {

@@ -13,7 +13,7 @@ interface MaterialRequestDetailModalProps {
   isAccountant: boolean;
   isDirector: boolean;
   user?: any;
-  canManageExecution?: boolean;
+  canManageTechnical?: boolean;
   handleVerifyRequestByAccountant: (id: string) => void;
   handleDisburseRequestByAccountant: (id: string) => void;
   handleApproveRequestByDirector: (id: string) => void;
@@ -27,8 +27,8 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
   request,
   isAccountant,
   isDirector,
-  user,
-  canManageExecution,
+  user: _user,
+  canManageTechnical,
   handleVerifyRequestByAccountant,
   handleDisburseRequestByAccountant,
   handleApproveRequestByDirector,
@@ -299,7 +299,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
 
             <div className="flex gap-2">
               {((request.status === 'pending_accountant' || request.status === 'pending_director') &&
-                (request.createdBy === user?.id || canManageExecution) &&
+                canManageTechnical &&
                 handleCancelRequest) && (
                   <Button
                     variant="danger"
