@@ -69,7 +69,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
             _mockUow.Setup(u => u.Repository<MaterialRequestItem>()).Returns(_mockMRItemRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
 
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
+            SetupProjectLeader();
 
             _mockMRRepo.Setup(r => r.AddAsync(It.IsAny<MaterialRequest>(), It.IsAny<CancellationToken>()))
                 .Callback<MaterialRequest, CancellationToken>((mr, ct) => mr.RequestId = 100)
@@ -80,6 +80,13 @@ namespace BPG.Application.UnitTests.MaterialRequests
                 _mockCurrentUserService.Object,
                 _mockNotificationService.Object
             );
+        }
+
+        private void SetupProjectLeader()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
+            var user = new User { UserId = CurrentUserId, FullName = "Trưởng dự án" };
+            _mockUserRepo.Setup(r => r.GetByIdAsync(CurrentUserId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         }
 
         private readonly CreateMaterialRequestCommandHandler _handler;

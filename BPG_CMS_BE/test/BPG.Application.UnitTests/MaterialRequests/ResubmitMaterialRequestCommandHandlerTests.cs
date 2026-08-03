@@ -13,6 +13,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using RoleConstants = BPG.Domain.Constants.UserRole;
@@ -26,7 +27,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
         private const long RequestId = 100;
         private const long PhaseId = 10;
         private const long MaterialId = 50;
-        private const int UnitId = 5; // int as in entity definition
+        private const int UnitId = 5;
 
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
@@ -38,6 +39,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
         private readonly Mock<IGenericRepository<Unit>> _mockUnitRepo;
         private readonly Mock<IGenericRepository<MaterialConversion>> _mockConversionRepo;
         private readonly Mock<IGenericRepository<BOQItem>> _mockBOQRepo;
+        private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
 
         private readonly ResubmitMaterialRequestCommandHandler _handler;
 
@@ -53,6 +55,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
             _mockUnitRepo = new Mock<IGenericRepository<Unit>>();
             _mockConversionRepo = new Mock<IGenericRepository<MaterialConversion>>();
             _mockBOQRepo = new Mock<IGenericRepository<BOQItem>>();
+            _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
 
             _mockUow.Setup(u => u.Repository<MaterialRequest>()).Returns(_mockMRRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialRequestItem>()).Returns(_mockMRItemRepo.Object);
@@ -60,8 +63,9 @@ namespace BPG.Application.UnitTests.MaterialRequests
             _mockUow.Setup(u => u.Repository<Unit>()).Returns(_mockUnitRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialConversion>()).Returns(_mockConversionRepo.Object);
             _mockUow.Setup(u => u.Repository<BOQItem>()).Returns(_mockBOQRepo.Object);
+            _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
 
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
+            SetupProjectLeader(true);
 
             _handler = new ResubmitMaterialRequestCommandHandler(
                 _mockUow.Object,
@@ -70,10 +74,18 @@ namespace BPG.Application.UnitTests.MaterialRequests
             );
         }
 
+        private void SetupProjectLeader(bool isLeader)
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
+            _mockMemberRepo.Setup(r => r.AnyAsync(It.IsAny<Expression<Func<ProjectMember, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(isLeader);
+        }
+
         [Fact]
         public async Task UTCID01_Handle_ValidRequest_ShouldResubmitSuccessfully()
         {
             // Arrange
+            SetupProjectLeader(true);
             var phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.InProgress };
             var mr = new MaterialRequest
             {
@@ -95,7 +107,6 @@ namespace BPG.Application.UnitTests.MaterialRequests
             var boq = new BOQItem { PhaseId = PhaseId, MaterialId = MaterialId, UnitId = UnitId, Quantity = 100, ConversionRate = 1.0m };
             _mockBOQRepo.Setup(r => r.Query()).Returns(new List<BOQItem> { boq }.AsQueryable().BuildMock());
 
-            // Cumulative requested from OTHER requests = 0
             _mockMRItemRepo.Setup(r => r.Query()).Returns(new List<MaterialRequestItem>().AsQueryable().BuildMock());
 
             var command = new ResubmitMaterialRequestCommand(
@@ -137,13 +148,14 @@ namespace BPG.Application.UnitTests.MaterialRequests
         }
 
         [Fact]
-        public async Task UTCID03_Handle_NotOwnerUser_ShouldThrowForbiddenException()
+        public async Task UTCID03_Handle_NotProjectLeader_ShouldThrowForbiddenException()
         {
             // Arrange
+            SetupProjectLeader(false);
             var mr = new MaterialRequest
             {
                 RequestId = RequestId,
-                CreatedBy = 999, // Owned by another user
+                CreatedBy = CurrentUserId,
                 Status = MaterialRequestStatus.Rejected,
                 Phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.InProgress },
                 Items = new List<MaterialRequestItem>()
@@ -161,18 +173,20 @@ namespace BPG.Application.UnitTests.MaterialRequests
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ForbiddenException>();
+            await act.Should().ThrowAsync<ForbiddenException>()
+                .WithMessage("Chỉ Trưởng dự án mới được gửi lại yêu cầu vật tư.");
         }
 
         [Fact]
         public async Task UTCID04_Handle_RequestNotRejected_ShouldThrowBusinessException()
         {
             // Arrange
+            SetupProjectLeader(true);
             var mr = new MaterialRequest
             {
                 RequestId = RequestId,
                 CreatedBy = CurrentUserId,
-                Status = MaterialRequestStatus.Pending, // Not rejected yet
+                Status = MaterialRequestStatus.Pending,
                 Phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.InProgress },
                 Items = new List<MaterialRequestItem>()
             };
@@ -197,7 +211,8 @@ namespace BPG.Application.UnitTests.MaterialRequests
         public async Task UTCID05_Handle_PhaseFrozen_ShouldThrowBusinessException()
         {
             // Arrange
-            var phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.Approved }; // Frozen
+            SetupProjectLeader(true);
+            var phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.Approved };
             var mr = new MaterialRequest
             {
                 RequestId = RequestId,
@@ -227,6 +242,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
         public async Task UTCID06_Handle_ResubmitExceedsBOQ_ShouldChangeStatusToOverBOQ()
         {
             // Arrange
+            SetupProjectLeader(true);
             var phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.InProgress };
             var mr = new MaterialRequest
             {
@@ -248,7 +264,6 @@ namespace BPG.Application.UnitTests.MaterialRequests
             var boq = new BOQItem { PhaseId = PhaseId, MaterialId = MaterialId, UnitId = UnitId, Quantity = 100, ConversionRate = 1.0m };
             _mockBOQRepo.Setup(r => r.Query()).Returns(new List<BOQItem> { boq }.AsQueryable().BuildMock());
 
-            // Cumulative requested from OTHER requests is 0, but this request resubmits 1000 (> 100 limit)
             _mockMRItemRepo.Setup(r => r.Query()).Returns(new List<MaterialRequestItem>().AsQueryable().BuildMock());
 
             var command = new ResubmitMaterialRequestCommand(
