@@ -301,7 +301,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     setSaving('draft');
     try {
       const result = await persist();
-      toast.success(result.message || 'Đã lưu nháp. Phiếu chưa được gửi và chưa ảnh hưởng tồn kho.');
+      console.log(result.message || 'Đã lưu nháp. Phiếu chưa được gửi và chưa ảnh hưởng tồn kho.');
       onSuccess();
       onClose();
     } catch (e: any) {
@@ -334,7 +334,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     try {
       const persisted = await persist();
       const result = await directPurchaseService.submit(persisted.id);
-      toast.success(result.message || (anyOverBOQ
+      console.log(result.message || (anyOverBOQ
         ? 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán soát hóa đơn.'
         : 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán kiểm toán.'
       ));

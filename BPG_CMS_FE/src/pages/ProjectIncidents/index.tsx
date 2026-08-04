@@ -203,7 +203,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
 
   const handleSuccess = (msg?: string) => {
     if (msg) {
-      toast.success(msg);
+      console.log(msg);
     }
     loadData();
   };

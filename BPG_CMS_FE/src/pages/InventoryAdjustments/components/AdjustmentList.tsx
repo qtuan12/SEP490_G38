@@ -136,7 +136,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     setIsDecreaseOpen(false);
     setReviewId(null);
     if (msg) {
-      toast.success(msg);
+      console.log(msg);
     }
     scheduleRealtimeRefresh();
   };

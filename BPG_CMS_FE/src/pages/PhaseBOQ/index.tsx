@@ -211,7 +211,7 @@ export const PhaseBOQ: React.FC = () => {
       // không bị chặn bởi guard bảo vệ thay đổi chưa lưu.
       reset(savedForm);
       const msg = `Đã cập nhật Bảng vật tư cho Giai đoạn: ${phase?.name}`;
-      toast.success(msg);
+      console.log(msg);
 
       // Reload phase data to display updated values in place
       if (projectId && phaseId) {

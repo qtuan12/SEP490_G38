@@ -83,7 +83,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
     setSubmitting(true);
     try {
       const result = await fn();
-      toast.success(result.message || successMsg);
+      console.log(result.message || successMsg);
       onAudited();
       onClose();
     } catch (err: any) {

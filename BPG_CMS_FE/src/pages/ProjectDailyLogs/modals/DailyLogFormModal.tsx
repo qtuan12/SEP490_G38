@@ -282,7 +282,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       const msg = isEditMode
         ? 'Đã cập nhật nhật ký thi công.'
         : `Đã tạo nhật ký thi công cho công việc "${resLog.taskName}".`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       
       const pId = task?.projectId || editLog?.projectId || (currentTask?.projectId);

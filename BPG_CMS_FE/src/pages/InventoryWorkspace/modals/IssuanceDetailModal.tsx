@@ -244,7 +244,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         }))
       });
 
-      toast.success(result.message || 'Đã tạo phiếu hoàn trả vật tư. Tồn kho đã được cập nhật.');
+      console.log(result.message || 'Đã tạo phiếu hoàn trả vật tư. Tồn kho đã được cập nhật.');
       
       // Reload history and state
       await fetchDetailAndHistory();

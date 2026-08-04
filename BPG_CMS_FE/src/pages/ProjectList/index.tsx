@@ -88,7 +88,7 @@ export const ProjectList: React.FC = () => {
     setError(null);
     try {
       const message = await projectService.deleteProject(projectToDelete.id);
-      toast.success(message || 'Đã xóa dự án.');
+      console.log(message || 'Đã xóa dự án.');
       loadProjects();
     } catch (err: any) {
       toast.error(err.message || 'Không thể xóa dự án.');
@@ -233,12 +233,12 @@ export const ProjectList: React.FC = () => {
               >
                 {/* Upper info */}
                 <div className="flex justify-between items-start gap-2">
-                  <h3 className="text-[1.1rem] font-bold leading-tight">{p.name}</h3>
-                  <div className="flex items-center gap-2">
+                  <h3 className="text-[1.1rem] font-bold leading-tight flex-1 min-w-0 break-words">{p.name}</h3>
+                  <div className="flex items-center gap-2 shrink-0">
                     {canDeleteProject && p.status === 'draft' && (
                       <button
                         onClick={(e) => openDeleteConfirm(e, p.id, p.name)}
-                        className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors"
+                        className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors shrink-0"
                         title="Xóa dự án"
                       >
                         <Trash2 size={16} />
@@ -321,7 +321,7 @@ export const ProjectList: React.FC = () => {
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         onSuccess={(message) => {
-          toast.success(message || 'Đã khởi tạo dự án.');
+          console.log(message || 'Đã khởi tạo dự án.');
           loadProjects();
         }}
       />

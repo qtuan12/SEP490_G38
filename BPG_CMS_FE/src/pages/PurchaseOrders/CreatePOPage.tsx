@@ -195,7 +195,7 @@ export const CreatePOPage: React.FC = () => {
         })),
       }),
     onSuccess: (result) => {
-      toast.success(result.message || 'Đã tạo đơn mua hàng.');
+      console.log(result.message || 'Đã tạo đơn mua hàng.');
       navigate(backPath);
     },
     onError: (err: any) => {

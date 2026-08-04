@@ -22,7 +22,7 @@ export const CancelAcceptanceModal: React.FC<CancelAcceptanceModalProps> = ({
   const cancelMutation = useMutation({
     mutationFn: () => phaseAcceptanceService.cancelAcceptance(acceptanceId, { cancellationReason: reason }),
     onSuccess: (message) => {
-      toast.success(message || 'Đã hủy biên bản nghiệm thu.');
+      console.log(message || 'Đã hủy biên bản nghiệm thu.');
       onSuccess();
     },
     onError: (error: any) => {

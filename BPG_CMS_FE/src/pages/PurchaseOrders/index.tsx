@@ -7,7 +7,6 @@ import type { PurchaseOrderDto } from '../../services/inventoryService';
 import { projectService } from '../../services/projectService';
 import { Badge, Pagination, Button, DateInput } from '../../components/ui';
 import { Search, AlertCircle, Loader2, Plus, ChevronDown, MoreVertical, Eye, Lock, Ban, SlidersHorizontal, X } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { RoleGroup } from '../../auth/roles';
 
@@ -208,7 +207,7 @@ export const PurchaseOrderList: React.FC = () => {
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: (result) => {
-      toast.success(result.message || 'Đã hủy đơn mua hàng.');
+      console.log(result.message || 'Đã hủy đơn mua hàng.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
@@ -218,7 +217,7 @@ export const PurchaseOrderList: React.FC = () => {
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: (result) => {
-      toast.success(result.message || 'Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
+      console.log(result.message || 'Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
