@@ -109,6 +109,39 @@ export const ProjectDrawing: React.FC = () => {
 
 
 
+  const handleDownloadDrawing = async () => {
+    if (!currentViewUrl) return;
+    const toastId = toast.loading('Đang chuẩn bị tải file bản vẽ...');
+    try {
+      const response = await fetch(currentViewUrl);
+      if (!response.ok) throw new Error('Không thể tải file từ máy chủ');
+      const blob = await response.blob();
+
+      const attachment = project?.attachments?.find(a => a.fileUrl === currentViewUrl);
+      let fileName = attachment?.fileName;
+      if (!fileName) {
+        const urlFilename = currentViewUrl.split('/').pop()?.split('?')[0] || '';
+        const ext = currentViewUrl.toLowerCase().includes('.pdf') ? 'pdf' : 'png';
+        fileName = urlFilename.includes('.') ? urlFilename : `Ban_ve_${project?.name || 'thiet_ke'}.${ext}`;
+      }
+
+      const tempBlobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = tempBlobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(tempBlobUrl);
+
+      toast.success('Đã tải xuống file bản vẽ!', { id: toastId });
+    } catch (err: any) {
+      console.error('Download drawing error:', err);
+      window.open(currentViewUrl, '_blank');
+      toast.dismiss(toastId);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', gap: '12px', color: 'hsl(var(--text-muted))' }}>
@@ -233,9 +266,7 @@ export const ProjectDrawing: React.FC = () => {
 
             {/* Download button */}
             <button
-              onClick={() => {
-                toast('Đang chuẩn bị tải xuống file bản vẽ.');
-              }}
+              onClick={handleDownloadDrawing}
               className="btn btn-primary"
               style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', padding: '6px 12px' }}
             >

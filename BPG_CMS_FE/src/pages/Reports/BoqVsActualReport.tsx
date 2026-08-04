@@ -233,9 +233,9 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 font-bold text-xs text-slate-900 dark:text-white flex justify-between items-center">
               <span>Bảng kiểm soát đối chiếu BOQ ({items.length} chủng loại)</span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700">
+            <div className="max-h-[420px] overflow-y-auto overflow-x-auto custom-scrollbar">
+              <table className="w-full text-xs text-left relative">
+                <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                   <tr>
                     <th className="px-4 py-3">Mã VT</th>
                     <th className="px-4 py-3">Tên vật tư</th>

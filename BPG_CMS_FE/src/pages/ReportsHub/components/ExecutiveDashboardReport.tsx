@@ -56,7 +56,7 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
   ].filter(d => d.value > 0);
 
   const phaseChartData = (execDashboard.phaseBreakdown || []).map(p => ({
-    name: p.phaseName.length > 16 ? p.phaseName.substring(0, 16) + '…' : p.phaseName,
+    name: p.phaseName.length > 25 ? p.phaseName.substring(0, 25) + '…' : p.phaseName,
     fullName: p.phaseName,
     progress: p.progressPercent,
     status: p.status
@@ -186,17 +186,16 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
           </div>
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart margin={{ top: 20, right: 25, bottom: 15, left: 25 }}>
                 <Pie
                   data={taskStatusData}
                   cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={100}
+                  cy="45%"
+                  innerRadius={55}
+                  outerRadius={80}
                   paddingAngle={4}
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                  labelLine={false}
                 >
                   {taskStatusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -222,7 +221,7 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
                 <BarChart data={phaseChartData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#cbd5e1" />
                   <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11, fontWeight: 600 }} />
+                  <YAxis dataKey="name" type="category" width={175} tick={{ fontSize: 11, fontWeight: 600 }} />
                   <RechartsTooltip
                     formatter={(value) => [`${value}%`, 'Tiến độ']}
                     labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
@@ -272,9 +271,9 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
           {filteredTasks.length === 0 ? (
             <div className="text-center py-10 text-slate-400">Không có công việc nào khớp với bộ lọc.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700">
+            <div className="max-h-[380px] overflow-y-auto overflow-x-auto custom-scrollbar">
+              <table className="w-full text-xs text-left relative">
+                <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                   <tr>
                     <th className="px-4 py-3">Mức độ</th>
                     <th className="px-4 py-3">Tên Task</th>
@@ -306,8 +305,9 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{task.assigneeName || '—'}</td>
                       <td className="px-4 py-3 whitespace-nowrap text-right">
                         <button
-                          onClick={() => navigate(`/projects/${projectId}/tasks/${task.taskId}`)}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 hover:underline"
+                          type="button"
+                          onClick={() => navigate(`/projects/${projectId}?tab=wbs&taskId=${task.taskId}`)}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 hover:underline cursor-pointer"
                         >
                           Chi tiết <ChevronRight size={14} />
                         </button>
