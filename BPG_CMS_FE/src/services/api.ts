@@ -155,11 +155,11 @@ export const apiClient = {
 
         if (!errMsg) {
           if (response.status === 403) {
-            errMsg = 'Bạn không có quyền thực hiện thao tác này (403 Forbidden).';
+            errMsg = 'Bạn không có quyền thực hiện thao tác này.';
           } else if (response.status === 401) {
             errMsg = 'Phiên đăng nhập đã hết hạn hoặc chưa xác thực. Vui lòng đăng nhập lại.';
           } else if (response.status === 404) {
-            errMsg = 'Tài nguyên hoặc dữ liệu yêu cầu không tồn tại (404 Not Found).';
+            errMsg = 'Tài nguyên hoặc dữ liệu yêu cầu không tồn tại.';
           } else if (response.status === 500) {
             errMsg = 'Không thể kết nối đến cơ sở dữ liệu. Vui lòng liên hệ quản trị viên.';
           } else if (response.status === 502 || response.status === 503 || response.status === 504) {
