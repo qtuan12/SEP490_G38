@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { incidentService } from '../../services/incidentService';
@@ -25,7 +25,7 @@ interface Props {
 
 export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) => {
   const { user } = useAuth();
-  const { canManageExecution } = useProjectAccess(projectId);
+  const { isProjectLeader } = useProjectAccess(projectId);
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
@@ -286,7 +286,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const totalPages = Math.ceil(filteredIncidents.length / ITEMS_PER_PAGE);
   const paginatedIncidents = filteredIncidents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const isPL = canManageExecution;
+  const isPL = isProjectLeader;
   const hasActiveEmergencyStop = incidents.some(
     i => i.isEmergency && ['WaitingStopApproval', 'WaitingRecoveryPlan', 'WaitingDirectorApproval'].includes(i.status)
   );

@@ -120,22 +120,24 @@ export const ProjectList: React.FC = () => {
   const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
   const paginatedProjects = filteredProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const getStatusLabel = (status: Project['status']) => {
-    switch (status) {
+  const getStatusLabel = (status: string) => {
+    switch (status.toLowerCase()) {
       case 'draft': return 'Bản nháp';
       case 'inprogress': return 'Đang chạy';
       case 'paused': return 'Tạm dừng';
-      case 'done': return 'Hoàn thành';
+      case 'done':
+      case 'completed': return 'Hoàn thành';
       default: return status;
     }
   };
 
-  const getStatusBadgeVariant = (status: Project['status']): BadgeVariant => {
-    switch (status) {
+  const getStatusBadgeVariant = (status: string): BadgeVariant => {
+    switch (status.toLowerCase()) {
       case 'draft': return 'default';
-      case 'inprogress': return 'success';
+      case 'inprogress': return 'info';
       case 'paused': return 'warning';
-      case 'done': return 'default'; // primary is not standard BadgeVariant, using default
+      case 'done':
+      case 'completed': return 'success';
       default: return 'default';
     }
   };

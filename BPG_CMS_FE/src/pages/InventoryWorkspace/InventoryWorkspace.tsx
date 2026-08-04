@@ -393,7 +393,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           isOpen={selectedReceiptId !== null}
           onClose={() => setSelectedReceiptId(null)}
           receiptId={selectedReceiptId}
-          canManageInventory={canManageInventory || isProjectLeader}
+          canManageInventory={canManageProjectInventory}
           onSuccess={handleRefreshAll}
         />
       )}

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -211,8 +211,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
 
-  const isTPKTOrPL = canManageExecution;
+  const isTPKT = hasAnyRole(RoleGroup.Technical);
   const isPL = isProjectLeader;
+  const isTPKTOrPL = isTPKT || isPL;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
@@ -220,7 +221,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return phaseTasks.every(t => t.progress === 100);
   };
 
-  const isTPKT = hasAnyRole(RoleGroup.Technical);
   const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
 
   const canEdit = isTPKTOrPL && (

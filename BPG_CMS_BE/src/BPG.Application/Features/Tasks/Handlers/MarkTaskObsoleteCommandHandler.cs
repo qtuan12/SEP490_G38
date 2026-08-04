@@ -46,9 +46,9 @@ public class MarkTaskObsoleteCommandHandler : IRequestHandler<MarkTaskObsoleteCo
                 && m.UserId == currentUserId
                 && m.IsLeader, ct);
 
-        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer) && !isProjectLeader)
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager) && !isProjectLeader)
         {
-            throw new ForbiddenException("Chỉ Trưởng dự án mới được đánh dấu công việc lỗi thời.");
+            throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được phép đánh dấu công việc lỗi thời.");
         }
 
         if (task.Status == BPG.Domain.Constants.TaskStatus.Obsolete)

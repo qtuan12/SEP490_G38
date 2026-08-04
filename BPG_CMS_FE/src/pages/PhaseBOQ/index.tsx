@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
@@ -55,8 +55,8 @@ export const PhaseBOQ: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { canManageTechnical } = useProjectAccess(projectId);
-  const canEdit = canManageTechnical;
+  const { isTechnicalManager } = useProjectAccess(projectId);
+  const canEdit = isTechnicalManager;
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
