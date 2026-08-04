@@ -59,6 +59,7 @@ public record PhaseMaterialItemDto
     public decimal Quantity { get; set; }
     public int UnitId { get; set; }
     public string Unit { get; set; } = string.Empty;
+    public decimal ConversionRate { get; set; } = 1.0m;
 }
 
 public record WbsTreeDto

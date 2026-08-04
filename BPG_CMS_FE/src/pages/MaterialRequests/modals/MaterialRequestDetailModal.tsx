@@ -71,31 +71,50 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
       // 1. Tìm định mức BOQ gốc của Phase cho vật tư này
       const boqItem = currentPhase?.materials?.find(m => m.name.toLowerCase() === item.name.toLowerCase());
       const boqLimit = boqItem ? boqItem.quantity : 0;
-      const unit = boqItem ? boqItem.unit : item.unit;
+      const boqUnit = boqItem ? boqItem.unit : item.unit;
+      const boqCR = boqItem?.conversionRate || 1;
+      const itemCR = item.conversionRate || 1;
 
-      // 2. Tính số lượng đã được yêu cầu trước đây trong Phase (không tính phiếu bị từ chối và phiếu hiện tại)
-      let usedQty = 0;
+      // Quy đổi limit và requested sang Base Unit
+      const boqLimitInBase = boqLimit / (boqCR === 0 ? 1 : boqCR);
+      const requestedQtyInBase = item.quantity / (itemCR === 0 ? 1 : itemCR);
+
+      // 2. Tính số lượng đã được yêu cầu trước đây trong Phase (quy đổi sang Base Unit, chỉ tính phiếu tạo TRƯỚC phiếu này)
+      let usedQtyInBase = 0;
+      const currentReqId = parseInt(request.id.replace('mat-req-', '')) || 0;
       allRequests.forEach(r => {
-        if (r.phaseId === request.phaseId && r.status !== 'rejected' && r.id !== request.id) {
+        const otherReqId = parseInt(r.id.replace('mat-req-', '')) || 0;
+        if (
+          r.phaseId === request.phaseId &&
+          r.status !== 'rejected' &&
+          r.status !== 'cancelled' &&
+          otherReqId < currentReqId
+        ) {
           const matchItem = r.items.find(i => i.name.toLowerCase() === item.name.toLowerCase());
           if (matchItem) {
-            usedQty += matchItem.quantity;
+            const matchCR = matchItem.conversionRate || 1;
+            usedQtyInBase += matchItem.quantity / (matchCR === 0 ? 1 : matchCR);
           }
         }
       });
 
-      const requestedQty = item.quantity;
-      const totalRequested = usedQty + requestedQty;
-      const isOver = totalRequested > boqLimit;
-      const overAmount = isOver ? totalRequested - boqLimit : 0;
+      const totalRequestedInBase = usedQtyInBase + requestedQtyInBase;
+      const isOver = totalRequestedInBase > boqLimitInBase;
+
+      // Quy đổi phần vượt định mức về đơn vị BOQ
+      const overAmountInBase = isOver ? (totalRequestedInBase - boqLimitInBase) : 0;
+      const overAmount = parseFloat((overAmountInBase * boqCR).toFixed(3));
+
+      // Quy đổi số lượng đã dùng về đơn vị BOQ
+      const usedQtyInBOQ = parseFloat((usedQtyInBase * boqCR).toFixed(3));
 
       return {
         name: item.name,
-        requested: requestedQty,
-        unit: unit,
+        requested: item.quantity,
+        unit: item.unit, // Giữ nguyên đơn vị yêu cầu
         boqLimit: boqLimit,
-        used: usedQty,
-        totalRequested: totalRequested,
+        boqUnit: boqUnit,
+        used: usedQtyInBOQ,
         isOver: isOver,
         overAmount: overAmount
       };
@@ -130,7 +149,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
       isOpen={isOpen}
       onClose={onClose}
       title={`${request.id.toUpperCase().replace('MAT-REQ-', 'YCVT-')} — Chi tiết Yêu cầu Vật tư & Đối chiếu Định mức Giai đoạn`}
-      width="lg"
+      width="xl"
     >
       {loadingData ? (
         <div className="flex flex-col justify-center items-center py-12 gap-3">
@@ -209,10 +228,12 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                       <td className="p-3 text-center text-slate-900 font-bold text-sm bg-slate-50/30">{item.requested}</td>
                       <td className="p-3 text-center text-slate-500">{item.unit}</td>
                       <td className="p-3 text-center text-slate-600 font-medium">
-                        <span className={item.used > 0 ? "text-slate-700" : "text-slate-400"}>{item.used}</span>
+                        <span className={item.used > 0 ? "text-slate-700" : "text-slate-400"}>
+                          {item.used}
+                        </span>
                         <span className="text-slate-300"> / </span>
                         <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
-                          {item.boqLimit > 0 ? item.boqLimit : 'N/A (Ngoài định mức)'}
+                          {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'N/A (Ngoài định mức)'}
                         </span>
                       </td>
                       <td className="p-3 text-center">
@@ -222,7 +243,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                               Vượt định mức
                             </span>
                             <span className="text-[9px] text-red-500 font-bold">
-                              (Vượt +{item.overAmount.toLocaleString('vi-VN')} {item.unit})
+                              (Vượt +{item.overAmount.toLocaleString('vi-VN')} {item.boqUnit})
                             </span>
                           </div>
                         ) : (
