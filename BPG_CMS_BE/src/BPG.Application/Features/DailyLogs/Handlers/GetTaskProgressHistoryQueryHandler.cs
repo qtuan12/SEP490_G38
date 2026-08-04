@@ -34,25 +34,61 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var logs = await _uow.Repository<TaskProgressLog>().Query()
                 .AsNoTracking()
-                .Include(tpl => tpl.Creator)
+                .Include(tpl => tpl.Creator)       // CreatedBy → User (thủ công / realtime)
                 .Where(tpl => tpl.TaskId == request.TaskId)
                 .OrderByDescending(tpl => tpl.CreatedAt != default ? tpl.CreatedAt : tpl.UpdatedAt)
                 .ToListAsync(cancellationToken);
 
-            return logs.Select(log => new TaskProgressLogDto
+            // Lấy thêm User theo UpdatedBy cho các auto-sync log (CreatedBy có thể null nếu log cũ)
+            var updatedByIds = logs
+                .Where(l => l.Creator == null && l.UpdatedBy.HasValue)
+                .Select(l => l.UpdatedBy!.Value)
+                .Distinct()
+                .ToList();
+
+            Dictionary<long, string> updatedByNames = new();
+            if (updatedByIds.Any())
             {
-                TaskProgressLogId = log.TaskProgressLogId,
-                TaskId = log.TaskId,
-                OldProgress = log.OldProgress,
-                NewProgress = log.NewProgress,
-                UpdateReason = log.UpdateReason,
-                UpdatedAt = log.UpdatedAt ?? log.CreatedAt,
-                CreatedBy = log.CreatedBy,
-                UpdatedByName = log.Creator != null 
-                    ? log.Creator.FullName 
-                    : (!string.IsNullOrEmpty(log.UpdateReason) && log.UpdateReason.Contains("Cập nhật tự động") 
-                        ? "Hệ thống (Tự động)" 
-                        : "Kỹ sư hiện trường")
+                updatedByNames = await _uow.Repository<User>().Query()
+                    .AsNoTracking()
+                    .Where(u => updatedByIds.Contains(u.UserId))
+                    .ToDictionaryAsync(u => u.UserId, u => u.FullName ?? u.Email, cancellationToken);
+            }
+
+            return logs.Select(log =>
+            {
+                string? displayName = null;
+                if (log.Creator != null)
+                {
+                    // Ưu tiên 1: Creator (người trực tiếp sửa)
+                    displayName = log.Creator.FullName ?? log.Creator.Email;
+                }
+                else if (log.UpdatedBy.HasValue && updatedByNames.TryGetValue(log.UpdatedBy.Value, out var updByName))
+                {
+                    // Ưu tiên 2: UpdatedBy (người trigger auto-sync)
+                    displayName = updByName;
+                }
+                else if (!string.IsNullOrEmpty(log.UpdateReason) && log.UpdateReason.Contains("Cập nhật tự động"))
+                {
+                    // Ưu tiên 3: Log auto-sync không có user (data cũ)
+                    displayName = "Hệ thống (Tự động)";
+                }
+                else
+                {
+                    displayName = null; // FE sẽ hiện trống hoặc icon hệ thống
+                }
+
+                return new TaskProgressLogDto
+                {
+                    TaskProgressLogId = log.TaskProgressLogId,
+                    TaskId = log.TaskId,
+                    OldProgress = log.OldProgress,
+                    NewProgress = log.NewProgress,
+                    UpdateReason = log.UpdateReason,
+                    UpdatedAt = log.UpdatedAt ?? log.CreatedAt,
+                    CreatedBy = log.CreatedBy,
+                    UpdatedByName = displayName
+                };
             }).ToList();
         }
     }
