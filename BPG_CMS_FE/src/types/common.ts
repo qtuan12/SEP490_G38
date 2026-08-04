@@ -42,6 +42,7 @@ export interface PhaseMaterialItem {
   quantity: number;
   unitId: number;
   unit: string;
+  conversionRate?: number;
 }
 
 export interface AcceptanceRecord {
@@ -131,6 +132,7 @@ export interface MaterialRequestItem {
   name: string;
   quantity: number;
   unit: string;
+  conversionRate?: number;
 }
 
 export interface MaterialRequest {
