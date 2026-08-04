@@ -284,6 +284,114 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             });
         }
 
+        // Calculate Monthly Trends for Executive Dashboard (Full Calendar Year T01 -> T12 & Multi-year History)
+        var monthlyProgressTrends = new List<MonthlyProgressTrendDto>();
+        DateTime startMonth;
+        DateTime endMonth;
+
+        if (fromDt.HasValue)
+        {
+            startMonth = fromDt.Value;
+            endMonth = toDt ?? now;
+        }
+        else
+        {
+            var earliest = allTasks.Any() ? allTasks.Min(t => t.StartDate.ToDateTime(TimeOnly.MinValue)) : now;
+            int startYear = Math.Min(earliest.Year, now.Year);
+            startMonth = new DateTime(startYear, 1, 1);
+            endMonth = toDt ?? new DateTime(now.Year, 12, 31);
+        }
+
+        var currentM = new DateTime(startMonth.Year, startMonth.Month, 1);
+        var targetM = new DateTime(endMonth.Year, endMonth.Month, 1);
+
+        // Pre-calculate task weights and duration info for S-Curve calculation
+        var taskWeights = allTasks.Select(t =>
+        {
+            var s = t.StartDate.ToDateTime(TimeOnly.MinValue);
+            var e = t.EndDate.ToDateTime(TimeOnly.MaxValue);
+            var durDays = Math.Max(1, (int)(e - s).TotalDays + 1);
+            var currentActualProg = (double)BPG.Application.Common.Helpers.ProgressCalculator.GetEffectiveProgress(t);
+            return new { Task = t, Start = s, End = e, DurationDays = durDays, ActualProg = currentActualProg };
+        }).ToList();
+
+        double totalProjectDurationDays = taskWeights.Sum(x => x.DurationDays);
+        if (totalProjectDurationDays <= 0) totalProjectDurationDays = 1;
+
+        decimal prevPlannedCumulative = 0m;
+        decimal prevActualCumulative = 0m;
+
+        while (currentM <= targetM)
+        {
+            var mEnd = currentM.AddMonths(1).AddTicks(-1);
+            bool isFutureMonth = currentM > new DateTime(now.Year, now.Month, 1);
+
+            double plannedWeightSum = 0;
+            foreach (var item in taskWeights)
+            {
+                double taskWeight = item.DurationDays / totalProjectDurationDays;
+                if (mEnd < item.Start) { }
+                else if (mEnd >= item.End) { plannedWeightSum += taskWeight * 100.0; }
+                else
+                {
+                    double elapsedDays = Math.Max(1, (mEnd - item.Start).TotalDays + 1);
+                    double plannedFrac = Math.Min(1.0, elapsedDays / item.DurationDays);
+                    plannedWeightSum += taskWeight * (plannedFrac * 100.0);
+                }
+            }
+            decimal plannedCumulative = Math.Round((decimal)plannedWeightSum, 1);
+
+            decimal actualCumulative = 0m;
+            if (!isFutureMonth)
+            {
+                double actualWeightSum = 0;
+                foreach (var item in taskWeights)
+                {
+                    double taskWeight = item.DurationDays / totalProjectDurationDays;
+                    bool isDone = BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(item.Task.Status);
+                    if (isDone)
+                    {
+                        if (mEnd >= item.Start || currentM >= new DateTime(item.Start.Year, item.Start.Month, 1))
+                        {
+                            actualWeightSum += taskWeight * 100.0;
+                        }
+                    }
+                    else if (mEnd >= item.Start)
+                    {
+                        actualWeightSum += taskWeight * item.ActualProg;
+                    }
+                }
+                actualCumulative = Math.Round((decimal)actualWeightSum, 1);
+            }
+            else
+            {
+                actualCumulative = prevActualCumulative;
+            }
+
+            decimal plannedMonthlyVol = Math.Max(0m, plannedCumulative - prevPlannedCumulative);
+            decimal actualMonthlyVol = !isFutureMonth ? Math.Max(0m, actualCumulative - prevActualCumulative) : 0m;
+
+            int doneInMonth = allTasks.Count(t => BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(t.Status) && t.EndDate.ToDateTime(TimeOnly.MinValue) <= mEnd);
+
+            monthlyProgressTrends.Add(new MonthlyProgressTrendDto
+            {
+                Year = currentM.Year,
+                Month = currentM.Month,
+                MonthLabel = $"T{currentM.Month:D2}/{currentM.Year}",
+                CompletedTasksCount = doneInMonth,
+                AccumulatedProgressPercent = actualCumulative,
+                PlannedProgressPercent = plannedCumulative,
+                ActualProgressPercent = actualCumulative,
+                PlannedMonthlyVolume = Math.Round(plannedMonthlyVol, 1),
+                ActualMonthlyVolume = Math.Round(actualMonthlyVol, 1),
+                IsFuture = isFutureMonth
+            });
+
+            prevPlannedCumulative = plannedCumulative;
+            prevActualCumulative = actualCumulative;
+            currentM = currentM.AddMonths(1);
+        }
+
         var dto = new ExecutiveDashboardDto
         {
             ProjectId = request.ProjectId,
@@ -297,7 +405,8 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             PhaseBreakdown = phaseBreakdown,
             DelayedTasksList = allDelayedInfos,
             PeriodComparison = periodComparison,
-            CrossProjectMatrix = crossProjectMatrix
+            CrossProjectMatrix = crossProjectMatrix,
+            MonthlyProgressTrends = monthlyProgressTrends
         };
 
         return ApiResponse<ExecutiveDashboardDto>.SuccessResult(dto);

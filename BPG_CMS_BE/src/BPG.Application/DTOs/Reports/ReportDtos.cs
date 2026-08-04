@@ -18,6 +18,8 @@ public record ExecutiveDashboardDto
     public List<DelayedTaskInfoDto> DelayedTasksList { get; init; } = new();
     public PeriodComparisonMetricsDto? PeriodComparison { get; init; }
     public List<ProjectComparisonMatrixItemDto> CrossProjectMatrix { get; init; } = new();
+    public List<MonthlyProgressTrendDto> MonthlyProgressTrends { get; init; } = new();
+    public List<MonthlyProcurementTrendDto> MonthlyProcurementTrends { get; init; } = new();
 }
 
 public record PhaseProgressSummaryDto
@@ -78,14 +80,17 @@ public record GanttTaskDto
 public record BoqVsActualReportDto
 {
     public long ProjectId { get; init; }
+    public decimal OverallProgressPercent { get; init; }
     public int TotalBoqItemsCount { get; init; }
     public int ExceedingItemsCount { get; init; }
+    public int EarnedExceedingItemsCount { get; init; }
     public int SavingItemsCount { get; init; }
     public int NormalItemsCount { get; init; }
     public decimal TotalBoqValue { get; init; }
     public decimal TotalConsumptionValue { get; init; }
     public decimal TotalVarianceValue { get; init; } // Total Exceeded Value - Total Saved Value
     public List<BoqVsActualItemDto> Items { get; init; } = new();
+    public List<MonthlyBoqConsumptionTrendDto> MonthlyTrends { get; init; } = new();
 }
 
 public record BoqVsActualItemDto
@@ -95,7 +100,10 @@ public record BoqVsActualItemDto
     public string MaterialName { get; init; } = string.Empty;
     public string UnitName { get; init; } = string.Empty;
     public decimal UnitPrice { get; init; }
+    public decimal OriginalBoqUnitPrice { get; init; }
     public decimal BoqLimit { get; init; }
+    public decimal OverallProgressPercent { get; init; }
+    public decimal EarnedBoqLimit => Math.Round(BoqLimit * (OverallProgressPercent / 100m), 2);
     public decimal TotalIssued { get; init; }
     public decimal TotalReturned { get; init; }
     public decimal NetConsumption => Math.Max(0, TotalIssued - TotalReturned);
@@ -104,10 +112,13 @@ public record BoqVsActualItemDto
     public decimal PendingMrQuantity { get; init; }
     public decimal TotalExpectedUsage => NetConsumption + StockRemaining;
     public bool IsExceeding => NetConsumption > BoqLimit;
+    public bool IsEarnedExceeding => NetConsumption > EarnedBoqLimit && EarnedBoqLimit > 0;
     public decimal ExceededAmount => IsExceeding ? NetConsumption - BoqLimit : 0;
+    public decimal EarnedExceededAmount => IsEarnedExceeding ? NetConsumption - EarnedBoqLimit : 0;
     public decimal SavedAmount => NetConsumption < BoqLimit ? BoqLimit - NetConsumption : 0;
     public decimal UsagePercent => BoqLimit > 0 ? Math.Round(NetConsumption / BoqLimit * 100, 1) : 0;
-    public decimal BoqTotalValue => BoqLimit * UnitPrice;
+    public decimal EarnedUsagePercent => EarnedBoqLimit > 0 ? Math.Round(NetConsumption / EarnedBoqLimit * 100, 1) : 0;
+    public decimal BoqTotalValue => BoqLimit * (OriginalBoqUnitPrice > 0 ? OriginalBoqUnitPrice : UnitPrice);
     public decimal ConsumptionValue => NetConsumption * UnitPrice;
     public decimal VarianceValue => (NetConsumption - BoqLimit) * UnitPrice;
 }
@@ -184,6 +195,7 @@ public record ConstructionProgressReportDto
     public List<PhaseAcceptanceSummaryDto> Acceptances { get; init; } = new();
     public List<AssigneePerformanceDto> AssigneePerformance { get; init; } = new();
     public List<string> ProgressInsights { get; init; } = new();
+    public List<MonthlyProgressTrendDto> MonthlyTrends { get; init; } = new();
 }
 
 public record PhaseProgressDto
@@ -235,6 +247,7 @@ public record IncidentReportDto
     public int ResolvedIncidents { get; init; }
     public int IncidentsWithRework { get; init; }
     public List<IncidentSummaryDto> Incidents { get; init; } = new();
+    public List<MonthlyIncidentTrendDto> MonthlyTrends { get; init; } = new();
 }
 
 public record IncidentSummaryDto
@@ -300,9 +313,60 @@ public record ProcurementReportDto
     public long ProjectId { get; init; }
     public decimal TotalPoCost { get; init; }
     public decimal TotalDirectPurchaseCost { get; init; }
+    public decimal TotalMaterialIssuanceValue { get; init; }
+    public decimal TotalProcurementSavings { get; init; }
     public decimal TotalCost => TotalPoCost + TotalDirectPurchaseCost;
     public List<PurchaseOrderSummaryDto> PurchaseOrders { get; init; } = new();
     public List<DirectPurchaseSummaryDto> DirectPurchases { get; init; } = new();
+    public List<MonthlyProcurementTrendDto> MonthlyTrends { get; init; } = new();
+}
+
+// ============================================================
+// Monthly Trend DTO Definitions
+// ============================================================
+
+public record MonthlyProgressTrendDto
+{
+    public int Year { get; init; }
+    public int Month { get; init; }
+    public string MonthLabel { get; init; } = string.Empty; // e.g. "T05/2026"
+    public int CompletedTasksCount { get; init; }
+    public decimal AccumulatedProgressPercent { get; init; } // Actual S-Curve %
+    public decimal PlannedProgressPercent { get; init; }     // Planned Baseline S-Curve %
+    public decimal ActualProgressPercent { get; init; }      // Actual S-Curve %
+    public decimal PlannedMonthlyVolume { get; init; }       // Planned Work Volume % in Month
+    public decimal ActualMonthlyVolume { get; init; }        // Actual Work Volume % in Month
+    public bool IsFuture { get; init; }
+}
+
+public record MonthlyProcurementTrendDto
+{
+    public int Year { get; init; }
+    public int Month { get; init; }
+    public string MonthLabel { get; init; } = string.Empty;
+    public decimal PoCostVnd { get; init; }
+    public decimal DirectPurchaseCostVnd { get; init; }
+    public decimal TotalCostVnd => PoCostVnd + DirectPurchaseCostVnd;
+    public int PoCount { get; init; }
+}
+
+public record MonthlyIncidentTrendDto
+{
+    public int Year { get; init; }
+    public int Month { get; init; }
+    public string MonthLabel { get; init; } = string.Empty;
+    public int TotalIncidentsCount { get; init; }
+    public int ResolvedIncidentsCount { get; init; }
+    public decimal EstimatedLossVnd { get; init; }
+}
+
+public record MonthlyBoqConsumptionTrendDto
+{
+    public int Year { get; init; }
+    public int Month { get; init; }
+    public string MonthLabel { get; init; } = string.Empty;
+    public int MaterialRequestCount { get; init; }
+    public decimal ConsumedValueVnd { get; init; }
 }
 
 public record PurchaseOrderSummaryDto

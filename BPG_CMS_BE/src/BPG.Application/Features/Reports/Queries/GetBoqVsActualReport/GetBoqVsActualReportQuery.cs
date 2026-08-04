@@ -1,12 +1,14 @@
 
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using TaskStatus = BPG.Domain.Constants.TaskStatus;
 
 namespace BPG.Application.Features.Reports.Queries.GetBoqVsActualReport;
 
@@ -211,6 +213,19 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             .Select(g => new { MaterialId = g.Key, AvgPrice = g.Average(x => x.UnitPrice) })
             .ToDictionaryAsync(x => x.MaterialId, x => x.AvgPrice, cancellationToken);
 
+        // Fetch project overall progress for Earned BOQ Calculation
+        var taskQuery = _unitOfWork.Repository<ProjectTask>().Query().AsNoTracking();
+        if (request.ProjectId > 0)
+        {
+            taskQuery = taskQuery.Where(t => t.Phase.ProjectId == request.ProjectId);
+        }
+        else
+        {
+            taskQuery = taskQuery.Where(t => accessibleIds.Contains(t.Phase.ProjectId));
+        }
+        var validTasks = await taskQuery.Where(t => t.Status != TaskStatus.Obsolete).ToListAsync(cancellationToken);
+        decimal overallProgress = ProgressCalculator.CalculateWeightedProgress(validTasks);
+
         var itemsList = new List<BoqVsActualItemDto>();
 
         foreach (var boq in boqGrouped)
@@ -226,7 +241,9 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
                 MaterialName = boq.MaterialName,
                 UnitName = boq.UnitName,
                 UnitPrice = price,
+                OriginalBoqUnitPrice = price,
                 BoqLimit = boq.BoqLimit,
+                OverallProgressPercent = overallProgress,
                 TotalIssued = issued,
                 TotalReturned = returned,
                 StockRemaining = inventories.Where(i => i.MaterialId == boq.MaterialId).Sum(i => i.Quantity),
@@ -238,6 +255,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
 
         int totalCount = itemsList.Count;
         int exceedingCount = itemsList.Count(i => i.IsExceeding);
+        int earnedExceedingCount = itemsList.Count(i => i.IsEarnedExceeding);
         int savingCount = itemsList.Count(i => i.NetConsumption < i.BoqLimit && i.NetConsumption > 0);
         int normalCount = totalCount - exceedingCount - savingCount;
 
@@ -245,17 +263,74 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
         decimal totalConsVal = itemsList.Sum(i => i.ConsumptionValue);
         decimal totalVarVal = itemsList.Sum(i => i.VarianceValue);
 
+        // Monthly BOQ Consumption Trends (Full Calendar Year T01 -> T12 & Multi-year History)
+        var now = DateTime.UtcNow;
+        DateTime startMonth;
+        DateTime endMonth;
+
+        if (fromDt.HasValue)
+        {
+            startMonth = fromDt.Value;
+            endMonth = toDt ?? now;
+        }
+        else
+        {
+            var issMin = issuanceItems.Any() ? issuanceItems.Min(i => i.Issuance!.CreatedAt) : now;
+            int startYear = Math.Min(issMin.Year, now.Year);
+            startMonth = new DateTime(startYear, 1, 1);
+            endMonth = toDt ?? new DateTime(now.Year, 12, 31);
+        }
+
+        var currentM = new DateTime(startMonth.Year, startMonth.Month, 1);
+        var targetM = new DateTime(endMonth.Year, endMonth.Month, 1);
+        var monthlyBoqTrends = new List<MonthlyBoqConsumptionTrendDto>();
+
+        while (currentM <= targetM)
+        {
+            var mStart = currentM;
+            var mEnd = currentM.AddMonths(1).AddTicks(-1);
+
+            var monthIssuance = issuanceItems.Where(i => i.Issuance!.CreatedAt >= mStart && i.Issuance.CreatedAt <= mEnd).ToList();
+            var monthReturn = returnItems.Where(r => r.Return.CreatedAt >= mStart && r.Return.CreatedAt <= mEnd).ToList();
+
+            decimal consumedVal = monthIssuance.Sum(i =>
+            {
+                var price = avgPricesMap.GetValueOrDefault(i.MaterialId, 0m);
+                var qty = i.Quantity * (i.ConversionRate > 0 ? i.ConversionRate : 1m);
+                return qty * price;
+            }) - monthReturn.Sum(r =>
+            {
+                var price = avgPricesMap.GetValueOrDefault(r.MaterialId, 0m);
+                var qty = r.Quantity * (r.ConversionRate > 0 ? r.ConversionRate : 1m);
+                return qty * price;
+            });
+
+            monthlyBoqTrends.Add(new MonthlyBoqConsumptionTrendDto
+            {
+                Year = currentM.Year,
+                Month = currentM.Month,
+                MonthLabel = $"T{currentM.Month:D2}/{currentM.Year}",
+                MaterialRequestCount = monthIssuance.Select(i => i.MaterialIssuanceId).Distinct().Count(),
+                ConsumedValueVnd = Math.Max(0m, consumedVal)
+            });
+
+            currentM = currentM.AddMonths(1);
+        }
+
         var reportDto = new BoqVsActualReportDto
         {
             ProjectId = request.ProjectId,
+            OverallProgressPercent = overallProgress,
             TotalBoqItemsCount = totalCount,
             ExceedingItemsCount = exceedingCount,
+            EarnedExceedingItemsCount = earnedExceedingCount,
             SavingItemsCount = savingCount,
             NormalItemsCount = normalCount,
             TotalBoqValue = totalBoqVal,
             TotalConsumptionValue = totalConsVal,
             TotalVarianceValue = totalVarVal,
-            Items = itemsList
+            Items = itemsList,
+            MonthlyTrends = monthlyBoqTrends
         };
 
         return ApiResponse<BoqVsActualReportDto>.SuccessResult(reportDto);

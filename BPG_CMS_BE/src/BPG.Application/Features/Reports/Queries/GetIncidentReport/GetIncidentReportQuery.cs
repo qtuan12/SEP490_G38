@@ -88,6 +88,51 @@ public class GetIncidentReportQueryHandler
             CreatedAt = i.CreatedAt
         }).ToList();
 
+        // Calculate Monthly Incident Trends (Full Calendar Year T01 -> T12 & Multi-year History)
+        var now = DateTime.UtcNow;
+        DateTime startMonth;
+        DateTime endMonth;
+
+        if (request.FromDate.HasValue)
+        {
+            startMonth = request.FromDate.Value.Date;
+            endMonth = request.ToDate?.Date ?? now;
+        }
+        else
+        {
+            var earliest = incidents.Any() ? incidents.Min(i => i.CreatedAt) : now;
+            int startYear = Math.Min(earliest.Year, now.Year);
+            startMonth = new DateTime(startYear, 1, 1);
+            endMonth = request.ToDate?.Date ?? new DateTime(now.Year, 12, 31);
+        }
+
+        var currentM = new DateTime(startMonth.Year, startMonth.Month, 1);
+        var targetM = new DateTime(endMonth.Year, endMonth.Month, 1);
+        var monthlyIncidentTrends = new List<MonthlyIncidentTrendDto>();
+
+        while (currentM <= targetM)
+        {
+            var mStart = currentM;
+            var mEnd = currentM.AddMonths(1).AddTicks(-1);
+
+            var monthIncidents = incidents.Where(i => i.CreatedAt >= mStart && i.CreatedAt <= mEnd).ToList();
+            int totalInc = monthIncidents.Count;
+            int resolvedInc = monthIncidents.Count(i => resolvedStatuses.Contains(i.Status));
+            decimal lossVnd = monthIncidents.Sum(i => i.EstimatedMaterialLoss ?? 0m);
+
+            monthlyIncidentTrends.Add(new MonthlyIncidentTrendDto
+            {
+                Year = currentM.Year,
+                Month = currentM.Month,
+                MonthLabel = $"T{currentM.Month:D2}/{currentM.Year}",
+                TotalIncidentsCount = totalInc,
+                ResolvedIncidentsCount = resolvedInc,
+                EstimatedLossVnd = lossVnd
+            });
+
+            currentM = currentM.AddMonths(1);
+        }
+
         var dto = new IncidentReportDto
         {
             ProjectId = request.ProjectId,
@@ -95,7 +140,8 @@ public class GetIncidentReportQueryHandler
             OpenIncidents = incidents.Count(i => !resolvedStatuses.Contains(i.Status)),
             ResolvedIncidents = incidents.Count(i => resolvedStatuses.Contains(i.Status)),
             IncidentsWithRework = incidents.Count(i => i.ReworkTaskId.HasValue),
-            Incidents = summaries
+            Incidents = summaries,
+            MonthlyTrends = monthlyIncidentTrends
         };
 
         return ApiResponse<IncidentReportDto>.SuccessResult(dto);
