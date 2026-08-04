@@ -8,6 +8,7 @@ using BPG.Application.Features.Reports.Queries.GetProcurementReport;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,19 +30,16 @@ public class GetConsolidatedExecutiveReportQueryHandler : IRequestHandler<GetCon
 
     public async Task<ApiResponse<ConsolidatedExecutiveReportDto>> Handle(GetConsolidatedExecutiveReportQuery request, CancellationToken cancellationToken)
     {
-        var execTask = _mediator.Send(new GetExecutiveDashboardQuery(request.ProjectId, request.FromDate, request.ToDate), cancellationToken);
-        var progressTask = _mediator.Send(new GetConstructionProgressReportQuery(request.ProjectId, request.FromDate, request.ToDate), cancellationToken);
-        var boqTask = _mediator.Send(new GetBoqVsActualReportQuery(request.ProjectId, request.FromDate, request.ToDate), cancellationToken);
-        var incidentTask = _mediator.Send(new GetIncidentReportQuery(request.ProjectId, request.FromDate, request.ToDate), cancellationToken);
-        var procurementTask = _mediator.Send(new GetProcurementReportQuery(request.ProjectId, request.FromDate, request.ToDate), cancellationToken);
-
-        await Task.WhenAll(execTask, progressTask, boqTask, incidentTask, procurementTask);
-
-        var exec = execTask.Result.Data;
-        var progress = progressTask.Result.Data;
-        var boq = boqTask.Result.Data;
-        var incident = incidentTask.Result.Data;
-        var procurement = procurementTask.Result.Data;
+        var exec = (await _mediator.Send(new GetExecutiveDashboardQuery(request.ProjectId, request.FromDate, request.ToDate), cancellationToken)).Data
+            ?? throw new BusinessException("ERR_REPORT_DATA_EMPTY", "Không tạo được dữ liệu dashboard tổng quan.");
+        var progress = (await _mediator.Send(new GetConstructionProgressReportQuery(request.ProjectId, request.FromDate, request.ToDate), cancellationToken)).Data
+            ?? throw new BusinessException("ERR_REPORT_DATA_EMPTY", "Không tạo được dữ liệu tiến độ thi công.");
+        var boq = (await _mediator.Send(new GetBoqVsActualReportQuery(request.ProjectId, request.FromDate, request.ToDate), cancellationToken)).Data
+            ?? throw new BusinessException("ERR_REPORT_DATA_EMPTY", "Không tạo được dữ liệu BOQ.");
+        var incident = (await _mediator.Send(new GetIncidentReportQuery(request.ProjectId, request.FromDate, request.ToDate), cancellationToken)).Data
+            ?? throw new BusinessException("ERR_REPORT_DATA_EMPTY", "Không tạo được dữ liệu sự cố.");
+        var procurement = (await _mediator.Send(new GetProcurementReportQuery(request.ProjectId, request.FromDate, request.ToDate), cancellationToken)).Data
+            ?? throw new BusinessException("ERR_REPORT_DATA_EMPTY", "Không tạo được dữ liệu mua sắm.");
 
         string projName = "Tất cả dự án (Tổng hợp toàn hệ thống)";
         if (request.ProjectId > 0)

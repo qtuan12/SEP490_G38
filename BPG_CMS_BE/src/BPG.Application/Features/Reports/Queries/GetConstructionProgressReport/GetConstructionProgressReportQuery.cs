@@ -41,6 +41,8 @@ public class GetConstructionProgressReportQueryHandler
             .Include(p => p.Tasks)
                 .ThenInclude(t => t.Assignees)
                     .ThenInclude(a => a.User)
+            .Include(p => p.Tasks)
+                .ThenInclude(t => t.ProgressLogs)
             .Include(p => p.Acceptances)
                 .ThenInclude(a => a.Acceptor)
             .AsNoTracking();
@@ -254,8 +256,7 @@ public class GetConstructionProgressReportQueryHandler
             var s = t.StartDate.ToDateTime(TimeOnly.MinValue);
             var e = t.EndDate.ToDateTime(TimeOnly.MaxValue);
             var durDays = Math.Max(1, (int)(e - s).TotalDays + 1);
-            var currentActualProg = (double)BPG.Application.Common.Helpers.ProgressCalculator.GetEffectiveProgress(t);
-            return new { Task = t, Start = s, End = e, DurationDays = durDays, ActualProg = currentActualProg };
+            return new { Task = t, Start = s, End = e, DurationDays = durDays };
         }).ToList();
 
         double totalProjectDurationDays = taskWeights.Sum(x => x.DurationDays);
@@ -301,8 +302,8 @@ public class GetConstructionProgressReportQueryHandler
                 foreach (var item in taskWeights)
                 {
                     double taskWeight = item.DurationDays / totalProjectDurationDays;
-                    bool isDone = BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(item.Task.Status);
-                    if (isDone)
+                    var progressAtMonthEnd = GetProgressAt(item.Task, mEnd);
+                    if (progressAtMonthEnd >= 100m)
                     {
                         if (mEnd >= item.Start || currentM >= new DateTime(item.Start.Year, item.Start.Month, 1))
                         {
@@ -311,7 +312,7 @@ public class GetConstructionProgressReportQueryHandler
                     }
                     else if (mEnd >= item.Start)
                     {
-                        actualWeightSum += taskWeight * item.ActualProg;
+                        actualWeightSum += taskWeight * (double)progressAtMonthEnd;
                     }
                 }
                 actualCumulative = Math.Round((decimal)actualWeightSum, 1);
@@ -325,8 +326,7 @@ public class GetConstructionProgressReportQueryHandler
             decimal actualMonthlyVol = !isFutureMonth ? Math.Max(0m, actualCumulative - prevActualCumulative) : 0m;
 
             int completedInMonth = validTasks.Count(t =>
-                BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(t.Status)
-                && t.EndDate.ToDateTime(TimeOnly.MinValue) <= mEnd);
+                GetProgressAt(t, mEnd) >= 100m);
 
             monthlyProgressTrends.Add(new MonthlyProgressTrendDto
             {
@@ -368,6 +368,32 @@ public class GetConstructionProgressReportQueryHandler
         };
 
         return ApiResponse<ConstructionProgressReportDto>.SuccessResult(dto);
+    }
+
+    private static decimal GetProgressAt(ProjectTask task, DateTime asOf)
+    {
+        var latestLog = task.ProgressLogs
+            .Where(log => log.UpdatedAt <= asOf)
+            .OrderByDescending(log => log.UpdatedAt)
+            .FirstOrDefault();
+
+        if (latestLog != null)
+        {
+            return latestLog.NewProgress;
+        }
+
+        if (task.CreatedAt <= asOf)
+        {
+            if (BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(task.Status)
+                && (!task.UpdatedAt.HasValue || task.UpdatedAt.Value <= asOf))
+            {
+                return 100m;
+            }
+
+            return 0m;
+        }
+
+        return 0m;
     }
 }
 
