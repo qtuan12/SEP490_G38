@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, ArrowLeft, AlertTriangle, KeyRound } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
 import { authService } from '../../services/authService';
+import { ApiError } from '../../services/api';
+import { OTP_NEEDS_RESEND_ERRORS } from '../../constants/errorCodes';
 
 type Step = 'email' | 'otp';
 
@@ -39,6 +41,13 @@ export const ForgotPassword: React.FC = () => {
       navigate(`/reset-password?token=${encodeURIComponent(resetToken)}`);
     } catch (err: any) {
       setError(err.message || 'Không thể xác thực OTP.');
+      // Mã hết hạn / hết lượt thử thì nhập lại cũng vô ích — xóa ô OTP và mở khóa nút
+      // "Gửi lại" ngay để người dùng xin mã mới. Nhận biết qua errorCode, không dò message.
+      const code = err instanceof ApiError ? err.errorCode : undefined;
+      if (code && OTP_NEEDS_RESEND_ERRORS.includes(code)) {
+        setOtp('');
+        setResendCooldown(0);
+      }
     } finally {
       setLoading(false);
     }

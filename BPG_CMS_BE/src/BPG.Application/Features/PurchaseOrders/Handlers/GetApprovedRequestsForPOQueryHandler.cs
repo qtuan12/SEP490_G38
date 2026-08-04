@@ -10,19 +10,19 @@ using Microsoft.EntityFrameworkCore;
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
     public class GetApprovedRequestsForPOQueryHandler
-        : IRequestHandler<GetApprovedRequestsForPOQuery, ApiResponse<List<ApprovedRequestForPODto>>>
+        : IRequestHandler<GetApprovedRequestsForPOQuery, List<ApprovedRequestForPODto>>
     {
         private readonly IUnitOfWork _uow;
 
         public GetApprovedRequestsForPOQueryHandler(IUnitOfWork uow) => _uow = uow;
 
-        public async Task<ApiResponse<List<ApprovedRequestForPODto>>> Handle(
+        public async Task<List<ApprovedRequestForPODto>> Handle(
             GetApprovedRequestsForPOQuery request, CancellationToken cancellationToken)
         {
             var requests = await _uow.Repository<MaterialRequest>().Query()
                 .AsNoTracking()
                 .Include(r => r.Phase).ThenInclude(p => p.Project)
-                .Include(r => r.Items).ThenInclude(i => i.Material)
+                .Include(r => r.Items).ThenInclude(i => i.Material).ThenInclude(m => m.BaseUnit)
                 .Include(r => r.Items).ThenInclude(i => i.Unit)
                 .Where(r => r.Phase.ProjectId == request.ProjectId
                          && r.Status == MaterialRequestStatus.Approved)
@@ -98,12 +98,14 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                         Quantity = i.Quantity,
                         ConversionRate = i.ConversionRate,
                         OrderedQuantity = ordered,
-                        RemainingQuantity = remaining < 0 ? 0 : remaining
+                        RemainingQuantity = remaining < 0 ? 0 : remaining,
+                        IsDiscreteUnit = i.Material.BaseUnit?.IsDiscrete ?? false,
+                        BaseUnitName = i.Material.BaseUnit?.UnitName ?? i.Unit.UnitName
                     };
                 }).ToList()
             }).ToList();
 
-            return ApiResponse<List<ApprovedRequestForPODto>>.SuccessResult(dtos);
+            return dtos;
         }
     }
 }

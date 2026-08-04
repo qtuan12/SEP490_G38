@@ -1,5 +1,6 @@
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
@@ -23,18 +24,18 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand>
                                    && o.OtpType == "PASSWORD_RESET"
                                    && !o.IsUsed
                                    && o.RevokedAt == null, ct)
-            ?? throw new BusinessException("AUTH_OTP", "Phiên đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
+            ?? throw new BusinessException(ErrorCodes.ResetSessionInvalid, "Phiên đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
 
         if (resetToken.ExpiresAt < DateTime.UtcNow)
-            throw new BusinessException("AUTH_OTP", "Phiên đặt lại mật khẩu đã hết hạn. Vui lòng thực hiện lại từ đầu.");
+            throw new BusinessException(ErrorCodes.ResetSessionInvalid, "Phiên đặt lại mật khẩu đã hết hạn. Vui lòng thực hiện lại từ đầu.");
 
         var user = await _uow.Repository<User>().Query()
             .FirstOrDefaultAsync(u => u.UserId == resetToken.UserId && !u.IsDeleted, ct)
-            ?? throw new BusinessException("AUTH_OTP", "Người dùng không tồn tại.");
+            ?? throw new BusinessException(ErrorCodes.ResetSessionInvalid, "Không tìm thấy tài khoản của phiên đặt lại mật khẩu này.");
 
         if (!string.IsNullOrEmpty(user.PasswordHash) &&
             BCrypt.Net.BCrypt.Verify(request.NewPassword, user.PasswordHash))
-            throw new BusinessException("AUTH_SAME_PASSWORD", "Mật khẩu mới phải khác mật khẩu hiện tại.");
+            throw new BusinessException(ErrorCodes.SamePassword, "Mật khẩu mới phải khác mật khẩu hiện tại.");
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         user.PasswordChangedAt = DateTime.UtcNow;

@@ -75,7 +75,8 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                         Name = b.Material.Name,
                         Quantity = b.Quantity,
                         UnitId = b.UnitId,
-                        Unit = b.Unit.UnitName
+                        Unit = b.Unit.UnitName,
+                        ConversionRate = b.ConversionRate
                     })
                     .ToList()
             };

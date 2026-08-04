@@ -18,7 +18,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
     /// Phiếu trong định mức -> Approved (chờ Kế toán kiểm toán để hoàn tiền).
     /// Phiếu vượt định mức  -> Pending  (Kế toán soát hóa đơn rồi trình Giám đốc).
     /// </summary>
-    public class SubmitDirectPurchaseCommandHandler : IRequestHandler<SubmitDirectPurchaseCommand, bool>
+    public class SubmitDirectPurchaseCommandHandler : IRequestHandler<SubmitDirectPurchaseCommand, string>
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
@@ -40,7 +40,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             _notificationService = notificationService;
         }
 
-        public async Task<bool> Handle(SubmitDirectPurchaseCommand request, CancellationToken ct)
+        public async Task<string> Handle(SubmitDirectPurchaseCommand request, CancellationToken ct)
         {
             long userId = _currentUserService.GetRequiredUserId();
 
@@ -48,11 +48,11 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 .Include(r => r.Phase)
                 .Include(r => r.Items)
                 .FirstOrDefaultAsync(r => r.DirectPurchaseId == request.DirectPurchaseId && !r.IsDeleted, ct)
-                ?? throw new NotFoundException(nameof(DirectPurchaseRequest), request.DirectPurchaseId);
+                ?? throw new NotFoundException("Không tìm thấy phiếu mua trực tiếp cần gửi.");
 
             if (dp.Status != DirectPurchaseStatus.Draft)
-                throw new BusinessException("ERR_NOT_DRAFT",
-                    $"Chỉ gửi được phiếu ở trạng thái Nháp. Trạng thái hiện tại: {dp.Status}.");
+                throw new BusinessException(ErrorCodes.DpNotDraft,
+                    $"Chỉ gửi được phiếu ở trạng thái Nháp. Trạng thái hiện tại: {DirectPurchaseStatus.Label(dp.Status)}.");
 
             if (dp.RequestedBy != userId)
                 throw new ForbiddenException("Chỉ người tạo mới được gửi phiếu nháp này.");
@@ -61,12 +61,12 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             // ---------- Validate đầy đủ tại thời điểm gửi ----------
             if (dp.Items.Count == 0)
-                throw new BusinessException("NO_ITEMS", "Phải có ít nhất một vật tư trong phiếu mua khẩn cấp.");
+                throw new BusinessException(ErrorCodes.DpNoItems, "Phải có ít nhất một vật tư trong phiếu mua khẩn cấp.");
 
             // Lý do mua khẩn cấp đồng thời là phần giải trình cho khoản vượt định mức,
             // nên không có ô giải trình riêng.
             if (string.IsNullOrWhiteSpace(dp.Reason))
-                throw new BusinessException("NO_REASON", "Vui lòng nhập lý do mua khẩn cấp.");
+                throw new BusinessException(ErrorCodes.DpNoReason, "Vui lòng nhập lý do mua khẩn cấp.");
 
             var invoiceCount = await _uow.Repository<Attachment>().Query()
                 .CountAsync(a => a.EntityType == EntityType.DirectPurchaseRequest &&
@@ -74,26 +74,27 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                                  a.AttachmentType == AttachmentType.InvoicePhoto &&
                                  !a.IsDeleted, ct);
             if (invoiceCount == 0)
-                throw new BusinessException("NO_INVOICE", "Bắt buộc phải tải ảnh hóa đơn.");
+                throw new BusinessException(ErrorCodes.DpNoInvoice, "Bắt buộc phải tải ảnh hóa đơn.");
 
             foreach (var item in dp.Items)
             {
                 if (item.Quantity <= 0)
-                    throw new BusinessException("ERR_INVALID_QUANTITY", "Số lượng vật tư phải lớn hơn 0.");
+                    throw new BusinessException(ErrorCodes.DpInvalidQuantity, "Số lượng vật tư phải lớn hơn 0.");
                 if (item.UnitPrice <= 0)
-                    throw new BusinessException("ERR_INVALID_UNIT_PRICE", "Đơn giá vật tư phải lớn hơn 0.");
+                    throw new BusinessException(ErrorCodes.DpInvalidUnitPrice, "Đơn giá vật tư phải lớn hơn 0.");
             }
 
             var project = await _uow.Repository<Project>().Query()
                 .FirstOrDefaultAsync(p => p.ProjectId == dp.ProjectId, ct)
-                ?? throw new NotFoundException(nameof(Project), dp.ProjectId);
+                ?? throw new NotFoundException("Không tìm thấy dự án của phiếu mua trực tiếp.");
 
             if (project.Status != ProjectStatus.InProgress)
-                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án hiện không ở trạng thái hoạt động (InProgress).");
+                throw new BusinessException(ErrorCodes.DpProjectNotActive,
+                    "Dự án hiện không ở trạng thái Đang thi công nên không thể gửi phiếu mua trực tiếp.");
 
             // Giai đoạn đã nghiệm thu thì đóng băng - phiếu nháp để lâu có thể rơi vào tình huống này.
             if (dp.Phase.Status == PhaseStatus.Approved)
-                throw new BusinessException("ERR_PHASE_FROZEN",
+                throw new BusinessException(ErrorCodes.DpPhaseFrozen,
                     $"Giai đoạn '{dp.Phase.Name}' đã được nghiệm thu và đóng băng, không thể gửi phiếu mua trực tiếp.");
 
             var purchaseDateOnly = DateOnly.FromDateTime(dp.PurchaseDate.Date);
@@ -102,16 +103,16 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             // Dùng UTC+7 (giờ Việt Nam) như các handler nhập/xuất/trả kho, tránh lệch ngày với người dùng.
             var todayVn = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7).Date);
             if (purchaseDateOnly > todayVn)
-                throw new BusinessException("ERR_PURCHASE_DATE_IN_FUTURE",
+                throw new BusinessException(ErrorCodes.DpPurchaseDateInFuture,
                     $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) không được sau ngày hôm nay ({todayVn:dd/MM/yyyy}). " +
                     "Phiếu mua trực tiếp chỉ ghi nhận khoản đã mua thực tế.");
 
             if (dp.Phase.StartDate.HasValue && purchaseDateOnly < dp.Phase.StartDate.Value)
-                throw new BusinessException("ERR_PURCHASE_DATE_BEFORE_PHASE",
+                throw new BusinessException(ErrorCodes.DpPurchaseDateBeforePhase,
                     $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu giai đoạn '{dp.Phase.Name}' ({dp.Phase.StartDate.Value:dd/MM/yyyy}) trở đi.");
 
             if (dp.Phase.EndDate.HasValue && purchaseDateOnly > dp.Phase.EndDate.Value)
-                throw new BusinessException("ERR_PURCHASE_DATE_AFTER_PHASE",
+                throw new BusinessException(ErrorCodes.DpPurchaseDateAfterPhase,
                     $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) vượt quá ngày kết thúc giai đoạn '{dp.Phase.Name}' ({dp.Phase.EndDate.Value:dd/MM/yyyy}).");
 
             // ---------- Tính lại định mức BOQ TẠI THỜI ĐIỂM GỬI ----------
@@ -193,7 +194,9 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 UserRole.Accountant, title, content,
                 NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
 
-            return true;
+            return anyOverBOQ
+                ? "Gửi phiếu thành công. Tồn kho đã được cập nhật. Phiếu vượt định mức BOQ nên đang chờ Kế toán soát hóa đơn để trình Giám đốc duyệt chi."
+                : "Gửi phiếu thành công. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán kiểm toán.";
         }
     }
 }

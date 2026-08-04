@@ -21,7 +21,7 @@ namespace BPG.Application.Features.DirectPurchases.Queries
         public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
             if (ProjectId == null)
-                throw new NotFoundException("ProjectId");
+                throw new NotFoundException("Thiếu mã dự án khi lấy danh sách phiếu mua trực tiếp.");
             return Task.FromResult(ProjectId.Value);
         }
     }

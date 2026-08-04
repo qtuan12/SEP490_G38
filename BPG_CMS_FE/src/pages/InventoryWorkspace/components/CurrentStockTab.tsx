@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, AlertTriangle, AlertCircle, CheckCircle2, Info, ChevronDown, ChevronRight, Download } from 'lucide-react';
+import ExcelJS from 'exceljs';
 import type { CurrentInventory } from '../../../types/inventory';
 import { Pagination } from '../../../components/ui';
 
@@ -64,52 +65,177 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     }));
   };
 
-  // Xuất báo cáo CSV Tiếng Việt có hỗ trợ BOM để Excel đọc chuẩn font chữ
-  const exportToCSV = () => {
+  // Xuất báo cáo Excel (xlsx) với auto-fit cột và styling chuyên nghiệp
+  const exportToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'BPG-CMS';
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet('Tồn kho', {
+      views: [{ state: 'frozen', ySplit: 2 }], // Freeze 2 dòng đầu (tiêu đề + header)
+    });
+
+    // ─── Dòng tiêu đề lớn ───
+    sheet.mergeCells('A1:J1');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = `BÁO CÁO TỒN KHO VẬT TƯ – ${new Date().toLocaleDateString('vi-VN')}`;
+    titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sheet.getRow(1).height = 36;
+
+    // ─── Header cột ───
     const headers = [
-      'Mã vật tư',
-      'Tên vật tư',
-      'Thông số kỹ thuật',
-      'Nhà cung cấp gần nhất',
-      'Tồn kho thực tế',
-      'Tạm khóa (Reserved)',
-      'Tồn khả dụng',
-      'Đơn vị tính',
-      'Cập nhật cuối',
-      'Cảnh báo'
+      { header: 'Mã vật tư',              key: 'code',      width: 16 },
+      { header: 'Tên vật tư',             key: 'name',      width: 36 },
+      { header: 'Thông số kỹ thuật',      key: 'spec',      width: 32 },
+      { header: 'Nhà cung cấp gần nhất',  key: 'supplier',  width: 28 },
+      { header: 'Tồn kho thực tế',        key: 'qty',       width: 16 },
+      { header: 'Tạm khóa (Reserved)',    key: 'reserved',  width: 18 },
+      { header: 'Tồn khả dụng',           key: 'available', width: 16 },
+      { header: 'Đơn vị tính',            key: 'unit',      width: 14 },
+      { header: 'Cập nhật cuối',          key: 'updated',   width: 22 },
+      { header: 'Cảnh báo',               key: 'status',    width: 22 },
     ];
 
-    const rows = filteredInventory.map(item => {
-      let statusLabel = 'Bình thường';
-      const status = getItemStatus(item);
-      if (status === 'over_boq') statusLabel = 'Đã vượt định mức';
-      else if (status === 'approaching') statusLabel = 'Sắp vượt định mức';
-      else if (status === 'low_stock') statusLabel = 'Tồn kho thấp';
+    sheet.columns = headers.map(h => ({ key: h.key, width: h.width }));
 
-      return [
-        `"${item.materialCode}"`,
-        `"${item.materialName}"`,
-        `"${item.specification || 'Chưa cập nhật'}"`,
-        `"${item.supplierName}"`,
+    // Ghi header vào dòng 2
+    const headerRow = sheet.getRow(2);
+    headers.forEach((h, i) => {
+      const cell = headerRow.getCell(i + 1);
+      cell.value = h.header;
+      cell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = {
+        top:    { style: 'thin', color: { argb: 'FFbfdbfe' } },
+        bottom: { style: 'thin', color: { argb: 'FFbfdbfe' } },
+        left:   { style: 'thin', color: { argb: 'FFbfdbfe' } },
+        right:  { style: 'thin', color: { argb: 'FFbfdbfe' } },
+      };
+    });
+    headerRow.height = 32;
+
+    // ─── Hàm tính độ rộng ký tự (tiếng Việt unicode rộng hơn ASCII ~1.8x) ───
+    const measureTextWidth = (text: string): number => {
+      let width = 0;
+      for (const ch of text) {
+        // Ký tự Latin cơ bản (ASCII) = 1 đơn vị; Unicode/tiếng Việt ≈ 1.8
+        const code = ch.charCodeAt(0);
+        width += code > 127 ? 1.8 : 1;
+      }
+      return width + 2; // padding 2 ký tự
+    };
+
+    // Khởi tạo colWidths từ header (tính sẵn từ tên cột)
+    const colWidths: number[] = headers.map(h => measureTextWidth(h.header));
+
+    // ─── Dữ liệu ───
+    filteredInventory.forEach((item, idx) => {
+      const status = getItemStatus(item);
+      let statusLabel = 'Bình thường';
+      if (status === 'over_boq')         statusLabel = 'Đã vượt định mức';
+      else if (status === 'approaching') statusLabel = 'Sắp vượt định mức';
+      else if (status === 'low_stock')   statusLabel = 'Tồn kho thấp';
+
+      const isEven = idx % 2 === 0;
+      const rowBg  = isEven ? 'FFF8FAFF' : 'FFFFFFFF';
+
+      // Lưu giá trị thô theo thứ tự cột để đo chiều rộng
+      const rowData: (string | number)[] = [
+        item.materialCode,
+        item.materialName,
+        item.specification || 'Chưa cập nhật',
+        item.supplierName,
         item.quantity,
         item.reservedQuantity,
         item.availableQuantity,
-        `"${item.unitName}"`,
+        item.unitName,
         item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'Chưa cập nhật',
-        `"${statusLabel}"`
+        statusLabel,
       ];
+
+      const row = sheet.addRow({
+        code:      rowData[0],
+        name:      rowData[1],
+        spec:      rowData[2],
+        supplier:  rowData[3],
+        qty:       rowData[4],
+        reserved:  rowData[5],
+        available: rowData[6],
+        unit:      rowData[7],
+        updated:   rowData[8],
+        status:    rowData[9],
+      });
+
+      // Cập nhật max width cho từng cột ngay khi thêm dòng
+      rowData.forEach((val, colIdx) => {
+        const text = val?.toString() ?? '';
+        // Tính max theo từng dòng (hỗ trợ nội dung xuống dòng)
+        const maxLineWidth = text.split('\n').reduce(
+          (max, line) => Math.max(max, measureTextWidth(line)),
+          0
+        );
+        if (maxLineWidth > colWidths[colIdx]) {
+          colWidths[colIdx] = maxLineWidth;
+        }
+      });
+
+      row.eachCell((cell, colNumber) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+        cell.alignment = {
+          vertical: 'middle',
+          wrapText: true,
+          horizontal: colNumber >= 5 && colNumber <= 7 ? 'center' : 'left',
+        };
+        cell.border = {
+          top:    { style: 'hair', color: { argb: 'FFe2e8f0' } },
+          bottom: { style: 'hair', color: { argb: 'FFe2e8f0' } },
+          left:   { style: 'hair', color: { argb: 'FFe2e8f0' } },
+          right:  { style: 'hair', color: { argb: 'FFe2e8f0' } },
+        };
+
+        // Tô màu cột Cảnh báo theo trạng thái
+        if (colNumber === 10) {
+          if (status === 'over_boq') {
+            cell.font = { bold: true, color: { argb: 'FFB91C1C' } };
+          } else if (status === 'approaching') {
+            cell.font = { bold: true, color: { argb: 'FFD97706' } };
+          } else if (status === 'low_stock') {
+            cell.font = { bold: true, color: { argb: 'FF0369A1' } };
+          } else {
+            cell.font = { color: { argb: 'FF16A34A' } };
+          }
+        }
+      });
+
+      // Chiều cao dòng: ước tính số dòng wrap dựa trên cột "Tên vật tư" (cột dài nhất)
+      const nameWidth  = measureTextWidth(rowData[1]?.toString() ?? '');
+      const specWidth  = measureTextWidth(rowData[2]?.toString() ?? '');
+      const wrapLimit  = Math.min(colWidths[1], 52); // giới hạn wrap tại 52 ký tự
+      const linesTxt   = Math.ceil(Math.max(nameWidth, specWidth) / wrapLimit);
+      row.height = Math.max(22, linesTxt * 16);
     });
 
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF"
-      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    // ─── Áp dụng độ rộng đã tính vào cột (min 12, max 55 ký tự) ───
+    sheet.columns.forEach((col, idx) => {
+      if (!col) return;
+      col.width = Math.min(Math.max(colWidths[idx] ?? 12, 12), 55);
+    });
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Bao_cao_ton_kho_du_an.csv`);
+    // ─── Tải file ───
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const date = new Date().toISOString().split('T')[0];
+    link.download = `Bao_cao_ton_kho_${date}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getStatusBadge = (item: CurrentInventory) => {
@@ -245,9 +371,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           </div>
 
           <button
-            onClick={exportToCSV}
+            onClick={exportToExcel}
             className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm cursor-pointer"
-            title="Xuất file Excel báo cáo tồn kho hiện tại"
+            title="Xuất file Excel (.xlsx) báo cáo tồn kho hiện tại"
           >
             <Download size={14} />
             <span>Xuất Excel</span>

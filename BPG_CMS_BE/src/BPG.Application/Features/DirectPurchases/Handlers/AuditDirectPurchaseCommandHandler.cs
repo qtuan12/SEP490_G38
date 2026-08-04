@@ -15,7 +15,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
     /// - Phiếu trong định mức: đây là bước cuối, duyệt xong là hoàn tiền.
     /// - Phiếu vượt định mức: đây là bước soát trước khi trình Giám đốc duyệt chi.
     /// </summary>
-    public class AuditDirectPurchaseCommandHandler : IRequestHandler<AuditDirectPurchaseCommand, bool>
+    public class AuditDirectPurchaseCommandHandler : IRequestHandler<AuditDirectPurchaseCommand, string>
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
@@ -34,7 +34,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             _notificationService = notificationService;
         }
 
-        public async Task<bool> Handle(AuditDirectPurchaseCommand request, CancellationToken ct)
+        public async Task<string> Handle(AuditDirectPurchaseCommand request, CancellationToken ct)
         {
             long userId = _currentUserService.GetRequiredUserId();
 
@@ -42,18 +42,18 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 .Include(r => r.Phase)
                 .Include(r => r.Project)
                 .FirstOrDefaultAsync(r => r.DirectPurchaseId == request.DirectPurchaseId && !r.IsDeleted, ct)
-                ?? throw new NotFoundException(nameof(DirectPurchaseRequest), request.DirectPurchaseId);
+                ?? throw new NotFoundException("Không tìm thấy phiếu mua trực tiếp cần kiểm toán.");
 
             if (dp.Status == DirectPurchaseStatus.Draft)
-                throw new BusinessException("ERR_NOT_SUBMITTED",
+                throw new BusinessException(ErrorCodes.DpNotSubmitted,
                     "Phiếu còn ở trạng thái Nháp, chưa được gửi nên chưa thể kiểm toán.");
 
             if (dp.AuditStatus != DirectPurchaseAuditStatus.PendingAudit)
-                throw new BusinessException("ALREADY_AUDITED",
+                throw new BusinessException(ErrorCodes.DpAlreadyAudited,
                     "Phiếu này đã được kiểm toán, không thể thao tác lại.");
 
             if (!request.Approve && string.IsNullOrWhiteSpace(request.AuditNote))
-                throw new BusinessException("NOTE_REQUIRED",
+                throw new BusinessException(ErrorCodes.DpAuditNoteRequired,
                     "Vui lòng nhập lý do khi từ chối kiểm toán.");
 
             bool isOverBOQ = dp.BOQCheckStatus == BOQCheckStatus.OverBOQ;
@@ -105,7 +105,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                     $"Phiếu DP-{dp.DirectPurchaseId:D6} vượt định mức đã được Kế toán soát hóa đơn và trình Giám đốc duyệt chi.",
                     NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
 
-                return true;
+                return "Đã soát hóa đơn và trình Giám đốc duyệt chi khoản vượt định mức.";
             }
 
             var notiTitle = request.Approve
@@ -120,7 +120,9 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 dp.RequestedBy, notiTitle, notiContent,
                 NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
 
-            return true;
+            return request.Approve
+                ? "Đã xác nhận kiểm toán. Phiếu được duyệt chi và hoàn tiền."
+                : "Đã từ chối kiểm toán. Phiếu sẽ không được hoàn tiền, vật tư vẫn nằm trong kho.";
         }
     }
 }

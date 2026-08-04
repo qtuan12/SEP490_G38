@@ -126,7 +126,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
   // Tính tổng số lượng vật tư Phase đã yêu cầu
   const phaseRequestedMaterials = useMemo(() => {
-    const map = new Map<string, { name: string; quantity: number; unit: string }>();
+    const map = new Map<string, { name: string; quantity: number; unit: string; conversionRate?: number }>();
     allMaterialRequests.forEach(r => {
       if (r.phaseId === phase?.id && !r.taskId && r.status !== 'rejected') {
         r.items.forEach(item => {
@@ -142,9 +142,44 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
     return Array.from(map.values());
   }, [allMaterialRequests, phase?.id]);
 
+  // Conversions Map state
+  const [conversionsMap, setConversionsMap] = React.useState<Record<string, { alternativeUnitName: string; conversionRate: number }[]>>({});
+
   // Nguồn vật tư gốc để chọn
   const sourceMaterials = task ? phaseRequestedMaterials : (phase?.materials || []);
   const displayMaterials = sourceMaterials.length > 0 ? sourceMaterials : allCatalogs;
+
+  // Preload conversions and units for all displayMaterials on open
+  useEffect(() => {
+    const loadAllConversions = async () => {
+      if (displayMaterials.length === 0) return;
+      const mapConvs: Record<string, { alternativeUnitName: string; conversionRate: number }[]> = {};
+      const mapUnits: Record<string, string[]> = {};
+
+      await Promise.all(
+        displayMaterials.map(async (sm) => {
+          let catalog = allCatalogs.find(c => c.name === sm.name);
+          if (catalog) {
+            try {
+              const baseUnit = catalog.baseUnitName || '';
+              const convs = await materialService.getConversions(catalog.materialId);
+              mapConvs[sm.name] = convs.map(c => ({
+                alternativeUnitName: c.alternativeUnitName || '',
+                conversionRate: c.conversionRate
+              }));
+              const altUnits = convs.map(c => c.alternativeUnitName).filter(Boolean) as string[];
+              mapUnits[sm.name] = Array.from(new Set([baseUnit, ...altUnits]));
+            } catch (err) {
+              console.error(err);
+            }
+          }
+        })
+      );
+      setConversionsMap(mapConvs);
+      setMaterialUnits(prev => ({ ...prev, ...mapUnits }));
+    };
+    loadAllConversions();
+  }, [displayMaterials, allCatalogs]);
 
   const handleMaterialChange = async (idx: number, name: string) => {
     const selectedItem = displayMaterials.find(m => m.name === name);
@@ -159,9 +194,14 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
     const baseUnit = catalog.baseUnitName || '';
     let units = [baseUnit];
+    let convList: { alternativeUnitName: string; conversionRate: number }[] = [];
 
     try {
       const convs = await materialService.getConversions(catalog.materialId);
+      convList = convs.map(c => ({
+        alternativeUnitName: c.alternativeUnitName || '',
+        conversionRate: c.conversionRate
+      }));
       const altUnits = convs.map(c => c.alternativeUnitName).filter(Boolean) as string[];
       units = Array.from(new Set([baseUnit, ...altUnits]));
     } catch (err) {
@@ -169,37 +209,108 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
     }
 
     setMaterialUnits(prev => ({ ...prev, [name]: units }));
+    setConversionsMap(prev => ({ ...prev, [name]: convList }));
     setValue(`items.${idx}.unit`, baseUnit, { shouldValidate: true, shouldTouch: true, shouldDirty: true });
   };
 
-  const getUsedQuantity = (materialName: string) => {
-    let sum = 0;
+  const getUsedQtyInBase = (materialName: string) => {
+    let sumInBase = 0;
     allMaterialRequests.forEach(r => {
-      if (r.phaseId === phase?.id && r.status !== 'rejected') {
+      if (r.phaseId === phase?.id && r.status !== 'rejected' && r.status !== 'cancelled') {
         if (task && r.taskId) {
           const item = r.items.find(i => i.name === materialName);
-          if (item) sum += item.quantity;
+          if (item) {
+            const cr = item.conversionRate || 1;
+            sumInBase += item.quantity / (cr === 0 ? 1 : cr);
+          }
         } else if (!task && !r.taskId) {
           const item = r.items.find(i => i.name === materialName);
-          if (item) sum += item.quantity;
+          if (item) {
+            const cr = item.conversionRate || 1;
+            sumInBase += item.quantity / (cr === 0 ? 1 : cr);
+          }
         }
       }
     });
-    return sum;
+    return sumInBase;
   };
 
   const isOverBOQ = useMemo(() => {
-    for (const it of watchedItems) {
+    for (let idx = 0; idx < watchedItems.length; idx++) {
+      const it = watchedItems[idx];
       if (!it.name) continue;
+
       const sourceItem = sourceMaterials.find(m => m.name === it.name);
-      const limit = sourceItem ? sourceItem.quantity : 0;
-      const used = getUsedQuantity(it.name);
-      if (used + (it.quantity || 0) > limit) {
+      const boqLimit = sourceItem ? sourceItem.quantity : 0;
+      const boqCR = sourceItem ? (sourceItem.conversionRate || 1) : 1;
+
+      let itemCR = 1;
+      const catalog = allCatalogs.find(c => c.name === it.name);
+      if (catalog) {
+        const baseUnit = catalog.baseUnitName || '';
+        if (it.unit && it.unit !== baseUnit) {
+          const convList = conversionsMap[it.name] || [];
+          const conv = convList.find(c => c.alternativeUnitName === it.unit);
+          itemCR = conv ? conv.conversionRate : 1;
+        }
+      }
+
+      const boqLimitInBase = boqLimit / (boqCR === 0 ? 1 : boqCR);
+      const requestedQtyInBase = (it.quantity || 0) / (itemCR === 0 ? 1 : itemCR);
+      const usedQtyInBase = getUsedQtyInBase(it.name);
+
+      if (usedQtyInBase + requestedQtyInBase > boqLimitInBase) {
         return true;
       }
     }
     return false;
-  }, [watchedItems, sourceMaterials, getUsedQuantity]);
+  }, [watchedItems, sourceMaterials, allCatalogs, conversionsMap, allMaterialRequests, phase?.id, task]);
+
+  const getRowComparison = (idx: number) => {
+    const item = watchedItems[idx];
+    if (!item || !item.name) return null;
+
+    const sourceItem = sourceMaterials.find(m => m.name === item.name);
+    const boqLimit = sourceItem ? sourceItem.quantity : 0;
+    const boqUnit = sourceItem ? sourceItem.unit : item.unit;
+    const boqCR = sourceItem ? (sourceItem.conversionRate || 1) : 1;
+
+    let itemCR = 1;
+    const catalog = allCatalogs.find(c => c.name === item.name);
+    if (catalog) {
+      const baseUnit = catalog.baseUnitName || '';
+      if (item.unit && item.unit !== baseUnit) {
+        const convList = conversionsMap[item.name] || [];
+        const conv = convList.find(c => c.alternativeUnitName === item.unit);
+        itemCR = conv ? conv.conversionRate : 1;
+      }
+    }
+
+    const boqLimitInBase = boqLimit / (boqCR === 0 ? 1 : boqCR);
+    const requestedQtyInBase = (item.quantity || 0) / (itemCR === 0 ? 1 : itemCR);
+    const usedQtyInBase = getUsedQtyInBase(item.name);
+
+    const totalRequestedInBase = usedQtyInBase + requestedQtyInBase;
+    const isOver = totalRequestedInBase > boqLimitInBase;
+
+    const totalQtyInBOQ = parseFloat((totalRequestedInBase * boqCR).toFixed(3));
+    const boqLimitInBOQ = parseFloat(boqLimit.toFixed(3));
+
+    const statusBadge = isOver ? (
+      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-100">
+        Vượt định mức
+      </span>
+    ) : (
+      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-600 border border-green-100">
+        Trong định mức
+      </span>
+    );
+
+    return {
+      text: `${totalQtyInBOQ} / ${boqLimitInBOQ} ${boqUnit}`,
+      badge: statusBadge
+    };
+  };
 
 
 
@@ -245,7 +356,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={task ? "Đề xuất Vật tư cho Công việc" : "Yêu cầu Vật tư cho Giai đoạn"}>
+    <Modal isOpen={isOpen} onClose={onClose} title={task ? "Đề xuất Vật tư cho Công việc" : "Yêu cầu Vật tư cho Giai đoạn"} width="lg">
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         <div className="text-sm bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100">
           {task ? (
@@ -271,69 +382,87 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
             </button>
           </div>
 
-          <div className="flex flex-col gap-2">
-            {fields.map((item, idx) => (
-              <div key={item.id} className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-start">
-                <div>
-                  <SearchSelect
-                    options={displayMaterials.map(sm => {
-                      const isBOQ = 'quantity' in sm;
-                      return {
-                        label: sm.name,
-                        value: sm.name,
-                        sublabel: isBOQ ? `BOQ: ${(sm as any).quantity} ${(sm as any).unit}` : undefined
-                      };
-                    })}
-                    value={watchedItems[idx]?.name || ''}
-                    onChange={async (selName) => {
-                      setValue(`items.${idx}.name`, selName, { shouldValidate: true });
-                      await handleMaterialChange(idx, selName);
-                      await trigger(`items.${idx}.unit`);
-                    }}
-                    placeholder="-- Chọn vật tư --"
-                    error={!!errors.items?.[idx]?.name}
-                  />
-                  {errors.items?.[idx]?.name && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.name?.message}</p>}
-                </div>
+          <div className="flex flex-col gap-3">
+            {fields.map((item, idx) => {
+              const rowComparison = getRowComparison(idx);
+              return (
+                <div key={item.id} className="flex flex-col gap-2.5 p-3.5 bg-slate-50/50 border border-slate-100 rounded-lg">
+                  <div className="grid grid-cols-[2fr_1fr_1fr_auto] gap-2 items-start">
+                    <div>
+                      <SearchSelect
+                        options={displayMaterials.map(sm => {
+                          const isBOQ = 'quantity' in sm;
+                          return {
+                            label: sm.name,
+                            value: sm.name,
+                            sublabel: isBOQ ? `BOQ: ${(sm as any).quantity} ${(sm as any).unit}` : undefined
+                          };
+                        })}
+                        value={watchedItems[idx]?.name || ''}
+                        onChange={async (selName) => {
+                          setValue(`items.${idx}.name`, selName, { shouldValidate: true });
+                          await handleMaterialChange(idx, selName);
+                          await trigger(`items.${idx}.unit`);
+                        }}
+                        placeholder="-- Chọn vật tư --"
+                        error={!!errors.items?.[idx]?.name}
+                      />
+                      {errors.items?.[idx]?.name && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.name?.message}</p>}
+                    </div>
 
-                <div>
-                  <input
-                    type="number"
-                    min={isDiscreteUnit(watchedItems[idx]?.unit) ? 1 : 0.01}
-                    step={isDiscreteUnit(watchedItems[idx]?.unit) ? "1" : "any"}
-                    placeholder="SL"
-                    {...register(`items.${idx}.quantity` as const, { valueAsNumber: true })}
-                    className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
-                  />
-                  {errors.items?.[idx]?.quantity && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.quantity?.message}</p>}
-                </div>
+                    <div>
+                      <input
+                        type="number"
+                        min={isDiscreteUnit(watchedItems[idx]?.unit) ? 1 : 0.01}
+                        step={isDiscreteUnit(watchedItems[idx]?.unit) ? "1" : "any"}
+                        placeholder="SL"
+                        {...register(`items.${idx}.quantity` as const, { valueAsNumber: true })}
+                        className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
+                      />
+                      {errors.items?.[idx]?.quantity && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.quantity?.message}</p>}
+                    </div>
 
-                <div>
-                  <select
-                    {...register(`items.${idx}.unit` as const)}
-                    className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.unit ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
-                  >
-                    <option value="" disabled>-- ĐVT --</option>
-                    {(materialUnits[watchedItems[idx]?.name] || []).map(u => (
-                      <option key={u} value={u}>{u}</option>
-                    ))}
-                  </select>
-                  {errors.items?.[idx]?.unit && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.unit?.message}</p>}
-                </div>
+                    <div>
+                      <select
+                        {...register(`items.${idx}.unit` as const)}
+                        className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.unit ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
+                      >
+                        <option value="" disabled>-- ĐVT --</option>
+                        {(materialUnits[watchedItems[idx]?.name] || []).map(u => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </select>
+                      {errors.items?.[idx]?.unit && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.unit?.message}</p>}
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={async () => {
-                    remove(idx);
-                    await trigger('items');
-                  }}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-md"
-                  title="Xóa vật tư"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            ))}
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        remove(idx);
+                        await trigger('items');
+                      }}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-md"
+                      title="Xóa vật tư"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+
+                  {rowComparison && (
+                    <div className="flex items-center justify-between text-xs px-3 py-2 bg-white border border-slate-100 rounded-md shadow-sm">
+                      <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                        <span>Định mức:</span>
+                        <strong className="text-slate-800 font-semibold">{rowComparison.text}</strong>
+                      </div>
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <span>Trạng thái:</span>
+                        {rowComparison.badge}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             {(errors.items?.message || (errors.items as any)?.root?.message) && (
               <p className="text-red-500 text-xs mt-1">
                 {errors.items?.message || (errors.items as any)?.root?.message}
@@ -360,10 +489,10 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
         <div className="flex flex-col gap-1.5">
           <label className="block text-sm font-medium text-slate-600">
-            Lý do yêu cầu / Giải trình {isOverBOQ && <span className="text-red-500">*</span>}
+            Ghi chú{isOverBOQ && <span className="text-red-500">*</span>}
           </label>
           <textarea
-            placeholder={isOverBOQ ? "Yêu cầu vượt định mức BOQ bắt buộc phải nhập lý do giải trình..." : "Nhập lý do yêu cầu vật tư..."}
+            placeholder={isOverBOQ ? "" : ""}
             {...register('reason')}
             rows={3}
             className={`w-full text-sm px-3 py-2 rounded-md border ${errors.reason ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}

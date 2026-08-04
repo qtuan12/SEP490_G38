@@ -7,7 +7,8 @@ import { projectService } from '../../services/projectService';
 import { Button, Input, Select } from '../../components/ui';
 import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { isDiscreteUnit } from '../../utils/unitHelpers';
+import { ApiError } from '../../services/api';
+import { PO_ORDER_DATE_ERRORS, PO_DELIVERY_DATE_ERRORS } from '../../constants/errorCodes';
 
 interface POItem {
   materialId: number;
@@ -20,6 +21,9 @@ interface POItem {
   unitPrice: number;
   notes: string;
   maxQuantity: number;
+  // Cờ ĐVT nguyên lấy từ backend (Material.BaseUnit.IsDiscrete), không suy đoán từ tên đơn vị
+  isDiscreteUnit: boolean;
+  baseUnitName: string;
 }
 
 const fmt = (v: number) =>
@@ -162,6 +166,8 @@ export const CreatePOPage: React.FC = () => {
           unitPrice: 0,
           notes: '',
           maxQuantity: ri.remainingQuantity,
+          isDiscreteUnit: ri.isDiscreteUnit,
+          baseUnitName: ri.baseUnitName || ri.unitName,
         };
       }
     }
@@ -175,6 +181,38 @@ export const CreatePOPage: React.FC = () => {
     setItems((prev) => prev.filter((_, i) => i !== idx));
 
   const totalAmount = useMemo(() => items.reduce((s, it) => s + it.quantity * it.unitPrice, 0), [items]);
+
+  // ---- Validate realtime ----
+  // Kiểm ngay khi người dùng gõ, không đợi bấm "Tạo đơn hàng". Các rule dưới đây phản chiếu
+  // rule của backend (CreatePurchaseOrderCommandHandler) — backend vẫn là chốt chặn cuối cùng,
+  // đây chỉ là lớp phản hồi sớm để đỡ một vòng gọi API.
+  const itemErrors = useMemo(
+    () =>
+      items.map((it) => {
+        if (!it.quantity || it.quantity <= 0) return 'Số lượng đặt phải lớn hơn 0.';
+        if (it.quantity > it.maxQuantity)
+          return `Vượt số lượng còn được đặt (tối đa ${it.maxQuantity} ${it.unitName}).`;
+        if (it.isDiscreteUnit && it.quantity % 1 !== 0)
+          return `Đơn vị tính '${it.baseUnitName}' yêu cầu số lượng phải là số nguyên.`;
+        if (it.unitPrice < 0) return 'Đơn giá không được âm.';
+        return null;
+      }),
+    [items]
+  );
+
+  // Các điều kiện còn thiếu ở cấp đơn hàng — hiển thị ngay cạnh nút gửi.
+  const blockingIssues = useMemo(() => {
+    const issues: string[] = [];
+    if (!projectId) issues.push('Chưa chọn dự án.');
+    if (!supplierId) issues.push('Chưa chọn nhà cung cấp.');
+    if (!selectedRequestId) issues.push('Chưa chọn yêu cầu vật tư.');
+    else if (!items.length) issues.push('Đơn hàng chưa có dòng vật tư nào.');
+    const invalidCount = itemErrors.filter(Boolean).length;
+    if (invalidCount > 0) issues.push(`${invalidCount} dòng vật tư đang có lỗi.`);
+    return issues;
+  }, [projectId, supplierId, selectedRequestId, items.length, itemErrors]);
+
+  const canSubmit = blockingIssues.length === 0;
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -195,16 +233,18 @@ export const CreatePOPage: React.FC = () => {
         })),
       }),
     onSuccess: (result) => {
-      console.log(result.message || 'Đã tạo đơn mua hàng.');
+      toast.success(result.message || 'Đã tạo đơn mua hàng.');
       navigate(backPath);
     },
     onError: (err: any) => {
       const msg = err.message || 'Không thể tạo đơn mua hàng.';
       toast.error(msg);
-      // Đồng thời gắn lỗi ngay dưới trường liên quan nếu nhận diện được
-      if (msg.includes('Ngày đơn hàng')) {
+      // Gắn lỗi vào đúng trường dựa trên errorCode của backend (không so khớp nội dung message,
+      // vì message có thể đổi câu chữ bất cứ lúc nào).
+      const code = err instanceof ApiError ? err.errorCode : undefined;
+      if (code && PO_ORDER_DATE_ERRORS.includes(code)) {
         setOrderDateError(msg);
-      } else if (msg.includes('Hạn giao hàng') || msg.includes('giao hàng')) {
+      } else if (code && PO_DELIVERY_DATE_ERRORS.includes(code)) {
         setDeliveryDateError(msg);
       } else {
         setFormError(msg);
@@ -216,18 +256,10 @@ export const CreatePOPage: React.FC = () => {
     setFormError(null);
     setOrderDateError(null);
     setDeliveryDateError(null);
-    if (!projectId) return setFormError('Vui lòng chọn dự án.');
-    if (!supplierId) return setFormError('Vui lòng chọn nhà cung cấp.');
-    if (!selectedRequestId) return setFormError('Vui lòng chọn một yêu cầu vật tư.');
-    if (!items.length) return setFormError('Không có dòng vật tư nào.');
-    for (const it of items) {
-      if (it.quantity <= 0) return setFormError(`Số lượng "${it.materialName}" phải lớn hơn 0.`);
-      if (it.quantity > it.maxQuantity)
-        return setFormError(`Số lượng "${it.materialName}" vượt quá số lượng yêu cầu (${it.maxQuantity}).`);
-      if (isDiscreteUnit(it.unitName) && it.quantity % 1 !== 0) {
-        return setFormError(`Đơn vị tính '${it.unitName}' của vật tư "${it.materialName}" yêu cầu số lượng phải là số nguyên.`);
-      }
-    }
+    // Các lỗi nhập liệu đã được chặn realtime (nút bị disable khi blockingIssues còn phần tử),
+    // nên tới đây chỉ còn chờ các rule chỉ backend mới kiểm được: khoảng thời gian giai đoạn,
+    // số lượng đã đặt qua PO khác, trùng số đơn hàng...
+    if (!canSubmit) return;
     mutation.mutate();
   };
 
@@ -490,7 +522,9 @@ export const CreatePOPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {items.map((it, idx) => (
+                {items.map((it, idx) => {
+                  const rowError = itemErrors[idx];
+                  return (
                   <tr key={it.materialId} style={{ borderBottom: '1px solid hsl(var(--border))' }}>
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-muted))' }}>{idx + 1}</td>
                     <td style={{ padding: '8px 10px', fontWeight: 600, color: 'hsl(var(--primary))' }}>{it.materialCode}</td>
@@ -500,15 +534,20 @@ export const CreatePOPage: React.FC = () => {
                     </td>
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-secondary))' }}>{it.unitName}</td>
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-muted))' }}>{it.maxQuantity}</td>
-                    <td style={{ padding: '8px 10px' }}>
-                      <Input type="number" 
-                        min={isDiscreteUnit(it.unitName) ? 1 : 0.001} 
-                        max={it.maxQuantity} 
-                        step={isDiscreteUnit(it.unitName) ? 1 : 0.001}
+                    <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
+                      <Input type="number"
+                        min={it.isDiscreteUnit ? 1 : 0.001}
+                        max={it.maxQuantity}
+                        step={it.isDiscreteUnit ? 1 : 0.001}
                         value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))}
-                        className="h-8" style={{ width: 110 }} />
+                        className="h-8" style={{ width: 110, ...(rowError ? { borderColor: 'hsl(var(--danger))' } : {}) }} />
+                      {rowError && (
+                        <p style={{ margin: '4px 0 0', fontSize: 11, lineHeight: 1.4, color: 'hsl(var(--danger))', maxWidth: 180 }}>
+                          {rowError}
+                        </p>
+                      )}
                     </td>
-                    <td style={{ padding: '8px 10px' }}>
+                    <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
                       <Input type="number" min={0} step={1000}
                         value={it.unitPrice === 0 ? '' : it.unitPrice}
                         onChange={(e) => updateItem(idx, 'unitPrice', e.target.value === '' ? 0 : Number(e.target.value))}
@@ -527,7 +566,8 @@ export const CreatePOPage: React.FC = () => {
                       </Button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -535,6 +575,29 @@ export const CreatePOPage: React.FC = () => {
             <span style={{ fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
               Tổng cộng: <span style={{ color: 'hsl(var(--primary))', marginLeft: 8 }}>{fmt(totalAmount)}</span>
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Điều kiện còn thiếu — hiển thị ngay, không đợi bấm gửi */}
+      {blockingIssues.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          background: 'hsl(var(--warning) / 0.1)', border: '1px solid hsl(var(--warning) / 0.3)',
+          borderRadius: 6, padding: '12px 16px', color: 'hsl(var(--warning))', fontSize: 13,
+        }}>
+          <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: blockingIssues.length > 1 ? 4 : 0 }}>
+              Chưa thể tạo đơn hàng:
+            </div>
+            {blockingIssues.length === 1 ? (
+              <span>{blockingIssues[0]}</span>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {blockingIssues.map((issue) => <li key={issue}>{issue}</li>)}
+              </ul>
+            )}
           </div>
         </div>
       )}
@@ -553,7 +616,7 @@ export const CreatePOPage: React.FC = () => {
         >
           Hủy
         </button>
-        <Button type="button" variant="primary" disabled={mutation.isPending} className="font-semibold" onClick={handleSubmit}>
+        <Button type="button" variant="primary" disabled={mutation.isPending || !canSubmit} className="font-semibold" onClick={handleSubmit}>
           {mutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Đang lưu...</> : <><Plus size={16} /> Tạo đơn hàng</>}
         </Button>
       </div>

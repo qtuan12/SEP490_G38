@@ -36,10 +36,10 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             var phase = await _uow.Repository<Phase>().Query()
                 .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct)
-                ?? throw new NotFoundException(nameof(Phase), request.PhaseId);
+                ?? throw new NotFoundException("Không tìm thấy giai đoạn đã chọn.");
 
             if (phase.ProjectId != request.ProjectId)
-                throw new BusinessException("ERR_PHASE_PROJECT_MISMATCH", "Giai đoạn không thuộc dự án đã chọn.");
+                throw new BusinessException(ErrorCodes.DpPhaseProjectMismatch, "Giai đoạn không thuộc dự án đã chọn.");
 
             await DirectPurchaseGuard.EnsureCanManageAsync(_uow, _currentUserService, phase.ProjectId, userId, ct);
 

@@ -31,17 +31,20 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
 
         public async Task<bool> Handle(CancelPurchaseOrderCommand request, CancellationToken cancellationToken)
         {
+            if (string.IsNullOrWhiteSpace(request.Reason))
+                throw new BusinessException(ErrorCodes.PoCancelReasonRequired, "Vui lòng nhập lý do hủy đơn mua hàng.");
+
             var po = await _uow.Repository<PurchaseOrder>().Query()
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
-                ?? throw new NotFoundException(nameof(PurchaseOrder), request.POId);
+                ?? throw new NotFoundException("Không tìm thấy đơn mua hàng cần hủy.");
 
             if (po.Status == PurchaseOrderStatus.Cancelled)
-                throw new BusinessException("ERR_PO_ALREADY_CANCELLED", "Đơn mua hàng đã bị hủy trước đó.");
+                throw new BusinessException(ErrorCodes.PoAlreadyCancelled, "Đơn mua hàng đã bị hủy trước đó.");
 
             if (po.Status == PurchaseOrderStatus.PartiallyReceived ||
                 po.Status == PurchaseOrderStatus.FullyReceived ||
                 po.Status == PurchaseOrderStatus.Closed)
-                throw new BusinessException("ERR_PO_CANNOT_CANCEL",
+                throw new BusinessException(ErrorCodes.PoCannotCancel,
                     "Không thể hủy đơn mua hàng đã có hàng nhận hoặc đã đóng.");
 
             // Check no approved goods receipts exist
@@ -50,7 +53,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     cancellationToken);
 
             if (hasReceipts)
-                throw new BusinessException("ERR_PO_HAS_RECEIPTS",
+                throw new BusinessException(ErrorCodes.PoHasReceipts,
                     "Không thể hủy đơn mua hàng đã có phiếu nhập kho được duyệt.");
 
             po.Status = PurchaseOrderStatus.Cancelled;
