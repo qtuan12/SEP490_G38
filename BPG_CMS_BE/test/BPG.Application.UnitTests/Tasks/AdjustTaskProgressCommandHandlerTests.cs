@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Application.Features.Tasks.Commands;
 using BPG.Application.Features.Tasks.Handlers;
 using BPG.Application.IRepositories;
@@ -25,6 +25,7 @@ namespace BPG.Application.UnitTests.Tasks
 
         private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
         private readonly Mock<IGenericRepository<TaskDependency>> _mockDependencyRepo;
+        private readonly Mock<ICurrentUserService> _mockCurrentUserService;
 
         private readonly AdjustTaskProgressCommandHandler _handler;
 
@@ -34,6 +35,7 @@ namespace BPG.Application.UnitTests.Tasks
 
             _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
             _mockDependencyRepo = new Mock<IGenericRepository<TaskDependency>>();
+            _mockCurrentUserService = new Mock<ICurrentUserService>();
 
             _mockUow.Setup(u => u.Repository<ProjectTask>()).Returns(_mockTaskRepo.Object);
             _mockUow.Setup(u => u.Repository<TaskDependency>()).Returns(_mockDependencyRepo.Object);
@@ -42,7 +44,8 @@ namespace BPG.Application.UnitTests.Tasks
                 _mockUow.Object,
                 ServiceStubFactory.ProgressRollupService(),
                 ServiceStubFactory.NotificationService(),
-                ServiceStubFactory.RealtimeSender()
+                ServiceStubFactory.RealtimeSender(),
+                _mockCurrentUserService.Object
             );
         }
 

@@ -2153,6 +2153,15 @@ namespace BPG.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("TaskProgressLogId"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<byte>("NewProgress")
                         .HasColumnType("tinyint");
 
@@ -2165,10 +2174,15 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<string>("UpdateReason")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint");
+
                     b.HasKey("TaskProgressLogId");
+
+                    b.HasIndex("CreatedBy");
 
                     b.HasIndex("TaskId");
 
@@ -3113,11 +3127,18 @@ namespace BPG.Infrastructure.Migrations
 
             modelBuilder.Entity("BPG.Domain.Entities.TaskProgressLog", b =>
                 {
+                    b.HasOne("BPG.Domain.Entities.User", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BPG.Domain.Entities.ProjectTask", "Task")
                         .WithMany("ProgressLogs")
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Creator");
 
                     b.Navigation("Task");
                 });

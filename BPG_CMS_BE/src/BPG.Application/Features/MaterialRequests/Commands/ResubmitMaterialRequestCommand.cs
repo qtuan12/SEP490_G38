@@ -57,10 +57,9 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
             }
 
-            // Chỉ người tạo mới được gửi lại
             if (mr.CreatedBy != currentUserId)
             {
-                throw new ForbiddenException("Bạn không có quyền gửi lại yêu cầu vật tư này. Chỉ người tạo phiếu mới được thực hiện.");
+                throw new ForbiddenException("Bạn không có quyền gửi lại yêu cầu vật tư này.");
             }
 
             // Chỉ cho phép gửi lại khi đang ở trạng thái Rejected
@@ -180,6 +179,27 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             }
             await _uow.Repository<MaterialRequestItem>().AddRangeAsync(newItems, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
+
+            // Gửi thông báo đến vai trò Kế toán
+            try
+            {
+                var user = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+                var userName = user?.FullName ?? "Trưởng dự án";
+                var project = await _uow.Repository<Project>().GetByIdAsync(mr.Phase.ProjectId, cancellationToken);
+
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.Accountant,
+                    "Yêu cầu vật tư được gửi lại",
+                    $"{userName} vừa gửi lại yêu cầu vật tư cho giai đoạn '{mr.Phase.Name}' thuộc dự án '{project?.Name}'.",
+                    NotificationType.Procurement,
+                    $"/projects/{mr.Phase.ProjectId}/workspace/materialrequests",
+                    mr.RequestId,
+                    cancellationToken);
+            }
+            catch (Exception)
+            {
+                // Bỏ qua lỗi gửi thông báo để không block luồng xử lý chính
+            }
 
             return ApiResponse<bool>.SuccessResult(true, "Đã gửi lại yêu cầu vật tư thành công. Phiếu đang chờ Kế toán xem xét.");
         }

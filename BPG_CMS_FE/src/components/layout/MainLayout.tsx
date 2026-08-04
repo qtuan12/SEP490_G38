@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCompany } from '../../context/CompanyContext';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { triggerGlobalLoading, triggerGlobalHideLoading } from '../../context/LoadingContext';
 import {
   LayoutDashboard,
   Users,
@@ -52,13 +53,33 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   // Nhân viên kỹ thuật: chặn tại chỗ những màn hình chưa tối ưu cho di động (mở từ link thông báo).
   const { shouldBlock, isUnsupportedScreen } = usePWA();
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      triggerGlobalHideLoading();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
   if (shouldBlock && !PWA_ALLOWED_WHEN_BLOCKED.includes(location.pathname)) {
     return <Navigate to="/profile" replace />;
   }
 
+  const handleNavClick = (path: string, disabled?: boolean) => {
+    if (disabled) return;
+    if (location.pathname !== path) {
+      triggerGlobalLoading('Đang tải trang...');
+    }
+    navigate(path);
+    setIsSidebarOpen(false);
+  };
+
   const handleLogout = () => {
+    triggerGlobalLoading('Đang đăng xuất...');
     logout();
     navigate('/login');
+    setTimeout(() => {
+      triggerGlobalHideLoading();
+    }, 300);
   };
 
   const navItems: Array<{
@@ -106,7 +127,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className={`flex items-center gap-3 border-b border-[hsl(var(--border))] ${isCollapsed ? 'py-5 justify-center' : 'px-6 py-5 justify-between'}`}>
-          <div className="flex items-center gap-3 justify-center">
+          <div
+            className="flex items-center gap-3 justify-center cursor-pointer"
+            onClick={() => handleNavClick('/dashboard')}
+          >
             {!isCollapsed && (
               <img
                 src={companyLogoUrl}
@@ -137,7 +161,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             return (
               <button
                 key={item.name}
-                onClick={() => { if (!item.disabled) { navigate(item.path); setIsSidebarOpen(false); } }}
+                onClick={() => handleNavClick(item.path, item.disabled)}
                 className={`flex items-center gap-3 w-full p-3 rounded-md transition-all text-sm font-medium border-none outline-none
                   ${isCollapsed ? 'justify-center' : 'justify-start'}
                   ${isActive
@@ -160,7 +184,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="p-4 border-t border-[hsl(var(--border))] flex flex-col gap-3">
             <div
               className={`flex items-center gap-3 cursor-pointer p-1 -m-1 rounded-sm transition-colors hover:bg-[hsl(var(--bg-main))] ${isCollapsed ? 'justify-center' : ''}`}
-              onClick={() => navigate('/profile')}
+              onClick={() => handleNavClick('/profile')}
               title="Xem trang cá nhân"
             >
               <Avatar name={user.name} src={user.avatarUrl} size="md" />

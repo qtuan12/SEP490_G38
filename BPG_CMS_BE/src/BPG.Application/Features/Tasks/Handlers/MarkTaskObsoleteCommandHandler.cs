@@ -46,6 +46,11 @@ public class MarkTaskObsoleteCommandHandler : IRequestHandler<MarkTaskObsoleteCo
                 && m.UserId == currentUserId
                 && m.IsLeader, ct);
 
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer) && !isProjectLeader)
+        {
+            throw new ForbiddenException("Chỉ Trưởng dự án mới được đánh dấu công việc lỗi thời.");
+        }
+
         if (task.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
             return ApiResponse.SuccessResult("Task đã ở trạng thái Obsolete.");
 

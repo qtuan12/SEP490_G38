@@ -12,6 +12,7 @@ let activeApiRequestsCount = 0;
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
+  showGlobalLoading?: boolean;
 }
 
 /**
@@ -99,9 +100,9 @@ export const apiClient = {
       headers,
     };
 
-    const isSilentEndpoint = endpoint.includes('/notifications/unread-count') || endpoint.includes('/company-info');
+    const shouldShowGlobal = options.showGlobalLoading === true;
 
-    if (!isSilentEndpoint) {
+    if (shouldShowGlobal) {
       activeApiRequestsCount++;
       triggerGlobalLoading('Hệ thống đang xử lý dữ liệu...');
     }
@@ -186,7 +187,7 @@ export const apiClient = {
       
       throw error;
     } finally {
-      if (!isSilentEndpoint) {
+      if (shouldShowGlobal) {
         activeApiRequestsCount = Math.max(0, activeApiRequestsCount - 1);
         if (activeApiRequestsCount === 0) {
           triggerGlobalHideLoading();

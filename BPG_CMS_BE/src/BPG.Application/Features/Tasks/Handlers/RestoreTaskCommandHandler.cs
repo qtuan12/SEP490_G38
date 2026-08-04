@@ -39,6 +39,15 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
 
+        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        {
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                ct);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được khôi phục công việc.");
+        }
+
         if (task.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
             return ApiResponse.SuccessResult("Task không ở trạng thái Obsolete để khôi phục.");
 

@@ -50,42 +50,41 @@ public static class DbSeeder
 
         var seed = new List<(string Email, string HoTen, string Role, string DienThoai)>
         {
-            ("admin@bpg.com",    "Nguyễn Văn Hải",        "Admin",            "0901 234 567"),
-            ("giamdoc@bpg.com",  "Trần Quốc Hùng",         "Director",         "0912 345 678"),
-            ("tpkt@bpg.com",     "Lê Minh Tuấn",           "TechnicalManager", "0923 456 789"),
-            // All "leader" accounts are SiteEngineer; they become project leaders
-            // via IsLeader=true in ProjectMember table.
-            ("leader1@bpg.com",  "Phạm Văn Đức",           "SiteEngineer",     "0934 567 890"),
-            ("leader2@bpg.com",  "Hoàng Thị Lan",          "SiteEngineer",     "0945 111 222"),
-            ("leader3@bpg.com",  "Đinh Văn Cường",         "SiteEngineer",     "0945 333 444"),
-            ("leader4@bpg.com",  "Nguyễn Trọng Tài",       "SiteEngineer",     "0945 555 666"),
-            ("leader5@bpg.com",  "Lê Bá Tòng",             "SiteEngineer",     "0945 777 888"),
-            ("leader6@bpg.com",  "Vũ Trọng Phụng",         "SiteEngineer",     "0945 888 999"),
-            ("leader7@bpg.com",  "Ngô Tất Tố",             "SiteEngineer",     "0945 999 000"),
-            ("leader8@bpg.com",  "Nam Cao",                "SiteEngineer",     "0946 111 222"),
-            ("leader9@bpg.com",  "Thạch Lam",              "SiteEngineer",     "0946 222 333"),
-            ("leader10@bpg.com", "Xuân Diệu",              "SiteEngineer",     "0946 333 444"),
-            ("kysu1@bpg.com",    "Vũ Tiến Dũng",           "SiteEngineer",     "0956 222 333"),
-            ("kysu2@bpg.com",    "Nguyễn Thị Thu Hà",      "SiteEngineer",     "0967 333 444"),
-            ("kysu3@bpg.com",    "Trần Văn Mạnh",          "SiteEngineer",     "0978 444 555"),
-            ("kysu4@bpg.com",    "Lê Hoàng Phong",         "SiteEngineer",     "0989 555 666"),
-            ("kysu5@bpg.com",    "Đỗ Quốc Anh",            "SiteEngineer",     "0989 777 888"),
-            ("kysu6@bpg.com",    "Bùi Hữu Nghĩa",          "SiteEngineer",     "0911 222 333"),
-            ("kysu7@bpg.com",    "Tạ Duy Lâm",             "SiteEngineer",     "0922 333 444"),
-            ("kysu8@bpg.com",    "Hồ Ngọc Hân",            "SiteEngineer",     "0933 444 555"),
-            ("kysu9@bpg.com",    "Phan Đình Phùng",        "SiteEngineer",     "0944 555 666"),
-            ("kysu10@bpg.com",   "Ngô Bảo Châu",           "SiteEngineer",     "0955 666 777"),
-            ("kysu11@bpg.com",   "Tôn Thất Tùng",          "SiteEngineer",     "0955 777 888"),
-            ("kysu12@bpg.com",   "Trần Hưng Đạo",          "SiteEngineer",     "0955 888 999"),
-            ("kysu13@bpg.com",   "Nguyễn Huệ",             "SiteEngineer",     "0955 999 000"),
-            ("kysu14@bpg.com",   "Lê Lợi",                 "SiteEngineer",     "0956 111 222"),
-            ("kysu15@bpg.com",   "Phan Bội Châu",          "SiteEngineer",     "0956 222 333"),
-            ("kysu16@bpg.com",   "Phan Chu Trinh",         "SiteEngineer",     "0956 333 444"),
-            ("kysu17@bpg.com",   "Hoàng Diệu",             "SiteEngineer",     "0956 444 555"),
-            ("kysu18@bpg.com",   "Nguyễn Tri Phương",      "SiteEngineer",     "0956 555 666"),
-            ("kysu19@bpg.com",   "Lý Thường Kiệt",         "SiteEngineer",     "0956 666 777"),
-            ("kysu20@bpg.com",   "Lý Thái Tổ",             "SiteEngineer",     "0956 777 888"),
-            ("ketoan@bpg.com",   "Đỗ Thị Bích Ngọc",       "Accountant",       "0989 555 666"),
+            ("admin@bpg.com",    "Quản trị hệ thống BPG",      "Admin",            "0901 234 567"),
+            ("giamdoc@bpg.com",  "Bùi Khắc Phú",             "Director",         "0339 353 469"),
+            ("tpkt@bpg.com",     "Nguyễn Minh Đức",          "TechnicalManager", "0912 024 688"),
+            // Leader là SiteEngineer, quyền chỉ huy trưởng dự án được xác định bằng ProjectMember.IsLeader = true.
+            ("leader1@bpg.com",  "Trần Văn Hoàng",           "SiteEngineer",     "0936 425 118"),
+            ("leader2@bpg.com",  "Phạm Đức Long",            "SiteEngineer",     "0983 710 246"),
+            ("leader3@bpg.com",  "Đỗ Quốc Huy",              "SiteEngineer",     "0974 832 015"),
+            ("leader4@bpg.com",  "Lê Tuấn Anh",              "SiteEngineer",     "0962 445 790"),
+            ("leader5@bpg.com",  "Vũ Mạnh Cường",            "SiteEngineer",     "0328 684 571"),
+            ("leader6@bpg.com",  "Ngô Thành Trung",          "SiteEngineer",     "0357 904 236"),
+            ("leader7@bpg.com",  "Hoàng Anh Tuấn",           "SiteEngineer",     "0378 412 609"),
+            ("leader8@bpg.com",  "Bùi Đức Thắng",            "SiteEngineer",     "0392 604 185"),
+            ("leader9@bpg.com",  "Mai Xuân Bắc",             "SiteEngineer",     "0703 284 516"),
+            ("leader10@bpg.com", "Đặng Văn Nam",             "SiteEngineer",     "0835 209 641"),
+            ("kysu1@bpg.com",    "Nguyễn Thành Đạt",         "SiteEngineer",     "0941 275 639"),
+            ("kysu2@bpg.com",    "Trần Quang Hưng",          "SiteEngineer",     "0906 842 137"),
+            ("kysu3@bpg.com",    "Phạm Minh Khang",          "SiteEngineer",     "0886 214 593"),
+            ("kysu4@bpg.com",    "Lê Gia Bảo",               "SiteEngineer",     "0868 520 947"),
+            ("kysu5@bpg.com",    "Đỗ Hải Nam",               "SiteEngineer",     "0794 118 306"),
+            ("kysu6@bpg.com",    "Vũ Nhật Minh",             "SiteEngineer",     "0782 905 344"),
+            ("kysu7@bpg.com",    "Hoàng Duy Phúc",           "SiteEngineer",     "0776 431 820"),
+            ("kysu8@bpg.com",    "Ngô Việt Anh",             "SiteEngineer",     "0769 550 218"),
+            ("kysu9@bpg.com",    "Đặng Hữu Lâm",             "SiteEngineer",     "0852 906 734"),
+            ("kysu10@bpg.com",   "Bùi Thanh Tùng",           "SiteEngineer",     "0848 117 462"),
+            ("kysu11@bpg.com",   "Mai Đức Duy",              "SiteEngineer",     "0819 602 775"),
+            ("kysu12@bpg.com",   "Tạ Quang Vinh",            "SiteEngineer",     "0827 430 915"),
+            ("kysu13@bpg.com",   "Chu Văn Kiên",             "SiteEngineer",     "0346 809 217"),
+            ("kysu14@bpg.com",   "Phan Anh Khoa",            "SiteEngineer",     "0365 718 409"),
+            ("kysu15@bpg.com",   "Hồ Đức Việt",              "SiteEngineer",     "0384 560 172"),
+            ("kysu16@bpg.com",   "Trịnh Minh Sơn",           "SiteEngineer",     "0568 920 441"),
+            ("kysu17@bpg.com",   "Cao Xuân Trường",          "SiteEngineer",     "0587 314 206"),
+            ("kysu18@bpg.com",   "Lương Đức Hải",            "SiteEngineer",     "0593 827 640"),
+            ("kysu19@bpg.com",   "Nguyễn Hữu Dũng",          "SiteEngineer",     "0928 104 536"),
+            ("kysu20@bpg.com",   "Trần Đức Thành",           "SiteEngineer",     "0917 642 803"),
+            ("ketoan@bpg.com",   "Nguyễn Thị Thanh Huyền",   "Accountant",       "0986 775 204"),
         };
 
         foreach (var s in seed)
@@ -161,11 +160,13 @@ public static class DbSeeder
         {
             suppliers = new List<Supplier>
             {
-                new() { SupplierName = "Công ty TNHH VLXD Hoàng Gia",       ContactInfo = "028 3456 7890", Address = "123 Nguyễn Văn Cừ, Q.5, TP.HCM",               ServiceArea = "TP.HCM, Bình Dương",  Rating = 4.5m, EvaluationNote = "Giao hàng đúng hẹn, chất lượng ổn định",          CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
-                new() { SupplierName = "Công ty CP Xi Măng Hà Tiên",         ContactInfo = "028 2345 6789", Address = "45 Đinh Tiên Hoàng, Q.1, TP.HCM",               ServiceArea = "Toàn quốc",           Rating = 4.8m, EvaluationNote = "Nhà cung cấp xi măng uy tín hàng đầu Việt Nam",     CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
-                new() { SupplierName = "Công ty Thép Miền Nam Pomina",        ContactInfo = "0274 3728 000", Address = "KCN Sóng Thần, Bình Dương",                      ServiceArea = "Miền Nam",            Rating = 4.6m, EvaluationNote = "Thép cán nóng đạt chuẩn TCVN, giá cạnh tranh",     CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
-                new() { SupplierName = "Cơ sở Cát Đá Xây Dựng Thiên Phú",   ContactInfo = "0251 3870 123", Address = "Quốc lộ 1A, Long Khánh, Đồng Nai",              ServiceArea = "Đồng Nai, TP.HCM",   Rating = 4.2m, EvaluationNote = "Cát sạch, đá đảm bảo độ cứng, giao hàng bằng xe tải lớn", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
-                new() { SupplierName = "Công ty CP Sơn Kova Việt Nam",        ContactInfo = "028 3844 4000", Address = "16/3A Bạch Đằng, P.2, Q. Tân Bình, TP.HCM",    ServiceArea = "Toàn quốc",           Rating = 4.7m, EvaluationNote = "Sản phẩm đa dạng, hỗ trợ kỹ thuật thi công tốt",   CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Công ty CP Xi măng Vicem Hà Tiên",       ContactInfo = "028 3821 6211", Address = "360 Bến Chương Dương, Phường Cầu Ông Lãnh, TP.HCM", ServiceArea = "Toàn quốc", Rating = 4.8m, EvaluationNote = "Xi măng PCB40/PC40, phù hợp cấp cho móng, thân và hoàn thiện", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Tập đoàn Hòa Phát - Thép xây dựng",     ContactInfo = "024 6284 8666", Address = "66 Nguyễn Du, Hai Bà Trưng, Hà Nội", ServiceArea = "Hà Nội, miền Bắc", Rating = 4.9m, EvaluationNote = "Thép CB300-V/CB400-V, chứng chỉ chất lượng theo lô", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Công ty CP Thép Pomina",               ContactInfo = "0274 3710 558", Address = "KCN Sóng Thần 2, Dĩ An, Bình Dương", ServiceArea = "Miền Nam", Rating = 4.6m, EvaluationNote = "Bổ sung thép gấp cho công trường phía Nam", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Công ty CP Nhựa Bình Minh",            ContactInfo = "028 3969 0973", Address = "240 Hậu Giang, Phường 9, Quận 6, TP.HCM", ServiceArea = "Toàn quốc", Rating = 4.7m, EvaluationNote = "Ống PVC/PPR, phụ kiện cấp thoát nước", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Công ty TNHH Akzo Nobel Việt Nam - Dulux", ContactInfo = "028 3836 1616", Address = "Tầng 12, Sonatus Building, 15 Lê Thánh Tôn, Quận 1, TP.HCM", ServiceArea = "Toàn quốc", Rating = 4.7m, EvaluationNote = "Sơn hoàn thiện nội ngoại thất, có hỗ trợ tư vấn kỹ thuật", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Đại lý VLXD Hà Đông",                  ContactInfo = "024 3352 1188", Address = "Đường Tố Hữu, Phường Mộ Lao, Hà Đông, Hà Nội", ServiceArea = "Hà Đông, Thanh Xuân, Nam Từ Liêm", Rating = 4.3m, EvaluationNote = "Cát, đá, gạch tuynel giao theo chuyến xe ben", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Đại lý thiết bị điện nước Minh Long",  ContactInfo = "024 3200 6899", Address = "Nguyễn Trãi, Thanh Xuân, Hà Nội", ServiceArea = "Hà Nội", Rating = 4.4m, EvaluationNote = "Cadivi, ống nước, thiết bị điện dân dụng", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
             };
             suppliers.ForEach(x => x.CreatedBy = adminId);
             context.Suppliers.AddRange(suppliers);
@@ -196,8 +197,10 @@ public static class DbSeeder
                 new SystemConfig { ConfigKey = "NguongTonKhoThap", ConfigValue = "10", DataType = "number", DisplayName = "Ngưỡng tồn kho thấp", Description = "Số lượng tồn kho tối thiểu.", Unit = "đơn vị", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "HanHuyPhieuNgay", ConfigValue = "7", DataType = "number", DisplayName = "Hạn hủy phiếu nhập kho", Description = "Số ngày tối đa kể từ khi tạo phiếu nhập kho mà người dùng có thể hủy phiếu.", Unit = "ngày", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "DailyLogEditWindowHours", ConfigValue = "24", DataType = "number", DisplayName = "Giờ được sửa nhật ký thi công", Description = "Số giờ kể từ lúc tạo mà kỹ sư còn được phép chỉnh sửa nhật ký thi công.", Unit = "giờ", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "BPG CMS", DataType = "string", DisplayName = "Tên công ty", Description = "Tên công ty hiển thị trên sidebar và trang đăng nhập.", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyLogoUrl", ConfigValue = "/logo.png", DataType = "string", DisplayName = "Logo công ty", Description = "URL logo hiển thị trên sidebar và trang đăng nhập.", CreatedAt = DateTime.UtcNow }
+                new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "CÔNG TY TNHH ĐẦU TƯ VÀ XÂY DỰNG BÙI PHÚ GIA", DataType = "string", DisplayName = "Tên công ty", Description = "Tên pháp lý lấy từ nguồn mã số thuế công khai.", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "CompanyLogoUrl", ConfigValue = "https://graph.facebook.com/phungatuvaco/picture?type=large", DataType = "string", DisplayName = "Logo công ty", Description = "Ảnh đại diện Fanpage công khai dùng cho demo; có thể thay bằng logo nội bộ.", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "CompanyTaxCode", ConfigValue = "0108326945", DataType = "string", DisplayName = "Mã số thuế", Description = "Mã số thuế doanh nghiệp.", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "CompanyAddress", ConfigValue = "Tầng 4, LK 4B-(7) khu tái định cư đô thị Mỗ Lao, Phường Mộ Lao, Quận Hà Đông, Thành phố Hà Nội, Việt Nam", DataType = "string", DisplayName = "Địa chỉ trụ sở", Description = "Địa chỉ theo nguồn mã số thuế công khai.", CreatedAt = DateTime.UtcNow }
             );
             await context.SaveChangesAsync();
         }
@@ -223,15 +226,18 @@ public static class DbSeeder
 
         catalogs = new List<MaterialCatalog>
         {
-            new() { Code="VT-001", Name="Xi măng Hà Tiên PCB40",               Specification="Bao 50kg, TCVN 6260:2009, mác 400",                    CategoryId=Cat("Xi măng").CategoryId,                   BaseUnitId=Bao("BAO").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-010", Name="Thép cuộn tròn trơn CB240-T D6",      Specification="Pomina, cuộn ~50kg, TCVN 1651-1:2018",                 CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-012", Name="Thép thanh vằn CB300-V D10",          Specification="Pomina, cây 11.7m, TCVN 1651-2:2018",                  CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-020", Name="Cát vàng xây dựng (cát sông Đồng Nai)", Specification="Sạch, mô đun độ lớn 2.5-3.0, không lẫn bùn sét",    CategoryId=Cat("Cát đá vật liệu rời").CategoryId,       BaseUnitId=Bao("M3").UnitId,  CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-022", Name="Đá dăm 1x2 (đá 4x6)",                Specification="Đá nghiền Đồng Nai, kích thước 10-20mm",                CategoryId=Cat("Cát đá vật liệu rời").CategoryId,       BaseUnitId=Bao("M3").UnitId,  CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-030", Name="Gạch ống 4 lỗ 8x8x19cm",             Specification="Mác 75, TCVN 1450:2009, xây tường 100",                CategoryId=Cat("Gạch xây dựng").CategoryId,             BaseUnitId=Bao("CAI").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-041", Name="Sơn nước nội thất Kova A910",         Specification="Thùng 18 lít, bóng mờ, kháng mốc, kháng khuẩn",       CategoryId=Cat("Sơn & vật liệu hoàn thiện").CategoryId, BaseUnitId=Bao("THUNG").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-050", Name="Dây cáp điện đôi Trần Phú 2x1.5mm²", Specification="Cuộn 100m, vỏ PVC chịu nhiệt 70°C, chịu tải 13A",    CategoryId=Cat("Thiết bị điện").CategoryId,             BaseUnitId=Bao("CUON").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="VT-060", Name="Ống nhựa PVC Tiền Phong Phi 90",     Specification="Cây 4m, áp lực PN10, tiêu chuẩn TCVN 6151",            CategoryId=Cat("Vật liệu cấp thoát nước").CategoryId,   BaseUnitId=Bao("MET").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="XM-HT-PC40", Name="Xi măng Hà Tiên PC40", Specification="Bao 50kg, dùng cho bê tông móng/dầm/sàn; kiểm tra CO/CQ theo lô", CategoryId=Cat("Xi măng").CategoryId, BaseUnitId=Bao("BAO").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="THEP-HP-D10", Name="Thép thanh vằn Hòa Phát D10 CB300-V", Specification="Cây 11,7m; đường kính danh nghĩa 10mm; nghiệm thu theo bó/cây", CategoryId=Cat("Sắt thép xây dựng").CategoryId, BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="THEP-HP-D12", Name="Thép thanh vằn Hòa Phát D12 CB300-V", Specification="Cây 11,7m; dùng thép dầm/sàn/móng; cân ký thực tế khi nhập", CategoryId=Cat("Sắt thép xây dựng").CategoryId, BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="THEP-HP-D16", Name="Thép thanh vằn Hòa Phát D16 CB400-V", Specification="Cây 11,7m; dùng thép chủ cột/dầm; kiểm đường kính và tem bó", CategoryId=Cat("Sắt thép xây dựng").CategoryId, BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="THEP-HP-D20", Name="Thép thanh vằn Hòa Phát D20 CB400-V", Specification="Cây 11,7m; thép chủ móng/dầm chính; quy đổi tấn khi mua", CategoryId=Cat("Sắt thép xây dựng").CategoryId, BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="CAT-VANG-TN", Name="Cát vàng Tây Ninh làm bê tông", Specification="Cát sạch, hạt trung đến thô, dùng trộn bê tông móng/dầm/sàn", CategoryId=Cat("Cát đá vật liệu rời").CategoryId, BaseUnitId=Bao("M3").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="CAT-MIN-TRAT", Name="Cát mịn trát tường", Specification="Cát sàng, ít tạp chất hữu cơ, dùng vữa xây tô", CategoryId=Cat("Cát đá vật liệu rời").CategoryId, BaseUnitId=Bao("M3").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="DA-12-DN", Name="Đá 1x2 Đồng Nai", Specification="Đá nghiền kích thước 10-20mm, dùng bê tông thương phẩm/trộn tại công trường", CategoryId=Cat("Cát đá vật liệu rời").CategoryId, BaseUnitId=Bao("M3").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="GACH-TUYNEL-8x8x18", Name="Gạch ống 8x8x18 Tuynel", Specification="Gạch đất sét nung 4 lỗ, xây tường 100/200; nghiệm thu theo thiên", CategoryId=Cat("Gạch xây dựng").CategoryId, BaseUnitId=Bao("CAI").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="SON-DULUX-W18", Name="Sơn nước Dulux Weathershield", Specification="Thùng 18L, sơn ngoại thất, thi công 2 lớp sau bả và sơn lót", CategoryId=Cat("Sơn & vật liệu hoàn thiện").CategoryId, BaseUnitId=Bao("THUNG").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="CADIVI-2.5", Name="Dây cáp điện Cadivi 2.5mm", Specification="Cuộn 100m, lõi đồng, dùng ổ cắm/chiếu sáng dân dụng", CategoryId=Cat("Thiết bị điện").CategoryId, BaseUnitId=Bao("CUON").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="PVC-BM-D90", Name="Ống nước nhựa PVC Bình Minh D90", Specification="Ống PVC D90, dùng thoát nước trục đứng/sân thượng, tính theo mét dài", CategoryId=Cat("Vật liệu cấp thoát nước").CategoryId, BaseUnitId=Bao("MET").UnitId, CreatedAt=DateTime.UtcNow },
         };
         catalogs.ForEach(x => x.CreatedBy = adminId);
         context.MaterialCatalogs.AddRange(catalogs);
@@ -239,13 +245,10 @@ public static class DbSeeder
 
         if (!await context.MaterialConversions.AnyAsync())
         {
-            var thepCuon = catalogs.First(c => c.Code == "VT-010");
-            var thepVan  = catalogs.First(c => c.Code == "VT-012");
             var unitTan  = units.First(u => u.UnitCode == "TAN").UnitId;
-
             context.MaterialConversions.AddRange(
-                new MaterialConversion { MaterialId = thepCuon.MaterialId, AlternativeUnitId = unitTan, ConversionRate = 0.001m, CreatedAt = DateTime.UtcNow, CreatedBy = adminId },
-                new MaterialConversion { MaterialId = thepVan.MaterialId,  AlternativeUnitId = unitTan, ConversionRate = 0.001m, CreatedAt = DateTime.UtcNow, CreatedBy = adminId }
+                catalogs.Where(c => c.Code.StartsWith("THEP-HP-")).Select(c =>
+                    new MaterialConversion { MaterialId = c.MaterialId, AlternativeUnitId = unitTan, ConversionRate = 0.001m, CreatedAt = DateTime.UtcNow, CreatedBy = adminId })
             );
             await context.SaveChangesAsync();
         }
@@ -277,16 +280,11 @@ public static class DbSeeder
         // ProjectStatus: Draft | InProgress | Paused | Completed | Closed
         var dsDuAn = new[]
         {
-            new { Ten="Bệnh viện Phương Đông",         TrangThai="Completed",  BatDau=today.AddDays(-300), KetThuc=today.AddDays(-10) },
-            new { Ten="Khu nhà ở thương mại Hưng Phú", TrangThai="Completed",  BatDau=today.AddDays(-180), KetThuc=today.AddDays(-5)  },
-            new { Ten="Nhà máy May mặc Thiên Long",    TrangThai="Completed",  BatDau=today.AddDays(-200), KetThuc=today.AddDays(-2)  },
-            new { Ten="Chung cư cao tầng SkyView",     TrangThai="InProgress", BatDau=today.AddDays(-115), KetThuc=today.AddDays(180) },
-            new { Ten="Trường quốc tế Á Châu",         TrangThai="InProgress", BatDau=today.AddDays(-110), KetThuc=today.AddDays(150) },
-            new { Ten="TTTM Vincom Dĩ An",             TrangThai="InProgress", BatDau=today.AddDays(-105), KetThuc=today.AddDays(240) },
-            new { Ten="KDC Sài Gòn Mới",               TrangThai="InProgress", BatDau=today.AddDays(-100), KetThuc=today.AddDays(200) },
-            new { Ten="Trường tiểu học Lê Văn Tám",    TrangThai="Draft",      BatDau=today.AddDays(10),   KetThuc=today.AddDays(240) },
-            new { Ten="Khách sạn Mường Thanh CT",      TrangThai="Draft",      BatDau=today.AddDays(30),   KetThuc=today.AddDays(300) },
-            new { Ten="Cầu Vượt Ngã Tư Thủ Đức",       TrangThai="Draft",      BatDau=today.AddDays(45),   KetThuc=today.AddDays(400) },
+            new { Ten="Nhà ở liền kề LK4B Mỗ Lao - Hà Đông", DiaChi="LK 4B-(7), Khu tái định cư đô thị Mỗ Lao, Phường Mộ Lao, Quận Hà Đông, Hà Nội", TrangThai="Completed",  BatDau=new DateOnly(2025, 3, 10), KetThuc=new DateOnly(2025, 10, 25) },
+            new { Ten="Cải tạo hoàn thiện văn phòng Bùi Phú Gia", DiaChi="Tầng 4, LK 4B-(7), Khu tái định cư đô thị Mỗ Lao, Hà Đông, Hà Nội", TrangThai="Completed",  BatDau=new DateOnly(2025, 8, 5), KetThuc=new DateOnly(2025, 12, 15) },
+            new { Ten="Nhà phố thương mại KĐT Văn Phú", DiaChi="Khu đô thị Văn Phú, Phường Phú La, Quận Hà Đông, Hà Nội", TrangThai="InProgress", BatDau=new DateOnly(2026, 2, 18), KetThuc=new DateOnly(2026, 11, 30) },
+            new { Ten="Biệt thự vườn An Khánh - Hoài Đức", DiaChi="Khu đô thị An Khánh, Hoài Đức, Hà Nội", TrangThai="InProgress", BatDau=new DateOnly(2026, 3, 12), KetThuc=new DateOnly(2026, 12, 20) },
+            new { Ten="Xưởng sản xuất phụ trợ Quang Minh", DiaChi="Khu công nghiệp Quang Minh, Mê Linh, Hà Nội", TrangThai="Draft", BatDau=new DateOnly(2026, 9, 15), KetThuc=new DateOnly(2027, 5, 30) },
         };
 
         var seededProjects = new List<(Project Project, User Leader, string Status)>();
@@ -301,7 +299,7 @@ public static class DbSeeder
             var project = new Project
             {
                 Name         = dp.Ten,
-                Address      = "Việt Nam",
+                Address      = dp.DiaChi,
                 PlannedStart = dp.BatDau,
                 PlannedEnd   = dp.KetThuc,
                 Status       = dp.TrangThai,   // ProjectStatus constant
@@ -333,12 +331,13 @@ public static class DbSeeder
             );
             await context.SaveChangesAsync();
 
-            // ── Phase completion: Completed → all approved, InProgress → phase1 approved + phase2 in progress
+            // ── Phase completion: Completed → all approved, InProgress → phase1 approved + phase2 đang thi công
             var phases = new[]
             {
-                new { Ten="Móng",       ThuTu=1, Pct = dp.TrangThai is "Completed" or "InProgress" ? 100 : 0 },
-                new { Ten="Khung",      ThuTu=2, Pct = dp.TrangThai == "Completed" ? 100 : (dp.TrangThai == "InProgress" ? 50 : 0) },
-                new { Ten="Hoàn thiện", ThuTu=3, Pct = dp.TrangThai == "Completed" ? 100 : 0 },
+                new { Ten="Giai đoạn 1: Chuẩn bị & Thi công Cọc/Móng", ThuTu=1, Pct = dp.TrangThai is "Completed" or "InProgress" ? 100 : 0 },
+                new { Ten="Giai đoạn 2: Thi công Khung Thân bê tông cốt thép", ThuTu=2, Pct = dp.TrangThai == "Completed" ? 100 : (dp.TrangThai == "InProgress" ? 55 : 0) },
+                new { Ten="Giai đoạn 3: Thi công Xây tô & Hoàn thiện", ThuTu=3, Pct = dp.TrangThai == "Completed" ? 100 : 0 },
+                new { Ten="Giai đoạn 4: Lắp đặt Thiết bị & Bàn giao", ThuTu=4, Pct = dp.TrangThai == "Completed" ? 100 : 0 },
             };
 
             foreach (var pd in phases)
@@ -358,8 +357,8 @@ public static class DbSeeder
                     Description = $"Giai đoạn {pd.Ten.ToLowerInvariant()} của dự án {project.Name}.",
                     OrderIndex = pd.ThuTu,
                     Status     = phaseStatus,
-                    StartDate  = dp.BatDau.AddDays((pd.ThuTu - 1) * 60),
-                    EndDate    = dp.BatDau.AddDays(pd.ThuTu * 60),
+                    StartDate  = dp.BatDau.AddDays((pd.ThuTu - 1) * 45),
+                    EndDate    = pd.ThuTu == 4 ? dp.KetThuc : dp.BatDau.AddDays(pd.ThuTu * 45),
                     CreatedAt  = DateTime.UtcNow,
                     CreatedBy  = tpkt.UserId
                 };
@@ -400,14 +399,14 @@ public static class DbSeeder
                         PdfUrl         = $"/seed/acceptances/phase-{phase.PhaseId}.pdf",
                         ReportContent  = $@"### 2. Thành phần trực tiếp nghiệm thu:
 * **Đại diện Ban quản lý Dự án (hoặc nhà thầu Tư vấn giám sát):**
-  - Ông/Bà: Lê Minh Tuấn  Chức vụ: Trưởng phòng Kỹ thuật
+  - Ông/Bà: Nguyễn Minh Đức  Chức vụ: Trưởng phòng Kỹ thuật
 * **Đại diện Nhà thầu thi công:**
-  - Ông/Bà: Nguyễn Văn A  Chức vụ: Trưởng dự án
+  - Ông/Bà: {leader.FullName}  Chức vụ: Chỉ huy trưởng công trình
 
 ### 3. Thời gian nghiệm thu:
 * Bắt đầu: {acceptanceDate:dd/MM/yyyy}
 * Kết thúc: {acceptanceDate:dd/MM/yyyy}
-* Tại công trình: Việt Nam
+* Tại công trình: {project.Address}
 
 ### 4. Đánh giá công việc xây dựng đã thực hiện:
 - **Tài liệu căn cứ nghiệm thu:**
@@ -445,7 +444,13 @@ public static class DbSeeder
 
                 // ── TASKS ────────────────────────────────────────────────────
                 // TaskStatus: New | Assigned | InProgress | Completed | Approved | Obsolete
-                var taskNames = new[] { "Nhiệm vụ 1", "Nhiệm vụ 2", "Nhiệm vụ 3" };
+                string[] taskNames = pd.ThuTu switch
+                {
+                    1 => new[] { "Định vị tim cọc, ranh móng và cote ±0.000", "Ép cọc BTCT 250x250 theo hồ sơ thiết kế", "Đào đất hố móng và vận chuyển đất thừa", "Đổ bê tông lót móng đá 4x6 mác 100", "Gia công lắp dựng thép móng, cổ cột", "Lắp cốp pha móng, giằng móng", "Đổ bê tông móng, giằng móng", "Tháo cốp pha và bảo dưỡng bê tông móng" },
+                    2 => new[] { "Gia công lắp dựng thép cột tầng 1", "Lắp dựng cốp pha cột, dầm, sàn tầng 1", "Đặt thép dầm sàn tầng 1", "Đổ bê tông cột, dầm, sàn tầng 1", "Bảo dưỡng bê tông tầng 1", "Lắp dựng cốp pha, thép dầm sàn tầng 2", "Đổ bê tông dầm sàn tầng 2", "Thi công cầu thang và mái bê tông cốt thép" },
+                    3 => new[] { "Xây tường gạch ống 8x8x18 tầng trệt và tầng lầu", "Tô trát tường trong nhà", "Tô trát tường ngoài nhà", "Đi đường ống điện âm tường", "Đi đường ống cấp thoát nước âm tường", "Chống thấm WC, ban công, sân thượng", "Ốp lát gạch sàn và gạch tường khu vệ sinh", "Sơn bả hoàn thiện, sơn nước 2 lớp" },
+                    _ => new[] { "Lắp thiết bị điện, tủ điện, công tắc ổ cắm", "Lắp đèn chiếu sáng và đèn trang trí", "Lắp thiết bị vệ sinh", "Lắp cửa gỗ, cửa nhôm kính, lan can", "Kiểm tra vận hành hệ điện nước", "Vệ sinh công nghiệp toàn bộ công trình", "Nghiệm thu hoàn công nội bộ", "Bàn giao công trình cho chủ đầu tư" }
+                };
                 var createdTasks = new List<ProjectTask>();
 
                 int taskIdx = 0;
@@ -494,8 +499,8 @@ public static class DbSeeder
                     var task = new ProjectTask
                     {
                         PhaseId         = phase.PhaseId,
-                        Name            = $"{pd.Ten} - {tName}",
-                        Description     = $"Thi công hạng mục {tName.ToLowerInvariant()} thuộc giai đoạn {pd.Ten}.",
+                        Name            = tName,
+                        Description     = $"{project.Name}: {tName}. Tuân thủ bản vẽ thi công, biện pháp an toàn và nghiệm thu nội bộ trước khi chuyển bước.",
                         OrderIndex      = taskIdx + 1,
                         StartDate       = tStartDate,
                         EndDate         = tEndDate,
@@ -602,11 +607,11 @@ public static class DbSeeder
 
         var descriptions = new[]
         {
-            "Thi công theo đúng kế hoạch, thời tiết thuận lợi, không phát sinh vấn đề.",
-            "Hoàn thành đổ bê tông đúng tiến độ, có kiểm tra bằng súng bê tông.",
-            "Gặp mưa nhẹ buổi chiều nhưng không ảnh hưởng đến chất lượng thi công.",
-            "Nhân công đủ, vật tư đã về đầy đủ, tiến hành thi công liên tục 2 ca.",
-            "Hoàn tất giai đoạn này, chờ TPKT xuống nghiệm thu thực địa.",
+            "Thời tiết nắng nhẹ 31°C; 18 công nhân, 01 chỉ huy trưởng, 01 kỹ sư hiện trường. Kiểm tra tim trục, cao độ và biện pháp an toàn trước khi thi công.",
+            "Thời tiết nắng; 22 công nhân. Hoàn thành phần việc theo kế hoạch ngày, vật tư cấp đủ, có chụp ảnh hiện trạng và biên bản nghiệm thu nội bộ.",
+            "Buổi chiều mưa nhẹ; 16 công nhân. Che phủ vật tư, bơm thoát nước cục bộ, tiếp tục thi công các vị trí trong nhà/khu vực an toàn.",
+            "Thời tiết khô ráo; 25 công nhân chia 2 tổ. Kiểm tra kích thước, khoảng cách thép/cốp pha/đường ống trước khi nghiệm thu chuyển bước.",
+            "Thời tiết nắng; 20 công nhân. Hoàn tất hạng mục trong ngày, vệ sinh mặt bằng, thu gom vật tư thừa và cập nhật khối lượng hoàn thành.",
         };
 
         var creatorOptions = new[] { ksA, leader }; // kỹ sư hoặc leader đều có thể ghi
@@ -689,7 +694,7 @@ public static class DbSeeder
                     EntityId = lastLog.LogId,
                     AttachmentType = AttachmentType.DailyLogPhoto,
                     FileName = $"nhat-ky-{lastLog.LogId}.jpg",
-                    FileUrl = $"/seed/daily-logs/{lastLog.LogId}/site.jpg",
+                    FileUrl = $"https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1400&q=80&bpg_log={lastLog.LogId}",
                     ContentType = "image/jpeg",
                     FileSizeBytes = 409_600,
                     CreatedAt = lastLog.CreatedAt,

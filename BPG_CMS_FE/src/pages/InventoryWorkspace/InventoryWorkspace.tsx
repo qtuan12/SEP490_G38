@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button, LoadingSpinner } from '../../components/ui';
 import toast from 'react-hot-toast';
@@ -393,7 +393,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           isOpen={selectedReceiptId !== null}
           onClose={() => setSelectedReceiptId(null)}
           receiptId={selectedReceiptId}
-          canManageInventory={canManageProjectInventory}
+          canManageInventory={canManageInventory || isProjectLeader}
           onSuccess={handleRefreshAll}
         />
       )}

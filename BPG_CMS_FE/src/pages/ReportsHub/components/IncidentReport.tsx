@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, AlertOctagon, CheckCircle, AlertTriangle, Wrench, Construction, Search } from 'lucide-react';
+import { Loader2, AlertOctagon, CheckCircle, AlertTriangle, Wrench, Construction, Search, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
 import { reportService, type IncidentReportDto } from '../../../services/reportService';
-import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 interface Props {
   projectId: string | null;
@@ -41,6 +41,8 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'open' | 'resolved'>('all');
   const [search, setSearch] = useState('');
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
 
   useEffect(() => {
     if (!projectId || projectId === 'all') { setData(null); return; }
@@ -160,64 +162,118 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
         </div>
       </div>
 
-      {/* Chart + Search Toolbar */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {typeDist.length > 0 && (
-          <div className="md:col-span-5 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3">Phân loại Sự cố</h4>
-            <div className="h-[200px]">
+          <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+              <PieChartIcon size={16} className="text-indigo-500" /> Phân loại Sự cố
+            </h4>
+            <div className="h-[210px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={typeDist} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value">
+                  <Pie data={typeDist} cx="50%" cy="50%" innerRadius={48} outerRadius={75} paddingAngle={4} dataKey="value">
                     {typeDist.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                     ))}
                   </Pie>
                   <RechartsTooltip formatter={(value) => [`${value} sự cố`, 'Số lượng']} />
-                  <Legend verticalAlign="bottom" height={36} />
+                  <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           </div>
         )}
 
-        <div className={`${typeDist.length > 0 ? 'md:col-span-7' : 'md:col-span-12'} bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-sm`}>
-          <div>
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-2">Bộ lọc sự cố</h4>
-            <div className="flex gap-2 flex-wrap mb-3">
+        {(data.monthlyTrends || []).length > 0 && (() => {
+          const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year))).sort((a, b) => b - a);
+          const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === selectedYear);
+
+          return (
+            <div className={`${typeDist.length > 0 ? 'lg:col-span-7' : 'lg:col-span-12'} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-sm`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
+                    <TrendingUp size={16} className="text-indigo-500" /> Biểu đồ Xu hướng Sự cố 12 Tháng
+                  </h4>
+                  <p className="text-xs text-slate-500 m-0 mt-0.5">Số lượng sự cố phát sinh & đã giải quyết theo năm</p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+                  >
+                    {availableYears.map(y => (
+                      <option key={y} value={y}>Năm {y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="h-52 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={filteredTrends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
+                    <XAxis dataKey="monthLabel" tick={{ fontSize: 10, fontWeight: 600 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <RechartsTooltip formatter={(value: any, name: any) => [`${value} sự cố`, String(name || '')]} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Bar dataKey="totalIncidentsCount" name="Sự cố phát sinh" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={24} />
+                    <Bar dataKey="resolvedIncidentsCount" name="Đã giải quyết" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={24} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Incident Data Table with Integrated Filter Toolbar */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+        {/* Integrated Filter Header */}
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white m-0">
+              Bảng Danh sách Sự cố Thi công
+            </h4>
+            <span className="px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-extrabold">
+              {filteredIncidents.length} / {data.totalIncidents} sự cố
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Filter Buttons */}
+            <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-1 rounded-xl">
               {(['all', 'open', 'resolved'] as const).map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${filter === f
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${filter === f
                     ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100'}`}
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'}`}
                 >
                   {f === 'all' ? 'Tất cả' : f === 'open' ? 'Đang mở' : 'Đã xử lý'}
                 </button>
               ))}
             </div>
-          </div>
 
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm mô tả sự cố, người báo cáo..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-white"
-            />
-          </div>
-
-          <div className="text-xs text-slate-500">
-            Hiển thị <strong>{filteredIncidents.length}</strong> / {data.totalIncidents} sự cố
+            {/* Search Box */}
+            <div className="relative min-w-[240px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm mô tả, người báo..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 focus:outline-none focus:border-indigo-500 text-slate-900 dark:text-white"
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Incident Data Table */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+        {/* Table Content */}
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700">
@@ -226,7 +282,6 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
                 <th className="px-4 py-3">Loại</th>
                 <th className="px-4 py-3">Mô tả & Người báo cáo</th>
                 <th className="px-4 py-3">Phase / Task</th>
-                <th className="px-4 py-3">Thiệt hại ước tính</th>
                 <th className="px-4 py-3">Rework Task</th>
                 <th className="px-4 py-3">Ngày báo cáo</th>
                 <th className="px-4 py-3 text-center">Trạng thái Workflow</th>
@@ -248,15 +303,6 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                     {i.phaseName && <div className="font-bold text-slate-800 dark:text-slate-200">{i.phaseName}</div>}
                     {i.taskName && <div className="text-[10px] text-slate-400">{i.taskName}</div>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {i.estimatedMaterialLoss != null && (
-                      <div className="font-bold text-slate-900 dark:text-white">{i.estimatedMaterialLoss.toLocaleString('vi-VN')} VNĐ</div>
-                    )}
-                    {i.estimatedDelayDays != null && (
-                      <div className="text-amber-600 font-semibold">{i.estimatedDelayDays} ngày trễ</div>
-                    )}
-                    {i.estimatedMaterialLoss == null && i.estimatedDelayDays == null && '—'}
                   </td>
                   <td className="px-4 py-3">
                     {i.hasReworkTask ? (

@@ -5,6 +5,7 @@ using BPG.Application.Features.Reports.Queries.GetIncidentReport;
 using BPG.Application.Features.Reports.Queries.GetInventoryLedgerReport;
 using BPG.Application.Features.Reports.Queries.GetInventoryMovementReport;
 using BPG.Application.Features.Reports.Queries.GetProcurementReport;
+using BPG.Application.Features.Reports.Queries.GetConsolidatedExecutiveReport;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,6 +18,13 @@ public class ReportsController : BaseApiController
     public async Task<IActionResult> GetExecutiveDashboard(long projectId, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, CancellationToken ct)
     {
         var result = await Mediator.Send(new GetExecutiveDashboardQuery(projectId, fromDate, toDate), ct);
+        return ApiOk(result.Data);
+    }
+
+    [HttpGet("project/{projectId}/consolidated-executive")]
+    public async Task<IActionResult> GetConsolidatedExecutiveReport(long projectId, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new GetConsolidatedExecutiveReportQuery(projectId, fromDate, toDate), ct);
         return ApiOk(result.Data);
     }
 

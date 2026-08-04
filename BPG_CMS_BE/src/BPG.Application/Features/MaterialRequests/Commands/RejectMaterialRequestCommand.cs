@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -69,12 +69,12 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             if (mr.Status == MaterialRequestStatus.Pending)
             {
                 mr.CheckedBy = currentUserId;
-                mr.AccountantNote = $"Từ chối: {request.Reason}";
+                mr.AccountantNote = $"{request.Reason}";
             }
             else // WaitingApproval
             {
                 mr.ApprovedBy = currentUserId;
-                mr.ApprovalNote = $"Từ chối: {request.Reason}";
+                mr.ApprovalNote = $"{request.Reason}";
             }
 
             mr.Status = MaterialRequestStatus.Rejected;

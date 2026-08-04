@@ -23,6 +23,34 @@ export interface DelayedTaskInfoDto {
   warningType: 'Red' | 'Yellow';
 }
 
+export interface PeriodComparisonMetricsDto {
+  currentCompletedTasks: number;
+  previousCompletedTasks: number;
+  completedTasksDeltaPercent: number;
+  currentIncidents: number;
+  previousIncidents: number;
+  incidentsDeltaPercent: number;
+  currentProcurementCost: number;
+  previousProcurementCost: number;
+  procurementCostDeltaPercent: number;
+  currentOverBoqMRs: number;
+  previousOverBoqMRs: number;
+}
+
+export interface ProjectComparisonMatrixItemDto {
+  projectId: number;
+  projectName: string;
+  status: string;
+  progressPercent: number;
+  totalTasks: number;
+  delayedTasks: number;
+  atRiskTasks: number;
+  overBoqCount: number;
+  totalIncidents: number;
+  estimatedLossVnd: number;
+  healthStatus: 'Green' | 'Yellow' | 'Red';
+}
+
 export interface ExecutiveDashboardDto {
   projectId: number;
   totalTasks: number;
@@ -34,6 +62,9 @@ export interface ExecutiveDashboardDto {
   overBoqMaterialRequests: number;
   phaseBreakdown: PhaseProgressSummaryDto[];
   delayedTasksList: DelayedTaskInfoDto[];
+  periodComparison?: PeriodComparisonMetricsDto;
+  crossProjectMatrix?: ProjectComparisonMatrixItemDto[];
+  monthlyProgressTrends?: MonthlyProgressTrendDto[];
 }
 
 // ============================================================
@@ -70,7 +101,11 @@ export interface BoqVsActualItemDto {
   materialCode: string;
   materialName: string;
   unitName: string;
+  unitPrice: number;
+  originalBoqUnitPrice?: number;
   boqLimit: number;
+  overallProgressPercent?: number;
+  earnedBoqLimit?: number;
   totalIssued: number;
   totalReturned: number;
   netConsumption: number;
@@ -79,13 +114,45 @@ export interface BoqVsActualItemDto {
   pendingMrQuantity: number;
   totalExpectedUsage: number;
   isExceeding: boolean;
+  isEarnedExceeding?: boolean;
   exceededAmount: number;
+  earnedExceededAmount?: number;
+  savedAmount?: number;
   usagePercent: number;
+  earnedUsagePercent?: number;
+  boqTotalValue?: number;
+  consumptionValue?: number;
+  varianceValue?: number;
 }
 
 export interface BoqVsActualReportDto {
   projectId: number;
+  overallProgressPercent?: number;
+  totalBoqItemsCount?: number;
+  exceedingItemsCount?: number;
+  earnedExceedingItemsCount?: number;
+  savingItemsCount?: number;
+  normalItemsCount?: number;
+  totalBoqValue?: number;
+  totalConsumptionValue?: number;
+  totalVarianceValue?: number;
   items: BoqVsActualItemDto[];
+  monthlyTrends?: MonthlyBoqConsumptionTrendDto[];
+}
+
+export interface ConsolidatedExecutiveReportDto {
+  projectId: number;
+  projectName: string;
+  generatedAt: string;
+  fromDate?: string;
+  toDate?: string;
+  executiveMetrics: ExecutiveDashboardDto;
+  progressSummary: ConstructionProgressReportDto;
+  boqSummary: BoqVsActualReportDto;
+  incidentSummary: IncidentReportDto;
+  procurementSummary: ProcurementReportDto;
+  crossProjectMatrix: ProjectComparisonMatrixItemDto[];
+  executiveInsights: string[];
 }
 
 // ============================================================
@@ -111,6 +178,14 @@ export interface TaskSummaryDto {
   isDelayed: boolean;
 }
 
+export interface AssigneePerformanceDto {
+  assigneeName: string;
+  totalTasks: number;
+  completedTasks: number;
+  delayedTasks: number;
+  onTimeRatePercent: number;
+}
+
 export interface PhaseProgressDto {
   phaseId: number;
   phaseName: string;
@@ -118,6 +193,8 @@ export interface PhaseProgressDto {
   totalTasks: number;
   completedTasks: number;
   progressPercent: number;
+  expectedProgressPercent?: number;
+  scheduleVarianceDays?: number;
   startDate?: string;
   endDate?: string;
   delayedTasks: TaskSummaryDto[];
@@ -142,8 +219,54 @@ export interface ConstructionProgressReportDto {
   newTasks: number;
   obsoleteTasks: number;
   overallProgressPercent: number;
+  expectedProgressPercent?: number;
+  scheduleVariancePercent?: number;
+  scheduleVarianceDays?: number;
+  forecastedEndDate?: string;
   phases: PhaseProgressDto[];
   acceptances: PhaseAcceptanceSummaryDto[];
+  assigneePerformance?: AssigneePerformanceDto[];
+  progressInsights?: string[];
+  monthlyTrends?: MonthlyProgressTrendDto[];
+}
+
+// ============================================================
+// Monthly Trend Interfaces
+// ============================================================
+
+export interface MonthlyProgressTrendDto {
+  year: number;
+  month: number;
+  monthLabel: string;
+  completedTasksCount: number;
+  accumulatedProgressPercent: number;
+}
+
+export interface MonthlyProcurementTrendDto {
+  year: number;
+  month: number;
+  monthLabel: string;
+  poCostVnd: number;
+  directPurchaseCostVnd: number;
+  totalCostVnd: number;
+  poCount: number;
+}
+
+export interface MonthlyIncidentTrendDto {
+  year: number;
+  month: number;
+  monthLabel: string;
+  totalIncidentsCount: number;
+  resolvedIncidentsCount: number;
+  estimatedLossVnd: number;
+}
+
+export interface MonthlyBoqConsumptionTrendDto {
+  year: number;
+  month: number;
+  monthLabel: string;
+  materialRequestCount: number;
+  consumedValueVnd: number;
 }
 
 // ============================================================
@@ -173,6 +296,7 @@ export interface IncidentReportDto {
   resolvedIncidents: number;
   incidentsWithRework: number;
   incidents: IncidentSummaryDto[];
+  monthlyTrends?: MonthlyIncidentTrendDto[];
 }
 
 // ============================================================
@@ -233,9 +357,12 @@ export interface ProcurementReportDto {
   projectId: number;
   totalPoCost: number;
   totalDirectPurchaseCost: number;
+  totalMaterialIssuanceValue?: number;
+  totalProcurementSavings?: number;
   totalCost: number;
   purchaseOrders: PurchaseOrderSummaryDto[];
   directPurchases: DirectPurchaseSummaryDto[];
+  monthlyTrends?: MonthlyProcurementTrendDto[];
 }
 
 // ============================================================
@@ -317,6 +444,11 @@ export const reportService = {
 
   async getProcurementReport(projectId: number, params?: ReportFilterParams): Promise<ProcurementReportDto> {
     const response = await apiClient.get<ApiResponse<ProcurementReportDto>>(`/reports/project/${projectId}/procurement`, { params });
+    return response.data;
+  },
+
+  async getConsolidatedExecutiveReport(projectId: number, params?: ReportFilterParams): Promise<ConsolidatedExecutiveReportDto> {
+    const response = await apiClient.get<ApiResponse<ConsolidatedExecutiveReportDto>>(`/reports/project/${projectId}/consolidated-executive`, { params });
     return response.data;
   },
 };

@@ -15,31 +15,25 @@ export const FullScreenLoading: React.FC<FullScreenLoadingProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-slate-950/85 backdrop-blur-md animate-fade-in select-none"
+      className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm animate-fade-in select-none"
       style={{ isolation: 'isolate' }}
     >
       <div className="relative flex flex-col items-center justify-center p-6 text-center">
-        {/* Outer spinning gradient ring */}
-        <div className="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 border-r-indigo-500 border-b-cyan-400 animate-spin-slow shadow-lg opacity-90" />
-          <div className="absolute -inset-2 rounded-full border border-blue-500/20 animate-ping opacity-30" />
+        {/* Outer spinning ring */}
+        <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full border-3 border-transparent border-t-blue-600 border-r-blue-500 animate-spin" style={{ borderWidth: '3px' }} />
           
-          {/* Inner Logo Circle with Glow */}
-          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white p-3 flex items-center justify-center shadow-2xl animate-pulse-logo z-10">
+          {/* Inner Logo Circle */}
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white p-3 flex items-center justify-center shadow-lg border border-slate-100 z-10">
             <img
               src={companyLogoUrl}
               alt={companyName}
-              className="w-full h-full object-contain filter drop-shadow-md"
+              className="w-full h-full object-contain"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = '/logo.png';
               }}
             />
           </div>
-        </div>
-
-        {/* Animated shimmer progress bar */}
-        <div className="mt-6 w-44 sm:w-56 h-1.5 bg-slate-800/80 rounded-full overflow-hidden relative border border-slate-700/50 shadow-inner">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-400 to-cyan-400 w-full h-full animate-shimmer" />
         </div>
       </div>
     </div>

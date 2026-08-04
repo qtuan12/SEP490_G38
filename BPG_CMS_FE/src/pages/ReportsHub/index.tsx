@@ -5,11 +5,11 @@ import { ExecutiveDashboardReport } from './components/ExecutiveDashboardReport'
 import { PortfolioDashboard } from './components/PortfolioDashboard';
 import { ConstructionProgressReport } from './components/ConstructionProgressReport';
 import { IncidentReport } from './components/IncidentReport';
-import { InventoryMovementReport } from './components/InventoryMovementReport';
 import { ProcurementReport } from './components/ProcurementReport';
 import { BoqVsActualReport } from '../Reports/BoqVsActualReport';
+import { ConsolidatedReportModal } from './components/ConsolidatedReportModal';
 import {
-  LayoutDashboard, HardHat, AlertOctagon, Package, RefreshCw, ShoppingCart, Loader2,
+  LayoutDashboard, HardHat, AlertOctagon, Package, ShoppingCart, Loader2,
   Calendar, ChevronDown, Check, FolderKanban
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -55,6 +55,7 @@ export const ReportsHub: React.FC = () => {
   const [toDate, setToDate] = useState<string>('');
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [projectSearch, setProjectSearch] = useState('');
+  const [showConsolidatedModal, setShowConsolidatedModal] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedProjectId = searchParams.get('projectId') || 'all';
@@ -109,7 +110,6 @@ export const ReportsHub: React.FC = () => {
     { id: 'construction', label: 'Tiến độ Thi công', icon: <HardHat size={16} />, showForAll: false },
     { id: 'incidents', label: 'Sự cố', icon: <AlertOctagon size={16} />, showForAll: false },
     { id: 'boq', label: 'Định mức BOQ', icon: <Package size={16} />, showForAll: true },
-    { id: 'inventory-movement', label: 'Biến động Tồn kho', icon: <RefreshCw size={16} />, showForAll: true },
     { id: 'procurement', label: 'Mua sắm & Chi phí', icon: <ShoppingCart size={16} />, showForAll: true },
   ];
 
@@ -235,8 +235,8 @@ export const ReportsHub: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Presets */}
-        <div className="flex items-center gap-2">
+        {/* Quick Presets & Export Button */}
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => applyPresetFilter('30days')}
             className="px-3 py-1 rounded-lg text-xs font-medium bg-[hsl(var(--bg-main))] hover:bg-[hsl(var(--border))] text-[hsl(var(--text-secondary))] border border-[hsl(var(--border))] transition-colors cursor-pointer"
@@ -263,6 +263,8 @@ export const ReportsHub: React.FC = () => {
               Xóa bộ lọc
             </button>
           )}
+
+
         </div>
       </div>
 
@@ -310,9 +312,6 @@ export const ReportsHub: React.FC = () => {
               {activeTab === 'boq' && (
                 <BoqVsActualReport embeddedProjectId={selectedProjectId} {...filterProps} />
               )}
-              {activeTab === 'inventory-movement' && (
-                <InventoryMovementReport projectId={selectedProjectId} {...filterProps} />
-              )}
               {activeTab === 'procurement' && (
                 <ProcurementReport projectId={selectedProjectId} {...filterProps} />
               )}
@@ -320,6 +319,16 @@ export const ReportsHub: React.FC = () => {
           </ReportErrorBoundary>
         )}
       </div>
+
+      {/* Consolidated Executive Report Modal */}
+      {showConsolidatedModal && (
+        <ConsolidatedReportModal
+          projectId={selectedProjectId === 'all' ? 0 : Number(selectedProjectId)}
+          fromDate={fromDate || undefined}
+          toDate={toDate || undefined}
+          onClose={() => setShowConsolidatedModal(false)}
+        />
+      )}
     </div>
   );
 };

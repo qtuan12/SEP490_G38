@@ -7,6 +7,7 @@ using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using BPG.Application.Features.DirectPurchases.Services;
 namespace BPG.Application.Features.DirectPurchases.Handlers
 {
     public class DeleteDirectPurchaseDraftCommandHandler : IRequestHandler<DeleteDirectPurchaseDraftCommand, bool>
@@ -34,6 +35,8 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             if (dp.RequestedBy != userId)
                 throw new ForbiddenException("Chỉ người tạo mới được xóa phiếu nháp này.");
+
+            await DirectPurchaseGuard.EnsureCanManageAsync(_uow, _currentUserService, dp.ProjectId, userId, ct);
 
             dp.IsDeleted = true;
             dp.UpdatedAt = DateTime.UtcNow;

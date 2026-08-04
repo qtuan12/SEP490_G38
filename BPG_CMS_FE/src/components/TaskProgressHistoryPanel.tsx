@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, TrendingDown, History, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, History, Minus, User } from 'lucide-react';
 import { projectService } from '../services/projectService';
 import type { TaskProgressLog } from '../types/common';
 
@@ -211,16 +211,20 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                       {log.oldProgress}% → {log.newProgress}%
                     </span>
                     <ProgressDelta oldVal={log.oldProgress} newVal={log.newProgress} />
-                    {isAutoSync && (
+                    {log.updatedByName && (
                       <span style={{
-                        fontSize: '0.65rem',
-                        padding: '1px 6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        padding: '1px 7px',
                         borderRadius: '999px',
-                        backgroundColor: 'hsl(var(--border))',
-                        color: 'hsl(var(--text-muted))',
-                        fontWeight: 600
+                        backgroundColor: isAutoSync ? 'hsl(var(--border) / 0.6)' : 'hsl(var(--primary-glow))',
+                        color: isAutoSync ? 'hsl(var(--text-muted))' : 'hsl(var(--primary))'
                       }}>
-                        Tự động
+                        {!isAutoSync && <User size={10} />}
+                        {log.updatedByName}
                       </span>
                     )}
                     <span style={{ marginLeft: 'auto', color: 'hsl(var(--text-muted))', fontSize: '0.7rem', flexShrink: 0 }}>
