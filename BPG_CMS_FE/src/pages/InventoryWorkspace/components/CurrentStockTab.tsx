@@ -117,34 +117,78 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     });
     headerRow.height = 32;
 
+    // ─── Hàm tính độ rộng ký tự (tiếng Việt unicode rộng hơn ASCII ~1.8x) ───
+    const measureTextWidth = (text: string): number => {
+      let width = 0;
+      for (const ch of text) {
+        // Ký tự Latin cơ bản (ASCII) = 1 đơn vị; Unicode/tiếng Việt ≈ 1.8
+        const code = ch.charCodeAt(0);
+        width += code > 127 ? 1.8 : 1;
+      }
+      return width + 2; // padding 2 ký tự
+    };
+
+    // Khởi tạo colWidths từ header (tính sẵn từ tên cột)
+    const colWidths: number[] = headers.map(h => measureTextWidth(h.header));
+
     // ─── Dữ liệu ───
     filteredInventory.forEach((item, idx) => {
       const status = getItemStatus(item);
       let statusLabel = 'Bình thường';
-      if (status === 'over_boq')    statusLabel = 'Đã vượt định mức';
+      if (status === 'over_boq')         statusLabel = 'Đã vượt định mức';
       else if (status === 'approaching') statusLabel = 'Sắp vượt định mức';
       else if (status === 'low_stock')   statusLabel = 'Tồn kho thấp';
 
       const isEven = idx % 2 === 0;
       const rowBg  = isEven ? 'FFF8FAFF' : 'FFFFFFFF';
 
+      // Lưu giá trị thô theo thứ tự cột để đo chiều rộng
+      const rowData: (string | number)[] = [
+        item.materialCode,
+        item.materialName,
+        item.specification || 'Chưa cập nhật',
+        item.supplierName,
+        item.quantity,
+        item.reservedQuantity,
+        item.availableQuantity,
+        item.unitName,
+        item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'Chưa cập nhật',
+        statusLabel,
+      ];
+
       const row = sheet.addRow({
-        code:      item.materialCode,
-        name:      item.materialName,
-        spec:      item.specification || 'Chưa cập nhật',
-        supplier:  item.supplierName,
-        qty:       item.quantity,
-        reserved:  item.reservedQuantity,
-        available: item.availableQuantity,
-        unit:      item.unitName,
-        updated:   item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'Chưa cập nhật',
-        status:    statusLabel,
+        code:      rowData[0],
+        name:      rowData[1],
+        spec:      rowData[2],
+        supplier:  rowData[3],
+        qty:       rowData[4],
+        reserved:  rowData[5],
+        available: rowData[6],
+        unit:      rowData[7],
+        updated:   rowData[8],
+        status:    rowData[9],
+      });
+
+      // Cập nhật max width cho từng cột ngay khi thêm dòng
+      rowData.forEach((val, colIdx) => {
+        const text = val?.toString() ?? '';
+        // Tính max theo từng dòng (hỗ trợ nội dung xuống dòng)
+        const maxLineWidth = text.split('\n').reduce(
+          (max, line) => Math.max(max, measureTextWidth(line)),
+          0
+        );
+        if (maxLineWidth > colWidths[colIdx]) {
+          colWidths[colIdx] = maxLineWidth;
+        }
       });
 
       row.eachCell((cell, colNumber) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
-        cell.alignment = { vertical: 'middle', wrapText: true,
-          horizontal: colNumber >= 5 && colNumber <= 7 ? 'center' : 'left' };
+        cell.alignment = {
+          vertical: 'middle',
+          wrapText: true,
+          horizontal: colNumber >= 5 && colNumber <= 7 ? 'center' : 'left',
+        };
         cell.border = {
           top:    { style: 'hair', color: { argb: 'FFe2e8f0' } },
           bottom: { style: 'hair', color: { argb: 'FFe2e8f0' } },
@@ -165,22 +209,19 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           }
         }
       });
-      row.height = 22;
+
+      // Chiều cao dòng: ước tính số dòng wrap dựa trên cột "Tên vật tư" (cột dài nhất)
+      const nameWidth  = measureTextWidth(rowData[1]?.toString() ?? '');
+      const specWidth  = measureTextWidth(rowData[2]?.toString() ?? '');
+      const wrapLimit  = Math.min(colWidths[1], 52); // giới hạn wrap tại 52 ký tự
+      const linesTxt   = Math.ceil(Math.max(nameWidth, specWidth) / wrapLimit);
+      row.height = Math.max(22, linesTxt * 16);
     });
 
-    // ─── Auto-fit chiều rộng cột dựa trên nội dung thực tế ───
-    sheet.columns.forEach((col) => {
-      if (!col || !col.eachCell) return;
-      let maxLen = col.width ?? 10;
-      col.eachCell({ includeEmpty: false }, (cell) => {
-        const val = cell.value?.toString() ?? '';
-        // Tính độ rộng ước lượng (mỗi ký tự tiếng Việt rộng hơn)
-        const lines = val.split('\n');
-        const longest = lines.reduce((a, l) => Math.max(a, l.length), 0);
-        const estimated = longest * 1.15 + 2;
-        if (estimated > maxLen) maxLen = estimated;
-      });
-      col.width = Math.min(maxLen, 52); // Giới hạn tối đa 52 để không quá rộng
+    // ─── Áp dụng độ rộng đã tính vào cột (min 12, max 55 ký tự) ───
+    sheet.columns.forEach((col, idx) => {
+      if (!col) return;
+      col.width = Math.min(Math.max(colWidths[idx] ?? 12, 12), 55);
     });
 
     // ─── Tải file ───
