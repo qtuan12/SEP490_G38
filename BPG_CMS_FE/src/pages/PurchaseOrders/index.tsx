@@ -511,7 +511,7 @@ export const PurchaseOrderList: React.FC = () => {
         </table>
       </div>
 
-      {data && data.totalPages > 1 && (
+      {data && (
         <div className="p-4 border-t border-[hsl(var(--border))]">
           <Pagination
             currentPage={page}

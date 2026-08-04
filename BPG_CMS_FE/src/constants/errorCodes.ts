@@ -38,9 +38,9 @@ export const ErrorCodes = {
   PoRequestNotApproved: 'BIZ_016',
   PoMaterialNotInRequest: 'BIZ_017',
   PoQtyExceedsRequest: 'BIZ_018',
-  PoOrderDateBeforePhase: 'BIZ_019',
+  PoOrderDateBeforeProject: 'BIZ_019',
   PoOrderDateAfterPhase: 'BIZ_020',
-  PoDeliveryDateBeforePhase: 'BIZ_021',
+  PoDeliveryDateBeforeProject: 'BIZ_021',
   PoDeliveryDateAfterPhase: 'BIZ_022',
 
   // Mua hàng trực tiếp (DP)
@@ -58,7 +58,7 @@ export const ErrorCodes = {
   DpProjectNotActive: 'BIZ_034',
   DpPhaseFrozen: 'BIZ_035',
   DpPurchaseDateInFuture: 'BIZ_036',
-  DpPurchaseDateBeforePhase: 'BIZ_037',
+  DpPurchaseDateBeforeProject: 'BIZ_037',
   DpPurchaseDateAfterPhase: 'BIZ_038',
   DpPhaseProjectMismatch: 'BIZ_039',
   DpDuplicateMaterial: 'BIZ_040',
@@ -66,13 +66,13 @@ export const ErrorCodes = {
 
 /** Mã lỗi liên quan tới ô "Ngày đơn hàng" khi tạo PO. */
 export const PO_ORDER_DATE_ERRORS: readonly string[] = [
-  ErrorCodes.PoOrderDateBeforePhase,
+  ErrorCodes.PoOrderDateBeforeProject,
   ErrorCodes.PoOrderDateAfterPhase,
 ];
 
 /** Mã lỗi liên quan tới ô "Hạn giao hàng" khi tạo PO. */
 export const PO_DELIVERY_DATE_ERRORS: readonly string[] = [
-  ErrorCodes.PoDeliveryDateBeforePhase,
+  ErrorCodes.PoDeliveryDateBeforeProject,
   ErrorCodes.PoDeliveryDateAfterPhase,
 ];
 
@@ -89,6 +89,6 @@ export const OTP_NEEDS_RESEND_ERRORS: readonly string[] = [
 /** Mã lỗi liên quan tới ô "Ngày mua" khi gửi phiếu mua trực tiếp. */
 export const DP_PURCHASE_DATE_ERRORS: readonly string[] = [
   ErrorCodes.DpPurchaseDateInFuture,
-  ErrorCodes.DpPurchaseDateBeforePhase,
+  ErrorCodes.DpPurchaseDateBeforeProject,
   ErrorCodes.DpPurchaseDateAfterPhase,
 ];

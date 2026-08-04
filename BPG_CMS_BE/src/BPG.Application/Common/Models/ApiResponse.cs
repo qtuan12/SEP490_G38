@@ -7,6 +7,13 @@ public class ApiResponse
     public string? Message { get; set; }
     public List<string>? Errors { get; set; }
 
+    /// <summary>
+    /// Lỗi validate theo từng trường: key là tên property của command (camelCase khi serialize),
+    /// value là các thông báo của trường đó. FE dùng để hiển thị dòng đỏ ngay dưới đúng ô nhập
+    /// thay vì gộp tất cả vào một message.
+    /// </summary>
+    public Dictionary<string, List<string>>? FieldErrors { get; set; }
+
     public static ApiResponse SuccessResult(string? message = null)
         => new() { Success = true, Message = message };
 

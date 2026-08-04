@@ -95,7 +95,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
 
             // 3.6 Kiểm tra hạn hủy phiếu từ SystemConfig
             var config = await _uow.Repository<SystemConfig>().Query()
-                .FirstOrDefaultAsync(x => x.ConfigKey == "HanHuyPhieuNgay", cancellationToken);
+                .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.CancellationDays, cancellationToken);
             int limitDays = config != null && int.TryParse(config.ConfigValue, out var parsedDays) ? parsedDays : 7;
 
             if (DateTime.UtcNow - receipt.CreatedAt > TimeSpan.FromDays(limitDays))

@@ -42,13 +42,20 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             if (linkedRequest.Status != MaterialRequestStatus.Approved)
                 throw new BusinessException(ErrorCodes.PoRequestNotApproved, "Yêu cầu vật tư chưa được duyệt.");
 
-            // 1b. Validate ngày PO và hạn giao hàng nằm trong khoảng thời gian giai đoạn (BOQ)
+            // 1b. Validate ngày PO và hạn giao hàng.
+            // Không bắt buộc nằm trong khoảng của giai đoạn: chỉ cần không sớm hơn ngày bắt đầu dự án
+            // và không vượt quá ngày kết thúc giai đoạn (mua trước cho giai đoạn sau là hợp lệ).
             var phase = linkedRequest.Phase;
             var orderDateOnly = DateOnly.FromDateTime(request.OrderDate.Date);
 
-            if (phase.StartDate.HasValue && orderDateOnly < phase.StartDate.Value)
-                throw new BusinessException(ErrorCodes.PoOrderDateBeforePhase,
-                    $"Ngày đơn hàng ({orderDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu giai đoạn '{phase.Name}' ({phase.StartDate.Value:dd/MM/yyyy}) trở đi.");
+            var project = await _uow.Repository<Project>().Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId, cancellationToken)
+                ?? throw new NotFoundException("Không tìm thấy dự án của đơn hàng.");
+
+            if (orderDateOnly < project.PlannedStart)
+                throw new BusinessException(ErrorCodes.PoOrderDateBeforeProject,
+                    $"Ngày đơn hàng ({orderDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu dự án '{project.Name}' ({project.PlannedStart:dd/MM/yyyy}) trở đi.");
 
             if (phase.EndDate.HasValue && orderDateOnly > phase.EndDate.Value)
                 throw new BusinessException(ErrorCodes.PoOrderDateAfterPhase,
@@ -58,9 +65,9 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             {
                 var deliveryDate = request.ExpectedDeliveryDate.Value;
 
-                if (phase.StartDate.HasValue && deliveryDate < phase.StartDate.Value)
-                    throw new BusinessException(ErrorCodes.PoDeliveryDateBeforePhase,
-                        $"Hạn giao hàng ({deliveryDate:dd/MM/yyyy}) phải từ ngày bắt đầu giai đoạn '{phase.Name}' ({phase.StartDate.Value:dd/MM/yyyy}) trở đi.");
+                if (deliveryDate < project.PlannedStart)
+                    throw new BusinessException(ErrorCodes.PoDeliveryDateBeforeProject,
+                        $"Hạn giao hàng ({deliveryDate:dd/MM/yyyy}) phải từ ngày bắt đầu dự án '{project.Name}' ({project.PlannedStart:dd/MM/yyyy}) trở đi.");
 
                 if (phase.EndDate.HasValue && deliveryDate > phase.EndDate.Value)
                     throw new BusinessException(ErrorCodes.PoDeliveryDateAfterPhase,

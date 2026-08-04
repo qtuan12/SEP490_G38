@@ -206,10 +206,10 @@ public static class DbSeeder
                 new SystemConfig { ConfigKey = "DailyLogEditWindowHours", ConfigValue = "24", DataType = "number", DisplayName = "Giờ được sửa nhật ký thi công", Description = "Số giờ kể từ lúc tạo mà kỹ sư còn được phép chỉnh sửa nhật ký thi công.", Unit = "giờ", CreatedAt = DateTime.UtcNow },
                 // Tham số kiểu phần trăm — backend chặn giá trị vượt quá 100 cho kiểu này.
                 new SystemConfig { ConfigKey = "ExpectedDelayPercent", ConfigValue = "10", DataType = "percentage", DisplayName = "Ngưỡng cảnh báo trễ tiến độ", Description = "Phần trăm trễ tiến độ tối đa trước khi hệ thống cảnh báo.", Unit = "%", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "CÔNG TY TNHH ĐẦU TƯ VÀ XÂY DỰNG BÙI PHÚ GIA", DataType = "string", DisplayName = "Tên công ty", Description = "Tên pháp lý lấy từ nguồn mã số thuế công khai.", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyLogoUrl", ConfigValue = "https://graph.facebook.com/phungatuvaco/picture?type=large", DataType = "string", DisplayName = "Logo công ty", Description = "Ảnh đại diện Fanpage công khai dùng cho demo; có thể thay bằng logo nội bộ.", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyTaxCode", ConfigValue = "0108326945", DataType = "string", DisplayName = "Mã số thuế", Description = "Mã số thuế doanh nghiệp.", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyAddress", ConfigValue = "Tầng 4, LK 4B-(7) khu tái định cư đô thị Mỗ Lao, Phường Mộ Lao, Quận Hà Đông, Thành phố Hà Nội, Việt Nam", DataType = "string", DisplayName = "Địa chỉ trụ sở", Description = "Địa chỉ theo nguồn mã số thuế công khai.", CreatedAt = DateTime.UtcNow }
+                new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "BÙI PHÚ GIA", DataType = "string", DisplayName = "Tên công ty", Description = "Tên pháp lý lấy từ nguồn mã số thuế công khai.", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "CompanyLogoUrl", ConfigValue = "https://graph.facebook.com/phungatuvaco/picture?type=large", DataType = "string", DisplayName = "Logo công ty", Description = "Ảnh đại diện Fanpage công khai dùng cho demo; có thể thay bằng logo nội bộ.", CreatedAt = DateTime.UtcNow }
+                // Không seed CompanyTaxCode / CompanyAddress: không nghiệp vụ nào đọc hai key này
+                // (GetCompanyInfoQuery chỉ trả tên + logo), để lại chỉ làm rối màn Cấu hình hệ thống.
             };
 
             var existingConfigs = await context.SystemConfigs.ToDictionaryAsync(c => c.ConfigKey);
