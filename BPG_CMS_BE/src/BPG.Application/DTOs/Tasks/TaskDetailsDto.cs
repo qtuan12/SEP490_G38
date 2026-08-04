@@ -7,7 +7,7 @@ public record TaskAssigneeDto(long UserId, string FullName, string Email);
 
 public record TaskDailyLogDto(long DailyLogId, DateOnly LogDate, string Content, byte ProgressPercentAdded, List<string> ImageUrls);
 
-public record TaskProgressLogDto(long LogId, byte OldProgress, byte NewProgress, string? UpdateReason, DateTime UpdatedAt);
+public record TaskProgressLogDto(long LogId, byte OldProgress, byte NewProgress, string? UpdateReason, DateTime UpdatedAt, long? CreatedBy = null, string? UpdatedByName = null);
 
 public record TaskDetailsDto
 {

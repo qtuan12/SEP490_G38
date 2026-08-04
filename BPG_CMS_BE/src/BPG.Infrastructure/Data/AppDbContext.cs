@@ -223,6 +223,12 @@ public class AppDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict);
 
         // Task Dependencies
+        modelBuilder.Entity<TaskProgressLog>()
+            .HasOne(tpl => tpl.Creator)
+            .WithMany()
+            .HasForeignKey(tpl => tpl.CreatedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
         modelBuilder.Entity<TaskDependency>()
             .HasOne(td => td.Task)
             .WithMany(t => t.Dependencies)

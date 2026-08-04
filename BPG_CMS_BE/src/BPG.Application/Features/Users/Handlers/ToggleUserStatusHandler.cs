@@ -25,7 +25,7 @@ namespace BPG.Application.Features.Users.Handlers
             var user = await _uow.Repository<User>().Query()
                 .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.UserId == request.Id && !u.IsDeleted, cancellationToken)
-                ?? throw new NotFoundException(nameof(User), request.Id);
+                ?? throw new NotFoundException("Không tìm thấy tài khoản cần thay đổi trạng thái.");
 
             user.IsActive = !user.IsActive;
 

@@ -26,7 +26,7 @@ public class UpdateUserHandler : IRequestHandler<UpdateUserCommand, UserDto>
         var user = await _uow.Repository<User>().Query()
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.UserId == cmd.Id && !u.IsDeleted, ct)
-            ?? throw new NotFoundException(nameof(User), cmd.Id);
+            ?? throw new NotFoundException("Không tìm thấy tài khoản cần cập nhật.");
 
         var newFullName = user.FullName;
         var newEmail = user.Email;

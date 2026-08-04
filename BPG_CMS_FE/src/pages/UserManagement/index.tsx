@@ -105,7 +105,7 @@ export const UserManagement: React.FC = () => {
     try {
       const result = await userService.deleteUser(selectedUser.id);
       setIsDeleteOpen(false);
-      showSuccess(result.message || `Đã xoá tài khoản ${selectedUser.name} khỏi hệ thống.`);
+      showSuccess(result.message || 'Thao tác thành công.');
       setSelectedUser(null);
       loadAllUsers();
     } catch (err: any) {
@@ -113,10 +113,11 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  const handleToggleStatus = async (id: string, name: string) => {
+  // Tên tài khoản không cần truyền vào nữa: message xác nhận do backend sinh, đã kèm sẵn tên.
+  const handleToggleStatus = async (id: string) => {
     try {
       const result = await userService.toggleUserStatus(id);
-      showSuccess(result.message || `Đã ${result.data.status === 'active' ? 'mở khoá' : 'khoá'} tài khoản ${name}.`);
+      showSuccess(result.message || 'Thao tác thành công.');
       loadAllUsers();
     } catch (err: any) {
       toast.error(err.message || 'Không thể thay đổi trạng thái tài khoản.');
@@ -184,7 +185,7 @@ export const UserManagement: React.FC = () => {
             variant="secondary"
             className="p-2 h-auto"
             title={user.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa'}
-            onClick={() => handleToggleStatus(user.id, user.name)}
+            onClick={() => handleToggleStatus(user.id)}
           >
             {user.status === 'active'
               ? <Lock size={15} className="text-amber-600" />
@@ -346,7 +347,7 @@ export const UserManagement: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => handleToggleStatus(u.id, u.name)}
+                        onClick={() => handleToggleStatus(u.id)}
                         className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
                         title={u.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa'}
                       >

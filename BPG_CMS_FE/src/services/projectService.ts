@@ -1660,7 +1660,8 @@ export const projectService = {
       items: (item.items || []).map((it: any) => ({
         name: it.materialName,
         quantity: it.quantity,
-        unit: it.unitName
+        unit: it.unitName,
+        conversionRate: it.conversionRate
       }))
     };
   },

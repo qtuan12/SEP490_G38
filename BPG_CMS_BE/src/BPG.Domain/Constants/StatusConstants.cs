@@ -115,6 +115,20 @@ public static class DirectPurchaseStatus
     public const string Approved = "Approved";
     /// <summary>Không được hoàn tiền. Vật tư vẫn đã nhập kho và vẫn tiêu thụ định mức BOQ.</summary>
     public const string Rejected = "Rejected";
+
+    /// <summary>
+    /// Nhãn tiếng Việt dùng khi ghép message trả về người dùng — không để lộ tên trạng thái tiếng Anh.
+    /// Đồng bộ với DP_STATUS_LABEL bên frontend (services/directPurchaseService.ts).
+    /// </summary>
+    public static string Label(string status) => status switch
+    {
+        Draft => "Nháp",
+        Pending => "Chờ Kế toán",
+        WaitingApproval => "Chờ Giám đốc",
+        Approved => "Đã duyệt",
+        Rejected => "Từ chối",
+        _ => status
+    };
 }
 
 public static class DirectPurchaseAuditStatus

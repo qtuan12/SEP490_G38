@@ -40,6 +40,10 @@ export interface RequestItemForPODto {
   conversionRate: number;
   orderedQuantity: number;
   remainingQuantity: number;
+  /** Đơn vị cơ sở của vật tư có bắt buộc số lượng nguyên không (nguồn: Material.BaseUnit.IsDiscrete). */
+  isDiscreteUnit: boolean;
+  /** Tên đơn vị cơ sở — dùng trong message khi số lượng không nguyên. */
+  baseUnitName: string;
 }
 
 export interface CreatePurchaseOrderCommand {

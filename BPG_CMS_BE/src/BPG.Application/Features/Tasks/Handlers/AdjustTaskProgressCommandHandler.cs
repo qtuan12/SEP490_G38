@@ -15,13 +15,15 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
     private readonly IProgressRollupService _rollupService;
     private readonly INotificationService _notificationService;
     private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AdjustTaskProgressCommandHandler(IUnitOfWork unitOfWork, IProgressRollupService rollupService, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
+    public AdjustTaskProgressCommandHandler(IUnitOfWork unitOfWork, IProgressRollupService rollupService, INotificationService notificationService, IRealtimeNotificationSender realtimeSender, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _rollupService = rollupService;
         _notificationService = notificationService;
         _realtimeSender = realtimeSender;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse> Handle(AdjustTaskProgressCommand request, CancellationToken ct)
@@ -85,12 +87,16 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         else if (request.NewProgress > 0 && request.NewProgress < 100)
             task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
 
+        var currentUserId = _currentUserService.UserId;
         task.ProgressLogs.Add(new TaskProgressLog
         {
             OldProgress = oldProgress,
             NewProgress = request.NewProgress,
             UpdateReason = request.UpdateReason,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = currentUserId,
+            UpdatedAt = DateTime.UtcNow,
+            UpdatedBy = currentUserId
         });
 
         _unitOfWork.Repository<ProjectTask>().Update(task);

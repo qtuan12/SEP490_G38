@@ -17,7 +17,7 @@ namespace BPG.Application.Features.DirectPurchases.Services
         {
             var dup = items.GroupBy(i => i.MaterialId).FirstOrDefault(g => g.Count() > 1);
             if (dup != null)
-                throw new BusinessException("ERR_DUPLICATE_MATERIAL",
+                throw new BusinessException(ErrorCodes.DpDuplicateMaterial,
                     $"Vật tư ID {dup.Key} bị trùng lặp trong phiếu.");
         }
 

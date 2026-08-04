@@ -146,10 +146,10 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                         dto.Images = urls;
                     }
 
-                    // Tìm OldProgress tương ứng từ progressLogs (khớp TaskId, NewProgress và thời gian gần nhất)
+                    // Tìm OldProgress từ TaskProgressLog tương ứng với DailyLog này (khớp TaskId, NewProgress, CreatedBy)
                     var matchingLog = progressLogs
-                        .Where(tpl => tpl.TaskId == dto.TaskId && tpl.NewProgress == dto.NewProgressPercent)
-                        .OrderBy(tpl => Math.Abs((tpl.UpdatedAt - dto.CreatedAt).TotalSeconds))
+                        .Where(tpl => tpl.TaskId == dto.TaskId && tpl.NewProgress == dto.NewProgressPercent && tpl.CreatedBy == dto.CreatedBy)
+                        .OrderBy(tpl => Math.Abs((tpl.CreatedAt - dto.CreatedAt).TotalSeconds))
                         .FirstOrDefault();
 
                     dto.OldProgressPercent = matchingLog?.OldProgress ?? 0;

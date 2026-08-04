@@ -79,11 +79,13 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
   // Giám đốc chỉ thao tác khi Kế toán đã soát và phiếu vượt định mức.
   const canDoDirector = !!canApproveSpending && detail?.status === DP_STATUS.WaitingApproval;
 
-  const run = async (fn: () => Promise<{ message?: string }>, successMsg: string) => {
+  // Message thành công do backend quyết định — nhánh trong/vượt định mức BOQ đi tới bước duyệt
+  // khác nhau nên chỉ backend mới mô tả đúng. Tham số fallback chỉ dùng khi không có message.
+  const run = async (fn: () => Promise<{ message?: string }>, fallbackMsg = 'Thao tác thành công.') => {
     setSubmitting(true);
     try {
       const result = await fn();
-      toast.success(result.message || successMsg);
+      toast.success(result.message || fallbackMsg);
       onAudited();
       onClose();
     } catch (err: any) {
@@ -94,43 +96,31 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
     }
   };
 
+  // Từ chối bắt buộc có lý do — nút đã bị disable khi ô lý do trống, đây chỉ là chốt an toàn.
   const handleAudit = (approve: boolean) => {
     if (!directPurchaseId) return;
-    if (!approve && !note.trim()) {
-      toast.error('Vui lòng nhập lý do khi từ chối kiểm toán.');
-      return;
-    }
-    const msg = !approve
-      ? 'Đã từ chối kiểm toán. Phiếu sẽ không được hoàn tiền.'
-      : isOverBOQ
-        ? 'Đã soát hóa đơn và trình Giám đốc duyệt chi.'
-        : 'Đã xác nhận kiểm toán / hoàn tiền.';
-    run(() => directPurchaseService.audit(directPurchaseId, { approve, auditNote: note.trim() || undefined }), msg);
+    if (!approve && !note.trim()) return;
+    run(() => directPurchaseService.audit(directPurchaseId, { approve, auditNote: note.trim() || undefined }));
   };
 
   const handleDirector = (approve: boolean) => {
     if (!directPurchaseId) return;
-    if (!approve && !note.trim()) {
-      toast.error('Vui lòng nhập lý do khi từ chối duyệt chi.');
-      return;
-    }
+    if (!approve && !note.trim()) return;
     if (approve) {
-      run(() => directPurchaseService.directorApprove(directPurchaseId, { approvalNote: note.trim() || undefined }),
-        'Đã duyệt chi phiếu vượt định mức.');
+      run(() => directPurchaseService.directorApprove(directPurchaseId, { approvalNote: note.trim() || undefined }));
     } else {
-      run(() => directPurchaseService.directorReject(directPurchaseId, { reason: note.trim() }),
-        'Đã từ chối duyệt chi. Vật tư vẫn nằm trong kho.');
+      run(() => directPurchaseService.directorReject(directPurchaseId, { reason: note.trim() }));
     }
   };
 
   const doSubmitDraft = () => {
     if (!directPurchaseId) return;
-    run(() => directPurchaseService.submit(directPurchaseId), 'Đã gửi phiếu. Tồn kho đã được cập nhật.');
+    run(() => directPurchaseService.submit(directPurchaseId));
   };
 
   const doDeleteDraft = () => {
     if (!directPurchaseId) return;
-    run(() => directPurchaseService.deleteDraft(directPurchaseId), 'Đã xóa phiếu nháp.');
+    run(() => directPurchaseService.deleteDraft(directPurchaseId));
   };
 
   // Button đã là inline-flex sẵn - chỉ cần gap cho khoảng cách icon/chữ.
@@ -166,7 +156,10 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
     if (canDoDirector) {
       return footerRow(
         <>
-          <Button variant="danger" onClick={() => handleDirector(false)} disabled={submitting} style={iconGap}>
+          <Button variant="danger" onClick={() => handleDirector(false)}
+            disabled={submitting || !note.trim()}
+            title={!note.trim() ? 'Vui lòng nhập lý do khi từ chối duyệt chi.' : undefined}
+            style={iconGap}>
             <XCircle size={16} /> Từ chối duyệt chi
           </Button>
           <Button variant="primary" onClick={() => handleDirector(true)} isLoading={submitting} disabled={submitting} style={iconGap}>
@@ -179,7 +172,10 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
     if (canDoAudit) {
       return footerRow(
         <>
-          <Button variant="danger" onClick={() => handleAudit(false)} disabled={submitting} style={iconGap}>
+          <Button variant="danger" onClick={() => handleAudit(false)}
+            disabled={submitting || !note.trim()}
+            title={!note.trim() ? 'Vui lòng nhập lý do khi từ chối kiểm toán.' : undefined}
+            style={iconGap}>
             <XCircle size={16} /> Từ chối
           </Button>
           <Button variant="primary" onClick={() => handleAudit(true)} isLoading={submitting} disabled={submitting} style={iconGap}>

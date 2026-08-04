@@ -39,7 +39,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             // Phiếu nháp chỉ người soạn được xem.
             if (dp.Status == DirectPurchaseStatus.Draft && dp.RequestedBy != currentUserId)
-                throw new NotFoundException(nameof(DirectPurchaseRequest), request.DirectPurchaseId);
+                throw new NotFoundException("Không tìm thấy phiếu mua trực tiếp.");
 
             var invoiceUrls = await _uow.Repository<Attachment>().Query()
                 .Where(a => a.EntityType == EntityType.DirectPurchaseRequest &&

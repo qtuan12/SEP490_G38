@@ -37,21 +37,21 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .Include(r => r.Items).ThenInclude(i => i.Material).ThenInclude(m => m!.BaseUnit)
                 .Include(r => r.Phase)
                 .FirstOrDefaultAsync(r => r.RequestId == request.RequestId, cancellationToken)
-                ?? throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
+                ?? throw new NotFoundException("Không tìm thấy yêu cầu vật tư đã chọn.");
 
             if (linkedRequest.Status != MaterialRequestStatus.Approved)
-                throw new BusinessException("ERR_REQUEST_NOT_APPROVED", "Yêu cầu vật tư chưa được duyệt.");
+                throw new BusinessException(ErrorCodes.PoRequestNotApproved, "Yêu cầu vật tư chưa được duyệt.");
 
             // 1b. Validate ngày PO và hạn giao hàng nằm trong khoảng thời gian giai đoạn (BOQ)
             var phase = linkedRequest.Phase;
             var orderDateOnly = DateOnly.FromDateTime(request.OrderDate.Date);
 
             if (phase.StartDate.HasValue && orderDateOnly < phase.StartDate.Value)
-                throw new BusinessException("ERR_ORDER_DATE_BEFORE_PHASE",
+                throw new BusinessException(ErrorCodes.PoOrderDateBeforePhase,
                     $"Ngày đơn hàng ({orderDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu giai đoạn '{phase.Name}' ({phase.StartDate.Value:dd/MM/yyyy}) trở đi.");
 
             if (phase.EndDate.HasValue && orderDateOnly > phase.EndDate.Value)
-                throw new BusinessException("ERR_ORDER_DATE_AFTER_PHASE",
+                throw new BusinessException(ErrorCodes.PoOrderDateAfterPhase,
                     $"Ngày đơn hàng ({orderDateOnly:dd/MM/yyyy}) vượt quá ngày kết thúc giai đoạn '{phase.Name}' ({phase.EndDate.Value:dd/MM/yyyy}).");
 
             if (request.ExpectedDeliveryDate.HasValue)
@@ -59,11 +59,11 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 var deliveryDate = request.ExpectedDeliveryDate.Value;
 
                 if (phase.StartDate.HasValue && deliveryDate < phase.StartDate.Value)
-                    throw new BusinessException("ERR_DELIVERY_DATE_BEFORE_PHASE",
+                    throw new BusinessException(ErrorCodes.PoDeliveryDateBeforePhase,
                         $"Hạn giao hàng ({deliveryDate:dd/MM/yyyy}) phải từ ngày bắt đầu giai đoạn '{phase.Name}' ({phase.StartDate.Value:dd/MM/yyyy}) trở đi.");
 
                 if (phase.EndDate.HasValue && deliveryDate > phase.EndDate.Value)
-                    throw new BusinessException("ERR_DELIVERY_DATE_AFTER_PHASE",
+                    throw new BusinessException(ErrorCodes.PoDeliveryDateAfterPhase,
                         $"Hạn giao hàng ({deliveryDate:dd/MM/yyyy}) vượt quá ngày kết thúc giai đoạn '{phase.Name}' ({phase.EndDate.Value:dd/MM/yyyy}).");
             }
 
@@ -114,14 +114,14 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             foreach (var item in request.Items)
             {
                 if (!maxQtyByMaterial.TryGetValue(item.MaterialId, out var requestedQty))
-                    throw new BusinessException("ERR_MATERIAL_NOT_IN_REQUEST",
+                    throw new BusinessException(ErrorCodes.PoMaterialNotInRequest,
                         $"Vật tư (MaterialId={item.MaterialId}) không thuộc yêu cầu vật tư đã chọn.");
 
                 orderedByMaterial.TryGetValue(item.MaterialId, out var alreadyOrdered);
                 var remaining = requestedQty - alreadyOrdered;
 
                 if (item.Quantity > remaining)
-                    throw new BusinessException("ERR_PO_QTY_EXCEEDS_REQUEST",
+                    throw new BusinessException(ErrorCodes.PoQtyExceedsRequest,
                         $"Vật tư '{materialNames[item.MaterialId]}' vượt số lượng yêu cầu. " +
                         $"Đã yêu cầu {requestedQty}, đã đặt {alreadyOrdered} qua các đơn hàng trước, " +
                         $"chỉ còn được đặt tối đa {(remaining < 0 ? 0 : remaining)}.");
@@ -149,7 +149,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 var exists = await _uow.Repository<PurchaseOrder>().Query()
                     .AnyAsync(po => po.PONumber == poNumber, cancellationToken);
                 if (exists)
-                    throw new BusinessException("ERR_PO_NUMBER_EXISTS", $"Số đơn hàng '{poNumber}' đã tồn tại trong hệ thống.");
+                    throw new BusinessException(ErrorCodes.PoNumberExists, $"Số đơn hàng '{poNumber}' đã tồn tại trong hệ thống.");
             }
 
             // 4. Create PurchaseOrder

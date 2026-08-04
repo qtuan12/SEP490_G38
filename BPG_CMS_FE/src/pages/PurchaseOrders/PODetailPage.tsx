@@ -89,7 +89,7 @@ export const PODetailPage: React.FC = () => {
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(poId, cancelReason),
     onSuccess: (result) => {
-      toast.success(result.message || 'Đã hủy đơn mua hàng.');
+      toast.success(result.message || 'Thao tác thành công.');
       setShowCancelModal(false);
       setCancelReason('');
       queryClient.invalidateQueries({ queryKey: ['po-detail', poId] });
@@ -105,7 +105,7 @@ export const PODetailPage: React.FC = () => {
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(poId, closeReason),
     onSuccess: (result) => {
-      toast.success(result.message || 'Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
+      toast.success(result.message || 'Thao tác thành công.');
       setShowCloseModal(false);
       setCloseReason('');
       queryClient.invalidateQueries({ queryKey: ['po-detail', poId] });
@@ -411,11 +411,9 @@ export const PODetailPage: React.FC = () => {
               <Button
                 type="button"
                 variant="danger"
-                disabled={cancelMutation.isPending}
-                onClick={() => {
-                  if (!cancelReason.trim()) return setCancelError('Vui lòng nhập lý do hủy.');
-                  cancelMutation.mutate();
-                }}
+                disabled={cancelMutation.isPending || !cancelReason.trim()}
+                title={!cancelReason.trim() ? 'Vui lòng nhập lý do hủy đơn mua hàng.' : undefined}
+                onClick={() => cancelMutation.mutate()}
               >
                 {cancelMutation.isPending
                   ? <><Loader2 size={14} className="animate-spin" /> Đang hủy...</>
@@ -479,11 +477,9 @@ export const PODetailPage: React.FC = () => {
               <Button
                 type="button"
                 variant="primary"
-                disabled={closeMutation.isPending}
-                onClick={() => {
-                  if (!closeReason.trim()) return setCloseError('Vui lòng nhập lý do đóng đơn hàng.');
-                  closeMutation.mutate();
-                }}
+                disabled={closeMutation.isPending || !closeReason.trim()}
+                title={!closeReason.trim() ? 'Vui lòng nhập lý do đóng đơn mua hàng.' : undefined}
+                onClick={() => closeMutation.mutate()}
               >
                 {closeMutation.isPending
                   ? <><Loader2 size={14} className="animate-spin" /> Đang đóng...</>

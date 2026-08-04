@@ -52,7 +52,8 @@ export const wbsService = {
           name: it.name,
           quantity: it.quantity,
           unitId: it.unitId,
-          unit: it.unit
+          unit: it.unit,
+          conversionRate: it.conversionRate
         })) || []
       });
 
