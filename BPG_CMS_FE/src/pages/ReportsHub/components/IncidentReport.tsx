@@ -254,7 +254,7 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'}`}
                 >
-                  {f === 'all' ? 'Tất cả' : f === 'open' ? 'Đang mở' : 'Đã xử lý'}
+                  {f === 'all' ? 'Tất cả' : f === 'open' ? 'Chưa xử lý' : 'Đã xử lý'}
                 </button>
               ))}
             </div>
@@ -274,9 +274,9 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
         </div>
 
         {/* Table Content */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
-            <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700">
+        <div className="max-h-[420px] overflow-y-auto overflow-x-auto custom-scrollbar">
+          <table className="w-full text-xs text-left relative">
+            <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
               <tr>
                 <th className="px-4 py-3">Mã phiếu</th>
                 <th className="px-4 py-3">Loại</th>

@@ -40,7 +40,7 @@ public class GetProcurementReportQueryHandler
             .Include(p => p.Supplier)
             .Include(p => p.Items)
             .Include(p => p.Request).ThenInclude(r => r!.Phase)
-            .Where(p => p.RequestId != null && p.Status != PurchaseOrderStatus.Draft && p.Status != PurchaseOrderStatus.Cancelled)
+            .Where(p => p.Status != PurchaseOrderStatus.Draft && p.Status != PurchaseOrderStatus.Cancelled)
             .AsNoTracking();
 
         var fromDt = request.FromDate?.Date;
@@ -48,11 +48,11 @@ public class GetProcurementReportQueryHandler
 
         if (request.ProjectId > 0)
         {
-            poQuery = poQuery.Where(p => (p.ProjectId == request.ProjectId) || (p.Request != null && p.Request.Phase!.ProjectId == request.ProjectId));
+            poQuery = poQuery.Where(p => p.ProjectId == request.ProjectId);
         }
         else
         {
-            poQuery = poQuery.Where(p => accessibleIds.Contains(p.ProjectId) || (p.Request != null && accessibleIds.Contains(p.Request.Phase!.ProjectId)));
+            poQuery = poQuery.Where(p => accessibleIds.Contains(p.ProjectId));
         }
 
         if (fromDt.HasValue)
@@ -86,15 +86,15 @@ public class GetProcurementReportQueryHandler
 
         if (fromDt.HasValue)
         {
-            dpQuery = dpQuery.Where(d => d.CreatedAt >= fromDt.Value);
+            dpQuery = dpQuery.Where(d => d.PurchaseDate >= fromDt.Value);
         }
         if (toDt.HasValue)
         {
-            dpQuery = dpQuery.Where(d => d.CreatedAt <= toDt.Value);
+            dpQuery = dpQuery.Where(d => d.PurchaseDate <= toDt.Value);
         }
 
         var dps = await dpQuery
-            .OrderByDescending(d => d.CreatedAt)
+            .OrderByDescending(d => d.PurchaseDate)
             .ToListAsync(cancellationToken);
 
         decimal totalPoCost = pos.Sum(p => p.TotalAmount > 0
@@ -122,7 +122,7 @@ public class GetProcurementReportQueryHandler
             RequestedByName = d.Requester?.FullName ?? string.Empty,
             Status = d.Status,
             TotalAmount = d.TotalAmount > 0 ? d.TotalAmount : d.Items.Sum(i => i.Quantity * i.UnitPrice),
-            CreatedAt = d.CreatedAt
+            CreatedAt = d.PurchaseDate
         }).ToList();
 
         // Calculate Monthly Procurement Trends (Full Calendar Year T01 -> T12 & Multi-year History)
@@ -138,7 +138,7 @@ public class GetProcurementReportQueryHandler
         else
         {
             var poMin = pos.Any() ? pos.Min(p => p.OrderDate) : now;
-            var dpMin = dps.Any() ? dps.Min(d => d.CreatedAt) : now;
+            var dpMin = dps.Any() ? dps.Min(d => d.PurchaseDate) : now;
             var minDt = poMin < dpMin ? poMin : dpMin;
             int startYear = Math.Min(minDt.Year, now.Year);
             startMonth = new DateTime(startYear, 1, 1);
@@ -155,7 +155,7 @@ public class GetProcurementReportQueryHandler
             var mEnd = currentM.AddMonths(1).AddTicks(-1);
 
             var monthPos = pos.Where(p => p.OrderDate >= mStart && p.OrderDate <= mEnd).ToList();
-            var monthDps = dps.Where(d => d.CreatedAt >= mStart && d.CreatedAt <= mEnd).ToList();
+            var monthDps = dps.Where(d => d.PurchaseDate >= mStart && d.PurchaseDate <= mEnd).ToList();
 
             decimal poCost = monthPos.Sum(p => p.TotalAmount > 0 ? p.TotalAmount : p.Items.Sum(i => i.Quantity * i.UnitPrice));
             decimal dpCost = monthDps.Sum(d => d.TotalAmount > 0 ? d.TotalAmount : d.Items.Sum(i => i.Quantity * i.UnitPrice));
@@ -195,9 +195,18 @@ public class GetProcurementReportQueryHandler
 
         var avgPricesMap = await _unitOfWork.Repository<PurchaseOrderItem>()
             .Query()
-            .Where(p => p.UnitPrice > 0)
+            .Where(p => p.UnitPrice > 0
+                && p.PurchaseOrder!.Status != PurchaseOrderStatus.Draft
+                && p.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
+                && (request.ProjectId > 0
+                    ? p.PurchaseOrder.ProjectId == request.ProjectId
+                    : accessibleIds.Contains(p.PurchaseOrder.ProjectId)))
             .GroupBy(p => p.MaterialId)
-            .Select(g => new { MaterialId = g.Key, AvgPrice = g.Average(x => x.UnitPrice) })
+            .Select(g => new
+            {
+                MaterialId = g.Key,
+                AvgPrice = g.Average(x => x.UnitPrice / (x.ConversionRate > 0 ? x.ConversionRate : 1m))
+            })
             .ToDictionaryAsync(x => x.MaterialId, x => x.AvgPrice, cancellationToken);
 
         decimal totalMaterialIssuanceVal = issuanceItems.Sum(i =>

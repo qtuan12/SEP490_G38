@@ -6,12 +6,13 @@ using BPG.Application.Features.Reports.Queries.GetInventoryLedgerReport;
 using BPG.Application.Features.Reports.Queries.GetInventoryMovementReport;
 using BPG.Application.Features.Reports.Queries.GetProcurementReport;
 using BPG.Application.Features.Reports.Queries.GetConsolidatedExecutiveReport;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BPG.Api.Controllers;
 
-[Authorize]
+[Authorize(Roles = RolePolicies.Reports)]
 public class ReportsController : BaseApiController
 {
     [HttpGet("project/{projectId}/executive-dashboard")]

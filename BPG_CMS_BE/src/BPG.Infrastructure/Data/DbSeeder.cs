@@ -16,13 +16,21 @@ public static class DbSeeder
         // KHÔNG dùng EnsureDeletedAsync() — lệnh đó để lại file .ldf mồ côi trên
         // ổ đĩa SQL Server, khiến CREATE DATABASE bị lỗi Error 5170 khi chạy lại.
         await context.Database.MigrateAsync();
-        if (await context.Units.AnyAsync() && await context.Projects.AnyAsync()) return;
+        if (await context.Units.AnyAsync() && await context.Projects.AnyAsync())
+        {
+            var existingUsers = await context.Users.ToDictionaryAsync(u => u.Email);
+            var existingUnits = await context.Units.ToListAsync();
+            var existingCatalogs = await context.MaterialCatalogs.ToListAsync();
+            await SeedInventoryAuditAndIncidentTestDataAsync(context, existingUsers, existingUnits, existingCatalogs);
+            return;
+        }
 
         var users      = await SeedAuthAsync(context);
         var adminId = users["admin@bpg.com"].UserId;
         var masterData = await SeedMasterDataAsync(context, adminId);
         var catalogs   = await SeedMaterialsAsync(context, masterData.Units, masterData.Categories, adminId);
         await SeedProjectsAndLifecyclesAsync(context, users, masterData.Units, catalogs, masterData.Suppliers);
+        await SeedInventoryAuditAndIncidentTestDataAsync(context, users, masterData.Units, catalogs);
         await SeedNotificationsAsync(context, users);
     }
 
@@ -2112,6 +2120,422 @@ public static class DbSeeder
     // ─────────────────────────────────────────────────────────────────────────
     // NOTIFICATIONS
     // ─────────────────────────────────────────────────────────────────────────
+    private static async Task SeedInventoryAuditAndIncidentTestDataAsync(
+        AppDbContext context,
+        Dictionary<string, User> users,
+        List<Unit> units,
+        List<MaterialCatalog> catalogs)
+    {
+        const string marker = "SEED_TEST_INVENTORY_INCIDENT";
+        if (await context.InventoryAdjustments.AnyAsync(a => a.Reason.Contains(marker)) ||
+            await context.Incidents.AnyAsync(i => i.Description.Contains(marker)))
+        {
+            return;
+        }
+
+        if (!users.TryGetValue("tpkt@bpg.com", out var tpkt) ||
+            !users.TryGetValue("ketoan@bpg.com", out var ketoan) ||
+            !users.TryGetValue("giamdoc@bpg.com", out var gd))
+        {
+            return;
+        }
+
+        var project = await context.Projects
+            .Where(p => p.Status == ProjectStatus.InProgress)
+            .OrderBy(p => p.ProjectId)
+            .FirstOrDefaultAsync();
+        if (project == null) return;
+
+        var phase = await context.Phases
+            .Where(p => p.ProjectId == project.ProjectId && p.Status == PhaseStatus.InProgress)
+            .OrderBy(p => p.OrderIndex)
+            .FirstOrDefaultAsync()
+            ?? await context.Phases.Where(p => p.ProjectId == project.ProjectId).OrderBy(p => p.OrderIndex).FirstOrDefaultAsync();
+        if (phase == null) return;
+
+        var task = await context.Tasks
+            .Where(t => t.PhaseId == phase.PhaseId && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+            .OrderByDescending(t => t.ProgressPercent)
+            .FirstOrDefaultAsync();
+        if (task == null) return;
+
+        var leader = await context.ProjectMembers
+            .Where(pm => pm.ProjectId == project.ProjectId && pm.IsLeader)
+            .Select(pm => pm.User)
+            .FirstOrDefaultAsync()
+            ?? users.Values.FirstOrDefault(u => u.Email.StartsWith("leader"))
+            ?? tpkt;
+
+        var engineer = await context.ProjectMembers
+            .Where(pm => pm.ProjectId == project.ProjectId && !pm.IsLeader)
+            .Select(pm => pm.User)
+            .FirstOrDefaultAsync()
+            ?? users.Values.FirstOrDefault(u => u.Email.StartsWith("kysu"))
+            ?? leader;
+
+        var xiMang = catalogs.FirstOrDefault(c => c.Code == "XM-HT-PC40") ?? catalogs.FirstOrDefault();
+        var thep = catalogs.FirstOrDefault(c => c.Code == "THEP-HP-D12") ?? catalogs.Skip(1).FirstOrDefault() ?? xiMang;
+        var gach = catalogs.FirstOrDefault(c => c.Code == "GACH-TUYNEL-8x8x18") ?? catalogs.Skip(2).FirstOrDefault() ?? xiMang;
+        var son = catalogs.FirstOrDefault(c => c.Code == "SON-DULUX-W18") ?? catalogs.Skip(3).FirstOrDefault() ?? xiMang;
+        if (xiMang == null || thep == null || gach == null || son == null) return;
+
+        var now = DateTime.UtcNow;
+        await EnsureStockAsync(xiMang, 420);
+        await EnsureStockAsync(thep, 1800);
+        await EnsureStockAsync(gach, 12000);
+        await EnsureStockAsync(son, 45);
+
+        await AddAdjustmentAsync(
+            InventoryAdjustmentType.Decrease,
+            InventoryAdjustmentStatus.Pending,
+            $"{marker} - Kiem ke dot xuat thieu vat tu tai cong truong",
+            "Ke toan da doi chieu so sach va so dem thuc te, dang cho Giam doc phe duyet giam ton.",
+            ketoan.UserId,
+            null,
+            null,
+            new[] { (xiMang, 12m), (gach, 350m) },
+            now.AddDays(-1));
+
+        await AddAdjustmentAsync(
+            InventoryAdjustmentType.Increase,
+            InventoryAdjustmentStatus.Pending,
+            $"{marker} - Kiem ke phat hien vat tu nhap thua chua ghi so",
+            "Phat hien them son va thep trong khu tap ket tam, dang cho truong phong ky thuat xac nhan.",
+            leader.UserId,
+            null,
+            null,
+            new[] { (son, 6m), (thep, 120m) },
+            now.AddHours(-18));
+
+        await AddAdjustmentAsync(
+            InventoryAdjustmentType.Increase,
+            InventoryAdjustmentStatus.Approved,
+            $"{marker} - Dieu chinh tang sau kiem ke cuoi tuan",
+            "Da xac nhan vat tu con thua sau khi doi chieu phieu nhap va bien ban giao ca.",
+            leader.UserId,
+            tpkt.UserId,
+            null,
+            new[] { (thep, 85m), (son, 4m) },
+            now.AddDays(-6));
+
+        await AddAdjustmentAsync(
+            InventoryAdjustmentType.Decrease,
+            InventoryAdjustmentStatus.Approved,
+            $"{marker} - Dieu chinh giam do hao hut khi kiem ke",
+            "Da phe duyet giam ton cho phan vat tu hao hut co bien ban xac minh tai cong truong.",
+            ketoan.UserId,
+            gd.UserId,
+            null,
+            new[] { (xiMang, 8m), (gach, 220m) },
+            now.AddDays(-5));
+
+        await AddAdjustmentAsync(
+            InventoryAdjustmentType.Decrease,
+            InventoryAdjustmentStatus.Rejected,
+            $"{marker} - Phieu giam ton bi tu choi do thieu anh doi chung",
+            "Giam doc yeu cau kiem ke lai va bo sung anh hien truong truoc khi lap phieu moi.",
+            ketoan.UserId,
+            gd.UserId,
+            "Chua du bang chung kiem ke va bien ban co chu ky chi huy truong.",
+            new[] { (son, 3m) },
+            now.AddDays(-4));
+
+        var waitingAccountant = await AddIncidentAsync(
+            "InventoryDamage",
+            "WaitingAccountant",
+            $"{marker} - Bao cao vat tu bi uot trong kho tam, cho Ke toan xac minh.",
+            "18 bao xi mang dat sat cua kho, vo bao bi am va can kiem tra kha nang su dung.",
+            1_710_000,
+            0.5m,
+            1,
+            "Kiem dem lai lo xi mang, lap phieu giam ton neu xac nhan hong.",
+            leader.UserId,
+            null,
+            false,
+            now.AddHours(-8));
+
+        var waitingDirector = await AddIncidentAsync(
+            "InventoryLoss",
+            "WaitingDirector",
+            $"{marker} - Ke toan da xac minh mat vat tu, cho Giam doc phe duyet.",
+            "Thieu 9 bao xi mang va 180 vien gach sau khi doi chieu the kho.",
+            1_350_000,
+            0.5m,
+            1,
+            "Phe duyet phieu giam ton lien quan va yeu cau bao ve kiem soat khu tap ket.",
+            leader.UserId,
+            ketoan.UserId,
+            false,
+            now.AddDays(-2));
+
+        await AddAdjustmentAsync(
+            InventoryAdjustmentType.Decrease,
+            InventoryAdjustmentStatus.Pending,
+            $"{marker} - Phieu giam ton lien ket su co #{waitingDirector.IncidentId}",
+            $"[System] Liên kết sự cố #{waitingDirector.IncidentId}. Giam ton sau khi ke toan xac minh su co mat vat tu.",
+            ketoan.UserId,
+            null,
+            null,
+            new[] { (xiMang, 9m), (gach, 180m) },
+            now.AddDays(-2).AddHours(1));
+
+        var approvedInventory = await AddIncidentAsync(
+            "InventoryDamage",
+            "Approved",
+            $"{marker} - Su co vat tu da duoc Giam doc phe duyet xu ly.",
+            "Thep D12 bi cong venh do xe nang va cham, mot phan khong dam bao nghiem thu.",
+            2_400_000,
+            1,
+            2,
+            "Giam ton phan thep hu hong va tang cuong rao chan khu tap ket.",
+            leader.UserId,
+            gd.UserId,
+            false,
+            now.AddDays(-7));
+
+        await AddAdjustmentAsync(
+            InventoryAdjustmentType.Decrease,
+            InventoryAdjustmentStatus.Approved,
+            $"{marker} - Phieu giam ton da phe duyet cho su co #{approvedInventory.IncidentId}",
+            $"[System] Liên kết sự cố #{approvedInventory.IncidentId}. Giam ton do vat tu hu hong da duoc phe duyet.",
+            ketoan.UserId,
+            gd.UserId,
+            null,
+            new[] { (thep, 95m) },
+            now.AddDays(-7).AddHours(2),
+            InventoryTransactionType.IncidentLoss);
+
+        var approvedConstruction = await AddIncidentAsync(
+            "Construction",
+            "Approved",
+            $"{marker} - Su co thi cong da duoc TPKT phe duyet va tao task khac phuc.",
+            "Be mat be tong tang 1 bi rong nhe tai mep dam, can duc sua cuc bo.",
+            3_200_000,
+            2,
+            2,
+            "Tao task khac phuc, duc sua be tong va nghiem thu lai truoc khi thi cong tiep.",
+            leader.UserId,
+            tpkt.UserId,
+            false,
+            now.AddDays(-3));
+
+        var reworkTask = new ProjectTask
+        {
+            PhaseId = phase.PhaseId,
+            ParentTaskId = task.ParentTaskId,
+            IncidentId = approvedConstruction.IncidentId,
+            Name = "SEED TEST - Khac phuc be tong rong sau su co",
+            Description = "Task khac phuc duoc tao tu du lieu seed de test luong su co thi cong.",
+            OrderIndex = task.OrderIndex + 100,
+            StartDate = DateOnly.FromDateTime(now.AddDays(-2)),
+            EndDate = DateOnly.FromDateTime(now.AddDays(2)),
+            Status = BPG.Domain.Constants.TaskStatus.InProgress,
+            ProgressPercent = 25,
+            Weight = 0.5m,
+            CreatedAt = now.AddDays(-3),
+            CreatedBy = tpkt.UserId
+        };
+        context.Tasks.Add(reworkTask);
+        await context.SaveChangesAsync();
+        approvedConstruction.ReworkTaskId = reworkTask.TaskId;
+        approvedConstruction.RecoveryPlanText = "Khoan duc phan be tong loi, ve sinh be mat, dung vua sua chua chuyen dung va nghiem thu lai.";
+        approvedConstruction.RecoveryEstimateCost = 3_200_000;
+        context.TaskAssignees.Add(new TaskAssignee { TaskId = reworkTask.TaskId, UserId = engineer.UserId, AssignedAt = now.AddDays(-3) });
+        await context.SaveChangesAsync();
+
+        await AddIncidentAsync("Construction", "WaitingReview", $"{marker} - Su co thi cong moi, cho Truong phong ky thuat tham dinh.", "Cop pha dam tang 2 bi xeo sau mua lon, can kiem tra truoc khi do be tong.", 0, 1, 1, "Tam dung khu vuc dam, can TPKT danh gia bien phap gia co.", leader.UserId, null, false, now.AddHours(-5));
+        await AddIncidentAsync("Construction", "WaitingStopApproval", $"{marker} - Su co khan cap yeu cau tam dung thi cong.", "Lun sut cuc bo khu vuc san thao tac, co nguy co mat an toan lao dong.", 6_500_000, 3, 4, "Tam dung thi cong khu vuc anh huong va yeu cau TPKT phe duyet dung khan cap.", leader.UserId, null, true, now.AddHours(-3));
+        await AddIncidentAsync("Construction", "WaitingRecoveryPlan", $"{marker} - Da duoc phe duyet tam dung, cho TPKT lap phuong an khac phuc.", "Nut san thao tac khu vuc mat sau, du an dang tam dung mot phan.", 8_000_000, 4, 5, "TPKT can nop phuong an chong do va kiem dinh lai khu vuc bi anh huong.", leader.UserId, tpkt.UserId, true, now.AddDays(-1));
+        await AddIncidentAsync("Construction", "WaitingDirectorApproval", $"{marker} - Phuong an khac phuc da nop, cho Giam doc phe duyet.", "Can phe duyet chi phi gia co tam va kiem dinh an toan truoc khi thi cong lai.", 12_000_000, 5, 6, "Giam doc xem xet phe duyet phuong an va ngan sach khac phuc.", leader.UserId, tpkt.UserId, true, now.AddDays(-2), "Lap he chong tam, moi don vi kiem dinh doc lap, sau do thi cong bu.", 12_000_000);
+
+        context.Notifications.AddRange(
+            new Notification
+            {
+                UserId = gd.UserId,
+                Title = "Seed test: phieu kiem ke cho phe duyet",
+                Content = "Da co phieu dieu chinh ton kho va su co vat tu dang cho Giam doc phe duyet.",
+                NotificationType = NotificationType.Procurement,
+                ReferenceType = NotificationReferenceType.InventoryAdjustment,
+                ReferenceId = project.ProjectId,
+                IsRead = false,
+                CreatedAt = now
+            },
+            new Notification
+            {
+                UserId = tpkt.UserId,
+                Title = "Seed test: su co thi cong cho tham dinh",
+                Content = "Da co su co thi cong dang cho TPKT tham dinh trong du lieu test.",
+                NotificationType = NotificationType.Incident,
+                ReferenceType = NotificationReferenceType.Incident,
+                ReferenceId = project.ProjectId,
+                IsRead = false,
+                CreatedAt = now
+            },
+            new Notification
+            {
+                UserId = ketoan.UserId,
+                Title = "Seed test: su co vat tu cho xac minh",
+                Content = "Da co su co vat tu dang cho Ke toan xac minh.",
+                NotificationType = NotificationType.Incident,
+                ReferenceType = NotificationReferenceType.Incident,
+                ReferenceId = waitingAccountant.IncidentId,
+                IsRead = false,
+                CreatedAt = now
+            });
+        await context.SaveChangesAsync();
+
+        async Task EnsureStockAsync(MaterialCatalog material, decimal minimumQuantity)
+        {
+            var inventory = await context.CurrentInventories.FirstOrDefaultAsync(
+                x => x.ProjectId == project.ProjectId && x.MaterialId == material.MaterialId);
+            if (inventory == null)
+            {
+                inventory = new CurrentInventory
+                {
+                    ProjectId = project.ProjectId,
+                    MaterialId = material.MaterialId,
+                    UnitId = material.BaseUnitId,
+                    Quantity = minimumQuantity,
+                    ReservedQuantity = 0,
+                    LastUpdated = now
+                };
+                context.CurrentInventories.Add(inventory);
+                await context.SaveChangesAsync();
+            }
+            else if (inventory.Quantity < minimumQuantity)
+            {
+                inventory.Quantity = minimumQuantity;
+                inventory.LastUpdated = now;
+                await context.SaveChangesAsync();
+            }
+        }
+
+        async Task<InventoryAdjustment> AddAdjustmentAsync(
+            string type,
+            string status,
+            string reason,
+            string description,
+            long createdBy,
+            long? approvedBy,
+            string? rejectedReason,
+            IEnumerable<(MaterialCatalog Material, decimal Quantity)> items,
+            DateTime createdAt,
+            byte transactionType = InventoryTransactionType.Adjustment)
+        {
+            var adjustment = new InventoryAdjustment
+            {
+                ProjectId = project.ProjectId,
+                PhaseId = phase.PhaseId,
+                AdjustmentType = type,
+                Reason = reason,
+                Description = description,
+                Status = status,
+                ApprovedBy = approvedBy,
+                ApprovedAt = approvedBy.HasValue ? createdAt.AddHours(3) : null,
+                RejectedReason = rejectedReason,
+                CreatedAt = createdAt,
+                CreatedBy = createdBy
+            };
+            context.InventoryAdjustments.Add(adjustment);
+            await context.SaveChangesAsync();
+
+            foreach (var (material, quantity) in items)
+            {
+                context.AdjustmentItems.Add(new AdjustmentItem
+                {
+                    AdjustmentId = adjustment.AdjustmentId,
+                    MaterialId = material.MaterialId,
+                    UnitId = material.BaseUnitId,
+                    Quantity = quantity,
+                    ConversionRate = 1
+                });
+
+                if (status == InventoryAdjustmentStatus.Approved)
+                {
+                    var inventory = await context.CurrentInventories.FirstAsync(
+                        x => x.ProjectId == project.ProjectId && x.MaterialId == material.MaterialId);
+                    var change = type == InventoryAdjustmentType.Increase ? quantity : -quantity;
+                    inventory.Quantity += change;
+                    if (inventory.Quantity < 0) inventory.Quantity = 0;
+                    inventory.LastUpdated = adjustment.ApprovedAt ?? createdAt;
+
+                    context.InventoryTransactions.Add(new InventoryTransaction
+                    {
+                        ProjectId = project.ProjectId,
+                        MaterialId = material.MaterialId,
+                        TransactionType = transactionType,
+                        ReferenceId = adjustment.AdjustmentId,
+                        ReferenceType = EntityType.InventoryAdjustment,
+                        QuantityChange = change,
+                        BalanceAfter = inventory.Quantity,
+                        CreatedBy = approvedBy ?? createdBy,
+                        CreatedAt = adjustment.ApprovedAt ?? createdAt
+                    });
+                }
+            }
+
+            await context.SaveChangesAsync();
+            return adjustment;
+        }
+
+        async Task<Incident> AddIncidentAsync(
+            string type,
+            string status,
+            string description,
+            string damage,
+            decimal materialLoss,
+            decimal laborDays,
+            int delayDays,
+            string action,
+            long reportedBy,
+            long? reviewedBy,
+            bool isEmergency,
+            DateTime createdAt,
+            string? recoveryPlan = null,
+            decimal? recoveryCost = null)
+        {
+            var incident = new Incident
+            {
+                ProjectId = project.ProjectId,
+                PhaseId = phase.PhaseId,
+                TaskId = type == "Construction" ? task.TaskId : null,
+                ReportedBy = reportedBy,
+                ReviewedBy = reviewedBy,
+                IncidentType = type,
+                Description = description,
+                Status = status,
+                DamageDescription = damage,
+                EstimatedMaterialLoss = materialLoss,
+                EstimatedLaborDays = laborDays,
+                EstimatedDelayDays = delayDays,
+                ProposedAction = action,
+                HandlingInstruction = reviewedBy.HasValue ? action : null,
+                IsEmergency = isEmergency,
+                RecoveryPlanText = recoveryPlan,
+                RecoveryEstimateCost = recoveryCost,
+                CreatedAt = createdAt,
+                CreatedBy = reportedBy
+            };
+            context.Incidents.Add(incident);
+            await context.SaveChangesAsync();
+
+            context.Attachments.Add(new Attachment
+            {
+                EntityType = EntityType.Incident,
+                EntityId = incident.IncidentId,
+                AttachmentType = AttachmentType.IncidentPhoto,
+                FileName = $"seed-test-incident-{incident.IncidentId}.jpg",
+                FileUrl = $"/seed/incidents/test-{incident.IncidentId}.jpg",
+                ContentType = "image/jpeg",
+                FileSizeBytes = 256_000,
+                CreatedAt = createdAt,
+                CreatedBy = reportedBy
+            });
+            await context.SaveChangesAsync();
+            return incident;
+        }
+    }
+
     private static async Task SeedNotificationsAsync(AppDbContext context, Dictionary<string, User> users)
     {
         var gd     = users["giamdoc@bpg.com"];

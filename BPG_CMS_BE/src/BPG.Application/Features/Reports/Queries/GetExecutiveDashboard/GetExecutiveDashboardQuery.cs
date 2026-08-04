@@ -38,6 +38,8 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             .Include(p => p.Tasks)
                 .ThenInclude(t => t.Assignees)
                     .ThenInclude(a => a.User)
+            .Include(p => p.Tasks)
+                .ThenInclude(t => t.ProgressLogs)
             .AsNoTracking();
 
         if (request.ProjectId > 0)
@@ -171,6 +173,12 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             mrQuery = mrQuery.Where(mr => mr.CreatedAt <= toDt.Value);
         }
 
+        var overBoqMaterialCount = await mrQuery
+            .SelectMany(mr => mr.Items.Where(i => i.IsOverBOQ))
+            .Select(i => i.MaterialId)
+            .Distinct()
+            .CountAsync(cancellationToken);
+
         var overBoqMRs = await mrQuery.CountAsync(cancellationToken);
 
         var allDelayedInfos = delayedTaskInfos
@@ -196,25 +204,51 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
 
         int prevIncidentsCount = await _unitOfWork.Repository<Incident>()
             .Query()
-            .Where(i => (request.ProjectId == 0 || i.ProjectId == request.ProjectId) && i.CreatedAt >= prevStart && i.CreatedAt <= prevEnd)
+            .Where(i => (request.ProjectId > 0
+                    ? i.ProjectId == request.ProjectId
+                    : accessibleIds.Contains(i.ProjectId))
+                && i.CreatedAt >= prevStart
+                && i.CreatedAt <= prevEnd)
             .CountAsync(cancellationToken);
 
         int curIncidentsCount = await _unitOfWork.Repository<Incident>()
             .Query()
-            .Where(i => (request.ProjectId == 0 || i.ProjectId == request.ProjectId) && (!fromDt.HasValue || i.CreatedAt >= fromDt.Value) && (!toDt.HasValue || i.CreatedAt <= toDt.Value))
+            .Where(i => (request.ProjectId > 0
+                    ? i.ProjectId == request.ProjectId
+                    : accessibleIds.Contains(i.ProjectId))
+                && (!fromDt.HasValue || i.CreatedAt >= fromDt.Value)
+                && (!toDt.HasValue || i.CreatedAt <= toDt.Value))
             .CountAsync(cancellationToken);
 
         decimal prevPoCost = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
-            .Where(po => po.Status == PurchaseOrderStatus.Sent || po.Status == PurchaseOrderStatus.PartiallyReceived || po.Status == PurchaseOrderStatus.FullyReceived)
-            .Where(po => (request.ProjectId == 0 || po.Request.Phase.ProjectId == request.ProjectId) && po.OrderDate >= prevStart && po.OrderDate <= prevEnd)
+            .Where(po => po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Cancelled)
+            .Where(po => (request.ProjectId > 0
+                    ? po.ProjectId == request.ProjectId
+                    : accessibleIds.Contains(po.ProjectId))
+                && po.OrderDate >= prevStart
+                && po.OrderDate <= prevEnd)
             .SumAsync(po => (decimal?)po.TotalAmount, cancellationToken) ?? 0m;
 
         decimal curPoCost = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
-            .Where(po => po.Status == PurchaseOrderStatus.Sent || po.Status == PurchaseOrderStatus.PartiallyReceived || po.Status == PurchaseOrderStatus.FullyReceived)
-            .Where(po => (request.ProjectId == 0 || po.Request.Phase.ProjectId == request.ProjectId) && (!fromDt.HasValue || po.OrderDate >= fromDt.Value) && (!toDt.HasValue || po.OrderDate <= toDt.Value))
+            .Where(po => po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Cancelled)
+            .Where(po => (request.ProjectId > 0
+                    ? po.ProjectId == request.ProjectId
+                    : accessibleIds.Contains(po.ProjectId))
+                && (!fromDt.HasValue || po.OrderDate >= fromDt.Value)
+                && (!toDt.HasValue || po.OrderDate <= toDt.Value))
             .SumAsync(po => (decimal?)po.TotalAmount, cancellationToken) ?? 0m;
+
+        int prevOverBoqMRs = await _unitOfWork.Repository<MaterialRequest>()
+            .Query()
+            .Where(mr => mr.Items.Any(i => i.IsOverBOQ))
+            .Where(mr => (request.ProjectId > 0
+                    ? mr.Phase!.ProjectId == request.ProjectId
+                    : accessibleIds.Contains(mr.Phase!.ProjectId))
+                && mr.CreatedAt >= prevStart
+                && mr.CreatedAt <= prevEnd)
+            .CountAsync(cancellationToken);
 
         decimal completedDelta = prevCompletedTasks > 0 ? Math.Round(((decimal)(completedTasks - prevCompletedTasks) / prevCompletedTasks) * 100, 1) : (completedTasks > 0 ? 100m : 0m);
         decimal incidentsDelta = prevIncidentsCount > 0 ? Math.Round(((decimal)(curIncidentsCount - prevIncidentsCount) / prevIncidentsCount) * 100, 1) : (curIncidentsCount > 0 ? 100m : 0m);
@@ -232,7 +266,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             PreviousProcurementCost = prevPoCost,
             ProcurementCostDeltaPercent = costDelta,
             CurrentOverBoqMRs = overBoqMRs,
-            PreviousOverBoqMRs = 0
+            PreviousOverBoqMRs = prevOverBoqMRs
         };
 
         // 2. Cross Project Comparison Matrix
@@ -311,8 +345,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             var s = t.StartDate.ToDateTime(TimeOnly.MinValue);
             var e = t.EndDate.ToDateTime(TimeOnly.MaxValue);
             var durDays = Math.Max(1, (int)(e - s).TotalDays + 1);
-            var currentActualProg = (double)BPG.Application.Common.Helpers.ProgressCalculator.GetEffectiveProgress(t);
-            return new { Task = t, Start = s, End = e, DurationDays = durDays, ActualProg = currentActualProg };
+            return new { Task = t, Start = s, End = e, DurationDays = durDays };
         }).ToList();
 
         double totalProjectDurationDays = taskWeights.Sum(x => x.DurationDays);
@@ -348,8 +381,8 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                 foreach (var item in taskWeights)
                 {
                     double taskWeight = item.DurationDays / totalProjectDurationDays;
-                    bool isDone = BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(item.Task.Status);
-                    if (isDone)
+                    var progressAtMonthEnd = GetProgressAt(item.Task, mEnd);
+                    if (progressAtMonthEnd >= 100m)
                     {
                         if (mEnd >= item.Start || currentM >= new DateTime(item.Start.Year, item.Start.Month, 1))
                         {
@@ -358,7 +391,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                     }
                     else if (mEnd >= item.Start)
                     {
-                        actualWeightSum += taskWeight * item.ActualProg;
+                        actualWeightSum += taskWeight * (double)progressAtMonthEnd;
                     }
                 }
                 actualCumulative = Math.Round((decimal)actualWeightSum, 1);
@@ -371,7 +404,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             decimal plannedMonthlyVol = Math.Max(0m, plannedCumulative - prevPlannedCumulative);
             decimal actualMonthlyVol = !isFutureMonth ? Math.Max(0m, actualCumulative - prevActualCumulative) : 0m;
 
-            int doneInMonth = allTasks.Count(t => BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(t.Status) && t.EndDate.ToDateTime(TimeOnly.MinValue) <= mEnd);
+            int doneInMonth = allTasks.Count(t => GetProgressAt(t, mEnd) >= 100m);
 
             monthlyProgressTrends.Add(new MonthlyProgressTrendDto
             {
@@ -401,7 +434,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             DelayedTasks = delayedTasks,
             AtRiskTasks = atRiskTasks,
             OverBoqMaterialRequests = overBoqMRs,
-            MaterialsExceedingBOQ = overBoqMRs,
+            MaterialsExceedingBOQ = overBoqMaterialCount,
             PhaseBreakdown = phaseBreakdown,
             DelayedTasksList = allDelayedInfos,
             PeriodComparison = periodComparison,
@@ -410,6 +443,32 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
         };
 
         return ApiResponse<ExecutiveDashboardDto>.SuccessResult(dto);
+    }
+
+    private static decimal GetProgressAt(ProjectTask task, DateTime asOf)
+    {
+        var latestLog = task.ProgressLogs
+            .Where(log => log.UpdatedAt <= asOf)
+            .OrderByDescending(log => log.UpdatedAt)
+            .FirstOrDefault();
+
+        if (latestLog != null)
+        {
+            return latestLog.NewProgress;
+        }
+
+        if (task.CreatedAt <= asOf)
+        {
+            if (ProgressCalculator.IsCompleted(task.Status)
+                && (!task.UpdatedAt.HasValue || task.UpdatedAt.Value <= asOf))
+            {
+                return 100m;
+            }
+
+            return 0m;
+        }
+
+        return 0m;
     }
 }
 
