@@ -126,7 +126,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
   // Tính tổng số lượng vật tư Phase đã yêu cầu
   const phaseRequestedMaterials = useMemo(() => {
-    const map = new Map<string, { name: string; quantity: number; unit: string }>();
+    const map = new Map<string, { name: string; quantity: number; unit: string; conversionRate?: number }>();
     allMaterialRequests.forEach(r => {
       if (r.phaseId === phase?.id && !r.taskId && r.status !== 'rejected') {
         r.items.forEach(item => {
@@ -164,7 +164,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
               const baseUnit = catalog.baseUnitName || '';
               const convs = await materialService.getConversions(catalog.materialId);
               mapConvs[sm.name] = convs.map(c => ({
-                alternativeUnitName: c.alternativeUnitName,
+                alternativeUnitName: c.alternativeUnitName || '',
                 conversionRate: c.conversionRate
               }));
               const altUnits = convs.map(c => c.alternativeUnitName).filter(Boolean) as string[];
@@ -199,7 +199,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
     try {
       const convs = await materialService.getConversions(catalog.materialId);
       convList = convs.map(c => ({
-        alternativeUnitName: c.alternativeUnitName,
+        alternativeUnitName: c.alternativeUnitName || '',
         conversionRate: c.conversionRate
       }));
       const altUnits = convs.map(c => c.alternativeUnitName).filter(Boolean) as string[];
