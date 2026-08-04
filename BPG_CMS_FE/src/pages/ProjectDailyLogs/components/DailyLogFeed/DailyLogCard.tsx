@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Clock, Send, MessageSquare, Eye, Edit2, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Badge, Button, Input, ConfirmDialog } from '../../../../components/ui';
+import { Badge, Button, ConfirmDialog } from '../../../../components/ui';
 import { projectService } from '../../../../services/projectService';
 import type { DailyLog, WBSTask } from '../../../../types/common';
 import { getRoleLabel, getRoleBadgeVariant } from '../../../../utils/roleHelpers';
@@ -329,11 +329,15 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                           onSubmit={(e) => handleCommentUpdateSubmit(e, comm.id)}
                           className="flex gap-2 mt-1.5 w-full min-w-0"
                         >
-                          <Input
-                            type="text"
+                          <textarea
                             value={editingCommentContent}
                             onChange={(e) => setEditingCommentContent(e.target.value)}
-                            className="h-10 sm:h-8 text-xs flex-1 min-w-0"
+                            onKeyDown={(e) => {
+                              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                                e.currentTarget.form?.requestSubmit();
+                              }
+                            }}
+                            className="min-h-[40px] sm:min-h-[32px] max-h-32 text-xs flex-1 min-w-0 resize-y rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
                             required
                             autoFocus
                           />
@@ -355,13 +359,18 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
           {/* Comment Form */}
           {user && (members.some(m => m.userId === user?.id) || canManageExecution) && (
             <form onSubmit={handleCommentSubmit} className="flex gap-2">
-              <Input
-                type="text"
+              <textarea
                 placeholder="Nhập ý kiến chỉ đạo trực tuyến của Ban lãnh đạo..."
                 value={commentInput}
                 onChange={(e) => setCommentInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.currentTarget.form?.requestSubmit();
+                  }
+                }}
                 disabled={isSubmittingComment}
-                className="h-11 sm:h-9 text-xs flex-1"
+                rows={1}
+                className="min-h-[44px] sm:min-h-[36px] max-h-32 text-xs flex-1 resize-y rounded-md border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
                 required
               />
               <Button
