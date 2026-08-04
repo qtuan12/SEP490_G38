@@ -74,7 +74,10 @@ public class ProgressRollupService : IProgressRollupService
                     OldProgress = parentTask.ProgressPercent,
                     NewProgress = baseProgress,
                     UpdateReason = "Cập nhật tự động do tất cả công việc con bị xóa",
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserService.UserId,
+                    UpdatedAt = DateTime.UtcNow,
+                    UpdatedBy = _currentUserService.UserId
                 };
                 await _unitOfWork.Repository<TaskProgressLog>().AddAsync(log, ct);
                 
@@ -127,7 +130,10 @@ public class ProgressRollupService : IProgressRollupService
                     OldProgress = parentTask.ProgressPercent,
                     NewProgress = newProgress,
                     UpdateReason = reason ?? "Cập nhật tự động do công việc con thay đổi",
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserService.UserId,
+                    UpdatedAt = DateTime.UtcNow,
+                    UpdatedBy = _currentUserService.UserId
                 };
                 
                 await _unitOfWork.Repository<TaskProgressLog>().AddAsync(log, ct);

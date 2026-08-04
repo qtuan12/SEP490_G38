@@ -12,16 +12,9 @@ public static class DbSeeder
 {
     public static async Task SeedAsync(AppDbContext context)
     {
-        try
-        {
-            Console.WriteLine("Attempting to delete existing database to re-seed...");
-            await context.Database.EnsureDeletedAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Warning: Could not delete database ({ex.Message}).");
-        }
-
+        // MigrateAsync() tạo DB nếu chưa có, áp dụng migration còn thiếu.
+        // KHÔNG dùng EnsureDeletedAsync() — lệnh đó để lại file .ldf mồ côi trên
+        // ổ đĩa SQL Server, khiến CREATE DATABASE bị lỗi Error 5170 khi chạy lại.
         await context.Database.MigrateAsync();
         if (await context.Units.AnyAsync() && await context.Projects.AnyAsync()) return;
 
@@ -540,6 +533,11 @@ public static class DbSeeder
                     await context.SaveChangesAsync();
                 }
 
+                // ── WBS CHILD TASKS ───────────────────────────────────────────
+                // Thêm task con vào các task cha để tạo cấu trúc WBS phân cấp
+                await SeedWbsChildTasksAsync(context, createdTasks, phase, pd.ThuTu,
+                    isPhaseApproved, isPhaseActive, ksA, ksB, tpkt, rnd);
+
                 // ── DAILY LOGS + TASK PROGRESS LOGS + COMMENTS ───────────────
                 // Tạo nhật ký công trường cho các task có tiến độ (phase active hoặc approved)
                 if (pd.Pct > 0)
@@ -585,6 +583,359 @@ public static class DbSeeder
                 context, completed.Project, completed.Leader,
                 transferTarget.Project, transferTarget.Leader,
                 tpkt, ketoan, suppliers.First());
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // WBS CHILD TASKS
+    // Tạo cấu trúc WBS phân cấp: task cha → nhiều task con
+    // Áp dụng cho tất cả dự án, tất cả giai đoạn, mô phỏng WBS thực tế thi công
+    // ─────────────────────────────────────────────────────────────────────────
+    private static async Task SeedWbsChildTasksAsync(
+        AppDbContext context,
+        List<ProjectTask> parentTasks,
+        Phase phase,
+        int phaseOrder,
+        bool isPhaseApproved,
+        bool isPhaseActive,
+        User ksA, User ksB, User tpkt,
+        Random rnd)
+    {
+        // Định nghĩa các task con theo từng giai đoạn
+        // Key = chỉ số của task cha trong parentTasks (0-based)
+        // Value = danh sách tên task con
+        var subTaskDefs = phaseOrder switch
+        {
+            // ─── Giai đoạn 1: Chuẩn bị & Thi công Cọc/Móng ───
+            1 => new Dictionary<int, string[]>
+            {
+                [0] = new[] // Định vị tim cọc, ranh móng
+                {
+                    "Kiểm tra và hiệu chỉnh máy trắc đạc (máy toàn đạc)",
+                    "Định vị tim cọc và tim trục từ mốc chuẩn của dự án",
+                    "Đóng cọc tiêu xác định ranh nền móng theo bản vẽ",
+                    "Kiểm tra lại toàn bộ vị trí tim cọc và lập biên bản",
+                },
+                [1] = new[] // Ép cọc BTCT 250x250
+                {
+                    "Vệ sinh mặt bằng và tập kết cọc BTCT đến vị trí ép",
+                    "Kiểm tra chất lượng cọc, đánh số và đánh dấu đoạn cọc",
+                    "Vận hành máy ép thủy lực, ép đoạn cọc đầu tiên",
+                    "Ghép nối đoạn cọc (hàn mối nối) và tiếp tục ép",
+                    "Kiểm tra tải trọng ép cuối (Pep ≥ 2.5×Ptk)",
+                    "Lập biên bản nghiệm thu từng cọc ép xong",
+                    "Cắt đầu cọc thừa theo đúng cốt thiết kế móng",
+                },
+                [2] = new[] // Đào đất hố móng
+                {
+                    "Xác định cote đào và phạm vi hố móng theo bản vẽ",
+                    "Đào đất bằng máy đào đến cote -0.5m so thiết kế",
+                    "Đào thủ công hoàn thiện đáy hố đến đúng cote thiết kế",
+                    "Bơm thoát nước hố đào và gia cố thành vách hố",
+                    "Vận chuyển đất thừa ra ngoài công trường",
+                },
+                [4] = new[] // Gia công lắp dựng thép móng, cổ cột
+                {
+                    "Gia công thép đai và thép chủ móng đơn / móng băng",
+                    "Lắp dựng khung thép móng, kê con kê bảo vệ bê tông",
+                    "Gia công và lắp dựng thép cổ cột tầng trệt",
+                    "Kiểm tra kích thước, khoảng cách, lớp bảo vệ thép",
+                    "Lập biên bản nghiệm thu thép móng trước khi đổ BT",
+                },
+                [5] = new[] // Lắp cốp pha móng, giằng móng
+                {
+                    "Lắp dựng cốp pha thành móng và giằng móng",
+                    "Lắp cốp pha cổ cột và chèn chống lún cốp pha",
+                    "Kiểm tra độ phẳng, thẳng đứng và kín khít cốp pha",
+                    "Neo giằng cốp pha đảm bảo ổn định khi đổ bê tông",
+                },
+                [6] = new[] // Đổ bê tông móng, giằng móng
+                {
+                    "Vệ sinh hố móng, tưới ẩm cốp pha trước khi đổ",
+                    "Điều phối xe bê tông thương phẩm và bơm bê tông",
+                    "Đổ bê tông móng đơn và móng băng theo từng đợt",
+                    "Đầm dùi bê tông đảm bảo bê tông không bị rỗng",
+                    "Đổ bê tông giằng móng và cổ cột",
+                    "Gạt phẳng mặt bê tông và kiểm tra cao trình đỉnh móng",
+                },
+                [7] = new[] // Tháo cốp pha và bảo dưỡng bê tông móng
+                {
+                    "Tháo cốp pha thành móng sau 24h (theo tiêu chuẩn)",
+                    "Tưới nước bảo dưỡng bê tông liên tục 7 ngày đêm",
+                    "Lấp đất xung quanh móng và đầm chặt theo từng lớp",
+                    "Kiểm tra chất lượng bê tông bằng súng bắn Schmidt",
+                },
+            },
+
+            // ─── Giai đoạn 2: Khung Thân bê tông cốt thép ───
+            2 => new Dictionary<int, string[]>
+            {
+                [0] = new[] // Gia công lắp dựng thép cột tầng 1
+                {
+                    "Gia công thép chủ (φ16-φ22) và thép đai cột tầng 1",
+                    "Lắp dựng và nối thép cột, căn chỉnh tim cốt đúng vị trí",
+                    "Buộc thép đai đúng khoảng cách, định vị con kê bảo vệ",
+                    "Kiểm tra và nghiệm thu thép cột trước đổ bê tông",
+                },
+                [1] = new[] // Lắp dựng cốp pha cột, dầm, sàn tầng 1
+                {
+                    "Lắp dựng giàn giáo chống đỡ (cây chống thép/gỗ)",
+                    "Lắp cốp pha cột tầng 1 (ván khuôn thép/ván dán phủ phim)",
+                    "Lắp cốp pha đáy dầm chính và dầm phụ tầng 1",
+                    "Lắp cốp pha thành dầm và cốp pha sàn tầng 1",
+                    "Kiểm tra độ phẳng, thẳng đứng và kín khít toàn bộ cốp pha",
+                    "Neo chống cốp pha tránh phồng vênh khi đổ bê tông",
+                },
+                [2] = new[] // Đặt thép dầm sàn tầng 1
+                {
+                    "Gia công thép dầm chính (φ18-φ25) theo bản vẽ kết cấu",
+                    "Đặt và buộc thép dầm chính vào đúng vị trí",
+                    "Gia công và đặt thép dầm phụ",
+                    "Đặt thép sàn lớp dưới (thép chịu lực)",
+                    "Lắp đặt ống gen điện, cơ điện âm sàn",
+                    "Đặt thép sàn lớp trên (thép phân bố) và kiểm tra lớp bảo vệ",
+                    "Nghiệm thu thép dầm sàn và lập biên bản trước đổ BT",
+                },
+                [3] = new[] // Đổ bê tông cột, dầm, sàn tầng 1
+                {
+                    "Vệ sinh và tưới ẩm cốp pha trước khi đổ bê tông",
+                    "Điều phối xe bơm bê tông thương phẩm mác 300",
+                    "Đổ và đầm dùi bê tông cột tầng 1",
+                    "Đổ bê tông dầm chính, dầm phụ tầng 1",
+                    "Đổ bê tông sàn tầng 1, đầm và gạt phẳng",
+                    "Xoa nền, kiểm tra cao trình sàn bằng máy laser",
+                },
+                [4] = new[] // Bảo dưỡng bê tông tầng 1
+                {
+                    "Tưới nước bảo dưỡng ngay sau khi bê tông đông kết (4-8h)",
+                    "Phủ bao tải/bạt giữ ẩm bề mặt sàn",
+                    "Tưới nước bảo dưỡng định kỳ trong 7 ngày liên tục",
+                    "Kiểm tra cường độ bê tông bằng súng bắn Schmidt",
+                    "Tháo cốp pha cột sau 24h và cốp pha dầm sàn sau 7 ngày",
+                },
+                [5] = new[] // Lắp dựng cốp pha, thép dầm sàn tầng 2
+                {
+                    "Lắp giàn giáo và cốp pha dầm sàn tầng 2",
+                    "Gia công và lắp đặt thép dầm tầng 2",
+                    "Đặt thép sàn và ống gen cơ điện tầng 2",
+                    "Kiểm tra, nghiệm thu thép và cốp pha tầng 2",
+                },
+                [6] = new[] // Đổ bê tông dầm sàn tầng 2
+                {
+                    "Chuẩn bị xe bơm bê tông và dụng cụ đầm dùi",
+                    "Đổ bê tông dầm chính và dầm phụ tầng 2",
+                    "Đổ bê tông sàn tầng 2, đầm và gạt phẳng",
+                    "Xoa nền và kiểm tra cao trình bề mặt sàn tầng 2",
+                    "Bảo dưỡng bê tông sàn tầng 2 trong 7 ngày",
+                },
+                [7] = new[] // Thi công cầu thang và mái bê tông
+                {
+                    "Lắp cốp pha và thép cầu thang bộ",
+                    "Đổ bê tông cầu thang, đầm và hoàn thiện mặt bậc",
+                    "Lắp cốp pha và thép mái bê tông cốt thép",
+                    "Đổ bê tông mái, tạo dốc thoát nước và bảo dưỡng",
+                },
+            },
+
+            // ─── Giai đoạn 3: Xây Tô & Hoàn thiện ───
+            3 => new Dictionary<int, string[]>
+            {
+                [0] = new[] // Xây tường gạch
+                {
+                    "Vạch mực tim tường và kiểm tra đường cắt nước",
+                    "Ngâm và chuẩn bị gạch, vữa xi măng cát vàng",
+                    "Xây tường gạch ống 8x8x18 tầng trệt theo dây căng",
+                    "Xây tường gạch các tầng lầu và tường bao che",
+                    "Kiểm tra độ phẳng, thẳng đứng và đúng vị trí cửa",
+                    "Trát bít các lỗ hổng và xử lý mối nối giữa tường và cột",
+                },
+                [1] = new[] // Tô trát tường trong nhà
+                {
+                    "Vệ sinh bề mặt tường và tưới ẩm trước khi tô",
+                    "Trát vữa lót lớp 1 (scratch coat) dày 12-15mm",
+                    "Chờ vữa lót khô đạt độ ẩm, trát lớp mặt hoàn thiện",
+                    "Xử lý các góc, vị trí tiếp giáp cửa và lanh tô",
+                    "Chà nhám và kiểm tra độ phẳng bề mặt bằng thước 2m",
+                },
+                [2] = new[] // Tô trát tường ngoài nhà
+                {
+                    "Dựng giàn giáo bên ngoài đảm bảo an toàn",
+                    "Vệ sinh và tưới ẩm bề mặt tường ngoài",
+                    "Trát vữa lớp lót tường ngoài chịu thời tiết",
+                    "Trát lớp vữa mặt và tạo gờ trang trí theo thiết kế",
+                    "Kiểm tra bề mặt, xử lý vết nứt và tháo giàn giáo",
+                },
+                [3] = new[] // Đi đường ống điện âm tường
+                {
+                    "Đánh dấu và đục rãnh đường ống theo bản vẽ điện",
+                    "Luồn ống gen PVC φ16-φ25 theo sơ đồ mạch điện",
+                    "Cố định ống gen và hộp đế công tắc, ổ cắm",
+                    "Luồn dây điện qua ống gen và đấu sơ bộ đầu dây",
+                    "Bít trát lại rãnh ống sau khi kiểm tra thông mạch",
+                },
+                [4] = new[] // Đi đường ống cấp thoát nước âm tường
+                {
+                    "Đánh dấu và đục rãnh đường ống cấp nước âm tường",
+                    "Lắp đặt ống PPR cấp nước nóng/lạnh và van khóa",
+                    "Đặt ống PVC thoát nước và ống thông hơi",
+                    "Thử áp lực đường ống cấp nước (áp 10 bar/15 phút)",
+                    "Bít trát lại rãnh sau khi thử áp lực đạt yêu cầu",
+                },
+                [5] = new[] // Chống thấm WC, ban công, sân thượng
+                {
+                    "Vệ sinh bề mặt, xử lý vết nứt và lỗ hổng",
+                    "Quét lớp chống thấm gốc xi măng Sika lớp 1",
+                    "Chờ lớp 1 khô, quét lớp chống thấm lớp 2 vuông góc",
+                    "Thử nước ngâm 24-48 giờ kiểm tra không rò rỉ",
+                    "Lập biên bản nghiệm thu chống thấm",
+                },
+                [6] = new[] // Ốp lát gạch sàn và gạch tường WC
+                {
+                    "Chuẩn bị vữa lót sàn, pha trộn xi măng cát đúng tỉ lệ",
+                    "Trải vữa lót sàn và kiểm tra phẳng bằng máy laser",
+                    "Ốp lát gạch sàn khu vệ sinh, bếp, ban công",
+                    "Ốp gạch tường khu vệ sinh theo đúng thiết kế",
+                    "Chà ron và vệ sinh bề mặt gạch sau khi hoàn thiện",
+                },
+                [7] = new[] // Sơn bả hoàn thiện
+                {
+                    "Bả ma tít tường lần 1 và chờ khô 8-12 giờ",
+                    "Chà nhám lần 1 bằng giấy nhám 80, dọn bụi",
+                    "Bả ma tít tường lần 2 và chờ khô",
+                    "Chà nhám lần 2 bằng giấy nhám 120 (nhám mịn)",
+                    "Sơn lót chống kiềm 1 lớp, chờ khô 4 giờ",
+                    "Sơn phủ màu nước lớp 1",
+                    "Sơn phủ màu nước lớp 2 hoàn thiện",
+                },
+            },
+
+            // ─── Giai đoạn 4: Lắp đặt Thiết bị & Bàn giao ───
+            _ => new Dictionary<int, string[]>
+            {
+                [0] = new[] // Lắp thiết bị điện, tủ điện
+                {
+                    "Lắp đặt tủ điện chính: MCB tổng, MCB nhánh, đồng hồ điện",
+                    "Đi dây điện từ tủ đến các hộp đế công tắc/ổ cắm",
+                    "Lắp đặt công tắc, ổ cắm theo đúng sơ đồ bố trí",
+                    "Đo điện trở cách điện và kiểm tra an toàn điện (≥1MΩ)",
+                    "Lập biên bản kiểm tra và nghiệm thu hệ thống điện",
+                },
+                [1] = new[] // Lắp đèn chiếu sáng và trang trí
+                {
+                    "Lắp đặt đèn downlight âm trần phòng khách, phòng ngủ",
+                    "Lắp đèn led thanh trang trí và đèn vách",
+                    "Lắp đèn ngoài trời và đèn hành lang",
+                    "Kiểm tra vận hành toàn bộ mạch đèn và hệ thống chiếu sáng",
+                },
+                [2] = new[] // Lắp thiết bị vệ sinh
+                {
+                    "Lắp đặt bồn cầu một khối và két nước âm tường",
+                    "Lắp đặt lavabo, bộ vòi nóng lạnh và gương soi",
+                    "Lắp đặt bộ vòi sen, vách kính tắm đứng",
+                    "Kết nối đường ống cấp nước và thoát nước thiết bị",
+                    "Kiểm tra vận hành, độ kín khít và không rò rỉ toàn bộ",
+                },
+                [3] = new[] // Lắp cửa gỗ, cửa nhôm kính, lan can
+                {
+                    "Lắp khung cửa gỗ công nghiệp phòng ngủ",
+                    "Lắp cánh cửa gỗ, bản lề và tay nắm cửa",
+                    "Lắp cửa nhôm kính ban công và cầu thang",
+                    "Lắp lan can cầu thang inox/sắt sơn tĩnh điện",
+                    "Lắp lan can ban công và ban công sân thượng",
+                    "Kiểm tra độ kín, thẩm mỹ và an toàn lan can",
+                },
+                [4] = new[] // Kiểm tra vận hành hệ điện nước
+                {
+                    "Kiểm tra toàn bộ hệ thống điện: thông mạch, an toàn",
+                    "Kiểm tra hệ thống cấp nước: áp lực, lưu lượng",
+                    "Kiểm tra hệ thống thoát nước: thoát nhanh, không ứ đọng",
+                    "Chạy thử toàn bộ thiết bị điện nước 24/24 trong 3 ngày",
+                    "Lập danh sách khiếm khuyết (punch list) và hoàn thiện",
+                },
+                [5] = new[] // Vệ sinh công nghiệp
+                {
+                    "Vệ sinh công nghiệp sàn, tường, trần tầng trệt",
+                    "Vệ sinh các tầng lầu và khu vệ sinh",
+                    "Lau kính cửa, bề mặt nhôm và thiết bị",
+                    "Thu dọn vật liệu thừa và rác thải công trường",
+                    "Kiểm tra lần cuối và bàn giao mặt bằng cho nội bộ",
+                },
+                [6] = new[] // Nghiệm thu hoàn công nội bộ
+                {
+                    "Kiểm tra tổng thể toàn bộ công trình theo check-list",
+                    "Đo đạc và lập hồ sơ hoàn công các hạng mục",
+                    "Chụp ảnh và quay video toàn bộ công trình hoàn thành",
+                    "Họp đánh giá chất lượng nội bộ (leader, TPKT, GĐ)",
+                    "Lập biên bản nghiệm thu hoàn công nội bộ",
+                },
+                [7] = new[] // Bàn giao công trình
+                {
+                    "Chuẩn bị toàn bộ hồ sơ bàn giao: bản vẽ hoàn công, biên bản nghiệm thu",
+                    "Tổ chức buổi bàn giao chính thức với chủ đầu tư",
+                    "Hướng dẫn chủ đầu tư vận hành và bảo trì công trình",
+                    "Ký biên bản bàn giao và thanh lý hợp đồng",
+                    "Lưu trữ hồ sơ dự án vào kho lưu trữ BPG",
+                },
+            },
+        };
+
+        byte subProgress = isPhaseApproved ? (byte)100 : isPhaseActive ? (byte)30 : (byte)0;
+        string subStatus = isPhaseApproved ? "Approved" : isPhaseActive ? "InProgress" : "New";
+        bool subLocked   = isPhaseApproved;
+
+        foreach (var (parentIdx, childNames) in subTaskDefs)
+        {
+            if (parentIdx >= parentTasks.Count) continue;
+            var parent = parentTasks[parentIdx];
+
+            // Sub-task kế thừa tiến độ gần đúng từ task cha
+            byte actualProgress = isPhaseApproved ? (byte)100
+                : isPhaseActive ? parent.ProgressPercent
+                : (byte)0;
+
+            int subIdx = 0;
+            foreach (var childName in childNames)
+            {
+                // Chia tiến độ từng task con: task sau có tiến độ = tiến độ cha × tỉ lệ
+                byte childPct = isPhaseApproved ? (byte)100
+                    : isPhaseActive ? (byte)Math.Min(actualProgress, (byte)((subIdx + 1) * actualProgress / childNames.Length))
+                    : (byte)0;
+
+                var sub = new ProjectTask
+                {
+                    PhaseId       = phase.PhaseId,
+                    ParentTaskId  = parent.TaskId,
+                    Name          = childName,
+                    Description   = $"[Task con] {childName}. Thuộc công việc cha: {parent.Name}. Tuân thủ bản vẽ thi công và biện pháp an toàn.",
+                    OrderIndex    = subIdx + 1,
+                    StartDate     = parent.StartDate.AddDays(subIdx * 2),
+                    EndDate       = parent.StartDate.AddDays((subIdx + 1) * 2 + 1),
+                    Status        = subStatus,
+                    ProgressPercent = childPct,
+                    Weight        = 1,
+                    IsOutsourced  = false,
+                    IsLocked      = subLocked,
+                    CreatedAt     = DateTime.UtcNow,
+                    CreatedBy     = tpkt.UserId
+                };
+                context.Tasks.Add(sub);
+                await context.SaveChangesAsync();
+
+                // Gán kỹ sư xen kẽ ksA / ksB cho task con có tiến độ
+                if (childPct > 0 || isPhaseActive)
+                {
+                    var assignee = subIdx % 2 == 0 ? ksA : ksB;
+                    context.TaskAssignees.Add(new TaskAssignee
+                    {
+                        TaskId     = sub.TaskId,
+                        UserId     = assignee.UserId,
+                        AssignedAt = DateTime.UtcNow
+                    });
+                    await context.SaveChangesAsync();
+                }
+
+                subIdx++;
+            }
         }
     }
 
@@ -660,7 +1011,10 @@ public static class DbSeeder
                     OldProgress   = previousPct,
                     NewProgress   = newPct,
                     UpdateReason  = $"Cập nhật tiến độ ngày {logDate:dd/MM/yyyy}",
-                    UpdatedAt     = logTimestamp
+                    CreatedAt     = logTimestamp,
+                    CreatedBy     = creator.UserId,
+                    UpdatedAt     = logTimestamp,
+                    UpdatedBy     = creator.UserId
                 });
                 await context.SaveChangesAsync();
 
