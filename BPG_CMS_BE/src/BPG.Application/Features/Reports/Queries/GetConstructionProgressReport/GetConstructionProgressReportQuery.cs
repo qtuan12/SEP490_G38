@@ -36,6 +36,15 @@ public class GetConstructionProgressReportQueryHandler
             throw new BPG.Domain.Exceptions.BusinessException("ERR_FORBIDDEN", "Bạn không có quyền xem báo cáo của dự án này.");
         }
 
+        // Ngưỡng cảnh báo trễ tiến độ do quản trị viên cấu hình (SystemConfigs.ExpectedDelayPercent).
+        // Chậm hơn kế hoạch nhưng chưa vượt ngưỡng thì chỉ nhắc nhở, vượt ngưỡng mới coi là cảnh báo.
+        var delayConfig = await _unitOfWork.Repository<SystemConfig>().Query()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ConfigKey == BPG.Domain.Constants.SystemConfigKeys.ExpectedDelayPercent, cancellationToken);
+        decimal delayThresholdPercent = 10m;
+        if (delayConfig != null && decimal.TryParse(delayConfig.ConfigValue, out var parsedThreshold))
+            delayThresholdPercent = parsedThreshold;
+
         var phasesQuery = _unitOfWork.Repository<Phase>()
             .Query()
             .Include(p => p.Tasks)
@@ -188,9 +197,15 @@ public class GetConstructionProgressReportQueryHandler
         {
             insights.Add($"Tiến độ tổng thể đạt {overallProgress}%, vượt {variancePercent:F1}% so với tiến độ kế hoạch kỳ vọng ({overallExpectedProgress}%).");
         }
+        else if (Math.Abs(variancePercent) <= delayThresholdPercent)
+        {
+            insights.Add($"Tiến độ thực tế ({overallProgress}%) đang chậm {Math.Abs(variancePercent):F1}% so với kế hoạch kỳ vọng ({overallExpectedProgress}%), " +
+                         $"vẫn trong ngưỡng cho phép {delayThresholdPercent:F0}%.");
+        }
         else
         {
-            insights.Add($"Cảnh báo: Tiến độ thực tế ({overallProgress}%) đang chậm {Math.Abs(variancePercent):F1}% so với tiến độ kế hoạch kỳ vọng ({overallExpectedProgress}%).");
+            insights.Add($"Cảnh báo: Tiến độ thực tế ({overallProgress}%) đang chậm {Math.Abs(variancePercent):F1}% so với tiến độ kế hoạch kỳ vọng ({overallExpectedProgress}%), " +
+                         $"vượt ngưỡng cho phép {delayThresholdPercent:F0}%.");
         }
 
         var bottleneckPhase = phaseProgressList
@@ -359,6 +374,7 @@ public class GetConstructionProgressReportQueryHandler
             OverallProgressPercent = overallProgress,
             ExpectedProgressPercent = overallExpectedProgress,
             ScheduleVarianceDays = totalDelayedDays,
+            DelayWarningThresholdPercent = delayThresholdPercent,
             ForecastedEndDate = forecastedEndDateStr,
             Phases = phaseProgressList,
             Acceptances = acceptances,

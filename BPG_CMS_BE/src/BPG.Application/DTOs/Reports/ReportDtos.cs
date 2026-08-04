@@ -190,6 +190,12 @@ public record ConstructionProgressReportDto
     public decimal ExpectedProgressPercent { get; init; }
     public decimal ScheduleVariancePercent => OverallProgressPercent - ExpectedProgressPercent;
     public int ScheduleVarianceDays { get; init; }
+
+    /// <summary>
+    /// Ngưỡng cảnh báo trễ tiến độ (%) lấy từ SystemConfigs (ExpectedDelayPercent).
+    /// Chậm hơn kế hoạch nhưng còn trong ngưỡng này thì chỉ cảnh báo vàng; vượt ngưỡng mới báo đỏ.
+    /// </summary>
+    public decimal DelayWarningThresholdPercent { get; init; }
     public string? ForecastedEndDate { get; init; }
     public List<PhaseProgressDto> Phases { get; init; } = new();
     public List<PhaseAcceptanceSummaryDto> Acceptances { get; init; } = new();

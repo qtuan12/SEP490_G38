@@ -96,11 +96,18 @@ namespace BPG.Application.UnitTests.DirectPurchases
         }
 
         private void SetDraft(DateOnly purchaseDate, DateOnly? phaseStart = null, DateOnly? phaseEnd = null,
-            string phaseStatus = PhaseStatus.InProgress, string projectStatus = ProjectStatus.InProgress)
+            string phaseStatus = PhaseStatus.InProgress, string projectStatus = ProjectStatus.InProgress,
+            DateOnly? projectStart = null)
         {
             _mockProjectRepo.Setup(r => r.Query()).Returns(new List<Project>
             {
-                new() { ProjectId = ProjectId, Name = "Dự án A", Status = projectStatus }
+                new()
+                {
+                    ProjectId = ProjectId,
+                    Name = "Dự án A",
+                    Status = projectStatus,
+                    PlannedStart = projectStart ?? DateOnly.MinValue,
+                }
             }.AsQueryable().BuildMock());
 
             var dp = new DirectPurchaseRequest
@@ -158,14 +165,32 @@ namespace BPG.Application.UnitTests.DirectPurchases
         }
 
         [Fact]
-        public async Task Submit_PurchaseDateBeforePhaseStart_ShouldThrow()
+        public async Task Submit_PurchaseDateBeforeProjectStart_ShouldThrow()
         {
-            SetDraft(TodayVn.AddDays(-10), phaseStart: TodayVn.AddDays(-5));
+            SetDraft(TodayVn.AddDays(-10), projectStart: TodayVn.AddDays(-5));
 
             var act = Submit;
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be(ErrorCodes.DpPurchaseDateBeforePhase);
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpPurchaseDateBeforeProject);
+        }
+
+        /// <summary>
+        /// Ngày mua không bắt buộc nằm trong khoảng của giai đoạn: mua trước khi giai đoạn bắt đầu
+        /// vẫn hợp lệ, miễn là từ ngày bắt đầu dự án trở đi.
+        /// </summary>
+        [Fact]
+        public async Task Submit_PurchaseDateBeforePhaseStartButAfterProjectStart_ShouldPass()
+        {
+            SetDraft(TodayVn.AddDays(-10), phaseStart: TodayVn.AddDays(-5), projectStart: TodayVn.AddDays(-30));
+
+            await Submit();
+
+            _mockFulfillment.Verify(f => f.MaterializeAsync(
+                It.IsAny<DirectPurchaseRequest>(),
+                It.IsAny<IReadOnlyList<DirectPurchaseItem>>(),
+                UserId,
+                It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
