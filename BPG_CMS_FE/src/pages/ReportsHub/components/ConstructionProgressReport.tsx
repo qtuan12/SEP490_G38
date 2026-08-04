@@ -109,6 +109,18 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
 
   const variancePercent = (data.overallProgressPercent || 0) - (data.expectedProgressPercent || 0);
 
+  // Ngưỡng cảnh báo trễ tiến độ do quản trị viên cấu hình (ExpectedDelayPercent).
+  // Đúng/vượt kế hoạch → xanh; chậm nhưng còn trong ngưỡng → vàng; chậm quá ngưỡng → đỏ.
+  const delayThreshold = data.delayWarningThresholdPercent ?? 10;
+  const varianceTone =
+    variancePercent >= 0 ? 'ok'
+      : Math.abs(variancePercent) <= delayThreshold ? 'warn'
+        : 'bad';
+  const varianceBadgeClass =
+    varianceTone === 'ok' ? 'bg-emerald-100 text-emerald-700'
+      : varianceTone === 'warn' ? 'bg-amber-100 text-amber-700'
+        : 'bg-rose-100 text-rose-700';
+
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       {/* Top Stat Analytics Grid */}
@@ -123,11 +135,16 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
           </div>
           <div className="mt-3 flex items-baseline justify-between">
             <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{data.overallProgressPercent}%</div>
-            <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${variancePercent >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+            <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${varianceBadgeClass}`}>
               {variancePercent >= 0 ? `+${variancePercent.toFixed(1)}%` : `${variancePercent.toFixed(1)}%`} vs Baseline
             </span>
           </div>
-          <div className="text-xs font-medium text-slate-500 mt-1">Kế hoạch kỳ vọng: <strong>{data.expectedProgressPercent || 0}%</strong></div>
+          <div className="text-xs font-medium text-slate-500 mt-1">
+            Kế hoạch kỳ vọng: <strong>{data.expectedProgressPercent || 0}%</strong>
+            {varianceTone !== 'ok' && (
+              <> · ngưỡng cảnh báo <strong>{delayThreshold}%</strong></>
+            )}
+          </div>
         </div>
 
         {/* Metric 2: Schedule Variance in Days */}

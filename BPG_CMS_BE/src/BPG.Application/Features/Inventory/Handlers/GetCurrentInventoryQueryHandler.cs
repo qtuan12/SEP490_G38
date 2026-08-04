@@ -2,6 +2,7 @@ using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Inventory;
 using BPG.Application.Features.Inventory.Queries;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,8 @@ namespace BPG.Application.Features.Inventory.Handlers
         public async Task<ApiResponse<List<CurrentInventoryDto>>> Handle(GetCurrentInventoryQuery request, CancellationToken cancellationToken)
         {
             var config = await _uow.Repository<SystemConfig>().Query()
-                .FirstOrDefaultAsync(c => c.ConfigKey == "NguongTonKhoThap" || c.ConfigKey == "LowStockThreshold", cancellationToken);
+                .FirstOrDefaultAsync(c => c.ConfigKey == SystemConfigKeys.LowStockThreshold
+                                       || c.ConfigKey == SystemConfigKeys.LowStockThresholdEn, cancellationToken);
             decimal threshold = 10m;
             if (config != null && decimal.TryParse(config.ConfigValue, out var val))
             {

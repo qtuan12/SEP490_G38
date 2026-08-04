@@ -222,6 +222,8 @@ export interface ConstructionProgressReportDto {
   expectedProgressPercent?: number;
   scheduleVariancePercent?: number;
   scheduleVarianceDays?: number;
+  /** Ngưỡng cảnh báo trễ tiến độ (%) lấy từ cấu hình hệ thống ExpectedDelayPercent. */
+  delayWarningThresholdPercent?: number;
   forecastedEndDate?: string;
   phases: PhaseProgressDto[];
   acceptances: PhaseAcceptanceSummaryDto[];
