@@ -41,7 +41,7 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> GetApprovedRequests([FromQuery] long projectId, CancellationToken ct)
         {
             var result = await Mediator.Send(new GetApprovedRequestsForPOQuery(projectId), ct);
-            return Ok(result);
+            return ApiOk(result, "Lấy danh sách yêu cầu vật tư đã duyệt thành công");
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> GetPurchaseOrderById(long id, CancellationToken ct)
         {
             var result = await Mediator.Send(new GetPurchaseOrderByIdQuery(id), ct);
-            return Ok(result);
+            return ApiOk(result, "Lấy chi tiết đơn mua hàng thành công");
         }
 
         /// <summary>
@@ -98,7 +98,7 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> ClosePurchaseOrder(long id, [FromBody] CancelPORequestBody body, CancellationToken ct)
         {
             await Mediator.Send(new ClosePurchaseOrderCommand { POId = id, Reason = body.Reason }, ct);
-            return ApiOk(true, "Đóng đơn mua hàng thành công");
+            return ApiOk(true, "Đóng đơn mua hàng thành công. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.");
         }
     }
 

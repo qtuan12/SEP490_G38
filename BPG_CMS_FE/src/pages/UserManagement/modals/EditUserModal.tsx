@@ -53,7 +53,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, o
       return userService.updateUser(user.id, data);
     },
     onSuccess: (result) => {
-      onSuccess(result.message || `Đã cập nhật tài khoản ${result.data.name} thành công.`);
+      onSuccess(result.message || 'Thao tác thành công.');
       onClose();
     }
   });

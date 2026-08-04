@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, HardHat, CheckCircle, Clock, AlertTriangle, Circle, XCircle, Search, X } from 'lucide-react';
+import { Loader2, HardHat, CheckCircle, Clock, AlertTriangle, Circle, XCircle, Search, X, TrendingUp } from 'lucide-react';
 import { reportService, type ConstructionProgressReportDto } from '../../../services/reportService';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, Line, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 
 interface Props {
   projectId: string | null;
@@ -15,6 +15,8 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
   const [activePhaseId, setActivePhaseId] = useState<number | null>(null);
   const [taskSearchQuery, setTaskSearchQuery] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'delayed' | 'inprogress' | 'completed'>('all');
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
 
   useEffect(() => {
     if (!projectId || projectId === 'all') {
@@ -213,6 +215,56 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
         </div>
       )}
 
+      {/* Monthly Progress Trend & Comparison Analytics Chart */}
+      {(data.monthlyTrends || []).length > 0 && (() => {
+        const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year))).sort((a, b) => b - a);
+        const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === selectedYear);
+
+        return (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
+                  <TrendingUp size={16} className="text-indigo-500" /> Biểu đồ Tiến độ Thi công 12 Tháng Theo Năm
+                </h4>
+                <p className="text-xs text-slate-500 m-0 mt-0.5">So sánh tiến độ Kế hoạch vs Thực tế hàng tháng</p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Year Selector Dropdown */}
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+                >
+                  {availableYears.map(y => (
+                    <option key={y} value={y}>Năm {y} {y === currentYear ? '' : ''}</option>
+                  ))}
+                </select>
+
+
+              </div>
+            </div>
+
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={filteredTrends} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
+                  <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fontWeight: 600 }} />
+                  <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
+                  <RechartsTooltip formatter={(value: any, name: any) => [`${value}%`, String(name || '')]} />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Bar dataKey="plannedMonthlyVolume" name="SL Kế hoạch" fill="#f59e0b" maxBarSize={22} radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="actualMonthlyVolume" name="SL Thực tế" fill="#06b6d4" maxBarSize={22} radius={[3, 3, 0, 0]} />
+                  <Line type="monotone" dataKey="plannedProgressPercent" name="Kế hoạch lũy kế" stroke="#2563eb" strokeDasharray="5 5" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="actualProgressPercent" name="Thực tế lũy kế" stroke="#10b981" strokeWidth={3.5} dot={{ r: 5 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Assignee / Subcontractor Performance Matrix */}
       {(data.assigneePerformance || []).length > 0 && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
@@ -276,20 +328,18 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
                 <button
                   key={phase.phaseId}
                   onClick={() => setActivePhaseId(phase.phaseId)}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                    isActive
-                      ? 'border-indigo-500 bg-white dark:bg-slate-800 shadow-sm ring-1 ring-indigo-500/30'
-                      : 'border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-800'
-                  }`}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${isActive
+                    ? 'border-indigo-500 bg-white dark:bg-slate-800 shadow-sm ring-1 ring-indigo-500/30'
+                    : 'border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-800'
+                    }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${
-                      phase.status === 'Approved' || phase.status === 'Completed'
-                        ? 'bg-emerald-500'
-                        : phase.status === 'InProgress'
-                          ? 'bg-indigo-500'
-                          : 'bg-slate-400'
-                    }`} />
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${phase.status === 'Approved' || phase.status === 'Completed'
+                      ? 'bg-emerald-500'
+                      : phase.status === 'InProgress'
+                        ? 'bg-indigo-500'
+                        : 'bg-slate-400'
+                      }`} />
                     <div className="truncate">
                       <div className="font-bold text-xs text-slate-900 dark:text-white truncate">{phase.phaseName}</div>
                       <div className="text-[10px] text-slate-500">{phase.completedTasks}/{phase.totalTasks} tasks</div>
@@ -312,11 +362,10 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
             {data.acceptances.length > 0 && (
               <button
                 onClick={() => setActivePhaseId(-1)}
-                className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer mt-2 ${
-                  activePhaseId === -1
-                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 shadow-sm ring-1 ring-emerald-500/30'
-                    : 'border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-800'
-                }`}
+                className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer mt-2 ${activePhaseId === -1
+                  ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 shadow-sm ring-1 ring-emerald-500/30'
+                  : 'border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-800'
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <CheckCircle size={14} className="text-emerald-500" />
@@ -417,11 +466,10 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
                         <button
                           key={filter}
                           onClick={() => setTaskStatusFilter(filter)}
-                          className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                            taskStatusFilter === filter
-                              ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm'
-                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200'
-                          }`}
+                          className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${taskStatusFilter === filter
+                            ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200'
+                            }`}
                         >
                           {label} ({count})
                         </button>
@@ -453,11 +501,10 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
                     filteredTasks.map(task => (
                       <div
                         key={task.taskId}
-                        className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-all gap-2 ${
-                          task.isDelayed
-                            ? 'border-red-200 bg-red-50/20 dark:border-red-900/50 dark:bg-red-950/20'
-                            : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50'
-                        }`}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-all gap-2 ${task.isDelayed
+                          ? 'border-red-200 bg-red-50/20 dark:border-red-900/50 dark:bg-red-950/20'
+                          : 'border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50'
+                          }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div className="shrink-0">

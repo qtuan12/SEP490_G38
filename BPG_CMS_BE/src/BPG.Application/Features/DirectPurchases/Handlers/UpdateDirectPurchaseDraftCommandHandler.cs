@@ -32,21 +32,21 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             var dp = await _uow.Repository<DirectPurchaseRequest>().Query()
                 .FirstOrDefaultAsync(r => r.DirectPurchaseId == request.DirectPurchaseId && !r.IsDeleted, ct)
-                ?? throw new NotFoundException(nameof(DirectPurchaseRequest), request.DirectPurchaseId);
+                ?? throw new NotFoundException("Không tìm thấy phiếu mua trực tiếp cần sửa.");
 
             if (dp.Status != DirectPurchaseStatus.Draft)
-                throw new BusinessException("ERR_NOT_DRAFT",
-                    $"Chỉ sửa được phiếu ở trạng thái Nháp. Trạng thái hiện tại: {dp.Status}.");
+                throw new BusinessException(ErrorCodes.DpNotDraft,
+                    $"Chỉ sửa được phiếu ở trạng thái Nháp. Trạng thái hiện tại: {DirectPurchaseStatus.Label(dp.Status)}.");
 
             if (dp.RequestedBy != userId)
                 throw new ForbiddenException("Chỉ người tạo mới được sửa phiếu nháp này.");
 
             var phase = await _uow.Repository<Phase>().Query()
                 .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct)
-                ?? throw new NotFoundException(nameof(Phase), request.PhaseId);
+                ?? throw new NotFoundException("Không tìm thấy giai đoạn đã chọn.");
 
             if (phase.ProjectId != dp.ProjectId)
-                throw new BusinessException("ERR_PHASE_PROJECT_MISMATCH", "Giai đoạn không thuộc dự án của phiếu.");
+                throw new BusinessException(ErrorCodes.DpPhaseProjectMismatch, "Giai đoạn không thuộc dự án của phiếu.");
 
             await DirectPurchaseGuard.EnsureCanManageAsync(_uow, _currentUserService, dp.ProjectId, userId, ct);
 

@@ -98,3 +98,10 @@ __pycache__/
 !.env.example
 
 BPG_CMS_BE/.github/copilot-instructions.md
+
+# Local-only working folders (not for push)
+.tmp_closedxml_test/
+.tmp_openxml_validate/
+outputs/
+scripts/
+test-cases/

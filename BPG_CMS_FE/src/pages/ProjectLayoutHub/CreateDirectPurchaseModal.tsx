@@ -12,6 +12,8 @@ import type { MaterialCatalog } from '../../types/material';
 import type { WBSPhase } from '../../types/common';
 import { Plus, Trash2, Upload, X, AlertTriangle, Loader2, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ApiError } from '../../services/api';
+import { DP_PURCHASE_DATE_ERRORS } from '../../constants/errorCodes';
 import { compressAndUploadFile } from '../../utils/uploadHelper';
 import type { UploadedFileState } from '../../utils/uploadHelper';
 
@@ -232,33 +234,54 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     });
   };
 
-  // ---------- Validate ----------
+  // ---------- Validate realtime ----------
+  // Kiểm ngay khi người dùng nhập, không đợi bấm nút. Các rule dưới đây phản chiếu rule của
+  // backend (SubmitDirectPurchaseCommandHandler) — backend vẫn là chốt chặn cuối cùng.
+
+  /** Lỗi của từng dòng vật tư, hiển thị ngay dưới ô nhập tương ứng. */
+  const rowErrors = useMemo(
+    () =>
+      rows.map((r, idx) => {
+        if (!r.materialId) return 'Chưa chọn vật tư.';
+        if (rows.findIndex(x => x.materialId === r.materialId) !== idx)
+          return 'Vật tư bị trùng với một dòng khác.';
+        const qty = parseFloat(r.quantity);
+        if (!qty || qty <= 0) return 'Số lượng phải lớn hơn 0.';
+        const price = parseFloat(r.unitPrice);
+        if (!price || price <= 0) return 'Đơn giá phải lớn hơn 0.';
+        return null;
+      }),
+    [rows]
+  );
+
   /** Nháp chỉ cần đủ thông tin để lưu; phần còn lại backend chốt ở bước Gửi. */
-  const validateDraft = (): string | null => {
-    if (!selectedPhaseId) return 'Vui lòng chọn giai đoạn.';
-    if (!purchaseDate) return 'Vui lòng chọn ngày mua.';
+  const draftIssues = useMemo(() => {
+    const issues: string[] = [];
+    if (!selectedPhaseId) issues.push('Chưa chọn giai đoạn.');
+    if (!purchaseDate) issues.push('Chưa chọn ngày mua.');
     const filled = rows.filter(r => r.materialId);
     const dupe = filled.find((r, i) => filled.findIndex(x => x.materialId === r.materialId) !== i);
-    if (dupe) return `Vật tư "${dupe.materialName}" bị trùng lặp.`;
-    return null;
-  };
+    if (dupe) issues.push(`Vật tư "${dupe.materialName}" bị trùng lặp.`);
+    return issues;
+  }, [selectedPhaseId, purchaseDate, rows]);
 
-  const validateSubmit = (): string | null => {
-    const draftErr = validateDraft();
-    if (draftErr) return draftErr;
-    if (dateHint) return dateHint;
-    if (!reason.trim()) return 'Vui lòng nhập lý do mua khẩn cấp.';
-    if (uploadedFiles.length === 0) return 'Bắt buộc phải tải ảnh hóa đơn.';
-    if (rows.length === 0) return 'Vui lòng thêm ít nhất một vật tư.';
-    for (const r of rows) {
-      if (!r.materialId) return 'Vui lòng chọn vật tư cho tất cả các dòng.';
-      const qty = parseFloat(r.quantity);
-      if (!qty || qty <= 0) return `Số lượng không hợp lệ cho vật tư "${r.materialName}".`;
-      const price = parseFloat(r.unitPrice);
-      if (!price || price <= 0) return `Đơn giá không hợp lệ cho vật tư "${r.materialName}".`;
-    }
-    return null;
-  };
+  const submitIssues = useMemo(() => {
+    const issues = [...draftIssues];
+    if (dateHint) issues.push(dateHint);
+    if (!reason.trim()) issues.push('Chưa nhập lý do mua khẩn cấp.');
+    if (uploadedFiles.length === 0) issues.push('Chưa tải ảnh hóa đơn.');
+    if (rows.length === 0) issues.push('Chưa có vật tư nào trong phiếu.');
+    const invalidRows = rowErrors.filter(Boolean).length;
+    if (invalidRows > 0) issues.push(`${invalidRows} dòng vật tư đang có lỗi.`);
+    if (uploadedFiles.some(f => f.status === 'uploading')) issues.push('Ảnh hóa đơn đang tải lên.');
+    if (uploadedFiles.some(f => f.status === 'error' || (f.status === 'success' && !f.url?.startsWith('http'))))
+      issues.push('Có ảnh hóa đơn tải lên thất bại.');
+    // Trùng lặp giữa draftIssues và rowErrors (vật tư trùng) — gộp lại cho gọn.
+    return Array.from(new Set(issues));
+  }, [draftIssues, dateHint, reason, uploadedFiles, rows.length, rowErrors]);
+
+  const canSaveDraft = draftIssues.length === 0 && !uploadedFiles.some(f => f.status === 'uploading');
+  const canSubmit = submitIssues.length === 0;
 
   const buildItems = (): CreateDirectPurchaseItemInput[] =>
     rows
@@ -291,17 +314,13 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
 
   const handleSaveDraft = async () => {
     setPurchaseDateError(null);
-    const err = validateDraft();
-    if (err) { toast.error(err); return; }
-    if (uploadedFiles.some(f => f.status === 'uploading')) {
-      toast.error('Vui lòng chờ hình ảnh hóa đơn tải lên hoàn tất.');
-      return;
-    }
+    // Điều kiện đã được chặn realtime (nút bị disable), đây chỉ là chốt an toàn.
+    if (!canSaveDraft) return;
 
     setSaving('draft');
     try {
       const result = await persist();
-      toast.success(result.message || 'Đã lưu nháp. Phiếu chưa được gửi và chưa ảnh hưởng tồn kho.');
+      toast.success(result.message || 'Thao tác thành công.');
       onSuccess();
       onClose();
     } catch (e: any) {
@@ -311,21 +330,10 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     }
   };
 
-  /** Kiểm tra hợp lệ rồi mở hộp xác nhận - việc gửi thực sự nằm ở doSubmit. */
+  /** Mở hộp xác nhận - việc gửi thực sự nằm ở doSubmit. */
   const handleSubmit = () => {
     setPurchaseDateError(null);
-    const err = validateSubmit();
-    if (err) { toast.error(err); return; }
-
-    if (uploadedFiles.some(f => f.status === 'uploading')) {
-      toast.error('Vui lòng chờ hình ảnh hóa đơn tải lên hoàn tất.');
-      return;
-    }
-    if (uploadedFiles.some(f => f.status === 'error' || !f.url?.startsWith('http'))) {
-      toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
-      return;
-    }
-
+    if (!canSubmit) return;
     setIsConfirmOpen(true);
   };
 
@@ -334,10 +342,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     try {
       const persisted = await persist();
       const result = await directPurchaseService.submit(persisted.id);
-      toast.success(result.message || (anyOverBOQ
-        ? 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán soát hóa đơn.'
-        : 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán kiểm toán.'
-      ));
+      toast.success(result.message || 'Thao tác thành công.');
       setIsConfirmOpen(false);
       onSuccess();
       onClose();
@@ -345,7 +350,9 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       const msg = e.message || 'Không thể gửi phiếu mua trực tiếp.';
       setIsConfirmOpen(false);
       toast.error(msg);
-      if (msg.includes('Ngày mua')) setPurchaseDateError(msg);
+      // Gắn lỗi vào ô "Ngày mua" theo errorCode của backend, không so khớp nội dung message.
+      const code = e instanceof ApiError ? e.errorCode : undefined;
+      if (code && DP_PURCHASE_DATE_ERRORS.includes(code)) setPurchaseDateError(msg);
     } finally {
       setSaving(null);
     }
@@ -380,10 +387,14 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       footer={
         <div className="flex flex-wrap justify-end items-center gap-2 w-full">
           <Button variant="outline" onClick={onClose} disabled={busy}>Hủy</Button>
-          <Button variant="outline" onClick={handleSaveDraft} isLoading={saving === 'draft'} disabled={busy}>
+          <Button variant="outline" onClick={handleSaveDraft} isLoading={saving === 'draft'}
+            disabled={busy || !canSaveDraft}
+            title={!canSaveDraft ? draftIssues[0] ?? 'Đang tải ảnh hóa đơn.' : undefined}>
             Lưu nháp
           </Button>
-          <Button variant="primary" onClick={handleSubmit} isLoading={saving === 'submit'} disabled={busy}>
+          <Button variant="primary" onClick={handleSubmit} isLoading={saving === 'submit'}
+            disabled={busy || !canSubmit}
+            title={!canSubmit ? submitIssues[0] : undefined}>
             Gửi phiếu
           </Button>
         </div>
@@ -649,6 +660,23 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFilesChange} />
         </div>
+
+        {/* Điều kiện còn thiếu để gửi phiếu — hiện ngay, không đợi bấm nút */}
+        {submitIssues.length > 0 && (
+          <div style={{ display: 'flex', gap: '8px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', border: '1px solid hsl(var(--warning) / 0.3)', borderRadius: 'var(--radius-sm)', color: 'hsl(var(--warning))', fontSize: '0.85rem' }}>
+            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: submitIssues.length > 1 ? '4px' : 0 }}>Chưa thể gửi phiếu:</div>
+              {submitIssues.length === 1 ? (
+                <span>{submitIssues[0]}</span>
+              ) : (
+                <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                  {submitIssues.map(issue => <li key={issue}>{issue}</li>)}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
       )}

@@ -10,7 +10,6 @@ import {
   Boxes,
   FileText,
   Truck,
-  ShoppingCart,
   Tags,
   Package,
   Hammer,
@@ -475,7 +474,7 @@ export const Dashboard: React.FC = () => {
             <TrendingUp size={18} className="text-[hsl(var(--primary))]" />
             <span>Phím tắt tác vụ tài chính & kho vận</span>
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div
               onClick={() => navigate('/suppliers')}
               className="card p-4 flex items-center gap-3.5 border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))] cursor-pointer hover:shadow-md transition-all rounded-lg"
@@ -486,19 +485,6 @@ export const Dashboard: React.FC = () => {
               <div>
                 <h4 className="font-bold text-sm">Nhà cung cấp</h4>
                 <p className="text-[10px] text-[hsl(var(--text-secondary))] mt-0.5">Quản lý nhà cung ứng vật tư</p>
-              </div>
-            </div>
-
-            <div
-              onClick={() => navigate('/purchase-orders')}
-              className="card p-4 flex items-center gap-3.5 border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))] cursor-pointer hover:shadow-md transition-all rounded-lg"
-            >
-              <div className="p-3 rounded-full bg-[hsl(142_70%_90%)] text-[hsl(142_70%_35%)] shrink-0">
-                <ShoppingCart size={20} />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm">Đơn mua hàng (PO)</h4>
-                <p className="text-[10px] text-[hsl(var(--text-secondary))] mt-0.5">Soạn thảo, quản lý PO</p>
               </div>
             </div>
 

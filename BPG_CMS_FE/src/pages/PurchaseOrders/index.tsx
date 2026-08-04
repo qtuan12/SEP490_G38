@@ -208,7 +208,7 @@ export const PurchaseOrderList: React.FC = () => {
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: (result) => {
-      toast.success(result.message || 'Đã hủy đơn mua hàng.');
+      toast.success(result.message || 'Thao tác thành công.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
@@ -218,7 +218,7 @@ export const PurchaseOrderList: React.FC = () => {
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: (result) => {
-      toast.success(result.message || 'Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
+      toast.success(result.message || 'Thao tác thành công.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
@@ -579,12 +579,11 @@ export const PurchaseOrderList: React.FC = () => {
               <Button
                 type="button"
                 variant={actionModal.type === 'cancel' ? 'danger' : 'primary'}
-                disabled={cancelMutation.isPending || closeMutation.isPending}
+                disabled={cancelMutation.isPending || closeMutation.isPending || !actionReason.trim()}
+                title={!actionReason.trim()
+                  ? (actionModal.type === 'cancel' ? 'Vui lòng nhập lý do hủy đơn mua hàng.' : 'Vui lòng nhập lý do đóng đơn mua hàng.')
+                  : undefined}
                 onClick={() => {
-                  if (!actionReason.trim()) {
-                    setActionError(actionModal.type === 'cancel' ? 'Vui lòng nhập lý do hủy.' : 'Vui lòng nhập lý do đóng đơn hàng.');
-                    return;
-                  }
                   if (actionModal.type === 'cancel') cancelMutation.mutate();
                   else closeMutation.mutate();
                 }}

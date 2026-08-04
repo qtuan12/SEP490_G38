@@ -1,5 +1,6 @@
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
@@ -24,7 +25,7 @@ public class VerifyOtpCommandHandler : IRequestHandler<VerifyOtpCommand, string>
         var user = await _uow.Repository<User>().Query()
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted, ct)
-            ?? throw new BusinessException("AUTH_OTP", "Email không hợp lệ.");
+            ?? throw new BusinessException(ErrorCodes.OtpEmailNotFound, "Email không hợp lệ.");
 
         var otpToken = await _uow.Repository<OtpToken>().Query()
             .Where(o => o.UserId == user.UserId
@@ -33,13 +34,13 @@ public class VerifyOtpCommandHandler : IRequestHandler<VerifyOtpCommand, string>
                      && o.RevokedAt == null)
             .OrderByDescending(o => o.CreatedAt)
             .FirstOrDefaultAsync(ct)
-            ?? throw new BusinessException("AUTH_OTP", "Mã OTP không hợp lệ hoặc đã hết hạn.");
+            ?? throw new BusinessException(ErrorCodes.OtpNotFound, "Mã OTP không hợp lệ hoặc đã hết hạn.");
 
         if (otpToken.ExpiresAt < DateTime.UtcNow)
-            throw new BusinessException("AUTH_OTP", "Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.");
+            throw new BusinessException(ErrorCodes.OtpExpired, "Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.");
 
         if (otpToken.AttemptCount >= MaxAttempts)
-            throw new BusinessException("AUTH_OTP", "Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới.");
+            throw new BusinessException(ErrorCodes.OtpTooManyAttempts, "Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới.");
 
         if (otpToken.Token != request.Otp)
         {
@@ -48,7 +49,7 @@ public class VerifyOtpCommandHandler : IRequestHandler<VerifyOtpCommand, string>
             await _uow.SaveChangesAsync(ct);
 
             var remaining = MaxAttempts - otpToken.AttemptCount;
-            throw new BusinessException("AUTH_OTP", $"Mã OTP không đúng. Còn {remaining} lần thử.");
+            throw new BusinessException(ErrorCodes.OtpIncorrect, $"Mã OTP không đúng. Còn {remaining} lần thử.");
         }
 
         otpToken.IsUsed = true;
