@@ -64,6 +64,7 @@ export interface ExecutiveDashboardDto {
   delayedTasksList: DelayedTaskInfoDto[];
   periodComparison?: PeriodComparisonMetricsDto;
   crossProjectMatrix?: ProjectComparisonMatrixItemDto[];
+  monthlyProgressTrends?: MonthlyProgressTrendDto[];
 }
 
 // ============================================================
@@ -101,7 +102,10 @@ export interface BoqVsActualItemDto {
   materialName: string;
   unitName: string;
   unitPrice: number;
+  originalBoqUnitPrice?: number;
   boqLimit: number;
+  overallProgressPercent?: number;
+  earnedBoqLimit?: number;
   totalIssued: number;
   totalReturned: number;
   netConsumption: number;
@@ -110,9 +114,12 @@ export interface BoqVsActualItemDto {
   pendingMrQuantity: number;
   totalExpectedUsage: number;
   isExceeding: boolean;
+  isEarnedExceeding?: boolean;
   exceededAmount: number;
+  earnedExceededAmount?: number;
   savedAmount?: number;
   usagePercent: number;
+  earnedUsagePercent?: number;
   boqTotalValue?: number;
   consumptionValue?: number;
   varianceValue?: number;
@@ -120,14 +127,17 @@ export interface BoqVsActualItemDto {
 
 export interface BoqVsActualReportDto {
   projectId: number;
+  overallProgressPercent?: number;
   totalBoqItemsCount?: number;
   exceedingItemsCount?: number;
+  earnedExceedingItemsCount?: number;
   savingItemsCount?: number;
   normalItemsCount?: number;
   totalBoqValue?: number;
   totalConsumptionValue?: number;
   totalVarianceValue?: number;
   items: BoqVsActualItemDto[];
+  monthlyTrends?: MonthlyBoqConsumptionTrendDto[];
 }
 
 export interface ConsolidatedExecutiveReportDto {
@@ -217,6 +227,46 @@ export interface ConstructionProgressReportDto {
   acceptances: PhaseAcceptanceSummaryDto[];
   assigneePerformance?: AssigneePerformanceDto[];
   progressInsights?: string[];
+  monthlyTrends?: MonthlyProgressTrendDto[];
+}
+
+// ============================================================
+// Monthly Trend Interfaces
+// ============================================================
+
+export interface MonthlyProgressTrendDto {
+  year: number;
+  month: number;
+  monthLabel: string;
+  completedTasksCount: number;
+  accumulatedProgressPercent: number;
+}
+
+export interface MonthlyProcurementTrendDto {
+  year: number;
+  month: number;
+  monthLabel: string;
+  poCostVnd: number;
+  directPurchaseCostVnd: number;
+  totalCostVnd: number;
+  poCount: number;
+}
+
+export interface MonthlyIncidentTrendDto {
+  year: number;
+  month: number;
+  monthLabel: string;
+  totalIncidentsCount: number;
+  resolvedIncidentsCount: number;
+  estimatedLossVnd: number;
+}
+
+export interface MonthlyBoqConsumptionTrendDto {
+  year: number;
+  month: number;
+  monthLabel: string;
+  materialRequestCount: number;
+  consumedValueVnd: number;
 }
 
 // ============================================================
@@ -246,6 +296,7 @@ export interface IncidentReportDto {
   resolvedIncidents: number;
   incidentsWithRework: number;
   incidents: IncidentSummaryDto[];
+  monthlyTrends?: MonthlyIncidentTrendDto[];
 }
 
 // ============================================================
@@ -306,9 +357,12 @@ export interface ProcurementReportDto {
   projectId: number;
   totalPoCost: number;
   totalDirectPurchaseCost: number;
+  totalMaterialIssuanceValue?: number;
+  totalProcurementSavings?: number;
   totalCost: number;
   purchaseOrders: PurchaseOrderSummaryDto[];
   directPurchases: DirectPurchaseSummaryDto[];
+  monthlyTrends?: MonthlyProcurementTrendDto[];
 }
 
 // ============================================================

@@ -125,13 +125,97 @@ public class GetProcurementReportQueryHandler
             CreatedAt = d.CreatedAt
         }).ToList();
 
+        // Calculate Monthly Procurement Trends (Full Calendar Year T01 -> T12 & Multi-year History)
+        var now = DateTime.UtcNow;
+        DateTime startMonth;
+        DateTime endMonth;
+
+        if (fromDt.HasValue)
+        {
+            startMonth = fromDt.Value;
+            endMonth = toDt ?? now;
+        }
+        else
+        {
+            var poMin = pos.Any() ? pos.Min(p => p.OrderDate) : now;
+            var dpMin = dps.Any() ? dps.Min(d => d.CreatedAt) : now;
+            var minDt = poMin < dpMin ? poMin : dpMin;
+            int startYear = Math.Min(minDt.Year, now.Year);
+            startMonth = new DateTime(startYear, 1, 1);
+            endMonth = toDt ?? new DateTime(now.Year, 12, 31);
+        }
+
+        var currentM = new DateTime(startMonth.Year, startMonth.Month, 1);
+        var targetM = new DateTime(endMonth.Year, endMonth.Month, 1);
+        var monthlyProcurementTrends = new List<MonthlyProcurementTrendDto>();
+
+        while (currentM <= targetM)
+        {
+            var mStart = currentM;
+            var mEnd = currentM.AddMonths(1).AddTicks(-1);
+
+            var monthPos = pos.Where(p => p.OrderDate >= mStart && p.OrderDate <= mEnd).ToList();
+            var monthDps = dps.Where(d => d.CreatedAt >= mStart && d.CreatedAt <= mEnd).ToList();
+
+            decimal poCost = monthPos.Sum(p => p.TotalAmount > 0 ? p.TotalAmount : p.Items.Sum(i => i.Quantity * i.UnitPrice));
+            decimal dpCost = monthDps.Sum(d => d.TotalAmount > 0 ? d.TotalAmount : d.Items.Sum(i => i.Quantity * i.UnitPrice));
+
+            monthlyProcurementTrends.Add(new MonthlyProcurementTrendDto
+            {
+                Year = currentM.Year,
+                Month = currentM.Month,
+                MonthLabel = $"T{currentM.Month:D2}/{currentM.Year}",
+                PoCostVnd = poCost,
+                DirectPurchaseCostVnd = dpCost,
+                PoCount = monthPos.Count
+            });
+
+            currentM = currentM.AddMonths(1);
+        }
+
+        // Fetch Material Issuance Value for Actual Construction Expense comparison
+        var issuanceQuery = _unitOfWork.Repository<MaterialIssuanceItem>()
+            .Query()
+            .Include(i => i.Issuance).ThenInclude(iss => iss.Task).ThenInclude(t => t.Phase)
+            .AsNoTracking();
+
+        if (request.ProjectId > 0)
+        {
+            issuanceQuery = issuanceQuery.Where(i => i.Issuance!.Task.Phase.ProjectId == request.ProjectId);
+        }
+        else
+        {
+            issuanceQuery = issuanceQuery.Where(i => accessibleIds.Contains(i.Issuance!.Task.Phase.ProjectId));
+        }
+
+        if (fromDt.HasValue) issuanceQuery = issuanceQuery.Where(i => i.Issuance!.CreatedAt >= fromDt.Value);
+        if (toDt.HasValue) issuanceQuery = issuanceQuery.Where(i => i.Issuance!.CreatedAt <= toDt.Value);
+
+        var issuanceItems = await issuanceQuery.ToListAsync(cancellationToken);
+
+        var avgPricesMap = await _unitOfWork.Repository<PurchaseOrderItem>()
+            .Query()
+            .Where(p => p.UnitPrice > 0)
+            .GroupBy(p => p.MaterialId)
+            .Select(g => new { MaterialId = g.Key, AvgPrice = g.Average(x => x.UnitPrice) })
+            .ToDictionaryAsync(x => x.MaterialId, x => x.AvgPrice, cancellationToken);
+
+        decimal totalMaterialIssuanceVal = issuanceItems.Sum(i =>
+        {
+            var price = avgPricesMap.GetValueOrDefault(i.MaterialId, 0m);
+            return i.Quantity * (i.ConversionRate > 0 ? i.ConversionRate : 1m) * price;
+        });
+
         var dto = new ProcurementReportDto
         {
             ProjectId = request.ProjectId,
             TotalPoCost = totalPoCost,
             TotalDirectPurchaseCost = totalDpCost,
+            TotalMaterialIssuanceValue = totalMaterialIssuanceVal,
+            TotalProcurementSavings = 0m,
             PurchaseOrders = poSummaries,
-            DirectPurchases = dpSummaries
+            DirectPurchases = dpSummaries,
+            MonthlyTrends = monthlyProcurementTrends
         };
 
         return ApiResponse<ProcurementReportDto>.SuccessResult(dto);
