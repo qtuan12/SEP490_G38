@@ -160,16 +160,16 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
       <div className={`timeline-node ${nodeClass}`} />
 
       {/* Main Log Card */}
-      <div className="card flex flex-col gap-3.5 bg-[hsl(var(--bg-card))]" style={cardStyle}>
+      <div className="card flex flex-col gap-3.5 bg-[hsl(var(--bg-card))] min-w-0 w-full overflow-hidden" style={cardStyle}>
         {/* Log Header */}
-        <div className="flex justify-between items-start flex-wrap gap-3">
-          <div className="flex gap-2.5 items-center">
+        <div className="flex justify-between items-start flex-wrap gap-3 min-w-0">
+          <div className="flex gap-2.5 items-center min-w-0">
             <div className={`w-[38px] h-[38px] rounded-full flex items-center justify-center font-bold text-[0.85rem] shrink-0 ${isIncident ? 'bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))]' : 'bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))]'}`}>
               {log.engineerName.charAt(0)}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <strong className="text-[0.9rem]">{log.engineerName}</strong>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <strong className="text-[0.9rem] truncate">{log.engineerName}</strong>
                 {(() => {
                   const mInfo = members.find(m => String(m.userId) === String(log.engineerId));
                   let cRole = mInfo ? mInfo.role : '';
@@ -187,7 +187,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                     }
                   }
                   return (
-                    <Badge variant={getRoleBadgeVariant(cRole)} className="text-[0.6rem] normal-case py-0.5 px-1.5 h-auto">
+                    <Badge variant={getRoleBadgeVariant(cRole)} className="text-[0.6rem] normal-case py-0.5 px-1.5 h-auto shrink-0">
                       {getRoleLabel(cRole)}
                     </Badge>
                   );
@@ -195,7 +195,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                 {(canEditLog && log.canEdit !== false) && (
                   <button
                     onClick={() => onEditLog(log)}
-                    className="text-slate-400 hover:text-blue-600 transition-colors p-1"
+                    className="text-slate-400 hover:text-blue-600 transition-colors p-1 shrink-0"
                     title="Sửa nhật ký"
                   >
                     <Edit2 size={13} />
@@ -220,7 +220,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
           </div>
 
           {/* Progress changes */}
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <span className="text-[0.7rem] text-[hsl(var(--text-muted))] font-medium">Thay đổi tiến độ</span>
             <div className={`font-extrabold text-base flex items-center justify-end gap-1 ${isIncident ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
               <span>{log.progressFrom}%</span>
@@ -234,12 +234,12 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
         </div>
 
         {/* Task Info Row */}
-        <div className={`bg-[hsl(var(--bg-main))] px-3 py-2 rounded-sm text-sm font-medium flex items-center justify-between border-l-4 ${isIncident ? 'border-[hsl(var(--danger))]' : 'border-[hsl(var(--primary))]'}`}>
-          <span>Công việc: <strong className="text-[hsl(var(--text-primary))]">{log.taskName}</strong></span>
+        <div className={`bg-[hsl(var(--bg-main))] px-3 py-2 rounded-sm text-sm font-medium flex items-center justify-between border-l-4 min-w-0 flex-wrap gap-2 ${isIncident ? 'border-[hsl(var(--danger))]' : 'border-[hsl(var(--primary))]'}`}>
+          <span className="min-w-0 break-words">Công việc: <strong className="text-[hsl(var(--text-primary))] break-words">{log.taskName}</strong></span>
         </div>
 
         {/* Content Text */}
-        <p className="text-[0.9rem] text-[hsl(var(--text-primary))] leading-relaxed whitespace-pre-wrap m-0">
+        <p className="text-[0.9rem] text-[hsl(var(--text-primary))] leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] m-0 min-w-0">
           {log.content}
         </p>
 
@@ -266,7 +266,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
         )}
 
         {/* Comments & Instructions Thread */}
-        <div className="mt-1.5 border-t border-[hsl(var(--border)/0.5)] pt-3">
+        <div className="mt-1.5 border-t border-[hsl(var(--border)/0.5)] pt-3 min-w-0 w-full overflow-hidden">
           <h4 className="text-xs font-semibold text-[hsl(var(--text-secondary))] mb-2 flex items-center gap-1.5">
             <MessageSquare size={13} />
             <span>Ý kiến Chỉ đạo & Bình luận ({log.comments?.length || 0})</span>
@@ -274,7 +274,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
 
           {/* Comments List */}
           {(log.comments?.length || 0) > 0 && (
-            <div className="flex flex-col gap-2 mb-3">
+            <div className="flex flex-col gap-2 mb-3 min-w-0 w-full">
               {log.comments?.map((comm) => {
                 const isManager = comm.role === 'technicalmanager' || comm.role === 'director';
                 let commentClass = isManager ? "comment-highlight-manager" : "";
@@ -283,22 +283,22 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                 return (
                   <div
                     key={comm.id}
-                    className={`flex gap-2.5 px-3 py-2 bg-[hsl(var(--bg-main)/0.4)] rounded-sm text-[0.825rem] border border-[hsl(var(--border)/0.5)] transition-all duration-200 ${commentClass}`}
+                    className={`flex gap-2.5 px-3 py-2 bg-[hsl(var(--bg-main)/0.4)] rounded-sm text-[0.825rem] border border-[hsl(var(--border)/0.5)] transition-all duration-200 min-w-0 w-full overflow-hidden ${commentClass}`}
                   >
                     <div className={`w-[26px] h-[26px] rounded-full flex items-center justify-center font-bold text-[0.75rem] shrink-0 ${isManager ? 'bg-[hsl(var(--warning-glow))] text-[hsl(var(--warning))]' : 'bg-[hsl(var(--border))] text-[hsl(var(--text-primary))]'}`}>
                       {comm.userName.charAt(0)}
                     </div>
 
-                    <div className="flex flex-col gap-0.5 flex-1">
-                      <div className="flex justify-between flex-wrap items-center">
-                        <span>
+                    <div className="flex flex-col gap-0.5 flex-1 min-w-0 w-full overflow-hidden">
+                      <div className="flex justify-between flex-wrap items-center gap-1 min-w-0">
+                        <span className="min-w-0">
                           <strong className="mr-1.5">{comm.userName}</strong>
-                          <Badge variant={getRoleBadgeVariant(comm.role)} className="text-[0.5rem] py-0 px-1 normal-case leading-tight h-auto">
+                          <Badge variant={getRoleBadgeVariant(comm.role)} className="text-[0.5rem] py-0 px-1 normal-case leading-tight h-auto shrink-0">
                             {getRoleLabel(comm.role)}
                           </Badge>
                         </span>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[0.65rem] text-[hsl(var(--text-muted))]">{formatCommentDate(comm.date)}</span>
                           {canEditComment && editingCommentId !== comm.id && (
                             <div className="flex items-center gap-1">
@@ -327,21 +327,21 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                       {editingCommentId === comm.id ? (
                         <form
                           onSubmit={(e) => handleCommentUpdateSubmit(e, comm.id)}
-                          className="flex gap-2 mt-1.5 w-full"
+                          className="flex gap-2 mt-1.5 w-full min-w-0"
                         >
                           <Input
                             type="text"
                             value={editingCommentContent}
                             onChange={(e) => setEditingCommentContent(e.target.value)}
-                            className="h-10 sm:h-8 text-xs flex-1"
+                            className="h-10 sm:h-8 text-xs flex-1 min-w-0"
                             required
                             autoFocus
                           />
-                          <Button size="sm" type="submit" variant="primary" isLoading={isUpdatingComment} disabled={isUpdatingComment} className="h-10 sm:h-8 px-2 py-0.5 text-xs">Lưu</Button>
-                          <Button size="sm" type="button" variant="outline" disabled={isUpdatingComment} className="h-10 sm:h-8 px-2 py-0.5 text-xs" onClick={() => setEditingCommentId(null)}>Hủy</Button>
+                          <Button size="sm" type="submit" variant="primary" isLoading={isUpdatingComment} disabled={isUpdatingComment} className="h-10 sm:h-8 px-2 py-0.5 text-xs shrink-0">Lưu</Button>
+                          <Button size="sm" type="button" variant="outline" disabled={isUpdatingComment} className="h-10 sm:h-8 px-2 py-0.5 text-xs shrink-0" onClick={() => setEditingCommentId(null)}>Hủy</Button>
                         </form>
                       ) : (
-                        <p className="text-[hsl(var(--text-primary))] mt-0.5 leading-snug">
+                        <p className="text-[hsl(var(--text-primary))] mt-0.5 leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] min-w-0 m-0">
                           {comm.content}
                         </p>
                       )}
