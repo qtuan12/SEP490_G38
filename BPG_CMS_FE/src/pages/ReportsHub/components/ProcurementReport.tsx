@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, ShoppingCart, AlertCircle, DollarSign, Package } from 'lucide-react';
+import { Loader2, ShoppingCart, AlertCircle, DollarSign, Package, TrendingUp } from 'lucide-react';
 import { reportService, type ProcurementReportDto } from '../../../services/reportService';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Props {
   projectId: string | null;
@@ -31,6 +31,8 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
   const [allProjectsData, setAllProjectsData] = useState<{ name: string; po: number; dp: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'po' | 'dp'>('po');
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
 
   useEffect(() => {
     if (!projectId) return;
@@ -120,67 +122,100 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl p-5 shadow-sm flex items-center gap-4">
-          <div className="p-3.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl">
-            <ShoppingCart size={24} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+          <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl shrink-0">
+            <ShoppingCart size={22} />
           </div>
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Tổng giá trị PO</div>
-            <div className="text-xl font-black text-slate-900 dark:text-white mt-1">{formatCurrency(data.totalPoCost)}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">PO Mua sắm (Nhập kho)</div>
+            <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(data.totalPoCost)}</div>
             <div className="text-[10px] font-semibold text-slate-400 mt-0.5">{data.purchaseOrders.length} đơn hàng</div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-red-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-red-200 dark:border-red-900/50 rounded-2xl p-5 shadow-sm flex items-center gap-4">
-          <div className="p-3.5 bg-red-500/10 text-red-600 dark:text-red-400 rounded-2xl">
-            <AlertCircle size={24} />
+        <div className="bg-gradient-to-br from-purple-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-purple-200 dark:border-purple-900/50 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+          <div className="p-3 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-xl shrink-0">
+            <DollarSign size={22} />
           </div>
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Mua ngoài khẩn cấp</div>
-            <div className="text-xl font-black text-red-600 dark:text-red-400 mt-1">{formatCurrency(data.totalDirectPurchaseCost)}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Thi công Thực tế (Xuất kho)</div>
+            <div className="text-lg font-black text-purple-700 dark:text-purple-300 mt-0.5">{formatCurrency(data.totalMaterialIssuanceValue || 0)}</div>
+            <div className="text-[10px] font-semibold text-purple-600 mt-0.5">Giá trị vật tư đã xuất dùng</div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-red-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-red-200 dark:border-red-900/50 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+          <div className="p-3 bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl shrink-0">
+            <AlertCircle size={22} />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Mua ngoài khẩn cấp</div>
+            <div className="text-lg font-black text-red-600 dark:text-red-400 mt-0.5">{formatCurrency(data.totalDirectPurchaseCost)}</div>
             <div className="text-[10px] font-semibold text-slate-400 mt-0.5">{data.directPurchases.length} đơn khẩn cấp</div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-5 shadow-sm flex items-center gap-4">
-          <div className="p-3.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl">
-            <DollarSign size={24} />
+        <div className="bg-gradient-to-br from-emerald-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-4 shadow-sm flex items-center gap-3">
+          <div className="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl shrink-0">
+            <DollarSign size={22} />
           </div>
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Tổng chi phí vật tư</div>
-            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{formatCurrency(data.totalCost)}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tổng Mua sắm (Dòng tiền)</div>
+            <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{formatCurrency(data.totalCost)}</div>
           </div>
         </div>
       </div>
 
-      {/* Chart Section */}
-      {(data.totalPoCost > 0 || data.totalDirectPurchaseCost > 0) && (
-        <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Biểu đồ Cơ cấu Chi phí Mua sắm</h4>
-          <div className="h-[240px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={[
-                  { name: 'PO Đã duyệt (Hợp lệ)', value: data.totalPoCost, color: '#6366f1' },
-                  { name: 'Mua ngoài khẩn cấp', value: data.totalDirectPurchaseCost, color: '#ef4444' }
-                ]}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 600 }} />
-                <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} />
-                <RechartsTooltip formatter={(value: any) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={80}>
-                  {[{ color: '#6366f1' }, { color: '#ef4444' }].map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+
+
+      {/* Monthly Procurement & Expense Trend Chart */}
+      {(data.monthlyTrends || []).length > 0 && (() => {
+        const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year))).sort((a, b) => b - a);
+        const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === selectedYear);
+
+        return (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
+                  <TrendingUp size={16} className="text-indigo-500" /> Biểu đồ Chi phí Mua sắm 12 Tháng Theo Năm
+                </h4>
+                <p className="text-xs text-slate-500 m-0 mt-0.5">So sánh chi phí đơn PO vs Mua ngoài khẩn cấp hàng tháng</p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Year Selector */}
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+                >
+                  {availableYears.map(y => (
+                    <option key={y} value={y}>Năm {y} {y === currentYear ? '' : ''}</option>
                   ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                </select>
+
+
+              </div>
+            </div>
+
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredTrends} margin={{ top: 10, right: 20, left: 20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
+                  <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fontWeight: 600 }} />
+                  <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} tick={{ fontSize: 11 }} />
+                  <RechartsTooltip formatter={(value: any) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Bar dataKey="poCostVnd" name="Đơn PO" stackId="month" fill="#6366f1" maxBarSize={36} />
+                  <Bar dataKey="directPurchaseCostVnd" name="Mua khẩn cấp" stackId="month" fill="#ef4444" maxBarSize={36} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Tab Switcher */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2">

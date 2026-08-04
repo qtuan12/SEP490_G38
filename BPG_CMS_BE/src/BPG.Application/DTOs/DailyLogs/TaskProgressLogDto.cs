@@ -10,5 +10,7 @@ namespace BPG.Application.DTOs.DailyLogs
         public byte NewProgress { get; set; }
         public string? UpdateReason { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public long? CreatedBy { get; set; }
+        public string? UpdatedByName { get; set; }
     }
 }

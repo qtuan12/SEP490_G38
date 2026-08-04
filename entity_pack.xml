@@ -1,3 +1,987 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: BPG_CMS_BE/src/BPG.Domain/Entities/**/*.cs, BPG_CMS_BE/src/BPG.Infrastructure/Data/AppDbContext.cs, BPG_CMS_BE/src/BPG.Infrastructure/Data/DbSeeder.cs
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+BPG_CMS_BE/
+  src/
+    BPG.Domain/
+      Entities/
+        AdjustmentItem.cs
+        Attachment.cs
+        BaseEntity.cs
+        BOQItem.cs
+        Comment.cs
+        CurrentInventory.cs
+        DailyLog.cs
+        DirectPurchaseItem.cs
+        DirectPurchaseRequest.cs
+        GoodsReceipt.cs
+        GoodsReceiptItem.cs
+        Incident.cs
+        InventoryAdjustment.cs
+        InventoryTransaction.cs
+        MaterialCatalog.cs
+        MaterialCategory.cs
+        MaterialConversion.cs
+        MaterialIssuance.cs
+        MaterialIssuanceItem.cs
+        MaterialRequest.cs
+        MaterialRequestItem.cs
+        MaterialReturn.cs
+        MaterialReturnItem.cs
+        Notification.cs
+        OtpToken.cs
+        Phase.cs
+        PhaseAcceptance.cs
+        Project.cs
+        ProjectMember.cs
+        ProjectTask.cs
+        PurchaseOrder.cs
+        PurchaseOrderItem.cs
+        RefreshToken.cs
+        Role.cs
+        Supplier.cs
+        SurplusLiquidation.cs
+        SurplusRequest.cs
+        SurplusRequestItem.cs
+        SurplusReturnSupplier.cs
+        SurplusTransfer.cs
+        SystemConfig.cs
+        TaskAssignee.cs
+        TaskDependency.cs
+        TaskProgressLog.cs
+        Unit.cs
+        User.cs
+        UserRole.cs
+    BPG.Infrastructure/
+      Data/
+        AppDbContext.cs
+        DbSeeder.cs
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/AdjustmentItem.cs">
+namespace BPG.Domain.Entities;
+
+public class AdjustmentItem
+{
+    public long AdjustmentItemId { get; set; }
+    public long AdjustmentId { get; set; }
+    public long MaterialId { get; set; }
+    public int UnitId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal ConversionRate { get; set; } = 1;
+
+    public InventoryAdjustment Adjustment { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit Unit { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/Attachment.cs">
+namespace BPG.Domain.Entities;
+
+public class Attachment : BaseEntity
+{
+    public long AttachmentId { get; set; }
+    public string EntityType { get; set; } = string.Empty;
+    public long EntityId { get; set; }
+    public string AttachmentType { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public string FileUrl { get; set; } = string.Empty;
+    public string? ContentType { get; set; }
+    public long? FileSizeBytes { get; set; }
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/BaseEntity.cs">
+namespace BPG.Domain.Entities;
+
+public abstract class BaseEntity
+{
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public long? CreatedBy { get; set; }
+    public long? UpdatedBy { get; set; }
+    public bool IsDeleted { get; set; } = false;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/BOQItem.cs">
+namespace BPG.Domain.Entities;
+
+public class BOQItem : BaseEntity
+{
+    public long BOQItemId { get; set; }
+    public long PhaseId { get; set; }
+    public long MaterialId { get; set; }
+    public int UnitId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal ConversionRate { get; set; } = 1;
+
+    public Phase Phase { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit Unit { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/Comment.cs">
+namespace BPG.Domain.Entities;
+
+public class Comment : BaseEntity
+{
+    public long CommentId { get; set; }
+    public long LogId { get; set; }
+    public long AuthorId { get; set; }
+    public string Content { get; set; } = string.Empty;
+
+    public DailyLog DailyLog { get; set; } = null!;
+    public User Author { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/CurrentInventory.cs">
+namespace BPG.Domain.Entities;
+
+public class CurrentInventory
+{
+    public long InventoryId { get; set; }
+    public long ProjectId { get; set; }
+    public long MaterialId { get; set; }
+    public int UnitId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal ReservedQuantity { get; set; } = 0;
+    public DateTime LastUpdated { get; set; }
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
+    public Project Project { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit Unit { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/DailyLog.cs">
+namespace BPG.Domain.Entities;
+
+public class DailyLog
+{
+    public long LogId { get; set; }
+    public long TaskId { get; set; }
+    public DateOnly LogDate { get; set; }
+    public byte NewProgressPercent { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public long CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+
+    // Audit: đánh dấu nhật ký đã bị chỉnh sửa (chỉ cho phép sửa trong 24h đầu)
+    public bool IsEdited { get; set; } = false;
+    public DateTime? LastEditedAt { get; set; }
+
+    public ProjectTask Task { get; set; } = null!;
+    public User Creator { get; set; } = null!;
+    public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/GoodsReceipt.cs">
+namespace BPG.Domain.Entities;
+
+public class GoodsReceipt : BaseEntity
+{
+    public long ReceiptId { get; set; }
+    public string ReceiptNo { get; set; } = string.Empty;
+    public long POId { get; set; }
+    public string? DelivererInfo { get; set; }
+    public string? DeliveryDocNo { get; set; }
+    public string Status { get; set; } = "Draft";
+
+    public PurchaseOrder PurchaseOrder { get; set; } = null!;
+    public ICollection<GoodsReceiptItem> Items { get; set; } = new List<GoodsReceiptItem>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/GoodsReceiptItem.cs">
+namespace BPG.Domain.Entities;
+
+public class GoodsReceiptItem
+{
+    public long ReceiptItemId { get; set; }
+    public long ReceiptId { get; set; }
+    public long MaterialId { get; set; }
+    public int UnitId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal ConversionRate { get; set; } = 1;
+
+    public GoodsReceipt Receipt { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit Unit { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/Incident.cs">
+namespace BPG.Domain.Entities;
+
+public class Incident : BaseEntity
+{
+    public long IncidentId { get; set; }
+    public long ProjectId { get; set; }
+    public long? TaskId { get; set; }
+    public long ReportedBy { get; set; }
+    public long? ReviewedBy { get; set; }
+    public string IncidentType { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Status { get; set; } = "Reported";
+    public string? DamageDescription { get; set; }
+    public decimal? EstimatedMaterialLoss { get; set; }
+    public decimal? EstimatedLaborDays { get; set; }
+    public int? EstimatedDelayDays { get; set; }
+    public string? ProposedAction { get; set; }
+    public long? ReworkTaskId { get; set; }
+    public string? HandlingInstruction { get; set; }
+    public long? PhaseId { get; set; }
+    public bool IsEmergency { get; set; } = false;
+    public string? RecoveryPlanText { get; set; }
+    public decimal? RecoveryEstimateCost { get; set; }
+
+    public Project Project { get; set; } = null!;
+    public ProjectTask? Task { get; set; }
+    public Phase? Phase { get; set; }
+    public User Reporter { get; set; } = null!;
+    public User? Reviewer { get; set; }
+    public ProjectTask? ReworkTask { get; set; }
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/InventoryAdjustment.cs">
+namespace BPG.Domain.Entities;
+
+public class InventoryAdjustment : BaseEntity
+{
+    public long AdjustmentId { get; set; }
+    public long ProjectId { get; set; }
+    public long PhaseId { get; set; }
+    public string AdjustmentType { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string Status { get; set; } = "Draft";
+    public long? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? RejectedReason { get; set; }
+
+    public Project Project { get; set; } = null!;
+    public Phase Phase { get; set; } = null!;
+    public User? Approver { get; set; }
+    public ICollection<AdjustmentItem> Items { get; set; } = new List<AdjustmentItem>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/InventoryTransaction.cs">
+namespace BPG.Domain.Entities;
+
+public class InventoryTransaction
+{
+    public long TransactionId { get; set; }
+    public long ProjectId { get; set; }
+    public long MaterialId { get; set; }
+    public byte TransactionType { get; set; }
+    public long ReferenceId { get; set; }
+    /// <summary>
+    /// Loại tài liệu tham chiếu: "GoodsReceipt" | "MaterialIssuance" | "Adjustment" | "GoodsReceiptReversal" | ...
+    /// Cùng với ReferenceId, xác định chính xác nguồn gốc giao dịch.
+    /// </summary>
+    public string? ReferenceType { get; set; }
+    public decimal QuantityChange { get; set; }
+    public decimal BalanceAfter { get; set; }
+    public long? CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+
+    public Project Project { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/MaterialCatalog.cs">
+namespace BPG.Domain.Entities;
+
+public class MaterialCatalog : BaseEntity
+{
+    public long MaterialId { get; set; }
+    public long CategoryId { get; set; }
+    public int BaseUnitId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Specification { get; set; }
+
+    public MaterialCategory Category { get; set; } = null!;
+    public Unit BaseUnit { get; set; } = null!;
+    public ICollection<MaterialConversion> Conversions { get; set; } = new List<MaterialConversion>();
+    public ICollection<BOQItem> BOQItems { get; set; } = new List<BOQItem>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/MaterialCategory.cs">
+namespace BPG.Domain.Entities;
+
+public class MaterialCategory : BaseEntity
+{
+    public long CategoryId { get; set; }
+    public string CategoryName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+
+    public ICollection<MaterialCatalog> Materials { get; set; } = new List<MaterialCatalog>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/MaterialConversion.cs">
+namespace BPG.Domain.Entities;
+
+public class MaterialConversion : BaseEntity
+{
+    public long MaterialId { get; set; }
+    public int AlternativeUnitId { get; set; }
+    public decimal ConversionRate { get; set; }
+
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit AlternativeUnit { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/MaterialIssuance.cs">
+namespace BPG.Domain.Entities;
+
+public class MaterialIssuance : BaseEntity
+{
+    public long MaterialIssuanceId { get; set; }
+    /// <summary>
+    /// Mã phiếu xuất kho nghiệp vụ, ví dụ: PXK-20240624-A3F8.
+    /// Được sinh tự động khi tạo phiếu. Dùng để in phiếu, tra cứu và đối chiếu kiểm toán.
+    /// </summary>
+    public string IssuanceNo { get; set; } = string.Empty;
+    public long TaskId { get; set; }
+    public string Purpose { get; set; } = string.Empty;
+
+    public ProjectTask Task { get; set; } = null!;
+    public ICollection<MaterialIssuanceItem> Items { get; set; } = new List<MaterialIssuanceItem>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/MaterialIssuanceItem.cs">
+namespace BPG.Domain.Entities;
+
+public class MaterialIssuanceItem
+{
+    public long IssuanceItemId { get; set; }
+    public long MaterialIssuanceId { get; set; }
+    public long MaterialId { get; set; }
+    public int UnitId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal ConversionRate { get; set; } = 1;
+
+    public MaterialIssuance Issuance { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit Unit { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/MaterialRequest.cs">
+namespace BPG.Domain.Entities;
+
+public class MaterialRequest : BaseEntity
+{
+    public long RequestId { get; set; }
+    public long PhaseId { get; set; }
+    public long? CheckedBy { get; set; }
+    public long? ApprovedBy { get; set; }
+    public string BOQCheckStatus { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public string? AccountantNote { get; set; }
+    public string? ApprovalNote { get; set; }
+    public string Status { get; set; } = "Pending";
+
+    public Phase Phase { get; set; } = null!;
+    public User? Checker { get; set; }
+    public User? Approver { get; set; }
+    public ICollection<MaterialRequestItem> Items { get; set; } = new List<MaterialRequestItem>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/MaterialRequestItem.cs">
+namespace BPG.Domain.Entities;
+
+public class MaterialRequestItem
+{
+    public long RequestItemId { get; set; }
+    public long RequestId { get; set; }
+    public long MaterialId { get; set; }
+    public int UnitId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal ConversionRate { get; set; } = 1;
+    public bool IsOverBOQ { get; set; } = false;
+    public string? Explanation { get; set; }
+
+    public MaterialRequest Request { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit Unit { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/MaterialReturn.cs">
+namespace BPG.Domain.Entities;
+
+public class MaterialReturn : BaseEntity
+{
+    public long MaterialReturnId { get; set; }
+
+    /// <summary>
+    /// Mã phiếu hoàn trả nghiệp vụ, ví dụ: PTra-20240630-A3F8B2.
+    /// Sinh tự động khi tạo phiếu. Dùng để in phiếu, tra cứu và đối chiếu kiểm toán.
+    /// </summary>
+    public string ReturnNo { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Liên kết tới phiếu xuất kho gốc mà vật tư được hoàn trả từ đó.
+    /// Đảm bảo tính truy vết: biết rõ hoàn trả từ phiếu xuất nào, cho task nào.
+    /// </summary>
+    public long OriginalIssuanceId { get; set; }
+
+    /// <summary>
+    /// Lý do hoàn trả, ví dụ: "Dư sau khi thi công tầng 2 – không dùng hết".
+    /// </summary>
+    public string Reason { get; set; } = string.Empty;
+
+    public MaterialIssuance OriginalIssuance { get; set; } = null!;
+    public ICollection<MaterialReturnItem> Items { get; set; } = new List<MaterialReturnItem>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/MaterialReturnItem.cs">
+namespace BPG.Domain.Entities;
+
+public class MaterialReturnItem
+{
+    public long ReturnItemId { get; set; }
+    public long MaterialReturnId { get; set; }
+    public long MaterialId { get; set; }
+    public int UnitId { get; set; }
+
+    /// <summary>
+    /// Số lượng hoàn trả theo đơn vị hiển thị (UnitId).
+    /// </summary>
+    public decimal Quantity { get; set; }
+
+    /// <summary>
+    /// Tỉ lệ quy đổi từ đơn vị hiển thị về đơn vị cơ bản của vật tư.
+    /// BaseQty = Quantity / ConversionRate.
+    /// </summary>
+    public decimal ConversionRate { get; set; } = 1;
+
+    public MaterialReturn Return { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit Unit { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/Notification.cs">
+namespace BPG.Domain.Entities;
+
+public class Notification
+{
+    public long NotificationId { get; set; }
+    public long UserId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public string NotificationType { get; set; } = string.Empty;
+    public string? ReferenceType { get; set; }
+    public long? ReferenceId { get; set; }
+    public bool IsRead { get; set; } = false;
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ReadAt { get; set; }
+
+    public User User { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/OtpToken.cs">
+namespace BPG.Domain.Entities;
+
+public class OtpToken
+{
+    public long OtpTokenId { get; set; }
+    public long UserId { get; set; }
+    public string OtpType { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
+    public DateTime ExpiresAt { get; set; }
+    public bool IsUsed { get; set; } = false;
+    public DateTime? RevokedAt { get; set; }
+    public int AttemptCount { get; set; } = 0;
+    public DateTime CreatedAt { get; set; }
+
+    public User User { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/Phase.cs">
+namespace BPG.Domain.Entities;
+
+public class Phase : BaseEntity
+{
+    public long PhaseId { get; set; }
+    public long ProjectId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int OrderIndex { get; set; }
+    public DateOnly? StartDate { get; set; }
+    public DateOnly? EndDate { get; set; }
+    public string Status { get; set; } = "Draft";
+
+    public Project Project { get; set; } = null!;
+    public ICollection<ProjectTask> Tasks { get; set; } = new List<ProjectTask>();
+    public ICollection<PhaseAcceptance> Acceptances { get; set; } = new List<PhaseAcceptance>();
+    public ICollection<BOQItem> BOQItems { get; set; } = new List<BOQItem>();
+    public ICollection<MaterialRequest> MaterialRequests { get; set; } = new List<MaterialRequest>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/PhaseAcceptance.cs">
+namespace BPG.Domain.Entities;
+
+public class PhaseAcceptance : BaseEntity
+{
+    public long AcceptanceId { get; set; }
+    public long PhaseId { get; set; }
+    public long AcceptedBy { get; set; }
+    public DateTime AcceptanceDate { get; set; }
+    public string ReportContent { get; set; } = string.Empty;
+    public string? PdfUrl { get; set; }
+    public bool IsCancelled { get; set; } = false;
+    public string? CancellationReason { get; set; }
+    public DateTime? CancelledAt { get; set; }
+    public long? CancelledBy { get; set; }
+
+    public Phase Phase { get; set; } = null!;
+    public User Acceptor { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/Project.cs">
+namespace BPG.Domain.Entities;
+
+public class Project : BaseEntity
+{
+    public long ProjectId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Address { get; set; }
+    public DateOnly PlannedStart { get; set; }
+    public DateOnly PlannedEnd { get; set; }
+    public string Status { get; set; } = "Planning";
+    public string? PauseReason { get; set; }
+    public DateTime? PausedAt { get; set; }
+    public DateTime? ResumedAt { get; set; }
+
+    public ICollection<ProjectMember> Members { get; set; } = new List<ProjectMember>();
+    public ICollection<Phase> Phases { get; set; } = new List<Phase>();
+    public ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/ProjectMember.cs">
+namespace BPG.Domain.Entities;
+
+public class ProjectMember : BaseEntity
+{
+    public long ProjectMemberId { get; set; }
+    public long ProjectId { get; set; }
+    public long UserId { get; set; }
+    public bool IsLeader { get; set; } = false;
+    public DateTime JoinedAt { get; set; }
+
+    public Project Project { get; set; } = null!;
+    public User User { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/ProjectTask.cs">
+namespace BPG.Domain.Entities;
+
+public class ProjectTask : BaseEntity
+{
+    public long TaskId { get; set; }
+    public long PhaseId { get; set; }
+    public long? ParentTaskId { get; set; }
+    public long? IncidentId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int OrderIndex { get; set; }
+    public DateOnly StartDate { get; set; }
+    public DateOnly EndDate { get; set; }
+    public string Status { get; set; } = "New";
+    public byte ProgressPercent { get; set; } = 0;
+    public string? ObsoleteReason { get; set; }
+    public bool IsLocked { get; set; } = false;
+    public decimal? Weight { get; set; }
+    
+    // Outsourced Labor fields
+    public bool IsOutsourced { get; set; } = false;
+    public string? OutsourcedTeamName { get; set; }
+    public string? OutsourcedTeamContact { get; set; }
+
+    public Phase Phase { get; set; } = null!;
+    public ProjectTask? ParentTask { get; set; }
+    public Incident? LinkedIncident { get; set; }
+    public ICollection<ProjectTask> SubTasks { get; set; } = new List<ProjectTask>();
+    public ICollection<TaskAssignee> Assignees { get; set; } = new List<TaskAssignee>();
+    public ICollection<DailyLog> DailyLogs { get; set; } = new List<DailyLog>();
+    public ICollection<TaskProgressLog> ProgressLogs { get; set; } = new List<TaskProgressLog>();
+    public ICollection<TaskDependency> Dependencies { get; set; } = new List<TaskDependency>();
+    public ICollection<TaskDependency> Dependents { get; set; } = new List<TaskDependency>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/PurchaseOrder.cs">
+namespace BPG.Domain.Entities;
+
+public class PurchaseOrder : BaseEntity
+{
+    public long POId { get; set; }
+    public long? RequestId { get; set; }
+    public long? SupplierId { get; set; }
+    public long ProjectId { get; set; }
+    public string PONumber { get; set; } = string.Empty;
+    public DateTime OrderDate { get; set; }
+    public DateOnly? ExpectedDeliveryDate { get; set; }
+    public string? DeliveryAddress { get; set; }
+    public string? Notes { get; set; }
+    public string Status { get; set; } = "Draft";
+    public string? CancelledReason { get; set; }
+    public string? ClosedReason { get; set; }
+    public decimal TotalAmount { get; set; }
+
+    public MaterialRequest? Request { get; set; }
+    public Supplier? Supplier { get; set; }
+    public Project Project { get; set; } = null!;
+    public ICollection<PurchaseOrderItem> Items { get; set; } = new List<PurchaseOrderItem>();
+    public ICollection<GoodsReceipt> GoodsReceipts { get; set; } = new List<GoodsReceipt>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/PurchaseOrderItem.cs">
+namespace BPG.Domain.Entities;
+
+public class PurchaseOrderItem
+{
+    public long POItemId { get; set; }
+    public long POId { get; set; }
+    public long MaterialId { get; set; }
+    public int UnitId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal LineTotal { get; set; }
+    public decimal ConversionRate { get; set; } = 1;
+    public string? Notes { get; set; }
+
+    public PurchaseOrder PurchaseOrder { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit Unit { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/RefreshToken.cs">
+namespace BPG.Domain.Entities;
+
+public class RefreshToken
+{
+    public long RefreshTokenId { get; set; }
+    public long UserId { get; set; }
+    public string TokenHash { get; set; } = string.Empty;
+    public DateTime ExpiresAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? RevokedAt { get; set; }
+    public bool IsUsed { get; set; } = false;
+
+    public User User { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/Role.cs">
+namespace BPG.Domain.Entities;
+
+public class Role : BaseEntity
+{
+    public long RoleId { get; set; }
+    public string RoleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+
+    public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/Supplier.cs">
+namespace BPG.Domain.Entities;
+
+public class Supplier : BaseEntity
+{
+    public long SupplierId { get; set; }
+    public string SupplierName { get; set; } = string.Empty;
+    public string? ContactInfo { get; set; }
+    public string? Address { get; set; }
+    public string? ServiceArea { get; set; }
+    public decimal? Rating { get; set; }
+    public string? EvaluationNote { get; set; }
+    public string CollaborationStatus { get; set; } = "Active";
+
+    public ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/SurplusLiquidation.cs">
+namespace BPG.Domain.Entities;
+
+public class SurplusLiquidation : BaseEntity
+{
+    public long SurplusLiquidationId { get; set; }
+    public long SurplusRequestItemId { get; set; }
+    public string BuyerName { get; set; } = string.Empty;
+    public decimal LiquidationQuantity { get; set; }
+    public decimal TotalAmount { get; set; }
+
+    public SurplusRequestItem SurplusRequestItem { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/SurplusRequest.cs">
+namespace BPG.Domain.Entities;
+
+public class SurplusRequest : BaseEntity
+{
+    public long SurplusRequestId { get; set; }
+    public long ProjectId { get; set; }
+    public string? Reason { get; set; }
+    public string Status { get; set; } = "Draft";
+
+    public Project Project { get; set; } = null!;
+    public ICollection<SurplusRequestItem> Items { get; set; } = new List<SurplusRequestItem>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/SurplusRequestItem.cs">
+namespace BPG.Domain.Entities;
+
+public class SurplusRequestItem : BaseEntity
+{
+    public long SurplusRequestItemId { get; set; }
+    public long SurplusRequestId { get; set; }
+    public long MaterialId { get; set; }
+    public int UnitId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal ProcessedQuantity { get; set; } = 0;
+    public decimal ConversionRate { get; set; } = 1;
+    public string Status { get; set; } = "Pending";
+    public string? CloseReason { get; set; }
+
+    public SurplusRequest SurplusRequest { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit Unit { get; set; } = null!;
+    public ICollection<SurplusReturnSupplier> ReturnToSuppliers { get; set; } = new List<SurplusReturnSupplier>();
+    public ICollection<SurplusTransfer> Transfers { get; set; } = new List<SurplusTransfer>();
+    public ICollection<SurplusLiquidation> Liquidations { get; set; } = new List<SurplusLiquidation>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/SurplusReturnSupplier.cs">
+namespace BPG.Domain.Entities;
+
+public class SurplusReturnSupplier : BaseEntity
+{
+    public long SurplusReturnSupplierId { get; set; }
+    public long SurplusRequestItemId { get; set; }
+    public long? SupplierId { get; set; }
+    public decimal ReturnQuantity { get; set; }
+    public decimal? RefundAmount { get; set; }
+    public string? Note { get; set; }
+
+    public SurplusRequestItem SurplusRequestItem { get; set; } = null!;
+    public Supplier? Supplier { get; set; }
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/SurplusTransfer.cs">
+namespace BPG.Domain.Entities;
+
+public class SurplusTransfer : BaseEntity
+{
+    public long SurplusTransferId { get; set; }
+    public long SurplusRequestItemId { get; set; }
+    public long FromProjectId { get; set; }
+    public long ToProjectId { get; set; }
+    public decimal TransferQuantity { get; set; }
+    public string Status { get; set; } = "Pending";
+    public long? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public long? DispatchedBy { get; set; }
+    public DateTime? DispatchedAt { get; set; }
+    public long? ReceivedBy { get; set; }
+    public DateTime? ReceivedAt { get; set; }
+
+    public SurplusRequestItem SurplusRequestItem { get; set; } = null!;
+    public Project FromProject { get; set; } = null!;
+    public Project ToProject { get; set; } = null!;
+    public User? Approver { get; set; }
+    public User? Dispatcher { get; set; }
+    public User? Receiver { get; set; }
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/SystemConfig.cs">
+namespace BPG.Domain.Entities;
+
+public class SystemConfig : BaseEntity
+{
+    public string ConfigKey { get; set; } = string.Empty;
+    public string ConfigValue { get; set; } = string.Empty;
+    public string DataType { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? Unit { get; set; }
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/TaskAssignee.cs">
+namespace BPG.Domain.Entities;
+
+public class TaskAssignee
+{
+    public long TaskId { get; set; }
+    public long UserId { get; set; }
+    public DateTime AssignedAt { get; set; }
+
+    public ProjectTask Task { get; set; } = null!;
+    public User User { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/TaskDependency.cs">
+namespace BPG.Domain.Entities;
+
+public class TaskDependency
+{
+    public long TaskDependencyId { get; set; }
+    public long TaskId { get; set; }          // Successor task
+    public long PredecessorTaskId { get; set; } // Predecessor task
+    
+    public ProjectTask Task { get; set; } = null!;
+    public ProjectTask Predecessor { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/TaskProgressLog.cs">
+namespace BPG.Domain.Entities;
+
+public class TaskProgressLog
+{
+    public long TaskProgressLogId { get; set; }
+    public long TaskId { get; set; }
+    public byte OldProgress { get; set; }
+    public byte NewProgress { get; set; }
+    public string? UpdateReason { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    public ProjectTask Task { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/Unit.cs">
+namespace BPG.Domain.Entities;
+
+public class Unit : BaseEntity
+{
+    public int UnitId { get; set; }
+    public string UnitCode { get; set; } = string.Empty;
+    public string UnitName { get; set; } = string.Empty;
+    public bool IsDiscrete { get; set; } = false;
+
+    public ICollection<MaterialCatalog> MaterialsAsBaseUnit { get; set; } = new List<MaterialCatalog>();
+    public ICollection<MaterialConversion> AlternativeConversions { get; set; } = new List<MaterialConversion>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/User.cs">
+namespace BPG.Domain.Entities;
+
+public class User : BaseEntity
+{
+    public long UserId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string PasswordHash { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public string? AvatarUrl { get; set; }
+    public bool IsActive { get; set; } = true;
+    public int FailedLoginCount { get; set; } = 0;
+    public DateTime? LockedUntil { get; set; }
+    public DateTime? LastLoginAt { get; set; }
+    public DateTime? PasswordChangedAt { get; set; }
+
+    public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<OtpToken> OtpTokens { get; set; } = new List<OtpToken>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/UserRole.cs">
+namespace BPG.Domain.Entities;
+
+public class UserRole : BaseEntity
+{
+    public long UserId { get; set; }
+    public long RoleId { get; set; }
+
+    public User User { get; set; } = null!;
+    public Role Role { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Infrastructure/Data/DbSeeder.cs">
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -50,41 +1034,42 @@ public static class DbSeeder
 
         var seed = new List<(string Email, string HoTen, string Role, string DienThoai)>
         {
-            ("admin@bpg.com",    "Quản trị hệ thống BPG",      "Admin",            "0901 234 567"),
-            ("giamdoc@bpg.com",  "Bùi Khắc Phú",             "Director",         "0339 353 469"),
-            ("tpkt@bpg.com",     "Nguyễn Minh Đức",          "TechnicalManager", "0912 024 688"),
-            // Leader là SiteEngineer, quyền chỉ huy trưởng dự án được xác định bằng ProjectMember.IsLeader = true.
-            ("leader1@bpg.com",  "Trần Văn Hoàng",           "SiteEngineer",     "0936 425 118"),
-            ("leader2@bpg.com",  "Phạm Đức Long",            "SiteEngineer",     "0983 710 246"),
-            ("leader3@bpg.com",  "Đỗ Quốc Huy",              "SiteEngineer",     "0974 832 015"),
-            ("leader4@bpg.com",  "Lê Tuấn Anh",              "SiteEngineer",     "0962 445 790"),
-            ("leader5@bpg.com",  "Vũ Mạnh Cường",            "SiteEngineer",     "0328 684 571"),
-            ("leader6@bpg.com",  "Ngô Thành Trung",          "SiteEngineer",     "0357 904 236"),
-            ("leader7@bpg.com",  "Hoàng Anh Tuấn",           "SiteEngineer",     "0378 412 609"),
-            ("leader8@bpg.com",  "Bùi Đức Thắng",            "SiteEngineer",     "0392 604 185"),
-            ("leader9@bpg.com",  "Mai Xuân Bắc",             "SiteEngineer",     "0703 284 516"),
-            ("leader10@bpg.com", "Đặng Văn Nam",             "SiteEngineer",     "0835 209 641"),
-            ("kysu1@bpg.com",    "Nguyễn Thành Đạt",         "SiteEngineer",     "0941 275 639"),
-            ("kysu2@bpg.com",    "Trần Quang Hưng",          "SiteEngineer",     "0906 842 137"),
-            ("kysu3@bpg.com",    "Phạm Minh Khang",          "SiteEngineer",     "0886 214 593"),
-            ("kysu4@bpg.com",    "Lê Gia Bảo",               "SiteEngineer",     "0868 520 947"),
-            ("kysu5@bpg.com",    "Đỗ Hải Nam",               "SiteEngineer",     "0794 118 306"),
-            ("kysu6@bpg.com",    "Vũ Nhật Minh",             "SiteEngineer",     "0782 905 344"),
-            ("kysu7@bpg.com",    "Hoàng Duy Phúc",           "SiteEngineer",     "0776 431 820"),
-            ("kysu8@bpg.com",    "Ngô Việt Anh",             "SiteEngineer",     "0769 550 218"),
-            ("kysu9@bpg.com",    "Đặng Hữu Lâm",             "SiteEngineer",     "0852 906 734"),
-            ("kysu10@bpg.com",   "Bùi Thanh Tùng",           "SiteEngineer",     "0848 117 462"),
-            ("kysu11@bpg.com",   "Mai Đức Duy",              "SiteEngineer",     "0819 602 775"),
-            ("kysu12@bpg.com",   "Tạ Quang Vinh",            "SiteEngineer",     "0827 430 915"),
-            ("kysu13@bpg.com",   "Chu Văn Kiên",             "SiteEngineer",     "0346 809 217"),
-            ("kysu14@bpg.com",   "Phan Anh Khoa",            "SiteEngineer",     "0365 718 409"),
-            ("kysu15@bpg.com",   "Hồ Đức Việt",              "SiteEngineer",     "0384 560 172"),
-            ("kysu16@bpg.com",   "Trịnh Minh Sơn",           "SiteEngineer",     "0568 920 441"),
-            ("kysu17@bpg.com",   "Cao Xuân Trường",          "SiteEngineer",     "0587 314 206"),
-            ("kysu18@bpg.com",   "Lương Đức Hải",            "SiteEngineer",     "0593 827 640"),
-            ("kysu19@bpg.com",   "Nguyễn Hữu Dũng",          "SiteEngineer",     "0928 104 536"),
-            ("kysu20@bpg.com",   "Trần Đức Thành",           "SiteEngineer",     "0917 642 803"),
-            ("ketoan@bpg.com",   "Nguyễn Thị Thanh Huyền",   "Accountant",       "0986 775 204"),
+            ("admin@bpg.com",    "Nguyễn Văn Hải",        "Admin",            "0901 234 567"),
+            ("giamdoc@bpg.com",  "Trần Quốc Hùng",         "Director",         "0912 345 678"),
+            ("tpkt@bpg.com",     "Lê Minh Tuấn",           "TechnicalManager", "0923 456 789"),
+            // All "leader" accounts are SiteEngineer; they become project leaders
+            // via IsLeader=true in ProjectMember table.
+            ("leader1@bpg.com",  "Phạm Văn Đức",           "SiteEngineer",     "0934 567 890"),
+            ("leader2@bpg.com",  "Hoàng Thị Lan",          "SiteEngineer",     "0945 111 222"),
+            ("leader3@bpg.com",  "Đinh Văn Cường",         "SiteEngineer",     "0945 333 444"),
+            ("leader4@bpg.com",  "Nguyễn Trọng Tài",       "SiteEngineer",     "0945 555 666"),
+            ("leader5@bpg.com",  "Lê Bá Tòng",             "SiteEngineer",     "0945 777 888"),
+            ("leader6@bpg.com",  "Vũ Trọng Phụng",         "SiteEngineer",     "0945 888 999"),
+            ("leader7@bpg.com",  "Ngô Tất Tố",             "SiteEngineer",     "0945 999 000"),
+            ("leader8@bpg.com",  "Nam Cao",                "SiteEngineer",     "0946 111 222"),
+            ("leader9@bpg.com",  "Thạch Lam",              "SiteEngineer",     "0946 222 333"),
+            ("leader10@bpg.com", "Xuân Diệu",              "SiteEngineer",     "0946 333 444"),
+            ("kysu1@bpg.com",    "Vũ Tiến Dũng",           "SiteEngineer",     "0956 222 333"),
+            ("kysu2@bpg.com",    "Nguyễn Thị Thu Hà",      "SiteEngineer",     "0967 333 444"),
+            ("kysu3@bpg.com",    "Trần Văn Mạnh",          "SiteEngineer",     "0978 444 555"),
+            ("kysu4@bpg.com",    "Lê Hoàng Phong",         "SiteEngineer",     "0989 555 666"),
+            ("kysu5@bpg.com",    "Đỗ Quốc Anh",            "SiteEngineer",     "0989 777 888"),
+            ("kysu6@bpg.com",    "Bùi Hữu Nghĩa",          "SiteEngineer",     "0911 222 333"),
+            ("kysu7@bpg.com",    "Tạ Duy Lâm",             "SiteEngineer",     "0922 333 444"),
+            ("kysu8@bpg.com",    "Hồ Ngọc Hân",            "SiteEngineer",     "0933 444 555"),
+            ("kysu9@bpg.com",    "Phan Đình Phùng",        "SiteEngineer",     "0944 555 666"),
+            ("kysu10@bpg.com",   "Ngô Bảo Châu",           "SiteEngineer",     "0955 666 777"),
+            ("kysu11@bpg.com",   "Tôn Thất Tùng",          "SiteEngineer",     "0955 777 888"),
+            ("kysu12@bpg.com",   "Trần Hưng Đạo",          "SiteEngineer",     "0955 888 999"),
+            ("kysu13@bpg.com",   "Nguyễn Huệ",             "SiteEngineer",     "0955 999 000"),
+            ("kysu14@bpg.com",   "Lê Lợi",                 "SiteEngineer",     "0956 111 222"),
+            ("kysu15@bpg.com",   "Phan Bội Châu",          "SiteEngineer",     "0956 222 333"),
+            ("kysu16@bpg.com",   "Phan Chu Trinh",         "SiteEngineer",     "0956 333 444"),
+            ("kysu17@bpg.com",   "Hoàng Diệu",             "SiteEngineer",     "0956 444 555"),
+            ("kysu18@bpg.com",   "Nguyễn Tri Phương",      "SiteEngineer",     "0956 555 666"),
+            ("kysu19@bpg.com",   "Lý Thường Kiệt",         "SiteEngineer",     "0956 666 777"),
+            ("kysu20@bpg.com",   "Lý Thái Tổ",             "SiteEngineer",     "0956 777 888"),
+            ("ketoan@bpg.com",   "Đỗ Thị Bích Ngọc",       "Accountant",       "0989 555 666"),
         };
 
         foreach (var s in seed)
@@ -160,13 +1145,11 @@ public static class DbSeeder
         {
             suppliers = new List<Supplier>
             {
-                new() { SupplierName = "Công ty CP Xi măng Vicem Hà Tiên",       ContactInfo = "028 3821 6211", Address = "360 Bến Chương Dương, Phường Cầu Ông Lãnh, TP.HCM", ServiceArea = "Toàn quốc", Rating = 4.8m, EvaluationNote = "Xi măng PCB40/PC40, phù hợp cấp cho móng, thân và hoàn thiện", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
-                new() { SupplierName = "Tập đoàn Hòa Phát - Thép xây dựng",     ContactInfo = "024 6284 8666", Address = "66 Nguyễn Du, Hai Bà Trưng, Hà Nội", ServiceArea = "Hà Nội, miền Bắc", Rating = 4.9m, EvaluationNote = "Thép CB300-V/CB400-V, chứng chỉ chất lượng theo lô", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
-                new() { SupplierName = "Công ty CP Thép Pomina",               ContactInfo = "0274 3710 558", Address = "KCN Sóng Thần 2, Dĩ An, Bình Dương", ServiceArea = "Miền Nam", Rating = 4.6m, EvaluationNote = "Bổ sung thép gấp cho công trường phía Nam", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
-                new() { SupplierName = "Công ty CP Nhựa Bình Minh",            ContactInfo = "028 3969 0973", Address = "240 Hậu Giang, Phường 9, Quận 6, TP.HCM", ServiceArea = "Toàn quốc", Rating = 4.7m, EvaluationNote = "Ống PVC/PPR, phụ kiện cấp thoát nước", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
-                new() { SupplierName = "Công ty TNHH Akzo Nobel Việt Nam - Dulux", ContactInfo = "028 3836 1616", Address = "Tầng 12, Sonatus Building, 15 Lê Thánh Tôn, Quận 1, TP.HCM", ServiceArea = "Toàn quốc", Rating = 4.7m, EvaluationNote = "Sơn hoàn thiện nội ngoại thất, có hỗ trợ tư vấn kỹ thuật", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
-                new() { SupplierName = "Đại lý VLXD Hà Đông",                  ContactInfo = "024 3352 1188", Address = "Đường Tố Hữu, Phường Mộ Lao, Hà Đông, Hà Nội", ServiceArea = "Hà Đông, Thanh Xuân, Nam Từ Liêm", Rating = 4.3m, EvaluationNote = "Cát, đá, gạch tuynel giao theo chuyến xe ben", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
-                new() { SupplierName = "Đại lý thiết bị điện nước Minh Long",  ContactInfo = "024 3200 6899", Address = "Nguyễn Trãi, Thanh Xuân, Hà Nội", ServiceArea = "Hà Nội", Rating = 4.4m, EvaluationNote = "Cadivi, ống nước, thiết bị điện dân dụng", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Công ty TNHH VLXD Hoàng Gia",       ContactInfo = "028 3456 7890", Address = "123 Nguyễn Văn Cừ, Q.5, TP.HCM",               ServiceArea = "TP.HCM, Bình Dương",  Rating = 4.5m, EvaluationNote = "Giao hàng đúng hẹn, chất lượng ổn định",          CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Công ty CP Xi Măng Hà Tiên",         ContactInfo = "028 2345 6789", Address = "45 Đinh Tiên Hoàng, Q.1, TP.HCM",               ServiceArea = "Toàn quốc",           Rating = 4.8m, EvaluationNote = "Nhà cung cấp xi măng uy tín hàng đầu Việt Nam",     CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Công ty Thép Miền Nam Pomina",        ContactInfo = "0274 3728 000", Address = "KCN Sóng Thần, Bình Dương",                      ServiceArea = "Miền Nam",            Rating = 4.6m, EvaluationNote = "Thép cán nóng đạt chuẩn TCVN, giá cạnh tranh",     CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Cơ sở Cát Đá Xây Dựng Thiên Phú",   ContactInfo = "0251 3870 123", Address = "Quốc lộ 1A, Long Khánh, Đồng Nai",              ServiceArea = "Đồng Nai, TP.HCM",   Rating = 4.2m, EvaluationNote = "Cát sạch, đá đảm bảo độ cứng, giao hàng bằng xe tải lớn", CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
+                new() { SupplierName = "Công ty CP Sơn Kova Việt Nam",        ContactInfo = "028 3844 4000", Address = "16/3A Bạch Đằng, P.2, Q. Tân Bình, TP.HCM",    ServiceArea = "Toàn quốc",           Rating = 4.7m, EvaluationNote = "Sản phẩm đa dạng, hỗ trợ kỹ thuật thi công tốt",   CollaborationStatus = "Active", CreatedAt = DateTime.UtcNow },
             };
             suppliers.ForEach(x => x.CreatedBy = adminId);
             context.Suppliers.AddRange(suppliers);
@@ -197,10 +1180,8 @@ public static class DbSeeder
                 new SystemConfig { ConfigKey = "NguongTonKhoThap", ConfigValue = "10", DataType = "number", DisplayName = "Ngưỡng tồn kho thấp", Description = "Số lượng tồn kho tối thiểu.", Unit = "đơn vị", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "HanHuyPhieuNgay", ConfigValue = "7", DataType = "number", DisplayName = "Hạn hủy phiếu nhập kho", Description = "Số ngày tối đa kể từ khi tạo phiếu nhập kho mà người dùng có thể hủy phiếu.", Unit = "ngày", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "DailyLogEditWindowHours", ConfigValue = "24", DataType = "number", DisplayName = "Giờ được sửa nhật ký thi công", Description = "Số giờ kể từ lúc tạo mà kỹ sư còn được phép chỉnh sửa nhật ký thi công.", Unit = "giờ", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "CÔNG TY TNHH ĐẦU TƯ VÀ XÂY DỰNG BÙI PHÚ GIA", DataType = "string", DisplayName = "Tên công ty", Description = "Tên pháp lý lấy từ nguồn mã số thuế công khai.", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyLogoUrl", ConfigValue = "https://graph.facebook.com/phungatuvaco/picture?type=large", DataType = "string", DisplayName = "Logo công ty", Description = "Ảnh đại diện Fanpage công khai dùng cho demo; có thể thay bằng logo nội bộ.", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyTaxCode", ConfigValue = "0108326945", DataType = "string", DisplayName = "Mã số thuế", Description = "Mã số thuế doanh nghiệp.", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyAddress", ConfigValue = "Tầng 4, LK 4B-(7) khu tái định cư đô thị Mỗ Lao, Phường Mộ Lao, Quận Hà Đông, Thành phố Hà Nội, Việt Nam", DataType = "string", DisplayName = "Địa chỉ trụ sở", Description = "Địa chỉ theo nguồn mã số thuế công khai.", CreatedAt = DateTime.UtcNow }
+                new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "BPG CMS", DataType = "string", DisplayName = "Tên công ty", Description = "Tên công ty hiển thị trên sidebar và trang đăng nhập.", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "CompanyLogoUrl", ConfigValue = "/logo.png", DataType = "string", DisplayName = "Logo công ty", Description = "URL logo hiển thị trên sidebar và trang đăng nhập.", CreatedAt = DateTime.UtcNow }
             );
             await context.SaveChangesAsync();
         }
@@ -226,18 +1207,15 @@ public static class DbSeeder
 
         catalogs = new List<MaterialCatalog>
         {
-            new() { Code="XM-HT-PC40", Name="Xi măng Hà Tiên PC40", Specification="Bao 50kg, dùng cho bê tông móng/dầm/sàn; kiểm tra CO/CQ theo lô", CategoryId=Cat("Xi măng").CategoryId, BaseUnitId=Bao("BAO").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="THEP-HP-D10", Name="Thép thanh vằn Hòa Phát D10 CB300-V", Specification="Cây 11,7m; đường kính danh nghĩa 10mm; nghiệm thu theo bó/cây", CategoryId=Cat("Sắt thép xây dựng").CategoryId, BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="THEP-HP-D12", Name="Thép thanh vằn Hòa Phát D12 CB300-V", Specification="Cây 11,7m; dùng thép dầm/sàn/móng; cân ký thực tế khi nhập", CategoryId=Cat("Sắt thép xây dựng").CategoryId, BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="THEP-HP-D16", Name="Thép thanh vằn Hòa Phát D16 CB400-V", Specification="Cây 11,7m; dùng thép chủ cột/dầm; kiểm đường kính và tem bó", CategoryId=Cat("Sắt thép xây dựng").CategoryId, BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="THEP-HP-D20", Name="Thép thanh vằn Hòa Phát D20 CB400-V", Specification="Cây 11,7m; thép chủ móng/dầm chính; quy đổi tấn khi mua", CategoryId=Cat("Sắt thép xây dựng").CategoryId, BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="CAT-VANG-TN", Name="Cát vàng Tây Ninh làm bê tông", Specification="Cát sạch, hạt trung đến thô, dùng trộn bê tông móng/dầm/sàn", CategoryId=Cat("Cát đá vật liệu rời").CategoryId, BaseUnitId=Bao("M3").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="CAT-MIN-TRAT", Name="Cát mịn trát tường", Specification="Cát sàng, ít tạp chất hữu cơ, dùng vữa xây tô", CategoryId=Cat("Cát đá vật liệu rời").CategoryId, BaseUnitId=Bao("M3").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="DA-12-DN", Name="Đá 1x2 Đồng Nai", Specification="Đá nghiền kích thước 10-20mm, dùng bê tông thương phẩm/trộn tại công trường", CategoryId=Cat("Cát đá vật liệu rời").CategoryId, BaseUnitId=Bao("M3").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="GACH-TUYNEL-8x8x18", Name="Gạch ống 8x8x18 Tuynel", Specification="Gạch đất sét nung 4 lỗ, xây tường 100/200; nghiệm thu theo thiên", CategoryId=Cat("Gạch xây dựng").CategoryId, BaseUnitId=Bao("CAI").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="SON-DULUX-W18", Name="Sơn nước Dulux Weathershield", Specification="Thùng 18L, sơn ngoại thất, thi công 2 lớp sau bả và sơn lót", CategoryId=Cat("Sơn & vật liệu hoàn thiện").CategoryId, BaseUnitId=Bao("THUNG").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="CADIVI-2.5", Name="Dây cáp điện Cadivi 2.5mm", Specification="Cuộn 100m, lõi đồng, dùng ổ cắm/chiếu sáng dân dụng", CategoryId=Cat("Thiết bị điện").CategoryId, BaseUnitId=Bao("CUON").UnitId, CreatedAt=DateTime.UtcNow },
-            new() { Code="PVC-BM-D90", Name="Ống nước nhựa PVC Bình Minh D90", Specification="Ống PVC D90, dùng thoát nước trục đứng/sân thượng, tính theo mét dài", CategoryId=Cat("Vật liệu cấp thoát nước").CategoryId, BaseUnitId=Bao("MET").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="VT-001", Name="Xi măng Hà Tiên PCB40",               Specification="Bao 50kg, TCVN 6260:2009, mác 400",                    CategoryId=Cat("Xi măng").CategoryId,                   BaseUnitId=Bao("BAO").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="VT-010", Name="Thép cuộn tròn trơn CB240-T D6",      Specification="Pomina, cuộn ~50kg, TCVN 1651-1:2018",                 CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="VT-012", Name="Thép thanh vằn CB300-V D10",          Specification="Pomina, cây 11.7m, TCVN 1651-2:2018",                  CategoryId=Cat("Sắt thép xây dựng").CategoryId,         BaseUnitId=Bao("KG").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="VT-020", Name="Cát vàng xây dựng (cát sông Đồng Nai)", Specification="Sạch, mô đun độ lớn 2.5-3.0, không lẫn bùn sét",    CategoryId=Cat("Cát đá vật liệu rời").CategoryId,       BaseUnitId=Bao("M3").UnitId,  CreatedAt=DateTime.UtcNow },
+            new() { Code="VT-022", Name="Đá dăm 1x2 (đá 4x6)",                Specification="Đá nghiền Đồng Nai, kích thước 10-20mm",                CategoryId=Cat("Cát đá vật liệu rời").CategoryId,       BaseUnitId=Bao("M3").UnitId,  CreatedAt=DateTime.UtcNow },
+            new() { Code="VT-030", Name="Gạch ống 4 lỗ 8x8x19cm",             Specification="Mác 75, TCVN 1450:2009, xây tường 100",                CategoryId=Cat("Gạch xây dựng").CategoryId,             BaseUnitId=Bao("CAI").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="VT-041", Name="Sơn nước nội thất Kova A910",         Specification="Thùng 18 lít, bóng mờ, kháng mốc, kháng khuẩn",       CategoryId=Cat("Sơn & vật liệu hoàn thiện").CategoryId, BaseUnitId=Bao("THUNG").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="VT-050", Name="Dây cáp điện đôi Trần Phú 2x1.5mm²", Specification="Cuộn 100m, vỏ PVC chịu nhiệt 70°C, chịu tải 13A",    CategoryId=Cat("Thiết bị điện").CategoryId,             BaseUnitId=Bao("CUON").UnitId, CreatedAt=DateTime.UtcNow },
+            new() { Code="VT-060", Name="Ống nhựa PVC Tiền Phong Phi 90",     Specification="Cây 4m, áp lực PN10, tiêu chuẩn TCVN 6151",            CategoryId=Cat("Vật liệu cấp thoát nước").CategoryId,   BaseUnitId=Bao("MET").UnitId, CreatedAt=DateTime.UtcNow },
         };
         catalogs.ForEach(x => x.CreatedBy = adminId);
         context.MaterialCatalogs.AddRange(catalogs);
@@ -245,10 +1223,13 @@ public static class DbSeeder
 
         if (!await context.MaterialConversions.AnyAsync())
         {
+            var thepCuon = catalogs.First(c => c.Code == "VT-010");
+            var thepVan  = catalogs.First(c => c.Code == "VT-012");
             var unitTan  = units.First(u => u.UnitCode == "TAN").UnitId;
+
             context.MaterialConversions.AddRange(
-                catalogs.Where(c => c.Code.StartsWith("THEP-HP-")).Select(c =>
-                    new MaterialConversion { MaterialId = c.MaterialId, AlternativeUnitId = unitTan, ConversionRate = 0.001m, CreatedAt = DateTime.UtcNow, CreatedBy = adminId })
+                new MaterialConversion { MaterialId = thepCuon.MaterialId, AlternativeUnitId = unitTan, ConversionRate = 0.001m, CreatedAt = DateTime.UtcNow, CreatedBy = adminId },
+                new MaterialConversion { MaterialId = thepVan.MaterialId,  AlternativeUnitId = unitTan, ConversionRate = 0.001m, CreatedAt = DateTime.UtcNow, CreatedBy = adminId }
             );
             await context.SaveChangesAsync();
         }
@@ -280,11 +1261,16 @@ public static class DbSeeder
         // ProjectStatus: Draft | InProgress | Paused | Completed | Closed
         var dsDuAn = new[]
         {
-            new { Ten="Nhà ở liền kề LK4B Mỗ Lao - Hà Đông", DiaChi="LK 4B-(7), Khu tái định cư đô thị Mỗ Lao, Phường Mộ Lao, Quận Hà Đông, Hà Nội", TrangThai="Completed",  BatDau=new DateOnly(2025, 3, 10), KetThuc=new DateOnly(2025, 10, 25) },
-            new { Ten="Cải tạo hoàn thiện văn phòng Bùi Phú Gia", DiaChi="Tầng 4, LK 4B-(7), Khu tái định cư đô thị Mỗ Lao, Hà Đông, Hà Nội", TrangThai="Completed",  BatDau=new DateOnly(2025, 8, 5), KetThuc=new DateOnly(2025, 12, 15) },
-            new { Ten="Nhà phố thương mại KĐT Văn Phú", DiaChi="Khu đô thị Văn Phú, Phường Phú La, Quận Hà Đông, Hà Nội", TrangThai="InProgress", BatDau=new DateOnly(2026, 2, 18), KetThuc=new DateOnly(2026, 11, 30) },
-            new { Ten="Biệt thự vườn An Khánh - Hoài Đức", DiaChi="Khu đô thị An Khánh, Hoài Đức, Hà Nội", TrangThai="InProgress", BatDau=new DateOnly(2026, 3, 12), KetThuc=new DateOnly(2026, 12, 20) },
-            new { Ten="Xưởng sản xuất phụ trợ Quang Minh", DiaChi="Khu công nghiệp Quang Minh, Mê Linh, Hà Nội", TrangThai="Draft", BatDau=new DateOnly(2026, 9, 15), KetThuc=new DateOnly(2027, 5, 30) },
+            new { Ten="Bệnh viện Phương Đông",         TrangThai="Completed",  BatDau=today.AddDays(-300), KetThuc=today.AddDays(-10) },
+            new { Ten="Khu nhà ở thương mại Hưng Phú", TrangThai="Completed",  BatDau=today.AddDays(-180), KetThuc=today.AddDays(-5)  },
+            new { Ten="Nhà máy May mặc Thiên Long",    TrangThai="Completed",  BatDau=today.AddDays(-200), KetThuc=today.AddDays(-2)  },
+            new { Ten="Chung cư cao tầng SkyView",     TrangThai="InProgress", BatDau=today.AddDays(-115), KetThuc=today.AddDays(180) },
+            new { Ten="Trường quốc tế Á Châu",         TrangThai="InProgress", BatDau=today.AddDays(-110), KetThuc=today.AddDays(150) },
+            new { Ten="TTTM Vincom Dĩ An",             TrangThai="InProgress", BatDau=today.AddDays(-105), KetThuc=today.AddDays(240) },
+            new { Ten="KDC Sài Gòn Mới",               TrangThai="InProgress", BatDau=today.AddDays(-100), KetThuc=today.AddDays(200) },
+            new { Ten="Trường tiểu học Lê Văn Tám",    TrangThai="Draft",      BatDau=today.AddDays(10),   KetThuc=today.AddDays(240) },
+            new { Ten="Khách sạn Mường Thanh CT",      TrangThai="Draft",      BatDau=today.AddDays(30),   KetThuc=today.AddDays(300) },
+            new { Ten="Cầu Vượt Ngã Tư Thủ Đức",       TrangThai="Draft",      BatDau=today.AddDays(45),   KetThuc=today.AddDays(400) },
         };
 
         var seededProjects = new List<(Project Project, User Leader, string Status)>();
@@ -299,7 +1285,7 @@ public static class DbSeeder
             var project = new Project
             {
                 Name         = dp.Ten,
-                Address      = dp.DiaChi,
+                Address      = "Việt Nam",
                 PlannedStart = dp.BatDau,
                 PlannedEnd   = dp.KetThuc,
                 Status       = dp.TrangThai,   // ProjectStatus constant
@@ -331,13 +1317,12 @@ public static class DbSeeder
             );
             await context.SaveChangesAsync();
 
-            // ── Phase completion: Completed → all approved, InProgress → phase1 approved + phase2 đang thi công
+            // ── Phase completion: Completed → all approved, InProgress → phase1 approved + phase2 in progress
             var phases = new[]
             {
-                new { Ten="Giai đoạn 1: Chuẩn bị & Thi công Cọc/Móng", ThuTu=1, Pct = dp.TrangThai is "Completed" or "InProgress" ? 100 : 0 },
-                new { Ten="Giai đoạn 2: Thi công Khung Thân bê tông cốt thép", ThuTu=2, Pct = dp.TrangThai == "Completed" ? 100 : (dp.TrangThai == "InProgress" ? 55 : 0) },
-                new { Ten="Giai đoạn 3: Thi công Xây tô & Hoàn thiện", ThuTu=3, Pct = dp.TrangThai == "Completed" ? 100 : 0 },
-                new { Ten="Giai đoạn 4: Lắp đặt Thiết bị & Bàn giao", ThuTu=4, Pct = dp.TrangThai == "Completed" ? 100 : 0 },
+                new { Ten="Móng",       ThuTu=1, Pct = dp.TrangThai is "Completed" or "InProgress" ? 100 : 0 },
+                new { Ten="Khung",      ThuTu=2, Pct = dp.TrangThai == "Completed" ? 100 : (dp.TrangThai == "InProgress" ? 50 : 0) },
+                new { Ten="Hoàn thiện", ThuTu=3, Pct = dp.TrangThai == "Completed" ? 100 : 0 },
             };
 
             foreach (var pd in phases)
@@ -357,8 +1342,8 @@ public static class DbSeeder
                     Description = $"Giai đoạn {pd.Ten.ToLowerInvariant()} của dự án {project.Name}.",
                     OrderIndex = pd.ThuTu,
                     Status     = phaseStatus,
-                    StartDate  = dp.BatDau.AddDays((pd.ThuTu - 1) * 45),
-                    EndDate    = pd.ThuTu == 4 ? dp.KetThuc : dp.BatDau.AddDays(pd.ThuTu * 45),
+                    StartDate  = dp.BatDau.AddDays((pd.ThuTu - 1) * 60),
+                    EndDate    = dp.BatDau.AddDays(pd.ThuTu * 60),
                     CreatedAt  = DateTime.UtcNow,
                     CreatedBy  = tpkt.UserId
                 };
@@ -399,14 +1384,14 @@ public static class DbSeeder
                         PdfUrl         = $"/seed/acceptances/phase-{phase.PhaseId}.pdf",
                         ReportContent  = $@"### 2. Thành phần trực tiếp nghiệm thu:
 * **Đại diện Ban quản lý Dự án (hoặc nhà thầu Tư vấn giám sát):**
-  - Ông/Bà: Nguyễn Minh Đức  Chức vụ: Trưởng phòng Kỹ thuật
+  - Ông/Bà: Lê Minh Tuấn  Chức vụ: Trưởng phòng Kỹ thuật
 * **Đại diện Nhà thầu thi công:**
-  - Ông/Bà: {leader.FullName}  Chức vụ: Chỉ huy trưởng công trình
+  - Ông/Bà: Nguyễn Văn A  Chức vụ: Trưởng dự án
 
 ### 3. Thời gian nghiệm thu:
 * Bắt đầu: {acceptanceDate:dd/MM/yyyy}
 * Kết thúc: {acceptanceDate:dd/MM/yyyy}
-* Tại công trình: {project.Address}
+* Tại công trình: Việt Nam
 
 ### 4. Đánh giá công việc xây dựng đã thực hiện:
 - **Tài liệu căn cứ nghiệm thu:**
@@ -444,13 +1429,7 @@ public static class DbSeeder
 
                 // ── TASKS ────────────────────────────────────────────────────
                 // TaskStatus: New | Assigned | InProgress | Completed | Approved | Obsolete
-                string[] taskNames = pd.ThuTu switch
-                {
-                    1 => new[] { "Định vị tim cọc, ranh móng và cote ±0.000", "Ép cọc BTCT 250x250 theo hồ sơ thiết kế", "Đào đất hố móng và vận chuyển đất thừa", "Đổ bê tông lót móng đá 4x6 mác 100", "Gia công lắp dựng thép móng, cổ cột", "Lắp cốp pha móng, giằng móng", "Đổ bê tông móng, giằng móng", "Tháo cốp pha và bảo dưỡng bê tông móng" },
-                    2 => new[] { "Gia công lắp dựng thép cột tầng 1", "Lắp dựng cốp pha cột, dầm, sàn tầng 1", "Đặt thép dầm sàn tầng 1", "Đổ bê tông cột, dầm, sàn tầng 1", "Bảo dưỡng bê tông tầng 1", "Lắp dựng cốp pha, thép dầm sàn tầng 2", "Đổ bê tông dầm sàn tầng 2", "Thi công cầu thang và mái bê tông cốt thép" },
-                    3 => new[] { "Xây tường gạch ống 8x8x18 tầng trệt và tầng lầu", "Tô trát tường trong nhà", "Tô trát tường ngoài nhà", "Đi đường ống điện âm tường", "Đi đường ống cấp thoát nước âm tường", "Chống thấm WC, ban công, sân thượng", "Ốp lát gạch sàn và gạch tường khu vệ sinh", "Sơn bả hoàn thiện, sơn nước 2 lớp" },
-                    _ => new[] { "Lắp thiết bị điện, tủ điện, công tắc ổ cắm", "Lắp đèn chiếu sáng và đèn trang trí", "Lắp thiết bị vệ sinh", "Lắp cửa gỗ, cửa nhôm kính, lan can", "Kiểm tra vận hành hệ điện nước", "Vệ sinh công nghiệp toàn bộ công trình", "Nghiệm thu hoàn công nội bộ", "Bàn giao công trình cho chủ đầu tư" }
-                };
+                var taskNames = new[] { "Nhiệm vụ 1", "Nhiệm vụ 2", "Nhiệm vụ 3" };
                 var createdTasks = new List<ProjectTask>();
 
                 int taskIdx = 0;
@@ -499,8 +1478,8 @@ public static class DbSeeder
                     var task = new ProjectTask
                     {
                         PhaseId         = phase.PhaseId,
-                        Name            = tName,
-                        Description     = $"{project.Name}: {tName}. Tuân thủ bản vẽ thi công, biện pháp an toàn và nghiệm thu nội bộ trước khi chuyển bước.",
+                        Name            = $"{pd.Ten} - {tName}",
+                        Description     = $"Thi công hạng mục {tName.ToLowerInvariant()} thuộc giai đoạn {pd.Ten}.",
                         OrderIndex      = taskIdx + 1,
                         StartDate       = tStartDate,
                         EndDate         = tEndDate,
@@ -607,11 +1586,11 @@ public static class DbSeeder
 
         var descriptions = new[]
         {
-            "Thời tiết nắng nhẹ 31°C; 18 công nhân, 01 chỉ huy trưởng, 01 kỹ sư hiện trường. Kiểm tra tim trục, cao độ và biện pháp an toàn trước khi thi công.",
-            "Thời tiết nắng; 22 công nhân. Hoàn thành phần việc theo kế hoạch ngày, vật tư cấp đủ, có chụp ảnh hiện trạng và biên bản nghiệm thu nội bộ.",
-            "Buổi chiều mưa nhẹ; 16 công nhân. Che phủ vật tư, bơm thoát nước cục bộ, tiếp tục thi công các vị trí trong nhà/khu vực an toàn.",
-            "Thời tiết khô ráo; 25 công nhân chia 2 tổ. Kiểm tra kích thước, khoảng cách thép/cốp pha/đường ống trước khi nghiệm thu chuyển bước.",
-            "Thời tiết nắng; 20 công nhân. Hoàn tất hạng mục trong ngày, vệ sinh mặt bằng, thu gom vật tư thừa và cập nhật khối lượng hoàn thành.",
+            "Thi công theo đúng kế hoạch, thời tiết thuận lợi, không phát sinh vấn đề.",
+            "Hoàn thành đổ bê tông đúng tiến độ, có kiểm tra bằng súng bê tông.",
+            "Gặp mưa nhẹ buổi chiều nhưng không ảnh hưởng đến chất lượng thi công.",
+            "Nhân công đủ, vật tư đã về đầy đủ, tiến hành thi công liên tục 2 ca.",
+            "Hoàn tất giai đoạn này, chờ TPKT xuống nghiệm thu thực địa.",
         };
 
         var creatorOptions = new[] { ksA, leader }; // kỹ sư hoặc leader đều có thể ghi
@@ -694,7 +1673,7 @@ public static class DbSeeder
                     EntityId = lastLog.LogId,
                     AttachmentType = AttachmentType.DailyLogPhoto,
                     FileName = $"nhat-ky-{lastLog.LogId}.jpg",
-                    FileUrl = $"https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1400&q=80&bpg_log={lastLog.LogId}",
+                    FileUrl = $"/seed/daily-logs/{lastLog.LogId}/site.jpg",
                     ContentType = "image/jpeg",
                     FileSizeBytes = 409_600,
                     CreatedAt = lastLog.CreatedAt,
@@ -1773,3 +2752,612 @@ public static class DbSeeder
         await context.SaveChangesAsync();
     }
 }
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/DirectPurchaseItem.cs">
+namespace BPG.Domain.Entities;
+
+public class DirectPurchaseItem
+{
+    public long DirectPurchaseItemId { get; set; }
+    public long DirectPurchaseId { get; set; }
+    public long MaterialId { get; set; }
+    public int UnitId { get; set; }
+    public decimal Quantity { get; set; }
+    public decimal ConversionRate { get; set; } = 1;
+    public decimal UnitPrice { get; set; }
+    public decimal LineTotal { get; set; }
+    /// <summary>Dòng này vượt định mức BOQ của Phase (hoặc vật tư không có trong BOQ).</summary>
+    public bool IsOverBOQ { get; set; }
+    public string? Explanation { get; set; }
+
+    public DirectPurchaseRequest DirectPurchaseRequest { get; set; } = null!;
+    public MaterialCatalog Material { get; set; } = null!;
+    public Unit Unit { get; set; } = null!;
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Domain/Entities/DirectPurchaseRequest.cs">
+namespace BPG.Domain.Entities;
+
+public class DirectPurchaseRequest : BaseEntity
+{
+    public long DirectPurchaseId { get; set; }
+    public long ProjectId { get; set; }
+    public long PhaseId { get; set; }
+    public long? TaskId { get; set; }
+    public long RequestedBy { get; set; }
+    public long? AutoPOId { get; set; }
+    public long? AutoReceiptId { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string Status { get; set; } = "Draft";
+    public string AuditStatus { get; set; } = "PendingAudit";
+    /// <summary>WithinBOQ | OverBOQ - tính tại thời điểm Submit, quyết định số cấp duyệt chi.</summary>
+    public string BOQCheckStatus { get; set; } = "WithinBOQ";
+    public DateTime? SubmittedAt { get; set; }
+    public decimal TotalAmount { get; set; }
+    public DateTime PurchaseDate { get; set; }
+    public long? AuditedBy { get; set; }
+    public DateTime? AuditedAt { get; set; }
+    public string? AuditNote { get; set; }
+    /// <summary>Giám đốc duyệt chi (chỉ dùng cho nhánh vượt định mức).</summary>
+    public long? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? ApprovalNote { get; set; }
+
+    public Project Project { get; set; } = null!;
+    public Phase Phase { get; set; } = null!;
+    public ProjectTask? Task { get; set; }
+    public User Requester { get; set; } = null!;
+    public User? Auditor { get; set; }
+    public User? Approver { get; set; }
+    public ICollection<DirectPurchaseItem> Items { get; set; } = new List<DirectPurchaseItem>();
+}
+</file>
+
+<file path="BPG_CMS_BE/src/BPG.Infrastructure/Data/AppDbContext.cs">
+using BPG.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace BPG.Infrastructure.Data;
+
+public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    // Auth / Security
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<OtpToken> OtpTokens => Set<OtpToken>();
+
+    // Config
+    public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
+
+    // Project Management
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
+    public DbSet<Phase> Phases => Set<Phase>();
+    public DbSet<ProjectTask> Tasks => Set<ProjectTask>();
+    public DbSet<TaskAssignee> TaskAssignees => Set<TaskAssignee>();
+    public DbSet<DailyLog> DailyLogs => Set<DailyLog>();
+    public DbSet<TaskProgressLog> TaskProgressLogs => Set<TaskProgressLog>();
+    public DbSet<PhaseAcceptance> PhaseAcceptances => Set<PhaseAcceptance>();
+    public DbSet<TaskDependency> TaskDependencies => Set<TaskDependency>();
+
+    // Incidents
+    public DbSet<Incident> Incidents => Set<Incident>();
+    public DbSet<Comment> Comments => Set<Comment>();
+
+    // Material Master Data
+    public DbSet<MaterialCategory> MaterialCategories => Set<MaterialCategory>();
+    public DbSet<Unit> Units => Set<Unit>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<MaterialCatalog> MaterialCatalogs => Set<MaterialCatalog>();
+    public DbSet<MaterialConversion> MaterialConversions => Set<MaterialConversion>();
+
+    // BOQ & Material Requests
+    public DbSet<BOQItem> BOQItems => Set<BOQItem>();
+    public DbSet<MaterialRequest> MaterialRequests => Set<MaterialRequest>();
+    public DbSet<MaterialRequestItem> MaterialRequestItems => Set<MaterialRequestItem>();
+
+    // Procurement
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
+    public DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
+    public DbSet<GoodsReceiptItem> GoodsReceiptItems => Set<GoodsReceiptItem>();
+
+    // Inventory
+    public DbSet<CurrentInventory> CurrentInventories => Set<CurrentInventory>();
+    public DbSet<MaterialIssuance> MaterialIssuances => Set<MaterialIssuance>();
+    public DbSet<MaterialIssuanceItem> MaterialIssuanceItems => Set<MaterialIssuanceItem>();
+    public DbSet<MaterialReturn> MaterialReturns => Set<MaterialReturn>();
+    public DbSet<MaterialReturnItem> MaterialReturnItems => Set<MaterialReturnItem>();
+
+    // Surplus Management
+    public DbSet<SurplusRequest> SurplusRequests => Set<SurplusRequest>();
+    public DbSet<SurplusRequestItem> SurplusRequestItems => Set<SurplusRequestItem>();
+    public DbSet<SurplusReturnSupplier> SurplusReturnSuppliers => Set<SurplusReturnSupplier>();
+    public DbSet<SurplusTransfer> SurplusTransfers => Set<SurplusTransfer>();
+    public DbSet<SurplusLiquidation> SurplusLiquidations => Set<SurplusLiquidation>();
+
+    // Adjustments
+    public DbSet<InventoryAdjustment> InventoryAdjustments => Set<InventoryAdjustment>();
+    public DbSet<AdjustmentItem> AdjustmentItems => Set<AdjustmentItem>();
+
+    // Direct Purchase
+    public DbSet<DirectPurchaseRequest> DirectPurchaseRequests => Set<DirectPurchaseRequest>();
+    public DbSet<DirectPurchaseItem> DirectPurchaseItems => Set<DirectPurchaseItem>();
+
+    // Cross-cutting
+    public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // Global soft delete filter for all BaseEntity
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes()
+            .Where(e => typeof(BPG.Domain.Entities.BaseEntity).IsAssignableFrom(e.ClrType)))
+        {
+            var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
+            var property = System.Linq.Expressions.Expression.Property(parameter, nameof(BPG.Domain.Entities.BaseEntity.IsDeleted));
+            var condition = System.Linq.Expressions.Expression.Equal(property, System.Linq.Expressions.Expression.Constant(false));
+            var lambda = System.Linq.Expressions.Expression.Lambda(condition, parameter);
+            modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+        }
+
+        // Apply decimal precision globally
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(decimal) || property.ClrType == typeof(decimal?))
+                {
+                    property.SetPrecision(18);
+                    property.SetScale(4);
+                }
+            }
+        }
+
+        // PKs
+        modelBuilder.Entity<User>().HasKey(x => x.UserId);
+        modelBuilder.Entity<Role>().HasKey(x => x.RoleId);
+        modelBuilder.Entity<RefreshToken>().HasKey(x => x.RefreshTokenId);
+        modelBuilder.Entity<OtpToken>().HasKey(x => x.OtpTokenId);
+        modelBuilder.Entity<SystemConfig>().HasKey(x => x.ConfigKey);
+        modelBuilder.Entity<Project>().HasKey(x => x.ProjectId);
+        modelBuilder.Entity<ProjectMember>().HasKey(x => x.ProjectMemberId);
+        modelBuilder.Entity<Phase>().HasKey(x => x.PhaseId);
+        modelBuilder.Entity<ProjectTask>().HasKey(x => x.TaskId);
+        modelBuilder.Entity<DailyLog>().HasKey(x => x.LogId);
+        modelBuilder.Entity<TaskProgressLog>().HasKey(x => x.TaskProgressLogId);
+        modelBuilder.Entity<PhaseAcceptance>().HasKey(x => x.AcceptanceId);
+        modelBuilder.Entity<TaskDependency>().HasKey(x => x.TaskDependencyId);
+        modelBuilder.Entity<Incident>().HasKey(x => x.IncidentId);
+        modelBuilder.Entity<Comment>().HasKey(x => x.CommentId);
+        modelBuilder.Entity<MaterialCategory>().HasKey(x => x.CategoryId);
+        modelBuilder.Entity<Unit>().HasKey(x => x.UnitId);
+        modelBuilder.Entity<Supplier>().HasKey(x => x.SupplierId);
+        modelBuilder.Entity<MaterialCatalog>().HasKey(x => x.MaterialId);
+        modelBuilder.Entity<BOQItem>().HasKey(x => x.BOQItemId);
+        modelBuilder.Entity<MaterialRequest>().HasKey(x => x.RequestId);
+        modelBuilder.Entity<MaterialRequestItem>().HasKey(x => x.RequestItemId);
+        modelBuilder.Entity<PurchaseOrder>().HasKey(x => x.POId);
+        modelBuilder.Entity<PurchaseOrderItem>().HasKey(x => x.POItemId);
+        modelBuilder.Entity<GoodsReceipt>().HasKey(x => x.ReceiptId);
+        modelBuilder.Entity<GoodsReceiptItem>().HasKey(x => x.ReceiptItemId);
+        modelBuilder.Entity<CurrentInventory>().HasKey(x => x.InventoryId);
+        modelBuilder.Entity<MaterialIssuance>().HasKey(x => x.MaterialIssuanceId);
+        modelBuilder.Entity<MaterialIssuanceItem>().HasKey(x => x.IssuanceItemId);
+        modelBuilder.Entity<MaterialReturn>().HasKey(x => x.MaterialReturnId);
+        modelBuilder.Entity<MaterialReturnItem>().HasKey(x => x.ReturnItemId);
+        modelBuilder.Entity<SurplusRequest>().HasKey(x => x.SurplusRequestId);
+        modelBuilder.Entity<SurplusRequestItem>().HasKey(x => x.SurplusRequestItemId);
+        modelBuilder.Entity<SurplusReturnSupplier>().HasKey(x => x.SurplusReturnSupplierId);
+        modelBuilder.Entity<SurplusTransfer>().HasKey(x => x.SurplusTransferId);
+        modelBuilder.Entity<SurplusLiquidation>().HasKey(x => x.SurplusLiquidationId);
+        modelBuilder.Entity<InventoryAdjustment>().HasKey(x => x.AdjustmentId);
+        modelBuilder.Entity<AdjustmentItem>().HasKey(x => x.AdjustmentItemId);
+        modelBuilder.Entity<DirectPurchaseRequest>().HasKey(x => x.DirectPurchaseId);
+        modelBuilder.Entity<DirectPurchaseItem>().HasKey(x => x.DirectPurchaseItemId);
+        modelBuilder.Entity<Attachment>().HasKey(x => x.AttachmentId);
+        modelBuilder.Entity<Notification>().HasKey(x => x.NotificationId);
+        modelBuilder.Entity<InventoryTransaction>().HasKey(x => x.TransactionId);
+
+        // Composite PKs
+        modelBuilder.Entity<UserRole>().HasKey(x => new { x.UserId, x.RoleId });
+        modelBuilder.Entity<TaskAssignee>().HasKey(x => new { x.TaskId, x.UserId });
+
+        // MaterialConversion composite PK
+        modelBuilder.Entity<MaterialConversion>().HasKey(x => new { x.MaterialId, x.AlternativeUnitId });
+        modelBuilder.Entity<MaterialConversion>()
+            .Property(x => x.ConversionRate)
+            .HasPrecision(18, 6);
+        modelBuilder.Entity<MaterialConversion>()
+            .HasOne(x => x.Material)
+            .WithMany(x => x.Conversions)
+            .HasForeignKey(x => x.MaterialId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<MaterialConversion>()
+            .HasOne(x => x.AlternativeUnit)
+            .WithMany(x => x.AlternativeConversions)
+            .HasForeignKey(x => x.AlternativeUnitId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // CurrentInventory unique + rowversion + precision
+        modelBuilder.Entity<CurrentInventory>()
+            .HasIndex(x => new { x.ProjectId, x.MaterialId, x.UnitId })
+            .IsUnique();
+        modelBuilder.Entity<CurrentInventory>()
+            .Property(x => x.RowVersion)
+            .IsRowVersion();
+        modelBuilder.Entity<CurrentInventory>()
+            .Property(x => x.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<CurrentInventory>()
+            .Property(x => x.ReservedQuantity).HasPrecision(18, 3);
+
+        // Unique indexes
+        modelBuilder.Entity<User>().HasIndex(x => x.Email).IsUnique();
+        modelBuilder.Entity<Role>().HasIndex(x => x.RoleName).IsUnique();
+        modelBuilder.Entity<MaterialCatalog>().HasIndex(x => x.Code).IsUnique();
+        modelBuilder.Entity<Unit>().HasIndex(x => x.UnitCode).IsUnique();
+
+        // ProjectMember unique (ProjectId, UserId)
+        modelBuilder.Entity<ProjectMember>()
+            .HasIndex(x => new { x.ProjectId, x.UserId })
+            .IsUnique();
+
+        // MaterialRequestItem unique (RequestId, MaterialId) + precision
+        modelBuilder.Entity<MaterialRequestItem>()
+            .HasIndex(x => new { x.RequestId, x.MaterialId })
+            .IsUnique();
+        modelBuilder.Entity<MaterialRequestItem>()
+            .Property(x => x.Quantity)
+            .HasPrecision(18, 3);
+        modelBuilder.Entity<MaterialRequestItem>()
+            .Property(x => x.ConversionRate)
+            .HasPrecision(18, 6);
+
+        // BOQItem unique (PhaseId, MaterialId) + precision
+        modelBuilder.Entity<BOQItem>()
+            .HasIndex(x => new { x.PhaseId, x.MaterialId })
+            .IsUnique();
+        modelBuilder.Entity<BOQItem>()
+            .Property(x => x.Quantity)
+            .HasPrecision(18, 3);
+        modelBuilder.Entity<BOQItem>()
+            .Property(x => x.ConversionRate)
+            .HasPrecision(18, 6);
+
+        // Self-referencing
+        modelBuilder.Entity<ProjectTask>()
+            .HasOne(t => t.ParentTask)
+            .WithMany(t => t.SubTasks)
+            .HasForeignKey(t => t.ParentTaskId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Task Dependencies
+        modelBuilder.Entity<TaskDependency>()
+            .HasOne(td => td.Task)
+            .WithMany(t => t.Dependencies)
+            .HasForeignKey(td => td.TaskId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<TaskDependency>()
+            .HasOne(td => td.Predecessor)
+            .WithMany(t => t.Dependents)
+            .HasForeignKey(td => td.PredecessorTaskId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Incident - ReworkTask self-ref
+        modelBuilder.Entity<Incident>()
+            .HasOne(i => i.ReworkTask)
+            .WithMany()
+            .HasForeignKey(i => i.ReworkTaskId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Incident>()
+            .HasOne(i => i.Task)
+            .WithMany()
+            .HasForeignKey(i => i.TaskId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Incident>()
+            .HasOne(i => i.Reporter)
+            .WithMany()
+            .HasForeignKey(i => i.ReportedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Incident>()
+            .HasOne(i => i.Reviewer)
+            .WithMany()
+            .HasForeignKey(i => i.ReviewedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Incident>()
+            .HasOne(i => i.Phase)
+            .WithMany()
+            .HasForeignKey(i => i.PhaseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Comment cascade delete from DailyLog
+        modelBuilder.Entity<Comment>()
+            .HasOne(c => c.DailyLog)
+            .WithMany(d => d.Comments)
+            .HasForeignKey(c => c.LogId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Comment>()
+            .HasOne(c => c.Author)
+            .WithMany()
+            .HasForeignKey(c => c.AuthorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // DailyLog
+        modelBuilder.Entity<DailyLog>()
+            .HasOne(d => d.Creator)
+            .WithMany()
+            .HasForeignKey(d => d.CreatedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // PhaseAcceptance
+        modelBuilder.Entity<PhaseAcceptance>()
+            .HasIndex(p => p.PhaseId);
+
+        modelBuilder.Entity<PhaseAcceptance>()
+            .HasOne(p => p.Acceptor)
+            .WithMany()
+            .HasForeignKey(p => p.AcceptedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ProjectTask IncidentId
+        modelBuilder.Entity<ProjectTask>()
+            .HasOne(t => t.LinkedIncident)
+            .WithMany()
+            .HasForeignKey(t => t.IncidentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // MaterialRequest
+        modelBuilder.Entity<MaterialRequest>()
+            .HasOne(m => m.Checker)
+            .WithMany()
+            .HasForeignKey(m => m.CheckedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<MaterialRequest>()
+            .HasOne(m => m.Approver)
+            .WithMany()
+            .HasForeignKey(m => m.ApprovedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // PurchaseOrderItem - explicit FK to avoid shadow property PurchaseOrderPOId
+        modelBuilder.Entity<PurchaseOrderItem>()
+            .HasOne(x => x.PurchaseOrder)
+            .WithMany(x => x.Items)
+            .HasForeignKey(x => x.POId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<PurchaseOrderItem>()
+            .Property(x => x.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<PurchaseOrderItem>()
+            .Property(x => x.UnitPrice).HasPrecision(18, 2);
+        modelBuilder.Entity<PurchaseOrderItem>()
+            .Property(x => x.LineTotal).HasPrecision(18, 2);
+        modelBuilder.Entity<PurchaseOrderItem>()
+            .Property(x => x.ConversionRate).HasPrecision(18, 6);
+
+        // GoodsReceipt - explicit FK to avoid shadow property PurchaseOrderPOId
+        modelBuilder.Entity<GoodsReceipt>()
+            .HasOne(x => x.PurchaseOrder)
+            .WithMany(x => x.GoodsReceipts)
+            .HasForeignKey(x => x.POId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // PurchaseOrder
+        modelBuilder.Entity<PurchaseOrder>()
+            .Property(x => x.TotalAmount)
+            .HasPrecision(18, 2);
+        modelBuilder.Entity<PurchaseOrder>()
+            .HasOne(x => x.Request)
+            .WithMany()
+            .HasForeignKey(x => x.RequestId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<PurchaseOrder>()
+            .HasOne(x => x.Project)
+            .WithMany(x => x.PurchaseOrders)
+            .HasForeignKey(x => x.ProjectId)
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // GoodsReceiptItem precision
+        modelBuilder.Entity<GoodsReceiptItem>()
+            .Property(x => x.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<GoodsReceiptItem>()
+            .Property(x => x.ConversionRate).HasPrecision(18, 6);
+
+        // MaterialIssuanceItem precision
+        modelBuilder.Entity<MaterialIssuanceItem>()
+            .Property(x => x.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<MaterialIssuanceItem>()
+            .Property(x => x.ConversionRate).HasPrecision(18, 6);
+
+        // MaterialReturnItem precision
+        modelBuilder.Entity<MaterialReturnItem>()
+            .Property(x => x.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<MaterialReturnItem>()
+            .Property(x => x.ConversionRate).HasPrecision(18, 6);
+
+        // SurplusRequestItem unique (SurplusRequestId, MaterialId) + precision
+        modelBuilder.Entity<SurplusRequestItem>()
+            .HasIndex(x => new { x.SurplusRequestId, x.MaterialId })
+            .IsUnique();
+        modelBuilder.Entity<SurplusRequestItem>()
+            .Property(x => x.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<SurplusRequestItem>()
+            .Property(x => x.ProcessedQuantity).HasPrecision(18, 3);
+        modelBuilder.Entity<SurplusRequestItem>()
+            .Property(x => x.ConversionRate).HasPrecision(18, 6);
+
+        // SurplusReturnSupplier precision
+        modelBuilder.Entity<SurplusReturnSupplier>()
+            .Property(x => x.ReturnQuantity).HasPrecision(18, 3);
+        modelBuilder.Entity<SurplusReturnSupplier>()
+            .Property(x => x.RefundAmount).HasPrecision(18, 2);
+
+        // SurplusTransfer precision
+        modelBuilder.Entity<SurplusTransfer>()
+            .Property(x => x.TransferQuantity).HasPrecision(18, 3);
+
+        // SurplusTransfer FKs
+        modelBuilder.Entity<SurplusTransfer>()
+            .HasOne(s => s.FromProject)
+            .WithMany()
+            .HasForeignKey(s => s.FromProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<SurplusTransfer>()
+            .HasOne(s => s.ToProject)
+            .WithMany()
+            .HasForeignKey(s => s.ToProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<SurplusTransfer>()
+            .HasOne(s => s.Approver)
+            .WithMany()
+            .HasForeignKey(s => s.ApprovedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<SurplusTransfer>()
+            .HasOne(s => s.Dispatcher)
+            .WithMany()
+            .HasForeignKey(s => s.DispatchedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<SurplusTransfer>()
+            .HasOne(s => s.Receiver)
+            .WithMany()
+            .HasForeignKey(s => s.ReceivedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // SurplusLiquidation precision
+        modelBuilder.Entity<SurplusLiquidation>()
+            .Property(x => x.LiquidationQuantity).HasPrecision(18, 3);
+        modelBuilder.Entity<SurplusLiquidation>()
+            .Property(x => x.TotalAmount).HasPrecision(18, 2);
+
+        // AdjustmentItem unique (AdjustmentId, MaterialId) + precision
+        modelBuilder.Entity<AdjustmentItem>()
+            .HasIndex(x => new { x.AdjustmentId, x.MaterialId })
+            .IsUnique();
+        modelBuilder.Entity<AdjustmentItem>()
+            .Property(x => x.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<AdjustmentItem>()
+            .Property(x => x.ConversionRate).HasPrecision(18, 6);
+
+        // InventoryAdjustment
+        modelBuilder.Entity<InventoryAdjustment>()
+            .HasOne(i => i.Phase)
+            .WithMany()
+            .HasForeignKey(i => i.PhaseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<InventoryAdjustment>()
+            .HasOne(i => i.Approver)
+            .WithMany()
+            .HasForeignKey(i => i.ApprovedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // DirectPurchaseItem - explicit FK to avoid shadow property DirectPurchaseRequestDirectPurchaseId
+        modelBuilder.Entity<DirectPurchaseItem>()
+            .HasOne(x => x.DirectPurchaseRequest)
+            .WithMany(x => x.Items)
+            .HasForeignKey(x => x.DirectPurchaseId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<DirectPurchaseItem>()
+            .HasIndex(x => new { x.DirectPurchaseId, x.MaterialId })
+            .IsUnique();
+        modelBuilder.Entity<DirectPurchaseItem>()
+            .Property(x => x.Quantity).HasPrecision(18, 3);
+        modelBuilder.Entity<DirectPurchaseItem>()
+            .Property(x => x.ConversionRate).HasPrecision(18, 6);
+        modelBuilder.Entity<DirectPurchaseItem>()
+            .Property(x => x.UnitPrice).HasPrecision(18, 2);
+        modelBuilder.Entity<DirectPurchaseItem>()
+            .Property(x => x.LineTotal).HasPrecision(18, 2);
+
+        // DirectPurchaseRequest
+        modelBuilder.Entity<DirectPurchaseRequest>()
+            .Property(x => x.TotalAmount).HasPrecision(18, 2);
+
+        modelBuilder.Entity<DirectPurchaseRequest>()
+            .HasOne(d => d.Project)
+            .WithMany()
+            .HasForeignKey(d => d.ProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DirectPurchaseRequest>()
+            .HasOne(d => d.Phase)
+            .WithMany()
+            .HasForeignKey(d => d.PhaseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DirectPurchaseRequest>()
+            .HasOne(d => d.Task)
+            .WithMany()
+            .HasForeignKey(d => d.TaskId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DirectPurchaseRequest>()
+            .HasOne(d => d.Requester)
+            .WithMany()
+            .HasForeignKey(d => d.RequestedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DirectPurchaseRequest>()
+            .HasOne(d => d.Auditor)
+            .WithMany()
+            .HasForeignKey(d => d.AuditedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DirectPurchaseRequest>()
+            .HasOne(d => d.Approver)
+            .WithMany()
+            .HasForeignKey(d => d.ApprovedBy)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DirectPurchaseRequest>()
+            .Property(x => x.BOQCheckStatus).HasMaxLength(20);
+
+        // MaterialCatalog BaseUnit -> Unit (int FK)
+        modelBuilder.Entity<MaterialCatalog>()
+            .HasOne(m => m.BaseUnit)
+            .WithMany(u => u.MaterialsAsBaseUnit)
+            .HasForeignKey(m => m.BaseUnitId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // InventoryTransaction precision
+        modelBuilder.Entity<InventoryTransaction>()
+            .Property(x => x.QuantityChange).HasPrecision(18, 3);
+        modelBuilder.Entity<InventoryTransaction>()
+            .Property(x => x.BalanceAfter).HasPrecision(18, 3);
+
+        // Seed data: Roles
+        // NOTE: ProjectLeader không phải một role riêng.
+        //       Leadership được xác định bởi IsLeader=true trong bảng ProjectMember.
+        //       Mọi leader đều có role SiteEngineer (RoleId=3).
+        modelBuilder.Entity<Role>().HasData(
+            new Role { RoleId = 1, RoleName = "Admin",            Description = "Quản trị viên hệ thống" },
+            new Role { RoleId = 2, RoleName = "TechnicalManager", Description = "Trưởng phòng kỹ thuật" },
+            new Role { RoleId = 3, RoleName = "SiteEngineer",     Description = "Nhân viên kỹ thuật hiện trường" },
+            new Role { RoleId = 4, RoleName = "Accountant",       Description = "Kế toán" },
+            new Role { RoleId = 5, RoleName = "Director",         Description = "Giám đốc" }
+        );
+    }
+}
+</file>
+
+</files>

@@ -240,7 +240,10 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     OldProgress = oldProgress,
                     NewProgress = request.NewProgressPercent,
                     UpdateReason = request.Description,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = currentUserId,
+                    UpdatedAt = DateTime.UtcNow,
+                    UpdatedBy = currentUserId
                 };
                 await _uow.Repository<TaskProgressLog>().AddAsync(progressLog, cancellationToken);
 

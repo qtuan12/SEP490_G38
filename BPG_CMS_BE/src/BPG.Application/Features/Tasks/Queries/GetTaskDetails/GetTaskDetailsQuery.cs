@@ -1,4 +1,4 @@
-﻿using BPG.Domain.Exceptions;
+using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
@@ -54,12 +54,14 @@ public class GetTaskDetailsQueryHandler : IRequestHandler<GetTaskDetailsQuery, A
                 a.User.FullName,
                 a.User.Email
             )).ToList(),
-            ProgressLogs = task.ProgressLogs.OrderByDescending(p => p.UpdatedAt).Select(p => new TaskProgressLogDto(
+            ProgressLogs = task.ProgressLogs.OrderByDescending(p => p.CreatedAt != default ? p.CreatedAt : (p.UpdatedAt ?? DateTime.UtcNow)).Select(p => new TaskProgressLogDto(
                 p.TaskProgressLogId,
                 p.OldProgress,
                 p.NewProgress,
                 p.UpdateReason,
-                p.UpdatedAt
+                p.UpdatedAt ?? p.CreatedAt,
+                p.CreatedBy,
+                null
             )).ToList(),
             DailyLogs = task.DailyLogs.OrderByDescending(d => d.LogDate).Select(d => new TaskDailyLogDto(
                 d.LogId,
