@@ -62,7 +62,7 @@ public class CurrentUserService : ICurrentUserService
     public long GetRequiredUserId()
     {
         if (!IsAuthenticated)
-            throw new UnauthorizedException();
+            throw new UnauthorizedException("Phiên làm việc đã hết hạn hoặc bạn chưa đăng nhập.");
 
         var id = UserId;
         if (id == null)

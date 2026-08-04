@@ -14,12 +14,12 @@ namespace BPG.Api.Controllers
 
         protected IMediator Mediator => _mediator ??= HttpContext.RequestServices.GetRequiredService<IMediator>();
 
-        protected IActionResult ApiOk(string message = "Success")
+        protected IActionResult ApiOk(string message = "Thao tác thành công.")
         {
             return Ok(ApiResponse.SuccessResult(message));
         }
 
-        protected IActionResult ApiOk<T>(T data, string message = "Success")
+        protected IActionResult ApiOk<T>(T data, string message = "Thao tác thành công.")
         {
             if (data is ApiResponse)
             {
@@ -28,7 +28,7 @@ namespace BPG.Api.Controllers
             return Ok(ApiResponse<T>.SuccessResult(data, message));
         }
 
-        protected IActionResult ApiPagedOk<T>(PagedList<T> pagedList, string message = "Success")
+        protected IActionResult ApiPagedOk<T>(PagedList<T> pagedList, string message = "Thao tác thành công.")
         {
             return Ok(ApiResponse<PagedList<T>>.SuccessResult(pagedList, message));
         }
@@ -38,7 +38,7 @@ namespace BPG.Api.Controllers
             return BadRequest(ApiResponse<string>.FailureResult(message, errors));
         }
 
-        protected IActionResult ApiNotFound(string message = "Resource not found")
+        protected IActionResult ApiNotFound(string message = "Không tìm thấy dữ liệu yêu cầu.")
         {
             return NotFound(ApiResponse<string>.FailureResult(message));
         }

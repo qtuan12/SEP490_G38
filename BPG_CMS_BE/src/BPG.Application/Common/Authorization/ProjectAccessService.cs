@@ -1,4 +1,4 @@
-﻿using BPG.Application.IRepositories;
+using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
@@ -21,7 +21,7 @@ public sealed class ProjectAccessService : IProjectAccessService
     public async Task<IReadOnlySet<long>> GetAccessibleProjectIdsAsync(CancellationToken ct = default)
     {
         if (!_currentUser.IsAuthenticated)
-            throw new UnauthorizedException();
+            throw new UnauthorizedException("Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại để xem danh sách dự án.");
 
         if (_currentUser.IsInAnyRole(
                 BPG.Domain.Constants.UserRole.Director,
