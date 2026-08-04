@@ -14,7 +14,7 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> GetDirectPurchaseRequests([FromQuery] GetDirectPurchaseRequestsQuery query, CancellationToken ct)
         {
             var result = await Mediator.Send(query, ct);
-            return ApiPagedOk(result);
+            return ApiPagedOk(result, "Lấy danh sách phiếu mua trực tiếp thành công");
         }
 
         /// <summary>
@@ -25,7 +25,8 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> CreateDirectPurchaseRequest([FromBody] CreateDirectPurchaseRequestCommand command, CancellationToken ct)
         {
             var id = await Mediator.Send(command, ct);
-            return ApiOk(new { directPurchaseId = id });
+            return ApiOk(new { directPurchaseId = id },
+                "Lưu phiếu nháp thành công. Phiếu chưa được gửi nên chưa ảnh hưởng tồn kho.");
         }
 
         /// <summary>Sửa phiếu nháp. Chỉ người tạo, chỉ khi Status = Draft.</summary>
@@ -35,7 +36,7 @@ namespace BPG.Api.Controllers
         {
             command.DirectPurchaseId = id;
             var result = await Mediator.Send(command, ct);
-            return ApiOk(result);
+            return ApiOk(result, "Cập nhật phiếu nháp thành công. Phiếu chưa được gửi nên chưa ảnh hưởng tồn kho.");
         }
 
         /// <summary>Xóa phiếu nháp. Chỉ người tạo, chỉ khi Status = Draft.</summary>
@@ -44,7 +45,7 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> DeleteDirectPurchaseDraft([FromRoute] long id, CancellationToken ct)
         {
             var result = await Mediator.Send(new DeleteDirectPurchaseDraftCommand(id), ct);
-            return ApiOk(result);
+            return ApiOk(result, "Xóa phiếu nháp thành công");
         }
 
         /// <summary>
@@ -55,8 +56,9 @@ namespace BPG.Api.Controllers
         [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> SubmitDirectPurchase([FromRoute] long id, CancellationToken ct)
         {
-            var result = await Mediator.Send(new SubmitDirectPurchaseCommand(id), ct);
-            return ApiOk(result);
+            // Handler trả về message vì chỉ nó biết phiếu rơi vào nhánh trong hay vượt định mức BOQ.
+            var message = await Mediator.Send(new SubmitDirectPurchaseCommand(id), ct);
+            return ApiOk(true, message);
         }
 
         [HttpGet("{id}")]
@@ -64,7 +66,7 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> GetDirectPurchaseById([FromRoute] long id, CancellationToken ct)
         {
             var result = await Mediator.Send(new GetDirectPurchaseByIdQuery(id), ct);
-            return ApiOk(result);
+            return ApiOk(result, "Lấy chi tiết phiếu mua trực tiếp thành công");
         }
 
         /// <summary>
@@ -76,8 +78,9 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> AuditDirectPurchase([FromRoute] long id, [FromBody] AuditDirectPurchaseCommand command, CancellationToken ct)
         {
             command.DirectPurchaseId = id;
-            var result = await Mediator.Send(command, ct);
-            return ApiOk(result);
+            // Handler trả về message vì kết quả khác nhau giữa phiếu trong và vượt định mức BOQ.
+            var message = await Mediator.Send(command, ct);
+            return ApiOk(true, message);
         }
 
         /// <summary>
@@ -89,7 +92,7 @@ namespace BPG.Api.Controllers
         {
             command.DirectPurchaseId = id;
             var result = await Mediator.Send(command, ct);
-            return ApiOk(result);
+            return ApiOk(result, "Duyệt chi phiếu mua trực tiếp vượt định mức thành công");
         }
 
         /// <summary>
@@ -101,7 +104,7 @@ namespace BPG.Api.Controllers
         {
             command.DirectPurchaseId = id;
             var result = await Mediator.Send(command, ct);
-            return ApiOk(result);
+            return ApiOk(result, "Từ chối duyệt chi thành công. Vật tư vẫn đã nhập kho và vẫn tính vào định mức giai đoạn.");
         }
     }
 }
