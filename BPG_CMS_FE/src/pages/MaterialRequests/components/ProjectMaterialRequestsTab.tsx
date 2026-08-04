@@ -41,7 +41,7 @@ interface ProjectMaterialRequestsTabProps {
 export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProps> = ({ projectId }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { canManageExecution, canManageTechnical, canManageAccounting, canApprove } = useProjectAccess(projectId);
+  const { canManageTechnical, canManageAccounting, canApprove, isProjectLeader } = useProjectAccess(projectId);
   const [searchParams] = useSearchParams();
   const urlPhaseId = searchParams.get('phaseId');
   const urlRequestId = searchParams.get('requestId');
@@ -135,7 +135,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
   const isAccountant = canManageAccounting;
   const isDirector = canApprove;
-  const canCreateRequest = canManageExecution;
+  const canCreateRequest = canManageTechnical;
 
   const fetchData = async (showLoading = true) => {
     const requestId = ++fetchRequestIdRef.current;
@@ -549,7 +549,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                         <span>Chi tiết</span>
                       </Button>
 
-                      {canManageTechnical && req.status === 'rejected' && (
+                      {isProjectLeader && req.createdBy === Number(user?.id) && req.status === 'rejected' && (
                         <Button
                           variant="primary"
                           size="sm"
