@@ -1,6 +1,6 @@
 import { triggerGlobalLoading, triggerGlobalHideLoading } from '../context/LoadingContext';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5160/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7111/api';
 
 export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 

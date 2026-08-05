@@ -196,6 +196,8 @@ try
         app.UseSwaggerUI();
     }
 
+    app.UseHttpsRedirection();
+
     app.UseCors("AllowReactApp");
 
     app.UseAuthentication();

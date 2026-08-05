@@ -183,7 +183,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5160/api';
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://localhost:7111/api';
     const hubUrl = apiUrl.replace(/\/api$/, '') + '/hubs/notifications';
 
     const connection = new HubConnectionBuilder()
