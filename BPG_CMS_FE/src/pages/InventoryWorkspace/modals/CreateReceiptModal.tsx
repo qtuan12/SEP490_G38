@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
+import { getPOStatusLabel } from '../../../utils/inventoryHelpers';
 
 interface CreateReceiptModalProps {
   isOpen: boolean;
@@ -34,6 +35,11 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   const [quantities, setQuantities] = useState<Record<number, string>>({}); // materialId -> qty string
   const [errors, setErrors] = useState<Record<number, string>>({}); // materialId -> error message
 
+  // Field-specific error states
+  const [poError, setPoError] = useState<string | null>(null);
+  const [qtyTableError, setQtyTableError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+
   // Files upload
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -50,25 +56,37 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       setQcNote('');
       setQuantities({});
       setErrors({});
+      setPoError(null);
+      setQtyTableError(null);
+      setImageError(null);
       setUploadedFiles([]);
       setGeneralError(null);
     }
   }, [isOpen]);
 
+  // Auto clear imageError when all uploaded files finish uploading successfully
+  useEffect(() => {
+    if (uploadedFiles.length > 0 && !uploadedFiles.some(f => f.status === 'uploading')) {
+      if (uploadedFiles.every(f => f.status === 'success' && f.url && f.url.startsWith('http'))) {
+        setImageError(null);
+      }
+    }
+  }, [uploadedFiles]);
+
   const fetchPOs = async () => {
     setLoadingPOs(true);
     try {
       const data = await inventoryService.getPurchaseOrdersForReceipt(projectId);
-      // Filter for active POs (Sent or PartiallyReceived)
+      const searchPOId = new URLSearchParams(window.location.search).get('poId');
+      // Filter for active POs (Sent or PartiallyReceived) or explicitly target PO from search params
       const activePOs = data.filter(
-        po => po.status === 'Sent' || po.status === 'PartiallyReceived'
+        po => po.status === 'Sent' || po.status === 'PartiallyReceived' || (searchPOId && po.poId.toString() === searchPOId)
       );
       setPurchaseOrders(activePOs);
 
       // Auto-select PO if poId is in URL search params
-      const searchPOId = new URLSearchParams(window.location.search).get('poId');
       if (searchPOId) {
-        const po = activePOs.find(p => p.poId.toString() === searchPOId) || null;
+        const po = data.find(p => p.poId.toString() === searchPOId) || null;
         if (po) {
           setSelectedPOId(searchPOId);
           setSelectedPO(po);
@@ -92,6 +110,8 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   const handlePOChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const poIdStr = e.target.value;
     setSelectedPOId(poIdStr);
+    setPoError(null);
+    setQtyTableError(null);
 
     if (!poIdStr) {
       setSelectedPO(null);
@@ -116,6 +136,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
   const handleQuantityChange = (materialId: number, value: string, item: PurchaseOrderItemDto) => {
     setQuantities(prev => ({ ...prev, [materialId]: value }));
+    setQtyTableError(null);
 
     const numVal = parseFloat(value);
     const remaining = item.quantity - item.totalReceived;
@@ -245,60 +266,67 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPO) {
-      setGeneralError('Vui lòng chọn đơn mua hàng.');
-      return;
-    }
-
     setGeneralError(null);
+    setPoError(null);
+    setQtyTableError(null);
+    setImageError(null);
+
+    let hasFieldError = false;
+
+    if (!selectedPO) {
+      setPoError('Vui lòng chọn đơn mua hàng.');
+      hasFieldError = true;
+    }
 
     // Validate all items
     const submitItems = [];
     const itemErrors: Record<number, string> = {};
 
-    for (const item of selectedPO.items) {
-      const qtyStr = quantities[item.materialId] || '0';
-      const numVal = parseFloat(qtyStr);
-      const remaining = item.quantity - item.totalReceived;
+    if (selectedPO) {
+      for (const item of selectedPO.items) {
+        const qtyStr = quantities[item.materialId] || '0';
+        const numVal = parseFloat(qtyStr);
+        const remaining = item.quantity - item.totalReceived;
 
-      if (isNaN(numVal) || numVal < 0) {
-        itemErrors[item.materialId] = 'Số lượng không hợp lệ.';
-      } else if (numVal > remaining) {
-        itemErrors[item.materialId] = `Vượt quá giới hạn còn lại (${remaining}).`;
-      } else if (isDiscreteUnit(item.unitName) && numVal % 1 !== 0) {
-        itemErrors[item.materialId] = `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`;
-      } else if (numVal > 0) {
-        submitItems.push({
-          materialId: item.materialId,
-          unitId: item.unitId,
-          quantity: numVal
-        });
+        if (isNaN(numVal) || numVal < 0) {
+          itemErrors[item.materialId] = 'Số lượng không hợp lệ.';
+        } else if (numVal > remaining) {
+          itemErrors[item.materialId] = `Vượt quá giới hạn còn lại (${remaining}).`;
+        } else if (isDiscreteUnit(item.unitName) && numVal % 1 !== 0) {
+          itemErrors[item.materialId] = `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`;
+        } else if (numVal > 0) {
+          submitItems.push({
+            materialId: item.materialId,
+            unitId: item.unitId,
+            quantity: numVal
+          });
+        }
       }
-    }
 
-    if (Object.keys(itemErrors).length > 0) {
-      setErrors(itemErrors);
-      return;
-    }
+      if (Object.keys(itemErrors).length > 0) {
+        setErrors(itemErrors);
+        hasFieldError = true;
+      }
 
-    if (submitItems.length === 0) {
-      setGeneralError('Vui lòng nhập số lượng nhận cho ít nhất một vật tư (lớn hơn 0).');
-      return;
+      if (submitItems.length === 0 && Object.keys(itemErrors).length === 0) {
+        setQtyTableError('Vui lòng nhập số lượng nhận cho ít nhất một vật tư (lớn hơn 0).');
+        hasFieldError = true;
+      }
     }
 
     // Custom business validation: Goods Receipt requires at least one photo
     if (uploadedFiles.length === 0) {
-      setGeneralError('Biên bản nhận hàng bắt buộc phải có ảnh chụp vật tư thực tế tại công trường.');
-      return;
+      setImageError('Biên bản nhận hàng bắt buộc phải có ảnh chụp vật tư thực tế tại công trường.');
+      hasFieldError = true;
+    } else if (uploadedFiles.some(f => f.status === 'uploading')) {
+      setImageError('Vui lòng chờ hình ảnh tải lên hoàn tất.');
+      hasFieldError = true;
+    } else if (uploadedFiles.some(f => f.status === 'error') || uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
+      setImageError('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
+      hasFieldError = true;
     }
 
-    if (uploadedFiles.some(f => f.status === 'uploading')) {
-      setGeneralError('Vui lòng chờ hình ảnh tải lên hoàn tất.');
-      return;
-    }
-
-    if (uploadedFiles.some(f => f.status === 'error') || uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
-      setGeneralError('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
+    if (hasFieldError) {
       return;
     }
 
@@ -357,12 +385,12 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormItem label="Chọn đơn hàng" required>
+          <FormItem label="Chọn đơn hàng" required error={poError || undefined}>
             <Select
               options={[
                 { label: '-- Chọn đơn hàng --', value: '' },
                 ...purchaseOrders.map(po => ({
-                  label: `${po.poNumber} (${po.supplierName}) - ${po.status === 'Sent' ? 'Chưa giao' : 'Đã giao một phần'}`,
+                  label: `${po.poNumber} (${po.supplierName}) - ${getPOStatusLabel(po.status)}`,
                   value: po.poId.toString()
                 }))
               ]}
@@ -402,7 +430,18 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
         {selectedPO && (
           <div className="mt-2">
-            <h4 className="text-sm font-semibold text-slate-700 mb-2">Chi tiết vật tư trong đơn mua hàng</h4>
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <h4 className="text-sm font-semibold text-slate-700">Chi tiết vật tư trong đơn mua hàng</h4>
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                Trạng thái: <strong className="text-blue-700">{getPOStatusLabel(selectedPO.status)}</strong>
+              </span>
+            </div>
+            {qtyTableError && (
+              <div className="p-2.5 bg-red-50 border border-red-200 rounded-md text-red-600 text-xs font-medium flex items-center gap-1.5 mb-2 animate-fade-in">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{qtyTableError}</span>
+              </div>
+            )}
             <div className="overflow-x-auto border border-slate-200 rounded-lg">
               <table className="min-w-full divide-y divide-slate-200 text-sm text-left">
                 <thead className="bg-slate-50 text-slate-600 font-medium uppercase text-xs">
@@ -458,10 +497,12 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
         )}
 
         {/* Evidence Images */}
-        <div className="mt-2">
-          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-            Ảnh chụp phiếu giao nhận thực tế tại công trường <span className="text-red-500">*</span>
-          </label>
+        <FormItem
+          label="Ảnh chụp phiếu giao nhận thực tế tại công trường"
+          required
+          error={imageError || undefined}
+          className="mt-2"
+        >
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -471,12 +512,15 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                 document.getElementById('receipt-image-input')?.click();
               }
             }}
-            className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${uploadedFiles.length >= 5
-              ? 'border-slate-200 bg-slate-100 cursor-not-allowed opacity-60'
-              : dragging
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
-              }`}
+            className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
+              imageError
+                ? 'border-red-400 bg-red-50/20'
+                : uploadedFiles.length >= 5
+                  ? 'border-slate-200 bg-slate-100 cursor-not-allowed opacity-60'
+                  : dragging
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+            }`}
           >
             <input
               id="receipt-image-input"
@@ -545,7 +589,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
               ))}
             </div>
           )}
-        </div>
+        </FormItem>
       </form>
     </Modal>
   );

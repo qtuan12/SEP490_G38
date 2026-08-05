@@ -27,11 +27,9 @@ export const MaterialIssuancesTab: React.FC<MaterialIssuancesTabProps> = ({
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    const searchVal = searchParams.get('search');
-    if (searchVal !== null) {
-      setSearchTerm(searchVal);
-      setPage(1);
-    }
+    const searchVal = searchParams.get('search') || '';
+    setSearchTerm(searchVal);
+    setPage(1);
   }, [searchParams]);
 
   useEffect(() => {

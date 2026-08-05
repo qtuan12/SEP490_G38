@@ -39,17 +39,18 @@ namespace BPG.Application.Features.Comments.Handlers
 
             // 1. Kiểm tra bình luận có tồn tại không
             var comment = await _uow.Repository<Comment>().Query()
+                .IgnoreQueryFilters()
                 .Include(c => c.Author)
                     .ThenInclude(u => u.UserRoles)
                         .ThenInclude(ur => ur.Role)
                 .Include(c => c.DailyLog)
                     .ThenInclude(l => l.Task)
                         .ThenInclude(t => t.Phase)
-                .FirstOrDefaultAsync(c => c.CommentId == request.CommentId, cancellationToken);
+                .FirstOrDefaultAsync(c => c.CommentId == request.CommentId && !c.IsDeleted, cancellationToken);
 
             if (comment == null)
             {
-                throw new NotFoundException(nameof(Comment), request.CommentId);
+                throw new NotFoundException("Bình luận", request.CommentId);
             }
 
             // 2. Kiểm tra quyền sở hữu (chỉ tác giả được sửa)

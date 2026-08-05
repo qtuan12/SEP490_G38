@@ -33,33 +33,35 @@ namespace BPG.Application.Features.Comments.Handlers
 
             // 1. Kiểm tra bình luận có tồn tại không
             var comment = await _uow.Repository<Comment>().Query()
+                .IgnoreQueryFilters()
                 .Include(c => c.DailyLog)
                     .ThenInclude(l => l.Task)
                         .ThenInclude(t => t.Phase)
-                .FirstOrDefaultAsync(c => c.CommentId == request.CommentId, cancellationToken);
+                .FirstOrDefaultAsync(c => c.CommentId == request.CommentId && !c.IsDeleted, cancellationToken);
 
             if (comment == null)
             {
-                throw new NotFoundException(nameof(Comment), request.CommentId);
+                throw new NotFoundException("Bình luận", request.CommentId);
             }
 
-            // 2. Kiểm tra quyền sở hữu (chỉ tác giả được xóa)
-            if (comment.AuthorId != currentUserId)
+            // 2. Kiểm tra quyền sở hữu (chỉ tác giả hoặc Ban quản lý/Admin được xóa)
+            var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
+            if (!isManager && comment.AuthorId != currentUserId)
             {
                 throw new ForbiddenException("Bạn không có quyền xóa bình luận này.");
             }
 
-            long projectId = comment.DailyLog.Task.Phase.ProjectId;
+            long projectId = comment.DailyLog?.Task?.Phase?.ProjectId ?? 0;
             long logId = comment.LogId;
             long commentId = comment.CommentId;
 
-            // 3. Thực hiện xóa bình luận (sẽ được SoftDeleteInterceptor tự động chuyển thành Soft Delete)
+            // 3. Thực hiện xóa bình luận (Soft Delete)
             _uow.Repository<Comment>().Remove(comment);
             
             var result = await _uow.SaveChangesAsync(cancellationToken);
             bool isSuccess = result > 0;
 
-            if (isSuccess)
+            if (isSuccess && projectId > 0)
             {
                 await _realtimeSender.SendToGroupAsync($"Project_{projectId}", "ReceiveCommentDeleted", new { commentId, logId }, cancellationToken);
             }

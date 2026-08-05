@@ -27,11 +27,9 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    const searchVal = searchParams.get('search') || searchParams.get('poNumber');
-    if (searchVal !== null && searchVal !== undefined) {
-      setSearchTerm(searchVal);
-      setPage(1);
-    }
+    const searchVal = searchParams.get('search') || searchParams.get('poNumber') || '';
+    setSearchTerm(searchVal);
+    setPage(1);
   }, [searchParams]);
 
   // Gọi API tải danh sách phiếu nhập khi page, searchTerm, projectId, hoặc refreshKey thay đổi

@@ -1302,8 +1302,14 @@ export const projectService = {
   async deleteLogComment(commentId: string): Promise<boolean> {
     if (!USE_MOCK_API) {
       const parsedCommentId = commentId.startsWith('c-') ? parseInt(commentId.substring(2)) : parseInt(commentId);
+      if (isNaN(parsedCommentId)) {
+        throw new Error('Mã bình luận không hợp lệ.');
+      }
       const res = await apiClient.delete<ApiResponse<boolean>>(`/dailylogs/comments/${parsedCommentId}`);
-      return res.success;
+      if (!res.success) {
+        throw new Error(res.message || 'Không thể xóa bình luận.');
+      }
+      return true;
     }
 
     const logs = getStorage<DailyLog>('bpg_daily_logs', DEFAULT_LOGS);

@@ -106,6 +106,14 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     setActiveSubTab(subTab);
     const newParams = new URLSearchParams(searchParams);
     newParams.set('subTab', subTab);
+    newParams.delete('search');
+    newParams.delete('poNumber');
+    newParams.delete('poId');
+    newParams.delete('taskId');
+    newParams.delete('receiptId');
+    newParams.delete('issuanceId');
+    newParams.delete('returnId');
+    newParams.delete('openCreate');
     setSearchParams(newParams);
   };
   const [loading, setLoading] = useState(false);
