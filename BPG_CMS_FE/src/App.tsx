@@ -12,6 +12,7 @@ import { PWAProvider } from './context/PWAContext';
 import { DesktopOnlyGuard } from './components/DesktopOnlyGuard';
 import { RoleGroup } from './auth/roles';
 import { NotificationProvider } from './context/NotificationContext';
+import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 
 // ─── Lazy-loaded page components ──────────────────────────────────────────────
 // Auth pages (small, loaded early but still split)
@@ -168,9 +169,11 @@ function App() {
             <NotificationProvider>
           <Router>
             <PWAProvider>
-            {/* All page components are lazy-loaded — Suspense provides a fallback while the chunk downloads */}
-            <Suspense fallback={<PageFallback />}>
-            <Routes>
+            {/* Global Error Boundary prevents White Screen of Death on render errors */}
+            <GlobalErrorBoundary>
+              {/* All page components are lazy-loaded — Suspense provides a fallback while the chunk downloads */}
+              <Suspense fallback={<PageFallback />}>
+                <Routes>
               {/* Root route */}
               <Route
                 path="/"
@@ -525,6 +528,7 @@ function App() {
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
             </Suspense>
+            </GlobalErrorBoundary>
             </PWAProvider>
           </Router>
         </NotificationProvider>
