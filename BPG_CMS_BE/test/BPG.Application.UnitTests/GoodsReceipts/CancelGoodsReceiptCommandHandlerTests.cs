@@ -259,6 +259,11 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private void SetupProjectMembers(params ProjectMember[] members)
         {
             _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>> predicate, CancellationToken ct) => 
+                {
+                    return members.AsQueryable().Any(predicate);
+                });
         }
 
         private void SetupInventories(params CurrentInventory[] inventories)
