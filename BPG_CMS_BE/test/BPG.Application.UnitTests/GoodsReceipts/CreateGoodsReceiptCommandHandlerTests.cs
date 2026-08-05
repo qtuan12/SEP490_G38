@@ -76,7 +76,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID08_Handle_InvalidPOStatus_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Closed, POItem(CementId, "Cement", 10)));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
@@ -89,7 +89,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID09_Handle_MaterialNotInPO_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(99, 5) }), CancellationToken.None);
@@ -102,7 +102,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID10_Handle_NegativeQuantity_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, -1) }), CancellationToken.None);
@@ -115,7 +115,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID11_Handle_DiscreteMaterialWithFractionalQuantity_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement Bag", 10, isDiscrete: true)));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 1.5m) }), CancellationToken.None);
@@ -128,7 +128,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID12_Handle_QuantityExceededRemaining_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.PartiallyReceived, POItem(CementId, "Cement", 10)));
             SetupApprovedReceiptItems(new GoodsReceiptItem
             {
@@ -147,7 +147,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID13_Handle_AllItemsHaveZeroQuantity_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 0) }), CancellationToken.None);

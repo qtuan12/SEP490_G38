@@ -28,6 +28,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private readonly Mock<IGenericRepository<SystemConfig>> _mockConfigRepo;
         private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockReceiptItemRepo;
         private readonly Mock<IGenericRepository<PurchaseOrder>> _mockPoRepo;
+        private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly CancelGoodsReceiptCommandHandler _handler;
 
         public CancelGoodsReceiptCommandHandlerTests()
@@ -39,12 +40,14 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockConfigRepo = new Mock<IGenericRepository<SystemConfig>>();
             _mockReceiptItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
             _mockPoRepo = new Mock<IGenericRepository<PurchaseOrder>>();
+            _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
 
             _mockUow.Setup(uow => uow.Repository<GoodsReceipt>()).Returns(_mockReceiptRepo.Object);
             _mockUow.Setup(uow => uow.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
             _mockUow.Setup(uow => uow.Repository<SystemConfig>()).Returns(_mockConfigRepo.Object);
             _mockUow.Setup(uow => uow.Repository<GoodsReceiptItem>()).Returns(_mockReceiptItemRepo.Object);
             _mockUow.Setup(uow => uow.Repository<PurchaseOrder>()).Returns(_mockPoRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
             _mockUow.Setup(uow => uow.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             _mockUow.Setup(uow => uow.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -55,6 +58,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             SetupSystemConfig("7");
             SetupOtherReceiptItems();
             SetupPurchaseOrders();
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
 
             _handler = new CancelGoodsReceiptCommandHandler(
                 _mockUow.Object,
@@ -249,7 +253,12 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
         private void SetupReceipts(params GoodsReceipt[] receipts)
         {
-            _mockReceiptRepo.Setup(repository => repository.Query()).Returns(receipts.AsQueryable().BuildMock());
+            _mockReceiptRepo.Setup(r => r.Query()).Returns(receipts.AsQueryable().BuildMock());
+        }
+
+        private void SetupProjectMembers(params ProjectMember[] members)
+        {
+            _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
         }
 
         private void SetupInventories(params CurrentInventory[] inventories)
