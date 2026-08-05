@@ -86,7 +86,7 @@ namespace BPG.Application.UnitTests.Phases
         public async Task UTCID01_Handle_ValidRequest_ShouldUpdateBOQSuccessfully()
         {
             // Arrange
-            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress };
+            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress, Project = new Project { Status = ProjectStatus.Draft } };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
 
             var boqItem = new BOQItem { PhaseId = PhaseId, MaterialId = MaterialId, UnitId = BaseUnitId, Quantity = 100, IsDeleted = false };
@@ -123,10 +123,10 @@ namespace BPG.Application.UnitTests.Phases
         }
 
         [Fact]
-        public async Task UTCID03_Handle_PhaseFrozen_ShouldThrowBusinessException()
+        public async Task UTCID03_Handle_ProjectNotDraft_ShouldThrowBusinessException()
         {
             // Arrange
-            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.Approved };
+            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.Draft, Project = new Project { Status = ProjectStatus.InProgress } };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
             var command = new UpdatePhaseBOQCommand(ProjectId, PhaseId, new List<BOQItemInput>());
 
@@ -135,14 +135,14 @@ namespace BPG.Application.UnitTests.Phases
 
             // Assert
             await act.Should().ThrowAsync<BusinessException>()
-                .WithMessage("Giai đoạn đã nghiệm thu, không thể cập nhật định mức vật tư.");
+                .WithMessage("Chỉ được phép thay đổi định mức vật tư khi dự án chưa kích hoạt.");
         }
 
         [Fact]
         public async Task UTCID04_Handle_MaterialNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
-            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress };
+            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress, Project = new Project { Status = ProjectStatus.Draft } };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
 
             _mockBOQRepo.Setup(r => r.Query()).Returns(new List<BOQItem>().AsQueryable().BuildMock());
@@ -162,7 +162,7 @@ namespace BPG.Application.UnitTests.Phases
         public async Task UTCID05_Handle_InvalidUnit_ShouldThrowBusinessException()
         {
             // Arrange
-            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress };
+            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress, Project = new Project { Status = ProjectStatus.Draft } };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
 
             _mockBOQRepo.Setup(r => r.Query()).Returns(new List<BOQItem>().AsQueryable().BuildMock());
@@ -188,7 +188,7 @@ namespace BPG.Application.UnitTests.Phases
         public async Task UTCID06_Handle_DeleteUnusedMaterial_ShouldSoftDeleteSuccessfully()
         {
             // Arrange
-            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress };
+            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress, Project = new Project { Status = ProjectStatus.Draft } };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
 
             var boqItem = new BOQItem { BOQItemId = 1, PhaseId = PhaseId, MaterialId = MaterialId, UnitId = BaseUnitId, Quantity = 100, IsDeleted = false };
@@ -219,7 +219,7 @@ namespace BPG.Application.UnitTests.Phases
         public async Task UTCID07_Handle_DeleteInUseMaterial_ShouldThrowBusinessException()
         {
             // Arrange
-            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress };
+            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress, Project = new Project { Status = ProjectStatus.Draft } };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
 
             var boqItem = new BOQItem { BOQItemId = 1, PhaseId = PhaseId, MaterialId = MaterialId, UnitId = BaseUnitId, Quantity = 100, IsDeleted = false };
@@ -248,7 +248,7 @@ namespace BPG.Application.UnitTests.Phases
         public async Task UTCID08_Handle_ModifyInUseMaterialQuantity_ShouldThrowBusinessException()
         {
             // Arrange
-            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress };
+            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId, Status = PhaseStatus.InProgress, Project = new Project { Status = ProjectStatus.Draft } };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
 
             var boqItem = new BOQItem { BOQItemId = 1, PhaseId = PhaseId, MaterialId = MaterialId, UnitId = BaseUnitId, Quantity = 100, IsDeleted = false };

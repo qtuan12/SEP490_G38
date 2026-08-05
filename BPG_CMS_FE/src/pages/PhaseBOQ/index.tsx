@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
@@ -15,15 +15,36 @@ import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities, RealtimeEntityGroups } from '../../constants/realtimeEntities';
 
+const materialItemSchema = z.object({
+  materialId: z.number().min(1, 'Vui lòng chọn vật tư.'),
+  quantity: z.number({ message: 'Vui lòng nhập số lượng.' }).min(0.001, 'Số lượng phải lớn hơn 0'),
+  unitId: z.any(),
+  unit: z.any()
+}).superRefine((data, ctx) => {
+  if (data.materialId > 0) {
+    const uId = Number(data.unitId);
+    if (isNaN(uId) || uId < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ĐVT không hợp lệ',
+        path: ['unitId']
+      });
+    }
+
+    if (isDiscreteUnit(data.unit)) {
+      if (data.quantity % 1 !== 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Đơn vị "${data.unit}" yêu cầu số lượng phải là số nguyên.`,
+          path: ['quantity']
+        });
+      }
+    }
+  }
+});
+
 const phaseBOQSchema = z.object({
-  materials: z.array(
-    z.object({
-      materialId: z.number().min(1, 'Vui lòng chọn vật tư.'),
-      quantity: z.number({ message: 'Vui lòng nhập số lượng.' }).min(0.001, 'Số lượng phải lớn hơn 0'),
-      unitId: z.number().min(1, 'ĐVT không hợp lệ'),
-      unit: z.string()
-    })
-  )
+  materials: z.array(materialItemSchema)
 }).superRefine((data, ctx) => {
   // 1. Kiểm tra trùng lặp vật tư
   const ids = data.materials.map(m => m.materialId).filter(id => id > 0);
@@ -34,19 +55,6 @@ const phaseBOQSchema = z.object({
       path: ['materials']
     });
   }
-
-  // 2. Ràng buộc ĐVT số nguyên không chấp nhận số lượng lẻ
-  data.materials.forEach((m, idx) => {
-    if (m.materialId > 0 && isDiscreteUnit(m.unit)) {
-      if (m.quantity % 1 !== 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Đơn vị "${m.unit}" yêu cầu số lượng phải là số nguyên.`,
-          path: ['materials', idx, 'quantity']
-        });
-      }
-    }
-  });
 });
 
 type PhaseBOQForm = z.infer<typeof phaseBOQSchema>;
@@ -64,7 +72,9 @@ export const PhaseBOQ: React.FC = () => {
   const [loadingPhase, setLoadingPhase] = useState(true);
   const [rowConversions, setRowConversions] = useState<Record<number, { unitId: number; unitName: string }[]>>({});
 
-  const isFrozen = phase?.status === 'frozen' || (phase?.status as string) === 'Approved' || (phase?.status as string) === 'Completed';
+  const isDraft = !project?.status || project?.status?.toLowerCase() === 'draft';
+
+  const isFrozen = !isDraft;
   const isReadOnly = isFrozen || hasActiveMRs || !canEdit;
 
   // Fetch materials catalog for dropdown list
@@ -135,10 +145,10 @@ export const PhaseBOQ: React.FC = () => {
         unitId: it.unitId,
         unit: it.unit
       }))
-      : [];
+      : (isDraft ? [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }] : []);
 
     reset({ materials: initialMaterials });
-  }, [phase, reset]);
+  }, [phase, reset, isDraft]);
 
   // Material catalog có thể refetch realtime; chỉ cập nhật lựa chọn đơn vị,
   // không reset giá trị form.
@@ -176,8 +186,8 @@ export const PhaseBOQ: React.FC = () => {
   const handleMaterialChange = async (idx: number, selectedId: number) => {
     const mat = materialList.find(m => m.materialId === selectedId);
     if (mat) {
-      setValue(`materials.${idx}.unitId` as any, mat.baseUnitId, { shouldDirty: true });
-      setValue(`materials.${idx}.unit` as any, mat.baseUnitName || 'bao', { shouldDirty: true });
+      setValue(`materials.${idx}.unitId` as any, mat.baseUnitId, { shouldDirty: true, shouldValidate: true });
+      setValue(`materials.${idx}.unit` as any, mat.baseUnitName || 'bao', { shouldDirty: true, shouldValidate: true });
 
       try {
         const convs = await materialService.getConversions(selectedId);
@@ -191,8 +201,8 @@ export const PhaseBOQ: React.FC = () => {
         setRowConversions(prev => ({ ...prev, [selectedId]: [{ unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' }] }));
       }
     } else {
-      setValue(`materials.${idx}.unitId` as any, 0, { shouldDirty: true });
-      setValue(`materials.${idx}.unit` as any, '', { shouldDirty: true });
+      setValue(`materials.${idx}.unitId` as any, 0, { shouldDirty: true, shouldValidate: true });
+      setValue(`materials.${idx}.unit` as any, '', { shouldDirty: true, shouldValidate: true });
     }
   };
 
@@ -276,13 +286,13 @@ export const PhaseBOQ: React.FC = () => {
         </p>
       </div>
 
-      {/* Cảnh báo trạng thái khóa nếu có */}
-      {isFrozen ? (
+      {/* Cảnh báo trạng thái khóa nếu không ở dạng Nháp (Draft) */}
+      {!isDraft ? (
         <div className="card bg-amber-50 border border-amber-200 rounded-lg p-4 shadow-sm text-amber-800 flex items-center gap-3">
           <AlertTriangle size={20} className="shrink-0 text-amber-600" />
           <div className="text-xs text-slate-700 leading-relaxed">
-            <strong className="text-sm text-amber-900 block font-semibold mb-0.5">Giai đoạn đã nghiệm thu</strong>
-            Bảng định mức vật tư của giai đoạn này không thể chỉnh sửa.
+            <strong className="text-sm text-amber-900 block font-semibold mb-0.5">Dự án đã hoạt động</strong>
+            Bảng định mức vật tư chỉ được phép sửa đổi khi dự án chưa kích hoạt).
           </div>
         </div>
       ) : hasActiveMRs ? (
@@ -314,7 +324,7 @@ export const PhaseBOQ: React.FC = () => {
           )}
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 w-full">
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6 w-full">
           {fields.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 bg-[hsl(var(--bg-main))/0.2] border border-dashed border-[hsl(var(--border))] rounded-lg text-slate-500">
               <ClipboardList size={40} className="text-slate-400 mb-2" />
@@ -343,9 +353,9 @@ export const PhaseBOQ: React.FC = () => {
                 </thead>
                 <tbody>
                   {fields.map((item, idx) => (
-                    <tr key={item.id} className="border-b border-[hsl(var(--border-light))] align-middle hover:bg-[hsl(var(--bg-main))/0.3]">
+                    <tr key={item.id} className="border-b border-[hsl(var(--border-light))] align-top hover:bg-[hsl(var(--bg-main))/0.3]">
                       {/* STT */}
-                      <td className="py-3 pl-3 font-medium text-[hsl(var(--text-secondary))] text-center">
+                      <td className="pt-4 pl-3 font-medium text-[hsl(var(--text-secondary))] text-center">
                         {idx + 1}
                       </td>
 
@@ -363,7 +373,8 @@ export const PhaseBOQ: React.FC = () => {
                             const selectedId = parseInt(val) || 0;
                             setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true, shouldDirty: true });
                             handleMaterialChange(idx, selectedId);
-                            await trigger('materials');
+                            await trigger(`materials.${idx}.materialId`);
+                            await trigger(`materials.${idx}.quantity`);
                           }}
                           placeholder="-- Chọn vật tư kỹ thuật --"
                           error={!!errors.materials?.[idx]?.materialId}
@@ -380,7 +391,12 @@ export const PhaseBOQ: React.FC = () => {
                           step={isDiscreteUnit(watchedMaterials[idx]?.unit) ? "1" : "any"}
                           min={isDiscreteUnit(watchedMaterials[idx]?.unit) ? 1 : 0.001}
                           placeholder="Nhập SL..."
-                          {...register(`materials.${idx}.quantity` as const, { valueAsNumber: true })}
+                          {...register(`materials.${idx}.quantity` as const, {
+                            valueAsNumber: true,
+                            onChange: async () => {
+                              await trigger(`materials.${idx}.quantity`);
+                            }
+                          })}
                           disabled={isReadOnly}
                           className={`w-full text-center text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} ${isReadOnly ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
                         />
@@ -394,7 +410,7 @@ export const PhaseBOQ: React.FC = () => {
                         <select
                           {...register(`materials.${idx}.unitId` as const, { valueAsNumber: true })}
                           disabled={isReadOnly}
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const uId = parseInt(e.target.value);
                             setValue(`materials.${idx}.unitId`, uId, { shouldValidate: true, shouldDirty: true });
                             const currentMatId = watchedMaterials[idx]?.materialId;
@@ -403,6 +419,8 @@ export const PhaseBOQ: React.FC = () => {
                             if (opt) {
                               setValue(`materials.${idx}.unit` as any, opt.unitName, { shouldDirty: true });
                             }
+                            await trigger(`materials.${idx}.quantity`);
+                            await trigger(`materials.${idx}.unitId`);
                           }}
                           className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.unitId ? 'border-red-500' : 'border-slate-200'} ${isReadOnly ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 pr-8`}
                         >
@@ -419,7 +437,7 @@ export const PhaseBOQ: React.FC = () => {
 
                       {/* Hợp tác hành động */}
                       {!isReadOnly && (
-                        <td className="py-2.5 pr-3 text-center align-middle">
+                        <td className="pt-3.5 pr-3 text-center align-top">
                           <button
                             type="button"
                             onClick={async () => {
