@@ -2,11 +2,11 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 
 # Khai báo biến môi trường tại thời điểm build
-ARG VITE_API_URL=http://localhost:5160/api
+ARG VITE_API_URL=/api
 ARG VITE_USE_MOCK_API=false
 
 ENV VITE_API_URL=$VITE_API_URL
