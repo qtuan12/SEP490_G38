@@ -79,7 +79,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const isAssignedEngineer = !!currentTask
     && !!engineerId
     && (currentTask.assignedTo?.split(',').map(id => id.trim()).includes(String(engineerId)) ?? false);
-  const canCreateForCurrentTask = isEditMode || (hasTaskAssignee && (isPL || isAssignedEngineer));
+  const canCreateForCurrentTask = isEditMode || (hasTaskAssignee && (isPL || canManageTechnical || isAssignedEngineer));
 
   const schema = React.useMemo(() => {
     return z.object({

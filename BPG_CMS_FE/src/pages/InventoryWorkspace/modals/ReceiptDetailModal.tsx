@@ -177,8 +177,40 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     }
   };
 
+  // Auto clear actionError when all uploaded files finish uploading successfully
+  useEffect(() => {
+    if (uploadedFiles.length > 0 && !uploadedFiles.some(f => f.status === 'uploading')) {
+      if (uploadedFiles.every(f => f.status === 'success' && f.url && f.url.startsWith('http'))) {
+        setActionError(null);
+      }
+    }
+  }, [uploadedFiles]);
+
+  const handleStartEdit = () => {
+    setActionError(null);
+    if (detail) {
+      setDelivererInfo(detail.delivererInfo || '');
+      setDeliveryDocNo(detail.deliveryDocNo || '');
+      setExistingImages(detail.images || []);
+      setUploadedFiles([]);
+    }
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setActionError(null);
+    setIsEditing(false);
+    if (detail) {
+      setDelivererInfo(detail.delivererInfo || '');
+      setDeliveryDocNo(detail.deliveryDocNo || '');
+      setExistingImages(detail.images || []);
+      setUploadedFiles([]);
+    }
+  };
+
   // Image editing helpers
   const removeExistingImage = (idxToRemove: number) => {
+    setActionError(null);
     setExistingImages(prev => prev.filter((_, idx) => idx !== idxToRemove));
   };
 
@@ -263,7 +295,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
             <div className="flex gap-2">
               {isEditing ? (
                 <>
-                  <Button variant="outline" onClick={() => { setIsEditing(false); fetchDetail(); }} disabled={saving}>
+                  <Button variant="outline" onClick={handleCancelEdit} disabled={saving}>
                     Hủy bỏ
                   </Button>
                   <Button variant="primary" onClick={handleSaveMetadata} isLoading={saving} className="flex items-center gap-1.5">
@@ -274,7 +306,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
               ) : (
                 <>
                   {detail?.status !== 'Cancelled' && canEdit && (
-                    <Button variant="outline" onClick={() => setIsEditing(true)} disabled={loading} className="flex items-center gap-1.5">
+                    <Button variant="outline" onClick={handleStartEdit} disabled={loading} className="flex items-center gap-1.5">
                       <Edit3 size={15} />
                       <span>Sửa thông tin</span>
                     </Button>
@@ -358,14 +390,20 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                     <FormItem label="Thông tin người giao" required>
                       <Input
                         value={delivererInfo}
-                        onChange={e => setDelivererInfo(e.target.value)}
+                        onChange={e => {
+                          setDelivererInfo(e.target.value);
+                          setActionError(null);
+                        }}
                         placeholder="Tên người giao, SĐT..."
                       />
                     </FormItem>
                     <FormItem label="Mã phiếu giao hàng">
                       <Input
                         value={deliveryDocNo}
-                        onChange={e => setDeliveryDocNo(e.target.value)}
+                        onChange={e => {
+                          setDeliveryDocNo(e.target.value);
+                          setActionError(null);
+                        }}
                         placeholder="Ví dụ: GD-12345"
                       />
                     </FormItem>

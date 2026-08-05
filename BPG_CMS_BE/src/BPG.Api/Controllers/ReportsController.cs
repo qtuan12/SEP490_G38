@@ -1,4 +1,5 @@
 using BPG.Application.Features.Reports.Queries.GetExecutiveDashboard;
+using BPG.Api.Configuration;
 using BPG.Application.Features.Reports.Queries.GetBoqVsActualReport;
 using BPG.Application.Features.Reports.Queries.GetConstructionProgressReport;
 using BPG.Application.Features.Reports.Queries.GetIncidentReport;
@@ -10,9 +11,12 @@ using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using Microsoft.AspNetCore.RateLimiting;
+
 namespace BPG.Api.Controllers;
 
 [Authorize(Roles = RolePolicies.Reports)]
+[EnableRateLimiting(RateLimitPolicies.Report)]
 public class ReportsController : BaseApiController
 {
     [HttpGet("project/{projectId}/executive-dashboard")]

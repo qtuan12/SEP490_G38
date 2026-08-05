@@ -21,7 +21,7 @@ public sealed class ProjectAccessService : IProjectAccessService
     public async Task<IReadOnlySet<long>> GetAccessibleProjectIdsAsync(CancellationToken ct = default)
     {
         if (!_currentUser.IsAuthenticated)
-            throw new UnauthorizedException();
+            throw new UnauthorizedException("Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại để xem danh sách dự án.");
 
         if (_currentUser.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {

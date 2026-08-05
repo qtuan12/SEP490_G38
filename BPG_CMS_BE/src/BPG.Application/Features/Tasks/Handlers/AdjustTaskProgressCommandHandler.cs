@@ -40,6 +40,13 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         if (task.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
             throw new BusinessException("ERR_TASK_OBSOLETE", "Không thể điều chỉnh tiến độ cho công việc đã báo lỗi thời.");
 
+        var currentUserId = _currentUserService.GetRequiredUserId();
+        var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
+        if (!isManager)
+        {
+            throw new ForbiddenException("Chỉ Trưởng phòng kỹ thuật hoặc Quản trị viên mới được phép điều chỉnh tiến độ trực tiếp.");
+        }
+
         // Kiểm tra điều kiện phụ thuộc (Finish-to-Start)
         if (request.NewProgress > 0)
         {
@@ -87,7 +94,6 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         else if (request.NewProgress > 0 && request.NewProgress < 100)
             task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
 
-        var currentUserId = _currentUserService.UserId;
         task.ProgressLogs.Add(new TaskProgressLog
         {
             OldProgress = oldProgress,

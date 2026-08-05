@@ -1,4 +1,6 @@
 using BPG.Application.Features.PurchaseOrders.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.PurchaseOrders.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -22,6 +24,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpGet("/api/projects/{projectId:long}/purchase-orders")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetProjectPurchaseOrders(
             [FromRoute] long projectId,
@@ -37,6 +40,7 @@ namespace BPG.Api.Controllers
         /// Lấy danh sách yêu cầu vật tư đã được duyệt của một dự án để tạo PO.
         /// </summary>
         [HttpGet("approved-requests")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetApprovedRequests([FromQuery] long projectId, CancellationToken ct)
         {
@@ -48,6 +52,7 @@ namespace BPG.Api.Controllers
         /// Lấy chi tiết một đơn mua hàng theo ID.
         /// </summary>
         [HttpGet("{id:long}")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetPurchaseOrderById(long id, CancellationToken ct)
         {
@@ -60,6 +65,7 @@ namespace BPG.Api.Controllers
         /// nếu có PO khác được tạo xen giữa lúc xem và lúc submit).
         /// </summary>
         [HttpGet("next-number")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.Accountant)]
         public async Task<IActionResult> GetNextPoNumber([FromQuery] DateTime orderDate, CancellationToken ct)
         {
@@ -71,6 +77,7 @@ namespace BPG.Api.Controllers
         /// Tạo đơn mua hàng (PO) từ các yêu cầu vật tư đã duyệt.
         /// </summary>
         [HttpPost]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Accountant)]
         public async Task<IActionResult> CreatePurchaseOrder([FromBody] CreatePurchaseOrderCommand command, CancellationToken ct)
         {
@@ -82,6 +89,7 @@ namespace BPG.Api.Controllers
         /// Hủy đơn mua hàng (chỉ khi chưa có hàng nhận), ghi lý do hủy.
         /// </summary>
         [HttpPost("{id:long}/cancel")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Accountant)]
         public async Task<IActionResult> CancelPurchaseOrder(long id, [FromBody] CancelPORequestBody body, CancellationToken ct)
         {
@@ -94,6 +102,7 @@ namespace BPG.Api.Controllers
         /// yêu cầu vật tư, cho phép tạo đơn mua hàng khác cho phần còn thiếu.
         /// </summary>
         [HttpPost("{id:long}/close")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Accountant)]
         public async Task<IActionResult> ClosePurchaseOrder(long id, [FromBody] CancelPORequestBody body, CancellationToken ct)
         {

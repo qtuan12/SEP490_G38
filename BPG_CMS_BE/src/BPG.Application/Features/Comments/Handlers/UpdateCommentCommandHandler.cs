@@ -39,23 +39,30 @@ namespace BPG.Application.Features.Comments.Handlers
 
             // 1. Kiểm tra bình luận có tồn tại không
             var comment = await _uow.Repository<Comment>().Query()
+                .IgnoreQueryFilters()
                 .Include(c => c.Author)
                     .ThenInclude(u => u.UserRoles)
                         .ThenInclude(ur => ur.Role)
                 .Include(c => c.DailyLog)
                     .ThenInclude(l => l.Task)
                         .ThenInclude(t => t.Phase)
-                .FirstOrDefaultAsync(c => c.CommentId == request.CommentId, cancellationToken);
+                            .ThenInclude(p => p.Project)
+                .FirstOrDefaultAsync(c => c.CommentId == request.CommentId && !c.IsDeleted, cancellationToken);
 
             if (comment == null)
             {
-                throw new NotFoundException(nameof(Comment), request.CommentId);
+                throw new NotFoundException("Bình luận", request.CommentId);
             }
 
             // 2. Kiểm tra quyền sở hữu (chỉ tác giả được sửa)
             if (comment.AuthorId != currentUserId)
             {
                 throw new ForbiddenException("Bạn không có quyền chỉnh sửa bình luận này.");
+            }
+
+            if (comment.DailyLog.Task.Phase.Project.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }
 
             // 3. Cập nhật thông tin bình luận

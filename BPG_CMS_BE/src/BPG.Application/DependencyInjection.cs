@@ -14,6 +14,7 @@ namespace BPG.Application
     {
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
+            services.AddMemoryCache();
             services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
 
             services.AddMediatR(cfg =>
@@ -21,6 +22,7 @@ namespace BPG.Application
                 cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
                 cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
                 cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+                cfg.AddOpenBehavior(typeof(CacheBehavior<,>));
             });
 
             services.AddAutoMapper(typeof(DependencyInjection).Assembly);

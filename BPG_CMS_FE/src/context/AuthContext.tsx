@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { hasAnyRole as checkAnyRole } from '../auth/roles';
 import { authService } from '../services/authService';
 import type { LoginCredentials, UserProfile } from '../services/authService';
@@ -23,6 +24,7 @@ const clearStoredSession = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -46,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('bpg_user', JSON.stringify(sessionUser));
       } catch {
         clearStoredSession();
+        queryClient.clear();
         setToken(null);
         setUser(null);
       } finally {
@@ -54,11 +57,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     void initializeAuth();
-  }, []);
+  }, [queryClient]);
 
   const login = async (credentials: LoginCredentials): Promise<UserProfile> => {
     try {
       const response = await authService.login(credentials);
+      queryClient.clear();
       localStorage.setItem('bpg_token', response.token);
       localStorage.setItem('bpg_refresh_token', response.refreshToken);
       localStorage.setItem('bpg_user', JSON.stringify(response.user));
@@ -67,6 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return response.user;
     } catch (error) {
       clearStoredSession();
+      queryClient.clear();
       setUser(null);
       setToken(null);
       throw error;
@@ -76,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     authService.logout();
     clearStoredSession();
+    queryClient.clear();
     setToken(null);
     setUser(null);
   };

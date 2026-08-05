@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supplierService } from '../../services/supplierService';
 import { SupplierFormModal } from './modals/SupplierFormModal';
-import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination, LoadingSpinner } from '../../components/ui';
+import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination, TableLoader } from '../../components/ui';
 import type { Supplier } from '../../types/supplier';
 import { useAuth } from '../../context/AuthContext';
 import { RoleGroup } from '../../auth/roles';
@@ -257,9 +257,7 @@ export const SupplierManagement: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-[240px]">
-            <LoadingSpinner size="lg" label="Đang tải dữ liệu nhà cung cấp..." />
-          </div>
+          <TableLoader isTable={false} message="Đang tải dữ liệu nhà cung cấp..." minHeight="240px" />
         ) : (
           <div className="animate-fade-in flex flex-col gap-4">
             <DataTable

@@ -1,4 +1,6 @@
 import { triggerGlobalLoading, triggerGlobalHideLoading } from '../context/LoadingContext';
+import { queryClient } from '../lib/queryClient';
+import { compressFormDataImages } from '../utils/fileCompression';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5160/api';
 
@@ -47,6 +49,7 @@ function clearSessionAndRedirect() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  queryClient.clear();
   window.location.href = '/login';
 }
 
@@ -81,10 +84,13 @@ async function refreshAccessToken(): Promise<string | null> {
 export const apiClient = {
   async request<T>(endpoint: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const requestBody = options.body instanceof FormData
+      ? await compressFormDataImages(options.body)
+      : options.body;
 
     // Setup headers
     const headers = new Headers(options.headers);
-    if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    if (!headers.has('Content-Type') && !(requestBody instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
     }
     if (token) {
@@ -107,6 +113,7 @@ export const apiClient = {
     const config: RequestInit = {
       ...options,
       headers,
+      body: requestBody,
     };
 
     const shouldShowGlobal = options.showGlobalLoading === true;
@@ -163,7 +170,15 @@ export const apiClient = {
         }
 
         if (!errMsg) {
-          if (response.status === 500) {
+          if (response.status === 403) {
+            errMsg = 'Bạn không có quyền thực hiện thao tác này.';
+          } else if (response.status === 401) {
+            errMsg = 'Phiên đăng nhập đã hết hạn hoặc chưa xác thực. Vui lòng đăng nhập lại.';
+          } else if (response.status === 404) {
+            errMsg = 'Tài nguyên hoặc dữ liệu yêu cầu không tồn tại.';
+          } else if (response.status === 429) {
+            errMsg = 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.';
+          } else if (response.status === 500) {
             errMsg = 'Không thể kết nối đến cơ sở dữ liệu. Vui lòng liên hệ quản trị viên.';
           } else if (response.status === 502 || response.status === 503 || response.status === 504) {
             errMsg = 'Máy chủ dịch vụ đang bảo trì hoặc không phản hồi. Vui lòng thử lại sau.';
