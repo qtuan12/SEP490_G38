@@ -239,7 +239,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     TaskId = task.TaskId,
                     OldProgress = oldProgress,
                     NewProgress = request.NewProgressPercent,
-                    UpdateReason = request.Description,
+                    UpdateReason = $"Cập nhật qua Daily Log: {request.Description}",
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = currentUserId,
                     UpdatedAt = DateTime.UtcNow,

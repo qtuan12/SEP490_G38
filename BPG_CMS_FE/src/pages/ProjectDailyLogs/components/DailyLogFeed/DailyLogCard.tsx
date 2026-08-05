@@ -420,10 +420,10 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                 variant="primary"
                 isLoading={isSubmittingComment}
                 disabled={isSubmittingComment || !commentInput.trim()}
-                className="h-[42px] px-3.5 rounded-md shrink-0 flex items-center justify-center"
+                className="h-[42px] min-w-[46px] px-3.5 rounded-md shrink-0 flex items-center justify-center"
                 title="Gửi bình luận"
               >
-                <Send size={15} />
+                <Send size={19} strokeWidth={2.5} />
               </Button>
             </form>
           )}

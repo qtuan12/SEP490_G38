@@ -215,6 +215,31 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                         cancellationToken);
                 }
 
+                var technicalManagerIds = await _uow.Repository<User>().Query()
+                    .AsNoTracking()
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .Where(u => u.IsActive
+                        && !u.IsDeleted
+                        && u.UserId != currentUserId
+                        && !assigneeIds.Contains(u.UserId)
+                        && u.UserRoles.Any(ur => ur.Role.RoleName == BPG.Domain.Constants.UserRole.TechnicalManager))
+                    .Select(u => u.UserId)
+                    .Distinct()
+                    .ToListAsync(cancellationToken);
+
+                foreach (var technicalManagerId in technicalManagerIds)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        technicalManagerId,
+                        "Phiếu xuất vật tư mới",
+                        $"{actorName} đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
+                        NotificationType.Procurement,
+                        $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
+                        issuance.MaterialIssuanceId,
+                        cancellationToken);
+                }
+
                 // Realtime: broadcast to members viewing this project's inventory workspace
                 await _realtimeSender.SendToGroupAsync(
                     HubMethodNames.GroupProject + project.ProjectId,
