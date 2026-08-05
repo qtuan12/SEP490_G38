@@ -326,7 +326,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       hasFieldError = true;
     }
 
-    if (hasFieldError) {
+    if (hasFieldError || !selectedPO) {
       return;
     }
 

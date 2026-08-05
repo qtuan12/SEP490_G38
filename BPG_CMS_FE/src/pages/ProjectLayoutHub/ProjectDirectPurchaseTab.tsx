@@ -7,8 +7,8 @@ import {
   DP_STATUS_LABEL,
   DP_BOQ_CHECK,
 } from '../../services/directPurchaseService';
-import { Badge, Pagination, Button } from '../../components/ui';
-import { AlertCircle, Loader2, Plus, Search, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Badge, Pagination, Button, TableLoader } from '../../components/ui';
+import { AlertCircle, Plus, Search, ChevronDown, AlertTriangle } from 'lucide-react';
 import { CreateDirectPurchaseModal } from './CreateDirectPurchaseModal';
 import { DirectPurchaseDetailModal } from './DirectPurchaseDetailModal';
 import { useNotification } from '../../context/NotificationContext';
@@ -195,14 +195,7 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
           </thead>
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {isLoading ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin" size={18} />
-                    Đang tải...
-                  </div>
-                </td>
-              </tr>
+              <TableLoader colSpan={8} message="Đang tải danh sách mua trực tiếp..." />
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">

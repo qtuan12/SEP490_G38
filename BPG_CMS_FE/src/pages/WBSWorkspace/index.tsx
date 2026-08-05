@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -11,7 +11,7 @@ import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
 import { FileText, BarChart2 } from 'lucide-react';
-import { ConfirmDialog } from '../../components/ui';
+import { ConfirmDialog, FullScreenLoading } from '../../components/ui';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
 import toast from 'react-hot-toast';
@@ -368,6 +368,10 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     handleRejectMatReq, handleCancelMatReq, handleConfirmReceived,
     isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask, handleDeleteTask, handleDeletePhase, navigate, loadWBSData
   };
+
+  if (loading) {
+    return <FullScreenLoading message="Đang tải dữ liệu WBS..." />;
+  }
 
   return (
     <WBSContext.Provider value={contextValue}>

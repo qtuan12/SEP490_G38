@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import type { PurchaseOrderDto } from '../../services/inventoryService';
-import { Badge, Pagination, Button, DateInput } from '../../components/ui';
+import { Badge, Pagination, Button, DateInput, TableLoader } from '../../components/ui';
 import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus, ChevronDown, SlidersHorizontal, X, Plus } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import toast from 'react-hot-toast';
@@ -463,14 +463,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
           </thead>
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {isLoading ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin" size={18} />
-                    Đang tải...
-                  </div>
-                </td>
-              </tr>
+              <TableLoader colSpan={7} message="Đang tải danh sách đơn mua hàng..." />
             ) : (data?.items ?? []).length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">

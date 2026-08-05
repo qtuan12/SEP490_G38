@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LoadingSpinner, Pagination } from '../../../components/ui';
+import { TableLoader, Pagination } from '../../../components/ui';
 import { Search, Eye } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
 import type { GoodsReceipt } from '../../../types/inventory';
@@ -87,10 +87,7 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
       )}
 
       {loading && receiptsList.length === 0 ? (
-        <div className="flex justify-center items-center py-10 gap-2">
-          <LoadingSpinner />
-          <span className="text-slate-500 text-sm">Đang tải phiếu nhập kho...</span>
-        </div>
+        <TableLoader isTable={false} message="Đang tải phiếu nhập kho..." />
       ) : (
         <>
           {/* Bảng danh sách */}

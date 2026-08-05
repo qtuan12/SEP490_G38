@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { RoleGroup } from '../../../auth/roles';
 import { useAuth } from '../../../context/AuthContext';
 import type { WBSTask } from '../../../types/common';
+import { TableLoader } from '../../../components/ui';
 import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History } from 'lucide-react';
 
 
@@ -60,7 +61,7 @@ export const WBSTree = () => {
         </h4>
 
         {loading ? (
-          <div style={{ textAlign: 'center', margin: 'auto', color: 'hsl(var(--text-muted))' }}>Đang tải...</div>
+          <TableLoader isTable={false} message="Đang tải sơ đồ WBS..." minHeight="300px" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
 

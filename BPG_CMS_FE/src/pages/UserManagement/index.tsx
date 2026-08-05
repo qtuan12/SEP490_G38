@@ -3,7 +3,7 @@ import { userService } from '../../services/userService';
 import type { UserProfile } from '../../services/authService';
 import { CreateUserModal } from './modals/CreateUserModal';
 import { EditUserModal } from './modals/EditUserModal';
-import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination, LoadingSpinner } from '../../components/ui';
+import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination, TableLoader } from '../../components/ui';
 import {
   Search,
   UserPlus,
@@ -285,9 +285,7 @@ export const UserManagement: React.FC = () => {
 
         {/* Content Area */}
         {loading ? (
-          <div className="flex justify-center items-center h-48">
-            <LoadingSpinner size="lg" label="Đang tải danh sách thành viên..." />
-          </div>
+          <TableLoader isTable={false} message="Đang tải danh sách thành viên..." minHeight="200px" />
         ) : filteredUsers.length === 0 ? (
           <div className="text-center py-12 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
             <UserIcon size={36} className="text-slate-300 mx-auto mb-2" />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LoadingSpinner, Pagination } from '../../../components/ui';
+import { TableLoader, Pagination } from '../../../components/ui';
 import { Search, Eye } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
 import type { MaterialIssuance } from '../../../types/inventory';
@@ -86,10 +86,7 @@ export const MaterialIssuancesTab: React.FC<MaterialIssuancesTabProps> = ({
       )}
 
       {loading && issuancesList.length === 0 ? (
-        <div className="flex justify-center items-center py-10 gap-2">
-          <LoadingSpinner />
-          <span className="text-slate-500 text-sm">Đang tải phiếu xuất kho...</span>
-        </div>
+        <TableLoader isTable={false} message="Đang tải phiếu xuất kho..." />
       ) : (
         <>
           {/* Bảng danh sách */}

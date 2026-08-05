@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FormItem, Select, LoadingSpinner, Pagination } from '../../../components/ui';
+import { FormItem, Select, TableLoader, Pagination } from '../../../components/ui';
 import { Search } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
 import type { InventoryTransaction } from '../../../types/inventory';
@@ -127,10 +127,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
       )}
 
       {loading && transactionsList.length === 0 ? (
-        <div className="flex justify-center items-center py-10 gap-2">
-          <LoadingSpinner />
-          <span className="text-slate-500 text-sm">Đang tải lịch sử thẻ kho...</span>
-        </div>
+        <TableLoader isTable={false} message="Đang tải lịch sử thẻ kho..." />
       ) : (
         <>
           {/* Bảng Thẻ kho */}

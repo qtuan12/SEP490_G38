@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button, LoadingSpinner } from '../../components/ui';
+import { Button, TableLoader } from '../../components/ui';
 import toast from 'react-hot-toast';
 import { inventoryService } from '../../services/inventoryService';
 import type { CurrentInventory } from '../../types/inventory';
@@ -349,10 +349,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
       {/* 4. Phần Nội dung chính của Tab đang chọn */}
       {loading && inventoryList.length === 0 ? (
-        <div className="flex justify-center items-center py-20 gap-3 bg-white border border-slate-100 rounded-2xl shadow-sm">
-          <LoadingSpinner />
-          <span className="text-slate-500 text-sm">Đang tải thông tin kho...</span>
-        </div>
+        <TableLoader isTable={false} message="Đang tải thông tin kho..." />
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-5 flex flex-col gap-4">
           
