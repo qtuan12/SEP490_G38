@@ -46,6 +46,7 @@ namespace BPG.Application.Features.Comments.Handlers
                 .Include(c => c.DailyLog)
                     .ThenInclude(l => l.Task)
                         .ThenInclude(t => t.Phase)
+                            .ThenInclude(p => p.Project)
                 .FirstOrDefaultAsync(c => c.CommentId == request.CommentId && !c.IsDeleted, cancellationToken);
 
             if (comment == null)
@@ -57,6 +58,11 @@ namespace BPG.Application.Features.Comments.Handlers
             if (comment.AuthorId != currentUserId)
             {
                 throw new ForbiddenException("Bạn không có quyền chỉnh sửa bình luận này.");
+            }
+
+            if (comment.DailyLog.Task.Phase.Project.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }
 
             // 3. Cập nhật thông tin bình luận
