@@ -6,9 +6,13 @@ import { ConfirmDialog, Button, DataTable, Pagination } from '../../../component
 import type { Unit } from '../../../types/unit';
 import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, Ruler } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../../context/AuthContext';
+import { RoleGroup, hasAnyRole } from '../../../auth/roles';
 
 export const UnitManagement: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canManageMasterData = hasAnyRole(user?.roles, RoleGroup.MasterData);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -117,7 +121,7 @@ export const UnitManagement: React.FC = () => {
         )
       ),
     },
-    {
+    ...(canManageMasterData ? [{
       key: 'actions',
       header: 'Hành động',
       render: (unit: Unit) => (
@@ -140,7 +144,7 @@ export const UnitManagement: React.FC = () => {
           </Button>
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
@@ -175,10 +179,12 @@ export const UnitManagement: React.FC = () => {
             />
           </div>
 
-          <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
-            <Plus size={18} />
-            <span>Thêm Đơn vị</span>
-          </Button>
+          {canManageMasterData && (
+            <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
+              <Plus size={18} />
+              <span>Thêm Đơn vị</span>
+            </Button>
+          )}
         </div>
 
         {isLoading ? (

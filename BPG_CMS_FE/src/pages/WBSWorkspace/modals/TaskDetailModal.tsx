@@ -400,14 +400,25 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <FileText size={15} />
                 <span>Xem Nhật ký thi công</span>
               </button>
-              <button 
-                onClick={() => onReportIncidentOpen()} 
-                className="btn btn-outline" 
-                style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
-              >
-                <AlertCircle size={15} />
-                <span>Báo cáo Sự cố</span>
-              </button>
+              {isPL ? (
+                <button 
+                  onClick={() => onReportIncidentOpen()} 
+                  className="btn btn-outline" 
+                  style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
+                >
+                  <AlertCircle size={15} />
+                  <span>Báo cáo Sự cố</span>
+                </button>
+              ) : (
+                <button 
+                  onClick={() => { onClose(); navigate(`/projects/${project?.id}?tab=incidents&taskId=${selectedTask.id}`); }} 
+                  className="btn btn-outline" 
+                  style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
+                >
+                  <AlertCircle size={15} />
+                  <span>Danh sách Sự cố</span>
+                </button>
+              )}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

@@ -120,7 +120,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
       });
     },
     onSuccess: () => {
-      onSuccess('Báo cáo sự cố vật tư đã được lưu và chuyển Kế toán xác minh.');
+      onSuccess('Báo cáo sự cố vật tư đã được lưu thành công.');
       reset();
       setUploadedFiles([]);
       onClose();

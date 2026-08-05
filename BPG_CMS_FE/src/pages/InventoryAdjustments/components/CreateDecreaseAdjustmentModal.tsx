@@ -24,7 +24,8 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   const [reason, setReason] = useState('Incident');
   const [description, setDescription] = useState('');
-  const [phaseId, setPhaseId] = useState<number | ''>('');
+  const [phaseId, setPhaseId] = useState<number | ''>(incident ? (incident as any).phaseId || '' : '');
+  const [createdAdjustmentId, setCreatedAdjustmentId] = useState<number | null>(null);
   const [items, setItems] = useState<{ materialId: number; quantity: number }[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -170,12 +171,18 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         ? `${description}\n\n--- Thông tin sự cố gốc ---\n${originalIncidentDesc}\n\n[System] Liên kết sự cố #${incident.id}`
         : description;
 
-      const result = await inventoryAdjustmentService.createDecrease(projectId, {
-        reason,
-        description: finalDesc,
-        phaseId: Number(phaseId),
-        items
-      });
+      let newAdjustmentId = createdAdjustmentId;
+
+      if (!createdAdjustmentId) {
+        const result = await inventoryAdjustmentService.createDecrease(projectId, {
+          reason,
+          description: finalDesc,
+          phaseId: Number(phaseId),
+          items
+        });
+        newAdjustmentId = (result as any).data || (result as any).id || 1; // store in case confirmIncident fails
+        setCreatedAdjustmentId(newAdjustmentId);
+      }
 
       if (incident) {
         await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
@@ -185,9 +192,9 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         });
       }
 
-      onSuccess(result.message);
+      onSuccess(createdAdjustmentId ? 'Xác minh thành công' : 'Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt');
     } catch (err: any) {
-      setLocalError(err.message || 'Không thể tạo phiếu giảm tồn.');
+      setLocalError(err.message || 'Có lỗi xảy ra, vui lòng thử lại.');
     } finally {
       setLoading(false);
     }

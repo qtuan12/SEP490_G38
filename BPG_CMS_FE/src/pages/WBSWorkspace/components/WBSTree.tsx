@@ -303,7 +303,7 @@ export const WBSTree = () => {
 
                               {project?.status !== 'draft' && (
                                 <>
-                                  {!isFrozen && canEdit && (
+                                  {!isFrozen && canEdit && isPL && (
                                     <div
                                       style={menuItemStyle}
                                       onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
@@ -543,7 +543,7 @@ export const WBSTree = () => {
                             </span>
 
                             {/* Task context menu */}
-                            {canEdit && !isFrozen && t.status !== 'obsolete' && (
+                            {!isFrozen && t.status !== 'obsolete' && (
                               <div style={{ position: 'relative', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                                 <button
                                   onClick={e => { e.stopPropagation(); setTaskMenuId(showTaskMenu ? null : t.id); setPhaseMenuId(null); }}
@@ -568,14 +568,25 @@ export const WBSTree = () => {
 
                                     {project?.status !== 'draft' && (
                                       <>
-                                        <div
-                                          style={menuItemStyle}
-                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
-                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setTaskMenuId(null); setSelectedTaskId(t.id); setIsReportIncidentOpen(true); }}
-                                        >
-                                          <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
-                                        </div>
+                                        {isPL ? (
+                                          <div
+                                            style={menuItemStyle}
+                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                            onClick={() => { setTaskMenuId(null); setSelectedTaskId(t.id); setIsReportIncidentOpen(true); }}
+                                          >
+                                            <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
+                                          </div>
+                                        ) : (
+                                          <div
+                                            style={menuItemStyle}
+                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                            onClick={() => { setTaskMenuId(null); navigate(`/projects/${projectId}?tab=incidents&taskId=${t.id}`); }}
+                                          >
+                                            <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Danh sách sự cố</span>
+                                          </div>
+                                        )}
 
                                         <div
                                           style={menuItemStyle}

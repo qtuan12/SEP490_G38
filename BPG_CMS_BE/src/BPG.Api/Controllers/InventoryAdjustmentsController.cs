@@ -39,7 +39,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPut("{id:long}/approve")]
-        [Authorize(Roles = RolePolicies.Director)]
+        [Authorize(Roles = RolePolicies.DirectorTechnicalManagerAccountant)]
         public async Task<IActionResult> ApproveDecrease(long projectId, long id, [FromBody] ApproveDecreaseAdjustmentCommand command)
         {
             command.AdjustmentId = id;

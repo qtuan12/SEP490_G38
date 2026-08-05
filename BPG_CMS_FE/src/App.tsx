@@ -246,7 +246,7 @@ function App() {
               <Route 
                 path="/units" 
                 element={
-                  <ProtectedRoute allowedRoles={RoleGroup.MasterData}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <UnitManagement />
                   </ProtectedRoute>
                 } 
@@ -255,7 +255,7 @@ function App() {
               <Route 
                 path="/categories" 
                 element={
-                  <ProtectedRoute allowedRoles={RoleGroup.MasterData}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <CategoryManagement />
                   </ProtectedRoute>
                 } 
@@ -264,7 +264,7 @@ function App() {
               <Route 
                 path="/materials" 
                 element={
-                  <ProtectedRoute allowedRoles={RoleGroup.MasterData}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <MaterialManagement />
                   </ProtectedRoute>
                 } 
