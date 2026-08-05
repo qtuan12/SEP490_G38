@@ -1,4 +1,6 @@
 using BPG.Application.Features.Incidents.Commands.CreateAndAssessIncident;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.Incidents.Commands.ConfirmIncident;
 using BPG.Application.Features.Incidents.Queries.GetIncidents;
 using BPG.Domain.Constants;
@@ -19,6 +21,7 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpGet("project/{projectId}")]
+    [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
     [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetIncidents(long projectId, CancellationToken ct)
     {
@@ -27,6 +30,7 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> CreateAndAssessIncident([FromBody] CreateAndAssessIncidentCommand command, CancellationToken ct)
     {
@@ -35,6 +39,7 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPut("{id}/confirm")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> ConfirmIncident(long id, [FromBody] ConfirmIncidentCommand command, CancellationToken ct)
     {
@@ -48,6 +53,7 @@ public class IncidentsController : BaseApiController
     }
 
     [HttpPut("{id}/reject")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> RejectIncident(long id, [FromBody] BPG.Application.Features.Incidents.Commands.RejectIncident.RejectIncidentCommand command, CancellationToken ct)
     {
@@ -60,4 +66,3 @@ public class IncidentsController : BaseApiController
         return ApiOk(result.Data, result.Message ?? "Success");
     }
 }
-

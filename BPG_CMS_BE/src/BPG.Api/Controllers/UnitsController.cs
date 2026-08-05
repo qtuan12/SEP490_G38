@@ -1,4 +1,6 @@
 using BPG.Api.Controllers;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.Units.Commands;
 using BPG.Application.Features.Units.Queries;
 using BPG.Domain.Constants;
@@ -20,6 +22,7 @@ public class UnitsController : BaseApiController
     }
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Create([FromBody] CreateUnitCommand command, CancellationToken ct)
     {
@@ -28,6 +31,7 @@ public class UnitsController : BaseApiController
     }
 
     [HttpPut("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Update(int id, [FromBody] BPG.Application.DTOs.Units.UpdateUnitRequest request, CancellationToken ct)
     {
@@ -37,6 +41,7 @@ public class UnitsController : BaseApiController
     }
 
     [HttpDelete("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
@@ -44,4 +49,3 @@ public class UnitsController : BaseApiController
         return ApiOk("Xóa đơn vị tính thành công.");
     }
 }
-

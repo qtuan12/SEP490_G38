@@ -1,4 +1,6 @@
 using BPG.Application.Features.MaterialReturns.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.MaterialReturns.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -16,6 +18,7 @@ namespace BPG.Api.Controllers
         /// Phiếu hoàn trả phải gắn với phiếu xuất kho gốc (OriginalIssuanceId).
         /// </summary>
         [HttpPost]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = UserRole.SiteEngineer)]
         public async Task<IActionResult> CreateMaterialReturn([FromBody] CreateMaterialReturnCommand command)
         {
@@ -39,6 +42,7 @@ namespace BPG.Api.Controllers
         /// Lấy chi tiết một phiếu hoàn trả vật tư cụ thể, kèm danh sách vật tư đã trả.
         /// </summary>
         [HttpGet("{id:long}")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetMaterialReturnDetail(long id)
         {

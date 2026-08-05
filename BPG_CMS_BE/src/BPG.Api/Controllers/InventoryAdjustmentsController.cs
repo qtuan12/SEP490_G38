@@ -1,4 +1,6 @@
 using BPG.Application.Features.InventoryAdjustments.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.InventoryAdjustments.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -21,6 +23,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("increase")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.BusinessUsers)]
         public async Task<IActionResult> CreateIncrease(long projectId, [FromBody] CreateIncreaseAdjustmentCommand command)
         {
@@ -30,6 +33,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("decrease")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Accountant)]
         public async Task<IActionResult> CreateDecrease(long projectId, [FromBody] CreateDecreaseAdjustmentCommand command)
         {
@@ -39,6 +43,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPut("{id:long}/approve")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Director)]
         public async Task<IActionResult> ApproveDecrease(long projectId, long id, [FromBody] ApproveDecreaseAdjustmentCommand command)
         {

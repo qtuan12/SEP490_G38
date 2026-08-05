@@ -2,12 +2,16 @@ using System.Collections.Generic;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using BPG.Api.Configuration;
 using BPG.Application.Common.Models;
+
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace BPG.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [EnableRateLimiting(RateLimitPolicies.Query)]
     public abstract class BaseApiController : ControllerBase
     {
         private IMediator? _mediator;
