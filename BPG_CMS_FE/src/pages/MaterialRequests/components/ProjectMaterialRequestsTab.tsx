@@ -485,7 +485,6 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                 <th className="px-4 py-3">Ngày yêu cầu</th>
                 <th className="px-4 py-3">Giai đoạn / Công việc</th>
                 <th className="px-4 py-3">Người yêu cầu</th>
-                <th className="px-4 py-3">Vật tư yêu cầu</th>
                 <th className="px-4 py-3">Phân loại</th>
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3 text-center">Thao tác</th>
@@ -512,20 +511,6 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                   </td>
                   <td className="px-4 py-3.5 whitespace-nowrap font-medium text-[hsl(var(--text-primary))]">
                     {req.requesterName}
-                  </td>
-                  <td className="px-4 py-3.5 max-w-[280px]">
-                    <div className="text-[0.8rem] flex flex-col gap-0.5">
-                      {req.items.slice(0, 2).map((it, idx) => (
-                        <span key={idx} className="text-[hsl(var(--text-secondary))]">
-                          - {it.name}: <strong>{it.quantity}</strong> {it.unit}
-                        </span>
-                      ))}
-                      {req.items.length > 2 && (
-                        <span className="text-[0.72rem] text-[hsl(var(--text-muted))] italic ml-2">
-                          và {req.items.length - 2} vật tư khác...
-                        </span>
-                      )}
-                    </div>
                   </td>
                   <td className="px-4 py-3.5 whitespace-nowrap">
                     {getClassificationBadge(req)}
