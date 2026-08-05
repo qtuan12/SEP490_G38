@@ -278,7 +278,7 @@ export const PhaseBOQ: React.FC = () => {
           className="inline-flex items-center gap-1.5 bg-transparent border-none text-[hsl(var(--text-secondary))] cursor-pointer text-[0.9rem] font-medium w-fit hover:text-[hsl(var(--primary))] transition-colors p-0"
         >
           <ArrowLeft size={16} />
-          <span>Quay lại không gian dự án</span>
+          <span>Quay lại</span>
         </button>
         <h1 className="text-[1.75rem] font-extrabold m-0">Bảng định mức vật tư</h1>
         <p className="text-[0.875rem] text-[hsl(var(--text-secondary))] m-0">
@@ -465,22 +465,16 @@ export const PhaseBOQ: React.FC = () => {
           )}
 
           {/* Các nút Submit */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-[hsl(var(--border-light))]">
-            {!isReadOnly ? (
-              <>
-                <Button type="button" variant="secondary" onClick={() => navigate(`/projects/${projectId}`)} disabled={mutation.isPending}>
-                  Hủy bỏ
-                </Button>
-                <Button type="submit" variant="primary" disabled={mutation.isPending}>
-                  {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu bảng định mức'}
-                </Button>
-              </>
-            ) : (
-              <Button type="button" variant="primary" onClick={() => navigate(`/projects/${projectId}`)}>
-                Quay lại không gian dự án
+          {!isReadOnly && (
+            <div className="flex justify-end gap-3 pt-4 border-t border-[hsl(var(--border-light))]">
+              <Button type="button" variant="secondary" onClick={() => navigate(`/projects/${projectId}`)} disabled={mutation.isPending}>
+                Hủy bỏ
               </Button>
-            )}
-          </div>
+              <Button type="submit" variant="primary" disabled={mutation.isPending}>
+                {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu bảng định mức'}
+              </Button>
+            </div>
+          )}
         </form>
       </div>
     </div>
