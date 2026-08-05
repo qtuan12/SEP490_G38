@@ -1,8 +1,9 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, RotateCcw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
+  fallback?: ReactNode;
 }
 
 interface State {
@@ -27,7 +28,9 @@ export class GlobalErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('🔥 GlobalErrorBoundary caught an unhandled error:', error, errorInfo);
+    if (import.meta.env.DEV) {
+      console.error('🔥 GlobalErrorBoundary caught an unhandled error:', error, errorInfo);
+    }
   }
 
   handleReset = () => {
@@ -44,6 +47,10 @@ export class GlobalErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
       const isChunkError = this.state.error?.name === 'ChunkLoadError' || 
         this.state.error?.message?.includes('Failed to fetch dynamically imported module');
 
@@ -64,23 +71,32 @@ export class GlobalErrorBoundary extends Component<Props, State> {
                 : 'Hệ thống vừa gặp một sự cố render không mong muốn. Bạn có thể thử lại hoặc tải lại trang.'}
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex flex-wrap gap-2.5 justify-center">
+              <button
+                type="button"
+                onClick={this.handleReset}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200"
+              >
+                <RotateCcw size={15} />
+                <span>Thử lại</span>
+              </button>
+
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={15} />
                 <span>Tải lại trang</span>
               </button>
 
               <button
                 type="button"
                 onClick={this.handleGoHome}
-                className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200"
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-colors border border-slate-200"
               >
-                <Home size={16} />
-                <span>Về trang chủ</span>
+                <Home size={15} />
+                <span>Trang chủ</span>
               </button>
             </div>
 
