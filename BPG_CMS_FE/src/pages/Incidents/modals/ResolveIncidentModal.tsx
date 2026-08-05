@@ -51,8 +51,7 @@ interface ResolveIncidentModalProps {
   onError: (msg: string) => void;
 }
 
-export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
-  isOpen,
+export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOpen'>> = ({
   onClose,
   incident,
   task,
@@ -79,18 +78,16 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
   const reduceProgressValue = useWatch({ control, name: 'reduceProgressValue' });
 
   useEffect(() => {
-    if (isOpen) {
-      reset({
-        handlingInstruction: '',
-        resolutionAction: 'rework',
-        reworkName: `[Rework] Khắc phục - ${incident.taskName}`,
-        reworkDeadline: phase?.deadline || '',
-        reworkAssigneeId: members.length > 0 ? members[0].userId : '',
-        reduceProgressValue: 0,
-        reduceProgressReason: ''
-      });
-    }
-  }, [isOpen, incident, phase, members, reset]);
+    reset({
+      handlingInstruction: '',
+      resolutionAction: 'rework',
+      reworkName: `[Rework] Khắc phục - ${incident.taskName}`,
+      reworkDeadline: phase?.deadline || '',
+      reworkAssigneeId: members.length > 0 ? members[0].userId : '',
+      reduceProgressValue: 0,
+      reduceProgressReason: ''
+    });
+  }, [incident, phase, members, reset]);
 
   const isExceedingReserve = reworkDeadline && phase?.deadline
     ? new Date(reworkDeadline) > new Date(phase.deadline)
@@ -165,10 +162,8 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
     onError(msg);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Phê duyệt Sự cố">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
         <div style={{ padding: '16px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-card))' }}>
@@ -364,6 +359,16 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = ({
           </button>
         </div>
       </form>
+    </div>
+  );
+};
+
+export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = (props) => {
+  if (!props.isOpen) return null;
+
+  return (
+    <Modal isOpen={props.isOpen} onClose={props.onClose} title="Phê duyệt Sự cố">
+      <ResolveIncidentForm {...props} />
     </Modal>
   );
 };

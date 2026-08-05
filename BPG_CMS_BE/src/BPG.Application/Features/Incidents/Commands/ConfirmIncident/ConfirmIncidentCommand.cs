@@ -99,7 +99,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
         {
             if (incident.Status == "WaitingStopApproval")
             {
-                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager))
+                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
                     throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt dừng thi công.");
 
                 var currentUser = await _unitOfWork.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
@@ -147,6 +147,14 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     $"/projects/{incident.ProjectId}/workspace/incidents"
                 );
 
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.Accountant,
+                    "Dự án đã tạm dừng thi công",
+                    $"Dự án {incident.Project.Name} đã chính thức tạm dừng thi công do sự cố khẩn cấp.",
+                    "IncidentAssessed",
+                    $"/projects/{incident.ProjectId}/workspace/incidents"
+                );
+
                 // Notify all project members
                 var projectMembers = await _unitOfWork.Repository<ProjectMember>()
                     .Query()
@@ -169,7 +177,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             }
             else if (incident.Status == "WaitingRecoveryPlan")
             {
-                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager))
+                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
                     throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền nộp kế hoạch khắc phục.");
 
                 if (string.IsNullOrWhiteSpace(request.RecoveryPlanText))
@@ -193,7 +201,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             }
             else if (incident.Status == "WaitingDirectorApproval")
             {
-                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Director))
+                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director))
                     throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt kế hoạch khắc phục.");
 
                 if (request.Decision == "Resubmit")
@@ -445,7 +453,27 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
             if (isInventoryIncident)
             {
-                if (incident.Status == "WaitingAccountant")
+                if (incident.Status == "Reported")
+                {
+                    // Allow the reporter (PL) or Admin to push to Accountant
+                    if (incident.ReportedBy != currentUserId && !_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin))
+                        throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền chuyển báo cáo này.");
+
+                    incident.Status = "WaitingAccountant";
+                    if (!string.IsNullOrWhiteSpace(request.HandlingInstruction))
+                    {
+                        incident.HandlingInstruction = request.HandlingInstruction;
+                    }
+
+                    await _notificationService.SendNotificationToRoleAsync(
+                        BPG.Domain.Constants.UserRole.Accountant,
+                        "Báo cáo sự cố mới",
+                        $"Có một sự cố vật tư mới tại dự án đang chờ kế toán xác minh.",
+                        "IncidentReported",
+                        $"/projects/{incident.ProjectId}/workspace/incidents"
+                    );
+                }
+                else if (incident.Status == "WaitingAccountant")
                 {
                     if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant))
                         throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền xác minh sự cố vật tư.");

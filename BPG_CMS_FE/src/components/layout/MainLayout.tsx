@@ -93,9 +93,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { name: 'Quản lý Thành viên', path: '/users', icon: <Users size={20} />, allowedRoles: RoleGroup.AdminOnly },
     { name: 'Dự án thi công', path: '/projects', icon: <Hammer size={20} />, allowedRoles: RoleGroup.ProjectViewers },
     { name: 'Quản lý Nhà cung cấp', path: '/suppliers', icon: <Truck size={20} />, allowedRoles: RoleGroup.SupplierViewers },
-    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, allowedRoles: RoleGroup.MasterData },
-    { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, allowedRoles: RoleGroup.MasterData },
-    { name: 'Danh sách Vật tư', path: '/materials', icon: <Package size={20} />, allowedRoles: RoleGroup.MasterData },
+    { name: 'Quản lý Đơn vị', path: '/units', icon: <Ruler size={20} />, allowedRoles: RoleGroup.ProjectViewers },
+    { name: 'Loại Vật tư', path: '/categories', icon: <Tags size={20} />, allowedRoles: RoleGroup.ProjectViewers },
+    { name: 'Danh sách Vật tư', path: '/materials', icon: <Package size={20} />, allowedRoles: RoleGroup.ProjectViewers },
     { name: 'Báo cáo & Thống kê', path: '/reports', icon: <FileText size={20} />, allowedRoles: RoleGroup.Reports },
     { name: 'Cấu hình hệ thống', path: '/system-config', icon: <SlidersHorizontal size={20} />, allowedRoles: RoleGroup.AdminOnly },
   ];

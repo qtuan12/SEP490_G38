@@ -5,7 +5,8 @@ import { incidentService } from '../../../services/incidentService';
 import { Modal } from '../../../components/ui/Modal';
 import { MiniMarkdown } from '../../../components/ui/MiniMarkdown';
 import { CreateRecoveryPlanForm } from './CreateRecoveryPlanModal';
-import type { IncidentReport, WBSPhase } from '../../../types/common';
+import type { IncidentReport, WBSPhase, WBSTask, ProjectMember } from '../../../types/common';
+import { ResolveIncidentForm } from './ResolveIncidentModal';
 import { ArrowRight, ArrowLeft, AlertCircle, CheckCircle, HardHat, Package, MapPin, Clock, Users, BarChart3, FileText } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
@@ -18,6 +19,8 @@ interface IncidentDetailModalProps {
   user: { id: string; name: string; role: string } | null;
   onResolveClick: () => void;
   onSuccessAction?: (msg?: string) => void;
+  task?: WBSTask;
+  members?: ProjectMember[];
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -75,11 +78,15 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   onClose,
   incident,
   phase,
+  task,
+  members,
+  user,
   onResolveClick,
   onSuccessAction
 }) => {
-  const { canManageTechnical, canManageAccounting, canApprove } = useProjectAccess(incident.projectId);
+  const { isProjectLeader } = useProjectAccess(incident.projectId);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
   const [isResubmittingByDirector, setIsResubmittingByDirector] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
@@ -200,7 +207,29 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     }
   });
 
-  // Helper convert markdown to HTML for PDF/Word export
+
+  const plPushToAccountantMutation = useMutation({
+    mutationFn: () =>
+      incidentService.confirmIncident(Number(incident.id), {
+        incidentId: Number(incident.id),
+        createReworkTask: false,
+        handlingInstruction: 'Trưởng dự án xác nhận và chuyển Kế toán xử lý.',
+      }),
+    onSuccess: (result) => {
+      console.log(result.message || 'Đã chuyển sự cố vật tư cho Kế toán.');
+      if (onSuccessAction) onSuccessAction('Đã chuyển Kế toán');
+      else {
+        queryClient.invalidateQueries({ queryKey: ['incidents'] });
+        queryClient.invalidateQueries({ queryKey: ['globalIncidents'] });
+      }
+      onClose();
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Không thể chuyển sự cố vật tư.');
+    }
+  });
+
+
   const convertMarkdownToHtml = (md: string): string => {
     let html = md
       .replace(/&/g, "&amp;")
@@ -999,9 +1028,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     Resolved: { label: 'Đã xử lý', color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' },
   }[incident.status as string] ?? { label: incident.status, color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' };
 
-  const isTPKT = canManageTechnical;
-  const isAccountant = canManageAccounting;
-  const isDirector = canApprove;
+  const isTPKT = user?.role === 'technicalmanager';
+  const isAccountant = user?.role === 'accountant';
+  const isDirector = user?.role === 'director';
 
   const incidentDetailsJSX = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1905,15 +1934,29 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           </div>
         ) : (
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
-            <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))' }}>
+            <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }}>
               ❌ Từ chối
             </button>
-            <button onClick={onResolveClick} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}>
+            <button onClick={() => setIsResolving(true)} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}>
               🏗 Thẩm định &amp; Phê duyệt (TPKT)
             </button>
           </div>
         )
       )}
+      {isInventoryIncident && incident.status === 'Reported' && isProjectLeader && (
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
+          <button 
+            onClick={() => plPushToAccountantMutation.mutate()} 
+            className="btn btn-primary" 
+            style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}
+            disabled={plPushToAccountantMutation.isPending}
+          >
+            {plPushToAccountantMutation.isPending ? 'Đang xử lý...' : 'Chuyển Kế toán xác minh'}
+          </button>
+        </div>
+      )}
+
+
       {isInventoryIncident && incident.status === 'WaitingAccountant' && isAccountant && (
         isRejecting ? (
           <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
@@ -1936,7 +1979,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           </div>
         ) : (
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
-            <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))' }}>
+            <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }}>
               ❌ Từ chối
             </button>
             <button onClick={onResolveClick} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(210, 70%, 45%)' }}>
@@ -1969,7 +2012,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           </div>
         ) : (
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
-            <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))' }}>
+            <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }}>
               ❌ Từ chối
             </button>
             <button
@@ -1987,7 +2030,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       {/* TPKT duyệt dừng thi công cho sự cố khẩn cấp */}
       {incident.isEmergency && incident.status === 'WaitingStopApproval' && isTPKT && (
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
-          <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', borderColor: 'hsl(var(--danger))' }} disabled={approveStopMutation.isPending}>
+          <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }} disabled={approveStopMutation.isPending}>
             ❌ Từ chối
           </button>
           <button onClick={() => approveStopMutation.mutate()} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(0, 72%, 45%)' }} disabled={approveStopMutation.isPending}>
@@ -2045,12 +2088,21 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     </div>
   );
 
+  const handleResolveSuccess = (msg: string) => {
+    setIsResolving(false);
+    if (onSuccessAction) onSuccessAction(msg);
+  };
+
+  const handleResolveError = (msg: string) => {
+    toast.error(msg);
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      width={isPlanModalOpen ? 'full' : 'lg'}
-      maxWidth={isPlanModalOpen ? '1180px' : undefined}
+      width={(isResolving || isPlanModalOpen) ? 'full' : 'lg'}
+      maxWidth={(isResolving || isPlanModalOpen) ? '1180px' : undefined}
       title={
         isPlanModalOpen ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
@@ -2093,18 +2145,24 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         )
       }
     >
-      {isPlanModalOpen ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '20px', alignItems: 'start' }}>
-          {/* Cột trái: Tham khảo chi tiết sự cố */}
-          <div style={{ maxHeight: '74vh', overflowY: 'auto', paddingRight: '12px' }} className="custom-scrollbar">
-            <div style={{ padding: '8px 12px', marginBottom: '16px', background: 'hsl(var(--primary-glow))', borderRadius: '8px', border: '1px solid hsl(var(--primary)/0.2)', fontSize: '0.8rem', fontWeight: 700, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>📌 THÔNG TIN SỰ CỐ &amp; THIỆT HẠI (CỘT THAM KHẢO)</span>
-            </div>
-            {incidentDetailsJSX}
-          </div>
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+        {/* DETAIL PANEL */}
+        <div style={{ flex: 1, maxHeight: '74vh', overflowY: 'auto', paddingRight: '12px' }} className="custom-scrollbar">
+          {isPlanModalOpen ? (
+            <>
+              <div style={{ padding: '8px 12px', marginBottom: '16px', background: 'hsl(var(--primary-glow))', borderRadius: '8px', border: '1px solid hsl(var(--primary)/0.2)', fontSize: '0.8rem', fontWeight: 700, color: 'hsl(var(--primary))', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>📌 THÔNG TIN SỰ CỐ &amp; THIỆT HẠI (CỘT THAM KHẢO)</span>
+              </div>
+              {incidentDetailsJSX}
+            </>
+          ) : (
+            incidentDetailsJSX
+          )}
+        </div>
 
-          {/* Cột phải: Form Lập kế hoạch khắc phục */}
-          <div style={{ maxHeight: '74vh', overflowY: 'auto', paddingLeft: '16px', borderLeft: '1px solid hsl(var(--border))' }} className="custom-scrollbar">
+        {/* RIGHT PANEL FOR PLAN OR RESOLVE FORM */}
+        {isPlanModalOpen && (
+          <div style={{ flex: 1, maxHeight: '74vh', overflowY: 'auto', paddingLeft: '16px', borderLeft: '1px solid hsl(var(--border))' }} className="custom-scrollbar">
             <CreateRecoveryPlanForm
               incident={incident}
               onSuccess={() => {
@@ -2115,10 +2173,23 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               onCancel={() => setIsPlanModalOpen(false)}
             />
           </div>
-        </div>
-      ) : (
-        incidentDetailsJSX
-      )}
+        )}
+
+        {isResolving && task && members && (
+          <div style={{ flex: 1, borderLeft: '1px solid hsl(var(--border))', paddingLeft: '20px', paddingRight: '12px', display: 'flex', flexDirection: 'column', maxHeight: '74vh', overflowY: 'auto' }} className="custom-scrollbar">
+            <ResolveIncidentForm
+              incident={incident}
+              task={task}
+              phase={phase}
+              members={members}
+              user={user}
+              onSuccess={handleResolveSuccess}
+              onError={handleResolveError}
+              onClose={() => setIsResolving(false)}
+            />
+          </div>
+        )}
+      </div>
     </Modal>
   );
 };
