@@ -18,7 +18,8 @@ public static class ApiServiceExtensions
         builder.Host.UseSerilog((context, services, configuration) => configuration
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services)
-            .Enrich.FromLogContext());
+            .Enrich.FromLogContext()
+            .Enrich.WithProperty("Environment", context.HostingEnvironment.EnvironmentName));
 
         return builder;
     }

@@ -22,7 +22,6 @@ try
     }
 
     await app.MigrateDatabaseAsync();
-
     app.UseApiPipeline();
     app.Run();
 }
