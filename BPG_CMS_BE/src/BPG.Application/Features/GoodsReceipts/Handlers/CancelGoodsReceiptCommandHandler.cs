@@ -72,14 +72,11 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với phiếu nhập kho này.");
             }
 
-            if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
-            {
-                var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
-                    member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
-                    cancellationToken);
-                if (!isProjectLeader)
-                    throw new ForbiddenException("Chỉ Trưởng dự án mới được hủy phiếu nhập kho.");
-            }
+            var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                cancellationToken);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được hủy phiếu nhập kho.");
 
             // 3. Kiểm tra trạng thái dự án
             if (project.Status != ProjectStatus.InProgress)
@@ -95,7 +92,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
 
             // 3.6 Kiểm tra hạn hủy phiếu từ SystemConfig
             var config = await _uow.Repository<SystemConfig>().Query()
-                .FirstOrDefaultAsync(x => x.ConfigKey == "HanHuyPhieuNgay", cancellationToken);
+                .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.CancellationDays, cancellationToken);
             int limitDays = config != null && int.TryParse(config.ConfigValue, out var parsedDays) ? parsedDays : 7;
 
             if (DateTime.UtcNow - receipt.CreatedAt > TimeSpan.FromDays(limitDays))

@@ -36,16 +36,33 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
+    var allowedOrigins = builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>() ?? Array.Empty<string>();
+
+    if (!builder.Environment.IsDevelopment() && allowedOrigins.Length == 0)
+    {
+        throw new InvalidOperationException("Production requires Cors:AllowedOrigins to be configured.");
+    }
+
     // Cấu hình CORS của frontend truy cập backend
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowReactApp", policy =>
         {
             policy
-                .SetIsOriginAllowed(origin => true)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
+
+            if (allowedOrigins.Length > 0)
+            {
+                policy.WithOrigins(allowedOrigins);
+            }
+            else
+            {
+                policy.SetIsOriginAllowed(_ => true);
+            }
         });
     });
 
@@ -57,6 +74,10 @@ try
     .AddJwtBearer(options =>
     {
         var jwtKey = builder.Configuration["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+        {
+            throw new InvalidOperationException("Jwt:Key must be configured and at least 32 bytes long.");
+        }
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -169,14 +190,19 @@ try
         await context.Database.MigrateAsync();
     }
 
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
 
     app.UseCors("AllowReactApp");
 
     app.UseAuthentication();
     app.UseAuthorization();
 
+    app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "BPG-CMS-API" }))
+        .AllowAnonymous();
     app.MapControllers();
     app.MapHub<BPG.Api.Hubs.NotificationHub>("/hubs/notifications");
 

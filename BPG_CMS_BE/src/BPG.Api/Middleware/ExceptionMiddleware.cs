@@ -89,6 +89,13 @@ public class ExceptionMiddleware
                 statusCode = HttpStatusCode.BadRequest;
                 var validationErrors = ex.Errors.Select(e => e.ErrorMessage).Distinct().ToList();
                 response = ApiResponse.FailureResult(ErrorCodes.ValidationFailed, ResponseMessages.ValidationError, validationErrors);
+                // Kèm lỗi theo từng trường để FE gắn dòng đỏ ngay dưới ô nhập tương ứng.
+                response.FieldErrors = ex.Errors
+                    .Where(e => !string.IsNullOrEmpty(e.PropertyName))
+                    .GroupBy(e => e.PropertyName)
+                    .ToDictionary(
+                        g => JsonNamingPolicy.CamelCase.ConvertName(g.Key),
+                        g => g.Select(e => e.ErrorMessage).Distinct().ToList());
                 break;
 
             default:

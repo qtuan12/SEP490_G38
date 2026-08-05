@@ -145,7 +145,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   };
 
   const handleActionSuccess = (message: string) => {
-    toast.success(message);
+    console.log(message);
     scheduleRealtimeRefresh();
   };
 

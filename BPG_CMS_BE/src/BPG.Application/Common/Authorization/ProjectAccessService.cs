@@ -23,10 +23,7 @@ public sealed class ProjectAccessService : IProjectAccessService
         if (!_currentUser.IsAuthenticated)
             throw new UnauthorizedException("Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại để xem danh sách dự án.");
 
-        if (_currentUser.IsInAnyRole(
-                BPG.Domain.Constants.UserRole.Director,
-                BPG.Domain.Constants.UserRole.TechnicalManager,
-                BPG.Domain.Constants.UserRole.Accountant))
+        if (_currentUser.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {
             var allProjectIds = await _unitOfWork.Repository<Project>()
                 .Query()
@@ -37,11 +34,25 @@ public sealed class ProjectAccessService : IProjectAccessService
             return allProjectIds.ToHashSet();
         }
 
+        if (_currentUser.IsInAnyRole(
+                BPG.Domain.Constants.UserRole.Director,
+                BPG.Domain.Constants.UserRole.Accountant))
+        {
+            var allProjectIds = await _unitOfWork.Repository<Project>()
+                .Query()
+                .AsNoTracking()
+                .Where(project => project.Status != BPG.Domain.Constants.ProjectStatus.Draft)
+                .Select(project => project.ProjectId)
+                .ToListAsync(ct);
+
+            return allProjectIds.ToHashSet();
+        }
+
         var userId = _currentUser.GetRequiredUserId();
         var memberProjectIds = await _unitOfWork.Repository<ProjectMember>()
             .Query()
             .AsNoTracking()
-            .Where(member => member.UserId == userId)
+            .Where(member => member.UserId == userId && member.Project.Status != BPG.Domain.Constants.ProjectStatus.Draft)
             .Select(member => member.ProjectId)
             .ToListAsync(ct);
 

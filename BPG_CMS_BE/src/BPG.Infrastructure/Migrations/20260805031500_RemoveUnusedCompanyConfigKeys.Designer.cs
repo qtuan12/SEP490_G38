@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BPG.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260804092903_AddBaseEntityToTaskProgressLog")]
-    partial class AddBaseEntityToTaskProgressLog
+    [Migration("20260805031500_RemoveUnusedCompanyConfigKeys")]
+    partial class RemoveUnusedCompanyConfigKeys
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

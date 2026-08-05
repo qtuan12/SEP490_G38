@@ -23,7 +23,7 @@ interface WBSWorkspaceProps {
 
 export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { user, hasAnyRole } = useAuth();
-  const { canManageExecution, isProjectLeader } = useProjectAccess(projectId);
+  const { isProjectLeader } = useProjectAccess(projectId);
   const navigate = useNavigate();
 
   const queryClient = useQueryClient();
@@ -196,7 +196,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     setExpandedPhases(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
 
   const handleSuccess = (msg: string) => {
-    toast.success(msg);
+    console.log(msg);
     queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
     // Refresh supporting information in the background without blocking the tree.
     queryClient.invalidateQueries({ queryKey: ['wbsProject', projectId] });
@@ -211,8 +211,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
 
-  const isTPKTOrPL = canManageExecution;
+  const isTPKT = hasAnyRole(RoleGroup.Technical);
   const isPL = isProjectLeader;
+  const isTPKTOrPL = isTPKT || isPL;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
@@ -220,7 +221,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return phaseTasks.every(t => t.progress === 100);
   };
 
-  const isTPKT = hasAnyRole(RoleGroup.Technical);
   const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
 
   const canEdit = isTPKTOrPL && (

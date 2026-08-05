@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
@@ -55,8 +55,8 @@ export const PhaseBOQ: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { canManageTechnical } = useProjectAccess(projectId);
-  const canEdit = canManageTechnical;
+  const { isTechnicalManager } = useProjectAccess(projectId);
+  const canEdit = isTechnicalManager;
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
@@ -211,7 +211,7 @@ export const PhaseBOQ: React.FC = () => {
       // không bị chặn bởi guard bảo vệ thay đổi chưa lưu.
       reset(savedForm);
       const msg = `Đã cập nhật Bảng vật tư cho Giai đoạn: ${phase?.name}`;
-      toast.success(msg);
+      console.log(msg);
 
       // Reload phase data to display updated values in place
       if (projectId && phaseId) {

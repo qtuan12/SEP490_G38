@@ -37,7 +37,7 @@ export const UnitManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    toast.success(message);
+    console.log(message);
   };
 
   // Delete mutation

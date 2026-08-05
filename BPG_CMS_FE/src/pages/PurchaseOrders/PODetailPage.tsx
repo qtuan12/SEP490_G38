@@ -4,12 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { useNotification } from '../../context/NotificationContext';
 import { Button, Badge } from '../../components/ui';
-import toast from 'react-hot-toast';
 import {
   ArrowLeft, ShoppingCart, Building2, CalendarDays, MapPin,
   FileText, Package, Link2, AlertCircle, Loader2, XCircle, Ban, Lock,
 } from 'lucide-react';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import toast from 'react-hot-toast';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
@@ -89,7 +89,7 @@ export const PODetailPage: React.FC = () => {
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(poId, cancelReason),
     onSuccess: (result) => {
-      toast.success(result.message || 'Thao tác thành công.');
+      toast.success(result.message || 'Đã hủy đơn mua hàng.');
       setShowCancelModal(false);
       setCancelReason('');
       queryClient.invalidateQueries({ queryKey: ['po-detail', poId] });
@@ -105,7 +105,7 @@ export const PODetailPage: React.FC = () => {
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(poId, closeReason),
     onSuccess: (result) => {
-      toast.success(result.message || 'Thao tác thành công.');
+      toast.success(result.message || 'Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
       setShowCloseModal(false);
       setCloseReason('');
       queryClient.invalidateQueries({ queryKey: ['po-detail', poId] });
