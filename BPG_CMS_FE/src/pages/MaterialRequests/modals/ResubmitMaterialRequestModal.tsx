@@ -13,28 +13,58 @@ import { Modal } from '../../../../src/components/ui/Modal';
 import { SearchSelect } from '../../../../src/components/ui/SearchSelect';
 import { isDiscreteUnit } from '../../../../src/utils/unitHelpers';
 
+const requestItemSchema = z.object({
+  name: z.string().min(1, 'Vui lòng chọn vật tư.'),
+  quantity: z.number({ message: 'Vui lòng nhập số lượng.' }).min(0.01, 'Số lượng phải > 0'),
+  unit: z.any()
+}).superRefine((data, ctx) => {
+  if (data.name && data.name.trim() !== '') {
+    // 1. Verify unit is selected
+    if (!data.unit || data.unit.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Vui lòng chọn ĐVT',
+        path: ['unit']
+      });
+    }
+
+    // 2. Discrete unit check
+    if (isDiscreteUnit(data.unit)) {
+      if (data.quantity % 1 !== 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Đơn vị "${data.unit}" yêu cầu số lượng phải là số nguyên.`,
+          path: ['quantity']
+        });
+      }
+    }
+  }
+});
+
 const resubmitMaterialRequestSchema = z.object({
   type: z.enum(['normal', 'emergency']),
   reason: z.string().optional(),
   invoiceImage: z.string().optional(),
   isOverBOQ: z.boolean(),
-  items: z.array(
-    z.object({
-      name: z.string().min(1, 'Vui lòng nhập tên vật tư.'),
-      quantity: z.number({ message: 'Vui lòng nhập số lượng.' }).min(0.01, 'Số lượng phải > 0'),
-      unit: z.string().min(1, 'Vui lòng nhập ĐVT')
-    })
-  ).min(1, 'Cần ít nhất 1 vật tư')
+  items: z.array(requestItemSchema).min(1, 'Cần ít nhất 1 vật tư')
 }).superRefine((data, ctx) => {
-  // Kiểm tra trùng lặp vật tư
-  const names = data.items.map(it => it.name).filter(name => name.trim() !== '');
-  if (names.length !== new Set(names).size) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Danh sách vật tư yêu cầu không được trùng lặp.',
-      path: ['items']
-    });
-  }
+  // Check duplicates
+  const counts: Record<string, number> = {};
+  data.items.forEach(it => {
+    if (it.name && it.name.trim() !== '') {
+      counts[it.name] = (counts[it.name] || 0) + 1;
+    }
+  });
+
+  data.items.forEach((it, idx) => {
+    if (it.name && counts[it.name] > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Vật tư này bị trùng lặp trong danh sách.',
+        path: ['items', idx, 'name']
+      });
+    }
+  });
 
   if (data.type === 'emergency' && (!data.invoiceImage || data.invoiceImage.trim() === '')) {
     ctx.addIssue({
@@ -43,19 +73,6 @@ const resubmitMaterialRequestSchema = z.object({
       path: ['invoiceImage']
     });
   }
-
-  // Ràng buộc ĐVT số nguyên không chấp nhận số lượng lẻ
-  data.items.forEach((item, idx) => {
-    if (item.name && isDiscreteUnit(item.unit)) {
-      if (item.quantity % 1 !== 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Đơn vị "${item.unit}" yêu cầu số lượng phải là số nguyên.`,
-          path: ['items', idx, 'quantity']
-        });
-      }
-    }
-  });
 });
 
 type ResubmitMaterialRequestForm = z.infer<typeof resubmitMaterialRequestSchema>;
@@ -227,8 +244,16 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                     }))}
                     value={watchedItems[idx]?.name || ''}
                     onChange={async (selName) => {
-                      setValue(`items.${idx}.name`, selName, { shouldValidate: true });
+                      setValue(`items.${idx}.name`, selName, { shouldValidate: true, shouldDirty: true });
                       handleMaterialChange(idx, selName);
+                      
+                      // Trigger validation for all rows that have a material selected, to update duplicate state!
+                      watchedItems.forEach((it, i) => {
+                        if (it.name || i === idx) {
+                          void trigger(`items.${i}.name`);
+                        }
+                      });
+                      await trigger(`items.${idx}.quantity`);
                       await trigger(`items.${idx}.unit`);
                     }}
                     placeholder="-- Chọn vật tư --"
@@ -242,7 +267,12 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                     min={isDiscreteUnit(watchedItems[idx]?.unit) ? 1 : 0.01}
                     step={isDiscreteUnit(watchedItems[idx]?.unit) ? "1" : "any"}
                     placeholder="SL"
-                    {...register(`items.${idx}.quantity` as const, { valueAsNumber: true })}
+                    {...register(`items.${idx}.quantity` as const, {
+                      valueAsNumber: true,
+                      onChange: async () => {
+                        await trigger(`items.${idx}.quantity`);
+                      }
+                    })}
                     className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
                   />
                   {errors.items?.[idx]?.quantity && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.quantity?.message}</p>}
@@ -251,7 +281,12 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                   <input
                     type="text"
                     placeholder="ĐVT"
-                    {...register(`items.${idx}.unit` as const)}
+                    {...register(`items.${idx}.unit` as const, {
+                      onChange: async () => {
+                        await trigger(`items.${idx}.quantity`);
+                        await trigger(`items.${idx}.unit`);
+                      }
+                    })}
                     className={`w-full text-sm px-3 py-2 rounded-md border ${errors.items?.[idx]?.unit ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600`}
                   />
                   {errors.items?.[idx]?.unit && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.unit?.message}</p>}
