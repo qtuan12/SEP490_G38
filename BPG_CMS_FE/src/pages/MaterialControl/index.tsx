@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type { MaterialRequest } from '../../types/common';
@@ -270,7 +270,7 @@ export const MaterialControl: React.FC = () => {
         />
 
         {/* Pagination Controls */}
-        {!loadingRequests && totalPages > 1 && (
+        {!loadingRequests && totalPages >= 1 && (
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
             <Pagination
               currentPage={currentPage}

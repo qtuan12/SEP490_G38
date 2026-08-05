@@ -583,7 +583,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       </div>
 
       {/* PAGINATION */}
-      {totalPages > 1 && (
+      {totalPages >= 1 && (
         <div className="p-4 border-t border-[hsl(var(--border))] flex justify-center">
           <Pagination
             currentPage={currentPage}
