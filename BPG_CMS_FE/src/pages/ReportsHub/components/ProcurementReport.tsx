@@ -236,9 +236,9 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
       {/* PO Table */}
       {activeTab === 'po' && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700">
+          <div className="max-h-[420px] overflow-y-auto overflow-x-auto custom-scrollbar">
+            <table className="w-full text-xs text-left relative">
+              <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                 <tr>
                   <th className="px-4 py-3">Số PO</th>
                   <th className="px-4 py-3">Nhà cung cấp</th>
@@ -278,9 +278,9 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
       {/* Direct Purchase Table */}
       {activeTab === 'dp' && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700">
+          <div className="max-h-[420px] overflow-y-auto overflow-x-auto custom-scrollbar">
+            <table className="w-full text-xs text-left relative">
+              <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                 <tr>
                   <th className="px-4 py-3">Mã phiếu</th>
                   <th className="px-4 py-3">Người yêu cầu</th>

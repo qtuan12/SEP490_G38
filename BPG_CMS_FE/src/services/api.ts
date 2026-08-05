@@ -23,14 +23,23 @@ interface RequestOptions extends RequestInit {
 export class ApiError extends Error {
   readonly errorCode?: string;
   readonly errors?: string[];
+  /** Lỗi validate theo từng trường (key = tên property của command, camelCase) — dùng để gắn dòng đỏ dưới ô nhập. */
+  readonly fieldErrors?: Record<string, string[]>;
   readonly status: number;
 
-  constructor(message: string, status: number, errorCode?: string, errors?: string[]) {
+  constructor(
+    message: string,
+    status: number,
+    errorCode?: string,
+    errors?: string[],
+    fieldErrors?: Record<string, string[]>,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.errorCode = errorCode;
     this.errors = errors;
+    this.fieldErrors = fieldErrors;
   }
 }
 
@@ -167,6 +176,9 @@ export const apiClient = {
           response.status,
           errorData.errorCode,
           Array.isArray(errorData.errors) ? errorData.errors : undefined,
+          errorData.fieldErrors && typeof errorData.fieldErrors === 'object'
+            ? errorData.fieldErrors
+            : undefined,
         );
       }
 

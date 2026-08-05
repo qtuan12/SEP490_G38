@@ -148,7 +148,7 @@ export const PortfolioDashboard: React.FC = () => {
                   w.warningType === 'Red' ? 'bg-red-50 border-red-200 text-red-700' :
                     'bg-yellow-50 border-yellow-200 text-yellow-700'
                   }`}
-                onClick={() => navigate(`/projects/${w.projectId}/tasks/${w.taskId}`)}
+                onClick={() => navigate(`/projects/${w.projectId}?tab=wbs${w.taskId ? `&taskId=${w.taskId}` : ''}`)}
               >
                 <div className="flex items-start gap-3">
                   <AlertTriangle size={20} className="shrink-0 mt-0.5" />

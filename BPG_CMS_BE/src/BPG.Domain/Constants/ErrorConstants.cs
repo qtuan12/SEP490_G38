@@ -50,9 +50,9 @@ public static class ErrorCodes
     public const string PoRequestNotApproved = "BIZ_016";        // Yêu cầu vật tư chưa được duyệt
     public const string PoMaterialNotInRequest = "BIZ_017";      // Vật tư không thuộc yêu cầu đã chọn
     public const string PoQtyExceedsRequest = "BIZ_018";         // SL đặt vượt SL còn lại của yêu cầu
-    public const string PoOrderDateBeforePhase = "BIZ_019";      // Ngày đơn hàng trước ngày bắt đầu giai đoạn
+    public const string PoOrderDateBeforeProject = "BIZ_019";    // Ngày đơn hàng trước ngày bắt đầu dự án
     public const string PoOrderDateAfterPhase = "BIZ_020";       // Ngày đơn hàng sau ngày kết thúc giai đoạn
-    public const string PoDeliveryDateBeforePhase = "BIZ_021";   // Hạn giao hàng trước ngày bắt đầu giai đoạn
+    public const string PoDeliveryDateBeforeProject = "BIZ_021"; // Hạn giao hàng trước ngày bắt đầu dự án
     public const string PoDeliveryDateAfterPhase = "BIZ_022";    // Hạn giao hàng sau ngày kết thúc giai đoạn
 
     // ==================== MUA HÀNG TRỰC TIẾP (DP) ====================
@@ -70,7 +70,7 @@ public static class ErrorCodes
     public const string DpProjectNotActive = "BIZ_034";          // Dự án không ở trạng thái đang thi công
     public const string DpPhaseFrozen = "BIZ_035";               // Giai đoạn đã nghiệm thu, bị đóng băng
     public const string DpPurchaseDateInFuture = "BIZ_036";      // Ngày mua ở tương lai
-    public const string DpPurchaseDateBeforePhase = "BIZ_037";   // Ngày mua trước ngày bắt đầu giai đoạn
+    public const string DpPurchaseDateBeforeProject = "BIZ_037";  // Ngày mua trước ngày bắt đầu dự án
     public const string DpPurchaseDateAfterPhase = "BIZ_038";    // Ngày mua sau ngày kết thúc giai đoạn
     public const string DpPhaseProjectMismatch = "BIZ_039";      // Giai đoạn không thuộc dự án đã chọn
     public const string DpDuplicateMaterial = "BIZ_040";         // Vật tư bị khai báo trùng trong phiếu

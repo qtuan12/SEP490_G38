@@ -14,6 +14,7 @@ import { Plus, Trash2, Upload, X, AlertTriangle, Loader2, Info } from 'lucide-re
 import toast from 'react-hot-toast';
 import { ApiError } from '../../services/api';
 import { DP_PURCHASE_DATE_ERRORS } from '../../constants/errorCodes';
+import { todayLocalISO, toInputDate } from '../../utils/dateHelpers';
 import { compressAndUploadFile } from '../../utils/uploadHelper';
 import type { UploadedFileState } from '../../utils/uploadHelper';
 
@@ -53,6 +54,8 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const isEditing = !!draftId;
 
   const [phases, setPhases] = useState<WBSPhase[]>([]);
+  /** Ngày bắt đầu dự án (yyyy-mm-dd) — cận dưới của ngày mua. */
+  const [projectStart, setProjectStart] = useState<string | undefined>();
   const [selectedPhaseId, setSelectedPhaseId] = useState<string>('');
   const [boqItems, setBoqItems] = useState<PhaseBOQItemDto[]>([]);
   const [catalog, setCatalog] = useState<MaterialCatalog[]>([]);
@@ -60,7 +63,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const [loadingDraft, setLoadingDraft] = useState(false);
   const [rows, setRows] = useState<ItemRow[]>([]);
   const [reason, setReason] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [purchaseDate, setPurchaseDate] = useState(todayLocalISO);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const [saving, setSaving] = useState<'draft' | 'submit' | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -71,6 +74,10 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   useEffect(() => {
     if (!isOpen) return;
     projectService.getPhases(String(projectId)).then(setPhases).catch(() => setPhases([]));
+    projectService
+      .getProjectById(String(projectId))
+      .then(p => setProjectStart(p?.startDate ? toInputDate(p.startDate) : undefined))
+      .catch(() => setProjectStart(undefined));
     materialService
       .getMaterials({ pageNumber: 1, pageSize: 1000 })
       .then(res => setCatalog(res.items ?? []))
@@ -81,7 +88,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       setBoqItems([]);
       setRows([]);
       setReason('');
-      setPurchaseDate(new Date().toISOString().split('T')[0]);
+      setPurchaseDate(todayLocalISO());
       setUploadedFiles([]);
       setPurchaseDateError(null);
     }
@@ -98,7 +105,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       .then(async dp => {
         setSelectedPhaseId(String(dp.phaseId));
         setReason(dp.reason);
-        setPurchaseDate(new Date(dp.purchaseDate).toISOString().split('T')[0]);
+        setPurchaseDate(toInputDate(dp.purchaseDate));
         setUploadedFiles(
           dp.invoicePhotoUrls.map((url, i) => ({
             id: `existing-${i}`,
@@ -159,20 +166,20 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     setRows(prev => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
 
   // ---------- Khoảng ngày mua hợp lệ ----------
-  // Phiếu mua trực tiếp là hậu kiểm nên ngày mua không được ở tương lai,
-  // đồng thời phải nằm trong khoảng thi công của giai đoạn. Backend chốt lại ở bước Gửi.
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Phiếu mua trực tiếp là hậu kiểm nên ngày mua không được ở tương lai.
+  // Không bắt buộc nằm trong khoảng của giai đoạn: chỉ cần không sớm hơn ngày bắt đầu dự án
+  // và không vượt quá ngày kết thúc giai đoạn. Backend chốt lại ở bước Gửi.
+  const todayStr = todayLocalISO();
   const selectedPhase = phases.find(p => String(p.id) === selectedPhaseId);
-  const phaseStart = selectedPhase?.startDate?.split('T')[0];
   const phaseEnd = selectedPhase?.endDate?.split('T')[0];
   const maxPurchaseDate = phaseEnd && phaseEnd < todayStr ? phaseEnd : todayStr;
-  const minPurchaseDate = phaseStart;
+  const minPurchaseDate = projectStart;
 
   const purchaseDateHint = (): string | null => {
     if (!purchaseDate) return null;
     if (purchaseDate > todayStr) return 'Ngày mua không được ở tương lai.';
     if (minPurchaseDate && purchaseDate < minPurchaseDate)
-      return `Ngày mua phải từ ${toDisplayDate(minPurchaseDate)} (ngày bắt đầu giai đoạn) trở đi.`;
+      return `Ngày mua phải từ ${toDisplayDate(minPurchaseDate)} (ngày bắt đầu dự án) trở đi.`;
     if (phaseEnd && purchaseDate > phaseEnd)
       return `Ngày mua vượt quá ngày kết thúc giai đoạn (${toDisplayDate(phaseEnd)}).`;
     return null;

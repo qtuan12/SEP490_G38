@@ -208,9 +208,18 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
         // Fetch average unit prices from PO items
         var avgPricesMap = await _unitOfWork.Repository<PurchaseOrderItem>()
             .Query()
-            .Where(p => p.UnitPrice > 0)
+            .Where(p => p.UnitPrice > 0
+                && p.PurchaseOrder!.Status != PurchaseOrderStatus.Draft
+                && p.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
+                && (request.ProjectId > 0
+                    ? p.PurchaseOrder.ProjectId == request.ProjectId
+                    : accessibleIds.Contains(p.PurchaseOrder.ProjectId)))
             .GroupBy(p => p.MaterialId)
-            .Select(g => new { MaterialId = g.Key, AvgPrice = g.Average(x => x.UnitPrice) })
+            .Select(g => new
+            {
+                MaterialId = g.Key,
+                AvgPrice = g.Average(x => x.UnitPrice / (x.ConversionRate > 0 ? x.ConversionRate : 1m))
+            })
             .ToDictionaryAsync(x => x.MaterialId, x => x.AvgPrice, cancellationToken);
 
         // Fetch project overall progress for Earned BOQ Calculation

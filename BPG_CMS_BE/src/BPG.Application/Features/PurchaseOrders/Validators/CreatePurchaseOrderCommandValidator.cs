@@ -7,7 +7,11 @@ namespace BPG.Application.Features.PurchaseOrders.Validators
     {
         public CreatePurchaseOrderCommandValidator()
         {
-            RuleFor(x => x.ProjectId).GreaterThan(0);
+            RuleFor(x => x.ProjectId).GreaterThan(0).WithMessage("Vui lòng chọn dự án.");
+            // Đơn hàng luôn gửi tới một nhà cung cấp cụ thể — form tạo PO cũng đánh dấu trường này bắt buộc.
+            RuleFor(x => x.SupplierId)
+                .NotNull().WithMessage("Vui lòng chọn nhà cung cấp.")
+                .GreaterThan(0).WithMessage("Vui lòng chọn nhà cung cấp.");
             RuleFor(x => x.OrderDate)
                 .NotEmpty()
                 .Must(d => d.Date >= DateTime.Today)

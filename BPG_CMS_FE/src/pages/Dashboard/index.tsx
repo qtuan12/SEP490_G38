@@ -1,4 +1,4 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -337,7 +337,7 @@ export const Dashboard: React.FC = () => {
                     w.warningType === 'Red' ? 'bg-red-50 border-red-200 text-red-700' :
                       'bg-yellow-50 border-yellow-200 text-yellow-700'
                     }`}
-                  onClick={() => navigate(`/projects/${w.projectId}?tab=wbs`)}
+                  onClick={() => navigate(`/projects/${w.projectId}?tab=wbs${w.taskId ? `&taskId=${w.taskId}` : ''}`)}
                 >
                   <div className="flex items-start gap-3">
                     <AlertTriangle size={20} className="shrink-0 mt-0.5" />
@@ -589,7 +589,7 @@ export const Dashboard: React.FC = () => {
                   {warnings.map((w, idx) => (
                     <div
                       key={idx}
-                      onClick={() => navigate(`/projects/${w.projectId}?tab=wbs`)}
+                      onClick={() => navigate(`/projects/${w.projectId}?tab=wbs${w.taskId ? `&taskId=${w.taskId}` : ''}`)}
                       className={`p-3 rounded border text-xs cursor-pointer hover:shadow-sm transition-all flex flex-col gap-1 ${w.warningType === 'Critical' ? 'bg-[hsl(var(--danger)/0.04)] border-[hsl(var(--danger)/0.25)] hover:border-[hsl(var(--danger))]' :
                         w.warningType === 'Red' ? 'bg-red-50/40 border-red-200 hover:border-red-400' :
                           'bg-yellow-50/40 border-yellow-200 hover:border-yellow-400'
@@ -819,7 +819,7 @@ export const Dashboard: React.FC = () => {
                         {projectExecData.delayedTasksList.map((task: any) => (
                           <tr
                             key={task.taskId}
-                            onClick={() => navigate(`/projects/${selectedProjectId.replace('p-', '')}/tasks/${task.taskId}/logs`)}
+                            onClick={() => navigate(`/projects/${selectedProjectId.replace('p-', '')}?tab=wbs&taskId=${task.taskId}`)}
                             className="hover:bg-[hsl(var(--bg-main))] transition-colors cursor-pointer"
                           >
                             <td className="px-4 py-2.5 whitespace-nowrap">

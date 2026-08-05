@@ -113,31 +113,43 @@ export const ProjectList: React.FC = () => {
   const filteredProjects = projects.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.address.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === '' || p.status === statusFilter;
+    const pStatus = p.status?.toLowerCase()?.trim() || '';
+    const fStatus = statusFilter?.toLowerCase()?.trim() || '';
+
+    let matchesStatus = fStatus === '' || pStatus === fStatus;
+    if (fStatus === 'done') {
+      matchesStatus = pStatus === 'done' || pStatus === 'completed';
+    } else if (fStatus === 'inprogress') {
+      matchesStatus = pStatus === 'inprogress' || pStatus === 'in_progress';
+    }
     return matchesSearch && matchesStatus;
   });
 
   const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
   const paginatedProjects = filteredProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const getStatusLabel = (status: string) => {
-    switch (status.toLowerCase()) {
+  const getStatusLabel = (status: Project['status'] | string) => {
+    const s = status?.toLowerCase()?.trim();
+    switch (s) {
       case 'draft': return 'Bản nháp';
-      case 'inprogress': return 'Đang chạy';
+      case 'inprogress':
+      case 'in_progress': return 'Đang chạy';
       case 'paused': return 'Tạm dừng';
       case 'done':
       case 'completed': return 'Hoàn thành';
-      default: return status;
+      default: return status || 'Chưa xác định';
     }
   };
 
-  const getStatusBadgeVariant = (status: string): BadgeVariant => {
-    switch (status.toLowerCase()) {
+  const getStatusBadgeVariant = (status: Project['status'] | string): BadgeVariant => {
+    const s = status?.toLowerCase()?.trim();
+    switch (s) {
       case 'draft': return 'default';
-      case 'inprogress': return 'info';
+      case 'inprogress':
+      case 'in_progress': return 'success';
       case 'paused': return 'warning';
       case 'done':
-      case 'completed': return 'success';
+      case 'completed': return 'info';
       default: return 'default';
     }
   };
@@ -230,63 +242,69 @@ export const ProjectList: React.FC = () => {
             paginatedProjects.map((p) => (
               <div
                 key={p.id}
-                className="card flex flex-col gap-4 cursor-pointer transition-all duration-200 animate-fade-in hover:-translate-y-1 hover:border-[hsl(var(--primary))] hover:shadow-lg"
+                className="card flex flex-col justify-between h-full min-w-0 cursor-pointer transition-all duration-200 animate-fade-in hover:-translate-y-1 hover:border-[hsl(var(--primary))] hover:shadow-lg p-5"
                 onClick={() => navigate(`/projects/${p.id}`)}
               >
-                {/* Upper info */}
-                <div className="flex justify-between items-start gap-2">
-                  <h3 className="text-[1.1rem] font-bold leading-tight flex-1 min-w-0 break-words">{p.name}</h3>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {canDeleteProject && p.status === 'draft' && (
-                      <button
-                        onClick={(e) => openDeleteConfirm(e, p.id, p.name)}
-                        className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors shrink-0"
-                        title="Xóa dự án"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                    <Badge variant={getStatusBadgeVariant(p.status)} className="shrink-0">
-                      {getStatusLabel(p.status)}
-                    </Badge>
+                <div className="flex flex-col gap-3 min-w-0">
+                  {/* Upper info */}
+                  <div className="flex justify-between items-start gap-2 min-w-0">
+                    <h3 className="text-[1.05rem] font-bold leading-snug text-[hsl(var(--text-primary))] line-clamp-2 min-h-[2.6rem] flex-1 min-w-0" title={p.name}>
+                      {p.name}
+                    </h3>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {canDeleteProject && p.status === 'draft' && (
+                        <button
+                          onClick={(e) => openDeleteConfirm(e, p.id, p.name)}
+                          className="text-[hsl(var(--danger)/0.7)] hover:text-[hsl(var(--danger))] p-1 rounded-md hover:bg-[hsl(var(--danger)/0.1)] transition-colors"
+                          title="Xóa dự án"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                      <Badge variant={getStatusBadgeVariant(p.status)} className="shrink-0">
+                        {getStatusLabel(p.status)}
+                      </Badge>
+                    </div>
                   </div>
-                </div>
 
-                {/* Details */}
-                <div className="flex flex-col gap-2.5 text-[0.85rem] text-[hsl(var(--text-secondary))] flex-1">
-                  <div className="flex gap-2 items-start">
-                    <MapPin size={16} className="text-[hsl(var(--text-muted))] shrink-0 mt-0.5" />
-                    <span>{p.address}</span>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <Calendar size={16} className="text-[hsl(var(--text-muted))] shrink-0" />
-                    <span>Hạn: {p.startDate?.split('-').reverse().join('-')} → {p.endDate?.split('-').reverse().join('-')}</span>
-                  </div>
-                  {p.drawingUrl && (
-                    <div className="flex gap-2 items-center text-[hsl(var(--primary-hover))]">
-                      <FileText size={16} className="shrink-0" />
-                      <span className="underline truncate">
-                        Bản vẽ: {p.drawingUrl}
+                  {/* Details */}
+                  <div className="flex flex-col gap-2 text-[0.85rem] text-[hsl(var(--text-secondary))] min-w-0">
+                    <div className="flex gap-2 items-start min-w-0">
+                      <MapPin size={16} className="text-[hsl(var(--text-muted))] shrink-0 mt-0.5" />
+                      <span className="line-clamp-2 min-h-[2.4rem] break-words flex-1 min-w-0" title={p.address}>
+                        {p.address}
                       </span>
                     </div>
-                  )}
-                </div>
-
-                {/* Progress bar */}
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span>Tiến độ tổng thể:</span>
-                    <span className="text-[hsl(var(--primary-hover))]">{p.progress}%</span>
+                    <div className="flex gap-2 items-center min-w-0">
+                      <Calendar size={16} className="text-[hsl(var(--text-muted))] shrink-0" />
+                      <span className="truncate">Hạn: {p.startDate?.split('-').reverse().join('-')} → {p.endDate?.split('-').reverse().join('-')}</span>
+                    </div>
+                    {p.drawingUrl && (
+                      <div className="flex gap-2 items-center text-[hsl(var(--primary-hover))] min-w-0">
+                        <FileText size={16} className="shrink-0" />
+                        <span className="underline truncate min-w-0">
+                          Bản vẽ: {p.drawingUrl}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="h-1.5 bg-[hsl(var(--border))] rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[hsl(var(--primary-hover))] to-[hsl(var(--primary))] transition-all duration-400 ease-out" style={{ width: `${p.progress}%` }} />
+
+                  {/* Progress bar */}
+                  <div className="flex flex-col gap-1.5 mt-1 min-w-0">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span>Tiến độ tổng thể:</span>
+                      <span className="text-[hsl(var(--primary-hover))]">{p.progress}%</span>
+                    </div>
+                    <div className="h-1.5 bg-[hsl(var(--border))] rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-[hsl(var(--primary-hover))] to-[hsl(var(--primary))] transition-all duration-400 ease-out" style={{ width: `${p.progress}%` }} />
+                    </div>
                   </div>
                 </div>
 
                 {/* Action button mock */}
-                <div className="flex items-center justify-between gap-2 mt-1 border-t border-[hsl(var(--border)/0.5)] pt-3">
-                  <div className="flex items-center gap-1.5 text-[hsl(var(--primary))] text-[0.9rem] font-semibold">
-                    <span>Xem chi tiết dự án </span>
+                <div className="flex items-center justify-between gap-2 mt-4 border-t border-[hsl(var(--border)/0.5)] pt-3 min-w-0">
+                  <div className="flex items-center gap-1.5 text-[hsl(var(--primary))] text-[0.875rem] font-semibold">
+                    <span>Xem chi tiết dự án</span>
                     <ArrowRight size={16} />
                   </div>
                   {showFieldShortcut && (
@@ -296,7 +314,7 @@ export const ProjectList: React.FC = () => {
                         e.stopPropagation();
                         navigate(`/field?projectId=${p.id}&standalone=true`);
                       }}
-                      className="shrink-0 flex items-center gap-1 h-9 px-3 rounded-md bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] text-xs font-semibold"
+                      className="shrink-0 flex items-center gap-1 h-8 px-2.5 rounded-md bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] text-xs font-semibold hover:bg-[hsl(var(--primary)/0.15)] transition-colors"
                       title="Việc của tôi trong dự án này"
                     >
                       <ClipboardList size={14} />
