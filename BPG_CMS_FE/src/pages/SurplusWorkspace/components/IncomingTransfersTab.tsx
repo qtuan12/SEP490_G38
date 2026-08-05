@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from 'react';
-import { LoadingSpinner } from '../../../components/ui';
+import React, { useEffect, useState } from 'react';
+import { TableLoader } from '../../../components/ui';
 import { surplusService } from '../../../services/surplusService';
 import type { IncomingTransfer } from '../../../types/surplus';
 import { getSurplusTransferStatusDetails, formatDateVN } from '../../../utils/surplusHelpers';
@@ -116,13 +116,7 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading && list.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-10 text-center">
-                  <div className="flex justify-center items-center gap-2">
-                    <LoadingSpinner /> <span className="text-slate-500">Đang tải dữ liệu...</span>
-                  </div>
-                </td>
-              </tr>
+              <TableLoader colSpan={7} message="Đang tải dữ liệu vật tư chuyển đến..." />
             ) : list.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-10 text-center text-slate-500">

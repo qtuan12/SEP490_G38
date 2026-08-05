@@ -1,4 +1,6 @@
 using BPG.Application.Common.Models;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Commands;
 using BPG.Application.Features.Users.Queries;
@@ -20,6 +22,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.Admin)]
     public async Task<IActionResult> CreateUser(CreateUserCommand command)
     {
@@ -28,6 +31,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpPut("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.Admin)]
     public async Task<IActionResult> UpdateUser(long id, UpdateUserRequest request)
     {
@@ -36,6 +40,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpDelete("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.Admin)]
     public async Task<IActionResult> DeleteUser(long id)
     {
@@ -44,6 +49,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpPost("{id}/toggle-status")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.Admin)]
     public async Task<IActionResult> ToggleUserStatus(long id)
     {
@@ -53,4 +59,3 @@ public class UsersController : BaseApiController
         return ApiOk(result, $"Đã {action} tài khoản '{result.Name}'.");
     }
 }
-

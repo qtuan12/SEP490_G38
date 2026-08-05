@@ -79,10 +79,22 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án liên kết phải ở trạng thái đang tiến hành (InProgress).");
             }
 
-            // 3. Kiểm tra xem task có bị khóa không
-            if (task.IsLocked)
+            // 3. Kiểm tra xem công việc có bị khóa, hoàn thành, tạm dừng hoặc bị hủy/vô hiệu hóa không
+            var taskStatusLower = (task.Status ?? string.Empty).ToLower();
+            var isInactiveTask = task.IsLocked
+                || task.ProgressPercent >= 100
+                || taskStatusLower == "obsolete"
+                || taskStatusLower == "completed"
+                || taskStatusLower == "approved"
+                || taskStatusLower == "done"
+                || taskStatusLower == "paused"
+                || taskStatusLower == "stopped"
+                || taskStatusLower == "cancelled"
+                || taskStatusLower == "canceled";
+
+            if (isInactiveTask)
             {
-                throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã bị khóa (đã nghiệm thu hoặc hoàn thành). Không thể xuất thêm vật tư.");
+                throw new BusinessException("ERR_TASK_INACTIVE", "Không thể xuất kho cho công việc đã bị dừng, tạm dừng, hoàn thành hoặc đã bị hủy.");
             }
 
             // 4. Kiểm tra tồn kho khả dụng của từng vật tư

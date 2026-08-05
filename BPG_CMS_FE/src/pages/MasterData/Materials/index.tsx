@@ -4,9 +4,9 @@ import { materialService } from '../../../services/materialService';
 import { materialCategoryService } from '../../../services/materialCategoryService';
 import { MaterialFormModal } from './modals/MaterialFormModal';
 import { MaterialConversionDrawer } from './drawers/MaterialConversionDrawer';
-import { ConfirmDialog, Button, Select, DataTable, Pagination } from '../../../components/ui';
+import { ConfirmDialog, Button, Select, DataTable, Pagination, TableLoader } from '../../../components/ui';
 import type { MaterialCatalog } from '../../../types/material';
-import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, Package, ArrowRightLeft } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, AlertCircle, Package, ArrowRightLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../../context/AuthContext';
 import { RoleGroup, hasAnyRole } from '../../../auth/roles';
@@ -191,10 +191,7 @@ export const MaterialManagement: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-[200px] gap-2.5">
-            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-            <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu...</span>
-          </div>
+          <TableLoader isTable={false} message="Đang tải dữ liệu vật tư..." minHeight="200px" />
         ) : (
           <div className="flex flex-col gap-4">
             <DataTable

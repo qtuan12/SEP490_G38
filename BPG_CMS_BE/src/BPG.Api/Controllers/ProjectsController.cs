@@ -1,4 +1,6 @@
-﻿namespace BPG.Api.Controllers;
+namespace BPG.Api.Controllers;
+
+using BPG.Api.Configuration;
 
 using BPG.Application.Common.Models;
 using BPG.Application.Features.Projects.Commands;
@@ -7,6 +9,8 @@ using BPG.Application.Features.Projects.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
+using Microsoft.AspNetCore.RateLimiting;
 
 [Authorize]
 public class ProjectsController : BaseApiController
@@ -36,6 +40,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
     [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetProjectById(long id)
     {
@@ -44,6 +49,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet("{id}/access")]
+    [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
     [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetMyAccess(long id, CancellationToken ct)
     {
@@ -52,6 +58,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> CreateProject([FromBody] CreateProjectCommand command)
     {
@@ -60,6 +67,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> UpdateProject(long id, [FromBody] UpdateProjectCommand command)
     {
@@ -71,6 +79,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}/activate")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> ActivateProject(long id)
     {
@@ -79,6 +88,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}/pause")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> PauseProject(long id, [FromBody] PauseProjectCommand command)
     {
@@ -90,6 +100,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}/resume")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> ResumeProject(long id)
     {
@@ -98,6 +109,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpDelete("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> DeleteProject(long id)
     {
@@ -106,6 +118,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPost("{id}/members")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> AddProjectMember(long id, [FromBody] AddProjectMemberCommand command)
     {
@@ -117,6 +130,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpGet("{id}/available-members")]
+    [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> GetAvailableProjectMembers(long id, CancellationToken ct)
     {
@@ -125,6 +139,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpDelete("{id}/members/{userId}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> RemoveProjectMember(long id, long userId)
     {
@@ -133,6 +148,7 @@ public class ProjectsController : BaseApiController
     }
 
     [HttpPut("{id}/members/{userId}/leader")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
     public async Task<IActionResult> AssignProjectLeader(long id, long userId)
     {
@@ -140,4 +156,3 @@ public class ProjectsController : BaseApiController
         return ApiOk("Gan chuc vu truong nhom thanh cong.");
     }
 }
-

@@ -1,4 +1,6 @@
 using BPG.Application.Features.Tasks.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.Tasks.Queries.GetTaskDetails;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +14,7 @@ namespace BPG.Api.Controllers;
 public class TasksController : BaseApiController
 {
     [HttpGet("{taskId}")]
+    [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
     [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetTaskDetails([FromRoute] long taskId, CancellationToken ct)
     {
@@ -20,6 +23,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPost("phases/{phaseId}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> CreateTask([FromRoute] long phaseId, [FromBody] CreateTaskCommand command, CancellationToken ct)
     {
@@ -29,6 +33,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> UpdateTask([FromRoute] long taskId, [FromBody] UpdateTaskCommand command, CancellationToken ct)
     {
@@ -38,6 +43,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpDelete("{taskId}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> DeleteTask([FromRoute] long taskId, CancellationToken ct)
     {
@@ -46,6 +52,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}/assignees")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> AssignTask([FromRoute] long taskId, [FromBody] AssignTaskCommand command, CancellationToken ct)
     {
@@ -55,6 +62,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}/progress")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> AdjustTaskProgress([FromRoute] long taskId, [FromBody] AdjustTaskProgressCommand command, CancellationToken ct)
     {
@@ -64,6 +72,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}/obsolete")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> MarkTaskObsolete([FromRoute] long taskId, [FromBody] MarkTaskObsoleteCommand command, CancellationToken ct)
     {
@@ -73,6 +82,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPut("{taskId}/restore")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> RestoreTask([FromRoute] long taskId, CancellationToken ct)
     {
@@ -82,6 +92,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpPost("{taskId}/dependencies/{predecessorTaskId}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> AddDependency([FromRoute] long taskId, [FromRoute] long predecessorTaskId, CancellationToken ct)
     {
@@ -90,6 +101,7 @@ public class TasksController : BaseApiController
     }
 
     [HttpDelete("{taskId}/dependencies/{predecessorTaskId}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> RemoveDependency([FromRoute] long taskId, [FromRoute] long predecessorTaskId, CancellationToken ct)
     {

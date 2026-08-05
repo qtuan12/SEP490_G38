@@ -9,7 +9,7 @@ import { Loader2, Plus, Trash2, ArrowLeft, ClipboardList, AlertTriangle } from '
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import type { WBSPhase, Project } from '../../types/common';
-import { Button, SearchSelect } from '../../components/ui';
+import { Button, SearchSelect, TableLoader } from '../../components/ui';
 import { isDiscreteUnit } from '../../utils/unitHelpers';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
@@ -240,10 +240,7 @@ export const PhaseBOQ: React.FC = () => {
 
   if (loadingPhase || loadingMaterials) {
     return (
-      <div className="flex flex-col justify-center items-center h-[350px] gap-3">
-        <Loader2 size={36} className="animate-spin text-[hsl(var(--primary))]" />
-        <span className="text-sm text-[hsl(var(--text-secondary))]">Đang tải thông tin định mức vật tư giai đoạn...</span>
-      </div>
+      <TableLoader isTable={false} message="Đang tải thông tin định mức vật tư giai đoạn..." minHeight="350px" />
     );
   }
 

@@ -4,10 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import type { PurchaseOrderDto } from '../../services/inventoryService';
-import { Badge, Pagination, Button, DateInput } from '../../components/ui';
+import { Badge, Pagination, Button, DateInput, TableLoader } from '../../components/ui';
 import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus, ChevronDown, SlidersHorizontal, X, Plus } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { useVirtualRows } from '../../hooks/useVirtualRows';
 
 const menuItemStyle: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 8,
@@ -244,6 +245,12 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
         pageSize,
       }),
   });
+  const poItems = data?.items ?? [];
+  const virtualPurchaseOrders = useVirtualRows(poItems, {
+    rowHeight: 56,
+    containerHeight: 560,
+    threshold: 30,
+  });
 
   // Realtime: tự làm mới danh sách khi có PO thay đổi (tạo/hủy/đóng) từ người dùng khác
   useEffect(() => {
@@ -438,7 +445,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
         document.body
       )}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" {...virtualPurchaseOrders.scrollContainerProps}>
         <table className={`w-full min-w-[860px] table-fixed text-sm text-left ${isLoading ? 'opacity-50' : ''}`}>
           <colgroup>
             <col className="w-[14%]" />
@@ -462,42 +469,47 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
           </thead>
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {isLoading ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin" size={18} />
-                    Đang tải...
-                  </div>
-                </td>
-              </tr>
-            ) : (data?.items ?? []).length === 0 ? (
+              <TableLoader colSpan={7} message="Đang tải danh sách đơn mua hàng..." />
+            ) : poItems.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
                   Dự án này chưa có đơn mua hàng nào.
                 </td>
               </tr>
             ) : (
-              (data?.items ?? []).map(po => (
-                <tr
-                  key={po.poId}
-                  className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/purchase-orders/${po.poId}`)}
-                >
-                  <td className="px-4 py-3 font-semibold text-[hsl(var(--primary))] truncate" title={po.poNumber}>{po.poNumber}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={po.supplierName || 'N/A'}>{po.supplierName || 'N/A'}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatDate(po.orderDate)}</td>
-                  <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(po.totalAmount)}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{po.items.length} dòng</td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge variant={statusVariant[po.status] ?? 'default'}>
-                      {statusLabel[po.status] ?? po.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <RowActionsMenu items={getRowMenuItems(po)} />
-                  </td>
-                </tr>
-              ))
+              <>
+                {virtualPurchaseOrders.topPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={7} style={{ height: virtualPurchaseOrders.topPadding, padding: 0 }} />
+                  </tr>
+                )}
+                {virtualPurchaseOrders.visibleRows.map(({ item: po }) => (
+                  <tr
+                    key={po.poId}
+                    className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/purchase-orders/${po.poId}`)}
+                  >
+                    <td className="px-4 py-3 font-semibold text-[hsl(var(--primary))] truncate" title={po.poNumber}>{po.poNumber}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={po.supplierName || 'N/A'}>{po.supplierName || 'N/A'}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatDate(po.orderDate)}</td>
+                    <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(po.totalAmount)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{po.items.length} dòng</td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant={statusVariant[po.status] ?? 'default'}>
+                        {statusLabel[po.status] ?? po.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <RowActionsMenu items={getRowMenuItems(po)} />
+                    </td>
+                  </tr>
+                ))}
+                {virtualPurchaseOrders.bottomPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={7} style={{ height: virtualPurchaseOrders.bottomPadding, padding: 0 }} />
+                  </tr>
+                )}
+              </>
             )}
           </tbody>
         </table>
