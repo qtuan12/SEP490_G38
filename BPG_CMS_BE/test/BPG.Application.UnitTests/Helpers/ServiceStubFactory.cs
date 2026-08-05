@@ -116,5 +116,16 @@ namespace BPG.Application.UnitTests.Helpers
 
             return mock.Object;
         }
+
+        public static ICurrentUserService CurrentUserService()
+        {
+            var mock = new Mock<ICurrentUserService>();
+            mock.Setup(x => x.IsAuthenticated).Returns(true);
+            mock.Setup(x => x.UserId).Returns(1);
+            mock.Setup(x => x.GetRequiredUserId()).Returns(1);
+            mock.Setup(x => x.IsInRole(It.IsAny<string>())).Returns(true);
+            mock.Setup(x => x.IsInAnyRole(It.IsAny<string[]>())).Returns(true);
+            return mock.Object;
+        }
     }
 }

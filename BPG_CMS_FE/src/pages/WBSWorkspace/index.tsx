@@ -23,7 +23,7 @@ interface WBSWorkspaceProps {
 
 export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { user, hasAnyRole } = useAuth();
-  const { canManageExecution, isProjectLeader } = useProjectAccess(projectId);
+  const { isProjectLeader } = useProjectAccess(projectId);
   const navigate = useNavigate();
 
   const queryClient = useQueryClient();

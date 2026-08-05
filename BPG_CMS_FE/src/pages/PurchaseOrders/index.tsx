@@ -9,6 +9,7 @@ import { Badge, Pagination, Button, DateInput } from '../../components/ui';
 import { Search, AlertCircle, Loader2, Plus, ChevronDown, MoreVertical, Eye, Lock, Ban, SlidersHorizontal, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { RoleGroup } from '../../auth/roles';
+import toast from 'react-hot-toast';
 
 const CANCELLABLE = ['Draft', 'Sent'];
 
