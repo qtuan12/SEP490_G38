@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BPG.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260804092903_AddBaseEntityToTaskProgressLog")]
+    [Migration("20260804061302_AddBaseEntityToTaskProgressLog")]
     partial class AddBaseEntityToTaskProgressLog
     {
         /// <inheritdoc />

@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { unitService } from '../../../services/unitService';
 import { UnitFormModal } from './modals/UnitFormModal';
-import { ConfirmDialog, Button, DataTable, Pagination } from '../../../components/ui';
+import { ConfirmDialog, Button, DataTable, Pagination, TableLoader } from '../../../components/ui';
 import type { Unit } from '../../../types/unit';
-import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, Ruler } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, AlertCircle, Ruler } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const UnitManagement: React.FC = () => {
@@ -37,7 +37,7 @@ export const UnitManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    toast.success(message);
+    console.log(message);
   };
 
   // Delete mutation
@@ -182,10 +182,7 @@ export const UnitManagement: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-[200px] gap-2.5">
-            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-            <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu...</span>
-          </div>
+          <TableLoader isTable={false} message="Đang tải dữ liệu đơn vị tính..." minHeight="200px" />
         ) : (
           <div className="flex flex-col gap-4">
             <DataTable

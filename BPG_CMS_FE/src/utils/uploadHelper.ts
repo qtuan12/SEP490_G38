@@ -1,5 +1,5 @@
-import imageCompression from 'browser-image-compression';
 import { projectService } from '../services/projectService';
+import { compressImageFile } from './fileCompression';
 
 export interface UploadedFileState {
   id: string;
@@ -15,20 +15,8 @@ export const compressAndUploadFile = async (
   onSuccess: (url: string) => void,
   onError: () => void
 ) => {
-  let fileToSend = file;
-  if (file.type.startsWith('image/')) {
-    try {
-      fileToSend = await imageCompression(file, {
-        maxSizeMB: 0.5,
-        maxWidthOrHeight: 1200,
-        useWebWorker: true
-      });
-      console.log(`Compressed image: ${file.name} to ${(fileToSend.size / 1024).toFixed(2)}KB`);
-    } catch (err) {
-      console.warn("Không thể nén ảnh:", err);
-    }
-  }
   try {
+    const fileToSend = await compressImageFile(file);
     const urls = await projectService.uploadFiles([fileToSend], folder);
     if (urls && urls.length > 0) {
       onSuccess(urls[0]);

@@ -9,10 +9,11 @@ import { ProcurementReport } from './components/ProcurementReport';
 import { BoqVsActualReport } from '../Reports/BoqVsActualReport';
 import { ConsolidatedReportModal } from './components/ConsolidatedReportModal';
 import {
-  LayoutDashboard, HardHat, AlertOctagon, Package, ShoppingCart, Loader2,
+  LayoutDashboard, HardHat, AlertOctagon, Package, ShoppingCart,
   Calendar, ChevronDown, Check, FolderKanban
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { TableLoader } from '../../components/ui';
 
 class ReportErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -124,10 +125,7 @@ export const ReportsHub: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] gap-3 text-[hsl(var(--text-muted))]">
-        <Loader2 size={24} className="animate-spin text-[hsl(var(--primary))]" />
-        <span>Đang tải Trung tâm Báo cáo...</span>
-      </div>
+      <TableLoader isTable={false} message="Đang tải Trung tâm Báo cáo..." minHeight="400px" />
     );
   }
 

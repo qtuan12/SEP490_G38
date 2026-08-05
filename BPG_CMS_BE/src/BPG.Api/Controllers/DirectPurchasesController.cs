@@ -1,4 +1,6 @@
 using BPG.Application.Features.DirectPurchases.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.DirectPurchases.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -21,6 +23,7 @@ namespace BPG.Api.Controllers
         /// Tạo phiếu mua trực tiếp ở trạng thái NHÁP. Chưa sinh PO/Phiếu nhập kho/tồn kho.
         /// </summary>
         [HttpPost]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> CreateDirectPurchaseRequest([FromBody] CreateDirectPurchaseRequestCommand command, CancellationToken ct)
         {
@@ -31,6 +34,7 @@ namespace BPG.Api.Controllers
 
         /// <summary>Sửa phiếu nháp. Chỉ người tạo, chỉ khi Status = Draft.</summary>
         [HttpPut("{id}")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> UpdateDirectPurchaseDraft([FromRoute] long id, [FromBody] UpdateDirectPurchaseDraftCommand command, CancellationToken ct)
         {
@@ -41,6 +45,7 @@ namespace BPG.Api.Controllers
 
         /// <summary>Xóa phiếu nháp. Chỉ người tạo, chỉ khi Status = Draft.</summary>
         [HttpDelete("{id}")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> DeleteDirectPurchaseDraft([FromRoute] long id, CancellationToken ct)
         {
@@ -53,6 +58,7 @@ namespace BPG.Api.Controllers
         /// Phiếu vượt định mức BOQ sẽ chuyển sang luồng Kế toán soát hóa đơn -> Giám đốc duyệt chi.
         /// </summary>
         [HttpPost("{id}/submit")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> SubmitDirectPurchase([FromRoute] long id, CancellationToken ct)
         {
@@ -62,6 +68,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpGet("{id}")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetDirectPurchaseById([FromRoute] long id, CancellationToken ct)
         {
@@ -74,6 +81,7 @@ namespace BPG.Api.Controllers
         /// Phiếu trong định mức: đây là bước cuối. Phiếu vượt định mức: trình tiếp Giám đốc.
         /// </summary>
         [HttpPatch("{id}/audit")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Accountant)]
         public async Task<IActionResult> AuditDirectPurchase([FromRoute] long id, [FromBody] AuditDirectPurchaseCommand command, CancellationToken ct)
         {
@@ -87,6 +95,7 @@ namespace BPG.Api.Controllers
         /// Giám đốc duyệt chi phiếu vượt định mức. Không ảnh hưởng tồn kho.
         /// </summary>
         [HttpPatch("{id}/director-approve")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Director)]
         public async Task<IActionResult> DirectorApprove([FromRoute] long id, [FromBody] ApproveDirectPurchaseByDirectorCommand command, CancellationToken ct)
         {
@@ -99,6 +108,7 @@ namespace BPG.Api.Controllers
         /// Giám đốc từ chối duyệt chi. Vật tư vẫn đã nhập kho, chỉ là không hoàn tiền.
         /// </summary>
         [HttpPatch("{id}/reject")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Director)]
         public async Task<IActionResult> DirectorReject([FromRoute] long id, [FromBody] RejectDirectPurchaseByDirectorCommand command, CancellationToken ct)
         {

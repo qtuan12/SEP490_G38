@@ -5,11 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import type { PurchaseOrderDto } from '../../services/inventoryService';
 import { projectService } from '../../services/projectService';
-import { Badge, Pagination, Button, DateInput } from '../../components/ui';
+import { Badge, Pagination, Button, DateInput, TableLoader } from '../../components/ui';
 import { Search, AlertCircle, Loader2, Plus, ChevronDown, MoreVertical, Eye, Lock, Ban, SlidersHorizontal, X } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { RoleGroup } from '../../auth/roles';
+import toast from 'react-hot-toast';
 
 const CANCELLABLE = ['Draft', 'Sent'];
 
@@ -208,7 +208,7 @@ export const PurchaseOrderList: React.FC = () => {
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: (result) => {
-      toast.success(result.message || 'Thao tác thành công.');
+      toast.success(result.message || 'Đã hủy đơn mua hàng.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
@@ -218,7 +218,7 @@ export const PurchaseOrderList: React.FC = () => {
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(actionModal!.po.poId, actionReason),
     onSuccess: (result) => {
-      toast.success(result.message || 'Thao tác thành công.');
+      toast.success(result.message || 'Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
     },
@@ -470,14 +470,7 @@ export const PurchaseOrderList: React.FC = () => {
           </thead>
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {isLoading ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin" size={18} />
-                    Đang tải...
-                  </div>
-                </td>
-              </tr>
+              <TableLoader colSpan={7} message="Đang tải danh sách đơn mua hàng..." />
             ) : (data?.items ?? []).length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">

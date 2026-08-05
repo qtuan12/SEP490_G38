@@ -1,5 +1,6 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
+using BPG.Application.Common.Attributes;
 using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialCategories;
@@ -9,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.MaterialCategories.Queries;
 
+[Cacheable(DurationSeconds = 300)]
 public class GetMaterialCategoriesQuery : PaginationRequest, IRequest<PagedList<MaterialCategoryDto>>
 {
 }

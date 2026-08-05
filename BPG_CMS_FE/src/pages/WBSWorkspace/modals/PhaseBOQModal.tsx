@@ -170,7 +170,7 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
     },
     onSuccess: () => {
       const msg = `Đã cập nhật Bảng vật tư định mức cho Giai đoạn: ${phase.name}`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
 
       // Invalidate project or phase data to reflect BOQ

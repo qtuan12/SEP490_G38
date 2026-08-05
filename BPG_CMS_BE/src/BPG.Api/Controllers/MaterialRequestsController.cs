@@ -1,4 +1,6 @@
 using BPG.Application.Features.MaterialRequests.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.MaterialRequests.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +14,7 @@ namespace BPG.Api.Controllers
     public class MaterialRequestsController : BaseApiController
     {
         [HttpPost("/api/projects/{projectId}/material-requests")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> CreateMaterialRequest(
             [FromRoute] long projectId,
@@ -27,6 +30,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpGet("/api/projects/{projectId}/material-requests")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetProjectMaterialRequests(
             [FromRoute] long projectId,
@@ -49,6 +53,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpGet("{id:long}")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetMaterialRequestDetail(
             [FromRoute] long id,
@@ -59,6 +64,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/cancel")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> CancelMaterialRequest(
             [FromRoute] long id,
@@ -71,6 +77,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/accountant-process")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Accountant)]
         public async Task<IActionResult> AccountantProcess(
             [FromRoute] long id,
@@ -83,6 +90,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/director-approve")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Director)]
         public async Task<IActionResult> DirectorApprove(
             [FromRoute] long id,
@@ -95,6 +103,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/reject")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = UserRole.Accountant + "," + UserRole.Director)]
         public async Task<IActionResult> RejectMaterialRequest(
             [FromRoute] long id,
@@ -107,6 +116,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost("{id:long}/resubmit")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> ResubmitMaterialRequest(
             [FromRoute] long id,
@@ -128,4 +138,3 @@ namespace BPG.Api.Controllers
         List<BPG.Application.Features.MaterialRequests.Commands.MaterialRequestItemInput> Items
     );
 }
-

@@ -99,7 +99,7 @@ export const LeaderApprovalModal: React.FC<LeaderApprovalModalProps> = ({
     },
     onSuccess: () => {
       const msg = 'Tổng hợp đề xuất vật tư thành công và đã gửi Kế toán!';
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       queryClient.invalidateQueries({ queryKey: ['materialRequests'] });
       onClose();

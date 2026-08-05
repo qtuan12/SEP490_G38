@@ -64,7 +64,7 @@ export const AdjustDeadlineModal: React.FC<AdjustDeadlineModalProps> = ({
     },
     onSuccess: (_, variables) => {
       const msg = `Đã dời hạn chót việc "${taskName}" sang ngày ${variables.newDeadline}`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       
       if (projectId) {

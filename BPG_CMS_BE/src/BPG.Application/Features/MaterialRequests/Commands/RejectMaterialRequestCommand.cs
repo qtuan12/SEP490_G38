@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -63,7 +63,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 : _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Director);
             if (!isAllowed)
             {
-                throw new ForbiddenException();
+                throw new ForbiddenException("Bạn không có quyền từ chối đề xuất yêu cầu vật tư này.");
             }
 
             if (mr.Status == MaterialRequestStatus.Pending)

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Search } from 'lucide-react';
-import { Badge, DataTable, Input, LoadingSpinner, type ColumnDef } from '../../components/ui';
+import { Badge, DataTable, Input, TableLoader, type ColumnDef } from '../../components/ui';
 import { supplierService } from '../../services/supplierService';
 import { surplusService } from '../../services/surplusService';
 import type { Supplier } from '../../types/supplier';
@@ -169,9 +169,7 @@ export const ProjectRelatedSuppliersTab: React.FC<Props> = ({ projectId }) => {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-[240px]">
-            <LoadingSpinner size="lg" label={text.loading} />
-          </div>
+          <TableLoader isTable={false} message={text.loading} minHeight="240px" />
         ) : (
           <DataTable
             columns={columns}

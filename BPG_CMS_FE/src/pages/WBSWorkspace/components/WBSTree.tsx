@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { RoleGroup } from '../../../auth/roles';
 import { useAuth } from '../../../context/AuthContext';
 import type { WBSTask } from '../../../types/common';
+import { TableLoader } from '../../../components/ui';
 import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History } from 'lucide-react';
 
 
@@ -60,7 +61,7 @@ export const WBSTree = () => {
         </h4>
 
         {loading ? (
-          <div style={{ textAlign: 'center', margin: 'auto', color: 'hsl(var(--text-muted))' }}>Đang tải...</div>
+          <TableLoader isTable={false} message="Đang tải sơ đồ WBS..." minHeight="300px" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
 
@@ -555,14 +556,16 @@ export const WBSTree = () => {
 
                                 {showTaskMenu && (
                                   <div onClick={e => e.stopPropagation()} className="absolute top-[22px] z-[200] bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-md shadow-lg min-w-[155px] overflow-hidden left-0 sm:left-auto sm:right-0 py-1">
-                                    <div
-                                      style={menuItemStyle}
-                                      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                      onClick={() => { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); }}
-                                    >
-                                      <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Chỉnh sửa Công việc</span>
-                                    </div>
+                                    {isTPKTOrPL && (
+                                      <div
+                                        style={menuItemStyle}
+                                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                        onClick={() => { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); }}
+                                      >
+                                        <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Chỉnh sửa Công việc</span>
+                                      </div>
+                                    )}
 
                                     {project?.status !== 'draft' && (
                                       <>
@@ -601,14 +604,16 @@ export const WBSTree = () => {
                                       </>
                                     )}
 
-                                    <div
-                                      style={{ ...menuItemStyle, display: t.parentTaskId ? 'none' : 'flex' }}
-                                      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                      onClick={() => { setTaskMenuId(null); setSelectedPhaseForTask(ph.id); setParentTaskForNew(t.id); setParentDeadlineForNew(t.deadline); setIsCreateTaskOpen(true); }}
-                                    >
-                                      <FilePlus2 size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Thêm Công việc con</span>
-                                    </div>
+                                    {isTPKTOrPL && (
+                                      <div
+                                        style={{ ...menuItemStyle, display: t.parentTaskId ? 'none' : 'flex' }}
+                                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                        onClick={() => { setTaskMenuId(null); setSelectedPhaseForTask(ph.id); setParentTaskForNew(t.id); setParentDeadlineForNew(t.deadline); setIsCreateTaskOpen(true); }}
+                                      >
+                                        <FilePlus2 size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Thêm Công việc con</span>
+                                      </div>
+                                    )}
 
                                     {isTPKTOrPL && (
                                       <div
