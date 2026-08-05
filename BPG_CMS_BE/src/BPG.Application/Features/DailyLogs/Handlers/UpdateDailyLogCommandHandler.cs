@@ -66,11 +66,14 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                             && m.IsLeader,
                         cancellationToken);
 
+                var isAssignee = await _uow.Repository<TaskAssignee>().Query()
+                    .AnyAsync(ta => ta.TaskId == log.TaskId && ta.UserId == currentUserId, cancellationToken);
+
                 var isCreator = log.CreatedBy == currentUserId;
 
-                if (!isProjectLeader && !isCreator)
+                if (!isProjectLeader && !isAssignee && !isCreator)
                 {
-                    throw new ForbiddenException("Chỉ người tạo nhật ký, Trưởng dự án (Leader) hoặc Ban quản lý mới được phép chỉnh sửa nhật ký thi công.");
+                    throw new ForbiddenException("Chỉ người tạo nhật ký, Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép chỉnh sửa nhật ký thi công.");
                 }
             }
 

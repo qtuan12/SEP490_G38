@@ -36,10 +36,11 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             }
 
             var userId = _currentUserService.GetRequiredUserId();
+            var isAdmin = _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin);
             var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
                 member => member.ProjectId == request.ProjectId && member.UserId == userId && member.IsLeader,
                 cancellationToken);
-            if (!isProjectLeader)
+            if (!isAdmin && !isProjectLeader)
                 throw new ForbiddenException("Chỉ Trưởng dự án mới được tạo phiếu tăng tồn.");
             var phase = await _unitOfWork.Repository<Phase>().GetByIdAsync(request.PhaseId);
             if (phase == null)
