@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CompanyProvider } from './context/CompanyContext';
@@ -13,6 +13,7 @@ import { DesktopOnlyGuard } from './components/DesktopOnlyGuard';
 import { RoleGroup } from './auth/roles';
 import { NotificationProvider } from './context/NotificationContext';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
+import { queryClient } from './lib/queryClient';
 
 // ─── Lazy-loaded page components ──────────────────────────────────────────────
 // Auth pages (small, loaded early but still split)
@@ -74,16 +75,6 @@ const PageFallback = () => (
     <span>Đang tải trang...</span>
   </div>
 );
-
-// ─── QueryClient ──────────────────────────────────────────────────────────────
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
 
 // ─── Route Guards ─────────────────────────────────────────────────────────────
 const ProtectedRoute: React.FC<{

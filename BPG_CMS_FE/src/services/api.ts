@@ -1,4 +1,5 @@
 import { triggerGlobalLoading, triggerGlobalHideLoading } from '../context/LoadingContext';
+import { queryClient } from '../lib/queryClient';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5160/api';
 
@@ -47,6 +48,7 @@ function clearSessionAndRedirect() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  queryClient.clear();
   window.location.href = '/login';
 }
 
