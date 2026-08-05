@@ -46,15 +46,24 @@ const materialItemSchema = z.object({
 const phaseBOQSchema = z.object({
   materials: z.array(materialItemSchema)
 }).superRefine((data, ctx) => {
-  // 1. Kiểm tra trùng lặp vật tư
-  const ids = data.materials.map(m => m.materialId).filter(id => id > 0);
-  if (ids.length !== new Set(ids).size) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Danh sách vật tư không được trùng lặp.',
-      path: ['materials']
-    });
-  }
+  // Find all duplicate materialIds
+  const counts: Record<number, number> = {};
+  data.materials.forEach(m => {
+    if (m.materialId > 0) {
+      counts[m.materialId] = (counts[m.materialId] || 0) + 1;
+    }
+  });
+
+  // Flag duplicate rows
+  data.materials.forEach((m, idx) => {
+    if (m.materialId > 0 && counts[m.materialId] > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Vật tư này bị trùng lặp trong danh sách.',
+        path: ['materials', idx, 'materialId']
+      });
+    }
+  });
 });
 
 type PhaseBOQForm = z.infer<typeof phaseBOQSchema>;
@@ -373,8 +382,15 @@ export const PhaseBOQ: React.FC = () => {
                             const selectedId = parseInt(val) || 0;
                             setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true, shouldDirty: true });
                             handleMaterialChange(idx, selectedId);
-                            await trigger(`materials.${idx}.materialId`);
+                            
+                            // Trigger validation for all rows that have a material selected, to update duplicate state!
+                            watchedMaterials.forEach((m, i) => {
+                              if (m.materialId > 0 || i === idx) {
+                                void trigger(`materials.${i}.materialId`);
+                              }
+                            });
                             await trigger(`materials.${idx}.quantity`);
+                            await trigger(`materials.${idx}.unitId`);
                           }}
                           placeholder="-- Chọn vật tư kỹ thuật --"
                           error={!!errors.materials?.[idx]?.materialId}
