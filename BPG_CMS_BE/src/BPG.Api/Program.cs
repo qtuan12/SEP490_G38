@@ -22,25 +22,6 @@ try
     }
 
     await app.MigrateDatabaseAsync();
-
-    if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Swagger:Enabled"))
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-    }
-
-    app.UseHttpsRedirection();
-
-    app.UseCors("AllowReactApp");
-
-    app.UseAuthentication();
-    app.UseAuthorization();
-
-    app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "BPG-CMS-API" }))
-        .AllowAnonymous();
-    app.MapControllers();
-    app.MapHub<BPG.Api.Hubs.NotificationHub>("/hubs/notifications");
-
     app.UseApiPipeline();
     app.Run();
 }
