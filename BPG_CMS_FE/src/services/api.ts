@@ -1,5 +1,6 @@
 import { triggerGlobalLoading, triggerGlobalHideLoading } from '../context/LoadingContext';
 import { queryClient } from '../lib/queryClient';
+import { compressFormDataImages } from '../utils/fileCompression';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5160/api';
 
@@ -83,10 +84,13 @@ async function refreshAccessToken(): Promise<string | null> {
 export const apiClient = {
   async request<T>(endpoint: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const requestBody = options.body instanceof FormData
+      ? await compressFormDataImages(options.body)
+      : options.body;
 
     // Setup headers
     const headers = new Headers(options.headers);
-    if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    if (!headers.has('Content-Type') && !(requestBody instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
     }
     if (token) {
@@ -109,6 +113,7 @@ export const apiClient = {
     const config: RequestInit = {
       ...options,
       headers,
+      body: requestBody,
     };
 
     const shouldShowGlobal = options.showGlobalLoading === true;
