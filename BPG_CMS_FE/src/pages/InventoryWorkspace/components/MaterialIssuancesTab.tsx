@@ -5,6 +5,7 @@ import { Search, Eye } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
 import type { MaterialIssuance } from '../../../types/inventory';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
+import { useVirtualRows } from '../../../hooks/useVirtualRows';
 
 interface MaterialIssuancesTabProps {
   projectId: number;
@@ -25,6 +26,11 @@ export const MaterialIssuancesTab: React.FC<MaterialIssuancesTabProps> = ({
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const virtualIssuances = useVirtualRows(issuancesList, {
+    rowHeight: 56,
+    containerHeight: 560,
+    threshold: 30,
+  });
 
   useEffect(() => {
     const searchVal = searchParams.get('search') || '';
@@ -90,7 +96,7 @@ export const MaterialIssuancesTab: React.FC<MaterialIssuancesTabProps> = ({
       ) : (
         <>
           {/* Bảng danh sách */}
-          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+          <div className="overflow-x-auto border border-slate-200 rounded-xl" {...virtualIssuances.scrollContainerProps}>
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
                 <tr>
@@ -112,42 +118,54 @@ export const MaterialIssuancesTab: React.FC<MaterialIssuancesTabProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  issuancesList.map(i => (
-                    <tr key={i.materialIssuanceId} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3.5 font-semibold text-blue-600 font-mono text-xs">
-                        {i.issuanceNo || `PXK-${String(i.materialIssuanceId).padStart(5, '0')}`}
-                      </td>
-                      <td className="px-4 py-3.5 font-semibold text-slate-800">
-                        {i.taskName}
-                      </td>
-                      <td className="px-4 py-3.5 text-slate-600">
-                        {i.purpose}
-                      </td>
-                      <td className="px-4 py-3.5 text-center font-medium text-slate-900">
-                        {i.totalItems}
-                      </td>
-                      <td className="px-4 py-3.5 text-slate-600">
-                        {formatDateVN(i.createdAt)}
-                      </td>
-                      <td className="px-4 py-3.5 text-slate-700">
-                        {i.createdByName}
-                      </td>
-                      <td className="px-4 py-3.5 text-center">
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                          Đã xuất dùng
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-center">
-                        <button
-                          onClick={() => onViewIssuance(i.materialIssuanceId)}
-                          className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 mx-auto"
-                        >
-                          <Eye size={14} />
-                          <span>Xem</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  <>
+                    {virtualIssuances.topPadding > 0 && (
+                      <tr aria-hidden="true">
+                        <td colSpan={8} style={{ height: virtualIssuances.topPadding, padding: 0 }} />
+                      </tr>
+                    )}
+                    {virtualIssuances.visibleRows.map(({ item: i }) => (
+                      <tr key={i.materialIssuanceId} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3.5 font-semibold text-blue-600 font-mono text-xs">
+                          {i.issuanceNo || `PXK-${String(i.materialIssuanceId).padStart(5, '0')}`}
+                        </td>
+                        <td className="px-4 py-3.5 font-semibold text-slate-800">
+                          {i.taskName}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-600">
+                          {i.purpose}
+                        </td>
+                        <td className="px-4 py-3.5 text-center font-medium text-slate-900">
+                          {i.totalItems}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-600">
+                          {formatDateVN(i.createdAt)}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-700">
+                          {i.createdByName}
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                            Đã xuất dùng
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          <button
+                            onClick={() => onViewIssuance(i.materialIssuanceId)}
+                            className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 mx-auto"
+                          >
+                            <Eye size={14} />
+                            <span>Xem</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {virtualIssuances.bottomPadding > 0 && (
+                      <tr aria-hidden="true">
+                        <td colSpan={8} style={{ height: virtualIssuances.bottomPadding, padding: 0 }} />
+                      </tr>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>

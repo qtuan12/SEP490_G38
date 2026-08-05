@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
 import type { InventoryTransaction } from '../../../types/inventory';
 import { getTransactionTypeDetails, formatDateTimeVN } from '../../../utils/inventoryHelpers';
+import { useVirtualRows } from '../../../hooks/useVirtualRows';
 
 interface LedgerHistoryTabProps {
   projectId: number;
@@ -28,6 +29,11 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
   // Phân trang
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const virtualTransactions = useVirtualRows(transactionsList, {
+    rowHeight: 56,
+    containerHeight: 560,
+    threshold: 30,
+  });
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -131,7 +137,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
       ) : (
         <>
           {/* Bảng Thẻ kho */}
-          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+          <div className="overflow-x-auto border border-slate-200 rounded-xl" {...virtualTransactions.scrollContainerProps}>
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
                 <tr>
@@ -152,7 +158,13 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  transactionsList.map(t => {
+                  <>
+                    {virtualTransactions.topPadding > 0 && (
+                      <tr aria-hidden="true">
+                        <td colSpan={7} style={{ height: virtualTransactions.topPadding, padding: 0 }} />
+                      </tr>
+                    )}
+                    {virtualTransactions.visibleRows.map(({ item: t }) => {
                     const typeInfo = getTransactionTypeDetails(t.transactionType);
                     return (
                       <tr key={t.transactionId} className="hover:bg-slate-50 transition-colors">
@@ -184,7 +196,13 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
                         </td>
                       </tr>
                     );
-                  })
+                    })}
+                    {virtualTransactions.bottomPadding > 0 && (
+                      <tr aria-hidden="true">
+                        <td colSpan={7} style={{ height: virtualTransactions.bottomPadding, padding: 0 }} />
+                      </tr>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>
