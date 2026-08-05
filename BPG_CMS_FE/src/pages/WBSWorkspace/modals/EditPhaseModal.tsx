@@ -76,7 +76,7 @@ export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
     },
     onSuccess: (_, variables) => {
       const msg = `Đã cập nhật Phase: ${variables.name.trim()}`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       onClose();
     },

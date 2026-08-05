@@ -485,7 +485,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
               try {
                 const taskIdNum = parseInt(selectedTaskForDetail.id.replace('t-', ''));
                 await wbsService.deleteTask(taskIdNum);
-                toast.success(`Đã xóa công việc ${selectedTaskForDetail.name}`);
+                console.log(`Đã xóa công việc ${selectedTaskForDetail.name}`);
                 setIsTaskDetailOpen(false);
                 void loadGanttData(true);
               } catch (err: any) {
@@ -498,7 +498,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
             setIsReportIncidentOpen(true);
           }}
           onSuccess={(msg) => {
-            toast.success(msg || 'Đã cập nhật tiến độ công việc thành công.');
+            console.log(msg || 'Đã cập nhật tiến độ công việc thành công.');
             setIsTaskDetailOpen(false);
             void loadGanttData(true);
           }}
@@ -517,7 +517,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
           user={user}
           onSuccess={(msg) => {
             setIsReportIncidentOpen(false);
-            toast.success(msg || 'Đã báo cáo sự cố thành công.');
+            console.log(msg || 'Đã báo cáo sự cố thành công.');
             void loadGanttData(true);
           }}
           onError={(msg) => toast.error(msg)}

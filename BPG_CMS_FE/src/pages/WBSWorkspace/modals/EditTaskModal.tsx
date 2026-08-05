@@ -216,7 +216,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     },
     onSuccess: (_, variables) => {
       const msg = `Đã cập nhật công việc: ${variables.name}`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       onClose();
     },

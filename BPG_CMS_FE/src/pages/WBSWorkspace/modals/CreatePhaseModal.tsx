@@ -65,7 +65,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
     },
     onSuccess: (_, variables) => {
       const msg = `Đã tạo thành công Giai đoạn mới: ${variables.name.trim()}`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       reset();
       onClose();

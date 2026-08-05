@@ -35,14 +35,14 @@ public class RemoveTaskDependencyCommandHandler : IRequestHandler<RemoveTaskDepe
         if (dep == null)
             throw new NotFoundException("TaskDependency", $"{request.TaskId}-{request.PredecessorTaskId}");
 
-        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {
             var currentUserId = _currentUserService.GetRequiredUserId();
             var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
                 member => member.ProjectId == dep.Task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
                 ct);
             if (!isProjectLeader)
-                throw new ForbiddenException("Chỉ Trưởng dự án mới được xóa liên kết phụ thuộc.");
+                throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được xóa liên kết phụ thuộc.");
         }
 
         _unitOfWork.Repository<TaskDependency>().Remove(dep);

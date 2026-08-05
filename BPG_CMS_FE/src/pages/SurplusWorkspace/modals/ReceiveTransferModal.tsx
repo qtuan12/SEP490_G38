@@ -27,7 +27,7 @@ export const ReceiveTransferModal: React.FC<ReceiveTransferModalProps> = ({
       const formData = new FormData();
       files.forEach(f => formData.append('Attachments', f));
       const result = await surplusService.receiveTransfer(surplusTransferId, formData);
-      toast.success(result.message || 'Đã xác nhận nhận vật tư điều chuyển. Tồn kho đã được cập nhật.');
+      console.log(result.message || 'Đã xác nhận nhận vật tư điều chuyển. Tồn kho đã được cập nhật.');
       onSuccess();
       onClose();
     } catch (err: any) {

@@ -88,7 +88,7 @@ export const ProjectList: React.FC = () => {
     setError(null);
     try {
       const message = await projectService.deleteProject(projectToDelete.id);
-      toast.success(message || 'Đã xóa dự án.');
+      console.log(message || 'Đã xóa dự án.');
       loadProjects();
     } catch (err: any) {
       toast.error(err.message || 'Không thể xóa dự án.');
@@ -341,7 +341,7 @@ export const ProjectList: React.FC = () => {
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         onSuccess={(message) => {
-          toast.success(message || 'Đã khởi tạo dự án.');
+          console.log(message || 'Đã khởi tạo dự án.');
           loadProjects();
         }}
       />
