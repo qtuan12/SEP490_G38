@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { hasAnyRole as checkAnyRole } from '../auth/roles';
+import { ApiError } from '../services/api';
 import { authService } from '../services/authService';
 import type { LoginCredentials, UserProfile } from '../services/authService';
 
@@ -22,6 +23,18 @@ const clearStoredSession = () => {
   localStorage.removeItem('bpg_user');
 };
 
+const INACTIVE_ACCOUNT_MESSAGE = 'Tài khoản không còn hoạt động.';
+
+/**
+ * Chỉ những lỗi thật sự về xác thực mới được phép xoá phiên. Lỗi mạng hay server 5xx
+ * mà cũng xoá phiên thì user đang đăng nhập hợp lệ sẽ bị đá về /login oan.
+ */
+const isAuthFailure = (error: unknown): boolean => {
+  if (error instanceof ApiError) return error.status === 401 || error.status === 403;
+  const message = (error as Error)?.message;
+  return message === 'Unauthorized' || message === INACTIVE_ACCOUNT_MESSAGE;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -38,16 +51,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const sessionUser = await authService.getSessionUser();
         if (sessionUser.status !== 'active') {
-          throw new Error('Tài khoản không còn hoạt động.');
+          throw new Error(INACTIVE_ACCOUNT_MESSAGE);
         }
 
         setToken(storedToken);
         setUser(sessionUser);
         localStorage.setItem('bpg_user', JSON.stringify(sessionUser));
-      } catch {
-        clearStoredSession();
-        setToken(null);
-        setUser(null);
+      } catch (error) {
+        if (isAuthFailure(error)) {
+          clearStoredSession();
+          setToken(null);
+          setUser(null);
+        } else {
+          // Lỗi mạng/server tạm thời — giữ phiên và dựng lại user từ cache để không đá về /login.
+          const cachedUser = localStorage.getItem('bpg_user');
+          if (cachedUser) {
+            setToken(storedToken);
+            setUser(JSON.parse(cachedUser) as UserProfile);
+          } else {
+            setToken(null);
+            setUser(null);
+          }
+        }
       } finally {
         setIsLoading(false);
       }
