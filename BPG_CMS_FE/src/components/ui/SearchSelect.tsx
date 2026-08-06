@@ -128,6 +128,8 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   const dropdownStyle: React.CSSProperties = {
     position: 'fixed',
     zIndex: 9999,
+    left: `${Math.max(8, Math.min(coords.left, (typeof window !== 'undefined' ? window.innerWidth : 1024) - coords.width - 8))}px`,
+    width: `${coords.width}px`,
     backgroundColor: 'hsl(var(--bg-card))',
     border: '1px solid hsl(var(--border))',
     borderRadius: '0.375rem',
