@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using AutoMapper;
 using BPG.Application.DTOs.Users;
 using BPG.Application.Features.Users.Commands;
@@ -45,14 +46,29 @@ public class CreateUserHandler : IRequestHandler<CreateUserCommand, UserDto>
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
             IsActive = true,
         };
-        await _uow.Repository<User>().AddAsync(user, ct);
-        await _uow.SaveChangesAsync(ct);
+        // Tài khoản và vai trò phải vào cùng một transaction: lỗi ở bước gán vai trò mà bước tạo
+        // đã commit sẽ để lại tài khoản không có vai trò nào — đăng nhập được nhưng mọi endpoint
+        // đều trả 403, và Admin không nhìn ra vì danh sách vẫn hiện tài khoản đó.
+        await _uow.BeginTransactionAsync(ct);
+        try
+        {
+            await _uow.Repository<User>().AddAsync(user, ct);
+            await _uow.SaveChangesAsync(ct);
 
-        var userRole = new UserRole { UserId = user.UserId, RoleId = role.RoleId };
-        await _uow.Repository<UserRole>().AddAsync(userRole, ct);
-        await _uow.SaveChangesAsync(ct);
+            var userRole = new UserRole { UserId = user.UserId, RoleId = role.RoleId };
+            await _uow.Repository<UserRole>().AddAsync(userRole, ct);
+            await _uow.SaveChangesAsync(ct);
 
-        // Gửi email sau khi lưu DB thành công
+            await _uow.CommitTransactionAsync(ct);
+        }
+        catch
+        {
+            await _uow.RollbackTransactionAsync(ct);
+            throw;
+        }
+
+        // Gửi email sau khi commit: gửi trong transaction thì email đã bay đi rồi mà DB vẫn có
+        // thể rollback, người nhận cầm mật khẩu của một tài khoản không tồn tại.
         await _emailService.SendFromTemplateAsync(
             user.Email,
             "Thông tin tài khoản BPG Construction",
@@ -69,6 +85,13 @@ public class CreateUserHandler : IRequestHandler<CreateUserCommand, UserDto>
         return _mapper.Map<UserDto>(user);
     }
 
+    /// <summary>
+    /// Sinh mật khẩu khởi tạo gửi qua email cho tài khoản mới.
+    ///
+    /// Dùng nguồn ngẫu nhiên mật mã, không dùng Random: Random là PRNG tất định, ai tạo được
+    /// vài tài khoản là suy ra được trạng thái bộ sinh rồi đoán mật khẩu của tài khoản khác
+    /// tạo cùng thời điểm.
+    /// </summary>
     private static string GeneratePassword()
     {
         const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -76,27 +99,28 @@ public class CreateUserHandler : IRequestHandler<CreateUserCommand, UserDto>
         const string digits = "23456789";
         const string special = "@#$!";
 
-        var rng = Random.Shared;
         // Đảm bảo có ít nhất 1 ký tự mỗi loại
         var chars = new List<char>
         {
-            upper[rng.Next(upper.Length)],
-            lower[rng.Next(lower.Length)],
-            digits[rng.Next(digits.Length)],
-            special[rng.Next(special.Length)]
+            Pick(upper),
+            Pick(lower),
+            Pick(digits),
+            Pick(special)
         };
 
         const string all = upper + lower + digits + special;
-        for (int i = 0; i < 4; i++)
-            chars.Add(all[rng.Next(all.Length)]);
+        for (int i = 0; i < 8; i++)
+            chars.Add(Pick(all));
 
-        // Xáo trộn
+        // Xáo trộn Fisher-Yates, cũng bằng nguồn ngẫu nhiên mật mã
         for (int i = chars.Count - 1; i > 0; i--)
         {
-            int j = rng.Next(i + 1);
+            int j = RandomNumberGenerator.GetInt32(i + 1);
             (chars[i], chars[j]) = (chars[j], chars[i]);
         }
 
         return new string(chars.ToArray());
     }
+
+    private static char Pick(string source) => source[RandomNumberGenerator.GetInt32(source.Length)];
 }
