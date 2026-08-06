@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, Warehouse, TrendingDown, TrendingUp, Filter } from 'lucide-react';
 import { reportService, type InventoryLedgerReportDto, type InventoryTransactionSummaryDto } from '../../../services/reportService';
+import { parseDateSafe } from '../../../utils/dateHelpers';
 
 interface Props {
   projectId: string | null;
@@ -62,7 +63,7 @@ export const InventoryLedgerReport: React.FC<Props> = ({ projectId }) => {
   });
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    parseDateSafe(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   const getTypeInfo = (type: string) =>
     TRANSACTION_TYPE_LABELS[type] || { label: type, color: 'hsl(var(--text-muted))' };

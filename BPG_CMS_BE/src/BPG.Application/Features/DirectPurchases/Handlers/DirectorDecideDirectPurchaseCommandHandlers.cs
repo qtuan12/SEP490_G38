@@ -11,7 +11,7 @@ using UserRole = BPG.Domain.Constants.UserRole;
 namespace BPG.Application.Features.DirectPurchases.Handlers
 {
     /// <summary>
-    /// Giám đốc quyết định duyệt chi cho phiếu mua trực tiếp vượt định mức BOQ.
+    /// Giám đốc quyết định duyệt chi cho phiếu mua trực tiếp (mọi phiếu, kể cả trong định mức BOQ).
     /// Quyết định này KHÔNG ảnh hưởng tồn kho - vật tư đã nhập kho từ bước Submit.
     /// </summary>
     public class ApproveDirectPurchaseByDirectorCommandHandler
@@ -59,13 +59,13 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             await _notificationService.SendNotificationAsync(
                 dp.RequestedBy,
-                "Phiếu mua khẩn cấp vượt định mức đã được duyệt chi",
+                "Phiếu mua khẩn cấp đã được duyệt chi",
                 $"Phiếu DP-{dp.DirectPurchaseId:D6} đã được Giám đốc '{directorName}' duyệt chi. Khoản tiền sẽ được hoàn/giải ngân.",
                 NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
 
             await _notificationService.SendNotificationToRoleAsync(
                 UserRole.Accountant,
-                "Phiếu mua khẩn cấp vượt định mức đã được duyệt chi",
+                "Phiếu mua khẩn cấp đã được duyệt chi",
                 $"Giám đốc '{directorName}' đã duyệt chi phiếu DP-{dp.DirectPurchaseId:D6} " +
                 $"(giai đoạn '{dp.Phase?.Name}', dự án '{dp.Project?.Name}'). Tổng giá trị: {dp.TotalAmount:N0}đ. " +
                 $"Vui lòng tiến hành hoàn tiền/giải ngân.",
@@ -124,7 +124,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             await _notificationService.SendNotificationAsync(
                 dp.RequestedBy,
-                "Phiếu mua khẩn cấp vượt định mức bị từ chối duyệt chi",
+                "Phiếu mua khẩn cấp bị từ chối duyệt chi",
                 $"Phiếu DP-{dp.DirectPurchaseId:D6} bị Giám đốc '{directorName}' từ chối duyệt chi, sẽ không được hoàn tiền. " +
                 $"Vật tư vẫn đã nhập kho và vẫn tính vào định mức giai đoạn. Lý do: {request.Reason.Trim()}",
                 NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
@@ -154,6 +154,11 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 throw new BusinessException(ErrorCodes.DpInvalidStatusForApproval,
                     $"Phiếu mua trực tiếp đang ở trạng thái '{DirectPurchaseStatus.Label(dp.Status)}'. " +
                     "Chỉ duyệt chi được phiếu đang ở trạng thái 'Chờ Giám đốc'.");
+
+            // CỐ Ý không kiểm trạng thái dự án ở đây, cho cả duyệt lẫn từ chối. Đây là bước quyết
+            // toán một khoản đã chi và vật tư đã nhập kho từ lúc Gửi phiếu. Chặn theo trạng thái
+            // dự án sẽ treo khoản hoàn tiền khi dự án tạm dừng, và tệ hơn là không từ chối được
+            // một khoản chi sai. Điều kiện "dự án đang thi công" đã chốt ở bước Gửi phiếu.
 
             return dp;
         }

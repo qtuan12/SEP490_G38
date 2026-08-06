@@ -13,6 +13,12 @@ namespace BPG.Application.DTOs.PurchaseOrders
         public string? ClosedReason { get; set; }
         public decimal TotalAmount { get; set; }
 
+        // Thông tin duyệt của Giám đốc
+        public string? ApproverName { get; set; }
+        public DateTime? ApprovedAt { get; set; }
+        public string? ApprovalNote { get; set; }
+        public string? RejectedReason { get; set; }
+
         public long? SupplierId { get; set; }
         public string SupplierName { get; set; } = string.Empty;
         public string? SupplierContactInfo { get; set; }

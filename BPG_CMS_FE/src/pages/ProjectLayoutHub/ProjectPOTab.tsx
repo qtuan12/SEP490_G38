@@ -5,9 +5,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import type { PurchaseOrderDto } from '../../services/inventoryService';
 import { Badge, Pagination, Button, DateInput, TableLoader } from '../../components/ui';
-import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus, ChevronDown, SlidersHorizontal, X, Plus } from 'lucide-react';
+import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus, ChevronDown, SlidersHorizontal, X, Plus, CheckCircle2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { formatPlainDate } from '../../utils/dateHelpers';
 import { useVirtualRows } from '../../hooks/useVirtualRows';
 
 const menuItemStyle: React.CSSProperties = {
@@ -92,19 +93,24 @@ const RowActionsMenu: React.FC<{ items: RowMenuItem[] }> = ({ items }) => {
   );
 };
 
-const CANCELLABLE = ['Draft', 'Sent'];
+// Đơn bị Giám đốc từ chối là trạng thái kết thúc, không hủy thêm được nữa.
+const CANCELLABLE = ['Draft', 'PendingApproval', 'Sent'];
 
 const PO_STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
+  { label: 'Chờ Giám đốc duyệt', value: 'PendingApproval' },
   { label: 'Đã gửi', value: 'Sent' },
   { label: 'Nhận một phần', value: 'PartiallyReceived' },
   { label: 'Nhận đủ', value: 'FullyReceived' },
   { label: 'Đã đóng', value: 'Closed' },
+  { label: 'Bị từ chối', value: 'Rejected' },
   { label: 'Đã hủy', value: 'Cancelled' },
 ];
 
 const statusLabel: Record<string, string> = {
   Draft: 'Nháp',
+  PendingApproval: 'Chờ Giám đốc duyệt',
+  Rejected: 'Bị từ chối',
   Sent: 'Đã gửi',
   PartiallyReceived: 'Nhận một phần',
   FullyReceived: 'Nhận đủ',
@@ -114,6 +120,8 @@ const statusLabel: Record<string, string> = {
 
 const statusVariant: Record<string, 'default' | 'warning' | 'info' | 'success' | 'danger'> = {
   Draft: 'default',
+  PendingApproval: 'warning',
+  Rejected: 'danger',
   Sent: 'warning',
   PartiallyReceived: 'info',
   FullyReceived: 'success',
@@ -124,15 +132,6 @@ const statusVariant: Record<string, 'default' | 'warning' | 'info' | 'success' |
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-};
 
 interface Props {
   projectId: number;
@@ -142,7 +141,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { connection } = useNotification();
-  const { isProjectLeader, canManageAccounting } = useProjectAccess(projectId);
+  const { isProjectLeader, canManageAccounting, canApprove } = useProjectAccess(projectId);
   const isAccountant = canManageAccounting;
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -278,6 +277,16 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
         onClick: () => navigate(`/purchase-orders/${po.poId}`),
       },
     ];
+
+    // Giám đốc duyệt/từ chối ngay tại màn chi tiết để xem đủ vật tư và giá trị đơn.
+    if (canApprove && po.status === 'PendingApproval') {
+      items.push({
+        key: 'approve',
+        label: 'Duyệt đơn hàng',
+        icon: <CheckCircle2 size={14} style={{ color: 'hsl(142 70% 40%)' }} />,
+        onClick: () => navigate(`/purchase-orders/${po.poId}?fromProject=${projectId}`),
+      });
+    }
 
     if (isAccountant) {
       const canClose = po.status === 'PartiallyReceived';
@@ -491,9 +500,9 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
                   >
                     <td className="px-4 py-3 font-semibold text-[hsl(var(--primary))] truncate" title={po.poNumber}>{po.poNumber}</td>
                     <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={po.supplierName || 'N/A'}>{po.supplierName || 'N/A'}</td>
-                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatDate(po.orderDate)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatPlainDate(po.orderDate)}</td>
                     <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(po.totalAmount)}</td>
-                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{po.items.length} dòng</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{po.items.length} loại</td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant={statusVariant[po.status] ?? 'default'}>
                         {statusLabel[po.status] ?? po.status}
@@ -510,6 +519,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
                   </tr>
                 )}
               </>
+
             )}
           </tbody>
         </table>

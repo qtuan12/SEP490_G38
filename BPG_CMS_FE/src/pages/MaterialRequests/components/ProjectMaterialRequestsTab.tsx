@@ -45,6 +45,8 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const [searchParams] = useSearchParams();
   const urlPhaseId = searchParams.get('phaseId');
   const urlRequestId = searchParams.get('requestId');
+  /** Id đơn hàng đã dẫn sang đây — đóng modal chi tiết thì quay lại đúng đơn hàng đó. */
+  const fromPO = searchParams.get('fromPO');
 
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
@@ -615,6 +617,14 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           onClose={() => {
             setIsDetailOpen(false);
             setSelectedRequest(null);
+            // Đến từ chi tiết đơn hàng thì trả người dùng về đúng chỗ họ vừa rời đi.
+            // Ưu tiên lùi lịch sử: giữ nguyên mọi tham số của trang đơn hàng (vd fromProject)
+            // và không đẻ thêm entry khiến nút quay lại ở đó lại đưa ngược về đây.
+            if (fromPO) {
+              const canGoBack = (window.history.state as { idx?: number } | null)?.idx;
+              if (canGoBack) navigate(-1);
+              else navigate(`/purchase-orders/${fromPO}`, { replace: true });
+            }
           }}
           request={selectedRequest}
           isAccountant={isAccountant}

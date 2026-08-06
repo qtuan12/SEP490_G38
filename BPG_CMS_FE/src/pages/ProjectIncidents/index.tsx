@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { incidentService } from '../../services/incidentService';
@@ -33,6 +34,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const [loading, setLoading] = useState(true);
   const { connection } = useNotification();
   const [projName, setProjName] = useState(projectName || '');
+  const [searchParams] = useSearchParams();
+  const taskIdFilterStr = searchParams.get('taskId');
 
   useEffect(() => {
     if (!projectName && projectId) {
@@ -256,6 +259,10 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
 
   // Filter logic
   const filteredIncidents = incidents.filter(inc => {
+    if (taskIdFilterStr && inc.taskId !== taskIdFilterStr) {
+      return false;
+    }
+
     if (filterType === 'construction' && inc.incidentType !== 'Construction') {
       return false;
     }
@@ -562,6 +569,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
           incident={selectedIncident}
           phase={effectivePhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
+          task={selectedTask || undefined}
+          members={members}
           onResolveClick={() => {
             if (selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage') {
               setIsDetailOpen(false);

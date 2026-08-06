@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown, History, Minus, User } from 'lucide-react';
 import { projectService } from '../services/projectService';
 import type { TaskProgressLog } from '../types/common';
+import { parseDateSafe } from '../utils/dateHelpers';
 
 interface TaskProgressHistoryPanelProps {
   taskId: string;
@@ -21,7 +22,7 @@ type ProgressSource = {
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr);
+    const d = parseDateSafe(dateStr);
     if (isNaN(d.getTime())) {
       return dateStr.replace('T', ' ').slice(0, 16);
     }

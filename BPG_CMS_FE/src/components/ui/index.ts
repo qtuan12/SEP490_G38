@@ -9,6 +9,7 @@ export * from './Textarea';
 export * from './Select';
 export * from './FormItem';
 export * from './Modal';
+export * from './ImageLightbox';
 export * from './Drawer';
 export * from './ConfirmDialog';
 export * from './Pagination';

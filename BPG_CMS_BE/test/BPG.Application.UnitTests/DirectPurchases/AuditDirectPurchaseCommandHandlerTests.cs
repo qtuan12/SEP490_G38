@@ -76,27 +76,20 @@ namespace BPG.Application.UnitTests.DirectPurchases
                 AuditNote = note,
             }, CancellationToken.None);
 
-        [Fact]
-        public async Task Audit_ApproveWithinBoq_ShouldFinalizeAsApproved()
+        // Mua khẩn cấp luôn cần chữ ký Giám đốc, kể cả phiếu nằm trong định mức BOQ —
+        // Kế toán soát hóa đơn xong chỉ trình lên, không tự chốt duyệt chi.
+        [Theory]
+        [InlineData(BOQCheckStatus.WithinBOQ)]
+        [InlineData(BOQCheckStatus.OverBOQ)]
+        public async Task Audit_Approve_ShouldEscalateToDirector(string boqCheck)
         {
-            var dp = SetDp(DirectPurchaseStatus.Pending, BOQCheckStatus.WithinBOQ);
-
-            await Audit(true);
-
-            dp.Status.Should().Be(DirectPurchaseStatus.Approved);
-            dp.AuditStatus.Should().Be(DirectPurchaseAuditStatus.Audited);
-            dp.AuditedBy.Should().Be(UserId);
-        }
-
-        [Fact]
-        public async Task Audit_ApproveOverBoq_ShouldEscalateToDirector()
-        {
-            var dp = SetDp(DirectPurchaseStatus.Pending, BOQCheckStatus.OverBOQ);
+            var dp = SetDp(DirectPurchaseStatus.Pending, boqCheck);
 
             await Audit(true);
 
             dp.Status.Should().Be(DirectPurchaseStatus.WaitingApproval);
             dp.AuditStatus.Should().Be(DirectPurchaseAuditStatus.Audited);
+            dp.AuditedBy.Should().Be(UserId);
         }
 
         [Theory]

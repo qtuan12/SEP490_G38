@@ -40,7 +40,11 @@ public class GetProcurementReportQueryHandler
             .Include(p => p.Supplier)
             .Include(p => p.Items)
             .Include(p => p.Request).ThenInclude(r => r!.Phase)
-            .Where(p => p.Status != PurchaseOrderStatus.Draft && p.Status != PurchaseOrderStatus.Cancelled)
+            // Đơn chưa được Giám đốc duyệt (hoặc bị từ chối) chưa phải cam kết chi — không đưa vào báo cáo.
+            .Where(p => p.Status != PurchaseOrderStatus.Draft
+                     && p.Status != PurchaseOrderStatus.PendingApproval
+                     && p.Status != PurchaseOrderStatus.Rejected
+                     && p.Status != PurchaseOrderStatus.Cancelled)
             .AsNoTracking();
 
         var fromDt = request.FromDate?.Date;
@@ -197,6 +201,8 @@ public class GetProcurementReportQueryHandler
             .Query()
             .Where(p => p.UnitPrice > 0
                 && p.PurchaseOrder!.Status != PurchaseOrderStatus.Draft
+                && p.PurchaseOrder.Status != PurchaseOrderStatus.PendingApproval
+                && p.PurchaseOrder.Status != PurchaseOrderStatus.Rejected
                 && p.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
                 && (request.ProjectId > 0
                     ? p.PurchaseOrder.ProjectId == request.ProjectId

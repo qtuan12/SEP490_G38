@@ -1,5 +1,7 @@
 using BPG.Application.Features.Auth.Commands;
+using BPG.Application.Features.Auth.Services;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -11,16 +13,21 @@ namespace BPG.Application.Features.Auth.Handlers;
 public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand>
 {
     private readonly IUnitOfWork _uow;
+    private readonly IJwtService _jwtService;
 
-    public ResetPasswordCommandHandler(IUnitOfWork uow)
+    public ResetPasswordCommandHandler(IUnitOfWork uow, IJwtService jwtService)
     {
         _uow = uow;
+        _jwtService = jwtService;
     }
 
     public async Task Handle(ResetPasswordCommand request, CancellationToken ct)
     {
+        // DB chỉ lưu bản băm của reset token nên phải băm giá trị client gửi lên rồi mới so.
+        var tokenHash = _jwtService.HashToken(request.ResetToken ?? string.Empty);
+
         var resetToken = await _uow.Repository<OtpToken>().Query()
-            .FirstOrDefaultAsync(o => o.Token == request.ResetToken
+            .FirstOrDefaultAsync(o => o.Token == tokenHash
                                    && o.OtpType == "PASSWORD_RESET"
                                    && !o.IsUsed
                                    && o.RevokedAt == null, ct)
@@ -43,6 +50,10 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand>
         user.LockedUntil = null;
 
         resetToken.IsUsed = true;
+
+        // Đặt lại mật khẩu qua quên mật khẩu: cắt sạch phiên cũ, vì kịch bản điển hình là
+        // tài khoản đã bị người khác chiếm.
+        await RefreshTokenRevoker.RevokeAllAsync(_uow, user.UserId, ct);
 
         _uow.Repository<User>().Update(user);
         _uow.Repository<OtpToken>().Update(resetToken);

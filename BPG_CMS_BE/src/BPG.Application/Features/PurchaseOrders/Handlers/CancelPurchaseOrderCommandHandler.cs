@@ -41,6 +41,10 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             if (po.Status == PurchaseOrderStatus.Cancelled)
                 throw new BusinessException(ErrorCodes.PoAlreadyCancelled, "Đơn mua hàng đã bị hủy trước đó.");
 
+            if (po.Status == PurchaseOrderStatus.Rejected)
+                throw new BusinessException(ErrorCodes.PoCannotCancel,
+                    "Đơn mua hàng đã bị Giám đốc từ chối, không cần hủy nữa.");
+
             if (po.Status == PurchaseOrderStatus.PartiallyReceived ||
                 po.Status == PurchaseOrderStatus.FullyReceived ||
                 po.Status == PurchaseOrderStatus.Closed)

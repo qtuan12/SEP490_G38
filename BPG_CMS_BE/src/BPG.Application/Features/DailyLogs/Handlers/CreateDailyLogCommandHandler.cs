@@ -3,6 +3,7 @@ using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.Features.DailyLogs.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -182,7 +183,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 var log = new DailyLog
                 {
                     TaskId = request.TaskId,
-                    LogDate = DateOnly.FromDateTime(DateTime.Today),
+                    LogDate = VietnamTime.Today,
                     NewProgressPercent = request.NewProgressPercent,
                     Description = request.Description,
                     CreatedBy = currentUserId,

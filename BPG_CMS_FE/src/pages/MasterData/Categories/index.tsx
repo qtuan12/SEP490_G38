@@ -6,9 +6,13 @@ import { ConfirmDialog, Button, DataTable, Pagination, TableLoader } from '../..
 import type { MaterialCategory } from '../../../types/materialCategory';
 import { Search, Plus, Edit2, Trash2, AlertCircle, Tags } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../../context/AuthContext';
+import { RoleGroup, hasAnyRole } from '../../../auth/roles';
 
 export const CategoryManagement: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canManageMasterData = hasAnyRole(user?.roles, RoleGroup.MasterData);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -106,7 +110,7 @@ export const CategoryManagement: React.FC = () => {
         <span className="text-[hsl(var(--text-secondary))]">{cat.description || '-'}</span>
       ),
     },
-    {
+    ...(canManageMasterData ? [{
       key: 'actions',
       header: 'Hành động',
       render: (cat: MaterialCategory) => (
@@ -129,7 +133,7 @@ export const CategoryManagement: React.FC = () => {
           </Button>
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
@@ -164,10 +168,12 @@ export const CategoryManagement: React.FC = () => {
             />
           </div>
 
-          <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
-            <Plus size={18} />
-            <span>Thêm Danh mục</span>
-          </Button>
+          {canManageMasterData && (
+            <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
+              <Plus size={18} />
+              <span>Thêm Loại vật tư</span>
+            </Button>
+          )}
         </div>
 
         {isLoading ? (

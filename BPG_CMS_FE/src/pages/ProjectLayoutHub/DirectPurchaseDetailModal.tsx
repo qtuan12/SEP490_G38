@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../../components/ui/Modal';
-import { Button, Badge, ConfirmDialog } from '../../components/ui';
+import { Button, Badge, ConfirmDialog, ImageLightbox } from '../../components/ui';
 import {
   directPurchaseService,
   DP_STATUS,
   DP_STATUS_LABEL,
-  DP_BOQ_CHECK,
   type DirectPurchaseDetailDto,
 } from '../../services/directPurchaseService';
 import { useAuth } from '../../context/AuthContext';
+import { formatDateOnly, formatPlainDate } from '../../utils/dateHelpers';
 import { Loader2, CheckCircle, XCircle, FileText, Package, AlertTriangle, Send, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -19,7 +19,7 @@ interface Props {
   directPurchaseId: number | null;
   /** Cho phép kế toán thao tác kiểm toán */
   canAudit: boolean;
-  /** Cho phép Giám đốc duyệt chi phiếu vượt định mức */
+  /** Cho phép Giám đốc duyệt chi phiếu mua khẩn cấp */
   canApproveSpending?: boolean;
   /** Cho phép sửa/xóa/gửi phiếu nháp */
   canCreateDraft?: boolean;
@@ -38,14 +38,6 @@ const statusVariant: Record<string, 'default' | 'warning' | 'success' | 'danger'
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  return `${day}/${month}/${d.getFullYear()}`;
-};
 
 export const DirectPurchaseDetailModal: React.FC<Props> = ({
   isOpen, onClose, onAudited, directPurchaseId, canAudit, canApproveSpending, canCreateDraft, onEditDraft,
@@ -69,18 +61,20 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
       .finally(() => setLoading(false));
   }, [isOpen, directPurchaseId]);
 
+  /** Ảnh hóa đơn đang xem phóng to. null = chưa mở. */
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
   const isDraft = detail?.status === DP_STATUS.Draft;
-  const isOverBOQ = detail?.boqCheckStatus === DP_BOQ_CHECK.OverBOQ;
   const isMine = !!detail && String(detail.requestedBy) === String(user?.id);
 
   // Kế toán chỉ thao tác được khi phiếu đã gửi và chưa kiểm toán.
   // Pending là trạng thái duy nhất thỏa cả hai điều kiện đó.
   const canDoAudit = canAudit && detail?.status === DP_STATUS.Pending;
-  // Giám đốc chỉ thao tác khi Kế toán đã soát và phiếu vượt định mức.
+  // Giám đốc chỉ thao tác khi Kế toán đã soát hóa đơn. Mọi phiếu đều qua bước này,
+  // kể cả phiếu nằm trong định mức BOQ.
   const canDoDirector = !!canApproveSpending && detail?.status === DP_STATUS.WaitingApproval;
 
-  // Message thành công do backend quyết định — nhánh trong/vượt định mức BOQ đi tới bước duyệt
-  // khác nhau nên chỉ backend mới mô tả đúng. Tham số fallback chỉ dùng khi không có message.
+  // Message thành công do backend quyết định. Tham số fallback chỉ dùng khi không có message.
   const run = async (fn: () => Promise<{ message?: string }>, fallbackMsg = 'Thao tác thành công.') => {
     setSubmitting(true);
     try {
@@ -179,7 +173,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
             <XCircle size={16} /> Từ chối
           </Button>
           <Button variant="primary" onClick={() => handleAudit(true)} isLoading={submitting} disabled={submitting} style={iconGap}>
-            <CheckCircle size={16} /> {isOverBOQ ? 'Xác nhận & trình Giám đốc' : 'Xác nhận đã hoàn tiền'}
+            <CheckCircle size={16} /> Xác nhận & trình Giám đốc
           </Button>
         </>
       );
@@ -216,37 +210,26 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
             </div>
           )}
 
-          {isOverBOQ && !isDraft && (
-            <div style={{ display: 'flex', gap: 8, padding: '10px 14px', background: 'hsl(var(--warning) / 0.12)', border: '1px solid hsl(var(--warning) / 0.35)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', color: 'hsl(var(--warning))' }}>
-              <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
-              <span>
-                Phiếu <b>vượt định mức BOQ</b>. Vật tư đã được nhập kho; khoản chi cần Kế toán soát hóa đơn
-                rồi Giám đốc duyệt mới được hoàn tiền. Nếu bị từ chối, vật tư vẫn ở trong kho — chỉ là không hoàn tiền.
-              </span>
-            </div>
-          )}
-
           {/* Header info */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 24px', fontSize: '0.9rem' }}>
             <InfoRow label="Dự án" value={detail.projectName} />
             <InfoRow label="Giai đoạn" value={detail.phaseName} />
             <InfoRow label="Người tạo" value={detail.requesterName} />
-            <InfoRow label="Ngày mua" value={formatDate(detail.purchaseDate)} />
+            <InfoRow label="Ngày mua" value={formatPlainDate(detail.purchaseDate)} />
             <div>
               {/* Một trục trạng thái duy nhất. Diễn biến chi tiết (ai kiểm toán, ai duyệt chi,
-                  ghi chú/lý do) nằm ở khối lịch sử xử lý phía dưới. */}
+                  ghi chú/lý do) nằm ở khối lịch sử xử lý phía dưới.
+                  Không lặp lại trạng thái định mức ở đây: dòng vật tư vượt định mức đã có cảnh
+                  báo riêng kèm số lượng vượt, cụ thể hơn hẳn một nhãn ở đầu phiếu. */}
               <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.8rem' }}>Trạng thái</span>
               <div style={{ marginTop: '2px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <Badge variant={statusVariant[detail.status] ?? 'default'}>
                   {DP_STATUS_LABEL[detail.status] ?? detail.status}
                 </Badge>
-                <Badge variant={isOverBOQ ? 'warning' : 'success'}>
-                  {isOverBOQ ? 'Vượt định mức' : 'Trong định mức'}
-                </Badge>
               </div>
             </div>
             <InfoRow label="Tổng tiền" value={formatCurrency(detail.totalAmount)} bold />
-            {detail.submittedAt && <InfoRow label="Ngày gửi" value={formatDate(detail.submittedAt)} />}
+            {detail.submittedAt && <InfoRow label="Ngày gửi" value={formatDateOnly(detail.submittedAt)} />}
           </div>
 
           {detail.reason && (
@@ -315,9 +298,13 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                 {detail.invoicePhotoUrls.map((url, i) => (
-                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                    <img src={url} alt={`invoice-${i}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', cursor: 'zoom-in' }} />
-                  </a>
+                  <img
+                    key={i}
+                    src={url}
+                    alt={`invoice-${i}`}
+                    onClick={() => setLightboxIndex(i)}
+                    style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))', cursor: 'zoom-in' }}
+                  />
                 ))}
               </div>
             )}
@@ -326,14 +313,14 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
           {/* Lịch sử xử lý */}
           {detail.auditorName && (
             <div style={{ padding: '10px 14px', background: 'hsl(var(--bg-sidebar))', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem' }}>
-              <div><strong>Kế toán:</strong> {detail.auditorName}{detail.auditedAt ? ` — ${formatDate(detail.auditedAt)}` : ''}</div>
+              <div><strong>Kế toán:</strong> {detail.auditorName}{detail.auditedAt ? ` — ${formatDateOnly(detail.auditedAt)}` : ''}</div>
               {detail.auditNote && <div style={{ marginTop: '4px' }}><strong>Ghi chú:</strong> {detail.auditNote}</div>}
             </div>
           )}
 
           {detail.approverName && (
             <div style={{ padding: '10px 14px', background: 'hsl(var(--bg-sidebar))', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem' }}>
-              <div><strong>Giám đốc:</strong> {detail.approverName}{detail.approvedAt ? ` — ${formatDate(detail.approvedAt)}` : ''}</div>
+              <div><strong>Giám đốc:</strong> {detail.approverName}{detail.approvedAt ? ` — ${formatDateOnly(detail.approvedAt)}` : ''}</div>
               {detail.approvalNote && <div style={{ marginTop: '4px' }}><strong>Ý kiến:</strong> {detail.approvalNote}</div>}
             </div>
           )}
@@ -357,6 +344,14 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
       )}
     </Modal>
 
+    <ImageLightbox
+      images={detail?.invoicePhotoUrls ?? []}
+      index={lightboxIndex}
+      onClose={() => setLightboxIndex(null)}
+      onIndexChange={setLightboxIndex}
+      label="Ảnh hóa đơn"
+    />
+
     <ConfirmDialog
       isOpen={confirmAction !== null}
       onClose={() => setConfirmAction(null)}
@@ -366,7 +361,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
         confirmAction === 'delete'
           ? `Xóa phiếu nháp ${detail?.requestNumber ?? ''}? Phiếu chưa gửi nên không ảnh hưởng tồn kho, nhưng nội dung đã soạn sẽ mất.`
           : 'Sau khi gửi, vật tư được nhập kho ngay và phiếu không thể sửa. '
-            + 'Nếu phiếu vượt định mức BOQ, khoản chi sẽ phải qua Kế toán soát hóa đơn rồi Giám đốc duyệt mới được hoàn tiền.'
+            + 'Khoản chi phải qua Kế toán soát hóa đơn rồi Giám đốc duyệt mới được hoàn tiền.'
       }
       confirmText={confirmAction === 'delete' ? 'Xác nhận xóa' : 'Gửi phiếu'}
       cancelText={confirmAction === 'delete' ? 'Đóng' : 'Xem lại'}

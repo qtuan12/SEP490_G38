@@ -1,3 +1,4 @@
+using BPG.Domain.Common;
 using BPG.Domain.Exceptions;
 using BPG.Application.DTOs;
 using BPG.Application.IRepositories;
@@ -92,7 +93,9 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
             ProjectName = phase.Project?.Name ?? "Unknown Project",
             PhaseName = phase.Name,
             AcceptedByFullName = currentUserFullName,
-            AcceptanceDate = DateTime.Now,
+            // Ngày in trên biên bản là để người đọc xem nên lấy giờ Việt Nam, khác với
+            // AcceptanceDate lưu xuống DB (luôn là UTC).
+            AcceptanceDate = VietnamTime.Now,
             ReportContent = request.ReportContent,
             Tasks = nonObsoleteTasks.Select(t => new PhaseAcceptanceTaskDto
             {
@@ -105,7 +108,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         var pdfBytes = _pdfService.GeneratePhaseAcceptancePdf(pdfModel);
 
         // 4. Upload PDF
-        string fileName = $"BienBanNghiemThu_Phase_{phase.PhaseId}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+        string fileName = $"BienBanNghiemThu_Phase_{phase.PhaseId}_{VietnamTime.Now:yyyyMMddHHmmss}.pdf";
         string pdfUrl = await _fileStorageService.UploadFileAsync(pdfBytes, fileName, StorageFolders.AcceptanceDocs, ct);
 
         // 5. Save Acceptance (Always insert a new one to keep history)
@@ -113,7 +116,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         {
             PhaseId = phase.PhaseId,
             AcceptedBy = userId,
-            AcceptanceDate = DateTime.Now,
+            AcceptanceDate = DateTime.UtcNow,
             ReportContent = request.ReportContent,
             PdfUrl = pdfUrl,
             IsCancelled = false

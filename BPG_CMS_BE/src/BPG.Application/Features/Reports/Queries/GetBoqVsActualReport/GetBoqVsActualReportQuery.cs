@@ -210,6 +210,8 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             .Query()
             .Where(p => p.UnitPrice > 0
                 && p.PurchaseOrder!.Status != PurchaseOrderStatus.Draft
+                && p.PurchaseOrder.Status != PurchaseOrderStatus.PendingApproval
+                && p.PurchaseOrder.Status != PurchaseOrderStatus.Rejected
                 && p.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
                 && (request.ProjectId > 0
                     ? p.PurchaseOrder.ProjectId == request.ProjectId

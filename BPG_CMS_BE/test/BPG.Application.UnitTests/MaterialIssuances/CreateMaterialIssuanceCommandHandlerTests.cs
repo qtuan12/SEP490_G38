@@ -91,7 +91,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be("ERR_TASK_LOCKED");
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_INACTIVE");
         }
 
         [Fact]

@@ -6,6 +6,7 @@ using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
+using FluentValidation;
 using MockQueryable;
 using MockQueryable.Moq;
 using Moq;
@@ -278,6 +279,45 @@ namespace BPG.Application.UnitTests.DirectPurchases
 
             (await act.Should().ThrowAsync<BusinessException>())
                 .Which.ErrorCode.Should().Be(ErrorCodes.DpNoReason);
+        }
+
+        [Fact]
+        public async Task Submit_InvalidItems_ShouldReportEveryFailingLineWithItsPosition()
+        {
+            // Gom hết lỗi của mọi dòng trong một lần, kèm vị trí dòng, để FE gắn được dòng đỏ
+            // dưới đúng ô nhập thay vì bắt người dùng sửa từng lỗi một.
+            SetDraft(TodayVn);
+            var dp = _mockDpRepo.Object.Query().First();
+            dp.Items = new List<DirectPurchaseItem>
+            {
+                new() { DirectPurchaseItemId = 1, DirectPurchaseId = DpId, MaterialId = 5, UnitId = 1, Quantity = 0m, ConversionRate = 1m, UnitPrice = 1000m },
+                new() { DirectPurchaseItemId = 2, DirectPurchaseId = DpId, MaterialId = 6, UnitId = 1, Quantity = 3m, ConversionRate = 1m, UnitPrice = 0m },
+            };
+
+            var act = Submit;
+
+            var failures = (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.ToList();
+            failures.Should().HaveCount(2);
+            failures.Should().ContainSingle(f =>
+                f.PropertyName == "Items[0].Quantity" && f.ErrorCode == ErrorCodes.DpInvalidQuantity);
+            failures.Should().ContainSingle(f =>
+                f.PropertyName == "Items[1].UnitPrice" && f.ErrorCode == ErrorCodes.DpInvalidUnitPrice);
+        }
+
+        [Fact]
+        public async Task Submit_InvalidItems_ShouldNotTouchInventory()
+        {
+            SetDraft(TodayVn);
+            _mockDpRepo.Object.Query().First().Items.First().Quantity = 0m;
+
+            var act = Submit;
+
+            await act.Should().ThrowAsync<ValidationException>();
+            _mockFulfillment.Verify(f => f.MaterializeAsync(
+                It.IsAny<DirectPurchaseRequest>(),
+                It.IsAny<IReadOnlyList<DirectPurchaseItem>>(),
+                It.IsAny<long>(),
+                It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Fact]
