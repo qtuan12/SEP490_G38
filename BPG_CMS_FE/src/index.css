@@ -41,6 +41,37 @@
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+html.dark {
+  /* Dark theme override */
+  --bg-main: 224 71% 6%;
+  --bg-card: 224 71% 10%;
+  --bg-card-glass: 224 71% 10% / 0.8;
+  
+  --primary: 235 90% 65%;
+  --primary-hover: 235 90% 55%;
+  --primary-glow: 235 90% 65% / 0.25;
+  
+  --success: 142 60% 45%;
+  --success-glow: 142 60% 45% / 0.15;
+  
+  --warning: 38 85% 50%;
+  --warning-glow: 38 85% 50% / 0.15;
+  
+  --danger: 0 85% 60%;
+  --danger-glow: 0 85% 60% / 0.15;
+  
+  --text-primary: 210 20% 98%;
+  --text-secondary: 215 16% 75%;
+  --text-muted: 215 16% 55%;
+  
+  --border: 220 15% 18%;
+  --border-light: 220 15% 26%;
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+}
+
 @layer base {
 /* Base Styles */
 * {
