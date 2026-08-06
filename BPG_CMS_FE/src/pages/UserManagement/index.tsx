@@ -97,7 +97,7 @@ export const UserManagement: React.FC = () => {
   };
 
   const showSuccess = (message: string) => {
-    console.log(message);
+    toast.success(message, { duration: 3000, position: 'top-right' });
   };
 
   const handleDeleteSubmit = async () => {
