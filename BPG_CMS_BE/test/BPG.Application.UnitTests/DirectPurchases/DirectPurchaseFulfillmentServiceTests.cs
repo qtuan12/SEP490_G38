@@ -114,15 +114,18 @@ namespace BPG.Application.UnitTests.DirectPurchases
         }
 
         [Fact]
-        public async Task EvaluateBoq_MaterialNotInBoq_ShouldFlagOverBoq()
+        public async Task EvaluateBoq_BoqLineRemovedAfterDrafting_ShouldFlagOverBoq()
         {
+            // ResolveItemsAsync đã chặn vật tư ngoài BOQ ngay từ khâu soạn nháp, nên trường hợp này
+            // chỉ còn xảy ra khi dòng BOQ bị xóa sau đó. Phiếu không được lọt qua im lặng.
             _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem>().AsQueryable().BuildMock());
             var items = Request(1m);
 
             var anyOver = await _service.EvaluateBoqAsync(PhaseId, null, items, CancellationToken.None);
 
             anyOver.Should().BeTrue();
-            items[0].Explanation.Should().Contain("không có trong định mức BOQ");
+            items[0].IsOverBOQ.Should().BeTrue();
+            items[0].Explanation.Should().Contain("không còn trong định mức BOQ");
         }
 
         [Fact]
@@ -236,14 +239,67 @@ namespace BPG.Application.UnitTests.DirectPurchases
         }
 
         [Fact]
-        public async Task ResolveItems_MaterialNotInBoq_ShouldFallBackToBaseUnit()
+        public async Task ResolveItems_MaterialNotInBoq_ShouldThrow()
         {
+            // Chỉ mua khẩn cấp được vật tư đã có trong định mức BOQ của giai đoạn.
             SetupCatalogForResolve();
             _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem>().AsQueryable().BuildMock());
 
-            var resolved = await _service.ResolveItemsAsync(PhaseId, new[]
+            var act = () => _service.ResolveItemsAsync(PhaseId, new[]
             {
                 new DirectPurchaseItemInput { MaterialId = MaterialId, Quantity = 3m, UnitPrice = 100m }
+            }, CancellationToken.None);
+
+            (await act.Should().ThrowAsync<BusinessException>())
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpMaterialNotInBoq);
+        }
+
+        [Fact]
+        public async Task ResolveItems_DiscreteUnitWithFractionalQuantity_ShouldThrow()
+        {
+            SetupCatalogForResolve(baseUnitIsDiscrete: true);
+            // Vật tư phải nằm trong BOQ, nếu không sẽ dừng ở kiểm tra định mức chứ không tới
+            // được kiểm tra số lượng nguyên.
+            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem>
+            {
+                new()
+                {
+                    BOQItemId = 1, PhaseId = PhaseId, MaterialId = MaterialId,
+                    Quantity = 100m, ConversionRate = 1m, UnitId = 1, IsDeleted = false,
+                    Unit = new Unit { UnitId = 1, UnitName = "Bao", IsDiscrete = true }
+                }
+            }.AsQueryable().BuildMock());
+
+            var act = () => _service.ResolveItemsAsync(PhaseId, new[]
+            {
+                new DirectPurchaseItemInput { MaterialId = MaterialId, Quantity = 2.5m, UnitPrice = 100m }
+            }, CancellationToken.None);
+
+            (await act.Should().ThrowAsync<BusinessException>())
+                .Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+        }
+
+        // ---------- Người dùng tự chọn đơn vị tính ----------
+
+        [Fact]
+        public async Task ResolveItems_UserPicksBaseUnit_ShouldUseRateOne()
+        {
+            SetupCatalogForResolve();
+            SetupConversions();
+            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem>
+            {
+                new()
+                {
+                    BOQItemId = 1, PhaseId = PhaseId, MaterialId = MaterialId,
+                    Quantity = 100m, ConversionRate = 0.2m, UnitId = 9, IsDeleted = false,
+                    Unit = new Unit { UnitId = 9, UnitName = "Thùng" }
+                }
+            }.AsQueryable().BuildMock());
+
+            // Dòng BOQ tính theo Thùng nhưng người dùng mua theo Bao (đơn vị cơ bản).
+            var resolved = await _service.ResolveItemsAsync(PhaseId, new[]
+            {
+                new DirectPurchaseItemInput { MaterialId = MaterialId, UnitId = 1, Quantity = 3m, UnitPrice = 100m }
             }, CancellationToken.None);
 
             resolved[0].UnitId.Should().Be(1);
@@ -252,22 +308,59 @@ namespace BPG.Application.UnitTests.DirectPurchases
         }
 
         [Fact]
-        public async Task ResolveItems_DiscreteUnitWithFractionalQuantity_ShouldThrow()
+        public async Task ResolveItems_UserPicksAlternativeUnit_ShouldUseConversionRateFromDb()
         {
-            SetupCatalogForResolve(baseUnitIsDiscrete: true);
-            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem>().AsQueryable().BuildMock());
+            SetupCatalogForResolve();
+            SetupConversions();
+            SetupBoqForResolve();
+
+            var resolved = await _service.ResolveItemsAsync(PhaseId, new[]
+            {
+                new DirectPurchaseItemInput { MaterialId = MaterialId, UnitId = 5, Quantity = 2m, UnitPrice = 100m }
+            }, CancellationToken.None);
+
+            resolved[0].UnitId.Should().Be(5);
+            resolved[0].UnitName.Should().Be("Tấn");
+            resolved[0].ConversionRate.Should().Be(0.05m);
+        }
+
+        [Fact]
+        public async Task ResolveItems_UserPicksUnitWithoutConversion_ShouldThrow()
+        {
+            SetupCatalogForResolve();
+            SetupConversions();
+            SetupBoqForResolve();
 
             var act = () => _service.ResolveItemsAsync(PhaseId, new[]
             {
-                new DirectPurchaseItemInput { MaterialId = MaterialId, Quantity = 2.5m, UnitPrice = 100m }
+                new DirectPurchaseItemInput { MaterialId = MaterialId, UnitId = 999, Quantity = 2m, UnitPrice = 100m }
             }, CancellationToken.None);
 
-            await act.Should().ThrowAsync<BusinessException>();
+            (await act.Should().ThrowAsync<BusinessException>())
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpInvalidUnit);
+        }
+
+        /// <summary>
+        /// Dòng BOQ tối thiểu để qua được kiểm tra "vật tư phải có trong định mức" — dùng cho các
+        /// test chỉ quan tâm tới quy tắc suy ra đơn vị tính.
+        /// </summary>
+        private void SetupBoqForResolve()
+        {
+            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem>
+            {
+                new()
+                {
+                    BOQItemId = 1, PhaseId = PhaseId, MaterialId = MaterialId,
+                    Quantity = 100m, ConversionRate = 1m, UnitId = 1, IsDeleted = false,
+                    Unit = new Unit { UnitId = 1, UnitName = "Bao" }
+                }
+            }.AsQueryable().BuildMock());
         }
 
         private void SetupCatalogForResolve(bool baseUnitIsDiscrete = false)
         {
             var baseUnit = new Unit { UnitId = 1, UnitName = "Bao", IsDiscrete = baseUnitIsDiscrete };
+            var altUnit = new Unit { UnitId = 5, UnitName = "Tấn" };
             var mockMaterialRepo = new Mock<IGenericRepository<MaterialCatalog>>();
             var mockUnitRepo = new Mock<IGenericRepository<Unit>>();
 
@@ -275,10 +368,22 @@ namespace BPG.Application.UnitTests.DirectPurchases
             {
                 new() { MaterialId = MaterialId, Code = "MAT-77", Name = "Xi măng", BaseUnitId = 1, BaseUnit = baseUnit, IsDeleted = false }
             }.AsQueryable().BuildMock());
-            mockUnitRepo.Setup(r => r.Query()).Returns(new List<Unit> { baseUnit }.AsQueryable().BuildMock());
+            mockUnitRepo.Setup(r => r.Query()).Returns(new List<Unit> { baseUnit, altUnit }.AsQueryable().BuildMock());
 
             _mockUow.Setup(u => u.Repository<MaterialCatalog>()).Returns(mockMaterialRepo.Object);
             _mockUow.Setup(u => u.Repository<Unit>()).Returns(mockUnitRepo.Object);
+        }
+
+        /// <summary>Xi măng: 1 tấn = 20 bao, tức 0.05 tấn trên một bao (đơn vị cơ bản).</summary>
+        private void SetupConversions()
+        {
+            var mockConversionRepo = new Mock<IGenericRepository<MaterialConversion>>();
+            mockConversionRepo.Setup(r => r.Query()).Returns(new List<MaterialConversion>
+            {
+                new() { MaterialId = MaterialId, AlternativeUnitId = 5, ConversionRate = 0.05m }
+            }.AsQueryable().BuildMock());
+
+            _mockUow.Setup(u => u.Repository<MaterialConversion>()).Returns(mockConversionRepo.Object);
         }
     }
 }

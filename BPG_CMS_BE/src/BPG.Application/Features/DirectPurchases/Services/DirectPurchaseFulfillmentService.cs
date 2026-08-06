@@ -33,21 +33,59 @@ namespace BPG.Application.Features.DirectPurchases.Services
                     .FirstOrDefaultAsync(m => m.MaterialId == item.MaterialId && !m.IsDeleted, ct)
                     ?? throw new NotFoundException(nameof(MaterialCatalog), item.MaterialId);
 
-                // Đơn vị tính không do người dùng chọn: vật tư có trong BOQ thì lấy đúng đơn vị của
-                // dòng BOQ (để số nhập vào so trực tiếp được với định mức), ngoài BOQ thì lấy đơn vị
-                // cơ bản của vật tư.
                 var boq = await _uow.Repository<BOQItem>().Query()
                     .Include(b => b.Unit)
                     .FirstOrDefaultAsync(b => b.PhaseId == phaseId && b.MaterialId == item.MaterialId && !b.IsDeleted, ct);
 
-                int unitId = boq?.UnitId ?? material.BaseUnitId;
-                decimal conversionRate = boq?.ConversionRate ?? 1.0m;
-                if (conversionRate == 0) conversionRate = 1.0m;
+                // Chỉ được mua khẩn cấp những vật tư đã có trong định mức BOQ của giai đoạn.
+                // Chặn ngay từ khâu soạn nháp để người dùng không nhập cả phiếu rồi mới bị từ chối.
+                if (boq == null)
+                    throw new BusinessException(ErrorCodes.DpMaterialNotInBoq,
+                        $"Vật tư '{material.Name}' chưa có trong định mức BOQ của giai đoạn nên không thể mua khẩn cấp. " +
+                        "Vui lòng bổ sung vật tư vào bảng định mức trước.");
 
-                var unit = boq?.Unit ?? material.BaseUnit
-                    ?? await _uow.Repository<Domain.Entities.Unit>().Query()
-                        .FirstOrDefaultAsync(u => u.UnitId == unitId, ct)
-                    ?? throw new NotFoundException(nameof(Domain.Entities.Unit), unitId);
+                int unitId;
+                decimal conversionRate;
+                Domain.Entities.Unit unit;
+
+                if (item.UnitId > 0)
+                {
+                    // Người dùng chủ động chọn đơn vị: chỉ chấp nhận đơn vị cơ bản hoặc một đơn vị
+                    // đã khai báo quy đổi. Tỷ lệ tra lại từ DB, không nhận từ client — client gửi
+                    // tỷ lệ sai là lệch toàn bộ phép đối chiếu định mức (mọi so sánh quy về ĐV cơ bản).
+                    unitId = item.UnitId;
+
+                    if (unitId == material.BaseUnitId)
+                    {
+                        conversionRate = 1.0m;
+                        unit = material.BaseUnit;
+                    }
+                    else
+                    {
+                        var conversion = await _uow.Repository<MaterialConversion>().Query()
+                            .FirstOrDefaultAsync(c => c.MaterialId == item.MaterialId && c.AlternativeUnitId == unitId, ct)
+                            ?? throw new BusinessException(ErrorCodes.DpInvalidUnit,
+                                $"Đơn vị tính không được hỗ trợ cho vật tư '{material.Name}'.");
+
+                        conversionRate = conversion.ConversionRate == 0 ? 1.0m : conversion.ConversionRate;
+                        unit = await _uow.Repository<Domain.Entities.Unit>().Query()
+                            .FirstOrDefaultAsync(u => u.UnitId == unitId, ct)
+                            ?? throw new NotFoundException(nameof(Domain.Entities.Unit), unitId);
+                    }
+                }
+                else
+                {
+                    // Không chọn: dùng đúng đơn vị VÀ tỷ lệ đã chốt trên dòng BOQ — không tra lại bảng
+                    // quy đổi, vì dòng BOQ cũ vẫn hợp lệ kể cả khi đơn vị đó về sau bị gỡ khỏi bảng
+                    // quy đổi của vật tư.
+                    unitId = boq.UnitId;
+                    conversionRate = boq.ConversionRate == 0 ? 1.0m : boq.ConversionRate;
+
+                    unit = boq.Unit
+                        ?? await _uow.Repository<Domain.Entities.Unit>().Query()
+                            .FirstOrDefaultAsync(u => u.UnitId == unitId, ct)
+                        ?? throw new NotFoundException(nameof(Domain.Entities.Unit), unitId);
+                }
 
                 if (unit.IsDiscrete && item.Quantity % 1 != 0)
                 {
@@ -119,9 +157,10 @@ namespace BPG.Application.Features.DirectPurchases.Services
 
                 if (boq == null)
                 {
-                    // Vật tư không nằm trong định mức BOQ của giai đoạn -> mặc định vượt.
+                    // ResolveItemsAsync đã chặn vật tư ngoài BOQ, nên nhánh này chỉ xảy ra khi dòng
+                    // BOQ bị xóa sau lúc soạn nháp. Đánh dấu vượt để phiếu không lọt qua im lặng.
                     item.IsOverBOQ = true;
-                    item.Explanation = $"Vật tư '{item.MaterialName}' không có trong định mức BOQ của giai đoạn.";
+                    item.Explanation = $"Vật tư '{item.MaterialName}' không còn trong định mức BOQ của giai đoạn.";
                     anyOver = true;
                     continue;
                 }
@@ -157,6 +196,13 @@ namespace BPG.Application.Features.DirectPurchases.Services
         {
             decimal totalAmount = dpItems.Sum(i => i.LineTotal);
 
+            // Hàng mua khẩn cấp luôn được giao thẳng tới công trường, nên địa điểm giao hàng là
+            // địa chỉ dự án. Người mua không nhập tay như khi lập đơn hàng thông thường.
+            var deliveryAddress = await _uow.Repository<Project>().Query()
+                .Where(p => p.ProjectId == dp.ProjectId)
+                .Select(p => p.Address)
+                .FirstOrDefaultAsync(ct);
+
             // 1. PurchaseOrder tự sinh - hàng đã mua và đã về tới công trường
             var po = new PurchaseOrder
             {
@@ -165,6 +211,7 @@ namespace BPG.Application.Features.DirectPurchases.Services
                 PONumber = $"DP-PO-{dp.DirectPurchaseId:D6}",
                 OrderDate = dp.PurchaseDate,
                 ExpectedDeliveryDate = DateOnly.FromDateTime(dp.PurchaseDate),
+                DeliveryAddress = deliveryAddress,
                 Status = PurchaseOrderStatus.FullyReceived,
                 TotalAmount = totalAmount,
                 Notes = $"Tự động sinh từ phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6}",

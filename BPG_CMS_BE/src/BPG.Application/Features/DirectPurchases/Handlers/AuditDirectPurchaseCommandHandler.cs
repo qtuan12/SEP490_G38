@@ -12,8 +12,8 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 {
     /// <summary>
     /// Kế toán đối chiếu hóa đơn. Không ảnh hưởng tồn kho.
-    /// - Phiếu trong định mức: đây là bước cuối, duyệt xong là hoàn tiền.
-    /// - Phiếu vượt định mức: đây là bước soát trước khi trình Giám đốc duyệt chi.
+    /// Đây là bước soát trước khi trình Giám đốc duyệt chi — áp dụng cho MỌI phiếu mua khẩn cấp,
+    /// kể cả phiếu nằm trong định mức BOQ.
     /// </summary>
     public class AuditDirectPurchaseCommandHandler : IRequestHandler<AuditDirectPurchaseCommand, string>
     {
@@ -56,7 +56,11 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 throw new BusinessException(ErrorCodes.DpAuditNoteRequired,
                     "Vui lòng nhập lý do khi từ chối kiểm toán.");
 
-            bool isOverBOQ = dp.BOQCheckStatus == BOQCheckStatus.OverBOQ;
+            // CỐ Ý không kiểm trạng thái dự án ở đây. Tới bước này vật tư đã nhập kho và người lập
+            // phiếu đã bỏ tiền túi ra mua (xem SubmitDirectPurchaseCommandHandler). Chặn kiểm toán
+            // khi dự án tạm dừng đồng nghĩa treo luôn khoản hoàn tiền của họ cho tới khi dự án chạy
+            // lại — phạt nhầm người, trong khi khoản chi thì đã phát sinh rồi.
+            // Điều kiện "dự án đang thi công" đã được chốt ở bước Gửi phiếu.
 
             dp.AuditedBy = userId;
             dp.AuditedAt = DateTime.UtcNow;
@@ -72,11 +76,9 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             else
             {
                 dp.AuditStatus = DirectPurchaseAuditStatus.Audited;
-                // Vượt định mức: hóa đơn hợp lệ nhưng khoản chi vượt BOQ vẫn cần Giám đốc ký.
-                // Trong định mức: không ai phải ký thêm, Kế toán soát xong là chốt duyệt chi.
-                dp.Status = isOverBOQ
-                    ? DirectPurchaseStatus.WaitingApproval
-                    : DirectPurchaseStatus.Approved;
+                // Mua khẩn cấp là khoản chi ngoài kế hoạch mua sắm, nên dù trong hay vượt định mức BOQ
+                // vẫn phải có chữ ký Giám đốc mới được hoàn tiền. Kế toán chỉ xác nhận hóa đơn hợp lệ.
+                dp.Status = DirectPurchaseStatus.WaitingApproval;
             }
 
             _uow.Repository<DirectPurchaseRequest>().Update(dp);
@@ -89,40 +91,33 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             var accountant = await _uow.Repository<User>().GetByIdAsync(userId, ct);
             var accountantName = accountant?.FullName ?? "Kế toán";
 
-            if (dp.Status == DirectPurchaseStatus.WaitingApproval)
+            if (request.Approve)
             {
                 await _notificationService.SendNotificationToRoleAsync(
                     UserRole.Director,
-                    "Phiếu mua khẩn cấp vượt định mức chờ duyệt chi",
+                    "Phiếu mua khẩn cấp chờ duyệt chi",
                     $"Kế toán '{accountantName}' đã đối chiếu hóa đơn phiếu DP-{dp.DirectPurchaseId:D6} " +
-                    $"(giai đoạn '{dp.Phase?.Name}', dự án '{dp.Project?.Name}') và trình Giám đốc duyệt chi vượt định mức. " +
+                    $"(giai đoạn '{dp.Phase?.Name}', dự án '{dp.Project?.Name}') và trình Giám đốc duyệt chi. " +
                     $"Tổng giá trị: {dp.TotalAmount:N0}đ. Vật tư đã nhập kho.",
                     NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
 
                 await _notificationService.SendNotificationAsync(
                     dp.RequestedBy,
                     "Phiếu mua khẩn cấp đã được trình Giám đốc",
-                    $"Phiếu DP-{dp.DirectPurchaseId:D6} vượt định mức đã được Kế toán soát hóa đơn và trình Giám đốc duyệt chi.",
+                    $"Phiếu DP-{dp.DirectPurchaseId:D6} đã được Kế toán soát hóa đơn và trình Giám đốc duyệt chi.",
                     NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
 
-                return "Đã soát hóa đơn và trình Giám đốc duyệt chi khoản vượt định mức.";
+                return "Đã soát hóa đơn và trình Giám đốc duyệt chi.";
             }
 
-            var notiTitle = request.Approve
-                ? "Phiếu mua khẩn cấp đã được kiểm toán"
-                : "Phiếu mua khẩn cấp bị từ chối kiểm toán";
-            var notiContent = request.Approve
-                ? $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} đã được kiểm toán và xác nhận hoàn tiền/giải ngân."
-                : $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} bị từ chối kiểm toán, sẽ không được hoàn tiền. " +
-                  $"Vật tư vẫn đã nhập kho. Lý do: {dp.AuditNote}";
-
             await _notificationService.SendNotificationAsync(
-                dp.RequestedBy, notiTitle, notiContent,
+                dp.RequestedBy,
+                "Phiếu mua khẩn cấp bị từ chối kiểm toán",
+                $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} bị từ chối kiểm toán, sẽ không được hoàn tiền. " +
+                $"Vật tư vẫn đã nhập kho. Lý do: {dp.AuditNote}",
                 NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
 
-            return request.Approve
-                ? "Đã xác nhận kiểm toán. Phiếu được duyệt chi và hoàn tiền."
-                : "Đã từ chối kiểm toán. Phiếu sẽ không được hoàn tiền, vật tư vẫn nằm trong kho.";
+            return "Đã từ chối kiểm toán. Phiếu sẽ không được hoàn tiền, vật tư vẫn nằm trong kho.";
         }
     }
 }

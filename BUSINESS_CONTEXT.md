@@ -381,6 +381,8 @@ Business rules:
 - Requests should identify project, requester, needed materials, quantities, and reason/context.
 - Requests may be classified as within BOQ or over BOQ.
 - Within-BOQ and over-BOQ requests may require different review paths.
+- A material absent from the phase BOQ counts as over BOQ here, and the request is still accepted.
+  This differs from Direct Purchase, which refuses such a material outright - see 11.3.
 - Rejected or cancelled requests must not create purchase orders or stock changes.
 - Approved requests can become procurement input.
 
@@ -435,12 +437,13 @@ submission and is never held back by an approval step.
 Spending-approval lifecycle:
 
 ```text
-Draft -> Pending -> Approved                       (within BOQ, Accountant is the final step)
-                 -> Rejected
-
-Draft -> Pending -> WaitingApproval -> Approved    (over BOQ, Director signs off)
+Draft -> Pending -> WaitingApproval -> Approved    (Accountant audits, then Director signs off)
                  -> Rejected        -> Rejected
 ```
+
+There is a single path. Every record goes through Accountant invoice audit and then Director spending
+approval, whether or not it exceeds the BOQ allowance. BOQCheckStatus is reference information for the
+reviewers; it does not branch the workflow.
 
 Audit lifecycle:
 
@@ -460,22 +463,27 @@ Business rules:
 - Submission is irreversible: it validates the record, evaluates BOQ, generates the purchase order and
   goods receipt, and increases inventory. A submitted record can no longer be edited.
 - A submission is blocked when the project is not active, or when the phase has already been accepted
-  and frozen. The BOQ check runs at submission time, not when the draft was saved.
+  and frozen. The BOQ allowance is recomputed at submission time, not when the draft was saved,
+  because other records may have consumed the allowance while the draft was waiting.
 - The purchase date must not be in the future, because a Direct Purchase records money already spent.
   It must also fall inside the phase construction window. Both checks run at submission time and use
   Vietnam local time.
-- The unit of measure is never chosen by the user. It is derived from the material: the BOQ line unit
-  when the material is in the phase BOQ, otherwise the material base unit. Over-BOQ therefore means
-  purely that the quantity exceeds the remaining allowance, compared in one and the same unit.
-- Direct Purchase may exceed the phase BOQ allowance, and may cover materials absent from the BOQ.
-  Both cases route the spending through Accountant invoice review and then Director spending approval.
-  There is no separate over-BOQ justification field: the urgency reason already carries that meaning
-  and is mandatory on every record. Each over-BOQ line additionally carries a system-generated note
-  stating by how much it exceeds.
-- Purchases within the BOQ allowance need only Accountant audit, as before.
-- Accountant audit provides invoice control. For an over-BOQ record it is the screening step that
-  precedes the Director; for a within-BOQ record it remains the final step.
-- Submitting never approves spending on its own. Both branches start at Pending, so Approved always
+- A Direct Purchase may only contain materials that already exist in the phase BOQ. A material absent
+  from the BOQ is rejected at drafting time, so the buyer is stopped before filling in the whole
+  record rather than at submission. Adding the material to the BOQ first is the intended remedy.
+  If the BOQ line is later removed while a draft still references it, the line is flagged over-BOQ at
+  submission so the record cannot pass silently.
+- The unit of measure may be the BOQ line unit or any unit declared in the material conversion table.
+  When the buyer does not pick one, the BOQ line unit applies. The conversion rate always comes from
+  the database, never from the client, because every allowance comparison is done in the base unit.
+- Direct Purchase may exceed the phase BOQ quantity allowance. Over-BOQ therefore means purely that
+  the quantity exceeds the remaining allowance, compared in one and the same unit - it never means
+  the material itself is unplanned. There is no separate over-BOQ justification field: the urgency
+  reason already carries that meaning and is mandatory on every record. Each over-BOQ line
+  additionally carries a system-generated note stating by how much it exceeds.
+- Accountant audit provides invoice control and is the screening step that precedes the Director. It
+  is never the final step, regardless of BOQ status.
+- Submitting never approves spending on its own. Every record starts at Pending, so Approved always
   means a real decision was taken and always implies the audit passed. The pair "approved for payment
   but not yet audited" is not a reachable state.
 - Reimbursement happens only when the spending approval is Approved and the audit is Audited.
