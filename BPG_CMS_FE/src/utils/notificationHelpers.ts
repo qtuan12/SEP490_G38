@@ -32,6 +32,9 @@ export const resolveNotificationUrl = (noti: any): string | null => {
         if (tab === 'purchaseorders') {
           return `/purchase-orders/${referenceId}?fromProject=${projectId}`;
         }
+        if (tab === 'surplus') {
+          return `/projects/${projectId}?tab=surplus&surplusRequestId=${referenceId}`;
+        }
       }
 
       return `/projects/${projectId}?tab=${tab}`;
@@ -93,7 +96,8 @@ export const resolveNotificationUrl = (noti: any): string | null => {
   }
 
   if (referenceType === 'SurplusRequest') {
-    return `/projects/0?tab=surplus`;
+    // Old notifications didn't have projectId. We can't navigate to project surplus.
+    return `/projects`;
   }
 
   return null;

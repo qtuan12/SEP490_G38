@@ -135,6 +135,9 @@ public static class NotificationLink
 
     public static string ProjectPurchaseOrders(long projectId) =>
         $"/projects/{projectId}/workspace/purchaseorders";
+
+    public static string ProjectSurplus(long projectId) =>
+        $"/projects/{projectId}/workspace/surplus";
 }
 
 public static class EntityType

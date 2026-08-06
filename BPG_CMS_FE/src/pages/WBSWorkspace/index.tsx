@@ -10,7 +10,7 @@ import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
-import { FileText, BarChart2 } from 'lucide-react';
+import { FileText, BarChart2, Search } from 'lucide-react';
 import { ConfirmDialog, FullScreenLoading } from '../../components/ui';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
@@ -62,8 +62,43 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     staleTime: 30_000,
   });
 
-  const phases = wbsData?.phases || [];
-  const tasks = wbsData?.tasks || [];
+  const allPhases = wbsData?.phases || [];
+  const allTasks = wbsData?.tasks || [];
+  const [searchTerm, setSearchTerm] = useState('');
+
+  let phases = allPhases;
+  let tasks = allTasks;
+
+  if (searchTerm.trim()) {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const matchingPhaseIds = new Set<string>();
+    const matchingTaskIds = new Set<string>();
+
+    allPhases.forEach(p => {
+      if (p.name.toLowerCase().includes(normalizedSearch)) matchingPhaseIds.add(p.id);
+    });
+    allTasks.forEach(t => {
+      if (t.name.toLowerCase().includes(normalizedSearch)) matchingTaskIds.add(t.id);
+    });
+
+    allTasks.forEach(t => {
+      if (matchingTaskIds.has(t.id)) {
+        if (t.parentTaskId) matchingTaskIds.add(t.parentTaskId);
+        matchingPhaseIds.add(t.phaseId);
+      }
+    });
+
+    allPhases.forEach(p => {
+      if (matchingPhaseIds.has(p.id)) {
+         if (p.name.toLowerCase().includes(normalizedSearch)) {
+            allTasks.filter(t => t.phaseId === p.id).forEach(t => matchingTaskIds.add(t.id));
+         }
+      }
+    });
+
+    phases = allPhases.filter(p => matchingPhaseIds.has(p.id));
+    tasks = allTasks.filter(t => matchingTaskIds.has(t.id));
+  }
   const [error, setError] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
@@ -173,6 +208,15 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
       });
     }
   }, [wbsData?.phases]);
+
+  // Auto-expand all phases when searching
+  useEffect(() => {
+    if (searchTerm.trim() && phases.length > 0) {
+      const expands: Record<string, boolean> = {};
+      phases.forEach(p => { expands[p.id] = true; });
+      setExpandedPhases(prev => ({ ...prev, ...expands }));
+    }
+  }, [searchTerm]);
 
   // Support opening task detail from URL
   useEffect(() => {
@@ -387,9 +431,18 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
             <h3 className="text-[1.15rem] font-semibold m-0">Cấu trúc công việc</h3>
-
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
+            <div className="relative shrink-0 w-full sm:w-auto">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Tìm giai đoạn, công việc..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-4 py-1.5 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-[220px]"
+              />
+            </div>
             <button
               onClick={() => navigate(`/projects/${projectId}/drawing`)}
               className={`flex items-center gap-2 py-2 px-4 shrink-0 rounded-sm text-[0.85rem] font-semibold transition-all duration-150 cursor-pointer ${project?.drawingUrl

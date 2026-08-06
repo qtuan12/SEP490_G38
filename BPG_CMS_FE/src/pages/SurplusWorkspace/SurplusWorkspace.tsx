@@ -33,6 +33,8 @@ interface SurplusWorkspaceProps {
   projectName: string;
 }
 
+import { useSearchParams } from 'react-router-dom';
+
 export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   projectId,
   projectName,
@@ -44,11 +46,26 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   const isTPKT = isTechnicalManager;
   const canCreateSurplusRequest = isLeader;
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSurplusRequestId = searchParams.get('surplusRequestId');
+
   const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>('outbound');
-  const [view, setView] = useState<'list' | 'detail'>('list');
-  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [view, setView] = useState<'list' | 'detail'>(initialSurplusRequestId ? 'detail' : 'list');
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(
+    initialSurplusRequestId ? Number(initialSurplusRequestId) : null
+  );
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCheckingCreateEligibility, setIsCheckingCreateEligibility] = useState(false);
+
+  // Clear query param when navigating back to list
+  const handleBack = () => {
+    setView('list');
+    setSelectedBatchId(null);
+    setSearchParams(params => {
+      params.delete('surplusRequestId');
+      return params;
+    });
+  };
 
   // Modal states
   const [showCreateBatch, setShowCreateBatch] = useState(false);
@@ -114,10 +131,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
     setView('detail');
   };
 
-  const handleBack = () => {
-    setView('list');
-    setSelectedBatchId(null);
-  };
+  // Removed duplicate handleBack
 
   const handleOpenCreateBatch = async () => {
     if (isCheckingCreateEligibility) return;

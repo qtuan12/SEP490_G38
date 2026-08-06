@@ -102,8 +102,8 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
             notiTitle, notiContent,
             NotificationType.Procurement,
             excludeUserId: userId,
-            NotificationReferenceType.SurplusRequest,
-            transfer.SurplusTransferId,
+            NotificationLink.ProjectSurplus(fromProjectId),
+            item.SurplusRequestId,
             ct);
 
         // 2. Thông báo đến Kế toán (trừ người tạo)
@@ -112,8 +112,8 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
             notiTitle, notiContent,
             NotificationType.Procurement,
             excludeUserId: userId,
-            NotificationReferenceType.SurplusRequest,
-            transfer.SurplusTransferId,
+            NotificationLink.ProjectSurplus(fromProjectId),
+            item.SurplusRequestId,
             ct);
 
         // 3. Thông báo đến Project Leader của dự án nguồn (trừ người tạo)
@@ -127,8 +127,8 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
                 projectLeaderId,
                 notiTitle, notiContent,
                 NotificationType.Procurement,
-                NotificationReferenceType.SurplusRequest,
-                transfer.SurplusTransferId,
+                NotificationLink.ProjectSurplus(fromProjectId),
+                item.SurplusRequestId,
                 ct);
         }
 
@@ -215,8 +215,8 @@ public class ReviewSurplusTransferCommandHandler : IRequestHandler<ReviewSurplus
         {
             await _notificationService.SendNotificationAsync(
                 senderLeader, reviewTitle, reviewMsg,
-                NotificationType.Procurement, NotificationReferenceType.SurplusRequest,
-                transfer.SurplusTransferId, ct);
+                NotificationType.Procurement, NotificationLink.ProjectSurplus(transfer.FromProjectId),
+                transfer.SurplusRequestItem.SurplusRequestId, ct);
         }
 
         // 2. Thông báo đến Kế toán (trừ người phê duyệt)
@@ -225,8 +225,8 @@ public class ReviewSurplusTransferCommandHandler : IRequestHandler<ReviewSurplus
             reviewTitle, accountantReviewMsg,
             NotificationType.Procurement,
             excludeUserId: userId,
-            NotificationReferenceType.SurplusRequest,
-            transfer.SurplusTransferId,
+            NotificationLink.ProjectSurplus(transfer.FromProjectId),
+            transfer.SurplusRequestItem.SurplusRequestId,
             ct);
 
         return ApiResponse.SuccessResult(request.IsApproved ? ResponseMessages.ApproveSuccess : ResponseMessages.RejectSuccess);
@@ -258,6 +258,7 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
         var transfer = await _uow.Repository<SurplusTransfer>().Query()
             .Include(t => t.FromProject)
             .Include(t => t.ToProject)
+            .Include(t => t.SurplusRequestItem)
             .FirstOrDefaultAsync(t => t.SurplusTransferId == request.SurplusTransferId, ct)
             ?? throw new NotFoundException(nameof(SurplusTransfer), request.SurplusTransferId);
 
@@ -305,8 +306,8 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
         {
             await _notificationService.SendNotificationAsync(
                 receiverLeader, dispatchTitle, dispatchMsg,
-                NotificationType.Procurement, NotificationReferenceType.SurplusRequest,
-                transfer.SurplusTransferId, ct);
+                NotificationType.Procurement, NotificationLink.ProjectSurplus(transfer.ToProjectId),
+                transfer.SurplusRequestItem.SurplusRequestId, ct);
         }
 
         // 2. Thông báo đến Trưởng phòng kỹ thuật (trừ người dispatch)
@@ -315,8 +316,8 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
             dispatchTitle, dispatchMsgForManager,
             NotificationType.Procurement,
             excludeUserId: userId,
-            NotificationReferenceType.SurplusRequest,
-            transfer.SurplusTransferId,
+            NotificationLink.ProjectSurplus(transfer.FromProjectId),
+            transfer.SurplusRequestItem.SurplusRequestId,
             ct);
 
         // 3. Thông báo đến Kế toán (trừ người dispatch)
@@ -325,8 +326,8 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
             dispatchTitle, dispatchMsgForManager,
             NotificationType.Procurement,
             excludeUserId: userId,
-            NotificationReferenceType.SurplusRequest,
-            transfer.SurplusTransferId,
+            NotificationLink.ProjectSurplus(transfer.FromProjectId),
+            transfer.SurplusRequestItem.SurplusRequestId,
             ct);
 
         return ApiResponse.SuccessResult(ResponseMessages.UpdateSuccess);
@@ -448,8 +449,8 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
         {
             await _notificationService.SendNotificationAsync(
                 dispatchedBy.Value, receiveTitle, receiveMsg,
-                NotificationType.Procurement, NotificationReferenceType.SurplusRequest,
-                transfer.SurplusTransferId, ct);
+                NotificationType.Procurement, NotificationLink.ProjectSurplus(transfer.FromProjectId),
+                transfer.SurplusRequestItem.SurplusRequestId, ct);
         }
 
         // 2. Thông báo đến Trưởng phòng kỹ thuật (trừ người receive)
@@ -458,8 +459,8 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
             receiveTitle, receiveMsg,
             NotificationType.Procurement,
             excludeUserId: userId,
-            NotificationReferenceType.SurplusRequest,
-            transfer.SurplusTransferId,
+            NotificationLink.ProjectSurplus(transfer.FromProjectId),
+            transfer.SurplusRequestItem.SurplusRequestId,
             ct);
 
         // 3. Thông báo đến Kế toán (trừ người receive)
@@ -468,8 +469,8 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
             receiveTitle, receiveMsg,
             NotificationType.Procurement,
             excludeUserId: userId,
-            NotificationReferenceType.SurplusRequest,
-            transfer.SurplusTransferId,
+            NotificationLink.ProjectSurplus(transfer.FromProjectId),
+            transfer.SurplusRequestItem.SurplusRequestId,
             ct);
 
         return ApiResponse.SuccessResult(ResponseMessages.UpdateSuccess);

@@ -103,7 +103,7 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
             notiContent,
             NotificationType.Procurement,
             excludeUserId: userId,
-            NotificationReferenceType.SurplusRequest,
+            NotificationLink.ProjectSurplus(request.ProjectId),
             batch.SurplusRequestId,
             ct);
 
@@ -122,7 +122,7 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
                     notiTitle,
                     notiContent,
                     NotificationType.Procurement,
-                    NotificationReferenceType.SurplusRequest,
+                    NotificationLink.ProjectSurplus(request.ProjectId),
                     batch.SurplusRequestId,
                     ct);
             }
@@ -137,7 +137,7 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
                 notiContent,
                 NotificationType.Procurement,
                 excludeUserId: userId,
-                NotificationReferenceType.SurplusRequest,
+                NotificationLink.ProjectSurplus(request.ProjectId),
                 batch.SurplusRequestId,
                 ct);
         }
