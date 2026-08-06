@@ -460,7 +460,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
         {phases.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-[hsl(var(--text-muted))] bg-white z-10">
-            Chưa có dữ liệu WBS. Hãy tạo Phase và Task trước.
+            Chưa có dữ liệu công việc. Hãy tạo Phase và Task trước.
           </div>
         )}
       </div>
