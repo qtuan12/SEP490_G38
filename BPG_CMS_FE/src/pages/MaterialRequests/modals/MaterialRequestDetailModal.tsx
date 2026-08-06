@@ -183,11 +183,6 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
 
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center gap-2 text-slate-600 text-sm">
-                <ClipboardList size={16} className="text-slate-400" />
-                <span>Công việc (Task):</span>
-                <strong className="text-slate-800 font-semibold">{request.taskName || 'Nêu trực tiếp trong Phase'}</strong>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600 text-sm">
                 <Info size={16} className="text-slate-400" />
                 <span>Phân loại yêu cầu:</span>
                 {request.type === 'emergency' ? (
