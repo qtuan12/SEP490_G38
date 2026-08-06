@@ -79,16 +79,14 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
       const boqLimitInBase = boqLimit / (boqCR === 0 ? 1 : boqCR);
       const requestedQtyInBase = item.quantity / (itemCR === 0 ? 1 : itemCR);
 
-      // 2. Tính số lượng đã được yêu cầu trước đây trong Phase (quy đổi sang Base Unit, chỉ tính phiếu tạo TRƯỚC phiếu này)
+      // 2. Tính số lượng đã được yêu cầu bởi các phiếu khác đang hoạt động trong Phase (quy đổi sang Base Unit)
       let usedQtyInBase = 0;
-      const currentReqId = parseInt(request.id.replace('mat-req-', '')) || 0;
       allRequests.forEach(r => {
-        const otherReqId = parseInt(r.id.replace('mat-req-', '')) || 0;
         if (
           r.phaseId === request.phaseId &&
+          r.id !== request.id &&
           r.status !== 'rejected' &&
-          r.status !== 'cancelled' &&
-          otherReqId < currentReqId
+          r.status !== 'cancelled'
         ) {
           const matchItem = r.items.find(i => i.name.toLowerCase() === item.name.toLowerCase());
           if (matchItem) {
@@ -108,6 +106,9 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
       // Quy đổi số lượng đã dùng về đơn vị BOQ
       const usedQtyInBOQ = parseFloat((usedQtyInBase * boqCR).toFixed(3));
 
+      // Lũy kế yêu cầu của tất cả các phiếu trong phase (gồm cả phiếu hiện tại) quy đổi về đơn vị BOQ
+      const cumulativeQtyInBOQ = parseFloat((totalRequestedInBase * boqCR).toFixed(3));
+
       return {
         name: item.name,
         requested: item.quantity,
@@ -115,8 +116,10 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
         boqLimit: boqLimit,
         boqUnit: boqUnit,
         used: usedQtyInBOQ,
+        cumulative: cumulativeQtyInBOQ,
         isOver: isOver,
-        overAmount: overAmount
+        overAmount: overAmount,
+        dbIsOver: item.isOverBOQ || false
       };
     });
   }, [request, currentPhase, allRequests]);
@@ -148,7 +151,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`${request.id.toUpperCase().replace('MAT-REQ-', 'YCVT-')} — Chi tiết Yêu cầu Vật tư & Đối chiếu Định mức Giai đoạn`}
+      title={`${request.id.toUpperCase().replace('MAT-REQ-', 'YCVT-')} — Chi tiết Yêu cầu Vật tư`}
       width="xl"
     >
       {loadingData ? (
@@ -204,60 +207,82 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
           </div>
 
           {/* Bảng đối chiếu chi tiết vật tư */}
-          <div className="flex flex-col gap-2">
-            <h4 className="text-sm font-bold text-slate-700 m-0 flex items-center gap-1.5">
-              <span>Danh sách vật tư yêu cầu & Đối chiếu Định mức Giai đoạn</span>
-            </h4>
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
-              <table className="w-full border-collapse text-left text-xs bg-white">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
-                    <th className="p-3 w-[40px] text-center">STT</th>
-                    <th className="p-3 w-[35%]">Tên vật tư kỹ thuật / Quy cách</th>
-                    <th className="p-3 text-center">Số lượng</th>
-                    <th className="p-3 text-center">Đơn vị</th>
-                    <th className="p-3 text-center">Đã dùng / Định mức</th>
-                    <th className="p-3 text-center w-[160px]">Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {itemsComparison.map((item, idx) => (
-                    <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50 align-middle">
-                      <td className="p-3 text-center text-slate-500 font-medium">{idx + 1}</td>
-                      <td className="p-3 text-slate-800 font-semibold">{item.name}</td>
-                      <td className="p-3 text-center text-slate-900 font-bold text-sm bg-slate-50/30">{item.requested}</td>
-                      <td className="p-3 text-center text-slate-500">{item.unit}</td>
-                      <td className="p-3 text-center text-slate-600 font-medium">
-                        <span className={item.used > 0 ? "text-slate-700" : "text-slate-400"}>
-                          {item.used}
-                        </span>
-                        <span className="text-slate-300"> / </span>
-                        <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
-                          {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'N/A (Ngoài định mức)'}
-                        </span>
-                      </td>
-                      <td className="p-3 text-center">
-                        {item.isOver ? (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-100">
-                              Vượt định mức
-                            </span>
-                            <span className="text-[9px] text-red-500 font-bold">
-                              (Vượt +{item.overAmount.toLocaleString('vi-VN')} {item.boqUnit})
-                            </span>
-                          </div>
+          {(() => {
+            const isPendingAccountant = request.status === 'pending_accountant';
+            const showStatusColumn = isPendingAccountant;
+            return (
+              <div className="flex flex-col gap-2">
+                <h4 className="text-sm font-bold text-slate-700 m-0 flex items-center gap-1.5">
+                  <span>Danh sách vật tư</span>
+                </h4>
+                <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                  <table className="w-full border-collapse text-left text-xs bg-white">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                        <th className="p-3 w-[40px] text-center">STT</th>
+                        <th className="p-3 w-[35%]">Tên vật tư kỹ thuật / Quy cách</th>
+                        <th className="p-3 text-center">Số lượng</th>
+                        <th className="p-3 text-center">Đơn vị</th>
+                        {isPendingAccountant ? (
+                          <th className="p-3 text-center">Lũy kế / Định mức</th>
                         ) : (
-                          <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-600 border border-green-100">
-                            Trong định mức
-                          </span>
+                          <th className="p-3 text-center">Định mức</th>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                        {showStatusColumn && (
+                          <th className="p-3 text-center w-[160px]">Trạng thái</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemsComparison.map((item, idx) => (
+                        <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/50 align-middle">
+                          <td className="p-3 text-center text-slate-500 font-medium">{idx + 1}</td>
+                          <td className="p-3 text-slate-800 font-semibold">{item.name}</td>
+                          <td className="p-3 text-center text-slate-900 font-bold text-sm bg-slate-50/30">{item.requested}</td>
+                          <td className="p-3 text-center text-slate-500">{item.unit}</td>
+                          <td className="p-3 text-center text-slate-600 font-medium">
+                            {isPendingAccountant ? (
+                              <>
+                                <span className={item.cumulative > 0 ? "text-slate-700 font-semibold" : "text-slate-400"}>
+                                  {item.cumulative}
+                                </span>
+                                <span className="text-slate-300"> / </span>
+                                <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
+                                  {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'N/A (Ngoài định mức)'}
+                                </span>
+                              </>
+                            ) : (
+                              <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
+                                {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'N/A (Ngoài định mức)'}
+                              </span>
+                            )}
+                          </td>
+                          {showStatusColumn && (
+                            <td className="p-3 text-center">
+                              {item.isOver ? (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-100">
+                                    Vượt định mức
+                                  </span>
+                                  <span className="text-[9px] text-red-500 font-bold">
+                                    (Vượt +{item.overAmount.toLocaleString('vi-VN')} {item.boqUnit})
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-600 border border-green-100">
+                                  Trong định mức
+                                </span>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
 
           {request.reason && (
             <div className="flex flex-col gap-1.5">

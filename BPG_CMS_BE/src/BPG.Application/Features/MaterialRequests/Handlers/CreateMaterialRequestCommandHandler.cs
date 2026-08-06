@@ -203,6 +203,9 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
             await _uow.Repository<MaterialRequestItem>().AddRangeAsync(requestItems, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
+            await BPG.Application.Common.Helpers.BOQStatusReevaluator.ReevaluateSiblingRequestsAsync(_uow, materialRequest.PhaseId, materialRequest.RequestId, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
+
             // Gửi thông báo đến vai trò Kế toán
             try
             {

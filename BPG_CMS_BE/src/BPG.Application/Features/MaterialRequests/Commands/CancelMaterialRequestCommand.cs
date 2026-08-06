@@ -77,6 +77,9 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             _uow.Repository<MaterialRequest>().Update(mr);
             await _uow.SaveChangesAsync(cancellationToken);
 
+            await BPG.Application.Common.Helpers.BOQStatusReevaluator.ReevaluateSiblingRequestsAsync(_uow, mr.PhaseId, mr.RequestId, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
+
             return ApiResponse<bool>.SuccessResult(true, "Hủy yêu cầu vật tư thành công.");
         }
     }

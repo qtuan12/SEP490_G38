@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -82,6 +82,9 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             mr.UpdatedBy = currentUserId;
 
             _uow.Repository<MaterialRequest>().Update(mr);
+            await _uow.SaveChangesAsync(cancellationToken);
+
+            await BPG.Application.Common.Helpers.BOQStatusReevaluator.ReevaluateSiblingRequestsAsync(_uow, mr.PhaseId, mr.RequestId, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
             // Gửi thông báo realtime
