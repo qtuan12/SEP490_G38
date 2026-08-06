@@ -433,27 +433,20 @@ export const CreatePOPage: React.FC = () => {
             </div>
           </div>
           <div>
-            <label style={label}>Ngày đơn hàng <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-            <div style={{ position: 'relative' }}>
-              <Input
-                type="date"
-                value={orderDate}
-                onChange={(e) => { setOrderDate(e.target.value); setOrderDateError(null); }}
-                className="h-10"
-                style={{
-                  color: 'transparent',
-                  ...(orderDateError ? { borderColor: 'hsl(var(--danger))' } : {}),
-                }}
-              />
-              <span
-                style={{
-                  position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                  fontSize: 14, pointerEvents: 'none',
-                  color: orderDate ? 'hsl(var(--text-primary))' : 'hsl(var(--text-muted))',
-                }}
-              >
-                {orderDate ? toDisplayDate(orderDate) : 'dd-mm-yyyy'}
-              </span>
+            {/* Ngày phát hành chứng từ, không phải thứ để chọn: luôn là ngày tạo đơn theo giờ
+                Việt Nam. Mã đơn hàng cũng gắn với ngày này (PO-yyyyMMdd-xxxx) nên cho sửa sẽ
+                khiến mã dự kiến lệch với mã thật. Hiển thị chỉ đọc giống ô Mã đơn hàng. */}
+            <label style={label}>Ngày đơn hàng</label>
+            <div
+              className="h-10"
+              style={{
+                display: 'flex', alignItems: 'center',
+                borderRadius: 6, padding: '0 12px', fontSize: 14,
+                border: `1px solid ${orderDateError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`,
+                background: 'hsl(var(--bg-muted, var(--bg-card)))', color: 'hsl(var(--text-secondary))',
+              }}
+            >
+              {toDisplayDate(orderDate)}
             </div>
             {orderDateError && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{orderDateError}</p>
