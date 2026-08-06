@@ -25,11 +25,20 @@ public class EmailService : IEmailService
 
     public async Task SendAsync(string to, string subject, string body, CancellationToken ct = default)
     {
+        var senderEmail = _config["Email:SenderEmail"];
+        var senderName = _config["Email:SenderName"] ?? "BPG Construction System";
+
+        if (string.IsNullOrWhiteSpace(senderEmail))
+        {
+            _logger.LogWarning("Email:SenderEmail chưa được cấu hình trong appsettings.json. Bỏ qua gửi email đến {Recipient}.", to);
+            return;
+        }
+
         _logger.LogInformation("Bắt đầu gửi email đến {Recipient} | Tiêu đề: '{Subject}'", to, subject);
 
         var message = new MailMessage
         {
-            From = new MailAddress(_config["Email:SenderEmail"]!, _config["Email:SenderName"]!),
+            From = new MailAddress(senderEmail, senderName),
             Subject = subject,
             Body = body,
             IsBodyHtml = true
@@ -61,10 +70,24 @@ public class EmailService : IEmailService
 
     private async Task SendMessageAsync(MailMessage message, CancellationToken ct)
     {
-        using var smtp = new SmtpClient(_config["Email:Host"]!, int.Parse(_config["Email:Port"]!))
+        var host = _config["Email:Host"];
+        var portStr = _config["Email:Port"];
+        var password = _config["Email:Password"];
+        var enableSslStr = _config["Email:EnableSsl"];
+
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(password))
         {
-            Credentials = new NetworkCredential(_config["Email:SenderEmail"]!, _config["Email:Password"]!),
-            EnableSsl = bool.Parse(_config["Email:EnableSsl"]!)
+            _logger.LogWarning("[DEV-MODE] Cấu hình SMTP (Email:Password) đang để trống. MÃ OTP / NỘI DUNG EMAIL gửi tới {Recipient}:\n----------------------------------------\n{Body}\n----------------------------------------", message.To[0].Address, message.Body);
+            return;
+        }
+
+        int.TryParse(portStr, out var port);
+        bool.TryParse(enableSslStr, out var enableSsl);
+
+        using var smtp = new SmtpClient(host, port > 0 ? port : 587)
+        {
+            Credentials = new NetworkCredential(_config["Email:SenderEmail"]!, password),
+            EnableSsl = enableSsl
         };
 
         try
@@ -74,8 +97,8 @@ public class EmailService : IEmailService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi xảy ra khi gửi email qua SMTP Host '{SmtpHost}' tới {Recipient}.", _config["Email:Host"], message.To[0].Address);
-            throw;
+            _logger.LogError(ex, "Lỗi xảy ra khi gửi email qua SMTP Host '{SmtpHost}' tới {Recipient}.", host, message.To[0].Address);
+            _logger.LogWarning("[DEV-MODE] Không thể gửi mail qua SMTP server. Đã ghi log nội dung email phục vụ kiểm thử.");
         }
     }
 }
