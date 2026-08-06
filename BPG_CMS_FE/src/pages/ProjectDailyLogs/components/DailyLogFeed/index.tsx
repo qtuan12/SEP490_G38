@@ -18,22 +18,9 @@ import { RoleGroup } from '../../../../auth/roles';
 
 const PAGE_SIZE = 4;
 
-const formatDateTime = (dateStr?: string) => {
-  if (!dateStr) return '';
-  try {
-    const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr.replace(' ', 'T') + 'Z');
-    const d = new Date(normalized);
-    if (isNaN(d.getTime())) return dateStr;
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  } catch {
-    return dateStr.replace('T', ' ').slice(0, 16);
-  }
-};
+import { formatDateVietnam } from '../../../../utils/dateHelpers';
+
+const formatDateTime = (dateStr?: string) => formatDateVietnam(dateStr || '');
 
 const formatToLocalTime = (dateStr?: string): string => {
   if (!dateStr) return '';

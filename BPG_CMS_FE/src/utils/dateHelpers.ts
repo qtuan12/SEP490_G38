@@ -10,6 +10,19 @@ export const todayLocalISO = (): string => {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 };
 
+/**
+ * Ngày hôm nay theo giờ Việt Nam (UTC+7), dạng yyyy-mm-dd.
+ *
+ * Dùng cho các form mà backend chốt "hôm nay" theo giờ VN (ngày đơn hàng, ngày mua khẩn cấp —
+ * xem VietnamTime bên backend). Nếu dùng todayLocalISO ở những chỗ đó, máy người dùng đặt sai
+ * múi giờ sẽ thấy FE cho chọn một ngày mà backend lại từ chối.
+ */
+export const todayVnISO = (): string => {
+  const vnNow = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${vnNow.getUTCFullYear()}-${pad(vnNow.getUTCMonth() + 1)}-${pad(vnNow.getUTCDate())}`;
+};
+
 /** Lấy phần ngày yyyy-mm-dd từ chuỗi ngày của backend, không đổi múi giờ. */
 export const toInputDate = (dateString: string): string =>
   dateString ? dateString.split('T')[0] : '';
@@ -29,30 +42,66 @@ export const formatRelativeTime = (dateString: string): string => {
   if (diffMins < 60) return `${diffMins} phút trước`;
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours} giờ trước`;
-  const d = parseDateSafe(dateString);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  return `${day}/${month}`;
+  return formatDateOnly(dateString);
 };
 
-export const formatDate = (dateString: string): string => {
+/**
+ * Hiển thị dd/mm/yyyy cho NGÀY THUẦN (ngày mua, ngày đặt hàng, hạn công việc...) — cắt chuỗi,
+ * không quy đổi múi giờ.
+ *
+ * Ngày thuần không mang thông tin giờ nên mọi phép quy đổi múi giờ đều làm lệch ngày.
+ * Dùng formatDate/formatDateOnly cho các mốc thời gian thật (createdAt, submittedAt...).
+ */
+export const formatPlainDate = (dateString?: string | null): string => {
   if (!dateString) return '';
-  const d = parseDateSafe(dateString);
-  if (isNaN(d.getTime())) return dateString;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+  const [year, month, day] = dateString.split('T')[0].split('-');
+  if (!year || !month || !day) return dateString;
+  return `${day}/${month}/${year}`;
 };
 
+/**
+ * Định dạng ngày giờ theo múi giờ Việt Nam (UTC+7 / Asia/Ho_Chi_Minh).
+ * Định dạng xuất ra: dd/MM/yyyy HH:mm
+ */
+export const formatDateVietnam = (date: string | Date): string => {
+  if (!date) return '';
+  const d = typeof date === 'string' ? parseDateSafe(date) : date;
+  if (isNaN(d.getTime())) return typeof date === 'string' ? date : '';
+
+  const formatter = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(d);
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+  return `${getPart('day')}/${getPart('month')}/${getPart('year')} ${getPart('hour')}:${getPart('minute')}`;
+};
+
+/** dd/mm/yyyy hh:mm cho mốc thời gian UTC từ backend (quy về giờ Việt Nam UTC+7). */
+export const formatDate = (dateString: string): string => {
+  return formatDateVietnam(dateString);
+};
+
+/** dd/mm/yyyy cho mốc thời gian UTC từ backend (bỏ phần giờ khi hiển thị, theo giờ VN). */
 export const formatDateOnly = (dateString: string): string => {
   if (!dateString) return '';
   const d = parseDateSafe(dateString);
   if (isNaN(d.getTime())) return dateString;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
+
+  const formatter = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
+  const parts = formatter.formatToParts(d);
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+  return `${getPart('day')}/${getPart('month')}/${getPart('year')}`;
 };

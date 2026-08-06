@@ -76,20 +76,20 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID08_Handle_InvalidPOStatus_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Closed, POItem(CementId, "Cement", 10)));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_INVALID_PO_STATUS");
-            exception.Which.Message.Should().Be("Không thể nhập kho cho đơn hàng có trạng thái: Closed. Chỉ chấp nhận đơn hàng ở trạng thái Đã đặt hàng hoặc Nhận một phần.");
+            exception.Which.Message.Should().Be("Không thể nhập kho cho đơn hàng có trạng thái: Đã đóng. Chỉ chấp nhận đơn hàng ở trạng thái Đã đặt hàng hoặc Nhận một phần.");
         }
 
         [Fact]
         public async Task UTCID09_Handle_MaterialNotInPO_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(99, 5) }), CancellationToken.None);
@@ -102,7 +102,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID10_Handle_NegativeQuantity_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, -1) }), CancellationToken.None);
@@ -115,7 +115,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID11_Handle_DiscreteMaterialWithFractionalQuantity_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement Bag", 10, isDiscrete: true)));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 1.5m) }), CancellationToken.None);
@@ -128,7 +128,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID12_Handle_QuantityExceededRemaining_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.PartiallyReceived, POItem(CementId, "Cement", 10)));
             SetupApprovedReceiptItems(new GoodsReceiptItem
             {
@@ -147,7 +147,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         [Fact]
         public async Task UTCID13_Handle_AllItemsHaveZeroQuantity_ShouldThrowBusinessException()
         {
-            SetupTechnicalManager();
+            SetupProjectLeader();
             SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
 
             var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 0) }), CancellationToken.None);
@@ -240,6 +240,11 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private void SetupProjectMembers(params ProjectMember[] members)
         {
             _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>> predicate, CancellationToken ct) => 
+                {
+                    return members.AsQueryable().Any(predicate);
+                });
         }
 
         private void SetupUsers(params User[] users)

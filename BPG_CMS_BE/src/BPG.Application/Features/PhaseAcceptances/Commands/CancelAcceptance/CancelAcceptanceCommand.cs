@@ -58,15 +58,17 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
         if (acceptance.IsCancelled)
             throw new BusinessException("INVALID_STATUS", "Biên bản nghiệm thu này đã bị hủy trước đó.");
 
-        // Rule: Only allow cancellation within 7 days
-        var daysPassed = (DateTime.Now - acceptance.AcceptanceDate).TotalDays;
+        // Rule: Only allow cancellation within 7 days.
+        // AcceptanceDate lưu bằng UTC nên phải trừ bằng UTC — trừ bằng giờ máy chủ sẽ lệch
+        // đúng bằng offset múi giờ của server.
+        var daysPassed = (DateTime.UtcNow - acceptance.AcceptanceDate).TotalDays;
         if (daysPassed > 7)
             throw new BusinessException("INVALID_OPERATION", "Chỉ được phép hủy nghiệm thu trong vòng 7 ngày kể từ lúc lập biên bản.");
 
         // Update Acceptance
         acceptance.IsCancelled = true;
         acceptance.CancellationReason = request.CancellationReason;
-        acceptance.CancelledAt = DateTime.Now;
+        acceptance.CancelledAt = DateTime.UtcNow;
         acceptance.CancelledBy = _currentUserService.GetRequiredUserId();
         acceptanceRepo.Update(acceptance);
 

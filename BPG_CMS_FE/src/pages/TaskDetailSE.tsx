@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowLeft, Calendar, Users, FileText, Plus, ClipboardList } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Calendar, Users, FileText, Plus, ClipboardList } from 'lucide-react';
 import { isPWAMode } from '../utils/pwaHelpers';
 import { wbsService } from '../services/wbsService';
 import type { TaskDetails } from '../types/wbs';
 import type { WBSTask } from '../types/common';
-import { Badge } from '../components/ui';
+import { Badge, LoadingSpinner } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useProjectAccess } from '../hooks/useProjectAccess';
@@ -14,6 +14,7 @@ import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../constants/realtimeEntities';
 import { RoleGroup } from '../auth/roles';
+import { formatDateOnly, formatPlainDate } from '../utils/dateHelpers';
 
 const STATUS_LABEL: Record<string, string> = {
   New: 'Mới',
@@ -33,12 +34,11 @@ const STATUS_VARIANT: Record<string, BadgeVariant> = {
   Obsolete: 'danger',
 };
 
-const formatDate = (iso?: string | null): string => {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('vi-VN');
-};
+/** Ngày thuần (hạn công việc) — không quy đổi múi giờ. */
+const formatTaskDate = (iso?: string | null): string => formatPlainDate(iso) || '—';
+
+/** Mốc thời gian UTC từ backend (thời điểm cập nhật tiến độ). */
+const formatTimestamp = (iso?: string | null): string => (iso ? formatDateOnly(iso) : '—');
 
 export const TaskDetailSE: React.FC = () => {
   const { taskId } = useParams<{ taskId: string }>();
@@ -99,9 +99,8 @@ export const TaskDetailSE: React.FC = () => {
 
   if (loading || !pwa || !detail) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] gap-4 text-slate-500">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        <p>Đang tải thông tin chi tiết công việc...</p>
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)]">
+        <LoadingSpinner size="lg" label="Đang tải thông tin chi tiết công việc..." />
       </div>
     );
   }
@@ -158,7 +157,7 @@ export const TaskDetailSE: React.FC = () => {
         <div className="flex items-center gap-2 text-sm">
           <Calendar size={15} className="text-[hsl(var(--text-muted))] shrink-0" />
           <span className={overdue ? 'text-[hsl(var(--danger))] font-semibold' : 'text-[hsl(var(--text-secondary))]'}>
-            Hạn: {formatDate(detail.endDate)}{overdue && ' (Quá hạn)'}
+            Hạn: {formatTaskDate(detail.endDate)}{overdue && ' (Quá hạn)'}
           </span>
         </div>
 
@@ -207,7 +206,7 @@ export const TaskDetailSE: React.FC = () => {
             {detail.progressLogs.slice(0, 5).map(log => (
               <div key={log.logId} className="flex items-center justify-between gap-2 p-2.5 rounded-md bg-[hsl(var(--bg-main))] border border-[hsl(var(--border))] text-xs">
                 <span className="font-medium text-[hsl(var(--text-primary))]">{log.oldProgress}% &rarr; {log.newProgress}%</span>
-                <span className="text-[hsl(var(--text-muted))] shrink-0">{formatDate(log.updatedAt)}</span>
+                <span className="text-[hsl(var(--text-muted))] shrink-0">{formatTimestamp(log.updatedAt)}</span>
               </div>
             ))}
           </div>

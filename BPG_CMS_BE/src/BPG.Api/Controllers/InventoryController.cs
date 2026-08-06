@@ -1,4 +1,6 @@
 using BPG.Application.Features.Inventory.Queries;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +28,7 @@ namespace BPG.Api.Controllers
         /// Lấy lịch sử biến động kho (thẻ kho) của một dự án, có phân trang.
         /// </summary>
         [HttpGet("transactions")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetInventoryTransactions(long projectId, [FromQuery] GetInventoryTransactionsQuery query)
         {

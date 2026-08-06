@@ -1,4 +1,6 @@
 using BPG.Application.Features.MaterialIssuances.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.MaterialIssuances.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -16,6 +18,7 @@ namespace BPG.Api.Controllers
         /// Đây là thao tác nghiệp vụ thực tế: thủ kho / kỹ sư hiện trường mới có thẩm quyền xuất vật tư.
         /// </summary>
         [HttpPost]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = UserRole.SiteEngineer)]
         public async Task<IActionResult> CreateMaterialIssuance([FromBody] CreateMaterialIssuanceCommand command)
         {
@@ -38,6 +41,7 @@ namespace BPG.Api.Controllers
         /// Lấy chi tiết một phiếu xuất kho vật tư cụ thể.
         /// </summary>
         [HttpGet("{id:long}")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetMaterialIssuanceDetail(long id)
         {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -214,7 +215,7 @@ public static class DbSeeder
                 new SystemConfig { ConfigKey = "DailyLogEditWindowHours", ConfigValue = "24", DataType = "number", DisplayName = "Giờ được sửa nhật ký thi công", Description = "Số giờ kể từ lúc tạo mà kỹ sư còn được phép chỉnh sửa nhật ký thi công.", Unit = "giờ", CreatedAt = DateTime.UtcNow },
                 // Tham số kiểu phần trăm — backend chặn giá trị vượt quá 100 cho kiểu này.
                 new SystemConfig { ConfigKey = "ExpectedDelayPercent", ConfigValue = "10", DataType = "percentage", DisplayName = "Ngưỡng cảnh báo trễ tiến độ", Description = "Phần trăm trễ tiến độ tối đa trước khi hệ thống cảnh báo.", Unit = "%", CreatedAt = DateTime.UtcNow },
-                new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "BÙI PHÚ GIA", DataType = "string", DisplayName = "Tên công ty", Description = "Tên pháp lý lấy từ nguồn mã số thuế công khai.", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "BPG", DataType = "string", DisplayName = "Tên công ty", Description = "Tên pháp lý lấy từ nguồn mã số thuế công khai.", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "CompanyLogoUrl", ConfigValue = "https://graph.facebook.com/phungatuvaco/picture?type=large", DataType = "string", DisplayName = "Logo công ty", Description = "Ảnh đại diện Fanpage công khai dùng cho demo; có thể thay bằng logo nội bộ.", CreatedAt = DateTime.UtcNow }
                 // Không seed CompanyTaxCode / CompanyAddress: không nghiệp vụ nào đọc hai key này
                 // (GetCompanyInfoQuery chỉ trả tên + logo), để lại chỉ làm rối màn Cấu hình hệ thống.
@@ -309,7 +310,7 @@ public static class DbSeeder
         var leaders = users.Values.Where(u => u.Email.StartsWith("leader")).ToArray();
         var kysus   = users.Values.Where(u => u.Email.StartsWith("kysu")).ToArray();
 
-        var today  = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today  = VietnamTime.Today;
         var rnd    = new Random(123);
         var unitTan = units.First(u => u.UnitCode == "TAN").UnitId;
 
@@ -618,7 +619,7 @@ public static class DbSeeder
             // đang thi công, nên dự án nào cũng cần sẵn một phiếu mẫu để đối chiếu.
             if (dp.TrangThai == "InProgress")
             {
-                await SeedDirectPurchaseAsync(context, project, leader, ketoan, catalogs, units, rnd);
+                await SeedDirectPurchaseAsync(context, project, leader, ketoan, gd, catalogs, units, rnd);
             }
 
             // ── INCIDENTS ────────────────────────────────────────────────────
@@ -1152,7 +1153,9 @@ public static class DbSeeder
             RequestId            = mr.RequestId,
             ProjectId            = project.ProjectId,
             SupplierId           = suppliers.First().SupplierId,
-            PONumber             = $"PO-{rnd.Next(1000, 9999)}",
+            // Mã chứng từ có unique index: sinh theo id dự án/giai đoạn thay vì số ngẫu nhiên,
+            // vì rnd.Next(1000, 9999) trải trên nhiều dự án là có xác suất trùng làm vỡ seed.
+            PONumber             = $"PO-P{project.ProjectId:D3}-{phase.PhaseId:D3}",
             OrderDate            = orderDate,
             ExpectedDeliveryDate = DateOnly.FromDateTime(receiptDate),
             DeliveryAddress      = project.Address,
@@ -1296,7 +1299,7 @@ public static class DbSeeder
             RequestId            = mr2.RequestId,
             ProjectId            = project.ProjectId,
             SupplierId           = suppliers.Skip(1).FirstOrDefault()?.SupplierId ?? suppliers.First().SupplierId,
-            PONumber             = $"PO-WAIT-{rnd.Next(1000, 9999)}",
+            PONumber             = $"PO-WAIT-P{project.ProjectId:D3}",
             OrderDate            = phaseStart.AddDays(25),
             ExpectedDeliveryDate = DateOnly.FromDateTime(phaseStart.AddDays(40)),
             DeliveryAddress      = project.Address,
@@ -1344,7 +1347,7 @@ public static class DbSeeder
             RequestId = mr2.RequestId,
             ProjectId = project.ProjectId,
             SupplierId = suppliers.Skip(3).FirstOrDefault()?.SupplierId ?? suppliers.First().SupplierId,
-            PONumber = $"PO-SPLIT-{rnd.Next(1000, 9999)}",
+            PONumber = $"PO-SPLIT-P{project.ProjectId:D3}",
             OrderDate = phaseStart.AddDays(26),
             ExpectedDeliveryDate = DateOnly.FromDateTime(phaseStart.AddDays(42)),
             Status = PurchaseOrderStatus.Sent,
@@ -1400,7 +1403,7 @@ public static class DbSeeder
             RequestId            = mr3.RequestId,
             ProjectId            = project.ProjectId,
             SupplierId           = suppliers.Skip(2).FirstOrDefault()?.SupplierId ?? suppliers.First().SupplierId,
-            PONumber             = $"PO-PARTIAL-{rnd.Next(1000, 9999)}",
+            PONumber             = $"PO-PARTIAL-P{project.ProjectId:D3}",
             OrderDate            = phaseStart.AddDays(12),
             ExpectedDeliveryDate = DateOnly.FromDateTime(phaseStart.AddDays(30)),
             DeliveryAddress      = project.Address,
@@ -1659,14 +1662,15 @@ public static class DbSeeder
 
     // ─────────────────────────────────────────────────────────────────────────
     // DIRECT PURCHASE – mua khẩn cấp tại công trường
-    // Nghiệp vụ: Leader mua ngoài kèm ảnh hóa đơn, hệ thống auto sinh PO + nhập kho
-    // DirectPurchaseStatus: Draft | Approved | Rejected
+    // Nghiệp vụ: Leader mua ngoài kèm ảnh hóa đơn, hệ thống auto sinh PO + nhập kho.
+    // Khoản chi phải qua Kế toán soát hóa đơn rồi Giám đốc duyệt, kể cả khi trong định mức BOQ.
+    // DirectPurchaseStatus: Draft | Pending | WaitingApproval | Approved | Rejected
     // DirectPurchaseAuditStatus: PendingAudit | Audited | Rejected
     // ─────────────────────────────────────────────────────────────────────────
     private static async Task SeedDirectPurchaseAsync(
         AppDbContext context,
         Project project,
-        User leader, User ketoan,
+        User leader, User ketoan, User giamDoc,
         List<MaterialCatalog> catalogs,
         List<Unit> units,
         Random rnd)
@@ -1685,20 +1689,23 @@ public static class DbSeeder
         decimal dpUnitPrice = 95_000;                   // 95,000 VNĐ/bao
         decimal dpTotal    = dpQty * dpUnitPrice;
 
-        // DirectPurchaseRequest: Status=Approved (đã hệ thống duyệt – within BOQ)
+        // Phiếu mẫu đi hết luồng: Kế toán soát hóa đơn xong, Giám đốc đã ký duyệt chi.
         var dp = new DirectPurchaseRequest
         {
             ProjectId    = project.ProjectId,
             PhaseId      = activePhase.PhaseId,
             RequestedBy  = leader.UserId,
             Reason       = "Thiếu xi măng khẩn cấp để đổ bê tông cột, không kịp đặt hàng qua quy trình thông thường",
-            Status       = "Approved",         // DirectPurchaseStatus.Approved – within BOQ nên auto duyệt
+            Status       = "Approved",         // DirectPurchaseStatus.Approved – Giám đốc đã duyệt chi
             AuditStatus  = "Audited",          // DirectPurchaseAuditStatus.Audited – kế toán đã soát
             TotalAmount  = dpTotal,
             PurchaseDate = purchaseDate,
             AuditedBy    = ketoan.UserId,
             AuditedAt    = purchaseDate.AddDays(1),
-            AuditNote    = "Đã kiểm tra hóa đơn và đối chiếu BOQ – hợp lệ, phê duyệt giải ngân.",
+            AuditNote    = "Đã kiểm tra hóa đơn và đối chiếu BOQ – hợp lệ, trình Giám đốc duyệt chi.",
+            ApprovedBy   = giamDoc.UserId,
+            ApprovedAt   = purchaseDate.AddDays(2),
+            ApprovalNote = "Duyệt chi khoản mua khẩn cấp, tiến hành hoàn tiền cho công trường.",
             CreatedAt    = purchaseDate,
             CreatedBy    = leader.UserId
         };
@@ -1722,7 +1729,7 @@ public static class DbSeeder
         {
             ProjectId            = project.ProjectId,
             SupplierId           = null,                   // mua tại chỗ, không có NCC trong hệ thống
-            PONumber             = $"DP-PO-{rnd.Next(100, 999)}",
+            PONumber             = $"DP-PO-P{project.ProjectId:D3}",
             OrderDate            = purchaseDate,
             ExpectedDeliveryDate = DateOnly.FromDateTime(purchaseDate),
             DeliveryAddress      = project.Address,

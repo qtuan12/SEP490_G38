@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, AlertOctagon, CheckCircle, AlertTriangle, Wrench, Construction, Search, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
+import { AlertOctagon, CheckCircle, AlertTriangle, Wrench, Construction, Search, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type IncidentReportDto } from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { parseDateSafe } from '../../../utils/dateHelpers';
 
 interface Props {
   projectId: string | null;
@@ -59,9 +61,8 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh] gap-3 text-slate-500">
-        <Loader2 size={24} className="animate-spin text-indigo-500" />
-        <span>Đang tải Báo cáo Sự cố & Rework...</span>
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <LoadingSpinner size="md" label="Đang tải Báo cáo Sự cố & Rework..." />
       </div>
     );
   }
@@ -96,7 +97,7 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
   const PIE_COLORS = ['#6366f1', '#ef4444', '#f59e0b', '#10b981'];
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    parseDateSafe(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   const getStatusBadge = (status: string) => {
     const isResolved = resolvedStatuses.includes(status);

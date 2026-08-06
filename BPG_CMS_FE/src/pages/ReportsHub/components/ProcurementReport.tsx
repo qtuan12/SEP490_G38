@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, ShoppingCart, AlertCircle, DollarSign, Package, TrendingUp } from 'lucide-react';
+import { ShoppingCart, AlertCircle, DollarSign, Package, TrendingUp } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ProcurementReportDto } from '../../../services/reportService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import { formatDateOnly, formatPlainDate } from '../../../utils/dateHelpers';
 
 interface Props {
   projectId: string | null;
@@ -11,6 +13,8 @@ interface Props {
 
 const PO_STATUS_LABELS: Record<string, { label: string; colorClass: string }> = {
   Draft: { label: 'Nháp', colorClass: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' },
+  PendingApproval: { label: 'Chờ GĐ duyệt', colorClass: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
+  Rejected: { label: 'Bị từ chối', colorClass: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' },
   Sent: { label: 'Đã gửi NCC', colorClass: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' },
   PartiallyReceived: { label: 'Nhận 1 phần', colorClass: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
   FullyReceived: { label: 'Đã nhận đủ', colorClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
@@ -67,18 +71,17 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh] gap-3 text-slate-500">
-        <Loader2 size={24} className="animate-spin text-indigo-500" />
-        <span>Đang tải Báo cáo Mua sắm & Chi phí...</span>
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <LoadingSpinner size="md" label="Đang tải Báo cáo Mua sắm & Chi phí..." />
       </div>
     );
   }
 
   const formatCurrency = (v: number) => `${v.toLocaleString('vi-VN')} VNĐ`;
-  const formatDate = (d?: string) => {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
+  /** Ngày thuần (ngày đặt hàng, ngày giao dự kiến) — không quy đổi múi giờ. */
+  const formatOrderDate = (d?: string) => formatPlainDate(d) || '—';
+  /** Mốc thời gian UTC từ backend (thời điểm tạo phiếu). */
+  const formatTimestamp = (d?: string) => (d ? formatDateOnly(d) : '—');
 
   if (projectId === 'all') {
     return (
@@ -256,8 +259,8 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                       <td className="px-4 py-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">{po.pONumber}</td>
                       <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{po.supplierName || '—'}</td>
                       <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{po.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatDate(po.orderDate)}</td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatDate(po.expectedDeliveryDate)}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.orderDate)}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.expectedDeliveryDate)}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${statusInfo.colorClass}`}>
                           {statusInfo.label}
@@ -295,7 +298,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                     <td className="px-4 py-3 font-mono font-bold text-slate-500">#{dp.directPurchaseId}</td>
                     <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{dp.requestedByName}</td>
                     <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{dp.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatDate(dp.createdAt)}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatTimestamp(dp.createdAt)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                         {DP_STATUS_LABELS[dp.status] || dp.status}

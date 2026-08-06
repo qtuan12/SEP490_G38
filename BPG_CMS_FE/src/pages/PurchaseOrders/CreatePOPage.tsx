@@ -9,7 +9,7 @@ import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCa
 import toast from 'react-hot-toast';
 import { ApiError } from '../../services/api';
 import { PO_ORDER_DATE_ERRORS, PO_DELIVERY_DATE_ERRORS } from '../../constants/errorCodes';
-import { todayLocalISO } from '../../utils/dateHelpers';
+import { todayVnISO } from '../../utils/dateHelpers';
 
 interface POItem {
   materialId: number;
@@ -18,14 +18,28 @@ interface POItem {
   specification: string;
   unitId: number;
   unitName: string;
-  quantity: number;
-  unitPrice: number;
+  /**
+   * Số lượng và đơn giá giữ nguyên chuỗi người dùng gõ, không ép về number ngay.
+   *
+   * Với <input type="number">, React so sánh LỎNG khi đồng bộ DOM: state 1 mà ô đang là "01"
+   * thì "01" == 1 nên React để nguyên chữ "01". Còn nếu ép 0 thành ô trống để né chuyện đó thì
+   * lại không gõ được số thập phân — vừa gõ "0" của "0.1" là state về 0 và ô bị xóa trắng.
+   * Giữ chuỗi thô là cách duy nhất đúng cho cả hai trường hợp; parse khi cần tính toán.
+   */
+  quantity: string;
+  unitPrice: string;
   notes: string;
   maxQuantity: number;
   // Cờ ĐVT nguyên lấy từ backend (Material.BaseUnit.IsDiscrete), không suy đoán từ tên đơn vị
   isDiscreteUnit: boolean;
   baseUnitName: string;
 }
+
+/** Chuỗi trong ô số → số để tính toán. Ô trống hoặc đang gõ dở ("1.", "-") coi như 0. */
+const num = (v: string): number => {
+  const n = parseFloat(v);
+  return Number.isNaN(n) ? 0 : n;
+};
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
@@ -72,7 +86,7 @@ export const CreatePOPage: React.FC = () => {
     ? `/projects/${projectId}?tab=purchaseorders`
     : '/purchase-orders';
 
-  const [orderDate, setOrderDate] = useState(todayLocalISO);
+  const [orderDate, setOrderDate] = useState(todayVnISO);
   const [supplierId, setSupplierId] = useState(0);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
@@ -148,7 +162,7 @@ export const CreatePOPage: React.FC = () => {
       if (ri.remainingQuantity <= 0) continue;
       if (merged[ri.materialId]) {
         merged[ri.materialId].maxQuantity += ri.remainingQuantity;
-        merged[ri.materialId].quantity += ri.remainingQuantity;
+        merged[ri.materialId].quantity = String(num(merged[ri.materialId].quantity) + ri.remainingQuantity);
       } else {
         merged[ri.materialId] = {
           materialId: ri.materialId,
@@ -157,8 +171,8 @@ export const CreatePOPage: React.FC = () => {
           specification: ri.specification,
           unitId: ri.unitId,
           unitName: ri.unitName,
-          quantity: ri.remainingQuantity,
-          unitPrice: 0,
+          quantity: String(ri.remainingQuantity),
+          unitPrice: '',
           notes: '',
           maxQuantity: ri.remainingQuantity,
           isDiscreteUnit: ri.isDiscreteUnit,
@@ -174,6 +188,7 @@ export const CreatePOPage: React.FC = () => {
     setItems(baseItems);
   }, [baseItems]);
 
+  // Ô số lượng/đơn giá truyền thẳng chuỗi thô của input vào state (xem ghi chú ở POItem).
   const updateItem = (idx: number, field: keyof POItem, value: number | string) =>
     setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
 
@@ -197,24 +212,42 @@ export const CreatePOPage: React.FC = () => {
 
   const restoreAllItems = () => setItems(baseItems);
 
-  const totalAmount = useMemo(() => items.reduce((s, it) => s + it.quantity * it.unitPrice, 0), [items]);
+  const totalAmount = useMemo(() => items.reduce((s, it) => s + num(it.quantity) * num(it.unitPrice), 0), [items]);
+
+  /** Đã bấm "Tạo đơn hàng" ít nhất một lần — mốc để bắt đầu nhắc các ô còn bỏ trống. */
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   // ---- Validate realtime ----
   // Kiểm ngay khi người dùng gõ, không đợi bấm "Tạo đơn hàng". Các rule dưới đây phản chiếu
   // rule của backend (CreatePurchaseOrderCommandHandler) — backend vẫn là chốt chặn cuối cùng,
   // đây chỉ là lớp phản hồi sớm để đỡ một vòng gọi API.
-  const itemErrors = useMemo(
+  // Kèm theo `field` để dòng chữ đỏ hiện đúng dưới ô sai, không dồn hết xuống ô Số lượng.
+  //
+  // Ô CÒN TRỐNG thì im lặng cho tới khi người dùng bấm "Tạo đơn hàng": chọn xong yêu cầu vật tư
+  // là đơn giá vốn để trống, báo đỏ ngay lúc đó chẳng khác gì mắng người dùng vì chưa kịp nhập.
+  // Có nhập rồi mà sai (âm, 0, vượt tồn) thì vẫn báo ngay.
+  const itemErrors = useMemo<({ field: 'quantity' | 'unitPrice'; message: string } | null)[]>(
     () =>
       items.map((it) => {
-        if (!it.quantity || it.quantity <= 0) return 'Số lượng đặt phải lớn hơn 0.';
-        if (it.quantity > it.maxQuantity)
-          return `Vượt số lượng còn được đặt (tối đa ${it.maxQuantity} ${it.unitName}).`;
-        if (it.isDiscreteUnit && it.quantity % 1 !== 0)
-          return `Đơn vị tính '${it.baseUnitName}' yêu cầu số lượng phải là số nguyên.`;
-        if (it.unitPrice < 0) return 'Đơn giá không được âm.';
+        if (it.quantity.trim() === '')
+          return attemptedSubmit ? { field: 'quantity', message: 'Vui lòng nhập số lượng đặt.' } : null;
+
+        const quantity = num(it.quantity);
+        if (quantity <= 0)
+          return { field: 'quantity', message: 'Số lượng đặt phải lớn hơn 0.' };
+        if (quantity > it.maxQuantity)
+          return { field: 'quantity', message: `Vượt số lượng còn được đặt (tối đa ${it.maxQuantity} ${it.unitName}).` };
+        if (it.isDiscreteUnit && quantity % 1 !== 0)
+          return { field: 'quantity', message: `Đơn vị tính '${it.baseUnitName}' yêu cầu số lượng phải là số nguyên.` };
+
+        // Đơn hàng gửi nhà cung cấp thì phải có giá — phản chiếu rule của backend.
+        if (it.unitPrice.trim() === '')
+          return attemptedSubmit ? { field: 'unitPrice', message: 'Vui lòng nhập đơn giá.' } : null;
+        if (num(it.unitPrice) <= 0)
+          return { field: 'unitPrice', message: 'Đơn giá phải lớn hơn 0.' };
         return null;
       }),
-    [items]
+    [items, attemptedSubmit]
   );
 
   // Lỗi do backend trả về theo từng trường (ApiResponse.fieldErrors) — bấm "Tạo đơn hàng" là gọi API,
@@ -250,13 +283,13 @@ export const CreatePOPage: React.FC = () => {
         items: items.map((it) => ({
           materialId: it.materialId,
           unitId: it.unitId,
-          quantity: it.quantity,
-          unitPrice: it.unitPrice,
+          quantity: num(it.quantity),
+          unitPrice: num(it.unitPrice),
           notes: it.notes.trim() || undefined,
         })),
       }),
     onSuccess: (result) => {
-      toast.success(result.message || 'Thao tác thành công.');
+      toast.success(result.message || 'Đã tạo đơn mua hàng.');
       navigate(backPath);
     },
     onError: (err: any) => {
@@ -291,6 +324,7 @@ export const CreatePOPage: React.FC = () => {
   });
 
   const handleSubmit = () => {
+    setAttemptedSubmit(true);
     // Xóa lỗi của lần gửi trước rồi gọi API — để backend là nơi quyết định trường nào còn thiếu/sai,
     // FE chỉ hiển thị lại đúng vị trí.
     setFormError(null);
@@ -298,7 +332,7 @@ export const CreatePOPage: React.FC = () => {
     setDeliveryDateError(null);
     setApiFieldErrors({});
     // Lấy lại ngày hiện tại lúc bấm gửi — trang mở qua nửa đêm thì ngày đơn hàng vẫn đúng.
-    const today = todayLocalISO();
+    const today = todayVnISO();
     if (today !== orderDate) setOrderDate(today);
     mutation.mutate(today);
   };
@@ -399,7 +433,10 @@ export const CreatePOPage: React.FC = () => {
             </div>
           </div>
           <div>
-            <label style={label}>Ngày đơn hàng <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+            {/* Ngày phát hành chứng từ, không phải thứ để chọn: luôn là ngày tạo đơn theo giờ
+                Việt Nam. Mã đơn hàng cũng gắn với ngày này (PO-yyyyMMdd-xxxx) nên cho sửa sẽ
+                khiến mã dự kiến lệch với mã thật. Hiển thị chỉ đọc giống ô Mã đơn hàng. */}
+            <label style={label}>Ngày đơn hàng</label>
             <div
               className="h-10"
               style={{
@@ -580,7 +617,14 @@ export const CreatePOPage: React.FC = () => {
               </thead>
               <tbody>
                 {items.map((it, idx) => {
-                  const rowError = itemErrors[idx] || apiItemErrors[idx] || null;
+                  // Lỗi backend không kèm thông tin ô nào nên gắn về ô Số lượng như trước.
+                  const rowError = itemErrors[idx]
+                    ?? (apiItemErrors[idx] ? { field: 'quantity' as const, message: apiItemErrors[idx] } : null);
+                  const qtyError = rowError?.field === 'quantity' ? rowError.message : null;
+                  const priceError = rowError?.field === 'unitPrice' ? rowError.message : null;
+                  const errorText: React.CSSProperties = {
+                    margin: '4px 0 0', fontSize: 11, lineHeight: 1.4, color: 'hsl(var(--danger))', maxWidth: 180,
+                  };
                   return (
                   <tr key={it.materialId} style={{ borderBottom: '1px solid hsl(var(--border))' }}>
                     <td style={{ padding: '8px 10px', color: 'hsl(var(--text-muted))' }}>{idx + 1}</td>
@@ -605,22 +649,20 @@ export const CreatePOPage: React.FC = () => {
                         min={it.isDiscreteUnit ? 1 : 0.001}
                         max={it.maxQuantity}
                         step={it.isDiscreteUnit ? 1 : 0.001}
-                        value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))}
-                        className="h-8" style={{ width: 110, ...(rowError ? { borderColor: 'hsl(var(--danger))' } : {}) }} />
-                      {rowError && (
-                        <p style={{ margin: '4px 0 0', fontSize: 11, lineHeight: 1.4, color: 'hsl(var(--danger))', maxWidth: 180 }}>
-                          {rowError}
-                        </p>
-                      )}
+                        value={it.quantity}
+                        onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                        className="h-8" style={{ width: 110, ...(qtyError ? { borderColor: 'hsl(var(--danger))' } : {}) }} />
+                      {qtyError && <p style={errorText}>{qtyError}</p>}
                     </td>
                     <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
                       <Input type="number" min={0} step={1000}
-                        value={it.unitPrice === 0 ? '' : it.unitPrice}
-                        onChange={(e) => updateItem(idx, 'unitPrice', e.target.value === '' ? 0 : Number(e.target.value))}
-                        className="h-8" style={{ width: 140 }} />
+                        value={it.unitPrice}
+                        onChange={(e) => updateItem(idx, 'unitPrice', e.target.value)}
+                        className="h-8" style={{ width: 140, ...(priceError ? { borderColor: 'hsl(var(--danger))' } : {}) }} />
+                      {priceError && <p style={errorText}>{priceError}</p>}
                     </td>
                     <td style={{ padding: '8px 10px', fontWeight: 600, whiteSpace: 'nowrap', color: 'hsl(var(--text-primary))' }}>
-                      {fmt(it.quantity * it.unitPrice)}
+                      {fmt(num(it.quantity) * num(it.unitPrice))}
                     </td>
                     <td style={{ padding: '8px 10px', width: '100%', minWidth: 180 }}>
                       <Input value={it.notes} onChange={(e) => updateItem(idx, 'notes', e.target.value)}

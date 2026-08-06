@@ -45,6 +45,8 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const [searchParams] = useSearchParams();
   const urlPhaseId = searchParams.get('phaseId');
   const urlRequestId = searchParams.get('requestId');
+  /** Id đơn hàng đã dẫn sang đây — đóng modal chi tiết thì quay lại đúng đơn hàng đó. */
+  const fromPO = searchParams.get('fromPO');
 
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
@@ -256,9 +258,9 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       const req = requests.find(r => r.id === reqId);
       const updated = await projectService.processMaterialRequestByAccountant(reqId, note);
       if (req?.isOverBOQ) {
-        toast.success((updated as any).__message || 'Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
+        console.log((updated as any).__message || 'Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
       } else {
-        toast.success((updated as any).__message || 'Đã duyệt yêu cầu vật tư trong định mức.');
+        console.log((updated as any).__message || 'Đã duyệt yêu cầu vật tư trong định mức.');
       }
       scheduleRealtimeRefresh();
     } catch (err: any) {
@@ -269,7 +271,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const handleDisburseRequestByAccountant = async (reqId: string, note?: string) => {
     try {
       const updated = await projectService.disburseEmergencyRequest(reqId, note);
-      toast.success((updated as any).__message || 'Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp.');
+      console.log((updated as any).__message || 'Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp.');
       scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Không thể phê duyệt giải ngân.');
@@ -280,7 +282,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     try {
       const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'director', note);
       const totalCost = updated.items.reduce((sum, item) => sum + (item.quantity * ((item as any).price || 0)), 0);
-      toast.success((updated as any).__message || `Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
+      console.log((updated as any).__message || `Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
       scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Không thể phê duyệt yêu cầu vật tư.');
@@ -290,7 +292,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const handleRejectRequest = async (reqId: string, reason: string) => {
     try {
       const updated = await projectService.rejectMaterialRequest(reqId, reason.trim());
-      toast.success((updated as any).__message || 'Đã từ chối yêu cầu vật tư.');
+      console.log((updated as any).__message || 'Đã từ chối yêu cầu vật tư.');
       scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Không thể từ chối yêu cầu vật tư.');
@@ -300,7 +302,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   const handleCancelRequest = async (reqId: string, reason: string) => {
     try {
       const message = await projectService.cancelMaterialRequest(reqId, reason.trim());
-      toast.success(message || 'Đã hủy yêu cầu vật tư.');
+      console.log(message || 'Đã hủy yêu cầu vật tư.');
       scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Không thể hủy yêu cầu vật tư.');
@@ -600,6 +602,14 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           onClose={() => {
             setIsDetailOpen(false);
             setSelectedRequest(null);
+            // Đến từ chi tiết đơn hàng thì trả người dùng về đúng chỗ họ vừa rời đi.
+            // Ưu tiên lùi lịch sử: giữ nguyên mọi tham số của trang đơn hàng (vd fromProject)
+            // và không đẻ thêm entry khiến nút quay lại ở đó lại đưa ngược về đây.
+            if (fromPO) {
+              const canGoBack = (window.history.state as { idx?: number } | null)?.idx;
+              if (canGoBack) navigate(-1);
+              else navigate(`/purchase-orders/${fromPO}`, { replace: true });
+            }
           }}
           request={selectedRequest}
           isAccountant={isAccountant}
@@ -733,7 +743,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           onClose={() => setIsCreateOpen(false)}
           onSuccess={(msg) => {
             setIsCreateOpen(false);
-            toast.success(msg);
+            console.log(msg);
             scheduleRealtimeRefresh();
           }}
           projectId={projectId.toString()}
@@ -754,7 +764,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           onSuccess={(msg) => {
             setIsResubmitOpen(false);
             setSelectedResubmitRequest(null);
-            toast.success(msg);
+            console.log(msg);
             scheduleRealtimeRefresh();
           }}
           projectId={projectId.toString()}

@@ -79,7 +79,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const isAssignedEngineer = !!currentTask
     && !!engineerId
     && (currentTask.assignedTo?.split(',').map(id => id.trim()).includes(String(engineerId)) ?? false);
-  const canCreateForCurrentTask = isEditMode || (hasTaskAssignee && (isPL || isAssignedEngineer));
+  const canCreateForCurrentTask = isEditMode || (hasTaskAssignee && (isPL || canManageTechnical || isAssignedEngineer));
 
   const schema = React.useMemo(() => {
     return z.object({
@@ -289,6 +289,10 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       if (pId) {
         queryClient.invalidateQueries({ queryKey: ['tasks', pId] });
         queryClient.invalidateQueries({ queryKey: ['daily-logs', pId] });
+      }
+      const changedTaskId = editLog?.taskId || currentTask?.id || task?.id;
+      if (changedTaskId) {
+        queryClient.invalidateQueries({ queryKey: ['task-progress-history', changedTaskId] });
       }
       onCancel();
     },

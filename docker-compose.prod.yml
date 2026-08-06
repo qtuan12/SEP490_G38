@@ -1,0 +1,103 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: bpg-db
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    volumes:
+      - mssql-data:/var/opt/mssql
+    networks:
+      - bpg-network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: bpg-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - bpg-network
+
+  seq:
+    image: datalust/seq:latest
+    container_name: bpg-seq
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
+    volumes:
+      - seq-data:/data
+    networks:
+      - bpg-network
+
+  backend:
+    build:
+      context: ./BPG_CMS_BE
+      dockerfile: src/BPG.Api/Dockerfile
+    container_name: bpg-backend
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=${MSSQL_DATABASE};User ID=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;Encrypt=True;"
+      ConnectionStrings__RedisConnection: redis:6379
+      Cors__AllowedOrigins__0: ${FRONTEND_ORIGIN}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+      Jwt__AccessTokenExpiryMinutes: ${JWT_ACCESS_TOKEN_EXPIRY_MINUTES}
+      Jwt__RefreshTokenExpiryDays: ${JWT_REFRESH_TOKEN_EXPIRY_DAYS}
+      Swagger__Enabled: ${SWAGGER_ENABLED}
+      Serilog__WriteTo__1__Args__serverUrl: http://seq:80
+      Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME}
+      Cloudinary__ApiKey: ${CLOUDINARY_API_KEY}
+      Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET}
+      Email__Host: ${EMAIL_HOST}
+      Email__Port: ${EMAIL_PORT}
+      Email__SenderEmail: ${EMAIL_SENDER_EMAIL}
+      Email__SenderName: ${EMAIL_SENDER_NAME}
+      Email__Password: ${EMAIL_PASSWORD}
+      Email__EnableSsl: ${EMAIL_ENABLE_SSL}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      seq:
+        condition: service_started
+    networks:
+      - bpg-network
+
+  frontend:
+    build:
+      context: ./BPG_CMS_FE
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_USE_MOCK_API: "false"
+    container_name: bpg-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - bpg-network
+
+volumes:
+  mssql-data:
+  redis-data:
+  seq-data:
+
+networks:
+  bpg-network:
+    driver: bridge

@@ -11,9 +11,9 @@ import { useNotification } from '../../../context/NotificationContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
-import { useAuth } from '../../../context/AuthContext';
+
 import toast from 'react-hot-toast';
-import { RoleGroup } from '../../../auth/roles';
+
 import {
   REALTIME_DATA_CHANGED_AGGREGATION_MS,
   RealtimeEntities,
@@ -28,13 +28,8 @@ interface AdjustmentListProps {
 }
 
 export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => {
-  const { hasAnyRole } = useAuth();
   const { isProjectLeader, canManageAccounting, canApprove } = useProjectAccess(projectId > 0 ? projectId : null);
-  const canCreateIncreaseByMatrix =
-    hasAnyRole(RoleGroup.Technical) ||
-    hasAnyRole(RoleGroup.Accounting) ||
-    canApprove ||
-    isProjectLeader;
+
   const [data, setData] = useState<InventoryAdjustmentDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -136,7 +131,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     setIsDecreaseOpen(false);
     setReviewId(null);
     if (msg) {
-      toast.success(msg);
+      console.log(msg);
     }
     scheduleRealtimeRefresh();
   };
@@ -162,7 +157,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
 
   const canCreateIncrease =
     projectId > 0 &&
-    canCreateIncreaseByMatrix;
+    isProjectLeader;
   const canCreateDecrease =
     projectId > 0 &&
     canManageAccounting;

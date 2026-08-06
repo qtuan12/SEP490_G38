@@ -159,7 +159,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
       const msg = variables.type === 'emergency'
         ? 'Đã gửi lại yêu cầu mua ngoài khẩn cấp! Hệ thống tự động sinh PO & Phiếu nhập kho, tăng tồn kho ảo tức thì.'
         : 'Đã gửi lại yêu cầu cấp vật tư.';
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       queryClient.invalidateQueries({ queryKey: ['materialRequests'] });
       onClose();

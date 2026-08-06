@@ -87,9 +87,11 @@ export interface PhaseBOQItemDto {
 export interface CreateDirectPurchaseItemInput {
   materialId: number;
   /**
-   * Không gửi đơn vị tính: backend suy ra từ vật tư
-   * (đơn vị của dòng BOQ nếu có, ngược lại là đơn vị cơ bản).
+   * Đơn vị người dùng chọn: đơn vị cơ bản của vật tư hoặc một đơn vị trong bảng quy đổi.
+   * Để trống thì backend tự suy ra (đơn vị dòng BOQ nếu có, ngược lại là đơn vị cơ bản).
+   * Tỷ lệ quy đổi không gửi kèm — backend luôn tra lại từ DB.
    */
+  unitId?: number;
   quantity: number;
   unitPrice: number;
 }

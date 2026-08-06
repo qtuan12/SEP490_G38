@@ -1,8 +1,7 @@
 using BPG.Application.Features.PurchaseOrders.Queries;
+using BPG.Application.Features.PurchaseOrders.Services;
 using BPG.Application.IRepositories;
-using BPG.Domain.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
@@ -14,12 +13,10 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
 
         public async Task<string> Handle(GetNextPoNumberQuery request, CancellationToken cancellationToken)
         {
-            // Cùng logic sinh mã với CreatePurchaseOrderCommandHandler — chỉ dùng để xem trước,
-            // mã thực tế được sinh lại tại thời điểm tạo PO nên có thể lệch nếu có PO khác được tạo xen giữa.
-            var prefix = $"PO-{request.OrderDate:yyyyMMdd}-";
-            var todayCount = await _uow.Repository<PurchaseOrder>().Query()
-                .CountAsync(po => po.PONumber.StartsWith(prefix), cancellationToken);
-            return $"{prefix}{(todayCount + 1):D4}";
+            // Dùng chung bộ sinh với CreatePurchaseOrderCommandHandler để hai nơi không lệch nhau.
+            // Chỉ để xem trước: mã thật được sinh lại lúc tạo PO nên có thể khác nếu có PO khác
+            // được tạo xen vào giữa.
+            return await PoNumberGenerator.NextAsync(_uow, request.OrderDate, cancellationToken);
         }
     }
 }

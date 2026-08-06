@@ -2,13 +2,17 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { materialCategoryService } from '../../../services/materialCategoryService';
 import { CategoryFormModal } from './modals/CategoryFormModal';
-import { ConfirmDialog, Button, DataTable, Pagination } from '../../../components/ui';
+import { ConfirmDialog, Button, DataTable, Pagination, TableLoader } from '../../../components/ui';
 import type { MaterialCategory } from '../../../types/materialCategory';
-import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, Tags } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, AlertCircle, Tags } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../../context/AuthContext';
+import { RoleGroup, hasAnyRole } from '../../../auth/roles';
 
 export const CategoryManagement: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canManageMasterData = hasAnyRole(user?.roles, RoleGroup.MasterData);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,7 +41,7 @@ export const CategoryManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    toast.success(message);
+    console.log(message);
   };
 
   // Delete mutation
@@ -106,7 +110,7 @@ export const CategoryManagement: React.FC = () => {
         <span className="text-[hsl(var(--text-secondary))]">{cat.description || '-'}</span>
       ),
     },
-    {
+    ...(canManageMasterData ? [{
       key: 'actions',
       header: 'Hành động',
       render: (cat: MaterialCategory) => (
@@ -129,7 +133,7 @@ export const CategoryManagement: React.FC = () => {
           </Button>
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
@@ -164,17 +168,16 @@ export const CategoryManagement: React.FC = () => {
             />
           </div>
 
-          <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
-            <Plus size={18} />
-            <span>Thêm Danh mục</span>
-          </Button>
+          {canManageMasterData && (
+            <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
+              <Plus size={18} />
+              <span>Thêm Loại vật tư</span>
+            </Button>
+          )}
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-[200px] gap-2.5">
-            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-            <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu...</span>
-          </div>
+          <TableLoader isTable={false} message="Đang tải dữ liệu danh mục..." minHeight="200px" />
         ) : (
           <div className="flex flex-col gap-4">
             <DataTable

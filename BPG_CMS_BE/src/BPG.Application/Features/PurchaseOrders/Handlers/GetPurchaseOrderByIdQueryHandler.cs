@@ -17,11 +17,16 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetPurchaseOrderByIdQueryHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public GetPurchaseOrderByIdQueryHandler(
+            IUnitOfWork uow,
+            ICurrentUserService currentUserService,
+            IProjectAccessService projectAccessService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PurchaseOrderDetailDto> Handle(
@@ -31,11 +36,18 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .AsNoTracking()
                 .Include(p => p.Supplier)
                 .Include(p => p.Project)
+                .Include(p => p.Approver)
                 .Include(p => p.Items).ThenInclude(i => i.Material)
                 .Include(p => p.Items).ThenInclude(i => i.Unit)
                 .Include(p => p.Request).ThenInclude(mr => mr!.Phase)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
                 ?? throw new NotFoundException("Không tìm thấy đơn mua hàng.");
+
+            // Endpoint mở cho ProjectViewers (gồm cả Kỹ sư công trường) nên phải chặn theo dự án:
+            // không có bước này thì dò id là đọc được giá mua và nhà cung cấp của mọi dự án.
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+            if (!accessibleProjectIds.Contains(po.ProjectId))
+                throw new ForbiddenException("Bạn không có quyền xem đơn mua hàng của dự án này.");
 
             // TotalReceived per material from approved GR items
             var receivedItems = await _uow.Repository<GoodsReceiptItem>().Query()
@@ -53,13 +65,17 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 POId = po.POId,
                 PONumber = po.PONumber,
                 Status = po.Status,
-                OrderDate = po.OrderDate,
+                OrderDate = DateOnly.FromDateTime(po.OrderDate),
                 ExpectedDeliveryDate = po.ExpectedDeliveryDate,
                 DeliveryAddress = po.DeliveryAddress,
                 Notes = po.Notes,
                 CancelledReason = po.CancelledReason,
                 ClosedReason = po.ClosedReason,
                 TotalAmount = po.TotalAmount,
+                ApproverName = po.Approver?.FullName,
+                ApprovedAt = po.ApprovedAt,
+                ApprovalNote = po.ApprovalNote,
+                RejectedReason = po.RejectedReason,
                 SupplierId = po.SupplierId,
                 SupplierName = po.Supplier?.SupplierName ?? string.Empty,
                 SupplierContactInfo = po.Supplier?.ContactInfo,

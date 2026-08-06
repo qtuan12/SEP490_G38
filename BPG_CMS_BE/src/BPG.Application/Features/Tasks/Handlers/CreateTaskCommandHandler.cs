@@ -16,14 +16,22 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
     private readonly IRealtimeNotificationSender _realtimeSender;
     private readonly AutoMapper.IMapper _mapper;
     private readonly IProgressRollupService _rollupService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public CreateTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService, IRealtimeNotificationSender realtimeSender, AutoMapper.IMapper mapper, IProgressRollupService rollupService)
+    public CreateTaskCommandHandler(
+        IUnitOfWork unitOfWork, 
+        INotificationService notificationService, 
+        IRealtimeNotificationSender realtimeSender, 
+        AutoMapper.IMapper mapper, 
+        IProgressRollupService rollupService,
+        ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
         _realtimeSender = realtimeSender;
         _mapper = mapper;
         _rollupService = rollupService;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse<long>> Handle(CreateTaskCommand request, CancellationToken ct)
@@ -44,6 +52,19 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
         {
             throw new BusinessException("ERR_TASK_DATE_INVALID",
                 $"Ngày kết thúc của công việc ({request.EndDate:dd/MM/yyyy}) không được sau ngày kết thúc của giai đoạn ({phase.EndDate.Value:dd/MM/yyyy}).");
+        }
+
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>()
+                .Query()
+                .AnyAsync(pm => pm.ProjectId == phase.ProjectId && pm.UserId == currentUserId && pm.IsLeader, ct);
+                
+            if (!isProjectLeader)
+            {
+                throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được phép tạo công việc.");
+            }
         }
 
         if (request.ParentTaskId.HasValue)

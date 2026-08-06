@@ -1,3 +1,5 @@
+import { parseDateSafe } from './dateHelpers';
+
 /**
  * Trả về tên hiển thị và class màu sắc (Tailwind) cho từng loại giao dịch kho (Ledger Transaction Type)
  */
@@ -37,11 +39,44 @@ export const getGoodsReceiptStatusDetails = (status: string) => {
 };
 
 /**
+ * Trả về nhãn hiển thị tiếng Việt chuẩn cho trạng thái Đơn mua hàng (Purchase Order Status)
+ */
+export const getPOStatusLabel = (status?: string): string => {
+  if (!status) return 'Chưa xác định';
+  switch (status) {
+    case 'Draft':
+      return 'Nháp';
+    case 'PendingApproval':
+    case 'Pending':
+      return 'Chờ duyệt';
+    case 'Approved':
+      return 'Đã duyệt';
+    case 'Rejected':
+      return 'Đã từ chối';
+    case 'Sent':
+    case 'Ordered':
+      return 'Chưa giao (Đã gửi NCC)';
+    case 'PartiallyReceived':
+      return 'Đã giao một phần';
+    case 'FullyReceived':
+    case 'Received':
+      return 'Đã giao đủ (Hoàn tất)';
+    case 'Closed':
+      return 'Đã đóng';
+    case 'Cancelled':
+    case 'Canceled':
+      return 'Đã hủy';
+    default:
+      return status;
+  }
+};
+
+/**
  * Định dạng ngày giờ hiển thị theo chuẩn Việt Nam (dd/MM/yyyy hh:mm)
  */
 export const formatDateTimeVN = (dateString: string): string => {
   if (!dateString) return '';
-  const d = new Date(dateString);
+  const d = parseDateSafe(dateString);
   if (isNaN(d.getTime())) return dateString;
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -56,7 +91,7 @@ export const formatDateTimeVN = (dateString: string): string => {
  */
 export const formatDateVN = (dateString: string): string => {
   if (!dateString) return '';
-  const d = new Date(dateString);
+  const d = parseDateSafe(dateString);
   if (isNaN(d.getTime())) return dateString;
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');

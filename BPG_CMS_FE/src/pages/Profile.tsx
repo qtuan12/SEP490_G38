@@ -7,6 +7,7 @@ import { Modal } from '../components/ui/Modal';
 import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X, LogOut } from 'lucide-react';
 import { passwordRules, validatePassword } from '../utils/passwordPolicy';
 import { validateFullName, validatePhoneNumber } from '../utils/profileValidation';
+import { formatDateVietnam } from '../utils/dateHelpers';
 import { usePWA } from '../context/PWAContext';
 import { PWARestrictedNotice } from '../components/PWARestrictedNotice';
 
@@ -25,10 +26,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const formatDateTime = (iso: string | null): string => {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+  return formatDateVietnam(iso);
 };
 
 export const Profile: React.FC = () => {

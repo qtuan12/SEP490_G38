@@ -1,4 +1,5 @@
 using BPG.Application.Features.PurchaseOrders.Commands;
+using BPG.Application.Features.PurchaseOrders.Services;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
@@ -46,7 +47,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             // Không bắt buộc nằm trong khoảng của giai đoạn: chỉ cần không sớm hơn ngày bắt đầu dự án
             // và không vượt quá ngày kết thúc giai đoạn (mua trước cho giai đoạn sau là hợp lệ).
             var phase = linkedRequest.Phase;
-            var orderDateOnly = DateOnly.FromDateTime(request.OrderDate.Date);
+            var orderDateOnly = request.OrderDate;
 
             var project = await _uow.Repository<Project>().Query()
                 .AsNoTracking()
@@ -83,13 +84,14 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .GroupBy(i => i.MaterialId)
                 .ToDictionary(g => g.Key, g => g.First().Material?.Name ?? $"#{g.Key}");
 
-            // Số lượng đã đặt cho yêu cầu này qua các PO còn hiệu lực (không tính PO đã hủy).
-            // PO đã đóng (Closed) chỉ còn giữ chỗ phần ĐÃ NHẬN thực tế — phần chưa nhận được giải phóng
-            // trở lại yêu cầu vật tư để có thể tạo PO khác.
+            // Số lượng đã đặt cho yêu cầu này qua các PO còn hiệu lực (không tính PO đã hủy hoặc bị
+            // Giám đốc từ chối). PO đã đóng (Closed) chỉ còn giữ chỗ phần ĐÃ NHẬN thực tế — phần chưa
+            // nhận được giải phóng trở lại yêu cầu vật tư để có thể tạo PO khác.
             var poItemRows = await _uow.Repository<PurchaseOrderItem>().Query()
                 .AsNoTracking()
                 .Where(pi => pi.PurchaseOrder.RequestId == request.RequestId
-                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled)
+                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
+                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Rejected)
                 .Select(pi => new { pi.POId, pi.MaterialId, pi.Quantity, POStatus = pi.PurchaseOrder.Status })
                 .ToListAsync(cancellationToken);
 
@@ -137,74 +139,92 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 var material = reqItem?.Material;
                 if (material?.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
                 {
-                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity,
                         $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng đặt hàng phải là số nguyên.");
                 }
             }
 
-            // 3. Auto-generate or validate PONumber
-            var poNumber = request.PONumber?.Trim();
-            if (string.IsNullOrEmpty(poNumber))
-            {
-                var prefix = $"PO-{request.OrderDate:yyyyMMdd}-";
-                var todayCount = await _uow.Repository<PurchaseOrder>().Query()
-                    .CountAsync(po => po.PONumber.StartsWith(prefix), cancellationToken);
-                poNumber = $"{prefix}{(todayCount + 1):D4}";
-            }
-            else
-            {
-                var exists = await _uow.Repository<PurchaseOrder>().Query()
-                    .AnyAsync(po => po.PONumber == poNumber, cancellationToken);
-                if (exists)
-                    throw new BusinessException(ErrorCodes.PoNumberExists, $"Số đơn hàng '{poNumber}' đã tồn tại trong hệ thống.");
-            }
-
-            // 4. Create PurchaseOrder
+            // 3. Sinh mã PO và ghi đơn hàng trong một transaction.
+            // Mã tự sinh dựa trên số thứ tự lớn nhất trong ngày nên hai người tạo cùng lúc sẽ đọc
+            // ra cùng một số. Khóa theo ngày bằng sp_getapplock để tuần tự hóa đúng nhóm đó —
+            // cùng cách CreateDailyLogCommandHandler chống tranh chấp tiến độ.
             var totalAmount = request.Items.Sum(i => i.Quantity * i.UnitPrice);
-            var po = new PurchaseOrder
+            var manualPoNumber = request.PONumber?.Trim();
+            PurchaseOrder po;
+
+            await _uow.BeginTransactionAsync(cancellationToken);
+            try
             {
-                PONumber = poNumber,
-                RequestId = request.RequestId,
-                ProjectId = request.ProjectId,
-                SupplierId = request.SupplierId,
-                OrderDate = request.OrderDate,
-                ExpectedDeliveryDate = request.ExpectedDeliveryDate,
-                DeliveryAddress = request.DeliveryAddress?.Trim(),
-                Notes = request.Notes?.Trim(),
-                TotalAmount = totalAmount,
-                Status = PurchaseOrderStatus.Sent,
-            };
+                string poNumber;
+                if (string.IsNullOrEmpty(manualPoNumber))
+                {
+                    var lockResource = PoNumberGenerator.LockResource(request.OrderDate);
+                    await _uow.ExecuteSqlAsync(
+                        $"EXEC sp_getapplock @Resource = {lockResource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction'",
+                        cancellationToken);
 
-            await _uow.Repository<PurchaseOrder>().AddAsync(po, cancellationToken);
-            await _uow.SaveChangesAsync(cancellationToken);
+                    poNumber = await PoNumberGenerator.NextAsync(_uow, request.OrderDate, cancellationToken);
+                }
+                else
+                {
+                    if (await PoNumberGenerator.ExistsAsync(_uow, manualPoNumber, cancellationToken))
+                        throw new BusinessException(ErrorCodes.PoNumberExists, $"Số đơn hàng '{manualPoNumber}' đã tồn tại trong hệ thống.");
 
-            // 5. Create PO items
-            var poItems = request.Items.Select(i => new PurchaseOrderItem
+                    poNumber = manualPoNumber;
+                }
+
+                po = new PurchaseOrder
+                {
+                    PONumber = poNumber,
+                    RequestId = request.RequestId,
+                    ProjectId = request.ProjectId,
+                    SupplierId = request.SupplierId,
+                    OrderDate = request.OrderDate.ToDateTime(TimeOnly.MinValue),
+                    ExpectedDeliveryDate = request.ExpectedDeliveryDate,
+                    DeliveryAddress = request.DeliveryAddress?.Trim(),
+                    Notes = request.Notes?.Trim(),
+                    TotalAmount = totalAmount,
+                    // Mọi đơn hàng đều phải qua Giám đốc duyệt trước khi gửi nhà cung cấp / nhập kho.
+                    Status = PurchaseOrderStatus.PendingApproval,
+                };
+
+                await _uow.Repository<PurchaseOrder>().AddAsync(po, cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+
+                // 4. Create PO items
+                var poItems = request.Items.Select(i => new PurchaseOrderItem
+                {
+                    POId = po.POId,
+                    MaterialId = i.MaterialId,
+                    UnitId = i.UnitId,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    LineTotal = i.Quantity * i.UnitPrice,
+                    ConversionRate = i.ConversionRate,
+                    Notes = i.Notes?.Trim()
+                }).ToList();
+
+                await _uow.Repository<PurchaseOrderItem>().AddRangeAsync(poItems, cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+
+                await _uow.CommitTransactionAsync(cancellationToken);
+            }
+            catch
             {
-                POId = po.POId,
-                MaterialId = i.MaterialId,
-                UnitId = i.UnitId,
-                Quantity = i.Quantity,
-                UnitPrice = i.UnitPrice,
-                LineTotal = i.Quantity * i.UnitPrice,
-                ConversionRate = i.ConversionRate,
-                Notes = i.Notes?.Trim()
-            }).ToList();
-
-            await _uow.Repository<PurchaseOrderItem>().AddRangeAsync(poItems, cancellationToken);
-
-            await _uow.SaveChangesAsync(cancellationToken);
+                await _uow.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
 
             await _realtimeSender.SendToGroupAsync(
                 $"Project_{request.ProjectId}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
 
-            // Thông báo cho những người liên quan: kế toán (theo dõi thanh toán) và trưởng dự án (theo dõi vật tư)
+            // Giám đốc là người phải hành động tiếp theo (duyệt/từ chối), trưởng dự án được báo để theo dõi vật tư.
             var currentUserId = _currentUserService.UserId;
-            var notiTitle = "Đơn hàng mới được tạo";
-            var notiContent = $"Đơn hàng {po.PONumber} vừa được tạo cho giai đoạn '{phase.Name}'. Tổng giá trị: {totalAmount:N0}đ.";
+            var notiTitle = "Đơn hàng mới chờ duyệt";
+            var notiContent = $"Đơn hàng {po.PONumber} cho giai đoạn '{phase.Name}' đang chờ Giám đốc duyệt. Tổng giá trị: {totalAmount:N0}đ.";
 
             await _notificationService.SendNotificationToRoleAsync(
-                UserRole.Accountant, notiTitle, notiContent,
+                UserRole.Director, notiTitle, notiContent,
                 NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
 
             var projectLeaderId = await _uow.Repository<ProjectMember>().Query()

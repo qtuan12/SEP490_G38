@@ -49,6 +49,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 throw new BusinessException(ErrorCodes.DpPhaseProjectMismatch, "Giai đoạn không thuộc dự án của phiếu.");
 
             await DirectPurchaseGuard.EnsureCanManageAsync(_uow, _currentUserService, dp.ProjectId, userId, ct);
+            await DirectPurchaseGuard.EnsureProjectOpenForDraftingAsync(_uow, dp.ProjectId, phase, ct);
 
             DirectPurchaseDraftWriter.EnsureNoDuplicateMaterial(request.Items);
 
@@ -61,7 +62,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 dp.PhaseId = request.PhaseId;
                 dp.TaskId = request.TaskId;
                 dp.Reason = request.Reason?.Trim() ?? string.Empty;
-                dp.PurchaseDate = request.PurchaseDate;
+                dp.PurchaseDate = request.PurchaseDate.ToDateTime(TimeOnly.MinValue);
                 dp.BOQCheckStatus = anyOverBOQ ? BOQCheckStatus.OverBOQ : BOQCheckStatus.WithinBOQ;
                 dp.TotalAmount = resolved.Sum(i => i.LineTotal);
                 dp.UpdatedAt = DateTime.UtcNow;

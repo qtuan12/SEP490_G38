@@ -5,6 +5,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -55,8 +56,41 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     .ToDictionaryAsync(u => u.UserId, u => u.FullName ?? u.Email, cancellationToken);
             }
 
+            var dailyLogs = await _uow.Repository<DailyLog>().Query()
+                .AsNoTracking()
+                .Where(dl => dl.TaskId == request.TaskId)
+                .Select(dl => new
+                {
+                    dl.CreatedBy,
+                    dl.CreatedAt,
+                    dl.NewProgressPercent
+                })
+                .ToListAsync(cancellationToken);
+
             return logs.Select(log =>
             {
+                var reason = log.UpdateReason ?? string.Empty;
+                var source = "Direct";
+                if (reason.Contains("Cập nhật tự động"))
+                {
+                    source = "Auto";
+                }
+                else if (reason.Contains("Cập nhật qua Daily Log"))
+                {
+                    source = "DailyLog";
+                }
+                else if (reason.Contains("Điều chỉnh trực tiếp"))
+                {
+                    source = "Direct";
+                }
+                else if (dailyLogs.Any(dl =>
+                    dl.CreatedBy == log.CreatedBy
+                    && dl.NewProgressPercent == log.NewProgress
+                    && Math.Abs((dl.CreatedAt - log.CreatedAt).TotalSeconds) <= 120))
+                {
+                    source = "DailyLog";
+                }
+
                 string? displayName = null;
                 if (log.Creator != null)
                 {
@@ -85,6 +119,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     OldProgress = log.OldProgress,
                     NewProgress = log.NewProgress,
                     UpdateReason = log.UpdateReason,
+                    Source = source,
                     UpdatedAt = log.UpdatedAt ?? log.CreatedAt,
                     CreatedBy = log.CreatedBy,
                     UpdatedByName = displayName

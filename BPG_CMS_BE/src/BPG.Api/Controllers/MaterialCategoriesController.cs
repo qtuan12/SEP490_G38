@@ -1,4 +1,6 @@
 using BPG.Application.Features.MaterialCategories.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.MaterialCategories.Queries;
 using BPG.Application.DTOs.MaterialCategories;
 using BPG.Domain.Constants;
@@ -19,6 +21,7 @@ public class MaterialCategoriesController : BaseApiController
     }
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Create([FromBody] CreateMaterialCategoryCommand command, CancellationToken ct)
     {
@@ -27,6 +30,7 @@ public class MaterialCategoriesController : BaseApiController
     }
 
     [HttpPut("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateMaterialCategoryRequest request, CancellationToken ct)
     {
@@ -42,6 +46,7 @@ public class MaterialCategoriesController : BaseApiController
     }
 
     [HttpDelete("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
@@ -49,4 +54,3 @@ public class MaterialCategoriesController : BaseApiController
         return ApiOk("Xóa loại vật tư thành công.");
     }
 }
-

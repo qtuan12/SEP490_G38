@@ -5,13 +5,19 @@ namespace BPG.Application.DTOs.PurchaseOrders
         public long POId { get; set; }
         public string PONumber { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
-        public DateTime OrderDate { get; set; }
+        public DateOnly OrderDate { get; set; }
         public DateOnly? ExpectedDeliveryDate { get; set; }
         public string? DeliveryAddress { get; set; }
         public string? Notes { get; set; }
         public string? CancelledReason { get; set; }
         public string? ClosedReason { get; set; }
         public decimal TotalAmount { get; set; }
+
+        // Thông tin duyệt của Giám đốc
+        public string? ApproverName { get; set; }
+        public DateTime? ApprovedAt { get; set; }
+        public string? ApprovalNote { get; set; }
+        public string? RejectedReason { get; set; }
 
         public long? SupplierId { get; set; }
         public string SupplierName { get; set; } = string.Empty;

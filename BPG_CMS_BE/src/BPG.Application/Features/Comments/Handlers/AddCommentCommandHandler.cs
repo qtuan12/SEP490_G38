@@ -45,11 +45,17 @@ namespace BPG.Application.Features.Comments.Handlers
             var dailyLog = await _uow.Repository<DailyLog>().Query()
                 .Include(d => d.Task)
                     .ThenInclude(t => t.Phase)
+                        .ThenInclude(p => p.Project)
                 .FirstOrDefaultAsync(d => d.LogId == request.LogId, cancellationToken);
 
             if (dailyLog == null)
             {
                 throw new NotFoundException(nameof(DailyLog), request.LogId);
+            }
+
+            if (dailyLog.Task.Phase.Project.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }
 
             // 2. Tạo comment

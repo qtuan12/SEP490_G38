@@ -36,14 +36,14 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
 
-        if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {
             var currentUserId = _currentUserService.GetRequiredUserId();
             var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
                 member => member.ProjectId == task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
                 ct);
             if (!isProjectLeader)
-                throw new ForbiddenException("Chỉ Trưởng dự án mới được thêm liên kết phụ thuộc.");
+                throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được thêm liên kết phụ thuộc.");
         }
 
         var predecessor = await _unitOfWork.Repository<ProjectTask>()

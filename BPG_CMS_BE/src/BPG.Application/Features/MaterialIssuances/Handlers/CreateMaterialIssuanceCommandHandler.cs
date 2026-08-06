@@ -2,6 +2,7 @@ using BPG.Application.Common.Models;
 using BPG.Application.Features.MaterialIssuances.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -79,10 +80,22 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án liên kết phải ở trạng thái đang tiến hành (InProgress).");
             }
 
-            // 3. Kiểm tra xem task có bị khóa không
-            if (task.IsLocked)
+            // 3. Kiểm tra xem công việc có bị khóa, hoàn thành, tạm dừng hoặc bị hủy/vô hiệu hóa không
+            var taskStatusLower = (task.Status ?? string.Empty).ToLower();
+            var isInactiveTask = task.IsLocked
+                || task.ProgressPercent >= 100
+                || taskStatusLower == "obsolete"
+                || taskStatusLower == "completed"
+                || taskStatusLower == "approved"
+                || taskStatusLower == "done"
+                || taskStatusLower == "paused"
+                || taskStatusLower == "stopped"
+                || taskStatusLower == "cancelled"
+                || taskStatusLower == "canceled";
+
+            if (isInactiveTask)
             {
-                throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã bị khóa (đã nghiệm thu hoặc hoàn thành). Không thể xuất thêm vật tư.");
+                throw new BusinessException("ERR_TASK_INACTIVE", "Không thể xuất kho cho công việc đã bị dừng, tạm dừng, hoàn thành hoặc đã bị hủy.");
             }
 
             // 4. Kiểm tra tồn kho khả dụng của từng vật tư
@@ -129,8 +142,8 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
             try
             {
                 // Sinh mã phiếu xuất kho chuẩn nghiệp vụ, ví dụ: PXK-20240624-A3F8B2
-                // Dùng UTC+7 (giờ Việt Nam) để ngày trên mã khớp ngày thực tế trên UI
-                var vnNow = DateTime.UtcNow.AddHours(7);
+                // Dùng giờ Việt Nam để ngày trên mã khớp ngày thực tế trên UI
+                var vnNow = VietnamTime.Now;
                 var issuanceNo = $"PXK-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
                 var issuance = new MaterialIssuance
@@ -196,6 +209,31 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                     await _notificationService.SendNotificationAsync(
                         assigneeId,
                         "Bạn được xuất vật tư cho công việc",
+                        $"{actorName} đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
+                        NotificationType.Procurement,
+                        $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
+                        issuance.MaterialIssuanceId,
+                        cancellationToken);
+                }
+
+                var technicalManagerIds = await _uow.Repository<User>().Query()
+                    .AsNoTracking()
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .Where(u => u.IsActive
+                        && !u.IsDeleted
+                        && u.UserId != currentUserId
+                        && !assigneeIds.Contains(u.UserId)
+                        && u.UserRoles.Any(ur => ur.Role.RoleName == BPG.Domain.Constants.UserRole.TechnicalManager))
+                    .Select(u => u.UserId)
+                    .Distinct()
+                    .ToListAsync(cancellationToken);
+
+                foreach (var technicalManagerId in technicalManagerIds)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        technicalManagerId,
+                        "Phiếu xuất vật tư mới",
                         $"{actorName} đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
                         NotificationType.Procurement,
                         $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",

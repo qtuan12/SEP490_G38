@@ -15,7 +15,7 @@ export const isProjectWideView = (
   isProjectLeader: boolean
 ): boolean => isManagerRole(user) || isProjectLeader;
 
-const isAssignedTo = (task: WBSTask, userId?: string): boolean =>
+const isAssignedTo = (task: WBSTask, userId?: string | number): boolean =>
   !!userId && (task.assignedTo?.split(',').map(s => s.trim()).includes(String(userId)) ?? false);
 
 const hasAssignee = (task: WBSTask): boolean =>
@@ -39,12 +39,13 @@ export const getVisibleTasksForUser = (
 
 /** Backend chỉ cho TM/Admin / Trưởng dự án (leader) / người được gán vào đúng task đó tạo nhật ký (403 với người khác). */
 export const canCreateDailyLog = (
-  task: WBSTask,
-  user: { id: string; role: string } | null | undefined,
+  task: WBSTask | null | undefined,
+  user: { id: string | number; role: string } | null | undefined,
   isProjectLeader: boolean
 ): boolean => {
+  if (!task || task.status === 'obsolete') return false;
   if (!hasAssignee(task)) return false;
-  if (isProjectLeader) return true;
+  if (isManagerRole(user) || isProjectLeader) return true;
   if (!user) return false;
   return user.role === 'siteengineer' && isAssignedTo(task, user.id);
 };

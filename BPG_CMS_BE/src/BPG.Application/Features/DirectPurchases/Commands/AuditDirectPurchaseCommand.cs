@@ -4,8 +4,8 @@ using MediatR;
 namespace BPG.Application.Features.DirectPurchases.Commands
 {
     /// <summary>
-    /// Kế toán soát hóa đơn. Trả về message mô tả kết quả — phiếu trong định mức thì đây là
-    /// bước cuối, phiếu vượt định mức còn phải trình Giám đốc, chỉ handler mới phân biệt được.
+    /// Kế toán soát hóa đơn. Đây là bước sàng lọc trước Giám đốc, không bao giờ là bước cuối.
+    /// Trả về message mô tả kết quả — soát đạt thì phiếu chuyển sang chờ Giám đốc duyệt chi.
     /// </summary>
     public class AuditDirectPurchaseCommand : IRequest<string>
     {

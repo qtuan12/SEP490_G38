@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { hasAnyRole as checkAnyRole } from '../auth/roles';
+import { ApiError } from '../services/api';
 import { authService } from '../services/authService';
 import type { LoginCredentials, UserProfile } from '../services/authService';
 
@@ -22,7 +24,20 @@ const clearStoredSession = () => {
   localStorage.removeItem('bpg_user');
 };
 
+const INACTIVE_ACCOUNT_MESSAGE = 'Tài khoản không còn hoạt động.';
+
+/**
+ * Chỉ những lỗi thật sự về xác thực mới được phép xoá phiên. Lỗi mạng hay server 5xx
+ * mà cũng xoá phiên thì user đang đăng nhập hợp lệ sẽ bị đá về /login oan.
+ */
+const isAuthFailure = (error: unknown): boolean => {
+  if (error instanceof ApiError) return error.status === 401 || error.status === 403;
+  const message = (error as Error)?.message;
+  return message === 'Unauthorized' || message === INACTIVE_ACCOUNT_MESSAGE;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,27 +53,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const sessionUser = await authService.getSessionUser();
         if (sessionUser.status !== 'active') {
-          throw new Error('Tài khoản không còn hoạt động.');
+          throw new Error(INACTIVE_ACCOUNT_MESSAGE);
         }
 
         setToken(storedToken);
         setUser(sessionUser);
         localStorage.setItem('bpg_user', JSON.stringify(sessionUser));
-      } catch {
-        clearStoredSession();
-        setToken(null);
-        setUser(null);
+      } catch (error) {
+        if (isAuthFailure(error)) {
+          clearStoredSession();
+          queryClient.clear();
+          setToken(null);
+          setUser(null);
+        } else {
+          // Lỗi mạng/server tạm thời — giữ phiên và dựng lại user từ cache để không đá về /login.
+          // Không clear cache query ở nhánh này: phiên vẫn còn hiệu lực, xóa đi chỉ tốn thêm
+          // một vòng tải lại dữ liệu ngay khi mạng hồi phục.
+          const cachedUser = localStorage.getItem('bpg_user');
+          if (cachedUser) {
+            setToken(storedToken);
+            setUser(JSON.parse(cachedUser) as UserProfile);
+          } else {
+            setToken(null);
+            setUser(null);
+          }
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     void initializeAuth();
-  }, []);
+  }, [queryClient]);
 
   const login = async (credentials: LoginCredentials): Promise<UserProfile> => {
     try {
       const response = await authService.login(credentials);
+      queryClient.clear();
       localStorage.setItem('bpg_token', response.token);
       localStorage.setItem('bpg_refresh_token', response.refreshToken);
       localStorage.setItem('bpg_user', JSON.stringify(response.user));
@@ -67,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return response.user;
     } catch (error) {
       clearStoredSession();
+      queryClient.clear();
       setUser(null);
       setToken(null);
       throw error;
@@ -76,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     authService.logout();
     clearStoredSession();
+    queryClient.clear();
     setToken(null);
     setUser(null);
   };

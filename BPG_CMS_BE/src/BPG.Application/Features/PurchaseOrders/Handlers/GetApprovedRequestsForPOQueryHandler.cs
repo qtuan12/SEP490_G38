@@ -28,7 +28,8 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                          && r.Status == MaterialRequestStatus.Approved)
                 .ToListAsync(cancellationToken);
 
-            // Sum quantities already ordered per (request, material) via active (non-cancelled) POs.
+            // Sum quantities already ordered per (request, material) via active POs — không tính đơn
+            // đã hủy hoặc bị Giám đốc từ chối.
             // PO đã đóng (Closed) chỉ còn giữ chỗ phần ĐÃ NHẬN thực tế — phần chưa nhận được giải phóng
             // trở lại yêu cầu vật tư để có thể tạo PO khác.
             var requestIds = requests.Select(r => r.RequestId).ToList();
@@ -36,7 +37,8 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .AsNoTracking()
                 .Where(pi => pi.PurchaseOrder.RequestId != null
                           && requestIds.Contains(pi.PurchaseOrder.RequestId.Value)
-                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled)
+                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
+                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Rejected)
                 .Select(pi => new
                 {
                     RequestId = pi.PurchaseOrder.RequestId!.Value,

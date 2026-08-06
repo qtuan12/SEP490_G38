@@ -62,6 +62,8 @@ export const ErrorCodes = {
   DpPurchaseDateAfterPhase: 'BIZ_038',
   DpPhaseProjectMismatch: 'BIZ_039',
   DpDuplicateMaterial: 'BIZ_040',
+  DpInvalidUnit: 'BIZ_044',
+  DpMaterialNotInBoq: 'BIZ_049',
 } as const;
 
 /** Mã lỗi liên quan tới ô "Ngày đơn hàng" khi tạo PO. */

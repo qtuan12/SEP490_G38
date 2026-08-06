@@ -1,4 +1,5 @@
 import type { SurplusRequestItem } from '../types/surplus';
+import { parseDateSafe } from './dateHelpers';
 
 // Surplus status helpers — dùng chung cho batch, item, transfer
 
@@ -84,7 +85,7 @@ export const formatCurrency = (amount: number) =>
 
 export const formatDateVN = (dateStr?: string) => {
   if (!dateStr) return 'N/A';
-  const d = new Date(dateStr);
+  const d = parseDateSafe(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');

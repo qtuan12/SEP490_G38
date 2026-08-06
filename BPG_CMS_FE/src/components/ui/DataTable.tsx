@@ -1,6 +1,7 @@
 import React from 'react';
 import { LoadingSpinner } from './LoadingSpinner';
 import { Pagination } from './Pagination';
+import { useVirtualRows } from '../../hooks/useVirtualRows';
 
 export interface ColumnDef<T> {
   key: string;
@@ -21,6 +22,10 @@ export interface DataTableProps<T> {
   onPageChange?: (page: number) => void;
   onRowClick?: (item: T) => void;
   className?: string;
+  enableVirtualization?: boolean;
+  virtualizeThreshold?: number;
+  virtualRowHeight?: number;
+  virtualTableHeight?: number;
 }
 
 export function DataTable<T>({
@@ -34,10 +39,20 @@ export function DataTable<T>({
   onPageChange,
   onRowClick,
   className = '',
+  enableVirtualization = true,
+  virtualizeThreshold = 50,
+  virtualRowHeight = 56,
+  virtualTableHeight = 520,
 }: DataTableProps<T>) {
+  const virtual = useVirtualRows(data, {
+    rowHeight: virtualRowHeight,
+    containerHeight: virtualTableHeight,
+    threshold: enableVirtualization ? virtualizeThreshold : Number.MAX_SAFE_INTEGER,
+  });
+
   return (
     <div className={`overflow-hidden border border-slate-200 rounded-xl bg-white ${className}`}>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" {...virtual.scrollContainerProps}>
         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
           <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
             <tr>
@@ -69,7 +84,13 @@ export function DataTable<T>({
                 </td>
               </tr>
             ) : (
-              data.map((item) => (
+              <>
+                {virtual.topPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={columns.length} style={{ height: virtual.topPadding, padding: 0 }} />
+                  </tr>
+                )}
+                {virtual.visibleRows.map(({ item }) => (
                 <tr
                   key={keyExtractor(item)}
                   className="hover:bg-slate-50 transition-colors"
@@ -87,7 +108,13 @@ export function DataTable<T>({
                     </td>
                   ))}
                 </tr>
-              ))
+                ))}
+                {virtual.bottomPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={columns.length} style={{ height: virtual.bottomPadding, padding: 0 }} />
+                  </tr>
+                )}
+              </>
             )}
           </tbody>
         </table>

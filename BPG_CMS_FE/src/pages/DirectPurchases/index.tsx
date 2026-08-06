@@ -8,6 +8,7 @@ import { DirectPurchaseDetailModal } from '../ProjectLayoutHub/DirectPurchaseDet
 import { useAuth } from '../../context/AuthContext';
 import { RoleGroup } from '../../auth/roles';
 import { ShoppingBag, AlertCircle, Loader2 } from 'lucide-react';
+import { formatPlainDate } from '../../utils/dateHelpers';
 
 const STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
@@ -35,15 +36,6 @@ const statusVariant: Record<string, 'default' | 'warning' | 'success' | 'danger'
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-};
 
 export const DirectPurchaseList: React.FC = () => {
   const queryClient = useQueryClient();
@@ -125,7 +117,7 @@ export const DirectPurchaseList: React.FC = () => {
       header: 'Ngày mua',
       width: '100px',
       render: (item: DirectPurchaseRequestDto) => (
-        <span className="text-sm">{formatDate(item.purchaseDate)}</span>
+        <span className="text-sm">{formatPlainDate(item.purchaseDate)}</span>
       ),
     },
     {
@@ -140,10 +132,10 @@ export const DirectPurchaseList: React.FC = () => {
     },
     {
       key: 'itemCount',
-      header: 'Số VT',
-      width: '70px',
+      header: 'Vật tư',
+      width: '90px',
       render: (item: DirectPurchaseRequestDto) => (
-        <span className="text-center block text-sm">{item.itemCount}</span>
+        <span className="text-center block text-sm">{item.itemCount} loại</span>
       ),
     },
   ];

@@ -5,6 +5,7 @@ using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,11 +15,16 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetDirectPurchaseRequestsQueryHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public GetDirectPurchaseRequestsQueryHandler(
+            IUnitOfWork uow,
+            ICurrentUserService currentUserService,
+            IProjectAccessService projectAccessService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PagedList<DirectPurchaseRequestDto>> Handle(GetDirectPurchaseRequestsQuery request, CancellationToken ct)
@@ -37,8 +43,21 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             // Phiếu nháp là việc riêng của người soạn: chưa gửi, chưa nhập kho, không ai khác thấy.
             query = query.Where(r => r.Status != DirectPurchaseStatus.Draft || r.RequestedBy == currentUserId);
 
+            // Giới hạn theo dự án được cấp quyền. Không có bước này thì gọi mà bỏ trống projectId
+            // sẽ trả về phiếu mua khẩn cấp của toàn bộ dự án trong hệ thống.
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(ct);
+
             if (request.ProjectId.HasValue)
+            {
+                if (!accessibleProjectIds.Contains(request.ProjectId.Value))
+                    throw new ForbiddenException("Bạn không có quyền xem phiếu mua khẩn cấp của dự án này.");
+
                 query = query.Where(r => r.ProjectId == request.ProjectId.Value);
+            }
+            else
+            {
+                query = query.Where(r => accessibleProjectIds.Contains(r.ProjectId));
+            }
 
             if (!string.IsNullOrEmpty(request.Status))
                 query = query.Where(r => r.Status == request.Status);
@@ -79,7 +98,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 RequesterName = r.Requester.FullName,
                 Reason = r.Reason,
                 TotalAmount = r.TotalAmount,
-                PurchaseDate = r.PurchaseDate,
+                PurchaseDate = DateOnly.FromDateTime(r.PurchaseDate),
                 Status = r.Status,
                 AuditStatus = r.AuditStatus,
                 BOQCheckStatus = r.BOQCheckStatus,

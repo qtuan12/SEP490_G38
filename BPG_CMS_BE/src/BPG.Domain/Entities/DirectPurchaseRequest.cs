@@ -12,7 +12,11 @@ public class DirectPurchaseRequest : BaseEntity
     public string Reason { get; set; } = string.Empty;
     public string Status { get; set; } = "Draft";
     public string AuditStatus { get; set; } = "PendingAudit";
-    /// <summary>WithinBOQ | OverBOQ - tính tại thời điểm Submit, quyết định số cấp duyệt chi.</summary>
+    /// <summary>
+    /// WithinBOQ | OverBOQ - tính lại tại thời điểm Submit. Chỉ là thông tin đối chiếu cho Kế toán
+    /// và Giám đốc, KHÔNG rẽ nhánh luồng duyệt: mọi phiếu đều qua đủ hai cấp.
+    /// OverBOQ nghĩa là vượt SỐ LƯỢNG định mức - vật tư ngoài BOQ đã bị chặn từ khâu soạn nháp.
+    /// </summary>
     public string BOQCheckStatus { get; set; } = "WithinBOQ";
     public DateTime? SubmittedAt { get; set; }
     public decimal TotalAmount { get; set; }
@@ -20,7 +24,7 @@ public class DirectPurchaseRequest : BaseEntity
     public long? AuditedBy { get; set; }
     public DateTime? AuditedAt { get; set; }
     public string? AuditNote { get; set; }
-    /// <summary>Giám đốc duyệt chi (chỉ dùng cho nhánh vượt định mức).</summary>
+    /// <summary>Giám đốc duyệt chi - bước cuối của mọi phiếu, sau khi Kế toán soát hóa đơn.</summary>
     public long? ApprovedBy { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public string? ApprovalNote { get; set; }

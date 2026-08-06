@@ -234,6 +234,7 @@ export interface TaskProgressLog {
   oldProgress: number;
   newProgress: number;
   updateReason?: string;
+  source?: 'Direct' | 'DailyLog' | 'Auto' | string;
   updatedAt: string; // ISO datetime string
   updatedByName?: string;
 }

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BPG.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260804092903_AddBaseEntityToTaskProgressLog")]
-    partial class AddBaseEntityToTaskProgressLog
+    [Migration("20260805103345_AlignDirectPurchaseWithDirectorApproval")]
+    partial class AlignDirectPurchaseWithDirectorApproval
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1514,6 +1514,15 @@ namespace BPG.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("POId"));
 
+                    b.Property<string>("ApprovalNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("CancelledReason")
                         .HasColumnType("nvarchar(max)");
 
@@ -1548,6 +1557,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<long>("ProjectId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("RejectedReason")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<long?>("RequestId")
                         .HasColumnType("bigint");
 
@@ -1569,6 +1581,8 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("POId");
+
+                    b.HasIndex("ApprovedBy");
 
                     b.HasIndex("ProjectId");
 
@@ -2916,6 +2930,11 @@ namespace BPG.Infrastructure.Migrations
 
             modelBuilder.Entity("BPG.Domain.Entities.PurchaseOrder", b =>
                 {
+                    b.HasOne("BPG.Domain.Entities.User", "Approver")
+                        .WithMany()
+                        .HasForeignKey("ApprovedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BPG.Domain.Entities.Project", "Project")
                         .WithMany("PurchaseOrders")
                         .HasForeignKey("ProjectId")
@@ -2930,6 +2949,8 @@ namespace BPG.Infrastructure.Migrations
                     b.HasOne("BPG.Domain.Entities.Supplier", "Supplier")
                         .WithMany("PurchaseOrders")
                         .HasForeignKey("SupplierId");
+
+                    b.Navigation("Approver");
 
                     b.Navigation("Project");
 

@@ -2,6 +2,7 @@ using BPG.Application.IServices;
 using BPG.Application.IRepositories;
 using BPG.Application.Features.Projects.DTOs;
 using BPG.Application.Features.Projects.Queries;
+using BPG.Domain.Common;
 using MediatR;
 using System;
 using System.Collections.Generic;
@@ -30,7 +31,7 @@ public class GetDashboardWarningsQueryHandler : IRequestHandler<GetDashboardWarn
     public async Task<List<DashboardWarningDto>> Handle(GetDashboardWarningsQuery request, CancellationToken cancellationToken)
     {
         var warnings = new List<DashboardWarningDto>();
-        var now = DateTime.Now;
+        var now = VietnamTime.Now;
 
         // Retrieve active projects with their phases, tasks
         var query = _unitOfWork.Repository<Project>().Query()

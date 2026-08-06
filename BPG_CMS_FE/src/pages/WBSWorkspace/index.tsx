@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -11,7 +11,7 @@ import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
 import { FileText, BarChart2 } from 'lucide-react';
-import { ConfirmDialog } from '../../components/ui';
+import { ConfirmDialog, FullScreenLoading } from '../../components/ui';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
 import toast from 'react-hot-toast';
@@ -23,7 +23,7 @@ interface WBSWorkspaceProps {
 
 export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { user, hasAnyRole } = useAuth();
-  const { canManageExecution, isProjectLeader } = useProjectAccess(projectId);
+  const { isProjectLeader } = useProjectAccess(projectId);
   const navigate = useNavigate();
 
   const queryClient = useQueryClient();
@@ -198,6 +198,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const handleSuccess = (msg: string) => {
     toast.success(msg);
     queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['task-progress-history'] });
     // Refresh supporting information in the background without blocking the tree.
     queryClient.invalidateQueries({ queryKey: ['wbsProject', projectId] });
     queryClient.invalidateQueries({ queryKey: ['wbsMembers', projectId] });
@@ -211,8 +212,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
 
-  const isTPKTOrPL = canManageExecution;
+  const isTPKT = hasAnyRole(RoleGroup.Technical);
   const isPL = isProjectLeader;
+  const isTPKTOrPL = isTPKT || isPL;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
@@ -220,7 +222,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return phaseTasks.every(t => t.progress === 100);
   };
 
-  const isTPKT = hasAnyRole(RoleGroup.Technical);
   const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
 
   const canEdit = isTPKTOrPL && (
@@ -368,6 +369,10 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     handleRejectMatReq, handleCancelMatReq, handleConfirmReceived,
     isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask, handleDeleteTask, handleDeletePhase, navigate, loadWBSData
   };
+
+  if (loading) {
+    return <FullScreenLoading message="Đang tải dữ liệu WBS..." />;
+  }
 
   return (
     <WBSContext.Provider value={contextValue}>

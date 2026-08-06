@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, HardHat, CheckCircle, Clock, AlertTriangle, Circle, XCircle, Search, X, TrendingUp } from 'lucide-react';
+import { HardHat, CheckCircle, Clock, AlertTriangle, Circle, XCircle, Search, X, TrendingUp } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ConstructionProgressReportDto } from '../../../services/reportService';
 import { BarChart, Bar, Line, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { formatDateOnly, formatPlainDate } from '../../../utils/dateHelpers';
 
 interface Props {
   projectId: string | null;
@@ -50,9 +52,8 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh] gap-3 text-[hsl(var(--text-muted))]">
-        <Loader2 size={24} className="animate-spin text-[hsl(var(--primary))]" />
-        <span>Đang tải Báo cáo Tiến độ Thi công...</span>
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <LoadingSpinner size="md" label="Đang tải Báo cáo Tiến độ Thi công..." />
       </div>
     );
   }
@@ -95,10 +96,10 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
     }
   };
 
-  const formatDate = (d?: string) => {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
+  /** Mốc thời gian UTC từ backend (ngày nghiệm thu). */
+  const formatTimestamp = (d?: string) => (d ? formatDateOnly(d) : '—');
+  /** Ngày thuần (hạn công việc) — không quy đổi múi giờ. */
+  const formatTaskDate = (d?: string) => formatPlainDate(d) || '—';
   const phaseComparisonChartData = data.phases.map(p => ({
     name: p.phaseName.length > 14 ? p.phaseName.substring(0, 14) + '…' : p.phaseName,
     fullName: p.phaseName,
@@ -420,7 +421,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
                       {data.acceptances.map(acc => (
                         <tr key={acc.acceptanceId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                           <td className="px-3 py-2 font-bold text-slate-900 dark:text-white">{acc.phaseName}</td>
-                          <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{formatDate(acc.acceptanceDate)}</td>
+                          <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{formatTimestamp(acc.acceptanceDate)}</td>
                           <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{acc.acceptorName}</td>
                           <td className="px-3 py-2 text-center">
                             {acc.isCancelled ? (
@@ -548,7 +549,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
                         <div className="flex items-center gap-4 shrink-0 text-[11px]">
                           <span className="font-bold text-slate-700 dark:text-slate-300">{task.progressPercent}%</span>
                           <span className={`font-medium ${task.isDelayed ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
-                            {formatDate(task.endDate)}
+                            {formatTaskDate(task.endDate)}
                           </span>
                         </div>
                       </div>

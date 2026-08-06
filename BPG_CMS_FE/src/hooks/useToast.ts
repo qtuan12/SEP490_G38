@@ -19,7 +19,7 @@ export const useToast = () => {
     toast(message, {
       duration: 3000,
       position: 'top-right',
-      icon: 'ℹ️',
+      icon: 'i',
     });
   };
 

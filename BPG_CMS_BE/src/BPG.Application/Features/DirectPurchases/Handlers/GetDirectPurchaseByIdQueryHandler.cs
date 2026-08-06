@@ -14,11 +14,16 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetDirectPurchaseByIdQueryHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public GetDirectPurchaseByIdQueryHandler(
+            IUnitOfWork uow,
+            ICurrentUserService currentUserService,
+            IProjectAccessService projectAccessService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<DirectPurchaseDetailDto> Handle(GetDirectPurchaseByIdQuery request, CancellationToken ct)
@@ -36,6 +41,12 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 .AsNoTracking()
                 .FirstOrDefaultAsync(r => r.DirectPurchaseId == request.DirectPurchaseId, ct)
                 ?? throw new NotFoundException(nameof(DirectPurchaseRequest), request.DirectPurchaseId);
+
+            // Endpoint mở cho ProjectViewers (gồm cả Kỹ sư công trường) nên phải chặn theo dự án:
+            // phiếu này kèm cả ảnh hóa đơn và đơn giá mua thực tế.
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(ct);
+            if (!accessibleProjectIds.Contains(dp.ProjectId))
+                throw new ForbiddenException("Bạn không có quyền xem phiếu mua khẩn cấp của dự án này.");
 
             // Phiếu nháp chỉ người soạn được xem.
             if (dp.Status == DirectPurchaseStatus.Draft && dp.RequestedBy != currentUserId)
@@ -76,7 +87,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 RequesterName = dp.Requester.FullName,
                 Reason = dp.Reason,
                 TotalAmount = dp.TotalAmount,
-                PurchaseDate = dp.PurchaseDate,
+                PurchaseDate = DateOnly.FromDateTime(dp.PurchaseDate),
                 Status = dp.Status,
                 AuditStatus = dp.AuditStatus,
                 BOQCheckStatus = dp.BOQCheckStatus,

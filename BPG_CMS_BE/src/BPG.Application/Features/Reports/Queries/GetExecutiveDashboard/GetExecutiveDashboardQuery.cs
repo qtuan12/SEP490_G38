@@ -222,7 +222,10 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
 
         decimal prevPoCost = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
-            .Where(po => po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Cancelled)
+            .Where(po => po.Status != PurchaseOrderStatus.Draft
+                      && po.Status != PurchaseOrderStatus.PendingApproval
+                      && po.Status != PurchaseOrderStatus.Rejected
+                      && po.Status != PurchaseOrderStatus.Cancelled)
             .Where(po => (request.ProjectId > 0
                     ? po.ProjectId == request.ProjectId
                     : accessibleIds.Contains(po.ProjectId))
@@ -232,7 +235,10 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
 
         decimal curPoCost = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
-            .Where(po => po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Cancelled)
+            .Where(po => po.Status != PurchaseOrderStatus.Draft
+                      && po.Status != PurchaseOrderStatus.PendingApproval
+                      && po.Status != PurchaseOrderStatus.Rejected
+                      && po.Status != PurchaseOrderStatus.Cancelled)
             .Where(po => (request.ProjectId > 0
                     ? po.ProjectId == request.ProjectId
                     : accessibleIds.Contains(po.ProjectId))
