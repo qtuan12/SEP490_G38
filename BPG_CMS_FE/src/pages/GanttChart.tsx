@@ -8,7 +8,6 @@ import type { WBSPhase, WBSTask, Project } from '../types/common';
 import {
   ArrowLeft,
   Calendar,
-  Loader2,
   TrendingUp,
   LayoutGrid,
   List,
@@ -17,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useProjectAccess } from '../hooks/useProjectAccess';
 import { toast } from 'react-hot-toast';
 import { wbsService } from '../services/wbsService';
+import { LoadingSpinner } from '../components/ui';
 
 import { TaskDetailModal } from './WBSWorkspace/modals/TaskDetailModal';
 import { ReportIncidentModal } from './Incidents/modals/ReportIncidentModal';
@@ -352,10 +352,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] gap-3 text-[hsl(var(--text-muted))]">
-        <Loader2 size={24} className="animate-spin" />
-        <span>Đang tải Gantt Chart...</span>
-      </div>
+      <LoadingSpinner size="lg" label="Đang tải Gantt Chart..." className="min-h-[60vh]" />
     );
   }
 

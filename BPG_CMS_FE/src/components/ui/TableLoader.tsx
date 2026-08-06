@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { LoadingSpinner } from './LoadingSpinner';
 
 interface TableLoaderProps {
   colSpan?: number;
@@ -15,20 +15,20 @@ export const TableLoader: React.FC<TableLoaderProps> = ({
   isTable = true,
 }) => {
   const content = (
-    <div className="flex flex-col items-center justify-center gap-3 text-[hsl(var(--text-muted))] py-6">
-      <Loader2 size={28} className="animate-spin text-[hsl(var(--primary))]" />
-      <span className="text-sm font-medium">{message}</span>
+    <div className="flex w-full items-center justify-center py-6" style={{ minHeight }}>
+      <LoadingSpinner size="md" label={message} />
     </div>
   );
 
   if (isTable) {
     return (
       <tr>
-        <td colSpan={colSpan} style={{ minHeight, textAlign: 'center' }}>
+        <td colSpan={colSpan} className="text-center" style={{ minHeight }}>
           {content}
         </td>
       </tr>
     );
   }
-  return <div className="flex w-full items-center justify-center" style={{ minHeight }}>{content}</div>;
+  return content;
 };
+

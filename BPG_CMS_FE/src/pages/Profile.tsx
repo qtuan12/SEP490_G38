@@ -4,6 +4,7 @@ import { authService } from '../services/authService';
 import type { UserDetailProfile } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/ui/Modal';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X, LogOut } from 'lucide-react';
 import { passwordRules, validatePassword } from '../utils/passwordPolicy';
 import { validateFullName, validatePhoneNumber } from '../utils/profileValidation';
@@ -184,12 +185,7 @@ export const Profile: React.FC = () => {
   };
 
   if (loadingProfile) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', gap: '10px' }}>
-        <Loader2 className="animate-spin" size={22} style={{ color: 'hsl(var(--primary))' }} />
-        <span>Đang tải thông tin...</span>
-      </div>
-    );
+    return <LoadingSpinner size="md" label="Đang tải thông tin cá nhân..." className="py-16" />;
   }
 
   if (profileError || !profile) {
