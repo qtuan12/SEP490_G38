@@ -169,7 +169,7 @@ export const PhaseAcceptance: React.FC = () => {
       const message = await phaseAcceptanceService.cancelAcceptance(targetId, { cancellationReason: revokeReason });
       setIsRevoking(false);
       setRevokeReason('');
-      toast.success(message || 'Đã hủy nghiệm thu giai đoạn.');
+      console.log(message || 'Đã hủy nghiệm thu giai đoạn.');
       
       // Navigate to the history view of the revoked acceptance
       navigate(`/projects/${projectId}/phases/${phaseId}/acceptance?historyId=${targetId}`, { replace: true });
@@ -276,7 +276,7 @@ export const PhaseAcceptance: React.FC = () => {
               phase={phase!} 
               project={project}
               allCompleted={allCompleted} 
-              onSuccess={(msg) => toast.success(msg)}
+              onSuccess={(msg) => console.log(msg)}
               onError={(msg) => toast.error(msg)}
               onPhaseUpdated={loadData} 
             />

@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { incidentService } from '../../services/incidentService';
@@ -25,7 +26,7 @@ interface Props {
 
 export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) => {
   const { user } = useAuth();
-  const { canManageExecution } = useProjectAccess(projectId);
+  const { isProjectLeader } = useProjectAccess(projectId);
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
@@ -33,6 +34,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const [loading, setLoading] = useState(true);
   const { connection } = useNotification();
   const [projName, setProjName] = useState(projectName || '');
+  const [searchParams] = useSearchParams();
+  const taskIdFilterStr = searchParams.get('taskId');
 
   useEffect(() => {
     if (!projectName && projectId) {
@@ -203,7 +206,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
 
   const handleSuccess = (msg?: string) => {
     if (msg) {
-      toast.success(msg);
+      console.log(msg);
     }
     loadData();
   };
@@ -256,6 +259,10 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
 
   // Filter logic
   const filteredIncidents = incidents.filter(inc => {
+    if (taskIdFilterStr && inc.taskId !== taskIdFilterStr) {
+      return false;
+    }
+
     if (filterType === 'construction' && inc.incidentType !== 'Construction') {
       return false;
     }
@@ -286,7 +293,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const totalPages = Math.ceil(filteredIncidents.length / ITEMS_PER_PAGE);
   const paginatedIncidents = filteredIncidents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const isPL = canManageExecution;
+  const isPL = isProjectLeader;
   const hasActiveEmergencyStop = incidents.some(
     i => i.isEmergency && ['WaitingStopApproval', 'WaitingRecoveryPlan', 'WaitingDirectorApproval'].includes(i.status)
   );
@@ -562,6 +569,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
           incident={selectedIncident}
           phase={effectivePhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
+          task={selectedTask || undefined}
+          members={members}
           onResolveClick={() => {
             if (selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage') {
               setIsDetailOpen(false);

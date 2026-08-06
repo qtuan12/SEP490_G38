@@ -1,4 +1,6 @@
 using BPG.Application.Common.Models;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.DTOs.Suppliers;
 using BPG.Application.Features.Suppliers.Commands;
 using BPG.Application.Features.Suppliers.Queries;
@@ -20,6 +22,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpGet("{id}")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.SupplierViewers)]
         public async Task<IActionResult> GetSupplierById(long id)
         {
@@ -28,6 +31,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPost]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.SupplierManagers)]
         public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierCommand command)
         {
@@ -36,6 +40,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpPut("{id}")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.SupplierManagers)]
         public async Task<IActionResult> UpdateSupplier(long id, [FromBody] UpdateSupplierRequest request)
         {
@@ -53,6 +58,7 @@ namespace BPG.Api.Controllers
         }
 
         [HttpDelete("{id}")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.SupplierManagers)]
         public async Task<IActionResult> DeleteSupplier(long id)
         {
@@ -61,4 +67,3 @@ namespace BPG.Api.Controllers
         }
     }
 }
-

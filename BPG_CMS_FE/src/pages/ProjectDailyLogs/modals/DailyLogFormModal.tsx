@@ -79,7 +79,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const isAssignedEngineer = !!currentTask
     && !!engineerId
     && (currentTask.assignedTo?.split(',').map(id => id.trim()).includes(String(engineerId)) ?? false);
-  const canCreateForCurrentTask = isEditMode || (hasTaskAssignee && (isPL || isAssignedEngineer));
+  const canCreateForCurrentTask = isEditMode || (hasTaskAssignee && (isPL || canManageTechnical || isAssignedEngineer));
 
   const schema = React.useMemo(() => {
     return z.object({
@@ -282,7 +282,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       const msg = isEditMode
         ? 'Đã cập nhật nhật ký thi công.'
         : `Đã tạo nhật ký thi công cho công việc "${resLog.taskName}".`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       
       const pId = task?.projectId || editLog?.projectId || (currentTask?.projectId);

@@ -1,4 +1,6 @@
 using BPG.Application.Features.MaterialCatalogs.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.DTOs.MaterialCatalogs;
 using BPG.Application.Features.MaterialCatalogs.Queries;
 using Microsoft.AspNetCore.Authorization;
@@ -21,6 +23,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpPost]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Create([FromBody] CreateMaterialCatalogRequest request, CancellationToken ct)
     {
@@ -37,6 +40,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpPut("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Update(long id, [FromBody] UpdateMaterialCatalogRequest request, CancellationToken ct)
     {
@@ -54,6 +58,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpDelete("{id}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> Delete(long id, CancellationToken ct)
     {
@@ -62,6 +67,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpGet("{id}/conversions")]
+    [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
     [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetConversions(long id, CancellationToken ct)
     {
@@ -70,6 +76,7 @@ public class MaterialCatalogsController : BaseApiController
     }
 
     [HttpPut("{id}/conversions")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.MasterData)]
     public async Task<IActionResult> SyncConversions(long id, [FromBody] List<MaterialConversionRequest> request, CancellationToken ct)
     {
@@ -78,4 +85,3 @@ public class MaterialCatalogsController : BaseApiController
         return ApiOk(result, "Cập nhật tỷ lệ quy đổi vật tư thành công.");
     }
 }
-

@@ -69,14 +69,11 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với đơn mua hàng này.");
             }
 
-            if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
-            {
-                var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
-                    member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
-                    cancellationToken);
-                if (!isProjectLeader)
-                    throw new ForbiddenException("Chỉ Trưởng dự án của đơn mua hàng mới được tạo phiếu nhập kho.");
-            }
+            var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                cancellationToken);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án của đơn mua hàng mới được tạo phiếu nhập kho.");
 
             // 2. Kiểm tra trạng thái dự án
             if (project.Status != ProjectStatus.InProgress)

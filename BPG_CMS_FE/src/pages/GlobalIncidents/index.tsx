@@ -219,7 +219,7 @@ export const GlobalIncidents: React.FC = () => {
 
   const handleSuccess = (msg?: string) => {
     if (msg) {
-      toast.success(msg);
+      console.log(msg);
     }
     loadData();
   };
@@ -469,6 +469,8 @@ export const GlobalIncidents: React.FC = () => {
           incident={selectedIncident}
           phase={effectivePhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
+          task={selectedTask as any}
+          members={projectMembers}
           onResolveClick={() => {
             if (selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage') {
               setIsDecreaseOpen(true);

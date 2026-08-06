@@ -1,4 +1,6 @@
 using BPG.Application.Features.SystemConfigs;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +25,7 @@ namespace BPG.Api.Controllers
         /// Admin cập nhật giá trị một tham số cấu hình.
         /// </summary>
         [HttpPut("{key}")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Admin)]
         public async Task<IActionResult> UpdateSystemConfig(string key, [FromBody] UpdateConfigBody body, CancellationToken ct)
         {
@@ -45,6 +48,7 @@ namespace BPG.Api.Controllers
         /// Admin cập nhật tên và logo công ty.
         /// </summary>
         [HttpPut("company")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.Admin)]
         public async Task<IActionResult> UpdateCompanySettings([FromBody] UpdateCompanySettingsCommand command, CancellationToken ct)
         {
@@ -58,4 +62,3 @@ namespace BPG.Api.Controllers
         public string ConfigValue { get; set; } = string.Empty;
     }
 }
-

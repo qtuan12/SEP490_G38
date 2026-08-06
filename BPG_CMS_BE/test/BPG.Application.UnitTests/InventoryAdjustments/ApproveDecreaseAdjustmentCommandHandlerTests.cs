@@ -55,6 +55,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         [Fact]
         public async Task UTCID01_Handle_AdjustmentNotFound_ShouldThrowNotFoundException()
         {
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.Director)).Returns(true);
             var act = async () => await _handler.Handle(Command(isApproved: true), CancellationToken.None);
 
             var exception = await act.Should().ThrowAsync<NotFoundException>();
@@ -65,6 +66,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         [Fact]
         public async Task UTCID02_Handle_AdjustmentNotPending_ShouldThrowBusinessException()
         {
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.Director)).Returns(true);
             SetupAdjustments(Adjustment(status: InventoryAdjustmentStatus.Approved));
 
             var act = async () => await _handler.Handle(Command(isApproved: true), CancellationToken.None);
@@ -77,6 +79,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         [Fact]
         public async Task UTCID03_Handle_RejectRequest_ShouldReturnSuccessResponse()
         {
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.Director)).Returns(true);
             SetupAdjustments(Adjustment());
 
             var result = await _handler.Handle(Command(isApproved: false, rejectedReason: "Thông tin hao hụt không rõ ràng"), CancellationToken.None);
@@ -89,6 +92,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         [Fact]
         public async Task UTCID04_Handle_ApproveRequestWithInsufficientStock_ShouldThrowBusinessException()
         {
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.Director)).Returns(true);
             SetupAdjustments(Adjustment(quantity: 50));
             SetupInventories(Inventory(quantity: 30));
 
@@ -102,6 +106,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         [Fact]
         public async Task UTCID05_Handle_ApproveRequestWithSufficientStock_ShouldReturnSuccessResponse()
         {
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.Director)).Returns(true);
             SetupAdjustments(Adjustment(quantity: 20));
             SetupInventories(Inventory(quantity: 100));
 
@@ -115,6 +120,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         [Fact]
         public async Task UTCID06_Handle_ApproveIncreaseAdjustment_ShouldReturnSuccessResponse()
         {
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.Accountant)).Returns(true);
             SetupAdjustments(Adjustment(adjustmentType: BPG.Domain.Constants.InventoryAdjustmentType.Increase, quantity: 15));
             SetupInventories(Inventory(quantity: 10));
 
@@ -128,6 +134,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         [Fact]
         public async Task UTCID07_Handle_RejectIncreaseAdjustment_ShouldReturnSuccessResponse()
         {
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.Accountant)).Returns(true);
             SetupAdjustments(Adjustment(adjustmentType: BPG.Domain.Constants.InventoryAdjustmentType.Increase, quantity: 15));
 
             var result = await _handler.Handle(Command(isApproved: false, rejectedReason: "Số lượng sai thực tế"), CancellationToken.None);

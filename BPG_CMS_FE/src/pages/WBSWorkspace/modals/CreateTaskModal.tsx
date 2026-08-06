@@ -172,7 +172,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         }
       }
       const msg = `Đã tạo thành công Công việc: ${variables.name}`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       onClose();
     },

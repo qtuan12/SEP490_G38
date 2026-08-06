@@ -119,9 +119,9 @@ export const MaterialControl: React.FC = () => {
       const req = materialRequests.find(r => r.id === reqId);
       const updated = await projectService.processMaterialRequestByAccountant(reqId, note);
       if (req?.isOverBOQ) {
-        toast.success((updated as any).__message || 'Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
+        console.log((updated as any).__message || 'Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
       } else {
-        toast.success((updated as any).__message || 'Đã duyệt yêu cầu vật tư trong định mức.');
+        console.log((updated as any).__message || 'Đã duyệt yêu cầu vật tư trong định mức.');
       }
       fetchMaterialRequests();
     } catch (err: any) {
@@ -132,7 +132,7 @@ export const MaterialControl: React.FC = () => {
   const handleDisburseRequestByAccountant = async (reqId: string, note?: string) => {
     try {
       const updated = await projectService.disburseEmergencyRequest(reqId, note);
-      toast.success((updated as any).__message || 'Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp.');
+      console.log((updated as any).__message || 'Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp.');
       fetchMaterialRequests();
     } catch (err: any) {
       toast.error(err.message || 'Không thể phê duyệt giải ngân.');
@@ -143,7 +143,7 @@ export const MaterialControl: React.FC = () => {
     try {
       const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'director', note);
       const totalCost = updated.items.reduce((sum, item) => sum + (item.quantity * ((item as any).price || 0)), 0);
-      toast.success((updated as any).__message || `Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
+      console.log((updated as any).__message || `Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
       fetchMaterialRequests();
     } catch (err: any) {
       toast.error(err.message || 'Không thể phê duyệt yêu cầu vật tư.');
@@ -153,7 +153,7 @@ export const MaterialControl: React.FC = () => {
   const handleRejectRequest = async (reqId: string, reason: string) => {
     try {
       const updated = await projectService.rejectMaterialRequest(reqId, reason.trim());
-      toast.success((updated as any).__message || 'Đã từ chối yêu cầu vật tư.');
+      console.log((updated as any).__message || 'Đã từ chối yêu cầu vật tư.');
       fetchMaterialRequests();
     } catch (err: any) {
       toast.error(err.message || 'Không thể từ chối yêu cầu vật tư.');

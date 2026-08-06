@@ -1,4 +1,5 @@
 using BPG.Application.DTOs.Files;
+using BPG.Api.Configuration;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -6,6 +7,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace BPG.Api.Controllers
 {
@@ -23,6 +26,7 @@ namespace BPG.Api.Controllers
         /// Tải lên một tệp đơn lẻ (Ảnh, PDF, v.v.) lên Cloudinary.
         /// </summary>
         [HttpPost("upload")]
+        [EnableRateLimiting(RateLimitPolicies.Upload)]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadSingleFile(IFormFile file, [FromForm] string? folder)
         {
@@ -48,6 +52,7 @@ namespace BPG.Api.Controllers
         /// Tải nhiều tệp cùng lúc lên Cloudinary.
         /// </summary>
         [HttpPost("upload-multiple")]
+        [EnableRateLimiting(RateLimitPolicies.Upload)]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadMultipleFiles(List<IFormFile> files, [FromForm] string? folder)
         {
@@ -87,6 +92,7 @@ namespace BPG.Api.Controllers
         /// xóa tệp qua URL.
         /// </summary>
         [HttpDelete("delete")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         public async Task<IActionResult> DeleteFile([FromQuery] string fileUrl)
         {
             if (string.IsNullOrWhiteSpace(fileUrl))
@@ -104,4 +110,3 @@ namespace BPG.Api.Controllers
         }
     }
 }
-

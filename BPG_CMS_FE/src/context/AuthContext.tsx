@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { hasAnyRole as checkAnyRole } from '../auth/roles';
 import { ApiError } from '../services/api';
 import { authService } from '../services/authService';
@@ -36,6 +37,7 @@ const isAuthFailure = (error: unknown): boolean => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,10 +62,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         if (isAuthFailure(error)) {
           clearStoredSession();
+          queryClient.clear();
           setToken(null);
           setUser(null);
         } else {
           // Lỗi mạng/server tạm thời — giữ phiên và dựng lại user từ cache để không đá về /login.
+          // Không clear cache query ở nhánh này: phiên vẫn còn hiệu lực, xóa đi chỉ tốn thêm
+          // một vòng tải lại dữ liệu ngay khi mạng hồi phục.
           const cachedUser = localStorage.getItem('bpg_user');
           if (cachedUser) {
             setToken(storedToken);
@@ -79,11 +84,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     void initializeAuth();
-  }, []);
+  }, [queryClient]);
 
   const login = async (credentials: LoginCredentials): Promise<UserProfile> => {
     try {
       const response = await authService.login(credentials);
+      queryClient.clear();
       localStorage.setItem('bpg_token', response.token);
       localStorage.setItem('bpg_refresh_token', response.refreshToken);
       localStorage.setItem('bpg_user', JSON.stringify(response.user));
@@ -92,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return response.user;
     } catch (error) {
       clearStoredSession();
+      queryClient.clear();
       setUser(null);
       setToken(null);
       throw error;
@@ -101,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     authService.logout();
     clearStoredSession();
+    queryClient.clear();
     setToken(null);
     setUser(null);
   };

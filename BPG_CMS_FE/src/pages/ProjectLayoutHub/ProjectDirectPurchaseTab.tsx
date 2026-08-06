@@ -7,13 +7,14 @@ import {
   DP_STATUS_LABEL,
   DP_BOQ_CHECK,
 } from '../../services/directPurchaseService';
-import { Badge, Pagination, Button } from '../../components/ui';
-import { AlertCircle, Loader2, Plus, Search, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Badge, Pagination, Button, TableLoader } from '../../components/ui';
+import { AlertCircle, Plus, Search, ChevronDown, AlertTriangle } from 'lucide-react';
 import { CreateDirectPurchaseModal } from './CreateDirectPurchaseModal';
 import { DirectPurchaseDetailModal } from './DirectPurchaseDetailModal';
 import { useNotification } from '../../context/NotificationContext';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { formatPlainDate } from '../../utils/dateHelpers';
+import { useVirtualRows } from '../../hooks/useVirtualRows';
 
 const STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
@@ -100,6 +101,11 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
   });
 
   const items = data?.items ?? [];
+  const virtualDirectPurchases = useVirtualRows(items, {
+    rowHeight: 56,
+    containerHeight: 560,
+    threshold: 30,
+  });
 
   // Realtime: tự làm mới danh sách khi có phiếu mua khẩn cấp thay đổi (tạo/kiểm toán) từ người dùng khác
   useEffect(() => {
@@ -161,7 +167,7 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
         )}
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" {...virtualDirectPurchases.scrollContainerProps}>
         <table className={`w-full min-w-[920px] table-fixed text-sm text-left ${isLoading ? 'opacity-50' : ''}`}>
           <colgroup>
             <col className="w-[14%]" />
@@ -187,14 +193,7 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
           </thead>
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {isLoading ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin" size={18} />
-                    Đang tải...
-                  </div>
-                </td>
-              </tr>
+              <TableLoader colSpan={8} message="Đang tải danh sách mua trực tiếp..." />
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
@@ -202,40 +201,53 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
                 </td>
               </tr>
             ) : (
-              items.map(dp => (
-                <tr
-                  key={dp.directPurchaseId}
-                  className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
-                  onClick={() => setDetailId(dp.directPurchaseId)}
-                >
-                  <td className="px-4 py-3 font-medium truncate" title={dp.requestNumber}>
-                    <span className="flex items-center gap-1.5">
-                      {dp.requestNumber}
-                      {dp.boqCheckStatus === DP_BOQ_CHECK.OverBOQ && (
-                        <AlertTriangle size={13} className="text-[hsl(var(--warning))] flex-shrink-0" aria-label="Vượt định mức BOQ" />
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.phaseName}>{dp.phaseName}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatPlainDate(dp.purchaseDate)}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.requesterName}>{dp.requesterName}</td>
-                  <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(dp.totalAmount)}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{dp.itemCount} loại</td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge variant={statusVariant[dp.status] ?? 'default'}>
-                      {DP_STATUS_LABEL[dp.status] ?? dp.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDetailId(dp.directPurchaseId); }}
-                      className="text-[hsl(var(--primary))] font-semibold text-sm hover:underline"
-                    >
-                      Xem chi tiết
-                    </button>
-                  </td>
-                </tr>
-              ))
+              <>
+                {virtualDirectPurchases.topPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={8} style={{ height: virtualDirectPurchases.topPadding, padding: 0 }} />
+                  </tr>
+                )}
+                {virtualDirectPurchases.visibleRows.map(({ item: dp }) => (
+                  <tr
+                    key={dp.directPurchaseId}
+                    className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
+                    onClick={() => setDetailId(dp.directPurchaseId)}
+                  >
+                    <td className="px-4 py-3 font-medium truncate" title={dp.requestNumber}>
+                      <span className="flex items-center gap-1.5">
+                        {dp.requestNumber}
+                        {dp.boqCheckStatus === DP_BOQ_CHECK.OverBOQ && (
+                          <AlertTriangle size={13} className="text-[hsl(var(--warning))] flex-shrink-0" aria-label="Vượt định mức BOQ" />
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.phaseName}>{dp.phaseName}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatPlainDate(dp.purchaseDate)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.requesterName}>{dp.requesterName}</td>
+                    <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(dp.totalAmount)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{dp.itemCount} loại</td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant={statusVariant[dp.status] ?? 'default'}>
+                        {DP_STATUS_LABEL[dp.status] ?? dp.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDetailId(dp.directPurchaseId); }}
+                        className="text-[hsl(var(--primary))] font-semibold text-sm hover:underline"
+                      >
+                        Xem chi tiết
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {virtualDirectPurchases.bottomPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={8} style={{ height: virtualDirectPurchases.bottomPadding, padding: 0 }} />
+                  </tr>
+                )}
+              </>
+
             )}
           </tbody>
         </table>

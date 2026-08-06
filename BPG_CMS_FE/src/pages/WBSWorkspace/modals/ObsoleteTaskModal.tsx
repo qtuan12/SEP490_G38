@@ -32,7 +32,7 @@ export const ObsoleteTaskForm: React.FC<ObsoleteTaskFormProps> = ({
     },
     onSuccess: () => {
       const msg = `Đã tạm dừng thành công công việc: ${task.name}`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       setReason('');
       onCancel();

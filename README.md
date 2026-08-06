@@ -127,9 +127,9 @@ SEP490_G38/
    ```
 5. Run the API project:
    ```bash
-   dotnet run --project src/BPG.Api
+   dotnet run --project src/BPG.Api --launch-profile https
    ```
-   * The API runs locally on: `http://localhost:5160` (HTTP) and `https://localhost:7111` (HTTPS).
+   * The API runs locally on: `https://localhost:7111` (HTTPS) and `http://localhost:5160` (HTTP).
    * Swagger documentation is accessible at: `https://localhost:7111/swagger/index.html`.
 
 ---
@@ -145,14 +145,14 @@ SEP490_G38/
    ```
 3. Create a `.env` file in the root of `BPG_CMS_FE` (or duplicate `.env.example`):
    ```env
-   VITE_API_URL=http://localhost:5160/api
+   VITE_API_URL=https://localhost:7111/api
    VITE_USE_MOCK_API=false
    ```
 4. Start the Vite development server:
    ```bash
-   npm run dev
+   cd BPG_CMS_FE && npm run dev
    ```
-   * The web application opens locally at: `http://localhost:5173`.
+   * The web application opens locally at: `https://localhost:5173`.
 
 ---
 

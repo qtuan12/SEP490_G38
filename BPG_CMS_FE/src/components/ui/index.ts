@@ -16,3 +16,4 @@ export * from './Pagination';
 export * from './DataTable';
 export * from './SearchSelect';
 export * from './FullScreenLoading';
+export * from './TableLoader';

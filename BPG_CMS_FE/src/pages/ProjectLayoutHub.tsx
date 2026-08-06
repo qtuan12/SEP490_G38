@@ -9,7 +9,7 @@ import { WBSWorkspace } from './WBSWorkspace';
 import { DailyLogFeed } from './ProjectDailyLogs/components/DailyLogFeed';
 import { EditProjectModal } from './ProjectList/modals/EditProjectModal';
 import { Modal } from '../components/ui/Modal';
-import { Button, Input, FormItem } from '../components/ui';
+import { Button, Input, FormItem, FullScreenLoading } from '../components/ui';
 
 import {
   ArrowLeft,
@@ -17,7 +17,6 @@ import {
   FolderGit2,
   MapPin,
   Calendar,
-  Loader2,
   Pause,
   CheckCircle,
   Clock,
@@ -358,12 +357,7 @@ export const ProjectLayoutHub: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px', gap: '10px' }}>
-        <Loader2 className="animate-spin" size={24} style={{ color: 'hsl(var(--primary))' }} />
-        <span>Đang tải thông tin không gian làm việc...</span>
-      </div>
-    );
+    return <FullScreenLoading message="Đang tải thông tin không gian làm việc..." />;
   }
 
   if (!project) {

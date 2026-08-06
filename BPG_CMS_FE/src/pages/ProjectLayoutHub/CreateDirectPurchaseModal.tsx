@@ -480,7 +480,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     setSaving('draft');
     try {
       const result = await persist();
-      toast.success(result.message || 'Thao tác thành công.');
+      toast.success(result.message || 'Đã lưu nháp. Phiếu chưa được gửi và chưa ảnh hưởng tồn kho.');
       onSuccess();
       onClose();
     } catch (e: any) {
@@ -526,7 +526,10 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     try {
       const persisted = await persist();
       const result = await directPurchaseService.submit(persisted.id);
-      toast.success(result.message || 'Thao tác thành công.');
+      // Không còn phân nhánh theo vượt/trong định mức: mọi phiếu đều qua Kế toán soát hóa đơn
+      // rồi Giám đốc duyệt chi. Câu dưới chỉ là dự phòng khi backend không trả message.
+      toast.success(result.message
+        || 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán soát hóa đơn.');
       setIsConfirmOpen(false);
       onSuccess();
       onClose();

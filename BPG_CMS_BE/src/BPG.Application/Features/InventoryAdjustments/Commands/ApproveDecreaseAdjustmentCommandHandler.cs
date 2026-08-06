@@ -40,6 +40,17 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             bool isIncrease = adjustment.AdjustmentType == InventoryAdjustmentType.Increase;
 
+            if (isIncrease)
+            {
+                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Accountant))
+                    throw new ForbiddenException("Chỉ Kế toán mới được duyệt phiếu tăng tồn.");
+            }
+            else
+            {
+                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director))
+                    throw new ForbiddenException("Chỉ Giám đốc mới được duyệt phiếu giảm tồn.");
+            }
+
             if (!request.IsApproved)
             {
                 adjustment.Status = InventoryAdjustmentStatus.Rejected;
@@ -99,7 +110,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 {
                     var notifTitle = isIncrease ? "Phiếu điều chỉnh tăng tồn bị từ chối" : "Phiếu điều chỉnh giảm tồn bị từ chối";
                     var notifBody = isIncrease
-                        ? $"Phiếu điều chỉnh tăng tồn #{adjustment.AdjustmentId} đã bị Trưởng phòng kỹ thuật từ chối. Lý do: {request.RejectedReason}"
+                        ? $"Phiếu điều chỉnh tăng tồn #{adjustment.AdjustmentId} đã bị Kế toán từ chối. Lý do: {request.RejectedReason}"
                         : $"Phiếu điều chỉnh giảm tồn #{adjustment.AdjustmentId} đã bị Giám đốc từ chối. Lý do: {request.RejectedReason}";
 
                     await _notificationService.SendNotificationAsync(
@@ -254,7 +265,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             {
                 var notifTitle = isIncrease ? "Phiếu điều chỉnh tăng tồn được phê duyệt" : "Phiếu điều chỉnh giảm tồn được phê duyệt";
                 var notifBody = isIncrease
-                    ? $"Phiếu điều chỉnh tăng tồn #{adjustment.AdjustmentId} đã được Trưởng phòng kỹ thuật phê duyệt. Tồn kho đã được cập nhật."
+                    ? $"Phiếu điều chỉnh tăng tồn #{adjustment.AdjustmentId} đã được Kế toán phê duyệt. Tồn kho đã được cập nhật."
                     : $"Phiếu điều chỉnh giảm tồn #{adjustment.AdjustmentId} đã được Giám đốc phê duyệt. Tồn kho đã được cập nhật.";
 
                 await _notificationService.SendNotificationAsync(
