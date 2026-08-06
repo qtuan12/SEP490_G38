@@ -10,14 +10,14 @@ using UserRole = BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
-    public class CancelPurchaseOrderCommandHandler : IRequestHandler<CancelPurchaseOrderCommand, bool>
+    public class ApprovePurchaseOrderCommandHandler : IRequestHandler<ApprovePurchaseOrderCommand, bool>
     {
         private readonly IUnitOfWork _uow;
         private readonly IRealtimeNotificationSender _realtimeSender;
         private readonly INotificationService _notificationService;
         private readonly ICurrentUserService _currentUserService;
 
-        public CancelPurchaseOrderCommandHandler(
+        public ApprovePurchaseOrderCommandHandler(
             IUnitOfWork uow,
             IRealtimeNotificationSender realtimeSender,
             INotificationService notificationService,
@@ -29,54 +29,41 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             _currentUserService = currentUserService;
         }
 
-        public async Task<bool> Handle(CancelPurchaseOrderCommand request, CancellationToken cancellationToken)
+        public async Task<bool> Handle(ApprovePurchaseOrderCommand request, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(request.Reason))
-                throw new BusinessException(ErrorCodes.PoCancelReasonRequired, "Vui lòng nhập lý do hủy đơn mua hàng.");
+            var currentUserId = _currentUserService.GetRequiredUserId();
 
             var po = await _uow.Repository<PurchaseOrder>().Query()
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
-                ?? throw new NotFoundException("Không tìm thấy đơn mua hàng cần hủy.");
+                ?? throw new NotFoundException("Không tìm thấy đơn mua hàng cần duyệt.");
 
-            if (po.Status == PurchaseOrderStatus.Cancelled)
-                throw new BusinessException(ErrorCodes.PoAlreadyCancelled, "Đơn mua hàng đã bị hủy trước đó.");
+            if (po.Status != PurchaseOrderStatus.PendingApproval)
+                throw new BusinessException(ErrorCodes.PoNotPendingApproval,
+                    $"Đơn mua hàng đang ở trạng thái '{PurchaseOrderStatus.Label(po.Status)}'. " +
+                    "Chỉ duyệt được đơn đang chờ Giám đốc duyệt.");
 
-            if (po.Status == PurchaseOrderStatus.Rejected)
-                throw new BusinessException(ErrorCodes.PoCannotCancel,
-                    "Đơn mua hàng đã bị Giám đốc từ chối, không cần hủy nữa.");
-
-            if (po.Status == PurchaseOrderStatus.PartiallyReceived ||
-                po.Status == PurchaseOrderStatus.FullyReceived ||
-                po.Status == PurchaseOrderStatus.Closed)
-                throw new BusinessException(ErrorCodes.PoCannotCancel,
-                    "Không thể hủy đơn mua hàng đã có hàng nhận hoặc đã đóng.");
-
-            // Check no approved goods receipts exist
-            var hasReceipts = await _uow.Repository<GoodsReceipt>().Query()
-                .AnyAsync(gr => gr.POId == request.POId && gr.Status == GoodsReceiptStatus.Approved,
-                    cancellationToken);
-
-            if (hasReceipts)
-                throw new BusinessException(ErrorCodes.PoHasReceipts,
-                    "Không thể hủy đơn mua hàng đã có phiếu nhập kho được duyệt.");
-
-            po.Status = PurchaseOrderStatus.Cancelled;
-            po.CancelledReason = request.Reason.Trim();
+            // Duyệt xong đơn mới được gửi nhà cung cấp và mới cho phép lập phiếu nhập kho.
+            po.Status = PurchaseOrderStatus.Sent;
+            po.ApprovedBy = currentUserId;
+            po.ApprovedAt = DateTime.UtcNow;
+            po.ApprovalNote = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
 
             await _uow.SaveChangesAsync(cancellationToken);
 
             await _realtimeSender.SendToGroupAsync(
                 $"Project_{po.ProjectId}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
 
-            // Thông báo cho những người liên quan: kế toán và trưởng dự án
-            var notiTitle = "Đơn hàng đã bị hủy";
-            var notiContent = $"Đơn hàng {po.PONumber} đã bị hủy. Lý do: {po.CancelledReason}";
+            var director = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+            var directorName = director?.FullName ?? "Giám đốc";
+
+            var notiTitle = "Đơn hàng đã được duyệt";
+            var notiContent = $"Đơn hàng {po.PONumber} đã được Giám đốc '{directorName}' duyệt. " +
+                              "Đơn có thể gửi nhà cung cấp và nhập kho.";
 
             await _notificationService.SendNotificationToRoleAsync(
                 UserRole.Accountant, notiTitle, notiContent,
                 NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
 
-            var currentUserId = _currentUserService.UserId;
             var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
                 .Where(m => m.ProjectId == po.ProjectId && m.IsLeader && m.UserId != currentUserId)
                 .Select(m => m.UserId)

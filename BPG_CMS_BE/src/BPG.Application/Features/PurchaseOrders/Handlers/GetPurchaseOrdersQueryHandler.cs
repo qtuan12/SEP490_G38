@@ -44,13 +44,20 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     .ThenInclude(i => i.Unit)
                 .AsNoTracking();
 
+            // Phạm vi dự án phải kiểm ở CẢ hai nhánh. Trước đây chỉ nhánh không truyền projectId mới
+            // lọc, mà câu chặn phía trên lại buộc người ngoài 4 vai trò toàn quyền phải truyền
+            // projectId — tức đẩy đúng người cần chặn vào nhánh không kiểm.
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+
             if (request.ProjectId.HasValue)
             {
+                if (!accessibleProjectIds.Contains(request.ProjectId.Value))
+                    throw new ForbiddenException("Bạn không có quyền xem đơn mua hàng của dự án này.");
+
                 query = query.Where(po => po.ProjectId == request.ProjectId.Value);
             }
             else
             {
-                var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
                 query = query.Where(po => accessibleProjectIds.Contains(po.ProjectId));
             }
 
