@@ -6,7 +6,7 @@ import { USE_MOCK_API } from '../../../../services/api';
 import type { DailyLog, WBSTask, DailyLogComment, WBSPhase } from '../../../../types/common';
 import { Clock, Plus, ChevronDown, MessageSquare } from 'lucide-react';
 
-import { Modal, Button } from '../../../../components/ui';
+import { Modal, Button, LoadingSpinner } from '../../../../components/ui';
 import { DailyLogFormModal } from '../../modals/DailyLogFormModal';
 import { DailyLogFilters } from './DailyLogFilters';
 import { DailyLogCard } from './DailyLogCard';
@@ -511,9 +511,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       />
 
       {loading ? (
-        <div className="text-center py-10 text-[hsl(var(--text-muted))]">
-          Đang tải dòng thời gian...
-        </div>
+        <LoadingSpinner size="md" label="Đang tải dòng thời gian nhật ký thi công..." className="py-12" />
       ) : groupedLogs.length === 0 ? (
         <div className="text-center py-16 text-[hsl(var(--text-muted))] border border-dashed border-[hsl(var(--border))] rounded-md">
           <MessageSquare size={36} className="mx-auto mb-3 opacity-40" />

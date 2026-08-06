@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../../components/ui/Modal';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { Button, Badge, ConfirmDialog, ImageLightbox } from '../../components/ui';
 import {
   directPurchaseService,
@@ -9,7 +10,7 @@ import {
 } from '../../services/directPurchaseService';
 import { useAuth } from '../../context/AuthContext';
 import { formatDateOnly, formatPlainDate } from '../../utils/dateHelpers';
-import { Loader2, CheckCircle, XCircle, FileText, Package, AlertTriangle, Send, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, FileText, Package, AlertTriangle, Send, Pencil, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -194,10 +195,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
       footer={renderFooter()}
     >
       {loading && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200, gap: 10 }}>
-          <Loader2 className="animate-spin" size={22} style={{ color: 'hsl(var(--primary))' }} />
-          <span style={{ color: 'hsl(var(--text-secondary))' }}>Đang tải...</span>
-        </div>
+        <LoadingSpinner size="md" label="Đang tải..." className="py-12" />
       )}
 
       {!loading && detail && (

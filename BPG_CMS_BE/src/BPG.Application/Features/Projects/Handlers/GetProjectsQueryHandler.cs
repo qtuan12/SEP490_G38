@@ -34,8 +34,16 @@ public class GetProjectsQueryHandler : IRequestHandler<GetProjectsQuery, PagedLi
     {
         var query = _uow.Repository<Project>().Query()
             .AsNoTracking();
-        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
-        query = query.Where(project => accessibleProjectIds.Contains(project.ProjectId));
+
+        if (request.ListAllActive)
+        {
+            query = query.Where(p => p.Status == BPG.Domain.Constants.ProjectStatus.InProgress);
+        }
+        else
+        {
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+            query = query.Where(project => accessibleProjectIds.Contains(project.ProjectId));
+        }
 
         if (!string.IsNullOrEmpty(request.Status))
         {

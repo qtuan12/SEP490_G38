@@ -16,7 +16,7 @@ import {
   Package,
   SlidersHorizontal,
 } from 'lucide-react';
-import { Button, Avatar, Badge } from '../ui';
+import { Button, Avatar, Badge, ThemeToggle } from '../ui';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
 import { HeaderNotification } from './HeaderNotification';
 import { PWABottomNav } from './PWABottomNav';
@@ -233,12 +233,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                                   location.pathname === '/profile' ? 'Hồ sơ cá nhân' : 'Hệ thống'}
               </h2>
             </div>
-            {/* Chuông thông báo: ẩn khi đã có tab Thông báo dưới bottom nav, và ẩn hẳn với chức vụ bị hạn chế */}
-            {!shouldBlock && (
-              <div className={`items-center gap-4 ${showBottomNav ? 'hidden md:flex' : 'flex'}`}>
-                <HeaderNotification />
-              </div>
-            )}
+            <div className="flex items-center gap-2 md:gap-3">
+              <ThemeToggle />
+              {!shouldBlock && (
+                <div className={`items-center gap-4 ${showBottomNav ? 'hidden md:flex' : 'flex'}`}>
+                  <HeaderNotification />
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

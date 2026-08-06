@@ -51,10 +51,14 @@ public class UpdatePhaseCommandHandler : IRequestHandler<UpdatePhaseCommand, Api
         var phase = await _unitOfWork.Repository<Phase>()
             .Query()
             .Include(p => p.Tasks)
+            .Include(p => p.Project)
             .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct);
 
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
+
+        if (phase.Project.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         // Check rule: chỉ được sửa khi chưa có task hoặc tất cả task = 0%
         if (phase.Tasks.Any(t => t.ProgressPercent > 0))

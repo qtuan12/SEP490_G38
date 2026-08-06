@@ -28,7 +28,7 @@ export const NotificationsList: React.FC = () => {
     if (!noti.isRead) {
       setMarkingId(noti.notificationId);
       try {
-        await markAsRead(noti.notificationId);
+        await markAsRead(noti.notificationId, false);
       } finally {
         setMarkingId(null);
       }

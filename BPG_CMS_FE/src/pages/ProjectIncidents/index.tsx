@@ -8,6 +8,7 @@ import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
 import { ReportEmergencyStopModal } from '../Incidents/modals/ReportEmergencyStopModal';
 import { CreateDecreaseAdjustmentModal } from '../InventoryAdjustments/components/CreateDecreaseAdjustmentModal';
+import { LoadingSpinner } from '../../components/ui';
 import {
   AlertTriangle,
   CheckCircle,
@@ -361,7 +362,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
         </div>
 
         {loading ? (
-          <div className="text-center py-8 text-[hsl(var(--text-muted))]">Đang tải báo cáo sự cố...</div>
+          <LoadingSpinner size="md" label="Đang tải báo cáo sự cố..." className="py-12" />
         ) : (
           <>
             {/* Filters Container */}

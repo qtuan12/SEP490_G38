@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Loader2, AlertTriangle, CheckCircle, FileCheck2, Info, Calendar, User, ClipboardList, Layers, ExternalLink } from 'lucide-react';
+import { AlertTriangle, CheckCircle, FileCheck2, Info, Calendar, User, ClipboardList, Layers, ExternalLink } from 'lucide-react';
 import { projectService } from '../../../services/projectService';
 import type { MaterialRequest, WBSPhase } from '../../../types/common';
 import { Modal } from '../../../components/ui/Modal';
-import { Button, Badge } from '../../../components/ui';
+import { Button, Badge, LoadingSpinner } from '../../../components/ui';
 import { formatDate } from '../../../utils/dateHelpers';
 
 interface MaterialRequestDetailModalProps {
@@ -155,10 +155,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
       width="xl"
     >
       {loadingData ? (
-        <div className="flex flex-col justify-center items-center py-12 gap-3">
-          <Loader2 size={32} className="animate-spin text-[hsl(var(--primary))]" />
-          <span className="text-sm text-slate-500">Đang tải thông tin...</span>
-        </div>
+        <LoadingSpinner size="md" label="Đang tải thông tin đối chiếu định mức..." className="py-12" />
       ) : (
         <div className="flex flex-col gap-6">
           {/* Thông tin chung của phiếu */}

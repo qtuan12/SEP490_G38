@@ -34,10 +34,14 @@ public class MarkTaskObsoleteCommandHandler : IRequestHandler<MarkTaskObsoleteCo
             .Query()
             .Include(t => t.Assignees)
             .Include(t => t.Phase)
+            .ThenInclude(p => p.Project)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
+
+        if (task.Phase != null && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         bool isTechnicalManager = _currentUserService.IsInRole("TechnicalManager");
         bool isProjectLeader = await _unitOfWork.Repository<ProjectMember>()

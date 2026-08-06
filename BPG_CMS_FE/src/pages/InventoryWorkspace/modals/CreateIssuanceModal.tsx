@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, Input, FormItem, Select } from '../../../components/ui';
+import { Modal, Button, Input, FormItem, Select, LoadingSpinner } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
 import { materialService } from '../../../services/materialService';
 import type { CurrentInventory } from '../../../types/inventory';
 import type { WBSTask } from '../../../types/common';
 import type { MaterialConversion } from '../../../types/material';
-import { Trash2, Plus, AlertCircle, Loader2 } from 'lucide-react';
+import { Trash2, Plus, AlertCircle } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
 import { formatQuantity, isGreaterThanQuantity, parseQuantityInput } from '../../../utils/inventoryHelpers';
 
@@ -321,10 +321,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
       }
     >
       {loadingData ? (
-        <div className="flex justify-center items-center py-12 gap-3">
-          <Loader2 className="animate-spin text-blue-600" size={24} />
-          <span className="text-slate-500 text-sm">Đang tải dữ liệu khởi tạo...</span>
-        </div>
+        <LoadingSpinner size="md" label="Đang tải dữ liệu khởi tạo..." className="py-12" />
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-sm text-left">
           {generalError && (
