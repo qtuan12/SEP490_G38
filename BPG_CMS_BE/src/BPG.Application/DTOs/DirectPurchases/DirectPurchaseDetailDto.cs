@@ -12,7 +12,7 @@ namespace BPG.Application.DTOs.DirectPurchases
         public string RequesterName { get; set; } = string.Empty;
         public string Reason { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
-        public DateTime PurchaseDate { get; set; }
+        public DateOnly PurchaseDate { get; set; }
         public string Status { get; set; } = string.Empty;
         public string AuditStatus { get; set; } = string.Empty;
         public string BOQCheckStatus { get; set; } = string.Empty;

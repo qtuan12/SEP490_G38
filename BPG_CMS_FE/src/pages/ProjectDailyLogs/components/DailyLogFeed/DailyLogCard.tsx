@@ -17,18 +17,9 @@ interface DailyLogCardProps {
   onReloadLogs: () => Promise<void>;
 }
 
-const formatCommentDate = (dateStr: string): string => {
-  if (!dateStr) return '';
-  const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr.replace(' ', 'T') + 'Z');
-  const d = new Date(normalized);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
+import { formatDateVietnam } from '../../../../utils/dateHelpers';
+
+const formatCommentDate = (dateStr: string): string => formatDateVietnam(dateStr);
 
 export const DailyLogCard: React.FC<DailyLogCardProps> = ({
   log,

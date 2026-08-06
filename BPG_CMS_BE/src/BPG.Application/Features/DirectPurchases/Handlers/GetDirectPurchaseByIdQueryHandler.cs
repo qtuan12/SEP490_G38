@@ -87,7 +87,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 RequesterName = dp.Requester.FullName,
                 Reason = dp.Reason,
                 TotalAmount = dp.TotalAmount,
-                PurchaseDate = dp.PurchaseDate,
+                PurchaseDate = DateOnly.FromDateTime(dp.PurchaseDate),
                 Status = dp.Status,
                 AuditStatus = dp.AuditStatus,
                 BOQCheckStatus = dp.BOQCheckStatus,

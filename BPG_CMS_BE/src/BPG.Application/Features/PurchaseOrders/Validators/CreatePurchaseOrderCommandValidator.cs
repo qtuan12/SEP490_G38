@@ -17,11 +17,11 @@ namespace BPG.Application.Features.PurchaseOrders.Validators
             // server chạy UTC sẽ hiểu sai "hôm nay" trong khoảng 00:00-07:00 giờ VN.
             RuleFor(x => x.OrderDate)
                 .NotEmpty()
-                .Must(d => DateOnly.FromDateTime(d.Date) >= VietnamTime.Today)
+                .Must(d => d >= VietnamTime.Today)
                 .WithMessage("Ngày đơn hàng không được là ngày trong quá khứ.");
             RuleFor(x => x.RequestId).GreaterThan(0).WithMessage("Phải chọn một yêu cầu vật tư.");
             RuleFor(x => x.ExpectedDeliveryDate)
-                .Must((command, deliveryDate) => !deliveryDate.HasValue || deliveryDate.Value >= DateOnly.FromDateTime(command.OrderDate.Date))
+                .Must((command, deliveryDate) => !deliveryDate.HasValue || deliveryDate.Value >= command.OrderDate)
                 .WithMessage("Hạn giao hàng không được trước ngày đơn hàng.");
             RuleFor(x => x.Items).NotEmpty().WithMessage("Đơn hàng phải có ít nhất một dòng vật tư.");
             RuleFor(x => x.PONumber).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.PONumber));
