@@ -38,10 +38,10 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   projectName,
 }) => {
   const { connection } = useNotification();
-  const { isProjectLeader, canManageTechnical, canManageAccounting } = useProjectAccess(projectId);
+  const { isProjectLeader, isTechnicalManager, canManageAccounting } = useProjectAccess(projectId);
   const isLeader = isProjectLeader;
   const isAccountant = canManageAccounting;
-  const isTPKT = canManageTechnical;
+  const isTPKT = isTechnicalManager;
   const canCreateSurplusRequest = isLeader;
 
   const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>('outbound');

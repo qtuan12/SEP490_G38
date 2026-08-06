@@ -29,8 +29,12 @@ public class CloseSurplusRequestItemCommandHandler
 
         var item = await _uow.Repository<SurplusRequestItem>().Query()
             .Include(i => i.SurplusRequest)
+                .ThenInclude(sr => sr.Project)
             .FirstOrDefaultAsync(i => i.SurplusRequestItemId == request.SurplusRequestItemId, ct)
             ?? throw new NotFoundException(nameof(SurplusRequestItem), request.SurplusRequestItemId);
+
+        if (item.SurplusRequest.Project.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         if (item.SurplusRequest.Status != SurplusRequestStatus.Processing)
             throw new BusinessException(ErrorCodes.InvalidTransition, "Đợt xử lý đã hoàn tất.");

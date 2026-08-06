@@ -34,6 +34,9 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
             .FirstOrDefaultAsync(i => i.SurplusRequestItemId == request.SurplusRequestItemId, ct)
             ?? throw new NotFoundException(nameof(SurplusRequestItem), request.SurplusRequestItemId);
 
+        if (item.SurplusRequest.Project.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án nguồn phải đang hoạt động để thực hiện thao tác này.");
+
         if (item.SurplusRequest.Status == SurplusRequestStatus.Processed)
             throw new BusinessException(ErrorCodes.AlreadyApproved, "Batch đã hoàn tất, không thể thêm action mới.");
 
@@ -154,8 +157,12 @@ public class ReviewSurplusTransferCommandHandler : IRequestHandler<ReviewSurplus
             .Include(t => t.SurplusRequestItem)
                 .ThenInclude(i => i.SurplusRequest)
             .Include(t => t.FromProject)
+            .Include(t => t.ToProject)
             .FirstOrDefaultAsync(t => t.SurplusTransferId == request.SurplusTransferId, ct)
             ?? throw new NotFoundException(nameof(SurplusTransfer), request.SurplusTransferId);
+
+        if (transfer.FromProject.Status != ProjectStatus.InProgress || transfer.ToProject.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án giao và nhận đều phải đang hoạt động.");
 
         if (transfer.Status != SurplusTransferStatus.Pending)
             throw new InvalidStatusTransitionException(nameof(SurplusTransfer), transfer.Status, request.IsApproved ? SurplusTransferStatus.Approved : SurplusTransferStatus.Rejected);
@@ -249,9 +256,13 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
             throw new BusinessException(ErrorCodes.ValidationFailed, "Bắt buộc phải tải lên ít nhất 1 file minh chứng phiếu xuất / ảnh chụp.");
 
         var transfer = await _uow.Repository<SurplusTransfer>().Query()
+            .Include(t => t.FromProject)
             .Include(t => t.ToProject)
             .FirstOrDefaultAsync(t => t.SurplusTransferId == request.SurplusTransferId, ct)
             ?? throw new NotFoundException(nameof(SurplusTransfer), request.SurplusTransferId);
+
+        if (transfer.FromProject.Status != ProjectStatus.InProgress || transfer.ToProject.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án giao và nhận đều phải đang hoạt động.");
 
         if (transfer.Status != SurplusTransferStatus.Approved)
             throw new InvalidStatusTransitionException(nameof(SurplusTransfer), transfer.Status, SurplusTransferStatus.Dispatched);
@@ -347,10 +358,15 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
             throw new BusinessException(ErrorCodes.ValidationFailed, "Bắt buộc phải tải lên ít nhất 1 file minh chứng phiếu nhận / ảnh chụp.");
 
         var transfer = await _uow.Repository<SurplusTransfer>().Query()
+            .Include(t => t.FromProject)
+            .Include(t => t.ToProject)
             .Include(t => t.SurplusRequestItem)
                 .ThenInclude(i => i.SurplusRequest)
             .FirstOrDefaultAsync(t => t.SurplusTransferId == request.SurplusTransferId, ct)
             ?? throw new NotFoundException(nameof(SurplusTransfer), request.SurplusTransferId);
+
+        if (transfer.FromProject.Status != ProjectStatus.InProgress || transfer.ToProject.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án giao và nhận đều phải đang hoạt động.");
 
         if (transfer.Status != SurplusTransferStatus.Dispatched)
             throw new InvalidStatusTransitionException(nameof(SurplusTransfer), transfer.Status, SurplusTransferStatus.Received);

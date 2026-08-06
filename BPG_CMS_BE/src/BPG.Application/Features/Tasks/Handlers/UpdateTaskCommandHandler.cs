@@ -36,10 +36,14 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
         var task = await _unitOfWork.Repository<ProjectTask>()
             .Query()
             .Include(t => t.Phase)
+            .ThenInclude(p => p.Project)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
+
+        if (task.Phase != null && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {

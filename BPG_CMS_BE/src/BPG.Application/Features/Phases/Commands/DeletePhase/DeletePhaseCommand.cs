@@ -28,10 +28,14 @@ public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, Api
         var phase = await _unitOfWork.Repository<Phase>()
             .Query()
             .Include(p => p.Tasks)
+            .Include(p => p.Project)
             .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct);
 
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
+
+        if (phase.Project.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         if (phase.Status == BPG.Domain.Constants.PhaseStatus.Approved)
         {
