@@ -75,6 +75,7 @@ namespace BPG.Api.Controllers
 
         /// <summary>
         /// Tạo đơn mua hàng (PO) từ các yêu cầu vật tư đã duyệt.
+        /// Đơn được tạo ở trạng thái chờ Giám đốc duyệt, chưa gửi nhà cung cấp và chưa nhập kho được.
         /// </summary>
         [HttpPost]
         [EnableRateLimiting(RateLimitPolicies.Mutation)]
@@ -82,7 +83,30 @@ namespace BPG.Api.Controllers
         public async Task<IActionResult> CreatePurchaseOrder([FromBody] CreatePurchaseOrderCommand command, CancellationToken ct)
         {
             var poId = await Mediator.Send(command, ct);
-            return ApiOk(poId, "Tạo đơn mua hàng thành công");
+            return ApiOk(poId, "Tạo đơn mua hàng thành công. Đơn đang chờ Giám đốc duyệt.");
+        }
+
+        /// <summary>
+        /// Giám đốc duyệt đơn mua hàng đang chờ duyệt.
+        /// </summary>
+        [HttpPost("{id:long}/approve")]
+        [Authorize(Roles = RolePolicies.Director)]
+        public async Task<IActionResult> ApprovePurchaseOrder(long id, [FromBody] ApprovePORequestBody? body, CancellationToken ct)
+        {
+            await Mediator.Send(new ApprovePurchaseOrderCommand { POId = id, Note = body?.Note }, ct);
+            return ApiOk(true, "Duyệt đơn mua hàng thành công");
+        }
+
+        /// <summary>
+        /// Giám đốc từ chối đơn mua hàng đang chờ duyệt, ghi lý do từ chối.
+        /// Số lượng vật tư của đơn được trả lại yêu cầu vật tư.
+        /// </summary>
+        [HttpPost("{id:long}/reject")]
+        [Authorize(Roles = RolePolicies.Director)]
+        public async Task<IActionResult> RejectPurchaseOrder(long id, [FromBody] CancelPORequestBody body, CancellationToken ct)
+        {
+            await Mediator.Send(new RejectPurchaseOrderCommand { POId = id, Reason = body.Reason }, ct);
+            return ApiOk(true, "Từ chối đơn mua hàng thành công");
         }
 
         /// <summary>
@@ -114,5 +138,10 @@ namespace BPG.Api.Controllers
     public class CancelPORequestBody
     {
         public string Reason { get; set; } = string.Empty;
+    }
+
+    public class ApprovePORequestBody
+    {
+        public string? Note { get; set; }
     }
 }

@@ -150,7 +150,7 @@ export const ProjectLayoutHub: React.FC = () => {
   const isTPKT = canManageTechnical;
   const canEditProject = hasAnyRole(RoleGroup.ProjectManagers);
   const canChangeProjectStatus = hasAnyRole(RoleGroup.ProjectManagers) || hasAnyRole(RoleGroup.Approval);
-  // Giám đốc phải thấy tab này để duyệt chi các phiếu mua khẩn cấp vượt định mức BOQ.
+  // Giám đốc phải thấy tab này để duyệt chi phiếu mua khẩn cấp - mọi phiếu đều qua bước này.
   const canManageDirectPurchase = canManageExecution || canManageAccounting || canApprove;
 
   const [project, setProject] = useState<Project | null>(null);

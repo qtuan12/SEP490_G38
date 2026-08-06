@@ -13,6 +13,7 @@ import { CreateDirectPurchaseModal } from './CreateDirectPurchaseModal';
 import { DirectPurchaseDetailModal } from './DirectPurchaseDetailModal';
 import { useNotification } from '../../context/NotificationContext';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { formatPlainDate } from '../../utils/dateHelpers';
 import { useVirtualRows } from '../../hooks/useVirtualRows';
 
 const STATUS_OPTIONS = [
@@ -35,15 +36,6 @@ const statusVariant: Record<string, 'default' | 'warning' | 'success' | 'danger'
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-};
 
 interface Props {
   projectId: number;
@@ -230,10 +222,10 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.phaseName}>{dp.phaseName}</td>
-                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatDate(dp.purchaseDate)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatPlainDate(dp.purchaseDate)}</td>
                     <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.requesterName}>{dp.requesterName}</td>
                     <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(dp.totalAmount)}</td>
-                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{dp.itemCount} dòng</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{dp.itemCount} loại</td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant={statusVariant[dp.status] ?? 'default'}>
                         {DP_STATUS_LABEL[dp.status] ?? dp.status}
@@ -255,6 +247,7 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
                   </tr>
                 )}
               </>
+
             )}
           </tbody>
         </table>

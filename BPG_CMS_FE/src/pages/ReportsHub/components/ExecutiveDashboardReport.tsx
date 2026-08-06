@@ -3,6 +3,7 @@ import { Loader2, CheckCircle, Clock, AlertTriangle, AlertCircle, TrendingUp, Ch
 import { reportService, type ExecutiveDashboardDto } from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useNavigate } from 'react-router-dom';
+import { formatPlainDate } from '../../../utils/dateHelpers';
 
 interface Props {
   projectId: number | null;
@@ -70,8 +71,8 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
     }
   };
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  /** Hạn công việc là ngày thuần (DateOnly) — không quy đổi múi giờ. */
+  const formatDate = (dateStr: string) => formatPlainDate(dateStr);
 
   const uniquePhases = Array.from(new Set((execDashboard.delayedTasksList || []).map(t => t.phaseName)));
   const filteredTasks = (execDashboard.delayedTasksList || []).filter(t => {

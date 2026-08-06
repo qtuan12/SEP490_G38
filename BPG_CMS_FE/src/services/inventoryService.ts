@@ -86,6 +86,10 @@ export interface PurchaseOrderDetailDto {
   projectName: string;
   cancelledReason?: string;
   closedReason?: string;
+  approverName?: string;
+  approvedAt?: string;
+  approvalNote?: string;
+  rejectedReason?: string;
   items: PODetailItemDto[];
   linkedRequests: LinkedRequestDto[];
 }
@@ -267,6 +271,20 @@ export const inventoryService = {
   cancelPurchaseOrder: async (poId: number, reason: string): Promise<ApiResult<boolean>> => {
     return unwrapWithMessage(
       await apiClient.post<ApiResponse<boolean>>(`/purchaseorders/${poId}/cancel`, { reason })
+    );
+  },
+
+  // Giám đốc duyệt PO đang chờ duyệt — duyệt xong mới gửi NCC và nhập kho được
+  approvePurchaseOrder: async (poId: number, note?: string): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
+      await apiClient.post<ApiResponse<boolean>>(`/purchaseorders/${poId}/approve`, { note })
+    );
+  },
+
+  // Giám đốc từ chối PO — số lượng vật tư được trả lại yêu cầu vật tư
+  rejectPurchaseOrder: async (poId: number, reason: string): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
+      await apiClient.post<ApiResponse<boolean>>(`/purchaseorders/${poId}/reject`, { reason })
     );
   },
 

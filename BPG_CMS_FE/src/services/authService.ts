@@ -209,7 +209,10 @@ export const authService = {
     }
 
     const formData = new FormData();
-    formData.append('file', file);
+    // Truyền tên tệp tường minh — xem ghi chú ở projectService.uploadFiles: ảnh đã qua nén là Blob
+    // nên FormData sẽ đặt tên "blob" nếu không nói rõ, làm mất phần mở rộng.
+    if (file.name) formData.append('file', file, file.name);
+    else formData.append('file', file);
     formData.append('folder', 'users/avatars');
 
     interface BackendResponse { success: boolean; message: string; data: { fileUrl: string }; }

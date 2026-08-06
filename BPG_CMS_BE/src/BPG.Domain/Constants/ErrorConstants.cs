@@ -54,6 +54,9 @@ public static class ErrorCodes
     public const string PoOrderDateAfterPhase = "BIZ_020";       // Ngày đơn hàng sau ngày kết thúc giai đoạn
     public const string PoDeliveryDateBeforeProject = "BIZ_021"; // Hạn giao hàng trước ngày bắt đầu dự án
     public const string PoDeliveryDateAfterPhase = "BIZ_022";    // Hạn giao hàng sau ngày kết thúc giai đoạn
+    public const string PoNotPendingApproval = "BIZ_041";        // PO không ở trạng thái chờ Giám đốc duyệt
+    public const string PoRejectReasonRequired = "BIZ_042";      // Thiếu lý do khi Giám đốc từ chối PO
+    public const string PoNotApproved = "BIZ_043";               // PO chưa được Giám đốc duyệt
 
     // ==================== MUA HÀNG TRỰC TIẾP (DP) ====================
     public const string DpNotDraft = "BIZ_023";                  // Phiếu không còn ở trạng thái Nháp
@@ -74,6 +77,14 @@ public static class ErrorCodes
     public const string DpPurchaseDateAfterPhase = "BIZ_038";    // Ngày mua sau ngày kết thúc giai đoạn
     public const string DpPhaseProjectMismatch = "BIZ_039";      // Giai đoạn không thuộc dự án đã chọn
     public const string DpDuplicateMaterial = "BIZ_040";         // Vật tư bị khai báo trùng trong phiếu
+    public const string DpInvalidUnit = "BIZ_044";               // ĐVT không thuộc đơn vị cơ bản/quy đổi của vật tư
+    public const string DpMaterialNotInBoq = "BIZ_049";          // Vật tư chưa có trong định mức BOQ của giai đoạn
+
+    // ==================== TÀI KHOẢN NGƯỜI DÙNG ====================
+    public const string UserCannotDeleteSelf = "BIZ_045";        // Tự xóa/khóa chính tài khoản đang đăng nhập
+    public const string UserLastAdmin = "BIZ_046";               // Xóa/khóa Quản trị viên cuối cùng
+    public const string UserIsProjectLeader = "BIZ_047";         // Còn là trưởng dự án đang chạy
+    public const string UserLastApprover = "BIZ_048";            // Người duyệt cuối cùng của hàng chờ đang có phiếu
 
     // ==================== SYSTEM ====================
     public const string UploadFailed = "SYS_001";

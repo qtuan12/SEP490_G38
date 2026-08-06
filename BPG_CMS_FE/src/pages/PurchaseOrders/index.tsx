@@ -6,12 +6,14 @@ import { inventoryService } from '../../services/inventoryService';
 import type { PurchaseOrderDto } from '../../services/inventoryService';
 import { projectService } from '../../services/projectService';
 import { Badge, Pagination, Button, DateInput, TableLoader } from '../../components/ui';
-import { Search, AlertCircle, Loader2, Plus, ChevronDown, MoreVertical, Eye, Lock, Ban, SlidersHorizontal, X } from 'lucide-react';
+import { Search, AlertCircle, Loader2, Plus, ChevronDown, MoreVertical, Eye, Lock, Ban, SlidersHorizontal, X, CheckCircle2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { RoleGroup } from '../../auth/roles';
-import toast from 'react-hot-toast';
+import { formatPlainDate } from '../../utils/dateHelpers';
 
-const CANCELLABLE = ['Draft', 'Sent'];
+// Đơn bị Giám đốc từ chối là trạng thái kết thúc, không hủy thêm được nữa.
+const CANCELLABLE = ['Draft', 'PendingApproval', 'Sent'];
 
 const menuItemStyle: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 8,
@@ -97,46 +99,46 @@ const RowActionsMenu: React.FC<{ items: RowMenuItem[] }> = ({ items }) => {
 
 const PO_STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
+  { label: 'Chờ Giám đốc duyệt', value: 'PendingApproval' },
   { label: 'Đã gửi nhà cung cấp', value: 'Sent' },
   { label: 'Nhập kho một phần', value: 'PartiallyReceived' },
   { label: 'Đã nhập đủ', value: 'FullyReceived' },
   { label: 'Đã đóng', value: 'Closed' },
+  { label: 'Bị từ chối', value: 'Rejected' },
 ];
 
 const statusLabel: Record<string, string> = {
   Draft: 'Nháp',
+  PendingApproval: 'Chờ Giám đốc duyệt',
+  Rejected: 'Bị từ chối',
   Sent: 'Đã gửi nhà cung cấp',
   PartiallyReceived: 'Nhập kho một phần',
   FullyReceived: 'Đã nhập đủ',
   Closed: 'Đã đóng',
+  Cancelled: 'Đã hủy',
 };
 
 const statusVariant: Record<string, 'default' | 'warning' | 'info' | 'success' | 'danger'> = {
   Draft: 'default',
+  PendingApproval: 'warning',
+  Rejected: 'danger',
   Sent: 'warning',
   PartiallyReceived: 'info',
   FullyReceived: 'success',
   Closed: 'default',
+  Cancelled: 'danger',
 };
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-};
 
 export const PurchaseOrderList: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { hasAnyRole } = useAuth();
   const canManagePurchaseOrders = hasAnyRole(RoleGroup.Accounting);
+  const canApprovePurchaseOrders = hasAnyRole(RoleGroup.Approval);
   const [searchPO, setSearchPO] = useState('');
   const [debouncedSearchPO, setDebouncedSearchPO] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -280,6 +282,16 @@ export const PurchaseOrderList: React.FC = () => {
         onClick: () => navigate(`/purchase-orders/${po.poId}`),
       },
     ];
+
+    // Giám đốc duyệt/từ chối ngay tại màn chi tiết để xem đủ vật tư và giá trị đơn.
+    if (canApprovePurchaseOrders && po.status === 'PendingApproval') {
+      items.push({
+        key: 'approve',
+        label: 'Duyệt đơn hàng',
+        icon: <CheckCircle2 size={14} style={{ color: 'hsl(142 70% 40%)' }} />,
+        onClick: () => navigate(`/purchase-orders/${po.poId}`),
+      });
+    }
 
     const canClose = canManagePurchaseOrders && po.status === 'PartiallyReceived';
     const canCancel = canManagePurchaseOrders && CANCELLABLE.includes(po.status);
@@ -486,9 +498,9 @@ export const PurchaseOrderList: React.FC = () => {
                 >
                   <td className="px-4 py-3 font-semibold text-[hsl(var(--primary))] truncate" title={po.poNumber}>{po.poNumber}</td>
                   <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={po.supplierName || 'N/A'}>{po.supplierName || 'N/A'}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatDate(po.orderDate)}</td>
+                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatPlainDate(po.orderDate)}</td>
                   <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(po.totalAmount)}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{po.items.length} dòng</td>
+                  <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{po.items.length} loại</td>
                   <td className="px-4 py-3 text-center">
                     <Badge variant={statusVariant[po.status] ?? 'default'}>
                       {statusLabel[po.status] ?? po.status}

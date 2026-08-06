@@ -1,5 +1,7 @@
+using System.Security.Cryptography;
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -14,10 +16,12 @@ public class VerifyOtpCommandHandler : IRequestHandler<VerifyOtpCommand, string>
     private const int ResetTokenExpiryMinutes = 15;
 
     private readonly IUnitOfWork _uow;
+    private readonly IJwtService _jwtService;
 
-    public VerifyOtpCommandHandler(IUnitOfWork uow)
+    public VerifyOtpCommandHandler(IUnitOfWork uow, IJwtService jwtService)
     {
         _uow = uow;
+        _jwtService = jwtService;
     }
 
     public async Task<string> Handle(VerifyOtpCommand request, CancellationToken ct)
@@ -55,12 +59,16 @@ public class VerifyOtpCommandHandler : IRequestHandler<VerifyOtpCommand, string>
         otpToken.IsUsed = true;
         _uow.Repository<OtpToken>().Update(otpToken);
 
-        var resetToken = Guid.NewGuid().ToString("N");
+        // Reset token đổi được mật khẩu nên đối xử như refresh token: sinh bằng nguồn ngẫu nhiên
+        // mật mã (256 bit), trả giá trị thô cho client và chỉ LƯU BẢN BĂM. Ai đọc được bảng
+        // OtpTokens cũng không dựng lại được token để chiếm tài khoản.
+        var resetToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+
         await _uow.Repository<OtpToken>().AddAsync(new OtpToken
         {
             UserId = user.UserId,
             OtpType = "PASSWORD_RESET",
-            Token = resetToken,
+            Token = _jwtService.HashToken(resetToken),
             ExpiresAt = DateTime.UtcNow.AddMinutes(ResetTokenExpiryMinutes),
             CreatedAt = DateTime.UtcNow
         }, ct);

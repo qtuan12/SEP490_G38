@@ -1,8 +1,11 @@
 using System.Text;
 using BPG.Application;
 using BPG.Infrastructure;
+using BPG.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -32,6 +35,8 @@ public static class ApiServiceExtensions
         services.AddControllers();
         services.AddConfiguredRateLimiting(configuration);
         services.AddHttpContextAccessor();
+        // Dùng cho OnTokenValidated: cache trạng thái tài khoản để không truy vấn DB mỗi request.
+        services.AddMemoryCache();
         services.AddSignalR();
         services.AddScoped<BPG.Application.IServices.IRealtimeNotificationSender, BPG.Api.Hubs.RealtimeNotificationSender>();
 
@@ -114,6 +119,33 @@ public static class ApiServiceExtensions
 
             options.Events = new JwtBearerEvents
             {
+                // Access token đã ký thì hợp lệ tới lúc hết hạn, kể cả khi tài khoản vừa bị xóa hoặc
+                // khóa giữa chừng. Kiểm lại tài khoản ở đây để cắt ngay, không phải chờ token hết hạn.
+                // Kết quả cache ngắn để không phải truy vấn DB trên mọi request.
+                OnTokenValidated = async context =>
+                {
+                    var idClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    if (!long.TryParse(idClaim, out var userId))
+                    {
+                        context.Fail("Token thiếu định danh người dùng.");
+                        return;
+                    }
+
+                    var cache = context.HttpContext.RequestServices.GetRequiredService<IMemoryCache>();
+                    var cacheKey = $"auth:user-active:{userId}";
+
+                    if (!cache.TryGetValue(cacheKey, out bool isUsable))
+                    {
+                        var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                        // Query filter toàn cục đã loại tài khoản xóa mềm, chỉ cần kiểm thêm IsActive.
+                        isUsable = await db.Users.AsNoTracking().AnyAsync(u => u.UserId == userId && u.IsActive);
+
+                        cache.Set(cacheKey, isUsable, TimeSpan.FromSeconds(30));
+                    }
+
+                    if (!isUsable)
+                        context.Fail("Tài khoản không còn khả dụng.");
+                },
                 OnAuthenticationFailed = context =>
                 {
                     Console.WriteLine($"[JWT Auth Failed] {context.Exception.Message}");

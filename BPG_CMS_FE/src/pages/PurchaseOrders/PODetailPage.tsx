@@ -7,6 +7,7 @@ import { Button, Badge } from '../../components/ui';
 import {
   ArrowLeft, ShoppingCart, Building2, CalendarDays, MapPin,
   FileText, Package, Link2, AlertCircle, Loader2, XCircle, Ban, Lock,
+  CheckCircle2, Clock,
 } from 'lucide-react';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import toast from 'react-hot-toast';
@@ -26,6 +27,8 @@ const fmtDate = (s?: string | null) => {
 
 const statusLabel: Record<string, string> = {
   Draft: 'Nháp',
+  PendingApproval: 'Chờ Giám đốc duyệt',
+  Rejected: 'Bị từ chối',
   Sent: 'Đã gửi',
   PartiallyReceived: 'Nhận một phần',
   FullyReceived: 'Nhận đủ',
@@ -35,6 +38,8 @@ const statusLabel: Record<string, string> = {
 
 const statusVariant: Record<string, 'default' | 'warning' | 'info' | 'success' | 'danger'> = {
   Draft: 'default',
+  PendingApproval: 'warning',
+  Rejected: 'danger',
   Sent: 'warning',
   PartiallyReceived: 'info',
   FullyReceived: 'success',
@@ -42,7 +47,8 @@ const statusVariant: Record<string, 'default' | 'warning' | 'info' | 'success' |
   Cancelled: 'danger',
 };
 
-const CANCELLABLE = ['Draft', 'Sent'];
+// Đơn bị từ chối là trạng thái kết thúc, không hủy thêm được nữa.
+const CANCELLABLE = ['Draft', 'PendingApproval', 'Sent'];
 
 const infoRow: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: 2,
@@ -114,12 +120,47 @@ export const PODetailPage: React.FC = () => {
     onError: (err: any) => setCloseError(err.message || 'Không thể đóng đơn mua hàng.'),
   });
 
+  // Duyệt / từ chối của Giám đốc: mọi đơn hàng đều phải qua bước này trước khi gửi NCC.
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [approveNote, setApproveNote] = useState('');
+
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectError, setRejectError] = useState<string | null>(null);
+
+  const invalidatePO = () => {
+    queryClient.invalidateQueries({ queryKey: ['po-detail', poId] });
+    queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+  };
+
+  const approveMutation = useMutation({
+    mutationFn: () => inventoryService.approvePurchaseOrder(poId, approveNote.trim() || undefined),
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã duyệt đơn mua hàng.');
+      setShowApproveModal(false);
+      setApproveNote('');
+      invalidatePO();
+    },
+    onError: (err: any) => toast.error(err.message || 'Không thể duyệt đơn mua hàng.'),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: () => inventoryService.rejectPurchaseOrder(poId, rejectReason),
+    onSuccess: (result) => {
+      toast.success(result.message || 'Đã từ chối đơn mua hàng.');
+      setShowRejectModal(false);
+      setRejectReason('');
+      invalidatePO();
+    },
+    onError: (err: any) => setRejectError(err.message || 'Không thể từ chối đơn mua hàng.'),
+  });
+
   const { data: po, isLoading, isError, error } = useQuery({
     queryKey: ['po-detail', poId],
     queryFn: () => inventoryService.getPurchaseOrderById(poId),
     enabled: !isNaN(poId) && poId > 0,
   });
-  const { canManageAccounting } = useProjectAccess(po?.projectId);
+  const { canManageAccounting, canApprove } = useProjectAccess(po?.projectId);
 
   // Realtime: tự làm mới nếu PO này bị người khác hủy/đóng trong khi đang xem
   const poProjectId = po?.projectId;
@@ -165,6 +206,7 @@ export const PODetailPage: React.FC = () => {
   const receivedTotal = po.items.reduce((s, it) => s + it.totalReceived * it.unitPrice, 0);
   const canCancel = CANCELLABLE.includes(po.status) && canManageAccounting;
   const canClose = po.status === 'PartiallyReceived' && canManageAccounting;
+  const canDecide = po.status === 'PendingApproval' && canApprove;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1120, margin: '0 auto' }}>
@@ -181,6 +223,16 @@ export const PODetailPage: React.FC = () => {
           {statusLabel[po.status] ?? po.status}
         </Badge>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
+          {canDecide && (
+            <>
+              <Button type="button" variant="primary" onClick={() => setShowApproveModal(true)}>
+                <CheckCircle2 size={16} /> Duyệt đơn hàng
+              </Button>
+              <Button type="button" variant="danger" onClick={() => { setRejectError(null); setShowRejectModal(true); }}>
+                <XCircle size={16} /> Từ chối
+              </Button>
+            </>
+          )}
           {canClose && (
             <Button type="button" variant="secondary" onClick={() => { setCloseError(null); setShowCloseModal(true); }}>
               <Lock size={16} /> Đóng đơn hàng
@@ -193,6 +245,63 @@ export const PODetailPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Pending approval banner */}
+      {po.status === 'PendingApproval' && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          background: 'hsl(38 92% 50% / 0.12)', border: '1px solid hsl(38 92% 50% / 0.35)',
+          borderRadius: 8, padding: '12px 16px',
+        }}>
+          <Clock size={16} style={{ color: 'hsl(38 92% 40%)', flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'hsl(38 92% 35%)' }}>Đang chờ Giám đốc duyệt</div>
+            <div style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', marginTop: 2 }}>
+              Đơn hàng chưa được gửi nhà cung cấp và chưa thể lập phiếu nhập kho cho tới khi được duyệt.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejected reason banner */}
+      {po.status === 'Rejected' && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          background: 'hsl(var(--danger-glow))', border: '1px solid hsl(var(--danger) / 0.3)',
+          borderRadius: 8, padding: '12px 16px',
+        }}>
+          <XCircle size={16} style={{ color: 'hsl(var(--danger))', flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--danger))' }}>
+              Giám đốc từ chối{po.approverName ? ` — ${po.approverName}` : ''}
+              {po.approvedAt ? ` (${fmtDate(po.approvedAt)})` : ''}
+            </div>
+            <div style={{ fontSize: 13, color: 'hsl(346 84% 35%)', marginTop: 2 }}>{po.rejectedReason || '—'}</div>
+            <div style={{ fontSize: 12, color: 'hsl(var(--text-muted))', marginTop: 4 }}>
+              Số lượng vật tư của đơn này đã được trả lại yêu cầu vật tư, có thể lập đơn mua hàng khác.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approved banner */}
+      {po.approverName && po.status !== 'Rejected' && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          background: 'hsl(142 70% 45% / 0.1)', border: '1px solid hsl(142 70% 45% / 0.3)',
+          borderRadius: 8, padding: '12px 16px',
+        }}>
+          <CheckCircle2 size={16} style={{ color: 'hsl(142 70% 35%)', flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'hsl(142 70% 30%)' }}>
+              Đã được Giám đốc {po.approverName} duyệt{po.approvedAt ? ` ngày ${fmtDate(po.approvedAt)}` : ''}
+            </div>
+            {po.approvalNote && (
+              <div style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', marginTop: 2 }}>{po.approvalNote}</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Cancelled reason banner */}
       {po.status === 'Cancelled' && po.cancelledReason && (
@@ -253,7 +362,9 @@ export const PODetailPage: React.FC = () => {
             {po.linkedRequests.map((req) => (
               <Link
                 key={req.requestId}
-                to={`/projects/${req.projectId}?tab=materialrequests&phaseId=${req.phaseId}&requestId=${req.requestId}`}
+                // Kèm fromPO để đóng modal chi tiết YCVT thì quay lại đúng đơn hàng này,
+                // thay vì bỏ người dùng lại ở tab yêu cầu vật tư của dự án.
+                to={`/projects/${req.projectId}?tab=materialrequests&phaseId=${req.phaseId}&requestId=${req.requestId}&fromPO=${po.poId}`}
                 style={{
                   padding: '6px 12px', borderRadius: 6, fontSize: 13,
                   border: '1px solid hsl(var(--border))',
@@ -279,7 +390,7 @@ export const PODetailPage: React.FC = () => {
       <div className="glass-panel p-6">
         <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))', display: 'flex', alignItems: 'center', gap: 8 }}>
           <Package size={16} style={{ color: 'hsl(var(--primary))' }} />
-          Chi tiết vật tư ({po.items.length} dòng)
+          Chi tiết vật tư ({po.items.length} loại)
         </h3>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -352,12 +463,130 @@ export const PODetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Back button */}
-      <div style={{ paddingBottom: 24 }}>
-        <Button type="button" variant="secondary" onClick={goBack}>
-          <ArrowLeft size={16} /> Quay lại
-        </Button>
-      </div>
+      {/* Không lặp lại nút quay lại ở cuối trang: mũi tên trên thanh tiêu đề đã làm việc đó. */}
+
+      {/* Approve modal */}
+      {showApproveModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }} onClick={() => !approveMutation.isPending && setShowApproveModal(false)}>
+          <div style={{
+            background: 'hsl(var(--bg-card))', borderRadius: 12,
+            border: '1px solid hsl(var(--border))', padding: 28,
+            width: 440, maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: 16,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <CheckCircle2 size={20} style={{ color: 'hsl(142 70% 40%)' }} />
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
+                Xác nhận duyệt đơn hàng
+              </h3>
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: 'hsl(var(--text-secondary))' }}>
+              Duyệt đơn mua hàng <strong style={{ color: 'hsl(var(--text-primary))' }}>{po.poNumber}</strong> trị giá{' '}
+              <strong style={{ color: 'hsl(var(--text-primary))' }}>{fmt(po.totalAmount)}</strong>.
+              Sau khi duyệt, đơn có thể gửi nhà cung cấp và lập phiếu nhập kho.
+            </p>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--text-secondary))', display: 'block', marginBottom: 6 }}>
+                Ghi chú duyệt (không bắt buộc)
+              </label>
+              <textarea
+                value={approveNote}
+                onChange={(e) => setApproveNote(e.target.value)}
+                placeholder="Nhập ghi chú của Giám đốc..."
+                rows={3}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  padding: '8px 12px', borderRadius: 6, fontSize: 13,
+                  border: '1px solid hsl(var(--border))',
+                  background: 'hsl(var(--bg-input, var(--bg-card)))',
+                  color: 'hsl(var(--text-primary))', resize: 'vertical', outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <Button type="button" variant="secondary" onClick={() => setShowApproveModal(false)}
+                disabled={approveMutation.isPending}>
+                Đóng
+              </Button>
+              <Button type="button" variant="primary" disabled={approveMutation.isPending}
+                onClick={() => approveMutation.mutate()}>
+                {approveMutation.isPending
+                  ? <><Loader2 size={14} className="animate-spin" /> Đang duyệt...</>
+                  : <><CheckCircle2 size={14} /> Xác nhận duyệt</>}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject modal */}
+      {showRejectModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }} onClick={() => !rejectMutation.isPending && setShowRejectModal(false)}>
+          <div style={{
+            background: 'hsl(var(--bg-card))', borderRadius: 12,
+            border: '1px solid hsl(var(--border))', padding: 28,
+            width: 440, maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: 16,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <XCircle size={20} style={{ color: 'hsl(var(--danger))' }} />
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
+                Xác nhận từ chối đơn hàng
+              </h3>
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: 'hsl(var(--text-secondary))' }}>
+              Từ chối đơn mua hàng <strong style={{ color: 'hsl(var(--text-primary))' }}>{po.poNumber}</strong>.
+              Số lượng vật tư sẽ được trả lại yêu cầu vật tư để lập đơn khác. Thao tác này không thể hoàn tác.
+            </p>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--text-secondary))', display: 'block', marginBottom: 6 }}>
+                Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => { setRejectReason(e.target.value); setRejectError(null); }}
+                placeholder="Nhập lý do từ chối đơn mua hàng..."
+                rows={3}
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  padding: '8px 12px', borderRadius: 6, fontSize: 13,
+                  border: `1px solid ${rejectError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`,
+                  background: 'hsl(var(--bg-input, var(--bg-card)))',
+                  color: 'hsl(var(--text-primary))', resize: 'vertical', outline: 'none',
+                  fontFamily: 'inherit',
+                }}
+              />
+              {rejectError && (
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{rejectError}</p>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <Button type="button" variant="secondary" onClick={() => setShowRejectModal(false)}
+                disabled={rejectMutation.isPending}>
+                Đóng
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                disabled={rejectMutation.isPending || !rejectReason.trim()}
+                title={!rejectReason.trim() ? 'Vui lòng nhập lý do từ chối đơn mua hàng.' : undefined}
+                onClick={() => rejectMutation.mutate()}
+              >
+                {rejectMutation.isPending
+                  ? <><Loader2 size={14} className="animate-spin" /> Đang xử lý...</>
+                  : <><XCircle size={14} /> Xác nhận từ chối</>}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cancel modal */}
       {showCancelModal && (

@@ -49,6 +49,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 throw new BusinessException(ErrorCodes.DpPhaseProjectMismatch, "Giai đoạn không thuộc dự án của phiếu.");
 
             await DirectPurchaseGuard.EnsureCanManageAsync(_uow, _currentUserService, dp.ProjectId, userId, ct);
+            await DirectPurchaseGuard.EnsureProjectOpenForDraftingAsync(_uow, dp.ProjectId, phase, ct);
 
             DirectPurchaseDraftWriter.EnsureNoDuplicateMaterial(request.Items);
 

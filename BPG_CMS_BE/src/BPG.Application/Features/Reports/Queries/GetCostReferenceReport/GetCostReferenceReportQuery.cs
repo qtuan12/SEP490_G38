@@ -44,6 +44,8 @@ public class GetCostReferenceReportQueryHandler : IRequestHandler<GetCostReferen
             .Include(p => p.Request).ThenInclude(r => r!.Phase)
             .Where(p => p.ProjectId == request.ProjectId
                 && p.Status != PurchaseOrderStatus.Draft
+                && p.Status != PurchaseOrderStatus.PendingApproval
+                && p.Status != PurchaseOrderStatus.Rejected
                 && p.Status != PurchaseOrderStatus.Cancelled)
             .ToListAsync(cancellationToken);
 

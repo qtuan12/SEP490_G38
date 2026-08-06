@@ -2,7 +2,7 @@ using MediatR;
 
 namespace BPG.Application.Features.DirectPurchases.Commands
 {
-    /// <summary>Giám đốc duyệt chi phiếu mua trực tiếp vượt định mức BOQ.</summary>
+    /// <summary>Giám đốc duyệt chi phiếu mua trực tiếp - bước cuối của mọi phiếu, dù có vượt định mức hay không.</summary>
     public class ApproveDirectPurchaseByDirectorCommand : IRequest<bool>
     {
         public long DirectPurchaseId { get; set; }

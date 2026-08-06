@@ -1,3 +1,4 @@
+using BPG.Domain.Common;
 using BPG.Domain.Exceptions;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -310,7 +311,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         var dailyLog = new DailyLog
                         {
                             TaskId = incident.Task.TaskId,
-                            LogDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                            LogDate = VietnamTime.Today,
                             NewProgressPercent = (byte)request.DecreaseProgressTo.Value,
                             Description = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason)
                                 ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}"
@@ -431,7 +432,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     var dailyLog = new DailyLog
                     {
                         TaskId = incident.Task.TaskId,
-                        LogDate = DateOnly.FromDateTime(DateTime.UtcNow),
+                        LogDate = VietnamTime.Today,
                         NewProgressPercent = (byte)request.DecreaseProgressTo.Value,
                         Description = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason) 
                             ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}" 

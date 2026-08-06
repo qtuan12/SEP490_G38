@@ -3,9 +3,12 @@ using BPG.Application.Features.DirectPurchases.Commands;
 using BPG.Application.Features.DirectPurchases.Services;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
+using FluentValidation;
+using FluentValidation.Results;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using UserRole = BPG.Domain.Constants.UserRole;
@@ -15,8 +18,8 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
     /// <summary>
     /// Gửi phiếu nháp. Điểm không thể quay lại: validate đầy đủ, tính lại BOQCheckStatus
     /// tại thời điểm gửi, sinh PO + GoodsReceipt và cộng tồn kho.
-    /// Phiếu trong định mức -> Approved (chờ Kế toán kiểm toán để hoàn tiền).
-    /// Phiếu vượt định mức  -> Pending  (Kế toán soát hóa đơn rồi trình Giám đốc).
+    /// Mọi phiếu -> Pending: Kế toán soát hóa đơn rồi trình Giám đốc duyệt chi, kể cả phiếu
+    /// nằm trong định mức BOQ. BOQCheckStatus chỉ còn là thông tin đối chiếu, không rẽ nhánh luồng.
     /// </summary>
     public class SubmitDirectPurchaseCommandHandler : IRequestHandler<SubmitDirectPurchaseCommand, string>
     {
@@ -76,13 +79,32 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             if (invoiceCount == 0)
                 throw new BusinessException(ErrorCodes.DpNoInvoice, "Bắt buộc phải tải ảnh hóa đơn.");
 
-            foreach (var item in dp.Items)
+            // Gom hết lỗi của mọi dòng rồi mới ném, kèm vị trí dòng theo dạng "Items[i].Quantity"
+            // để FE gắn được dòng đỏ ngay dưới đúng ô nhập. Dừng ở lỗi đầu tiên sẽ bắt người dùng
+            // sửa - gửi lại - lại lỗi, mỗi lần một dòng.
+            //
+            // Sắp theo khóa chính để chỉ số khớp thứ tự FE đã gửi lên: ReplaceItemsAsync xóa sạch
+            // rồi thêm lại đúng thứ tự đó, nên Id tăng dần cũng chính là thứ tự các dòng trên form.
+            var orderedItems = dp.Items.OrderBy(i => i.DirectPurchaseItemId).ToList();
+            var itemFailures = new List<ValidationFailure>();
+
+            for (var index = 0; index < orderedItems.Count; index++)
             {
+                var item = orderedItems[index];
+
                 if (item.Quantity <= 0)
-                    throw new BusinessException(ErrorCodes.DpInvalidQuantity, "Số lượng vật tư phải lớn hơn 0.");
+                    itemFailures.Add(new ValidationFailure(
+                        $"Items[{index}].Quantity", "Số lượng phải lớn hơn 0.")
+                    { ErrorCode = ErrorCodes.DpInvalidQuantity });
+
                 if (item.UnitPrice <= 0)
-                    throw new BusinessException(ErrorCodes.DpInvalidUnitPrice, "Đơn giá vật tư phải lớn hơn 0.");
+                    itemFailures.Add(new ValidationFailure(
+                        $"Items[{index}].UnitPrice", "Đơn giá phải lớn hơn 0.")
+                    { ErrorCode = ErrorCodes.DpInvalidUnitPrice });
             }
+
+            if (itemFailures.Count > 0)
+                throw new ValidationException(itemFailures);
 
             var project = await _uow.Repository<Project>().Query()
                 .FirstOrDefaultAsync(p => p.ProjectId == dp.ProjectId, ct)
@@ -100,8 +122,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             var purchaseDateOnly = DateOnly.FromDateTime(dp.PurchaseDate.Date);
 
             // Mua trực tiếp là hậu kiểm: hàng đã mua xong rồi mới lập phiếu, nên không thể mua ở tương lai.
-            // Dùng UTC+7 (giờ Việt Nam) như các handler nhập/xuất/trả kho, tránh lệch ngày với người dùng.
-            var todayVn = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7).Date);
+            var todayVn = VietnamTime.Today;
             if (purchaseDateOnly > todayVn)
                 throw new BusinessException(ErrorCodes.DpPurchaseDateInFuture,
                     $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) không được sau ngày hôm nay ({todayVn:dd/MM/yyyy}). " +
@@ -156,9 +177,8 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 }
 
                 dp.BOQCheckStatus = anyOverBOQ ? BOQCheckStatus.OverBOQ : BOQCheckStatus.WithinBOQ;
-                // Cả hai nhánh đều bắt đầu ở Pending. Approved chỉ được gán khi khoản chi thật sự
-                // được chuẩn thuận (Kế toán soát xong nếu trong định mức, Giám đốc ký nếu vượt),
-                // nên Approved luôn đồng nghĩa "sẽ được hoàn tiền".
+                // Approved chỉ được gán khi Giám đốc ký duyệt chi, nên Approved luôn đồng nghĩa
+                // "sẽ được hoàn tiền".
                 dp.Status = DirectPurchaseStatus.Pending;
                 dp.AuditStatus = DirectPurchaseAuditStatus.PendingAudit;
                 dp.SubmittedAt = DateTime.UtcNow;
@@ -186,19 +206,16 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             var title = anyOverBOQ
                 ? "Phiếu mua khẩn cấp VƯỢT ĐỊNH MỨC cần kiểm toán"
                 : "Phiếu mua khẩn cấp mới cần kiểm toán";
-            var content = anyOverBOQ
-                ? $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} (giai đoạn '{dp.Phase.Name}') vượt định mức BOQ. " +
-                  $"Tổng giá trị: {dp.TotalAmount:N0}đ. Vật tư đã nhập kho. Vui lòng đối chiếu hóa đơn để trình Giám đốc duyệt chi."
-                : $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} vừa được gửi cho giai đoạn '{dp.Phase.Name}'. " +
-                  $"Tổng giá trị: {dp.TotalAmount:N0}đ. Vui lòng kiểm toán để hoàn tiền/giải ngân.";
+            var boqNote = anyOverBOQ ? " Phiếu vượt định mức BOQ." : string.Empty;
+            var content = $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} vừa được gửi cho giai đoạn '{dp.Phase.Name}'. " +
+                          $"Tổng giá trị: {dp.TotalAmount:N0}đ. Vật tư đã nhập kho.{boqNote} " +
+                          "Vui lòng đối chiếu hóa đơn để trình Giám đốc duyệt chi.";
 
             await _notificationService.SendNotificationToRoleAsync(
                 UserRole.Accountant, title, content,
                 NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
 
-            return anyOverBOQ
-                ? "Gửi phiếu thành công. Tồn kho đã được cập nhật. Phiếu vượt định mức BOQ nên đang chờ Kế toán soát hóa đơn để trình Giám đốc duyệt chi."
-                : "Gửi phiếu thành công. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán kiểm toán.";
+            return "Gửi phiếu thành công. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán soát hóa đơn để trình Giám đốc duyệt chi.";
         }
     }
 }

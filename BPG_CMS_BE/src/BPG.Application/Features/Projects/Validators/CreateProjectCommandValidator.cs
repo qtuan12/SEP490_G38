@@ -1,5 +1,6 @@
 namespace BPG.Application.Features.Projects.Validators;
 
+using BPG.Domain.Common;
 using FluentValidation;
 using BPG.Application.Features.Projects.Commands;
 using System;
@@ -14,7 +15,7 @@ public class CreateProjectCommandValidator : AbstractValidator<CreateProjectComm
 
         RuleFor(x => x.PlannedStart)
             .NotEmpty().WithMessage("Ngày bắt đầu không được để trống.")
-            .Must(date => date >= DateOnly.FromDateTime(DateTime.Today)).WithMessage("Ngày bắt đầu không được trong quá khứ.");
+            .Must(date => date >= VietnamTime.Today).WithMessage("Ngày bắt đầu không được trong quá khứ.");
 
         RuleFor(x => x.PlannedEnd)
             .NotEmpty().WithMessage("Ngày kết thúc không được để trống.")

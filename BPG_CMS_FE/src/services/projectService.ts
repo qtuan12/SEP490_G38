@@ -1356,7 +1356,11 @@ export const projectService = {
     }
     const formData = new FormData();
     files.forEach(file => {
-      formData.append('files', file);
+      // Phải truyền tên tệp tường minh: browser-image-compression trả về Blob (có gán thêm
+      // thuộc tính .name) chứ không phải File, mà FormData chỉ lấy tên thật từ File — với Blob
+      // nó đặt tên mặc định "blob", mất phần mở rộng và backend phân loại nhầm thành tệp raw.
+      if (file.name) formData.append('files', file, file.name);
+      else formData.append('files', file);
     });
     formData.append('folder', folder);
 
