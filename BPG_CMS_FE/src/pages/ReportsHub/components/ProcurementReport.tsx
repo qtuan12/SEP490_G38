@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, ShoppingCart, AlertCircle, DollarSign, Package, TrendingUp } from 'lucide-react';
+import { ShoppingCart, AlertCircle, DollarSign, Package, TrendingUp } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ProcurementReportDto } from '../../../services/reportService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatDateOnly, formatPlainDate } from '../../../utils/dateHelpers';
@@ -70,9 +71,8 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh] gap-3 text-slate-500">
-        <Loader2 size={24} className="animate-spin text-indigo-500" />
-        <span>Đang tải Báo cáo Mua sắm & Chi phí...</span>
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <LoadingSpinner size="md" label="Đang tải Báo cáo Mua sắm & Chi phí..." />
       </div>
     );
   }

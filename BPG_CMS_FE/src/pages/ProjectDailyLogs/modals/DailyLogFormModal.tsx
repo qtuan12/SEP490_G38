@@ -282,13 +282,17 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       const msg = isEditMode
         ? 'Đã cập nhật nhật ký thi công.'
         : `Đã tạo nhật ký thi công cho công việc "${resLog.taskName}".`;
-      console.log(msg);
+      toast.success(msg);
       onSuccess(msg);
       
       const pId = task?.projectId || editLog?.projectId || (currentTask?.projectId);
       if (pId) {
         queryClient.invalidateQueries({ queryKey: ['tasks', pId] });
         queryClient.invalidateQueries({ queryKey: ['daily-logs', pId] });
+      }
+      const changedTaskId = editLog?.taskId || currentTask?.id || task?.id;
+      if (changedTaskId) {
+        queryClient.invalidateQueries({ queryKey: ['task-progress-history', changedTaskId] });
       }
       onCancel();
     },

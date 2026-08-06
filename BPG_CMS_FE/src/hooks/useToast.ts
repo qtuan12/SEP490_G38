@@ -2,7 +2,7 @@ import { toast } from 'react-hot-toast';
 
 export const useToast = () => {
   const showSuccess = (message: string) => {
-    console.log(message, {
+    toast.success(message, {
       duration: 3000,
       position: 'top-right',
     });
@@ -19,7 +19,7 @@ export const useToast = () => {
     toast(message, {
       duration: 3000,
       position: 'top-right',
-      icon: 'ℹ️',
+      icon: 'i',
     });
   };
 

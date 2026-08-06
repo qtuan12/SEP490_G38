@@ -17,12 +17,12 @@ namespace BPG.Application.Features.PurchaseOrders.Services
     /// </summary>
     internal static class PoNumberGenerator
     {
-        public static string Prefix(DateTime orderDate) => $"PO-{orderDate:yyyyMMdd}-";
+        public static string Prefix(DateOnly orderDate) => $"PO-{orderDate:yyyyMMdd}-";
 
         /// <summary>Khóa theo ngày: chỉ chặn những người cùng tạo PO trong một ngày, không chặn toàn hệ thống.</summary>
-        public static string LockResource(DateTime orderDate) => $"PurchaseOrder_Number_{orderDate:yyyyMMdd}";
+        public static string LockResource(DateOnly orderDate) => $"PurchaseOrder_Number_{orderDate:yyyyMMdd}";
 
-        public static async Task<string> NextAsync(IUnitOfWork uow, DateTime orderDate, CancellationToken ct)
+        public static async Task<string> NextAsync(IUnitOfWork uow, DateOnly orderDate, CancellationToken ct)
         {
             var prefix = Prefix(orderDate);
 

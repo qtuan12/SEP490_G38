@@ -14,7 +14,7 @@ namespace BPG.Application.Features.DirectPurchases.Commands
         public long? TaskId { get; set; }
         /// <summary>Lý do mua khẩn cấp - cũng là phần giải trình khi phiếu vượt định mức BOQ.</summary>
         public string Reason { get; set; } = string.Empty;
-        public DateTime PurchaseDate { get; set; }
+        public DateOnly PurchaseDate { get; set; }
         public List<DirectPurchaseItemInput> Items { get; set; } = new();
         public List<string> InvoicePhotoUrls { get; set; } = new();
     }

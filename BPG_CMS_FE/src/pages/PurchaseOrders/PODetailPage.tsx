@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { useNotification } from '../../context/NotificationContext';
-import { Button, Badge } from '../../components/ui';
+import { Button, Badge, LoadingSpinner } from '../../components/ui';
 import {
   ArrowLeft, ShoppingCart, Building2, CalendarDays, MapPin,
   FileText, Package, Link2, AlertCircle, Loader2, XCircle, Ban, Lock,
@@ -182,9 +182,8 @@ export const PODetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300, gap: 10 }}>
-        <Loader2 className="animate-spin" size={24} style={{ color: 'hsl(var(--primary))' }} />
-        <span style={{ color: 'hsl(var(--text-secondary))' }}>Đang tải chi tiết đơn hàng...</span>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+        <LoadingSpinner size="md" label="Đang tải chi tiết đơn hàng..." />
       </div>
     );
   }

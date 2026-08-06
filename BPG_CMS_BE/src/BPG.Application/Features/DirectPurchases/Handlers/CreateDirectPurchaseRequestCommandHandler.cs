@@ -63,7 +63,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                     AuditStatus = DirectPurchaseAuditStatus.PendingAudit,
                     BOQCheckStatus = anyOverBOQ ? BOQCheckStatus.OverBOQ : BOQCheckStatus.WithinBOQ,
                     TotalAmount = resolved.Sum(i => i.LineTotal),
-                    PurchaseDate = request.PurchaseDate,
+                    PurchaseDate = request.PurchaseDate.ToDateTime(TimeOnly.MinValue),
                     CreatedAt = DateTime.UtcNow,
                     CreatedBy = userId,
                 };
