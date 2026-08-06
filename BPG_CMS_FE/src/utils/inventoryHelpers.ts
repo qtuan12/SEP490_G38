@@ -1,3 +1,5 @@
+import { parseDateSafe } from './dateHelpers';
+
 /**
  * Trả về tên hiển thị và class màu sắc (Tailwind) cho từng loại giao dịch kho (Ledger Transaction Type)
  */
@@ -41,7 +43,7 @@ export const getGoodsReceiptStatusDetails = (status: string) => {
  */
 export const formatDateTimeVN = (dateString: string): string => {
   if (!dateString) return '';
-  const d = new Date(dateString);
+  const d = parseDateSafe(dateString);
   if (isNaN(d.getTime())) return dateString;
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -56,7 +58,7 @@ export const formatDateTimeVN = (dateString: string): string => {
  */
 export const formatDateVN = (dateString: string): string => {
   if (!dateString) return '';
-  const d = new Date(dateString);
+  const d = parseDateSafe(dateString);
   if (isNaN(d.getTime())) return dateString;
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');

@@ -10,6 +10,19 @@ export const todayLocalISO = (): string => {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 };
 
+/**
+ * Ngày hôm nay theo giờ Việt Nam (UTC+7), dạng yyyy-mm-dd.
+ *
+ * Dùng cho các form mà backend chốt "hôm nay" theo giờ VN (ngày đơn hàng, ngày mua khẩn cấp —
+ * xem VietnamTime bên backend). Nếu dùng todayLocalISO ở những chỗ đó, máy người dùng đặt sai
+ * múi giờ sẽ thấy FE cho chọn một ngày mà backend lại từ chối.
+ */
+export const todayVnISO = (): string => {
+  const vnNow = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${vnNow.getUTCFullYear()}-${pad(vnNow.getUTCMonth() + 1)}-${pad(vnNow.getUTCDate())}`;
+};
+
 /** Lấy phần ngày yyyy-mm-dd từ chuỗi ngày của backend, không đổi múi giờ. */
 export const toInputDate = (dateString: string): string =>
   dateString ? dateString.split('T')[0] : '';
@@ -35,6 +48,21 @@ export const formatRelativeTime = (dateString: string): string => {
   return `${day}/${month}`;
 };
 
+/**
+ * Hiển thị dd/mm/yyyy cho NGÀY THUẦN (ngày mua, ngày đặt hàng, hạn công việc...) — cắt chuỗi,
+ * không quy đổi múi giờ.
+ *
+ * Ngày thuần không mang thông tin giờ nên mọi phép quy đổi múi giờ đều làm lệch ngày.
+ * Dùng formatDate/formatDateOnly cho các mốc thời gian thật (createdAt, submittedAt...).
+ */
+export const formatPlainDate = (dateString?: string | null): string => {
+  if (!dateString) return '';
+  const [year, month, day] = dateString.split('T')[0].split('-');
+  if (!year || !month || !day) return dateString;
+  return `${day}/${month}/${year}`;
+};
+
+/** dd/mm/yyyy hh:mm cho mốc thời gian UTC từ backend. */
 export const formatDate = (dateString: string): string => {
   if (!dateString) return '';
   const d = parseDateSafe(dateString);
@@ -47,6 +75,7 @@ export const formatDate = (dateString: string): string => {
   return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
 
+/** dd/mm/yyyy cho mốc thời gian UTC từ backend (bỏ phần giờ khi hiển thị). */
 export const formatDateOnly = (dateString: string): string => {
   if (!dateString) return '';
   const d = parseDateSafe(dateString);
