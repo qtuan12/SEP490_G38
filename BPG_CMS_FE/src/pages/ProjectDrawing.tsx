@@ -7,13 +7,13 @@ import type {Project} from '../types/common';
 import { useAuth } from '../context/AuthContext';
 import { RoleGroup } from '../auth/roles';
 import { Modal } from '../components/ui/Modal';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import {
   ArrowLeft,
   FileText,
   UploadCloud,
   Download,
-  Loader2,
   ZoomIn,
   ZoomOut,
   RotateCcw,
@@ -143,12 +143,7 @@ export const ProjectDrawing: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', gap: '12px', color: 'hsl(var(--text-muted))' }}>
-        <Loader2 size={24} className="animate-spin" />
-        <span>Đang tải thông tin bản vẽ...</span>
-      </div>
-    );
+    return <LoadingSpinner size="md" label="Đang tải thông tin bản vẽ..." className="py-20" />;
   }
 
   if (error && !project) {
@@ -330,10 +325,7 @@ export const ProjectDrawing: React.FC = () => {
                    title="Bản vẽ PDF"
                  />
                ) : (
-                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '800px', gap: '12px', color: 'hsl(var(--text-muted))' }}>
-                   <Loader2 size={24} className="animate-spin" />
-                   <span>Đang xử lý PDF...</span>
-                 </div>
+                 <LoadingSpinner size="md" label="Đang xử lý PDF..." className="h-[800px] flex items-center justify-center" />
                )
             ) : (
                <img 

@@ -17,3 +17,5 @@ export * from './DataTable';
 export * from './SearchSelect';
 export * from './FullScreenLoading';
 export * from './TableLoader';
+export * from './ThemeToggle';
+
