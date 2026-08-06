@@ -2,6 +2,7 @@ using BPG.Application.Common.Models;
 using BPG.Application.Features.MaterialReturns.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -137,7 +138,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
             try
             {
                 // Sinh mã phiếu hoàn trả chuẩn nghiệp vụ, ví dụ: PTra-20240630-A3F8B2
-                var vnNow = DateTime.UtcNow.AddHours(7);
+                var vnNow = VietnamTime.Now;
                 var returnNo = $"PTra-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
                 var materialReturn = new MaterialReturn

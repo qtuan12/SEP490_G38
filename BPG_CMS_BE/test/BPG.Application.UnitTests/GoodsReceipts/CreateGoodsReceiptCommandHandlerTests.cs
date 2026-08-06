@@ -83,7 +83,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_INVALID_PO_STATUS");
-            exception.Which.Message.Should().Be("Không thể nhập kho cho đơn hàng có trạng thái: Closed. Chỉ chấp nhận đơn hàng ở trạng thái Đã đặt hàng hoặc Nhận một phần.");
+            exception.Which.Message.Should().Be("Không thể nhập kho cho đơn hàng có trạng thái: Đã đóng. Chỉ chấp nhận đơn hàng ở trạng thái Đã đặt hàng hoặc Nhận một phần.");
         }
 
         [Fact]

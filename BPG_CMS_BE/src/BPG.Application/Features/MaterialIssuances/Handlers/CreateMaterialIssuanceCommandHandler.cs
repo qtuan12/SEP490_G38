@@ -2,6 +2,7 @@ using BPG.Application.Common.Models;
 using BPG.Application.Features.MaterialIssuances.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -129,8 +130,8 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
             try
             {
                 // Sinh mã phiếu xuất kho chuẩn nghiệp vụ, ví dụ: PXK-20240624-A3F8B2
-                // Dùng UTC+7 (giờ Việt Nam) để ngày trên mã khớp ngày thực tế trên UI
-                var vnNow = DateTime.UtcNow.AddHours(7);
+                // Dùng giờ Việt Nam để ngày trên mã khớp ngày thực tế trên UI
+                var vnNow = VietnamTime.Now;
                 var issuanceNo = $"PXK-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
                 var issuance = new MaterialIssuance
