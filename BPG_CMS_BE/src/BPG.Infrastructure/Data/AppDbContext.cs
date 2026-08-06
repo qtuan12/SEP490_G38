@@ -183,7 +183,10 @@ public class AppDbContext : DbContext
             .Property(x => x.ReservedQuantity).HasPrecision(18, 3);
 
         // Unique indexes
-        modelBuilder.Entity<User>().HasIndex(x => x.Email).IsUnique();
+        // Chỉ ràng buộc trên tài khoản còn sống. Index không lọc sẽ giữ email của tài khoản đã
+        // xóa mềm, trong khi khâu kiểm trùng lại chạy qua query filter nên không nhìn thấy chúng —
+        // hậu quả là tạo lại tài khoản với email cũ lọt kiểm tra rồi vỡ ở tầng DB thành lỗi 500.
+        modelBuilder.Entity<User>().HasIndex(x => x.Email).IsUnique().HasFilter("[IsDeleted] = 0");
         modelBuilder.Entity<Role>().HasIndex(x => x.RoleName).IsUnique();
         modelBuilder.Entity<MaterialCatalog>().HasIndex(x => x.Code).IsUnique();
         modelBuilder.Entity<Unit>().HasIndex(x => x.UnitCode).IsUnique();
@@ -359,6 +362,22 @@ public class AppDbContext : DbContext
             .WithMany(x => x.PurchaseOrders)
             .HasForeignKey(x => x.ProjectId)
             .IsRequired()
+            .OnDelete(DeleteBehavior.Restrict);
+        // Mã chứng từ phải duy nhất tuyệt đối. KHÔNG lọc theo IsDeleted như index email: mã PO
+        // đã phát ra ngoài cho nhà cung cấp thì không được cấp lại cho đơn khác, kể cả khi đơn cũ
+        // đã bị xóa mềm. Đây cũng là chốt chặn cuối nếu bộ sinh mã bị chạy đua.
+        // Giới hạn độ dài khớp validator (MaximumLength(50)); cột nvarchar(max) không đánh index được.
+        modelBuilder.Entity<PurchaseOrder>()
+            .Property(x => x.PONumber)
+            .HasMaxLength(50);
+        modelBuilder.Entity<PurchaseOrder>()
+            .HasIndex(x => x.PONumber)
+            .IsUnique();
+        modelBuilder.Entity<PurchaseOrder>()
+            .HasOne(x => x.Approver)
+            .WithMany()
+            .HasForeignKey(x => x.ApprovedBy)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
         // GoodsReceiptItem precision
