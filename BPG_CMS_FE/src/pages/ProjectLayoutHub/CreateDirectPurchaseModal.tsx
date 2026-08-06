@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal } from '../../components/ui/Modal';
-import { Button, ConfirmDialog } from '../../components/ui';
+import { Button, ConfirmDialog, ImageLightbox } from '../../components/ui';
 import {
   directPurchaseService,
   type PhaseBOQItemDto,
@@ -8,13 +8,13 @@ import {
 } from '../../services/directPurchaseService';
 import { materialService } from '../../services/materialService';
 import { projectService } from '../../services/projectService';
-import type { MaterialCatalog } from '../../types/material';
+import type { MaterialCatalog, MaterialConversion } from '../../types/material';
 import type { WBSPhase } from '../../types/common';
-import { Plus, Trash2, Upload, X, AlertTriangle, Loader2, Info } from 'lucide-react';
+import { Plus, Trash2, Upload, X, Loader2, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ApiError } from '../../services/api';
 import { DP_PURCHASE_DATE_ERRORS } from '../../constants/errorCodes';
-import { todayLocalISO, toInputDate } from '../../utils/dateHelpers';
+import { todayVnISO, toInputDate } from '../../utils/dateHelpers';
 import { compressAndUploadFile } from '../../utils/uploadHelper';
 import type { UploadedFileState } from '../../utils/uploadHelper';
 
@@ -38,6 +38,8 @@ interface ItemRow {
   materialId: number;
   materialName: string;
   materialCode: string;
+  /** Đơn vị người dùng chọn. Số lượng và đơn giá đều tính theo đơn vị này. */
+  unitId: number;
   quantity: string;
   unitPrice: string;
 }
@@ -46,9 +48,17 @@ const emptyRow = (): ItemRow => ({
   materialId: 0,
   materialName: '',
   materialCode: '',
+  unitId: 0,
   quantity: '',
   unitPrice: '',
 });
+
+interface UnitOption {
+  unitId: number;
+  unitName: string;
+  /** Số đơn vị này trên một đơn vị cơ bản. Đơn vị cơ bản luôn là 1. */
+  conversionRate: number;
+}
 
 export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId, draftId }) => {
   const isEditing = !!draftId;
@@ -59,20 +69,36 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const [selectedPhaseId, setSelectedPhaseId] = useState<string>('');
   const [boqItems, setBoqItems] = useState<PhaseBOQItemDto[]>([]);
   const [catalog, setCatalog] = useState<MaterialCatalog[]>([]);
+  /** Bảng quy đổi theo vật tư, nạp một lần cho mỗi vật tư được chọn. */
+  const [conversionsMap, setConversionsMap] = useState<Record<number, MaterialConversion[]>>({});
   const [loadingBOQ, setLoadingBOQ] = useState(false);
   const [loadingDraft, setLoadingDraft] = useState(false);
   const [rows, setRows] = useState<ItemRow[]>([]);
   const [reason, setReason] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(todayLocalISO);
+  const [purchaseDate, setPurchaseDate] = useState(todayVnISO);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const [saving, setSaving] = useState<'draft' | 'submit' | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [purchaseDateError, setPurchaseDateError] = useState<string | null>(null);
+  /** Ảnh hóa đơn đang xem phóng to. null = chưa mở. */
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  /**
+   * Chỉ hiện lỗi sau khi người dùng đã bấm nút — không "mắng" ngay lúc họ còn đang nhập dở.
+   * Phân biệt hai mức vì lưu nháp dễ hơn gửi: nháp không đòi lý do, ảnh hóa đơn hay số lượng.
+   */
+  const [issueMode, setIssueMode] = useState<'draft' | 'submit' | null>(null);
+  /** Lỗi backend trả về khi gửi thất bại, hiển thị ngay trong phiếu chứ không chỉ toast. */
+  const [serverErrors, setServerErrors] = useState<string[]>([]);
+  /** Lỗi backend theo từng trường (ApiResponse.fieldErrors), key giữ nguyên dạng "Items[0].Quantity". */
+  const [apiFieldErrors, setApiFieldErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ---------- Nạp dữ liệu nền ----------
   useEffect(() => {
     if (!isOpen) return;
+    // Lỗi của lần mở trước không được đọng lại sang lần mở sau.
+    setIssueMode(null);
+    setServerErrors([]);
     projectService.getPhases(String(projectId)).then(setPhases).catch(() => setPhases([]));
     projectService
       .getProjectById(String(projectId))
@@ -88,7 +114,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       setBoqItems([]);
       setRows([]);
       setReason('');
-      setPurchaseDate(todayLocalISO());
+      setPurchaseDate(todayVnISO());
       setUploadedFiles([]);
       setPurchaseDateError(null);
     }
@@ -114,10 +140,15 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             status: 'success' as const,
           }))
         );
+        // Nạp trước bảng quy đổi của các vật tư đã lưu, nếu không dropdown đơn vị sẽ trống
+        // và ô "Định mức còn lại" không tính được.
+        await Promise.all(dp.items.map(it => ensureConversionsLoaded(it.materialId)));
+
         setRows(dp.items.map(it => ({
           materialId: it.materialId,
           materialName: it.materialName,
           materialCode: it.materialCode,
+          unitId: it.unitId,
           quantity: String(it.quantity),
           unitPrice: String(it.unitPrice),
         })));
@@ -140,15 +171,68 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       .finally(() => setLoadingBOQ(false));
   }, [selectedPhaseId, projectId]);
 
-  /**
-   * Đơn vị tính không do người dùng chọn - suy ra từ vật tư, khớp với backend:
-   * đơn vị của dòng BOQ nếu vật tư nằm trong định mức, ngược lại là đơn vị cơ bản.
-   */
-  const unitNameOf = (materialId: number): string => {
-    const boq = boqItems.find(b => b.materialId === materialId);
-    if (boq) return boq.unitName;
-    return catalog.find(m => m.materialId === materialId)?.baseUnitName ?? '';
+  /** Nạp bảng quy đổi của một vật tư nếu chưa có. */
+  const ensureConversionsLoaded = async (materialId: number) => {
+    if (!materialId || conversionsMap[materialId]) return;
+    try {
+      const convs = await materialService.getConversions(materialId);
+      setConversionsMap(prev => ({ ...prev, [materialId]: convs }));
+    } catch {
+      // Không chặn thao tác: thiếu bảng quy đổi thì chỉ còn đơn vị cơ bản để chọn.
+      setConversionsMap(prev => ({ ...prev, [materialId]: [] }));
+    }
   };
+
+  /** Đơn vị cơ bản + các đơn vị quy đổi đã khai báo. Khớp danh sách backend chấp nhận. */
+  const unitOptionsOf = (materialId: number): UnitOption[] => {
+    const material = catalog.find(m => m.materialId === materialId);
+    if (!material) return [];
+    const base: UnitOption = {
+      unitId: material.baseUnitId,
+      unitName: material.baseUnitName ?? '',
+      conversionRate: 1,
+    };
+    const alts = (conversionsMap[materialId] ?? [])
+      .filter(c => c.alternativeUnitId !== material.baseUnitId && c.conversionRate > 0)
+      .map(c => ({
+        unitId: c.alternativeUnitId,
+        unitName: c.alternativeUnitName ?? '',
+        conversionRate: c.conversionRate,
+      }));
+    return [base, ...alts];
+  };
+
+  /**
+   * Đơn vị mặc định lấy theo dòng BOQ. Chỉ mua khẩn cấp được vật tư có trong định mức nên nhánh
+   * đơn vị cơ bản chỉ còn dùng cho phiếu nháp cũ có vật tư đã bị gỡ khỏi BOQ.
+   */
+  const defaultUnitIdOf = (materialId: number): number => {
+    const boq = boqItems.find(b => b.materialId === materialId);
+    if (boq) return boq.unitId;
+    return catalog.find(m => m.materialId === materialId)?.baseUnitId ?? 0;
+  };
+
+  /**
+   * Danh sách đơn vị cho một dòng. Trong lúc bảng quy đổi chưa nạp xong, đơn vị đang chọn có thể
+   * chưa nằm trong danh sách — bổ sung tạm từ dòng BOQ để ô select không bị trống.
+   */
+  const unitOptionsForRow = (row: ItemRow): UnitOption[] => {
+    const options = unitOptionsOf(row.materialId);
+    if (!row.unitId || options.some(u => u.unitId === row.unitId)) return options;
+
+    const boq = boqItems.find(b => b.materialId === row.materialId);
+    if (boq && boq.unitId === row.unitId) {
+      return [...options, {
+        unitId: boq.unitId,
+        unitName: boq.unitName,
+        conversionRate: boq.conversionRate > 0 ? boq.conversionRate : 1,
+      }];
+    }
+    return options;
+  };
+
+  const unitOf = (row: ItemRow): UnitOption | undefined =>
+    unitOptionsForRow(row).find(u => u.unitId === row.unitId);
 
   const addRow = () => setRows(prev => [...prev, emptyRow()]);
   const removeRow = (i: number) => setRows(prev => prev.filter((_, idx) => idx !== i));
@@ -157,10 +241,27 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     const material = catalog.find(m => m.materialId === materialId);
     if (!material) return;
 
+    void ensureConversionsLoaded(materialId);
+
     setRows(prev => prev.map((r, idx) => idx === i
-      ? { ...r, materialId, materialName: material.name, materialCode: material.code, quantity: '', unitPrice: '' }
+      ? {
+        ...r,
+        materialId,
+        materialName: material.name,
+        materialCode: material.code,
+        unitId: defaultUnitIdOf(materialId),
+        quantity: '',
+        unitPrice: '',
+      }
       : r));
   };
+
+  /**
+   * Đổi đơn vị thì số lượng và đơn giá cũ không còn nghĩa (10 bao ≠ 10 tấn), nên xóa trắng
+   * để bắt nhập lại theo đơn vị mới — giống cách phiếu xuất kho đang làm.
+   */
+  const updateRowUnit = (i: number, unitId: number) =>
+    setRows(prev => prev.map((r, idx) => (idx === i ? { ...r, unitId, quantity: '', unitPrice: '' } : r)));
 
   const updateRowField = (i: number, field: 'quantity' | 'unitPrice', value: string) =>
     setRows(prev => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
@@ -169,7 +270,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   // Phiếu mua trực tiếp là hậu kiểm nên ngày mua không được ở tương lai.
   // Không bắt buộc nằm trong khoảng của giai đoạn: chỉ cần không sớm hơn ngày bắt đầu dự án
   // và không vượt quá ngày kết thúc giai đoạn. Backend chốt lại ở bước Gửi.
-  const todayStr = todayLocalISO();
+  const todayStr = todayVnISO();
   const selectedPhase = phases.find(p => String(p.id) === selectedPhaseId);
   const phaseEnd = selectedPhase?.endDate?.split('T')[0];
   const maxPurchaseDate = phaseEnd && phaseEnd < todayStr ? phaseEnd : todayStr;
@@ -187,21 +288,29 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const dateHint = purchaseDateHint();
 
   // ---------- Đối chiếu định mức BOQ (chỉ để cảnh báo, backend mới là nơi chốt) ----------
-  // Số lượng nhập vào luôn cùng đơn vị với dòng BOQ nên so trực tiếp, không cần quy đổi.
+  // Người dùng có thể chọn đơn vị khác đơn vị của dòng BOQ, nên phải quy cả hai về đơn vị cơ bản
+  // rồi mới so — đúng cách backend làm trong EvaluateBoqAsync.
   const rowBoqState = useMemo(() => rows.map(row => {
     if (!row.materialId) return { isOver: false, notInBoq: false, remainingLabel: '-' };
 
     const boq = boqItems.find(b => b.materialId === row.materialId);
-    if (!boq) return { isOver: true, notInBoq: true, remainingLabel: 'Ngoài BOQ' };
+    if (!boq) return { isOver: true, notInBoq: true, remainingLabel: 'Ngoài định mức' };
+
+    const unit = unitOf(row);
+    // Chưa nạp xong bảng quy đổi thì hiển thị theo đơn vị BOQ, chưa cảnh báo vội.
+    if (!unit) return { isOver: false, notInBoq: false, remainingLabel: `${boq.remainingQuantity} ${boq.unitName}` };
+
+    const boqRate = boq.conversionRate > 0 ? boq.conversionRate : 1;
+    const remainingInBase = boq.remainingQuantity / boqRate;
+    const remainingInRowUnit = remainingInBase * unit.conversionRate;
 
     return {
-      isOver: (parseFloat(row.quantity) || 0) > boq.remainingQuantity,
+      isOver: (parseFloat(row.quantity) || 0) > remainingInRowUnit,
       notInBoq: false,
-      remainingLabel: `${boq.remainingQuantity} ${boq.unitName}`,
+      remainingLabel: `${Math.round(remainingInRowUnit * 1000) / 1000} ${unit.unitName}`,
     };
-  }), [rows, boqItems]);
-
-  const anyOverBOQ = rowBoqState.some(s => s.isOver);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [rows, boqItems, catalog, conversionsMap]);
 
   // ---------- Ảnh hóa đơn ----------
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -245,21 +354,52 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   // Kiểm ngay khi người dùng nhập, không đợi bấm nút. Các rule dưới đây phản chiếu rule của
   // backend (SubmitDirectPurchaseCommandHandler) — backend vẫn là chốt chặn cuối cùng.
 
-  /** Lỗi của từng dòng vật tư, hiển thị ngay dưới ô nhập tương ứng. */
+  /** Lỗi của từng dòng vật tư, tách theo từng ô để gắn dòng đỏ đúng chỗ. */
   const rowErrors = useMemo(
     () =>
       rows.map((r, idx) => {
-        if (!r.materialId) return 'Chưa chọn vật tư.';
-        if (rows.findIndex(x => x.materialId === r.materialId) !== idx)
-          return 'Vật tư bị trùng với một dòng khác.';
+        const errors: { material?: string; unit?: string; quantity?: string; unitPrice?: string } = {};
+
+        if (!r.materialId) errors.material = 'Chưa chọn vật tư.';
+        else if (rows.findIndex(x => x.materialId === r.materialId) !== idx)
+          errors.material = 'Trùng với dòng khác.';
+        else if (!r.unitId) errors.unit = 'Chưa chọn đơn vị.';
+
         const qty = parseFloat(r.quantity);
-        if (!qty || qty <= 0) return 'Số lượng phải lớn hơn 0.';
+        if (!qty || qty <= 0) errors.quantity = 'Phải lớn hơn 0.';
+
         const price = parseFloat(r.unitPrice);
-        if (!price || price <= 0) return 'Đơn giá phải lớn hơn 0.';
-        return null;
+        if (!price || price <= 0) errors.unitPrice = 'Phải lớn hơn 0.';
+
+        return errors;
       }),
     [rows]
   );
+
+  const invalidRowCount = useMemo(
+    () => rowErrors.filter(e => Object.keys(e).length > 0).length,
+    [rowErrors]
+  );
+
+  /**
+   * Lỗi backend gắn theo từng dòng vật tư. Backend trả key dạng "Items[0].Quantity"
+   * (xem SubmitDirectPurchaseCommandHandler) — tách ra chỉ số dòng và tên ô để gắn dòng đỏ
+   * đúng chỗ thay vì dồn hết vào một thông báo chung.
+   */
+  const apiRowErrors = useMemo(() => {
+    const byIndex: Record<number, { quantity?: string; unitPrice?: string; general?: string }> = {};
+    for (const [key, message] of Object.entries(apiFieldErrors)) {
+      const matched = /^items\[(\d+)\](?:\.(\w+))?/i.exec(key);
+      if (!matched || !message) continue;
+      const index = Number(matched[1]);
+      const field = (matched[2] ?? '').toLowerCase();
+      const entry = byIndex[index] ?? (byIndex[index] = {});
+      if (field === 'quantity') entry.quantity = message;
+      else if (field === 'unitprice') entry.unitPrice = message;
+      else entry.general = message;
+    }
+    return byIndex;
+  }, [apiFieldErrors]);
 
   /** Nháp chỉ cần đủ thông tin để lưu; phần còn lại backend chốt ở bước Gửi. */
   const draftIssues = useMemo(() => {
@@ -278,29 +418,31 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     if (!reason.trim()) issues.push('Chưa nhập lý do mua khẩn cấp.');
     if (uploadedFiles.length === 0) issues.push('Chưa tải ảnh hóa đơn.');
     if (rows.length === 0) issues.push('Chưa có vật tư nào trong phiếu.');
-    const invalidRows = rowErrors.filter(Boolean).length;
-    if (invalidRows > 0) issues.push(`${invalidRows} dòng vật tư đang có lỗi.`);
+    if (invalidRowCount > 0) issues.push(`${invalidRowCount} dòng vật tư đang có lỗi.`);
     if (uploadedFiles.some(f => f.status === 'uploading')) issues.push('Ảnh hóa đơn đang tải lên.');
     if (uploadedFiles.some(f => f.status === 'error' || (f.status === 'success' && !f.url?.startsWith('http'))))
       issues.push('Có ảnh hóa đơn tải lên thất bại.');
     // Trùng lặp giữa draftIssues và rowErrors (vật tư trùng) — gộp lại cho gọn.
     return Array.from(new Set(issues));
-  }, [draftIssues, dateHint, reason, uploadedFiles, rows.length, rowErrors]);
+  }, [draftIssues, dateHint, reason, uploadedFiles, rows.length, invalidRowCount]);
 
   const canSaveDraft = draftIssues.length === 0 && !uploadedFiles.some(f => f.status === 'uploading');
-  const canSubmit = submitIssues.length === 0;
 
   const buildItems = (): CreateDirectPurchaseItemInput[] =>
     rows
       .filter(r => r.materialId)
       .map(r => ({
         materialId: r.materialId,
+        unitId: r.unitId,
         quantity: parseFloat(r.quantity) || 0,
         unitPrice: parseFloat(r.unitPrice) || 0,
       }));
 
   const invoiceUrls = () =>
     uploadedFiles.filter(f => f.status === 'success' && f.url).map(f => f.url!);
+
+  /** Ảnh đã tải lên xong — chỉ những ảnh này mới xem phóng to được. */
+  const viewableInvoiceUrls = invoiceUrls();
 
   const persist = async (): Promise<{ id: number; message: string }> => {
     const payloadBody = {
@@ -321,8 +463,19 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
 
   const handleSaveDraft = async () => {
     setPurchaseDateError(null);
-    // Điều kiện đã được chặn realtime (nút bị disable), đây chỉ là chốt an toàn.
-    if (!canSaveDraft) return;
+    setServerErrors([]);
+    setApiFieldErrors({});
+
+    // Nút luôn bấm được; thiếu gì thì chỉ ra cụ thể chứ không im lặng bỏ qua.
+    if (!canSaveDraft) {
+      setIssueMode('draft');
+      toast.error(
+        uploadedFiles.some(f => f.status === 'uploading')
+          ? 'Ảnh hóa đơn đang tải lên, vui lòng đợi.'
+          : 'Chưa lưu nháp được, vui lòng kiểm tra các mục còn thiếu.'
+      );
+      return;
+    }
 
     setSaving('draft');
     try {
@@ -331,16 +484,40 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       onSuccess();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || 'Không thể lưu phiếu nháp.');
+      const msg = e.message || 'Không thể lưu phiếu nháp.';
+      toast.error(msg);
+      const apiErr = e instanceof ApiError ? e : undefined;
+      if (apiErr?.fieldErrors) {
+        const flat: Record<string, string> = {};
+        for (const [key, messages] of Object.entries(apiErr.fieldErrors)) {
+          flat[key] = Array.isArray(messages) ? messages.join(' ') : String(messages);
+        }
+        setApiFieldErrors(flat);
+      }
+      setServerErrors(apiErr?.errors?.length ? apiErr.errors : [msg]);
     } finally {
       setSaving(null);
     }
   };
 
-  /** Mở hộp xác nhận - việc gửi thực sự nằm ở doSubmit. */
+  /**
+   * Mở hộp xác nhận - việc gửi thực sự nằm ở doSubmit.
+   *
+   * Nút Gửi phiếu luôn bấm được: nút xám không nói cho người dùng biết họ còn thiếu gì,
+   * nên thà cho bấm rồi chỉ ra đúng những chỗ chưa đạt.
+   */
   const handleSubmit = () => {
     setPurchaseDateError(null);
-    if (!canSubmit) return;
+    setServerErrors([]);
+    setApiFieldErrors({});
+
+    if (submitIssues.length > 0) {
+      setIssueMode('submit');
+      toast.error('Phiếu chưa gửi được, vui lòng kiểm tra các mục còn thiếu.');
+      return;
+    }
+
+    setIssueMode(null);
     setIsConfirmOpen(true);
   };
 
@@ -357,8 +534,25 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       const msg = e.message || 'Không thể gửi phiếu mua trực tiếp.';
       setIsConfirmOpen(false);
       toast.error(msg);
+
+      const apiErr = e instanceof ApiError ? e : undefined;
+
+      // Lỗi theo từng trường/từng dòng → gắn dòng đỏ ngay dưới đúng ô nhập.
+      const fieldErrors = apiErr?.fieldErrors;
+      if (fieldErrors) {
+        const flat: Record<string, string> = {};
+        for (const [key, messages] of Object.entries(fieldErrors)) {
+          flat[key] = Array.isArray(messages) ? messages.join(' ') : String(messages);
+        }
+        setApiFieldErrors(flat);
+      }
+
+      // Toast tự tắt sau vài giây, mà lỗi nghiệp vụ thường cần đọc kỹ để biết sửa gì —
+      // nên giữ lại ngay trong phiếu. Ưu tiên danh sách lỗi chi tiết nếu backend có trả.
+      setServerErrors(apiErr?.errors?.length ? apiErr.errors : [msg]);
+
       // Gắn lỗi vào ô "Ngày mua" theo errorCode của backend, không so khớp nội dung message.
-      const code = e instanceof ApiError ? e.errorCode : undefined;
+      const code = apiErr?.errorCode;
       if (code && DP_PURCHASE_DATE_ERRORS.includes(code)) setPurchaseDateError(msg);
     } finally {
       setSaving(null);
@@ -374,14 +568,78 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const usedMaterialIds = rows.map(r => r.materialId).filter(Boolean);
   const busy = saving !== null;
 
+  // Lỗi các ô cấp phiếu: backend trả về trước, còn thiếu sót của người dùng chỉ hiện sau khi bấm Gửi.
+  // Yêu cầu chỉ áp khi Gửi phiếu — lưu nháp vẫn cho để trống.
+  const strict = issueMode === 'submit';
+
+  const reasonError = apiFieldErrors.reason ?? (strict && !reason.trim() ? 'Vui lòng nhập lý do mua khẩn cấp.' : undefined);
+  const invoiceError = strict && uploadedFiles.length === 0 ? 'Bắt buộc phải tải ảnh hóa đơn.' : undefined;
+  const itemsError = apiFieldErrors.items ?? (strict && rows.length === 0 ? 'Phiếu phải có ít nhất một vật tư.' : undefined);
+  // Giai đoạn và ngày mua thì cả lưu nháp lẫn gửi đều bắt buộc.
+  const phaseError = apiFieldErrors.phaseId
+    ?? (issueMode !== null && !selectedPhaseId ? 'Vui lòng chọn giai đoạn.' : undefined);
+  const dateError = purchaseDateError
+    ?? dateHint
+    ?? (issueMode !== null && !purchaseDate ? 'Vui lòng chọn ngày mua.' : undefined);
+
   const labelStyle: React.CSSProperties = {
     display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px',
     color: 'hsl(var(--text-secondary))',
   };
+  /**
+   * Khối lỗi máy chủ ở đầu phiếu. Thiếu sót của người dùng KHÔNG liệt kê ở đây — mỗi ô đã có
+   * dòng đỏ riêng, gom thêm một danh sách phía trên chỉ là nói lại cùng một chuyện hai lần.
+   */
+  const issueBoxStyle: React.CSSProperties = {
+    padding: '10px 14px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid hsl(var(--danger) / 0.4)',
+    background: 'hsl(var(--danger) / 0.08)',
+    color: 'hsl(var(--danger))',
+    fontSize: '0.85rem',
+  };
+
+  const issueTitleStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, marginBottom: '6px',
+  };
+
+  const issueListStyle: React.CSSProperties = {
+    margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '2px',
+  };
+
+  /** Dòng đỏ nhỏ ngay dưới một ô nhập (dùng cho các trường ngoài bảng vật tư). */
+  const cellErrorStyle: React.CSSProperties = {
+    marginTop: '4px', fontSize: '0.75rem', color: 'hsl(var(--danger))',
+  };
+
+  /**
+   * Chỗ dành sẵn cho dòng ghi chú/lỗi dưới mỗi ô trong bảng vật tư. Luôn chiếm chiều cao kể cả
+   * khi không có lỗi, để lúc lỗi hiện ra hàng không cao thêm và ô nhập không bị xê dịch.
+   */
+  const cellNoteSlotStyle: React.CSSProperties = {
+    minHeight: '15px', marginTop: '4px', fontSize: '0.75rem', lineHeight: '15px',
+  };
+
+  /** Các ô trong bảng vật tư neo theo đỉnh: căn giữa sẽ đẩy ô nhập lên khi dòng lỗi xuất hiện. */
+  const bodyCellStyle: React.CSSProperties = { padding: '8px 10px', verticalAlign: 'top' };
+
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '8px 10px', border: '1px solid hsl(var(--border))',
     borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))',
     color: 'hsl(var(--text-primary))', fontSize: '0.9rem',
+  };
+
+  /**
+   * Select cần chừa chỗ bên phải cho mũi tên do trình duyệt vẽ: mũi tên nằm đè lên phần
+   * nội dung, nên tên vật tư dài sẽ bị chữ chạy vào dưới mũi tên. Thêm padding-right và
+   * cắt bằng dấu ba chấm thay vì để chữ đâm vào mũi tên.
+   */
+  const selectStyle: React.CSSProperties = {
+    ...inputStyle,
+    paddingRight: '28px',
+    textOverflow: 'ellipsis',
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
   };
 
   return (
@@ -394,14 +652,11 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       footer={
         <div className="flex flex-wrap justify-end items-center gap-2 w-full">
           <Button variant="outline" onClick={onClose} disabled={busy}>Hủy</Button>
-          <Button variant="outline" onClick={handleSaveDraft} isLoading={saving === 'draft'}
-            disabled={busy || !canSaveDraft}
-            title={!canSaveDraft ? draftIssues[0] ?? 'Đang tải ảnh hóa đơn.' : undefined}>
+          <Button variant="outline" onClick={handleSaveDraft} isLoading={saving === 'draft'} disabled={busy}>
             Lưu nháp
           </Button>
-          <Button variant="primary" onClick={handleSubmit} isLoading={saving === 'submit'}
-            disabled={busy || !canSubmit}
-            title={!canSubmit ? submitIssues[0] : undefined}>
+          {/* Không disable theo validate: bấm vào sẽ chỉ ra cụ thể còn thiếu gì. */}
+          <Button variant="primary" onClick={handleSubmit} isLoading={saving === 'submit'} disabled={busy}>
             Gửi phiếu
           </Button>
         </div>
@@ -414,15 +669,17 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-        {/* Info banner */}
-        <div style={{ display: 'flex', gap: '8px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', border: '1px solid hsl(var(--warning) / 0.3)', borderRadius: 'var(--radius-sm)', color: 'hsl(var(--warning))', fontSize: '0.85rem' }}>
-          <Info size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
-          <span>
-            <b>Lưu nháp</b> chỉ lưu lại, chưa ảnh hưởng gì. <b>Gửi phiếu</b> sẽ sinh Đơn hàng + Phiếu nhập kho và
-            cộng tồn kho ngay để thợ dùng — sau đó không sửa được nữa.
-            Được phép mua vượt định mức BOQ, nhưng khoản chi sẽ phải qua Kế toán soát hóa đơn rồi Giám đốc duyệt.
-          </span>
-        </div>
+        {/* Lỗi backend đứng trước: đó là lý do phiếu vừa bị từ chối, sát thời điểm nhất. */}
+        {serverErrors.length > 0 && (
+          <div style={issueBoxStyle}>
+            <div style={issueTitleStyle}>
+              <AlertTriangle size={15} /> Máy chủ từ chối gửi phiếu
+            </div>
+            <ul style={issueListStyle}>
+              {serverErrors.map((err, i) => <li key={i}>{err}</li>)}
+            </ul>
+          </div>
+        )}
 
         {/* Row 1: Phase + Date */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -430,12 +687,17 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             <label style={labelStyle}>
               Giai đoạn <span style={{ color: 'hsl(var(--danger))' }}>*</span>
             </label>
-            <select value={selectedPhaseId} onChange={e => setSelectedPhaseId(e.target.value)} style={inputStyle}>
+            <select
+              value={selectedPhaseId}
+              onChange={e => setSelectedPhaseId(e.target.value)}
+              style={{ ...selectStyle, borderColor: phaseError ? 'hsl(var(--danger))' : 'hsl(var(--border))' }}
+            >
               <option value="">-- Chọn giai đoạn --</option>
               {phases.map(ph => (
                 <option key={ph.id} value={ph.id}>{ph.name}</option>
               ))}
             </select>
+            {phaseError && <div style={cellErrorStyle}>{phaseError}</div>}
           </div>
           <div>
             <label style={labelStyle}>
@@ -448,7 +710,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                 min={minPurchaseDate}
                 max={maxPurchaseDate}
                 onChange={e => { setPurchaseDate(e.target.value); setPurchaseDateError(null); }}
-                style={{ ...inputStyle, border: `1px solid ${(purchaseDateError || dateHint) ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, color: 'transparent' }}
+                style={{ ...inputStyle, border: `1px solid ${dateError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, color: 'transparent' }}
               />
               <span
                 style={{
@@ -460,9 +722,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                 {purchaseDate ? toDisplayDate(purchaseDate) : 'dd-mm-yyyy'}
               </span>
             </div>
-            {(purchaseDateError || dateHint) && (
-              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{purchaseDateError || dateHint}</p>
-            )}
+            {dateError && <div style={cellErrorStyle}>{dateError}</div>}
           </div>
         </div>
 
@@ -476,8 +736,14 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             onChange={e => setReason(e.target.value)}
             rows={2}
             placeholder="Mô tả ngắn gọn lý do cần mua ngoài gấp..."
-            style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+            style={{
+              ...inputStyle,
+              resize: 'vertical',
+              fontFamily: 'inherit',
+              borderColor: reasonError ? 'hsl(var(--danger))' : 'hsl(var(--border))',
+            }}
           />
+          {reasonError && <div style={cellErrorStyle}>{reasonError}</div>}
         </div>
 
         {/* Material rows */}
@@ -493,6 +759,8 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             )}
           </div>
 
+          {itemsError && <div style={{ ...cellErrorStyle, marginTop: 0, marginBottom: '6px' }}>{itemsError}</div>}
+
           {!selectedPhaseId && (
             <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', textAlign: 'center', padding: '20px 0' }}>
               Chọn giai đoạn để bắt đầu thêm vật tư.
@@ -505,12 +773,12 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
 
           {rows.length > 0 && (
             <div style={{ border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '760px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '820px' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'hsl(var(--bg-sidebar))', borderBottom: '1px solid hsl(var(--border))' }}>
                     <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>Vật tư</th>
                     <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>Đơn vị</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>Còn lại (BOQ)</th>
+                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>Định mức còn lại</th>
                     <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>Số lượng</th>
                     <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>Đơn giá (VNĐ)</th>
                     <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>Thành tiền</th>
@@ -523,37 +791,72 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                     const price = parseFloat(row.unitPrice) || 0;
                     const lineTotal = qty * price;
                     const state = rowBoqState[i];
-                    const qtyNegative = row.quantity !== '' && qty <= 0;
-                    const priceNegative = row.unitPrice !== '' && price <= 0;
                     const warn = state.isOver && qty > 0;
+                    const unitOptions = unitOptionsForRow(row);
+
+                    // Thứ tự ưu tiên: lỗi backend vừa trả về > lỗi người dùng thấy ngay khi gõ >
+                    // lỗi còn thiếu, chỉ bung ra sau khi đã bấm Gửi phiếu.
+                    const apiRow = apiRowErrors[i];
+                    const materialError = apiRow?.general ?? (issueMode !== null ? rowErrors[i]?.material : undefined);
+                    const unitError = issueMode !== null ? rowErrors[i]?.unit : undefined;
+                    const qtyError = apiRow?.quantity
+                      ?? (row.quantity !== '' && qty <= 0 ? 'Phải lớn hơn 0.' : undefined)
+                      ?? (strict ? rowErrors[i]?.quantity : undefined);
+                    const priceError = apiRow?.unitPrice
+                      ?? (row.unitPrice !== '' && price <= 0 ? 'Phải lớn hơn 0.' : undefined)
+                      ?? (strict ? rowErrors[i]?.unitPrice : undefined);
+                    const hasError = !!(materialError || unitError || qtyError || priceError);
+
                     return (
-                      <tr key={i} style={{ borderBottom: '1px solid hsl(var(--border))', backgroundColor: (qtyNegative || priceNegative) ? 'hsl(var(--danger-glow))' : warn ? 'hsl(var(--warning) / 0.08)' : undefined }}>
-                        <td style={{ padding: '8px 10px', minWidth: '220px' }}>
+                      <tr key={i} style={{ borderBottom: '1px solid hsl(var(--border))', backgroundColor: hasError ? 'hsl(var(--danger-glow))' : warn ? 'hsl(var(--warning) / 0.08)' : undefined }}>
+                        <td style={{ ...bodyCellStyle, minWidth: '260px' }}>
                           <select
                             value={row.materialId || ''}
                             onChange={e => updateRowMaterial(i, Number(e.target.value))}
-                            style={{ ...inputStyle, padding: '4px 6px', fontSize: '0.85rem' }}
+                            title={row.materialName ? `[${row.materialCode}] ${row.materialName}` : undefined}
+                            style={{ ...selectStyle, padding: '4px 28px 4px 6px', fontSize: '0.85rem' }}
                           >
                             <option value="">-- Chọn --</option>
                             {catalog
-                              .filter(m => m.materialId === row.materialId || !usedMaterialIds.includes(m.materialId))
+                              // Chỉ mua khẩn cấp được vật tư đã có trong định mức BOQ của giai đoạn.
+                              // Vật tư đang chọn sẵn vẫn giữ lại để phiếu nháp cũ không mất dòng.
+                              .filter(m => m.materialId === row.materialId
+                                || (boqItems.some(b => b.materialId === m.materialId)
+                                    && !usedMaterialIds.includes(m.materialId)))
                               .map(m => {
                                 const inBoq = boqItems.some(b => b.materialId === m.materialId);
                                 return (
                                   <option key={m.materialId} value={m.materialId}>
-                                    [{m.code}] {m.name}{inBoq ? '' : ' — ngoài BOQ'}
+                                    [{m.code}] {m.name}{inBoq ? '' : ' — không còn trong BOQ'}
                                   </option>
                                 );
                               })}
                           </select>
+                          <div style={{ ...cellNoteSlotStyle, color: 'hsl(var(--danger))' }}>{materialError ?? ''}</div>
                         </td>
-                        <td style={{ padding: '8px 10px', color: 'hsl(var(--text-secondary))', whiteSpace: 'nowrap' }}>
-                          {row.materialId ? (unitNameOf(row.materialId) || '-') : '-'}
+                        <td style={{ ...bodyCellStyle, whiteSpace: 'nowrap' }}>
+                          {row.materialId ? (
+                            <select
+                              value={row.unitId || ''}
+                              onChange={e => updateRowUnit(i, Number(e.target.value))}
+                              disabled={unitOptions.length <= 1}
+                              title={unitOptions.length <= 1
+                                ? 'Vật tư này chỉ có đơn vị cơ bản, chưa khai báo quy đổi.'
+                                : 'Số lượng và đơn giá tính theo đơn vị này.'}
+                              style={{ ...selectStyle, padding: '4px 28px 4px 6px', fontSize: '0.85rem', minWidth: '90px' }}
+                            >
+                              {unitOptions.length === 0 && <option value="">...</option>}
+                              {unitOptions.map(u => (
+                                <option key={u.unitId} value={u.unitId}>{u.unitName}</option>
+                              ))}
+                            </select>
+                          ) : '-'}
+                          <div style={{ ...cellNoteSlotStyle, color: 'hsl(var(--danger))' }}>{unitError ?? ''}</div>
                         </td>
-                        <td style={{ padding: '8px 10px', textAlign: 'right', color: state.notInBoq ? 'hsl(var(--warning))' : 'hsl(var(--text-secondary))', whiteSpace: 'nowrap' }}>
+                        <td style={{ ...bodyCellStyle, textAlign: 'right', color: state.notInBoq ? 'hsl(var(--warning))' : 'hsl(var(--text-secondary))', whiteSpace: 'nowrap', paddingTop: '14px' }}>
                           {state.remainingLabel}
                         </td>
-                        <td style={{ padding: '8px 10px' }}>
+                        <td style={{ ...bodyCellStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <input
                             type="number"
                             min="0.001"
@@ -562,20 +865,16 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                             value={row.quantity}
                             onChange={e => updateRowField(i, 'quantity', e.target.value)}
                             placeholder="0"
-                            style={{ width: '80px', padding: '4px 6px', border: `1px solid ${qtyNegative ? 'hsl(var(--danger))' : warn ? 'hsl(var(--warning))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
+                            style={{ width: '80px', padding: '4px 6px', border: `1px solid ${qtyError ? 'hsl(var(--danger))' : warn ? 'hsl(var(--warning))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
                           />
-                          {qtyNegative && (
-                            <div style={{ marginTop: '4px', fontSize: '0.75rem', color: 'hsl(var(--danger))' }}>
-                              Số lượng phải lớn hơn 0
-                            </div>
-                          )}
-                          {!qtyNegative && warn && (
-                            <div style={{ marginTop: '4px', fontSize: '0.75rem', color: 'hsl(var(--warning))' }}>
-                              {state.notInBoq ? 'Vật tư ngoài định mức BOQ' : `Vượt định mức (còn ${state.remainingLabel})`}
-                            </div>
-                          )}
+                          {/* Lỗi và cảnh báo vượt định mức dùng chung một chỗ - không bao giờ
+                              cùng lúc, và giữ cho hàng luôn một chiều cao.
+                              Không nhắc lại số còn lại: cột "Định mức còn lại" ngay bên trái đã có. */}
+                          <div style={{ ...cellNoteSlotStyle, color: qtyError ? 'hsl(var(--danger))' : 'hsl(var(--warning))' }}>
+                            {qtyError ?? (warn ? (state.notInBoq ? 'Ngoài định mức' : 'Vượt định mức') : '')}
+                          </div>
                         </td>
-                        <td style={{ padding: '8px 10px' }}>
+                        <td style={{ ...bodyCellStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <input
                             type="number"
                             min="1"
@@ -584,18 +883,14 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                             value={row.unitPrice}
                             onChange={e => updateRowField(i, 'unitPrice', e.target.value)}
                             placeholder="0"
-                            style={{ width: '110px', padding: '4px 6px', border: `1px solid ${priceNegative ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
+                            style={{ width: '110px', padding: '4px 6px', border: `1px solid ${priceError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
                           />
-                          {priceNegative && (
-                            <div style={{ marginTop: '4px', fontSize: '0.75rem', color: 'hsl(var(--danger))' }}>
-                              Đơn giá phải lớn hơn 0
-                            </div>
-                          )}
+                          <div style={{ ...cellNoteSlotStyle, color: 'hsl(var(--danger))' }}>{priceError ?? ''}</div>
                         </td>
-                        <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          {lineTotal > 0 ? lineTotal.toLocaleString('vi-VN') + ' ₫' : '-'}
+                        <td style={{ ...bodyCellStyle, textAlign: 'right', fontWeight: lineTotal > 0 ? 600 : 400, whiteSpace: 'nowrap', color: lineTotal > 0 ? undefined : 'hsl(var(--text-muted))', paddingTop: '14px' }}>
+                          {lineTotal > 0 ? lineTotal.toLocaleString('vi-VN') + ' ₫' : '—'}
                         </td>
-                        <td style={{ padding: '4px' }}>
+                        <td style={{ padding: '10px 4px', verticalAlign: 'top' }}>
                           <button onClick={() => removeRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(var(--danger))', padding: '4px' }}>
                             <Trash2 size={14} />
                           </button>
@@ -614,19 +909,6 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
           )}
         </div>
 
-        {/* Cảnh báo vượt định mức. Không có ô giải trình riêng - ô "Lý do mua khẩn cấp" ở trên
-            đã đóng vai trò giải trình cho Kế toán và Giám đốc. */}
-        {anyOverBOQ && (
-          <div style={{ display: 'flex', gap: '8px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.12)', border: '1px solid hsl(var(--warning) / 0.35)', borderRadius: 'var(--radius-sm)', color: 'hsl(var(--warning))', fontSize: '0.85rem' }}>
-            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
-            <span>
-              Phiếu này vượt định mức BOQ. Vật tư vẫn được nhập kho ngay khi gửi, nhưng khoản chi phải
-              qua <b>Kế toán soát hóa đơn</b> rồi <b>Giám đốc duyệt chi</b> mới được hoàn tiền.
-              Hãy nêu rõ lý do ở ô <b>Lý do mua khẩn cấp</b> để cấp duyệt có căn cứ.
-            </span>
-          </div>
-        )}
-
         {/* Invoice photo upload */}
         <div>
           <label style={labelStyle}>
@@ -636,7 +918,16 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             {uploadedFiles.map(file => (
               <div key={file.id} style={{ position: 'relative', width: '80px', height: '80px' }}>
                 <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: file.status === 'error' ? '1px solid #dc2626' : file.status === 'success' ? '1px solid #16a34a' : '1px solid hsl(var(--border))' }}>
-                  <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img
+                    src={file.url}
+                    alt={file.name}
+                    onClick={() => {
+                      // Chỉ xem được ảnh đã tải lên xong; ảnh đang tải còn là blob tạm.
+                      const i = viewableInvoiceUrls.indexOf(file.url ?? '');
+                      if (i >= 0) setLightboxIndex(i);
+                    }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: file.status === 'success' ? 'zoom-in' : 'default' }}
+                  />
 
                   {file.status === 'uploading' && (
                     <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -666,24 +957,8 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             </button>
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFilesChange} />
+          {invoiceError && <div style={cellErrorStyle}>{invoiceError}</div>}
         </div>
-
-        {/* Điều kiện còn thiếu để gửi phiếu — hiện ngay, không đợi bấm nút */}
-        {submitIssues.length > 0 && (
-          <div style={{ display: 'flex', gap: '8px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', border: '1px solid hsl(var(--warning) / 0.3)', borderRadius: 'var(--radius-sm)', color: 'hsl(var(--warning))', fontSize: '0.85rem' }}>
-            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
-            <div>
-              <div style={{ fontWeight: 600, marginBottom: submitIssues.length > 1 ? '4px' : 0 }}>Chưa thể gửi phiếu:</div>
-              {submitIssues.length === 1 ? (
-                <span>{submitIssues[0]}</span>
-              ) : (
-                <ul style={{ margin: 0, paddingLeft: '18px' }}>
-                  {submitIssues.map(issue => <li key={issue}>{issue}</li>)}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
 
       </div>
       )}
@@ -699,21 +974,25 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
       `}</style>
     </Modal>
 
+    <ImageLightbox
+      images={viewableInvoiceUrls}
+      index={lightboxIndex}
+      onClose={() => setLightboxIndex(null)}
+      onIndexChange={setLightboxIndex}
+      label="Ảnh hóa đơn"
+    />
+
     <ConfirmDialog
       isOpen={isConfirmOpen}
       onClose={() => setIsConfirmOpen(false)}
       onConfirm={doSubmit}
-      title={anyOverBOQ ? 'Gửi phiếu vượt định mức BOQ' : 'Gửi phiếu mua khẩn cấp'}
+      title="Gửi phiếu mua khẩn cấp"
       message={
-        anyOverBOQ
-          ? 'Sau khi gửi, vật tư được nhập kho ngay và phiếu không thể sửa. '
-            + 'Vì phiếu vượt định mức BOQ, khoản chi phải qua Kế toán soát hóa đơn rồi Giám đốc duyệt mới được hoàn tiền.'
-          : 'Sau khi gửi, vật tư được nhập kho ngay và phiếu không thể sửa. '
-            + 'Phiếu sẽ chuyển sang Kế toán kiểm toán để hoàn tiền.'
+        'Sau khi gửi, vật tư được nhập kho ngay và phiếu không thể sửa. '
+        + 'Khoản chi phải qua Kế toán soát hóa đơn rồi Giám đốc duyệt mới được hoàn tiền.'
       }
       confirmText="Gửi phiếu"
       cancelText="Xem lại"
-      isDanger={anyOverBOQ}
       isLoading={saving === 'submit'}
     />
     </>
