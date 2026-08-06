@@ -534,7 +534,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                         <span>Chi tiết</span>
                       </Button>
 
-                      {isProjectLeader && req.createdBy === Number(user?.id) && req.status === 'rejected' && (
+                      {canManageTechnical && req.createdBy === Number(user?.id) && req.status === 'rejected' && (
                         <Button
                           variant="primary"
                           size="sm"
