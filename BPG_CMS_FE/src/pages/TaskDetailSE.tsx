@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowLeft, Calendar, Users, FileText, Plus, ClipboardList } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Calendar, Users, FileText, Plus, ClipboardList } from 'lucide-react';
 import { isPWAMode } from '../utils/pwaHelpers';
 import { wbsService } from '../services/wbsService';
 import type { TaskDetails } from '../types/wbs';
 import type { WBSTask } from '../types/common';
-import { Badge } from '../components/ui';
+import { Badge, LoadingSpinner } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useProjectAccess } from '../hooks/useProjectAccess';
@@ -99,9 +99,8 @@ export const TaskDetailSE: React.FC = () => {
 
   if (loading || !pwa || !detail) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] gap-4 text-slate-500">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        <p>Đang tải thông tin chi tiết công việc...</p>
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)]">
+        <LoadingSpinner size="lg" label="Đang tải thông tin chi tiết công việc..." />
       </div>
     );
   }

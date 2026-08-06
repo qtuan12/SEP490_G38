@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, HardHat, CheckCircle, Clock, AlertTriangle, Circle, XCircle, Search, X, TrendingUp } from 'lucide-react';
+import { HardHat, CheckCircle, Clock, AlertTriangle, Circle, XCircle, Search, X, TrendingUp } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ConstructionProgressReportDto } from '../../../services/reportService';
 import { BarChart, Bar, Line, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { formatDateOnly, formatPlainDate } from '../../../utils/dateHelpers';
@@ -51,9 +52,8 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh] gap-3 text-[hsl(var(--text-muted))]">
-        <Loader2 size={24} className="animate-spin text-[hsl(var(--primary))]" />
-        <span>Đang tải Báo cáo Tiến độ Thi công...</span>
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <LoadingSpinner size="md" label="Đang tải Báo cáo Tiến độ Thi công..." />
       </div>
     );
   }
