@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, CheckCircle, Clock, AlertTriangle, AlertCircle, TrendingUp, ChevronRight, ShieldAlert, Layers } from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle, AlertCircle, TrendingUp, ChevronRight, ShieldAlert, Layers } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ExecutiveDashboardDto } from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useNavigate } from 'react-router-dom';
@@ -36,9 +37,8 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh] gap-3 text-[hsl(var(--text-muted))]">
-        <Loader2 size={24} className="animate-spin text-[hsl(var(--primary))]" />
-        <span>Đang tải Báo cáo Tổng thể Executive...</span>
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <LoadingSpinner size="md" label="Đang tải Báo cáo Tổng thể Executive..." />
       </div>
     );
   }

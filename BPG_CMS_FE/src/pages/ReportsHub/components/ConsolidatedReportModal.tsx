@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { reportService, type ConsolidatedExecutiveReportDto } from '../../../services/reportService';
-import { X, Printer, Loader2, FileText, TrendingUp, Layers } from 'lucide-react';
+import { X, Printer, FileText, TrendingUp, Layers } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/ui';
 
 interface Props {
   projectId: number;
@@ -53,9 +54,8 @@ export const ConsolidatedReportModal: React.FC<Props> = ({ projectId, fromDate, 
         {/* Report Printable Content Body */}
         <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 space-y-6 print:overflow-visible print:p-4">
           {loading ? (
-            <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
-              <Loader2 size={28} className="animate-spin text-indigo-600" />
-              <span className="font-semibold text-sm">Đang tổng hợp số liệu phân tích quản trị...</span>
+            <div className="flex items-center justify-center py-20">
+              <LoadingSpinner size="md" label="Đang tổng hợp số liệu phân tích quản trị..." />
             </div>
           ) : !data ? (
             <div className="text-center py-20 text-red-500 font-bold">Không thể tải dữ liệu báo cáo tổng hợp.</div>

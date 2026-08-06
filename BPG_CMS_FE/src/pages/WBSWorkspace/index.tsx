@@ -196,8 +196,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     setExpandedPhases(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
 
   const handleSuccess = (msg: string) => {
-    console.log(msg);
+    toast.success(msg);
     queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['task-progress-history'] });
     // Refresh supporting information in the background without blocking the tree.
     queryClient.invalidateQueries({ queryKey: ['wbsProject', projectId] });
     queryClient.invalidateQueries({ queryKey: ['wbsMembers', projectId] });

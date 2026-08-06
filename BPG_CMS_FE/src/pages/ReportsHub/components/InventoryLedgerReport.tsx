@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, Warehouse, TrendingDown, TrendingUp, Filter } from 'lucide-react';
+import { Warehouse, TrendingDown, TrendingUp, Filter } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type InventoryLedgerReportDto, type InventoryTransactionSummaryDto } from '../../../services/reportService';
 import { parseDateSafe } from '../../../utils/dateHelpers';
 
@@ -40,9 +41,8 @@ export const InventoryLedgerReport: React.FC<Props> = ({ projectId }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh] gap-3 text-[hsl(var(--text-muted))]">
-        <Loader2 size={24} className="animate-spin" />
-        <span>Đang tải Sổ cái Kho...</span>
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <LoadingSpinner size="md" label="Đang tải Sổ cái Kho..." />
       </div>
     );
   }

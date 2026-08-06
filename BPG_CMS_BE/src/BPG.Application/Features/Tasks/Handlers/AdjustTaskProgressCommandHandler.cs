@@ -98,7 +98,7 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         {
             OldProgress = oldProgress,
             NewProgress = request.NewProgress,
-            UpdateReason = request.UpdateReason,
+            UpdateReason = $"Điều chỉnh trực tiếp: {request.UpdateReason}",
             CreatedAt = DateTime.UtcNow,
             CreatedBy = currentUserId,
             UpdatedAt = DateTime.UtcNow,

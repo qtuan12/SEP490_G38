@@ -9,6 +9,7 @@ import { projectService } from '../../../services/projectService';
 import { materialService } from '../../../services/materialService';
 import type { WBSPhase } from '../../../types/common';
 import { Modal } from '../../../components/ui/Modal';
+import { LoadingSpinner } from '../../../components/ui/LoadingSpinner';
 
 const phaseBOQSchema = z.object({
   materials: z.array(
@@ -191,10 +192,7 @@ export const PhaseBOQModal: React.FC<PhaseBOQModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Cập nhật Bảng vật tư định mức: ${phase.name}`}>
       {loading ? (
-        <div className="flex justify-center items-center py-10">
-          <Loader2 size={32} className="animate-spin text-blue-500" />
-          <span className="ml-2 text-sm text-slate-500">Đang tải danh mục vật tư...</span>
-        </div>
+        <LoadingSpinner size="md" label="Đang tải danh mục vật tư..." />
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
 

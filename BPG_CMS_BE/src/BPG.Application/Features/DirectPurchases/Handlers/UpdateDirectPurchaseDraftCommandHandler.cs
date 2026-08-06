@@ -62,7 +62,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                 dp.PhaseId = request.PhaseId;
                 dp.TaskId = request.TaskId;
                 dp.Reason = request.Reason?.Trim() ?? string.Empty;
-                dp.PurchaseDate = request.PurchaseDate;
+                dp.PurchaseDate = request.PurchaseDate.ToDateTime(TimeOnly.MinValue);
                 dp.BOQCheckStatus = anyOverBOQ ? BOQCheckStatus.OverBOQ : BOQCheckStatus.WithinBOQ;
                 dp.TotalAmount = resolved.Sum(i => i.LineTotal);
                 dp.UpdatedAt = DateTime.UtcNow;
