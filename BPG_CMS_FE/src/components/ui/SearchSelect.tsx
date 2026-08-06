@@ -127,13 +127,11 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
   // Style cho Portal dropdown
   const dropdownStyle: React.CSSProperties = {
     position: 'fixed',
-    left: `${coords.left}px`,
-    width: `${coords.width}px`,
     zIndex: 9999,
-    backgroundColor: 'white',
-    border: '1px solid #cbd5e1', // border-slate-300
+    backgroundColor: 'hsl(var(--bg-card))',
+    border: '1px solid hsl(var(--border))',
     borderRadius: '0.375rem',
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
     ...(placement === 'top' 
       ? { bottom: `${window.innerHeight - coords.bottom + 4}px` } 
       : { top: `${coords.top + 4}px` }
@@ -153,16 +151,16 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
           }
         }}
         disabled={disabled}
-        className={`flex items-center justify-between w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border bg-white text-left focus:outline-none transition-colors cursor-pointer
-          ${disabled ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:border-slate-400'}
+        className={`flex items-center justify-between w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] text-left focus:outline-none transition-colors cursor-pointer
+          ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-[hsl(var(--border-light))]'}
           ${error 
-            ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500' 
-            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+            ? 'border-red-500 text-red-500 focus:ring-red-500' 
+            : 'border-[hsl(var(--border))] focus:ring-blue-500'}`}
       >
-        <span className={`block truncate ${selectedOption ? 'text-slate-900 font-medium' : 'text-slate-400'}`}>
+        <span className={`block truncate ${selectedOption ? 'text-[hsl(var(--text-primary))] font-medium' : 'text-[hsl(var(--text-muted))]'}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown size={16} className={`ml-2 shrink-0 text-slate-400 transition-transform duration-200 ${isOpen ? 'transform rotate-180 text-blue-500' : ''}`} />
+        <ChevronDown size={16} className={`ml-2 shrink-0 text-[hsl(var(--text-muted))] transition-transform duration-200 ${isOpen ? 'transform rotate-180 text-blue-500' : ''}`} />
       </button>
 
       {/* Popover Dropdown với Ô Tìm kiếm riêng ở trên cùng */}
@@ -173,29 +171,29 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
               width: 6px;
             }
             .search-select-dropdown-list::-webkit-scrollbar-track {
-              background: #f1f5f9;
+              background: hsl(var(--bg-main));
               border-radius: 4px;
             }
             .search-select-dropdown-list::-webkit-scrollbar-thumb {
-              background: #cbd5e1;
+              background: hsl(var(--border));
               border-radius: 4px;
             }
             .search-select-dropdown-list::-webkit-scrollbar-thumb:hover {
-              background: #94a3b8;
+              background: hsl(var(--border-light));
             }
           `}</style>
 
           {/* Search Header: Ô tìm kiếm đính kèm biểu tượng 🔍 */}
-          <div className="p-2 border-b border-slate-100 bg-slate-50/80 sticky top-0 z-10">
+          <div className="p-2 border-b border-[hsl(var(--border))] bg-[hsl(var(--bg-main))] sticky top-0 z-10">
             <div className="relative flex items-center">
-              <Search size={14} className="absolute left-2.5 text-slate-400 pointer-events-none" />
+              <Search size={14} className="absolute left-2.5 text-[hsl(var(--text-muted))] pointer-events-none" />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm theo tên vật tư..."
-                className="w-full text-xs pl-8 pr-2.5 py-1.5 border border-slate-200 rounded bg-white text-slate-800 focus:outline-none focus:border-blue-500 shadow-inner"
+                className="w-full text-xs pl-8 pr-2.5 py-1.5 border border-[hsl(var(--border))] rounded bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-blue-500 shadow-inner"
               />
             </div>
           </div>
@@ -212,12 +210,12 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
                     setIsOpen(false);
                     setSearchQuery('');
                   }}
-                  className={`px-3 py-2 hover:bg-blue-50/80 cursor-pointer transition-colors border-b border-slate-100 last:border-0 text-left
-                    ${value === opt.value ? 'bg-blue-50 text-blue-900 font-semibold' : 'text-slate-800'}`}
+                  className={`px-3 py-2 hover:bg-blue-500/10 cursor-pointer transition-colors border-b border-[hsl(var(--border))] last:border-0 text-left
+                    ${value === opt.value ? 'bg-blue-500/15 text-blue-500 font-semibold' : 'text-[hsl(var(--text-primary))]'}`}
                 >
                   <div className="text-xs">{opt.label}</div>
                   {opt.sublabel && (
-                    <div className="text-[10px] text-slate-400 mt-0.5">{opt.sublabel}</div>
+                    <div className="text-[10px] text-[hsl(var(--text-muted))] mt-0.5">{opt.sublabel}</div>
                   )}
                 </div>
               ))
