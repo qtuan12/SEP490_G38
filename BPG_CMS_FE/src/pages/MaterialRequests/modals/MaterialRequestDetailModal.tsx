@@ -157,7 +157,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
       {loadingData ? (
         <div className="flex flex-col justify-center items-center py-12 gap-3">
           <Loader2 size={32} className="animate-spin text-[hsl(var(--primary))]" />
-          <span className="text-sm text-slate-500">Đang tải thông tin đối chiếu định mức...</span>
+          <span className="text-sm text-slate-500">Đang tải thông tin...</span>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
@@ -224,7 +224,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                         <th className="p-3 text-center">Số lượng</th>
                         <th className="p-3 text-center">Đơn vị</th>
                         {isPendingAccountant ? (
-                          <th className="p-3 text-center">Lũy kế / Định mức</th>
+                          <th className="p-3 text-center">Tổng yêu cầu vật tư</th>
                         ) : (
                           <th className="p-3 text-center">Định mức</th>
                         )}
