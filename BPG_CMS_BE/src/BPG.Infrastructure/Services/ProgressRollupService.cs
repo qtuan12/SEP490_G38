@@ -1,6 +1,7 @@
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.Common.Extensions;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -74,7 +75,10 @@ public class ProgressRollupService : IProgressRollupService
                     OldProgress = parentTask.ProgressPercent,
                     NewProgress = baseProgress,
                     UpdateReason = "Cập nhật tự động do tất cả công việc con bị xóa",
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserService.UserId,
+                    UpdatedAt = DateTime.UtcNow,
+                    UpdatedBy = _currentUserService.UserId
                 };
                 await _unitOfWork.Repository<TaskProgressLog>().AddAsync(log, ct);
                 
@@ -127,7 +131,10 @@ public class ProgressRollupService : IProgressRollupService
                     OldProgress = parentTask.ProgressPercent,
                     NewProgress = newProgress,
                     UpdateReason = reason ?? "Cập nhật tự động do công việc con thay đổi",
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserService.UserId,
+                    UpdatedAt = DateTime.UtcNow,
+                    UpdatedBy = _currentUserService.UserId
                 };
                 
                 await _unitOfWork.Repository<TaskProgressLog>().AddAsync(log, ct);
@@ -141,7 +148,7 @@ public class ProgressRollupService : IProgressRollupService
                     var dailyLog = new DailyLog
                     {
                         TaskId = parentTask.TaskId,
-                        LogDate = DateOnly.FromDateTime(DateTime.Today),
+                        LogDate = VietnamTime.Today,
                         NewProgressPercent = newProgress,
                         Description = triggerTask != null
                             ? $"Tiến độ giảm tự động từ {parentTask.ProgressPercent}% xuống {newProgress}% do ảnh hưởng bởi thay đổi tiến độ của công việc con '{triggerTask.Name}'."

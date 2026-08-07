@@ -1,107 +1,149 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React, { lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CompanyProvider } from './context/CompanyContext';
-import { Layout } from './components/layout/MainLayout';
-import { Login } from './pages/Auth/Login';
-import { PhaseAcceptances } from './pages/PhaseAcceptances';
-import { Dashboard } from './pages/Dashboard';
-import { UserManagement } from './pages/UserManagement';
-import { SupplierManagement } from './pages/SupplierManagement';
-import { ForgotPassword } from './pages/Auth/ForgotPassword';
-import { ResetPassword } from './pages/Auth/ResetPassword';
-import { Profile } from './pages/Profile';
-import { ProjectList } from './pages/ProjectList';
-import { ProjectLayoutHub } from './pages/ProjectLayoutHub';
-import { TaskDetailSE } from './pages/TaskDetailSE';
-import { PhaseAcceptance } from './pages/PhaseAcceptance';
-import { PhaseBOQ } from './pages/PhaseBOQ';
-import { UnitManagement } from './pages/MasterData/Units';
-import { CategoryManagement } from './pages/MasterData/Categories';
-import { MaterialManagement } from './pages/MasterData/Materials';
-import { GanttChart } from './pages/GanttChart';
-import { ProjectDrawing } from './pages/ProjectDrawing';
-import { ProjectDailyLogs } from './pages/ProjectDailyLogs';
-import { NotificationProvider } from './context/NotificationContext';
 import { LoadingProvider } from './context/LoadingContext';
-import { NotificationsList } from './pages/Notifications';
-import { InventoryAdjustmentsPage } from './pages/InventoryAdjustments';
-import { BoqVsActualReport } from './pages/Reports/BoqVsActualReport';
-import { CostReferenceReport } from './pages/Reports/CostReferenceReport';
-import { GlobalIncidents } from './pages/GlobalIncidents';
-import { MaterialControl } from './pages/MaterialControl';
-import { PurchaseOrderList } from './pages/PurchaseOrders';
-import { CreatePOPage } from './pages/PurchaseOrders/CreatePOPage';
-import { PODetailPage } from './pages/PurchaseOrders/PODetailPage';
-import { SystemConfigPage } from './pages/SystemConfig';
-import { DirectPurchaseList } from './pages/DirectPurchases';
-import { ReportsHub } from './pages/ReportsHub';
-import { FieldWorkbench } from './pages/FieldWorkbench';
-import { isPWAMode } from './utils/pwaHelpers';
+import { FullScreenLoading } from './components/ui/FullScreenLoading';
+import { Layout } from './components/layout/MainLayout';
+import { isPWAMode, isPWAOptimizedRole } from './utils/pwaHelpers';
+import { PWAProvider } from './context/PWAContext';
 import { DesktopOnlyGuard } from './components/DesktopOnlyGuard';
+import { RoleGroup } from './auth/roles';
+import { NotificationProvider } from './context/NotificationContext';
+import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
+import { queryClient } from './lib/queryClient';
+import { ThemeProvider } from './context/ThemeContext';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
 
-// Protected Route Guard
-const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[]; noLayout?: boolean }> = ({ children, allowedRoles, noLayout }) => {
-  const { isAuthenticated, user, isLoading } = useAuth();
+// ─── Lazy-loaded page components ──────────────────────────────────────────────
+// Auth pages (small, loaded early but still split)
+const Login           = lazy(() => import('./pages/Auth/Login').then(m => ({ default: m.Login })));
+const ForgotPassword  = lazy(() => import('./pages/Auth/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
+const ResetPassword   = lazy(() => import('./pages/Auth/ResetPassword').then(m => ({ default: m.ResetPassword })));
+
+// Core app pages
+const Dashboard       = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Profile         = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
+const NotificationsList = lazy(() => import('./pages/Notifications').then(m => ({ default: m.NotificationsList })));
+
+// Field / PWA pages (critical for site engineers — loaded in a separate chunk)
+const FieldWorkbench  = lazy(() => import('./pages/FieldWorkbench').then(m => ({ default: m.FieldWorkbench })));
+const FieldTaskList   = lazy(() => import('./pages/FieldTaskList').then(m => ({ default: m.FieldTaskList })));
+
+// User & master data management
+const UserManagement      = lazy(() => import('./pages/UserManagement').then(m => ({ default: m.UserManagement })));
+const SupplierManagement  = lazy(() => import('./pages/SupplierManagement').then(m => ({ default: m.SupplierManagement })));
+const UnitManagement      = lazy(() => import('./pages/MasterData/Units').then(m => ({ default: m.UnitManagement })));
+const CategoryManagement  = lazy(() => import('./pages/MasterData/Categories').then(m => ({ default: m.CategoryManagement })));
+const MaterialManagement  = lazy(() => import('./pages/MasterData/Materials').then(m => ({ default: m.MaterialManagement })));
+const MaterialControl     = lazy(() => import('./pages/MaterialControl').then(m => ({ default: m.MaterialControl })));
+const SystemConfigPage    = lazy(() => import('./pages/SystemConfig').then(m => ({ default: m.SystemConfigPage })));
+
+// Project pages (largest chunk — split per page)
+const ProjectList      = lazy(() => import('./pages/ProjectList').then(m => ({ default: m.ProjectList })));
+const ProjectLayoutHub = lazy(() => import('./pages/ProjectLayoutHub').then(m => ({ default: m.ProjectLayoutHub })));
+const ProjectDailyLogs = lazy(() => import('./pages/ProjectDailyLogs').then(m => ({ default: m.ProjectDailyLogs })));
+const PhaseBOQ         = lazy(() => import('./pages/PhaseBOQ').then(m => ({ default: m.PhaseBOQ })));
+const PhaseAcceptance  = lazy(() => import('./pages/PhaseAcceptance').then(m => ({ default: m.PhaseAcceptance })));
+const PhaseAcceptances = lazy(() => import('./pages/PhaseAcceptances').then(m => ({ default: m.PhaseAcceptances })));
+const GanttChart       = lazy(() => import('./pages/GanttChart').then(m => ({ default: m.GanttChart })));
+const ProjectDrawing   = lazy(() => import('./pages/ProjectDrawing').then(m => ({ default: m.ProjectDrawing })));
+const TaskDetailSE     = lazy(() => import('./pages/TaskDetailSE').then(m => ({ default: m.TaskDetailSE })));
+
+// Purchase / Procurement
+const PurchaseOrderList = lazy(() => import('./pages/PurchaseOrders').then(m => ({ default: m.PurchaseOrderList })));
+const CreatePOPage      = lazy(() => import('./pages/PurchaseOrders/CreatePOPage').then(m => ({ default: m.CreatePOPage })));
+const PODetailPage      = lazy(() => import('./pages/PurchaseOrders/PODetailPage').then(m => ({ default: m.PODetailPage })));
+const DirectPurchaseList = lazy(() => import('./pages/DirectPurchases').then(m => ({ default: m.DirectPurchaseList })));
+
+// Reports (heavyweight — desktop only, large charts)
+const ReportsHub          = lazy(() => import('./pages/ReportsHub').then(m => ({ default: m.ReportsHub })));
+const BoqVsActualReport   = lazy(() => import('./pages/Reports/BoqVsActualReport').then(m => ({ default: m.BoqVsActualReport })));
+const CostReferenceReport = lazy(() => import('./pages/Reports/CostReferenceReport').then(m => ({ default: m.CostReferenceReport })));
+
+// Misc
+const GlobalIncidents         = lazy(() => import('./pages/GlobalIncidents').then(m => ({ default: m.GlobalIncidents })));
+const InventoryAdjustmentsPage = lazy(() => import('./pages/InventoryAdjustments').then(m => ({ default: m.InventoryAdjustmentsPage })));
+
+// ─── Route-level fallback spinner ─────────────────────────────────────────────
+const PageFallback = () => (
+  <div className="flex h-screen w-full items-center justify-center gap-3 text-sm text-slate-500">
+    <svg className="h-5 w-5 animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+    <span>Đang tải trang...</span>
+  </div>
+);
+
+// ─── Route Guards ─────────────────────────────────────────────────────────────
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  allowedRoles?: readonly string[];
+  noLayout?: boolean;
+}> = ({ children, allowedRoles, noLayout }) => {
+  const { isAuthenticated, isLoading, hasAnyRole } = useAuth();
 
   if (isLoading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'hsl(var(--bg-main))',
-        color: 'hsl(var(--text-primary))'
-      }}>
-        <h3>Đang tải phiên làm việc...</h3>
-      </div>
-    );
+    return <FullScreenLoading message="Đang kết nối hệ thống..." />;
   }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // If not authorized for this specific route, send to dashboard (or users if admin)
-    if (user.role === 'admin') {
-      return <Navigate to="/users" replace />;
-    }
+  if (allowedRoles && !hasAnyRole(allowedRoles)) {
     return <Navigate to="/dashboard" replace />;
   }
 
   return noLayout ? <>{children}</> : <Layout>{children}</Layout>;
 };
 
-// Route wrapper for redirecting authenticated users away from Login page
+const ProjectRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { projectId } = useParams();
+
+  if (!projectId) {
+    return <Navigate to="/projects" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const ProjectOrRoleRoute: React.FC<{
+  children: React.ReactNode;
+  allowedRoles: readonly string[];
+}> = ({ children, allowedRoles }) => {
+  const { hasAnyRole } = useAuth();
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get('projectId');
+
+  if (projectId) {
+    return <>{children}</>;
+  }
+
+  if (!hasAnyRole(allowedRoles)) {
+    return <Navigate to="/projects" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const FIELD_ROLES = ['technicalmanager', 'siteengineer'] as const;
+
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, user, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, hasAnyRole } = useAuth();
 
   if (isLoading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'hsl(var(--bg-main))' }}>
-        <h3 style={{ color: 'hsl(var(--text-primary))' }}>Đang tải...</h3>
-      </div>
-    );
+    return <FullScreenLoading message="Đang tải dữ liệu..." />;
   }
 
   if (isAuthenticated) {
     if (isPWAMode()) {
-      return <Navigate to="/field?standalone=true" replace />;
+      return <Navigate to={isPWAOptimizedRole(user?.role) ? '/field?standalone=true' : '/profile'} replace />;
     }
-    if (user?.role === 'admin') {
+    if (hasAnyRole(RoleGroup.AdminOnly)) {
       return <Navigate to="/users" replace />;
     }
     return <Navigate to="/dashboard" replace />;
@@ -110,70 +152,77 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// ─── App ──────────────────────────────────────────────────────────────────────
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <CompanyProvider>
-      <AuthProvider>
-        <LoadingProvider>
-        <NotificationProvider>
+      <ThemeProvider>
+        <CompanyProvider>
+          <LoadingProvider>
+          <AuthProvider>
+            <NotificationProvider>
           <Router>
-            <Routes>
+            <PWAProvider>
+            {/* Global Error Boundary prevents White Screen of Death on render errors */}
+            <GlobalErrorBoundary>
+              {/* All page components are lazy-loaded — Suspense provides a fallback while the chunk downloads */}
+              <Suspense fallback={<PageFallback />}>
+                <Routes>
               {/* Root route */}
-              <Route 
-                path="/" 
+              <Route
+                path="/"
                 element={
                   <PublicRoute>
                     <Navigate to="/field?standalone=true" replace />
                   </PublicRoute>
-                } 
+                }
               />
 
-              {/* Public login route */}
-              <Route 
-                path="/login" 
+              {/* Public routes */}
+              <Route
+                path="/login"
                 element={
                   <PublicRoute>
                     <Login />
                   </PublicRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/forgot-password" 
+              <Route
+                path="/forgot-password"
                 element={
                   <PublicRoute>
                     <ForgotPassword />
                   </PublicRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/reset-password" 
+              <Route
+                path="/reset-password"
                 element={
                   <PublicRoute>
                     <ResetPassword />
                   </PublicRoute>
-                } 
+                }
               />
 
               {/* Protected routes */}
-              <Route 
-                path="/dashboard" 
+              <Route
+                path="/dashboard"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <Dashboard />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/profile" 
+              <Route
+                path="/profile"
                 element={
                   <ProtectedRoute>
                     <Profile />
                   </ProtectedRoute>
-                } 
+                }
               />
 
               <Route
@@ -188,264 +237,300 @@ function App() {
               <Route
                 path="/field"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={FIELD_ROLES}>
                     <FieldWorkbench />
                   </ProtectedRoute>
                 }
               />
 
-              <Route 
-                path="/users" 
+              <Route
+                path="/field/tasks"
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={FIELD_ROLES}>
+                    <FieldTaskList />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute allowedRoles={RoleGroup.AdminOnly}>
                     <UserManagement />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/suppliers" 
+              <Route
+                path="/suppliers"
                 element={
-                  <ProtectedRoute allowedRoles={['accountant', 'technicalmanager', 'director', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.SupplierViewers}>
                     <SupplierManagement />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/units" 
+              <Route
+                path="/units"
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <UnitManagement />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/categories" 
+              <Route
+                path="/categories"
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <CategoryManagement />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/materials" 
+              <Route
+                path="/materials"
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <MaterialManagement />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/materials-control" 
+              <Route
+                path="/materials-control"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Procurement}>
                     <MaterialControl />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/projects" 
+              <Route
+                path="/projects"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <ProjectList />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/projects/:projectId" 
+              <Route
+                path="/projects/:projectId"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <ProjectLayoutHub />
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                    <ProjectRoute>
+                      <ProjectLayoutHub />
+                    </ProjectRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/projects/:projectId/logs" 
+              <Route
+                path="/projects/:projectId/logs"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <ProjectDailyLogs />
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                    <ProjectRoute>
+                      <ProjectDailyLogs />
+                    </ProjectRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/projects/:projectId/tasks/:taskId/logs" 
+              <Route
+                path="/projects/:projectId/tasks/:taskId/logs"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <ProjectDailyLogs />
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                    <ProjectRoute>
+                      <ProjectDailyLogs />
+                    </ProjectRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/projects/:projectId/phases/:phaseId/boq" 
+              <Route
+                path="/projects/:projectId/phases/:phaseId/boq"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <PhaseBOQ />
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                    <ProjectRoute>
+                      <PhaseBOQ />
+                    </ProjectRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/projects/:projectId/phases/:phaseId/acceptance" 
+              <Route
+                path="/projects/:projectId/phases/:phaseId/acceptance"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <PhaseAcceptance />
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                    <ProjectRoute>
+                      <PhaseAcceptance />
+                    </ProjectRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/projects/:projectId/gantt" 
+              <Route
+                path="/projects/:projectId/gantt"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <DesktopOnlyGuard>
-                      <GanttChart />
-                    </DesktopOnlyGuard>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                    <ProjectRoute>
+                      <DesktopOnlyGuard>
+                        <GanttChart />
+                      </DesktopOnlyGuard>
+                    </ProjectRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/projects/:projectId/drawing" 
+              <Route
+                path="/projects/:projectId/drawing"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
-                    <ProjectDrawing />
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                    <ProjectRoute>
+                      <ProjectDrawing />
+                    </ProjectRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/reports" 
+              <Route
+                path="/reports"
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant', 'technicalmanager']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Reports}>
                     <DesktopOnlyGuard>
                       <ReportsHub />
                     </DesktopOnlyGuard>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/incidents" 
+              <Route
+                path="/incidents"
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <GlobalIncidents />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/projects/:projectId/reports/boq" 
+              <Route
+                path="/projects/:projectId/reports/boq"
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant', 'technicalmanager', 'projectleader']}>
-                    <DesktopOnlyGuard>
-                      <BoqVsActualReport />
-                    </DesktopOnlyGuard>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                    <ProjectRoute>
+                      <DesktopOnlyGuard>
+                        <BoqVsActualReport />
+                      </DesktopOnlyGuard>
+                    </ProjectRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/projects/:projectId/reports/cost" 
+              <Route
+                path="/projects/:projectId/reports/cost"
                 element={
-                  <ProtectedRoute allowedRoles={['director', 'accountant', 'technicalmanager']}>
-                    <DesktopOnlyGuard>
-                      <CostReferenceReport />
-                    </DesktopOnlyGuard>
+                  <ProtectedRoute allowedRoles={RoleGroup.Reports}>
+                    <ProjectRoute>
+                      <DesktopOnlyGuard>
+                        <CostReferenceReport />
+                      </DesktopOnlyGuard>
+                    </ProjectRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/tasks/:taskId" 
+              <Route
+                path="/tasks/:taskId"
                 element={
-                  <ProtectedRoute allowedRoles={['technicalmanager', 'projectleader', 'siteengineer', 'director', 'accountant']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <TaskDetailSE />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/purchase-orders" 
+              <Route
+                path="/purchase-orders"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Procurement}>
                     <PurchaseOrderList />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/purchase-orders/new" 
+              <Route
+                path="/purchase-orders/new"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer']}>
-                    <CreatePOPage />
+                  <ProtectedRoute allowedRoles={RoleGroup.Accounting}>
+                    <ProjectOrRoleRoute allowedRoles={RoleGroup.Accounting}>
+                      <CreatePOPage />
+                    </ProjectOrRoleRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/purchase-orders/:id" 
+              <Route
+                path="/purchase-orders/:id"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <PODetailPage />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/direct-purchases" 
+              <Route
+                path="/direct-purchases"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <DirectPurchaseList />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/system-config" 
+              <Route
+                path="/system-config"
                 element={
-                  <ProtectedRoute allowedRoles={['admin']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.AdminOnly}>
                     <DesktopOnlyGuard>
                       <SystemConfigPage />
                     </DesktopOnlyGuard>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/phase-acceptances" 
+              <Route
+                path="/phase-acceptances"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer']}>
-                    <PhaseAcceptances />
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                    <ProjectOrRoleRoute allowedRoles={RoleGroup.Reports}>
+                      <PhaseAcceptances />
+                    </ProjectOrRoleRoute>
                   </ProtectedRoute>
-                } 
+                }
               />
 
-              <Route 
-                path="/inventory-adjustments" 
+              <Route
+                path="/inventory-adjustments"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'director', 'accountant', 'technicalmanager', 'projectleader', 'siteengineer']}>
+                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
                     <InventoryAdjustmentsPage />
                   </ProtectedRoute>
-                } 
+                }
               />
 
               {/* Fallback route */}
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
+            </Suspense>
+            </GlobalErrorBoundary>
+            </PWAProvider>
           </Router>
         </NotificationProvider>
         </LoadingProvider>
       </AuthProvider>
+    </LoadingProvider>
       </CompanyProvider>
+      </ThemeProvider>
       <Toaster position="top-right" />
     </QueryClientProvider>
   );

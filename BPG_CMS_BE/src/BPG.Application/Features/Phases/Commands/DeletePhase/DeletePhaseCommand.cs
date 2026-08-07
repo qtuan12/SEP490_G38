@@ -4,21 +4,14 @@ using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using BPG.Application.Common.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Phases.Commands.DeletePhase;
 
-public record DeletePhaseCommand(long PhaseId) : IRequest<ApiResponse>, IRequireTechnicalManager
+public record DeletePhaseCommand(long PhaseId) : IRequest<ApiResponse>
 {
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        var phase = await unitOfWork.Repository<Phase>().Query()
-            .FirstOrDefaultAsync(p => p.PhaseId == PhaseId, cancellationToken);
-        if (phase == null) throw new NotFoundException("Phase", PhaseId);
-        return phase.ProjectId;
-    }
 }
 
 public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, ApiResponse>
@@ -35,10 +28,14 @@ public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, Api
         var phase = await _unitOfWork.Repository<Phase>()
             .Query()
             .Include(p => p.Tasks)
+            .Include(p => p.Project)
             .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct);
 
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
+
+        if (phase.Project.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         if (phase.Status == BPG.Domain.Constants.PhaseStatus.Approved)
         {
@@ -62,3 +59,4 @@ public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, Api
         return ApiResponse.SuccessResult("Xóa phase thành công.");
     }
 }
+

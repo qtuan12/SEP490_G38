@@ -1,4 +1,6 @@
 using BPG.Application.Features.Phases.Commands.CreatePhase;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.Phases.Commands.DeletePhase;
 using BPG.Application.Features.Phases.Commands.UpdatePhase;
 using BPG.Application.Features.Phases.Commands.UpdatePhaseBOQ;
@@ -16,6 +18,8 @@ namespace BPG.Api.Controllers;
 public class PhasesController : BaseApiController
 {
     [HttpPost]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> CreatePhase([FromRoute] long projectId, [FromBody] CreatePhaseCommand command, CancellationToken ct)
     {
         if (projectId != command.ProjectId)
@@ -26,6 +30,8 @@ public class PhasesController : BaseApiController
     }
 
     [HttpPut("{phaseId}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> UpdatePhase([FromRoute] long projectId, [FromRoute] long phaseId, [FromBody] UpdatePhaseCommand command, CancellationToken ct)
     {
         if (phaseId != command.PhaseId)
@@ -36,7 +42,8 @@ public class PhasesController : BaseApiController
     }
 
     [HttpPut("{phaseId}/boq")]
-    [Authorize(Policy = PolicyNames.RequireTechnicalManager)]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> UpdatePhaseBOQ([FromRoute] long projectId, [FromRoute] long phaseId, [FromBody] UpdatePhaseBOQRequest request, CancellationToken ct)
     {
         var result = await Mediator.Send(new UpdatePhaseBOQCommand(projectId, phaseId, request.Items), ct);
@@ -44,7 +51,8 @@ public class PhasesController : BaseApiController
     }
 
     [HttpGet("{phaseId}/boq")]
-    [Authorize(Roles = "SiteEngineer,TechnicalManager,ProjectLeader,Director,Accountant,Admin")]
+    [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
+    [Authorize(Roles = RolePolicies.ProjectViewers)]
     public async Task<IActionResult> GetPhaseBOQ([FromRoute] long projectId, [FromRoute] long phaseId, CancellationToken ct)
     {
         var result = await Mediator.Send(new GetPhaseBOQQuery(phaseId), ct);
@@ -52,6 +60,8 @@ public class PhasesController : BaseApiController
     }
 
     [HttpDelete("{phaseId}")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> DeletePhase([FromRoute] long projectId, [FromRoute] long phaseId, CancellationToken ct)
     {
         var result = await Mediator.Send(new DeletePhaseCommand(phaseId), ct);

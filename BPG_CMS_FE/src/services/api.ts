@@ -1,4 +1,8 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5160/api';
+import { triggerGlobalLoading, triggerGlobalHideLoading } from '../context/LoadingContext';
+import { queryClient } from '../lib/queryClient';
+import { compressFormDataImages } from '../utils/fileCompression';
+
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7111/api';
 
 export const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
@@ -6,14 +10,46 @@ const ACCESS_TOKEN_KEY = 'bpg_token';
 const REFRESH_TOKEN_KEY = 'bpg_refresh_token';
 const USER_KEY = 'bpg_user';
 
+let activeApiRequestsCount = 0;
+
 interface RequestOptions extends RequestInit {
-  params?: Record<string, string>;
+  params?: Record<string, string | number | boolean | undefined>;
+  showGlobalLoading?: boolean;
+}
+
+/**
+ * Lỗi trả về từ backend, giữ nguyên errorCode để caller map lỗi vào đúng trường
+ * thay vì phải so khớp nội dung message (message có thể đổi bất cứ lúc nào).
+ * Vẫn kế thừa Error nên mọi chỗ đang dùng `err.message` không cần sửa.
+ */
+export class ApiError extends Error {
+  readonly errorCode?: string;
+  readonly errors?: string[];
+  /** Lỗi validate theo từng trường (key = tên property của command, camelCase) — dùng để gắn dòng đỏ dưới ô nhập. */
+  readonly fieldErrors?: Record<string, string[]>;
+  readonly status: number;
+
+  constructor(
+    message: string,
+    status: number,
+    errorCode?: string,
+    errors?: string[],
+    fieldErrors?: Record<string, string[]>,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.errorCode = errorCode;
+    this.errors = errors;
+    this.fieldErrors = fieldErrors;
+  }
 }
 
 function clearSessionAndRedirect() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  queryClient.clear();
   window.location.href = '/login';
 }
 
@@ -48,10 +84,13 @@ async function refreshAccessToken(): Promise<string | null> {
 export const apiClient = {
   async request<T>(endpoint: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const requestBody = options.body instanceof FormData
+      ? await compressFormDataImages(options.body)
+      : options.body;
 
     // Setup headers
     const headers = new Headers(options.headers);
-    if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    if (!headers.has('Content-Type') && !(requestBody instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
     }
     if (token) {
@@ -61,14 +100,28 @@ export const apiClient = {
     // Build URL with query params
     let url = `${BASE_URL}${endpoint}`;
     if (options.params) {
-      const searchParams = new URLSearchParams(options.params);
-      url += `?${searchParams.toString()}`;
+      const cleanParams = Object.entries(options.params)
+        .filter(([_, v]) => v !== undefined && v !== null && v !== '')
+        .reduce((acc, [k, v]) => ({ ...acc, [k]: String(v) }), {} as Record<string, string>);
+      const searchParams = new URLSearchParams(cleanParams);
+      const queryStr = searchParams.toString();
+      if (queryStr) {
+        url += `?${queryStr}`;
+      }
     }
 
     const config: RequestInit = {
       ...options,
       headers,
+      body: requestBody,
     };
+
+    const shouldShowGlobal = options.showGlobalLoading === true;
+
+    if (shouldShowGlobal) {
+      activeApiRequestsCount++;
+      triggerGlobalLoading('Hệ thống đang xử lý dữ liệu...');
+    }
 
     try {
       const response = await fetch(url, config);
@@ -101,8 +154,6 @@ export const apiClient = {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         let errMsg = '';
-        // Ưu tiên "errors" (thông điệp validate chi tiết) trước "message" (thường chỉ là
-        // câu chung chung kiểu "Dữ liệu đầu vào không hợp lệ." đi kèm errorCode VAL_001)
         if (errorData.errors) {
           if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
             errMsg = errorData.errors.join(' ');
@@ -119,15 +170,31 @@ export const apiClient = {
         }
 
         if (!errMsg) {
-          if (response.status === 500) {
-            errMsg = 'Lỗi hệ thống hoặc mất kết nối cơ sở dữ liệu (Database). Vui lòng liên hệ quản trị viên.';
+          if (response.status === 403) {
+            errMsg = 'Bạn không có quyền thực hiện thao tác này.';
+          } else if (response.status === 401) {
+            errMsg = 'Phiên đăng nhập đã hết hạn hoặc chưa xác thực. Vui lòng đăng nhập lại.';
+          } else if (response.status === 404) {
+            errMsg = 'Tài nguyên hoặc dữ liệu yêu cầu không tồn tại.';
+          } else if (response.status === 429) {
+            errMsg = 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.';
+          } else if (response.status === 500) {
+            errMsg = 'Không thể kết nối đến cơ sở dữ liệu. Vui lòng liên hệ quản trị viên.';
           } else if (response.status === 502 || response.status === 503 || response.status === 504) {
             errMsg = 'Máy chủ dịch vụ đang bảo trì hoặc không phản hồi. Vui lòng thử lại sau.';
           } else {
-            errMsg = `Lỗi hệ thống (Mã lỗi: ${response.status})`;
+            errMsg = `Không thể xử lý yêu cầu (mã lỗi: ${response.status}).`;
           }
         }
-        throw new Error(errMsg);
+        throw new ApiError(
+          errMsg,
+          response.status,
+          errorData.errorCode,
+          Array.isArray(errorData.errors) ? errorData.errors : undefined,
+          errorData.fieldErrors && typeof errorData.fieldErrors === 'object'
+            ? errorData.fieldErrors
+            : undefined,
+        );
       }
 
       // If response is empty (e.g. 204 No Content)
@@ -139,12 +206,20 @@ export const apiClient = {
     } catch (error: any) {
       console.error('API Request Error:', error.message);
       
-      const msg = error.message || '';
+      // ApiError là lỗi nghiệp vụ đã có message từ backend — giữ nguyên, không nhầm thành lỗi mạng.
+      const msg = error instanceof ApiError ? '' : (error.message || '');
       if (msg.includes('Failed to fetch') || msg.includes('fetch') || error.name === 'TypeError') {
         throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng hoặc thử lại sau.');
       }
       
       throw error;
+    } finally {
+      if (shouldShowGlobal) {
+        activeApiRequestsCount = Math.max(0, activeApiRequestsCount - 1);
+        if (activeApiRequestsCount === 0) {
+          triggerGlobalHideLoading();
+        }
+      }
     }
   },
 

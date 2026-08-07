@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LoadingSpinner, Pagination } from '../../../components/ui';
+import { TableLoader, Pagination } from '../../../components/ui';
 import { Search, Eye, Plus } from 'lucide-react';
 import { surplusService } from '../../../services/surplusService';
 import type { SurplusRequest } from '../../../types/surplus';
@@ -100,11 +100,8 @@ export const SurplusRequestListTab: React.FC<SurplusRequestListTabProps> = ({
         <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg">{error}</div>
       )}
 
-      {loading ? (
-        <div className="flex justify-center items-center py-10 gap-2">
-          <LoadingSpinner />
-          <span className="text-slate-500 text-sm">Đang tải...</span>
-        </div>
+      {loading && list.length === 0 ? (
+        <TableLoader isTable={false} message="Đang tải danh sách đề xuất..." />
       ) : (
         <>
           <div className="overflow-x-auto border border-slate-200 rounded-xl">

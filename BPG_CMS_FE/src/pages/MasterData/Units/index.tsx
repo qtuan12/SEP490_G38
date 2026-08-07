@@ -2,12 +2,17 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { unitService } from '../../../services/unitService';
 import { UnitFormModal } from './modals/UnitFormModal';
-import { ConfirmDialog, Button, DataTable, Pagination } from '../../../components/ui';
+import { ConfirmDialog, Button, DataTable, Pagination, TableLoader } from '../../../components/ui';
 import type { Unit } from '../../../types/unit';
-import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, CheckCircle2, Ruler } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, AlertCircle, Ruler } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../../context/AuthContext';
+import { RoleGroup, hasAnyRole } from '../../../auth/roles';
 
 export const UnitManagement: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canManageMasterData = hasAnyRole(user?.roles, RoleGroup.MasterData);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,7 +25,6 @@ export const UnitManagement: React.FC = () => {
 
   // Message states
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   // Selected unit for edit/delete
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
@@ -37,23 +41,20 @@ export const UnitManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(null), 3000);
+    console.log(message);
   };
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await unitService.deleteUnit(id);
-    },
-    onSuccess: () => {
+    mutationFn: async (id: number) => unitService.deleteUnit(id),
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['units'] });
       setIsDeleteOpen(false);
-      showSuccess(`Đã xóa đơn vị tính ${selectedUnit?.unitName} thành công.`);
+      showSuccess(result.message || `Đã xóa đơn vị tính ${selectedUnit?.unitName} thành công.`);
       setSelectedUnit(null);
     },
     onError: (err: any) => {
-      setError(err.message || 'Không thể xóa đơn vị tính.');
+      toast.error(err.message || 'Không thể xóa đơn vị tính.');
       setIsDeleteOpen(false);
     },
   });
@@ -120,7 +121,7 @@ export const UnitManagement: React.FC = () => {
         )
       ),
     },
-    {
+    ...(canManageMasterData ? [{
       key: 'actions',
       header: 'Hành động',
       render: (unit: Unit) => (
@@ -143,18 +144,11 @@ export const UnitManagement: React.FC = () => {
           </Button>
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
     <div className="flex flex-col gap-6">
-      {success && (
-        <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-solid border-[hsl(var(--success))]/0.3 rounded px-4 py-3 text-emerald-800 text-sm font-medium">
-          <CheckCircle2 size={18} className="text-[hsl(var(--success))] shrink-0" />
-          <span>{success}</span>
-        </div>
-      )}
-
       {(error || isError) && (
         <div className="flex items-center gap-2.5 bg-[hsl(var(--danger-glow))] border border-solid border-[hsl(var(--danger))]/0.3 rounded px-4 py-3 text-rose-800 text-sm font-medium">
           <AlertCircle size={18} className="text-[hsl(var(--danger))] shrink-0" />
@@ -185,17 +179,16 @@ export const UnitManagement: React.FC = () => {
             />
           </div>
 
-          <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
-            <Plus size={18} />
-            <span>Thêm Đơn vị</span>
-          </Button>
+          {canManageMasterData && (
+            <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
+              <Plus size={18} />
+              <span>Thêm Đơn vị</span>
+            </Button>
+          )}
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-[200px] gap-2.5">
-            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-            <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu...</span>
-          </div>
+          <TableLoader isTable={false} message="Đang tải dữ liệu đơn vị tính..." minHeight="200px" />
         ) : (
           <div className="flex flex-col gap-4">
             <DataTable

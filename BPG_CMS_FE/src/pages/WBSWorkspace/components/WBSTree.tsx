@@ -1,6 +1,9 @@
 import { useWBS } from './WBSContext';
 import { useNavigate } from 'react-router-dom';
+import { RoleGroup } from '../../../auth/roles';
+import { useAuth } from '../../../context/AuthContext';
 import type { WBSTask } from '../../../types/common';
+import { TableLoader } from '../../../components/ui';
 import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History } from 'lucide-react';
 
 
@@ -20,7 +23,7 @@ const getAvatarColor = (userId: string) => {
 export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => { };
   const {
-    phases, tasks, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, user, project,
+    phases, tasks, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, project,
     expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -35,6 +38,8 @@ export const WBSTree = () => {
   } = useWBS();
 
   const navigate = useNavigate();
+  const { hasAnyRole } = useAuth();
+  const canCreatePhase = canEdit && hasAnyRole(RoleGroup.Technical);
 
   const menuItemStyle = {
     padding: '8px 12px',
@@ -56,13 +61,13 @@ export const WBSTree = () => {
         </h4>
 
         {loading ? (
-          <div style={{ textAlign: 'center', margin: 'auto', color: 'hsl(var(--text-muted))' }}>Đang tải...</div>
+          <TableLoader isTable={false} message="Đang tải sơ đồ WBS..." minHeight="300px" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
 
             {phases.length === 0 && !isCreatePhaseOpen && (
               <div style={{ textAlign: 'center', margin: 'auto', color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>
-                Chưa có dữ liệu WBS. Nhấn "+ Thêm Giai đoạn" để bắt đầu.
+                Chưa có dữ liệu công việc. Nhấn "+ Thêm Giai đoạn" để bắt đầu.
               </div>
             )}
 
@@ -224,8 +229,7 @@ export const WBSTree = () => {
                     )}
 
                     {/* Action buttons */}
-                    {(canEdit || user?.role === 'accountant' || user?.role === 'director' || user?.role === 'siteengineer') && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }}>
                         {/* + Task */}
                         {!isFrozen && canEdit && (
                           <button
@@ -300,7 +304,7 @@ export const WBSTree = () => {
 
                               {project?.status !== 'draft' && (
                                 <>
-                                  {!isFrozen && canEdit && (
+                                  {!isFrozen && canEdit && isPL && (
                                     <div
                                       style={menuItemStyle}
                                       onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
@@ -360,8 +364,7 @@ export const WBSTree = () => {
                             </div>
                           )}
                         </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
 
                   {/* Task children */}
@@ -541,7 +544,7 @@ export const WBSTree = () => {
                             </span>
 
                             {/* Task context menu */}
-                            {canEdit && !isFrozen && t.status !== 'obsolete' && (
+                            {!isFrozen && t.status !== 'obsolete' && (
                               <div style={{ position: 'relative', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                                 <button
                                   onClick={e => { e.stopPropagation(); setTaskMenuId(showTaskMenu ? null : t.id); setPhaseMenuId(null); }}
@@ -553,25 +556,38 @@ export const WBSTree = () => {
 
                                 {showTaskMenu && (
                                   <div onClick={e => e.stopPropagation()} className="absolute top-[22px] z-[200] bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-md shadow-lg min-w-[155px] overflow-hidden left-0 sm:left-auto sm:right-0 py-1">
-                                    <div
-                                      style={menuItemStyle}
-                                      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                      onClick={() => { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); }}
-                                    >
-                                      <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Chỉnh sửa Công việc</span>
-                                    </div>
+                                    {isTPKTOrPL && (
+                                      <div
+                                        style={menuItemStyle}
+                                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                        onClick={() => { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); }}
+                                      >
+                                        <Pencil size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Chỉnh sửa Công việc</span>
+                                      </div>
+                                    )}
 
                                     {project?.status !== 'draft' && (
                                       <>
-                                        <div
-                                          style={menuItemStyle}
-                                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
-                                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                          onClick={() => { setTaskMenuId(null); setSelectedTaskId(t.id); setIsReportIncidentOpen(true); }}
-                                        >
-                                          <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
-                                        </div>
+                                        {isPL ? (
+                                          <div
+                                            style={menuItemStyle}
+                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                            onClick={() => { setTaskMenuId(null); setSelectedTaskId(t.id); setIsReportIncidentOpen(true); }}
+                                          >
+                                            <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
+                                          </div>
+                                        ) : (
+                                          <div
+                                            style={menuItemStyle}
+                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
+                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                            onClick={() => { setTaskMenuId(null); navigate(`/projects/${projectId}?tab=incidents&taskId=${t.id}`); }}
+                                          >
+                                            <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Danh sách sự cố</span>
+                                          </div>
+                                        )}
 
                                         <div
                                           style={menuItemStyle}
@@ -599,14 +615,16 @@ export const WBSTree = () => {
                                       </>
                                     )}
 
-                                    <div
-                                      style={{ ...menuItemStyle, display: t.parentTaskId ? 'none' : 'flex' }}
-                                      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                      onClick={() => { setTaskMenuId(null); setSelectedPhaseForTask(ph.id); setParentTaskForNew(t.id); setParentDeadlineForNew(t.deadline); setIsCreateTaskOpen(true); }}
-                                    >
-                                      <FilePlus2 size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Thêm Công việc con</span>
-                                    </div>
+                                    {isTPKTOrPL && (
+                                      <div
+                                        style={{ ...menuItemStyle, display: t.parentTaskId ? 'none' : 'flex' }}
+                                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                        onClick={() => { setTaskMenuId(null); setSelectedPhaseForTask(ph.id); setParentTaskForNew(t.id); setParentDeadlineForNew(t.deadline); setIsCreateTaskOpen(true); }}
+                                      >
+                                        <FilePlus2 size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Thêm Công việc con</span>
+                                      </div>
+                                    )}
 
                                     {isTPKTOrPL && (
                                       <div
@@ -644,7 +662,7 @@ export const WBSTree = () => {
             })}
 
             {/* ── Add Phase button (Modal trigger) ─────────── */}
-            {(canEdit && isTPKT) && (
+            {canCreatePhase && (
               <div style={{ marginTop: '8px' }}>
                 <button
                   onClick={() => setIsCreatePhaseOpen(true)}

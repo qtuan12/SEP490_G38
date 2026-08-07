@@ -1,10 +1,12 @@
 import { apiClient, USE_MOCK_API } from './api';
+import type { UserRole } from '../auth/roles';
 
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'technicalmanager' | 'projectleader' | 'siteengineer' | 'accountant' | 'director';
+  role: UserRole;
+  roles?: UserRole[];
   status: 'active' | 'locked';
   avatarUrl?: string | null;
   phoneNumber?: string | null;
@@ -17,6 +19,7 @@ export interface UserDetailProfile {
   phoneNumber: string | null;
   avatarUrl: string | null;
   role: string;
+  roles: string[];
   isActive: boolean;
   lastLoginAt: string | null;
   passwordChangedAt: string | null;
@@ -31,6 +34,36 @@ export interface LoginResponse {
 export type LoginCredentials = {
   email: string;
   password?: string;
+};
+
+const VALID_ROLES: readonly UserRole[] = [
+  'admin',
+  'technicalmanager',
+  'siteengineer',
+  'accountant',
+  'director',
+];
+
+const normalizeRole = (role: string): UserRole => {
+  const normalized = role.toLowerCase() as UserRole;
+  if (!VALID_ROLES.includes(normalized)) {
+    throw new Error(`Vai trò tài khoản không được hỗ trợ: ${role || '(trống)'}.`);
+  }
+  return normalized;
+};
+
+const toUserProfile = (profile: UserDetailProfile): UserProfile => {
+  const roles = (profile.roles?.length ? profile.roles : [profile.role]).map(normalizeRole);
+  return {
+    id: String(profile.userId),
+    name: profile.fullName,
+    email: profile.email,
+    phoneNumber: profile.phoneNumber,
+    avatarUrl: profile.avatarUrl,
+    role: normalizeRole(profile.role || roles[0]),
+    roles,
+    status: profile.isActive ? 'active' : 'locked',
+  };
 };
 
 // Define predefined mock users matching roles in "Mô tả chi tiết.md"
@@ -97,6 +130,7 @@ export const authService = {
           name: mockUser.name,
           email: mockUser.email,
           role: mockUser.role,
+          roles: [mockUser.role],
           status: mockUser.status
         }
       };
@@ -111,6 +145,7 @@ export const authService = {
         fullName: string;
         email: string;
         role: string;
+        roles?: string[];
         accessToken: string;
         refreshToken: string;
       };
@@ -119,10 +154,11 @@ export const authService = {
     const response = await apiClient.post<BackendLoginResponse>('/auth/login', credentials);
 
     if (!response.success || !response.data) {
-      throw new Error(response.message || 'Đăng nhập thất bại.');
+      throw new Error(response.message || 'Không thể đăng nhập.');
     }
 
     const { data } = response;
+    const roles = (data.roles?.length ? data.roles : [data.role]).map(normalizeRole);
     return {
       token: data.accessToken,
       refreshToken: data.refreshToken,
@@ -130,7 +166,8 @@ export const authService = {
         id: String(data.userId),
         name: data.fullName,
         email: data.email,
-        role: data.role.toLowerCase() as UserProfile['role'],
+        role: normalizeRole(data.role || roles[0]),
+        roles,
         status: 'active'
       }
     };
@@ -144,12 +181,24 @@ export const authService = {
       const u: UserProfile = JSON.parse(storedUser);
       const updated = { ...u, name: fullName };
       localStorage.setItem('bpg_user', JSON.stringify(updated));
-      return { userId: Number(u.id), fullName, email: u.email, phoneNumber, avatarUrl: avatarUrl ?? null, role: u.role, isActive: u.status === 'active', lastLoginAt: null, passwordChangedAt: null };
+      const roles = u.roles?.length ? u.roles : [u.role];
+      return {
+        userId: Number(u.id),
+        fullName,
+        email: u.email,
+        phoneNumber,
+        avatarUrl: avatarUrl ?? null,
+        role: u.role,
+        roles,
+        isActive: u.status === 'active',
+        lastLoginAt: null,
+        passwordChangedAt: null,
+      };
     }
 
     interface BackendResponse { success: boolean; message: string; data: UserDetailProfile; }
     const response = await apiClient.patch<BackendResponse>('/auth/me', { fullName, phoneNumber, avatarUrl });
-    if (!response.success || !response.data) throw new Error(response.message || 'Cập nhật thất bại.');
+    if (!response.success || !response.data) throw new Error(response.message || 'Không thể cập nhật hồ sơ.');
     return response.data;
   },
 
@@ -160,12 +209,15 @@ export const authService = {
     }
 
     const formData = new FormData();
-    formData.append('file', file);
+    // Truyền tên tệp tường minh — xem ghi chú ở projectService.uploadFiles: ảnh đã qua nén là Blob
+    // nên FormData sẽ đặt tên "blob" nếu không nói rõ, làm mất phần mở rộng.
+    if (file.name) formData.append('file', file, file.name);
+    else formData.append('file', file);
     formData.append('folder', 'users/avatars');
 
     interface BackendResponse { success: boolean; message: string; data: { fileUrl: string }; }
     const response = await apiClient.postFormData<BackendResponse>('/files/upload', formData);
-    if (!response.success || !response.data) throw new Error(response.message || 'Tải ảnh lên thất bại.');
+    if (!response.success || !response.data) throw new Error(response.message || 'Không thể tải ảnh lên.');
     return response.data.fileUrl;
   },
 
@@ -186,7 +238,7 @@ export const authService = {
 
     interface BackendResponse { success: boolean; message: string; }
     const response = await apiClient.post<BackendResponse>('/auth/change-password', { currentPassword, newPassword });
-    if (!response.success) throw new Error(response.message || 'Đổi mật khẩu thất bại.');
+    if (!response.success) throw new Error(response.message || 'Không thể đổi mật khẩu.');
   },
 
   async getMe(): Promise<UserDetailProfile> {
@@ -195,7 +247,19 @@ export const authService = {
       const storedUser = localStorage.getItem('bpg_user');
       if (!storedUser) throw new Error('Chưa đăng nhập.');
       const u: UserProfile = JSON.parse(storedUser);
-      return { userId: Number(u.id), fullName: u.name, email: u.email, phoneNumber: null, avatarUrl: null, role: u.role, isActive: u.status === 'active', lastLoginAt: null, passwordChangedAt: null };
+      const roles = u.roles?.length ? u.roles : [u.role];
+      return {
+        userId: Number(u.id),
+        fullName: u.name,
+        email: u.email,
+        phoneNumber: u.phoneNumber ?? null,
+        avatarUrl: u.avatarUrl ?? null,
+        role: u.role,
+        roles,
+        isActive: u.status === 'active',
+        lastLoginAt: null,
+        passwordChangedAt: null,
+      };
     }
 
     interface BackendResponse {
@@ -208,6 +272,21 @@ export const authService = {
     return response.data;
   },
 
+  async getSessionUser(): Promise<UserProfile> {
+    if (USE_MOCK_API) {
+      const storedUser = localStorage.getItem('bpg_user');
+      if (!storedUser) throw new Error('Chưa đăng nhập.');
+      const user = JSON.parse(storedUser) as UserProfile;
+      const roles = user.roles?.length ? user.roles : [user.role];
+      return {
+        ...user,
+        roles,
+      };
+    }
+
+    return toUserProfile(await this.getMe());
+  },
+
   async forgotPassword(email: string): Promise<void> {
     if (USE_MOCK_API) {
       await new Promise(r => setTimeout(r, 600));
@@ -215,7 +294,7 @@ export const authService = {
     }
     interface BackendResponse { success: boolean; message: string; }
     const response = await apiClient.post<BackendResponse>('/auth/forgot-password', { email });
-    if (!response.success) throw new Error(response.message || 'Gửi OTP thất bại.');
+    if (!response.success) throw new Error(response.message || 'Không thể gửi OTP.');
   },
 
   async verifyOtp(email: string, otp: string): Promise<string> {
@@ -226,7 +305,7 @@ export const authService = {
     }
     interface BackendResponse { success: boolean; message: string; data: { resetToken: string }; }
     const response = await apiClient.post<BackendResponse>('/auth/verify-otp', { email, otp });
-    if (!response.success || !response.data) throw new Error(response.message || 'Xác thực OTP thất bại.');
+    if (!response.success || !response.data) throw new Error(response.message || 'Không thể xác thực OTP.');
     return response.data.resetToken;
   },
 
@@ -237,7 +316,7 @@ export const authService = {
     }
     interface BackendResponse { success: boolean; message: string; }
     const response = await apiClient.post<BackendResponse>('/auth/reset-password', { resetToken, newPassword });
-    if (!response.success) throw new Error(response.message || 'Đặt lại mật khẩu thất bại.');
+    if (!response.success) throw new Error(response.message || 'Không thể đặt lại mật khẩu.');
   },
 
   logout(): void {

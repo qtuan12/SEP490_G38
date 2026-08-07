@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LoadingSpinner, Pagination } from '../../../components/ui';
+import { TableLoader, Pagination } from '../../../components/ui';
 import { Search, Eye } from 'lucide-react';
 import { inventoryService } from '../../../services/inventoryService';
 import type { GoodsReceipt } from '../../../types/inventory';
 import { getGoodsReceiptStatusDetails, formatDateVN } from '../../../utils/inventoryHelpers';
+import { useVirtualRows } from '../../../hooks/useVirtualRows';
 
 interface GoodsReceiptsTabProps {
   projectId: number;
@@ -25,13 +26,16 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const virtualReceipts = useVirtualRows(receiptsList, {
+    rowHeight: 56,
+    containerHeight: 560,
+    threshold: 30,
+  });
 
   useEffect(() => {
-    const searchVal = searchParams.get('search') || searchParams.get('poNumber');
-    if (searchVal !== null && searchVal !== undefined) {
-      setSearchTerm(searchVal);
-      setPage(1);
-    }
+    const searchVal = searchParams.get('search') || searchParams.get('poNumber') || '';
+    setSearchTerm(searchVal);
+    setPage(1);
   }, [searchParams]);
 
   // Gọi API tải danh sách phiếu nhập khi page, searchTerm, projectId, hoặc refreshKey thay đổi
@@ -88,15 +92,12 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
         </div>
       )}
 
-      {loading ? (
-        <div className="flex justify-center items-center py-10 gap-2">
-          <LoadingSpinner />
-          <span className="text-slate-500 text-sm">Đang tải phiếu nhập kho...</span>
-        </div>
+      {loading && receiptsList.length === 0 ? (
+        <TableLoader isTable={false} message="Đang tải phiếu nhập kho..." />
       ) : (
         <>
           {/* Bảng danh sách */}
-          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+          <div className="overflow-x-auto border border-slate-200 rounded-xl" {...virtualReceipts.scrollContainerProps}>
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
                 <tr>
@@ -118,54 +119,66 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  receiptsList.map(r => (
-                    <tr key={r.receiptId} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3.5 font-semibold text-blue-600 font-mono text-xs">
-                        {r.receiptNo}
-                      </td>
-                      <td className="px-4 py-3.5 font-medium text-slate-900 font-mono text-xs">
-                        {r.poNumber}
-                      </td>
-                      <td className="px-4 py-3.5 text-slate-700">
-                        {(() => {
-                          const info = r.delivererInfo || 'Chưa cập nhật';
-                          const match = info.match(/^\[(?:QC|Kiểm hàng):\s*([^\]]+)\](.*)$/);
-                          if (match) {
-                            return match[2].trim() || 'Chưa cập nhật';
-                          }
-                          return info;
-                        })()}
-                      </td>
-                      <td className="px-4 py-3.5 text-slate-500 font-mono text-xs">
-                        {r.deliveryDocNo || 'Chưa cập nhật'}
-                      </td>
-                      <td className="px-4 py-3.5 text-slate-600">
-                        {formatDateVN(r.createdAt)}
-                      </td>
-                      <td className="px-4 py-3.5 text-slate-700">
-                        {r.createdByName}
-                      </td>
-                      <td className="px-4 py-3.5 text-center">
-                        {(() => {
-                          const badge = getGoodsReceiptStatusDetails(r.status);
-                          return (
-                            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badge.color}`}>
-                              {badge.name}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-4 py-3.5 text-center">
-                        <button
-                          onClick={() => onViewReceipt(r.receiptId)}
-                          className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 mx-auto"
-                        >
-                          <Eye size={14} />
-                          <span>Xem</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  <>
+                    {virtualReceipts.topPadding > 0 && (
+                      <tr aria-hidden="true">
+                        <td colSpan={8} style={{ height: virtualReceipts.topPadding, padding: 0 }} />
+                      </tr>
+                    )}
+                    {virtualReceipts.visibleRows.map(({ item: r }) => (
+                      <tr key={r.receiptId} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3.5 font-semibold text-blue-600 font-mono text-xs">
+                          {r.receiptNo}
+                        </td>
+                        <td className="px-4 py-3.5 font-medium text-slate-900 font-mono text-xs">
+                          {r.poNumber}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-700">
+                          {(() => {
+                            const info = r.delivererInfo || 'Chưa cập nhật';
+                            const match = info.match(/^\[(?:QC|Kiểm hàng):\s*([^\]]+)\](.*)$/);
+                            if (match) {
+                              return match[2].trim() || 'Chưa cập nhật';
+                            }
+                            return info;
+                          })()}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-500 font-mono text-xs">
+                          {r.deliveryDocNo || 'Chưa cập nhật'}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-600">
+                          {formatDateVN(r.createdAt)}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-700">
+                          {r.createdByName}
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          {(() => {
+                            const badge = getGoodsReceiptStatusDetails(r.status);
+                            return (
+                              <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badge.color}`}>
+                                {badge.name}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          <button
+                            onClick={() => onViewReceipt(r.receiptId)}
+                            className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 mx-auto"
+                          >
+                            <Eye size={14} />
+                            <span>Xem</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {virtualReceipts.bottomPadding > 0 && (
+                      <tr aria-hidden="true">
+                        <td colSpan={8} style={{ height: virtualReceipts.bottomPadding, padding: 0 }} />
+                      </tr>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>

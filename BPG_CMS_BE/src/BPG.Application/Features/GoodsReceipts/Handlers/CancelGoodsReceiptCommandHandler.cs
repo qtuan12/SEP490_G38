@@ -37,18 +37,6 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
         {
             var currentUserId = _currentUserService.GetRequiredUserId();
 
-            // 0. Kiểm tra quyền: Chỉ TechnicalManager, Accountant, Admin mới được hủy phiếu
-            if (!_currentUserService.IsInAnyRole(
-                    BPG.Domain.Constants.UserRole.TechnicalManager,
-                    BPG.Domain.Constants.UserRole.Accountant,
-                    BPG.Domain.Constants.UserRole.Director))
-            {
-                throw new BusinessException(
-                    "ERR_INSUFFICIENT_PERMISSION",
-                    "Bạn không có quyền hủy phiếu nhập kho đã được ghi nhận. " +
-                    "Chỉ Quản lý Kỹ thuật, Kế toán hoặc Giám đốc mới có thể thực hiện thao tác này.");
-            }
-
             // 1. Tìm phiếu nhập kho kèm chi tiết
             var receipt = await _uow.Repository<GoodsReceipt>().Query()
                 .Include(gr => gr.Items)
@@ -84,6 +72,12 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với phiếu nhập kho này.");
             }
 
+            var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                cancellationToken);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được hủy phiếu nhập kho.");
+
             // 3. Kiểm tra trạng thái dự án
             if (project.Status != ProjectStatus.InProgress)
             {
@@ -98,7 +92,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
 
             // 3.6 Kiểm tra hạn hủy phiếu từ SystemConfig
             var config = await _uow.Repository<SystemConfig>().Query()
-                .FirstOrDefaultAsync(x => x.ConfigKey == "HanHuyPhieuNgay", cancellationToken);
+                .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.CancellationDays, cancellationToken);
             int limitDays = config != null && int.TryParse(config.ConfigValue, out var parsedDays) ? parsedDays : 7;
 
             if (DateTime.UtcNow - receipt.CreatedAt > TimeSpan.FromDays(limitDays))

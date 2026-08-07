@@ -1,4 +1,6 @@
 using BPG.Application.Features.MaterialIssuances.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.MaterialIssuances.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -16,7 +18,8 @@ namespace BPG.Api.Controllers
         /// Đây là thao tác nghiệp vụ thực tế: thủ kho / kỹ sư hiện trường mới có thẩm quyền xuất vật tư.
         /// </summary>
         [HttpPost]
-        [Authorize(Policy = PolicyNames.RequireFieldStaff)]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = UserRole.SiteEngineer)]
         public async Task<IActionResult> CreateMaterialIssuance([FromBody] CreateMaterialIssuanceCommand command)
         {
             var result = await Mediator.Send(command);
@@ -27,6 +30,7 @@ namespace BPG.Api.Controllers
         /// Lấy danh sách phiếu xuất kho vật tư, có lọc theo dự án (ProjectId) và phân trang.
         /// </summary>
         [HttpGet]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetMaterialIssuances([FromQuery] GetMaterialIssuancesQuery query)
         {
             var result = await Mediator.Send(query);
@@ -37,6 +41,8 @@ namespace BPG.Api.Controllers
         /// Lấy chi tiết một phiếu xuất kho vật tư cụ thể.
         /// </summary>
         [HttpGet("{id:long}")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetMaterialIssuanceDetail(long id)
         {
             var query = new GetMaterialIssuanceDetailQuery(id);

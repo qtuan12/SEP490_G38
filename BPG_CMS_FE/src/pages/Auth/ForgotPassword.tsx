@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, ArrowLeft, AlertTriangle, KeyRound } from 'lucide-react';
 import { Button, Input, FormItem } from '../../components/ui';
 import { authService } from '../../services/authService';
+import { ApiError } from '../../services/api';
+import { OTP_NEEDS_RESEND_ERRORS } from '../../constants/errorCodes';
 
 type Step = 'email' | 'otp';
 
@@ -24,7 +26,7 @@ export const ForgotPassword: React.FC = () => {
       setStep('otp');
       startResendCooldown();
     } catch (err: any) {
-      setError(err.message || 'Gửi OTP thất bại. Vui lòng thử lại.');
+      setError(err.message || 'Không thể gửi OTP. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -38,7 +40,14 @@ export const ForgotPassword: React.FC = () => {
       const resetToken = await authService.verifyOtp(email, otp.trim());
       navigate(`/reset-password?token=${encodeURIComponent(resetToken)}`);
     } catch (err: any) {
-      setError(err.message || 'Xác thực OTP thất bại.');
+      setError(err.message || 'Không thể xác thực OTP.');
+      // Mã hết hạn / hết lượt thử thì nhập lại cũng vô ích — xóa ô OTP và mở khóa nút
+      // "Gửi lại" ngay để người dùng xin mã mới. Nhận biết qua errorCode, không dò message.
+      const code = err instanceof ApiError ? err.errorCode : undefined;
+      if (code && OTP_NEEDS_RESEND_ERRORS.includes(code)) {
+        setOtp('');
+        setResendCooldown(0);
+      }
     } finally {
       setLoading(false);
     }
@@ -53,7 +62,7 @@ export const ForgotPassword: React.FC = () => {
       setOtp('');
       startResendCooldown();
     } catch (err: any) {
-      setError(err.message || 'Gửi lại OTP thất bại.');
+      setError(err.message || 'Không thể gửi lại OTP.');
     } finally {
       setLoading(false);
     }

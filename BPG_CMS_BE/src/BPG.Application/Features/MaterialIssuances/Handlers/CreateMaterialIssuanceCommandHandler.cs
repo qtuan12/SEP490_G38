@@ -2,6 +2,7 @@ using BPG.Application.Common.Models;
 using BPG.Application.Features.MaterialIssuances.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -64,18 +65,13 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với công việc này.");
             }
 
-            // 1.5 Kiểm tra quyền: Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án (Leader) mới được phép tạo yêu cầu xuất dùng vật tư
-            bool isOfficeRole = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
-
-            if (!isOfficeRole)
+            if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
             {
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
-
-                if (!isLeader)
-                {
-                    throw new ForbiddenException("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
-                }
+                var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                    member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                    cancellationToken);
+                if (!isProjectLeader)
+                    throw new ForbiddenException("Chỉ Trưởng dự án mới được tạo phiếu xuất vật tư.");
             }
 
             // 2. Kiểm tra trạng thái dự án
@@ -84,10 +80,22 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án liên kết phải ở trạng thái đang tiến hành (InProgress).");
             }
 
-            // 3. Kiểm tra xem task có bị khóa không
-            if (task.IsLocked)
+            // 3. Kiểm tra xem công việc có bị khóa, hoàn thành, tạm dừng hoặc bị hủy/vô hiệu hóa không
+            var taskStatusLower = (task.Status ?? string.Empty).ToLower();
+            var isInactiveTask = task.IsLocked
+                || task.ProgressPercent >= 100
+                || taskStatusLower == "obsolete"
+                || taskStatusLower == "completed"
+                || taskStatusLower == "approved"
+                || taskStatusLower == "done"
+                || taskStatusLower == "paused"
+                || taskStatusLower == "stopped"
+                || taskStatusLower == "cancelled"
+                || taskStatusLower == "canceled";
+
+            if (isInactiveTask)
             {
-                throw new BusinessException("ERR_TASK_LOCKED", "Công việc này đã bị khóa (đã nghiệm thu hoặc hoàn thành). Không thể xuất thêm vật tư.");
+                throw new BusinessException("ERR_TASK_INACTIVE", "Không thể xuất kho cho công việc đã bị dừng, tạm dừng, hoàn thành hoặc đã bị hủy.");
             }
 
             // 4. Kiểm tra tồn kho khả dụng của từng vật tư
@@ -134,8 +142,8 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
             try
             {
                 // Sinh mã phiếu xuất kho chuẩn nghiệp vụ, ví dụ: PXK-20240624-A3F8B2
-                // Dùng UTC+7 (giờ Việt Nam) để ngày trên mã khớp ngày thực tế trên UI
-                var vnNow = DateTime.UtcNow.AddHours(7);
+                // Dùng giờ Việt Nam để ngày trên mã khớp ngày thực tế trên UI
+                var vnNow = VietnamTime.Now;
                 var issuanceNo = $"PXK-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
                 var issuance = new MaterialIssuance
@@ -190,15 +198,6 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                     .Select(u => u.FullName)
                     .FirstOrDefaultAsync(cancellationToken) ?? "Người dùng";
 
-                await _notificationService.SendNotificationAsync(
-                    currentUserId,
-                    "Xuất vật tư thành công",
-                    $"Bạn đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
-                    NotificationType.Procurement,
-                    $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
-                    issuance.MaterialIssuanceId,
-                    cancellationToken);
-
                 var assigneeIds = task.Assignees
                     .Select(a => a.UserId)
                     .Where(userId => userId != currentUserId)
@@ -210,6 +209,31 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                     await _notificationService.SendNotificationAsync(
                         assigneeId,
                         "Bạn được xuất vật tư cho công việc",
+                        $"{actorName} đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
+                        NotificationType.Procurement,
+                        $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
+                        issuance.MaterialIssuanceId,
+                        cancellationToken);
+                }
+
+                var technicalManagerIds = await _uow.Repository<User>().Query()
+                    .AsNoTracking()
+                    .Include(u => u.UserRoles)
+                        .ThenInclude(ur => ur.Role)
+                    .Where(u => u.IsActive
+                        && !u.IsDeleted
+                        && u.UserId != currentUserId
+                        && !assigneeIds.Contains(u.UserId)
+                        && u.UserRoles.Any(ur => ur.Role.RoleName == BPG.Domain.Constants.UserRole.TechnicalManager))
+                    .Select(u => u.UserId)
+                    .Distinct()
+                    .ToListAsync(cancellationToken);
+
+                foreach (var technicalManagerId in technicalManagerIds)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        technicalManagerId,
+                        "Phiếu xuất vật tư mới",
                         $"{actorName} đã tạo phiếu xuất vật tư {issuance.IssuanceNo} cho công việc {task.Name} tại dự án {project.Name}.",
                         NotificationType.Procurement,
                         $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",

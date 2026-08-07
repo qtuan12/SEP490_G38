@@ -28,6 +28,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private readonly Mock<IGenericRepository<SystemConfig>> _mockConfigRepo;
         private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockReceiptItemRepo;
         private readonly Mock<IGenericRepository<PurchaseOrder>> _mockPoRepo;
+        private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly CancelGoodsReceiptCommandHandler _handler;
 
         public CancelGoodsReceiptCommandHandlerTests()
@@ -39,12 +40,14 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockConfigRepo = new Mock<IGenericRepository<SystemConfig>>();
             _mockReceiptItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
             _mockPoRepo = new Mock<IGenericRepository<PurchaseOrder>>();
+            _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
 
             _mockUow.Setup(uow => uow.Repository<GoodsReceipt>()).Returns(_mockReceiptRepo.Object);
             _mockUow.Setup(uow => uow.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
             _mockUow.Setup(uow => uow.Repository<SystemConfig>()).Returns(_mockConfigRepo.Object);
             _mockUow.Setup(uow => uow.Repository<GoodsReceiptItem>()).Returns(_mockReceiptItemRepo.Object);
             _mockUow.Setup(uow => uow.Repository<PurchaseOrder>()).Returns(_mockPoRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
             _mockUow.Setup(uow => uow.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(uow => uow.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             _mockUow.Setup(uow => uow.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -55,6 +58,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             SetupSystemConfig("7");
             SetupOtherReceiptItems();
             SetupPurchaseOrders();
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
 
             _handler = new CancelGoodsReceiptCommandHandler(
                 _mockUow.Object,
@@ -62,32 +66,6 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 ServiceStubFactory.InventoryService(),
                 ServiceStubFactory.RealtimeSender());
         }
-
-        [Fact]
-        public async Task UTCID01_Handle_AllowedRoleWithValidRequest_ShouldReturnSuccessResponse()
-        {
-            SetupUser(RoleConstants.TechnicalManager);
-            SetupReceipts(Receipt());
-            SetupInventories(Inventory(quantity: 15, reservedQuantity: 2));
-
-            var result = await _handler.Handle(Command(), CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            result.Data.Should().BeTrue();
-            result.Message.Should().Be("Hủy phiếu nhập kho thành công.");
-        }
-
-        [Fact]
-        public async Task UTCID02_Handle_UserWithoutAllowedRole_ShouldThrowBusinessException()
-        {
-            SetupUser(RoleConstants.SiteEngineer, hasRole: false);
-
-            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be("ERR_INSUFFICIENT_PERMISSION");
-        }
-
         [Fact]
         public async Task UTCID03_Handle_ReceiptNotFound_ShouldThrowNotFoundException()
         {
@@ -95,7 +73,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var act = async () => await _handler.Handle(Command(999), CancellationToken.None);
 
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("GoodsReceipt với ID [999] không tồn tại.");
         }
 
         [Fact]
@@ -108,6 +88,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_RECEIPT_ALREADY_CANCELLED");
+            exception.Which.Message.Should().Be("Phiếu nhập kho này đã được hủy từ trước.");
         }
 
         [Fact]
@@ -125,6 +106,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PO_NOT_FOUND");
+            exception.Which.Message.Should().Be("Không tìm thấy đơn mua hàng PO liên kết với phiếu nhập kho này.");
         }
 
         [Fact]
@@ -137,6 +119,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
+            exception.Which.Message.Should().Be("Không tìm thấy dự án liên kết với phiếu nhập kho này.");
         }
 
         [Fact]
@@ -149,6 +132,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be("Dự án liên kết không còn hoạt động, không thể hủy phiếu nhập kho.");
         }
 
         [Fact]
@@ -161,6 +145,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PO_CLOSED");
+            exception.Which.Message.Should().Be("Đơn mua hàng PO liên kết đã đóng, không thể hủy phiếu nhập kho.");
         }
 
         [Fact]
@@ -174,6 +159,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_CANCEL_TIME_EXCEEDED");
+            exception.Which.Message.Should().Be("Phiếu nhập kho đã được tạo quá 7 ngày (hạn hủy tối đa theo cấu hình hệ thống), không thể thực hiện hủy. Vui lòng lập Phiếu Điều Chỉnh Kho để hiệu chỉnh số liệu.");
         }
 
         [Fact]
@@ -187,6 +173,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_CANCEL_TIME_EXCEEDED");
+            exception.Which.Message.Should().Be("Phiếu nhập kho đã được tạo quá 7 ngày (hạn hủy tối đa theo cấu hình hệ thống), không thể thực hiện hủy. Vui lòng lập Phiếu Điều Chỉnh Kho để hiệu chỉnh số liệu.");
         }
 
         [Fact]
@@ -200,6 +187,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_INSUFFICIENT_INVENTORY");
+            exception.Which.Message.Should().Be("Không thể hủy phiếu nhập kho. Vật tư [Cement] đã được xuất dùng hoặc đóng băng cho kế hoạch thi công (tồn kho khả dụng hiện tại chỉ còn 8, yêu cầu hoàn trả 10). Vui lòng lập Phiếu Điều Chỉnh Kho.");
         }
 
         private static CancelGoodsReceiptCommand Command(long receiptId = ReceiptId)
@@ -265,7 +253,17 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
         private void SetupReceipts(params GoodsReceipt[] receipts)
         {
-            _mockReceiptRepo.Setup(repository => repository.Query()).Returns(receipts.AsQueryable().BuildMock());
+            _mockReceiptRepo.Setup(r => r.Query()).Returns(receipts.AsQueryable().BuildMock());
+        }
+
+        private void SetupProjectMembers(params ProjectMember[] members)
+        {
+            _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>> predicate, CancellationToken ct) => 
+                {
+                    return members.AsQueryable().Any(predicate);
+                });
         }
 
         private void SetupInventories(params CurrentInventory[] inventories)

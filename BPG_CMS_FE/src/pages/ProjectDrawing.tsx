@@ -1,16 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { projectService } from '../services/projectService';
 
 import type {Project} from '../types/common';
 import { useAuth } from '../context/AuthContext';
+import { RoleGroup } from '../auth/roles';
 import { Modal } from '../components/ui/Modal';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import {
   ArrowLeft,
   FileText,
   UploadCloud,
   Download,
-  Loader2,
   ZoomIn,
   ZoomOut,
   RotateCcw,
@@ -21,7 +24,7 @@ import {
 export const ProjectDrawing: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { hasAnyRole } = useAuth();
   
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,25 +35,33 @@ export const ProjectDrawing: React.FC = () => {
   const [blobUrl, setBlobUrl] = useState<string>('');
   const [showSelectModal, setShowSelectModal] = useState(false);
 
-  const isTPKTOrAdmin = user?.role === 'technicalmanager' || user?.role === 'admin';
-  const canEdit = isTPKTOrAdmin && project?.status !== 'done';
+  const canEdit =
+    hasAnyRole(RoleGroup.ProjectManagers) &&
+    project?.status !== 'done';
 
-  const loadProject = async () => {
+  const loadProject = useCallback(async (silent = false) => {
     if (!projectId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const p = await projectService.getProjectById(projectId);
       setProject(p);
+      setError(null);
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi tải thông tin dự án.');
+      if (silent) console.error(err);
+      else setError(err.message || 'Lỗi khi tải thông tin dự án.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [projectId]);
 
   useEffect(() => {
-    loadProject();
-  }, [projectId]);
+    void loadProject();
+  }, [loadProject]);
+
+  useRealtimeDataRefresh(
+    () => loadProject(true),
+    ['Project'],
+  );
 
   useEffect(() => {
     if (project && !currentViewUrl && project.drawingUrl) {
@@ -98,13 +109,41 @@ export const ProjectDrawing: React.FC = () => {
 
 
 
+  const handleDownloadDrawing = async () => {
+    if (!currentViewUrl) return;
+    const toastId = toast.loading('Đang chuẩn bị tải file bản vẽ...');
+    try {
+      const response = await fetch(currentViewUrl);
+      if (!response.ok) throw new Error('Không thể tải file từ máy chủ');
+      const blob = await response.blob();
+
+      const attachment = project?.attachments?.find(a => a.fileUrl === currentViewUrl);
+      let fileName = attachment?.fileName;
+      if (!fileName) {
+        const urlFilename = currentViewUrl.split('/').pop()?.split('?')[0] || '';
+        const ext = currentViewUrl.toLowerCase().includes('.pdf') ? 'pdf' : 'png';
+        fileName = urlFilename.includes('.') ? urlFilename : `Ban_ve_${project?.name || 'thiet_ke'}.${ext}`;
+      }
+
+      const tempBlobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = tempBlobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(tempBlobUrl);
+
+      toast.success('Đã tải xuống file bản vẽ!', { id: toastId });
+    } catch (err: any) {
+      console.error('Download drawing error:', err);
+      window.open(currentViewUrl, '_blank');
+      toast.dismiss(toastId);
+    }
+  };
+
   if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', gap: '12px', color: 'hsl(var(--text-muted))' }}>
-        <Loader2 size={24} className="animate-spin" />
-        <span>Đang tải thông tin bản vẽ...</span>
-      </div>
-    );
+    return <LoadingSpinner size="md" label="Đang tải thông tin bản vẽ..." className="py-20" />;
   }
 
   if (error && !project) {
@@ -222,9 +261,7 @@ export const ProjectDrawing: React.FC = () => {
 
             {/* Download button */}
             <button
-              onClick={() => {
-                alert(`Đang chuẩn bị tải xuống file bản vẽ: ${project.drawingUrl}. (Tính năng giả lập)`);
-              }}
+              onClick={handleDownloadDrawing}
               className="btn btn-primary"
               style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', padding: '6px 12px' }}
             >
@@ -288,10 +325,7 @@ export const ProjectDrawing: React.FC = () => {
                    title="Bản vẽ PDF"
                  />
                ) : (
-                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '800px', gap: '12px', color: 'hsl(var(--text-muted))' }}>
-                   <Loader2 size={24} className="animate-spin" />
-                   <span>Đang xử lý PDF...</span>
-                 </div>
+                 <LoadingSpinner size="md" label="Đang xử lý PDF..." className="h-[800px] flex items-center justify-center" />
                )
             ) : (
                <img 

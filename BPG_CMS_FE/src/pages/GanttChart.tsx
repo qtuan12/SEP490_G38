@@ -8,14 +8,20 @@ import type { WBSPhase, WBSTask, Project } from '../types/common';
 import {
   ArrowLeft,
   Calendar,
-  Loader2,
   TrendingUp,
   LayoutGrid,
   List,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useProjectAccess } from '../hooks/useProjectAccess';
+import { toast } from 'react-hot-toast';
+import { wbsService } from '../services/wbsService';
+import { LoadingSpinner } from '../components/ui';
 
-import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
+import { TaskDetailModal } from './WBSWorkspace/modals/TaskDetailModal';
+import { ReportIncidentModal } from './Incidents/modals/ReportIncidentModal';
+import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../constants/realtimeEntities';
 
 // ── helpers ───────────────────────────────────────────────────────────────
 const formatDate = (s: string) => {
@@ -48,7 +54,6 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
   const [project, setProject] = useState<Project | null>(null);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('Week');
@@ -56,36 +61,46 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const { isTechnicalManager, isProjectLeader } = useProjectAccess(projectId);
 
-  const [isAdjustModalOpen, setAdjustModalOpen] = useState(false);
-  const [selectedTaskToAdjust, setSelectedTaskToAdjust] = useState<WBSTask | null>(null);
+  const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<WBSTask | null>(null);
+  const [isReportIncidentOpen, setIsReportIncidentOpen] = useState(false);
 
   // ── load data ────────────────────────────────────────────────────────
-  useEffect(() => {
+  const loadGanttData = useCallback(async (silent = false) => {
     if (!projectId) return;
-    (async () => {
-      try {
-        const [projs, pList, tList, mList] = await Promise.all([
-          projectService.getProjects(),
-          projectService.getPhases(projectId),
-          projectService.getTasks(projectId),
-          projectService.getMembers(projectId)
-        ]);
-        setProject(projs.find(p => p.id === projectId) ?? null);
-        setMembers(mList || []);
-        setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
-        setTasks(
-          tList
-            .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
-            .sort((a, b) => a.sortOrder - b.sortOrder)
-        );
-      } catch (e: any) {
-        setError(e.message ?? 'Lỗi tải dữ liệu.');
-      } finally {
-        setLoading(false);
-      }
-    })();
+    if (!silent) setLoading(true);
+    try {
+      const [projs, pList, tList] = await Promise.all([
+        projectService.getProjects(),
+        projectService.getPhases(projectId),
+        projectService.getTasks(projectId)
+      ]);
+      setProject(projs.find(p => p.id === projectId) ?? null);
+      setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
+      setTasks(
+        tList
+          .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+      );
+      setError(null);
+    } catch (e: any) {
+      if (silent) console.error(e);
+      else setError(e.message ?? 'Lỗi tải dữ liệu.');
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, [projectId]);
+
+  useEffect(() => {
+    void loadGanttData();
+  }, [loadGanttData]);
+
+  useRealtimeDataRefresh(
+    () => loadGanttData(true),
+    RealtimeEntities.projects,
+  );
 
   // ── build DHTMLX data ────────────────────────────────────────────────
   const buildDhtmlxData = useCallback(() => {
@@ -274,26 +289,28 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
       const taskObj = gantt.getTask(id);
       if (taskObj.type !== gantt.config.types.project && taskObj.rawTask) {
         const wbsTask = taskObj.rawTask as WBSTask;
-        const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin';
-        const currentTaskHasSubtasks = tasks.some(t => t.parentTaskId === wbsTask.id && t.status !== 'obsolete');
-        const assignedIds = wbsTask.assignedTo ? wbsTask.assignedTo.split(',').map(s => s.trim()) : [];
-        const hasAnyAssignedTask = user?.id && assignedIds.includes(user.id.toString());
-
-        const canReport = (isPL || hasAnyAssignedTask) && !currentTaskHasSubtasks && wbsTask.status !== 'obsolete';
-
-        if (canReport) {
-          setSelectedTaskToAdjust(wbsTask);
-          setAdjustModalOpen(true);
-        }
+        setSelectedTaskForDetail(wbsTask);
+        setIsTaskDetailOpen(true);
       }
       return true;
     });
 
+    const dblClickEventId = gantt.attachEvent("onTaskDblClick", function (id: string | number) {
+      const taskObj = gantt.getTask(id);
+      if (taskObj.type !== gantt.config.types.project && taskObj.rawTask) {
+        const wbsTask = taskObj.rawTask as WBSTask;
+        setSelectedTaskForDetail(wbsTask);
+        setIsTaskDetailOpen(true);
+      }
+      return false;
+    });
+
     return () => {
       gantt.detachEvent(clickEventId);
+      gantt.detachEvent(dblClickEventId);
       gantt.clearAll();
     };
-  }, [loading, phases, tasks, members, buildDhtmlxData, user]);
+  }, [loading, phases, tasks, buildDhtmlxData]);
 
   // ── change view mode ──────────────────────────────────────────────────
   const handleViewMode = (mode: ViewMode) => {
@@ -335,10 +352,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] gap-3 text-[hsl(var(--text-muted))]">
-        <Loader2 size={24} className="animate-spin" />
-        <span>Đang tải Gantt Chart...</span>
-      </div>
+      <LoadingSpinner size="lg" label="Đang tải Gantt Chart..." className="min-h-[60vh]" />
     );
   }
 
@@ -443,38 +457,67 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
         {phases.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-[hsl(var(--text-muted))] bg-white z-10">
-            Chưa có dữ liệu WBS. Hãy tạo Phase và Task trước.
+            Chưa có dữ liệu công việc. Hãy tạo Phase và Task trước.
           </div>
         )}
       </div>
 
-      {/* ── Adjust Progress Modal (Using DailyLogFormModal) ──────────────── */}
-      {selectedTaskToAdjust && (
-        <DailyLogFormModal
-          isOpen={isAdjustModalOpen}
-          onClose={() => setAdjustModalOpen(false)}
-          task={selectedTaskToAdjust}
-          engineerId={user?.id || ''}
-          engineerName={user?.name || ''}
-          onSuccess={async () => {
-            // Refresh Gantt data
-            try {
-              const [projs, pList, tList] = await Promise.all([
-                projectService.getProjects(),
-                projectService.getPhases(projectId!),
-                projectService.getTasks(projectId!),
-              ]);
-              setProject(projs.find(p => p.id === projectId) ?? null);
-              setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
-              setTasks(
-                tList
-                  .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
-                  .sort((a, b) => a.sortOrder - b.sortOrder)
-              );
-            } catch (e) {
-              console.error("Error refreshing gantt data after log update", e);
+      {/* ── Task Detail Modal (Interactive Task Management & Direct Progress Adjustment) ── */}
+      {isTaskDetailOpen && selectedTaskForDetail && (
+        <TaskDetailModal
+          isOpen={isTaskDetailOpen}
+          onClose={() => setIsTaskDetailOpen(false)}
+          selectedTask={selectedTaskForDetail}
+          selectedTaskPhase={phases.find(p => p.id === selectedTaskForDetail.phaseId) || null}
+          project={project}
+          tasks={tasks}
+          user={user}
+          materialRequests={[]}
+          isTPKTOrPL={isTechnicalManager || isProjectLeader}
+          isTPKT={isTechnicalManager}
+          isPL={isProjectLeader}
+          onCreateMatReqOpen={() => {}}
+          onObsolete={async () => {
+            if (selectedTaskForDetail.progress === 0) {
+              try {
+                const taskIdNum = parseInt(selectedTaskForDetail.id.replace('t-', ''));
+                await wbsService.deleteTask(taskIdNum);
+                console.log(`Đã xóa công việc ${selectedTaskForDetail.name}`);
+                setIsTaskDetailOpen(false);
+                void loadGanttData(true);
+              } catch (err: any) {
+                toast.error(err.message || 'Không thể xóa công việc.');
+              }
             }
           }}
+          onReportIncidentOpen={() => {
+            setIsTaskDetailOpen(false);
+            setIsReportIncidentOpen(true);
+          }}
+          onSuccess={(msg) => {
+            console.log(msg || 'Đã cập nhật tiến độ công việc thành công.');
+            setIsTaskDetailOpen(false);
+            void loadGanttData(true);
+          }}
+          onError={(msg) => toast.error(msg)}
+        />
+      )}
+
+      {/* ── Report Incident Modal ── */}
+      {isReportIncidentOpen && selectedTaskForDetail && project && (
+        <ReportIncidentModal
+          isOpen={isReportIncidentOpen}
+          onClose={() => setIsReportIncidentOpen(false)}
+          projectId={project.id.toString()}
+          taskId={selectedTaskForDetail.id.toString()}
+          taskName={selectedTaskForDetail.name}
+          user={user}
+          onSuccess={(msg) => {
+            setIsReportIncidentOpen(false);
+            console.log(msg || 'Đã báo cáo sự cố thành công.');
+            void loadGanttData(true);
+          }}
+          onError={(msg) => toast.error(msg)}
         />
       )}
 

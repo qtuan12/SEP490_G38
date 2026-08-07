@@ -23,6 +23,20 @@ export const resolveNotificationUrl = (noti: any): string | null => {
         if (tab === 'inventoryincidents') return '/materials-control';
       }
 
+      // Mở thẳng chi tiết phiếu ngay trong phạm vi dự án, để đóng/quay lại thì thấy
+      // danh sách của dự án đó chứ không phải danh sách tổng toàn hệ thống.
+      if (referenceId) {
+        if (tab === 'directpurchases') {
+          return `/projects/${projectId}?tab=directpurchases&directPurchaseId=${referenceId}`;
+        }
+        if (tab === 'purchaseorders') {
+          return `/purchase-orders/${referenceId}?fromProject=${projectId}`;
+        }
+        if (tab === 'surplus') {
+          return `/projects/${projectId}?tab=surplus&surplusRequestId=${referenceId}`;
+        }
+      }
+
       return `/projects/${projectId}?tab=${tab}`;
     }
 
@@ -82,7 +96,8 @@ export const resolveNotificationUrl = (noti: any): string | null => {
   }
 
   if (referenceType === 'SurplusRequest') {
-    return `/projects/0?tab=surplus`;
+    // Old notifications didn't have projectId. We can't navigate to project surplus.
+    return `/projects`;
   }
 
   return null;

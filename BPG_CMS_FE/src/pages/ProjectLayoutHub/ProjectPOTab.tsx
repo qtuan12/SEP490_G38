@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import type { PurchaseOrderDto } from '../../services/inventoryService';
-import { Badge, Pagination, Button, DateInput } from '../../components/ui';
-import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus, ChevronDown, SlidersHorizontal, X, Plus } from 'lucide-react';
+import { Badge, Pagination, Button, DateInput, TableLoader } from '../../components/ui';
+import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus, ChevronDown, SlidersHorizontal, X, Plus, CheckCircle2 } from 'lucide-react';
 import { useNotification } from '../../context/NotificationContext';
-import { useAuth } from '../../context/AuthContext';
-import toast from 'react-hot-toast';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { formatPlainDate } from '../../utils/dateHelpers';
+import { useVirtualRows } from '../../hooks/useVirtualRows';
 
 const menuItemStyle: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 8,
@@ -92,19 +93,24 @@ const RowActionsMenu: React.FC<{ items: RowMenuItem[] }> = ({ items }) => {
   );
 };
 
-const CANCELLABLE = ['Draft', 'Sent'];
+// Đơn bị Giám đốc từ chối là trạng thái kết thúc, không hủy thêm được nữa.
+const CANCELLABLE = ['Draft', 'PendingApproval', 'Sent'];
 
 const PO_STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
+  { label: 'Chờ Giám đốc duyệt', value: 'PendingApproval' },
   { label: 'Đã gửi', value: 'Sent' },
   { label: 'Nhận một phần', value: 'PartiallyReceived' },
   { label: 'Nhận đủ', value: 'FullyReceived' },
   { label: 'Đã đóng', value: 'Closed' },
+  { label: 'Bị từ chối', value: 'Rejected' },
   { label: 'Đã hủy', value: 'Cancelled' },
 ];
 
 const statusLabel: Record<string, string> = {
   Draft: 'Nháp',
+  PendingApproval: 'Chờ Giám đốc duyệt',
+  Rejected: 'Bị từ chối',
   Sent: 'Đã gửi',
   PartiallyReceived: 'Nhận một phần',
   FullyReceived: 'Nhận đủ',
@@ -114,6 +120,8 @@ const statusLabel: Record<string, string> = {
 
 const statusVariant: Record<string, 'default' | 'warning' | 'info' | 'success' | 'danger'> = {
   Draft: 'default',
+  PendingApproval: 'warning',
+  Rejected: 'danger',
   Sent: 'warning',
   PartiallyReceived: 'info',
   FullyReceived: 'success',
@@ -124,27 +132,17 @@ const statusVariant: Record<string, 'default' | 'warning' | 'info' | 'success' |
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-};
 
 interface Props {
   projectId: number;
-  isLeader: boolean;
 }
 
-export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
+export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { connection } = useNotification();
-  const { user } = useAuth();
-  const isAccountant = user?.role === 'accountant';
+  const { isProjectLeader, canManageAccounting, canApprove } = useProjectAccess(projectId);
+  const isAccountant = canManageAccounting;
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -215,22 +213,22 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
 
   const cancelMutation = useMutation({
     mutationFn: () => inventoryService.cancelPurchaseOrder(actionModal!.po.poId, actionReason),
-    onSuccess: () => {
-      toast.success('Đã hủy đơn mua hàng thành công.');
+    onSuccess: (result) => {
+      console.log(result.message || 'Đã hủy đơn mua hàng.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['project-purchase-orders', projectId] });
     },
-    onError: (err: any) => setActionError(err.message || 'Hủy đơn hàng thất bại.'),
+    onError: (err: any) => setActionError(err.message || 'Không thể hủy đơn mua hàng.'),
   });
 
   const closeMutation = useMutation({
     mutationFn: () => inventoryService.closePurchaseOrder(actionModal!.po.poId, actionReason),
-    onSuccess: () => {
-      toast.success('Đã đóng đơn mua hàng. Phần vật tư chưa nhận được trả lại yêu cầu vật tư.');
+    onSuccess: (result) => {
+      console.log(result.message || 'Đã đóng đơn mua hàng. Phần vật tư chưa nhận đã được trả lại yêu cầu vật tư.');
       closeActionModal();
       queryClient.invalidateQueries({ queryKey: ['project-purchase-orders', projectId] });
     },
-    onError: (err: any) => setActionError(err.message || 'Đóng đơn hàng thất bại.'),
+    onError: (err: any) => setActionError(err.message || 'Không thể đóng đơn mua hàng.'),
   });
 
   const { data, isLoading, isError } = useQuery({
@@ -245,6 +243,12 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
         pageNumber: page,
         pageSize,
       }),
+  });
+  const poItems = data?.items ?? [];
+  const virtualPurchaseOrders = useVirtualRows(poItems, {
+    rowHeight: 56,
+    containerHeight: 560,
+    threshold: 30,
   });
 
   // Realtime: tự làm mới danh sách khi có PO thay đổi (tạo/hủy/đóng) từ người dùng khác
@@ -274,6 +278,16 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
       },
     ];
 
+    // Giám đốc duyệt/từ chối ngay tại màn chi tiết để xem đủ vật tư và giá trị đơn.
+    if (canApprove && po.status === 'PendingApproval') {
+      items.push({
+        key: 'approve',
+        label: 'Duyệt đơn hàng',
+        icon: <CheckCircle2 size={14} style={{ color: 'hsl(142 70% 40%)' }} />,
+        onClick: () => navigate(`/purchase-orders/${po.poId}?fromProject=${projectId}`),
+      });
+    }
+
     if (isAccountant) {
       const canClose = po.status === 'PartiallyReceived';
       const canCancel = CANCELLABLE.includes(po.status);
@@ -297,7 +311,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
       return items;
     }
 
-    const canReceive = (isLeader || user?.role === 'technicalmanager') && (po.status === 'Sent' || po.status === 'PartiallyReceived');
+    const canReceive = isProjectLeader && (po.status === 'Sent' || po.status === 'PartiallyReceived');
     if (canReceive) {
       items.push({
         key: 'receive',
@@ -440,7 +454,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
         document.body
       )}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" {...virtualPurchaseOrders.scrollContainerProps}>
         <table className={`w-full min-w-[860px] table-fixed text-sm text-left ${isLoading ? 'opacity-50' : ''}`}>
           <colgroup>
             <col className="w-[14%]" />
@@ -464,48 +478,54 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId, isLeader }) => {
           </thead>
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {isLoading ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin" size={18} />
-                    Đang tải...
-                  </div>
-                </td>
-              </tr>
-            ) : (data?.items ?? []).length === 0 ? (
+              <TableLoader colSpan={7} message="Đang tải danh sách đơn mua hàng..." />
+            ) : poItems.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
                   Dự án này chưa có đơn mua hàng nào.
                 </td>
               </tr>
             ) : (
-              (data?.items ?? []).map(po => (
-                <tr
-                  key={po.poId}
-                  className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/purchase-orders/${po.poId}`)}
-                >
-                  <td className="px-4 py-3 font-semibold text-[hsl(var(--primary))] truncate" title={po.poNumber}>{po.poNumber}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={po.supplierName || 'N/A'}>{po.supplierName || 'N/A'}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatDate(po.orderDate)}</td>
-                  <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(po.totalAmount)}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{po.items.length} dòng</td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge variant={statusVariant[po.status] ?? 'default'}>
-                      {statusLabel[po.status] ?? po.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <RowActionsMenu items={getRowMenuItems(po)} />
-                  </td>
-                </tr>
-              ))
+              <>
+                {virtualPurchaseOrders.topPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={7} style={{ height: virtualPurchaseOrders.topPadding, padding: 0 }} />
+                  </tr>
+                )}
+                {virtualPurchaseOrders.visibleRows.map(({ item: po }) => (
+                  <tr
+                    key={po.poId}
+                    className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/purchase-orders/${po.poId}`)}
+                  >
+                    <td className="px-4 py-3 font-semibold text-[hsl(var(--primary))] truncate" title={po.poNumber}>{po.poNumber}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={po.supplierName || 'N/A'}>{po.supplierName || 'N/A'}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatPlainDate(po.orderDate)}</td>
+                    <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(po.totalAmount)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{po.items.length} loại</td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant={statusVariant[po.status] ?? 'default'}>
+                        {statusLabel[po.status] ?? po.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <RowActionsMenu items={getRowMenuItems(po)} />
+                    </td>
+                  </tr>
+                ))}
+                {virtualPurchaseOrders.bottomPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={7} style={{ height: virtualPurchaseOrders.bottomPadding, padding: 0 }} />
+                  </tr>
+                )}
+              </>
+
             )}
           </tbody>
         </table>
       </div>
 
-      {data && data.totalPages > 1 && (
+      {data && (
         <div className="p-4 border-t border-[hsl(var(--border))]">
           <Pagination
             currentPage={page}

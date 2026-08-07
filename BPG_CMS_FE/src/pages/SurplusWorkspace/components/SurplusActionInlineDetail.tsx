@@ -8,6 +8,11 @@ import { DispatchTransferModal } from '../modals/DispatchTransferModal';
 import { ReceiveTransferModal } from '../modals/ReceiveTransferModal';
 import { useParams } from 'react-router-dom';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
+import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../../constants/realtimeEntities';
 
 interface SurplusActionInlineDetailProps {
   itemId: number;
@@ -29,19 +34,10 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
   const [actioning, setActioning] = useState<number | null>(null);
   const [dispatchingTransferId, setDispatchingTransferId] = useState<number | null>(null);
   const [receivingTransferId, setReceivingTransferId] = useState<number | null>(null);
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, [itemId, actionId, actionType]);
-
-  useSignalREvent('ReceiveNotification', (noti: any) => {
-    if (noti?.referenceType === 'SurplusRequest') {
-      loadData();
-    }
-  });
-
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await surplusService.getActionList(itemId);
       const filteredRes = {
@@ -52,11 +48,44 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
       };
       setData(filteredRes);
     } catch (err: any) {
-      toast.error(err.message || 'Không thể tải chi tiết thao tác.');
+      if (showLoading) toast.error(err.message || 'Không thể tải chi tiết thao tác.');
+      else console.error('Error refreshing surplus action detail:', err);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
+
+  const scheduleRealtimeRefresh = () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      void loadData(false);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  };
+
+  useEffect(() => () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [itemId, actionId, actionType]);
+
+  useEffect(() => {
+    loadData();
+  }, [itemId, actionId, actionType]);
+
+  useSignalREvent('ReceiveNotification', (noti: any) => {
+    if (noti?.referenceType === 'SurplusRequest') {
+      scheduleRealtimeRefresh();
+    }
+  });
+
+  useRealtimeDataRefresh(
+    scheduleRealtimeRefresh,
+    RealtimeEntities.surplus,
+    0,
+  );
 
   const doTransferAction = async (transferId: number, action: 'review-approve' | 'review-reject' | 'dispatch' | 'receive') => {
     if (action === 'dispatch') {
@@ -70,14 +99,15 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
 
     setActioning(transferId);
     try {
-      if (action === 'review-approve') await surplusService.reviewTransfer(transferId, true);
-      else if (action === 'review-reject') await surplusService.reviewTransfer(transferId, false);
+      let result: { message?: string } | undefined;
+      if (action === 'review-approve') result = await surplusService.reviewTransfer(transferId, true);
+      else if (action === 'review-reject') result = await surplusService.reviewTransfer(transferId, false);
 
-      toast.success('Thao tác thành công!');
-      await loadData();
+      console.log(result?.message || (action === 'review-approve' ? 'Đã duyệt phiếu điều chuyển vật tư.' : 'Đã từ chối phiếu điều chuyển vật tư.'));
+      scheduleRealtimeRefresh();
       onRefresh();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi hệ thống.');
+      toast.error(err.message || 'Không thể xử lý phiếu điều chuyển vật tư.');
     } finally {
       setActioning(null);
     }
@@ -236,7 +266,7 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
           isOpen={!!dispatchingTransferId}
           onClose={() => setDispatchingTransferId(null)}
           onSuccess={() => {
-            loadData();
+            scheduleRealtimeRefresh();
             onRefresh();
           }}
           surplusTransferId={dispatchingTransferId}
@@ -248,7 +278,7 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
           isOpen={!!receivingTransferId}
           onClose={() => setReceivingTransferId(null)}
           onSuccess={() => {
-            loadData();
+            scheduleRealtimeRefresh();
             onRefresh();
           }}
           surplusTransferId={receivingTransferId}

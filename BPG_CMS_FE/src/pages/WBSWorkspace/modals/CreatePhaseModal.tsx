@@ -65,7 +65,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
     },
     onSuccess: (_, variables) => {
       const msg = `Đã tạo thành công Giai đoạn mới: ${variables.name.trim()}`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       reset();
       onClose();
@@ -91,7 +91,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
         projEnd.setHours(0,0,0,0);
 
         if (phaseStart < projStart || phaseEnd > projEnd) {
-            toast.error(`Thời gian Giai đoạn phải nằm trong khoảng thời gian Dự án (${projStart.toLocaleDateString('vi-VN')} - ${projEnd.toLocaleDateString('vi-VN')})`);
+            toast.error(`Thời gian giai đoạn phải nằm trong khoảng thời gian dự án (${projStart.toLocaleDateString('vi-VN')} - ${projEnd.toLocaleDateString('vi-VN')})`, { duration: 4000 });
             return;
         }
     }
@@ -112,7 +112,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
                 prevEndDate.setHours(0,0,0,0);
                 
                 if (phaseStart <= prevEndDate) {
-                    toast.error(`Ngày bắt đầu phải sau ngày kết thúc của Giai đoạn trước ("${latestPhase.name}" kết thúc vào ${prevEndDate.toLocaleDateString('vi-VN')})`);
+                    toast.error(`Ngày bắt đầu phải sau ngày kết thúc của giai đoạn trước ("${latestPhase.name}" kết thúc vào ${prevEndDate.toLocaleDateString('vi-VN')})`, { duration: 4000 });
                     return;
                 }
             }
@@ -157,7 +157,7 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="mb-1 truncate" title={`Giai đoạn trước nhất (${latestPhase.name})`}>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-amber-600/70 mr-1">Kế tiếp:</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-amber-600/70 mr-1">Giai đoạn trước:</span>
                   <span className="text-[12px] font-bold text-amber-700">{latestPhase.name}</span>
                 </div>
                 <p className="text-[13px] font-semibold text-slate-700 truncate">

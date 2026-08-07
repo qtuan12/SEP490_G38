@@ -11,6 +11,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { wbsService } from '../../../services/wbsService';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { canCreateDailyLog } from '../../../utils/taskPermissions';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ interface TaskDetailModalProps {
   user: any;
   materialRequests: MaterialRequest[];
   isTPKTOrPL: boolean;
+  isTPKT: boolean;
   isPL: boolean;
   onCreateMatReqOpen: (type: 'normal' | 'emergency') => void;
   onObsolete: () => void;
@@ -44,7 +46,7 @@ const getAvatarColor = (userId: string) => {
 };
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
-  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isPL,
+  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isTPKT, isPL,
   onObsolete,
   onReportIncidentOpen,
   onSuccess, onError
@@ -65,14 +67,15 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   const restoreMutation = useMutation({
     mutationFn: () => wbsService.restoreTask(parseInt(selectedTask.id.replace('t-', ''))),
-    onSuccess: () => {
-      toast.success('Đã khôi phục công việc thành công');
+    onSuccess: (result) => {
+      const message = result.message || 'Đã khôi phục công việc.';
+      console.log(message);
       setIsRestoreConfirmOpen(false);
-      if (onSuccess) onSuccess('Đã khôi phục công việc thành công');
+      if (onSuccess) onSuccess(message);
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Có lỗi xảy ra khi khôi phục công việc');
+      toast.error(err?.response?.data?.message || 'Không thể khôi phục công việc.');
       setIsRestoreConfirmOpen(false);
     }
   });
@@ -167,6 +170,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   }
 
   const isParentTask = tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
+  const canReportDailyLog = canCreateDailyLog(selectedTask, user, isPL) && !isParentTask;
 
   const isBlocked = (() => {
     const predIds = selectedTask.predecessorTaskIds;
@@ -365,7 +369,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       <UserPlus size={16} /><span>Phân công</span>
                     </button>
                   )}
-                  {(user?.role === 'technicalmanager' || user?.role === 'admin') && !isParentTask && (
+                  {isTPKT && !isParentTask && (
                     <button onClick={() => setActiveForm(activeForm === 'adjust' ? null : 'adjust')} className={`btn ${activeForm === 'adjust' ? 'btn-primary' : 'btn-secondary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', borderColor: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))', color: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))' }} disabled={isBlocked}>
                       <TrendingUp size={16} /><span>Điều chỉnh tiến độ trực tiếp</span>
                     </button>
@@ -381,11 +385,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   </button>
                 </>
               )}
-              {(() => {
-                const assignedIds = selectedTask.assignedTo ? selectedTask.assignedTo.split(',').map(s => s.trim()) : [];
-                const isAssigned = user?.id && assignedIds.includes(user.id.toString());
-                return (isPL || isAssigned) && !tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
-              })() && (
+              {canReportDailyLog && (
                 <>
                   <button onClick={() => setActiveForm(activeForm === 'log' ? null : 'log')} className={`btn ${activeForm === 'log' ? 'btn-secondary' : 'btn-primary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '140px' }} disabled={isBlocked}>
                     <TrendingUp size={16} /><span>Cập nhật Nhật ký</span>
@@ -400,14 +400,25 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <FileText size={15} />
                 <span>Xem Nhật ký thi công</span>
               </button>
-              <button 
-                onClick={() => onReportIncidentOpen()} 
-                className="btn btn-outline" 
-                style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
-              >
-                <AlertCircle size={15} />
-                <span>Báo cáo Sự cố</span>
-              </button>
+              {isPL ? (
+                <button 
+                  onClick={() => onReportIncidentOpen()} 
+                  className="btn btn-outline" 
+                  style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
+                >
+                  <AlertCircle size={15} />
+                  <span>Báo cáo Sự cố</span>
+                </button>
+              ) : (
+                <button 
+                  onClick={() => { onClose(); navigate(`/projects/${project?.id}?tab=incidents&taskId=${selectedTask.id}`); }} 
+                  className="btn btn-outline" 
+                  style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
+                >
+                  <AlertCircle size={15} />
+                  <span>Danh sách Sự cố</span>
+                </button>
+              )}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -482,8 +493,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             {activeForm === 'obsolete' && (
               <ObsoleteTaskForm task={selectedTask} onSuccess={handleFormSuccess} onCancel={() => setActiveForm(null)} />
             )}
-            {activeForm === 'log' && (
-              <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} isPL={isPL} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
+            {activeForm === 'log' && canReportDailyLog && (
+              <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} isPL={isPL} canManageTechnical={isTPKT} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
             )}
           </div>
         )}

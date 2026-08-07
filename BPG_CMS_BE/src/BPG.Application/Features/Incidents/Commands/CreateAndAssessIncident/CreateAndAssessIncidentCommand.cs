@@ -24,7 +24,9 @@ public record CreateAndAssessIncidentCommand(
     int? EstimatedDelayDays,
     string? ProposedAction,
     bool IsEmergency = false
-) : IRequest<ApiResponse<IncidentDto>>;
+) : IRequest<ApiResponse<IncidentDto>>
+{
+}
 
 public class CreateAndAssessIncidentCommandValidator : AbstractValidator<CreateAndAssessIncidentCommand>
 {
@@ -67,17 +69,6 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
     {
         var currentUserId = Convert.ToInt64(_currentUserService.UserId);
 
-        // Security check: Ensure the SiteEngineer is actually the ProjectLeader (or Admin/TPKT)
-        var isLeader = await _unitOfWork.Repository<ProjectMember>()
-            .Query()
-            .AnyAsync(pm => pm.ProjectId == request.ProjectId && pm.UserId == currentUserId && pm.IsLeader, cancellationToken);
-        var isPrivileged = _currentUserService.Roles.Contains(BPG.Domain.Constants.UserRole.TechnicalManager) || _currentUserService.Roles.Contains(BPG.Domain.Constants.UserRole.Admin);
-
-        if (!isLeader && !isPrivileged)
-        {
-            throw new ForbiddenException("Chỉ có Project Leader của dự án mới được quyền báo cáo sự cố.");
-        }
-
         var project = await _unitOfWork.Repository<Project>()
             .Query()
             .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId, cancellationToken);
@@ -85,6 +76,15 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         if (project == null)
         {
             throw new NotFoundException(nameof(Project), request.ProjectId);
+        }
+
+        var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+            member => member.ProjectId == request.ProjectId && member.UserId == currentUserId && member.IsLeader,
+            cancellationToken);
+
+        if (!isProjectLeader)
+        {
+            throw new ForbiddenException("Chỉ Trưởng dự án mới được báo cáo sự cố.");
         }
 
         if (request.TaskId.HasValue)
@@ -128,7 +128,7 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             EstimatedDelayDays = request.EstimatedDelayDays,
             ProposedAction = request.ProposedAction,
             IsEmergency = request.IsEmergency,
-            Status = request.IsEmergency ? "WaitingStopApproval" : (isInventoryIncident ? "WaitingAccountant" : "WaitingReview"),
+            Status = request.IsEmergency ? "WaitingStopApproval" : (isInventoryIncident ? "Reported" : "WaitingReview"),
         };
 
         await _unitOfWork.Repository<Incident>().AddAsync(incident);
@@ -144,13 +144,7 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
 
         if (isInventoryIncident)
         {
-            await _notificationService.SendNotificationToRoleAsync(
-                BPG.Domain.Constants.UserRole.Accountant,
-                "Báo cáo sự cố mới",
-                $"Có một sự cố vật tư mới tại dự án {project.Name} đang chờ kế toán xác minh.",
-                "IncidentReported",
-                $"/projects/{project.ProjectId}/workspace/incidents"
-            );
+            // Trưởng dự án sẽ đẩy (push) sự cố sau nên không gửi thông báo cho kế toán ở bước này
         }
         else
         {
@@ -171,6 +165,34 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                     "EmergencyStop",
                     $"/projects/{project.ProjectId}/workspace/incidents"
                 );
+
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.Accountant,
+                    "🚨 Yêu cầu dừng thi công khẩn cấp",
+                    $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng.",
+                    "EmergencyStop",
+                    $"/projects/{project.ProjectId}/workspace/incidents"
+                );
+
+                // Notify all project members
+                var projectMembers = await _unitOfWork.Repository<ProjectMember>()
+                    .Query()
+                    .Where(pm => pm.ProjectId == incident.ProjectId)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var pm in projectMembers)
+                {
+                    if (pm.UserId != currentUserId)
+                    {
+                        await _notificationService.SendNotificationAsync(
+                            pm.UserId,
+                            "🚨 Yêu cầu dừng thi công khẩn cấp",
+                            $"Dự án {incident.Project?.Name ?? project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng.",
+                            "EmergencyStop",
+                            $"/projects/{incident.ProjectId}/workspace/incidents"
+                        );
+                    }
+                }
             }
             else
             {
@@ -203,3 +225,4 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         return ApiResponse<IncidentDto>.SuccessResult(dto, "Sự cố đã được báo cáo và đánh giá.");
     }
 }
+

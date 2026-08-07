@@ -1,4 +1,6 @@
 using BPG.Application.Features.MaterialReturns.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.MaterialReturns.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -16,7 +18,8 @@ namespace BPG.Api.Controllers
         /// Phiếu hoàn trả phải gắn với phiếu xuất kho gốc (OriginalIssuanceId).
         /// </summary>
         [HttpPost]
-        [Authorize(Policy = PolicyNames.RequireFieldStaff)]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = UserRole.SiteEngineer)]
         public async Task<IActionResult> CreateMaterialReturn([FromBody] CreateMaterialReturnCommand command)
         {
             var result = await Mediator.Send(command);
@@ -28,6 +31,7 @@ namespace BPG.Api.Controllers
         /// Có thể lọc theo ProjectId hoặc IssuanceId (để xem lịch sử hoàn trả của 1 phiếu xuất cụ thể).
         /// </summary>
         [HttpGet]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetMaterialReturns([FromQuery] GetMaterialReturnsQuery query)
         {
             var result = await Mediator.Send(query);
@@ -38,6 +42,8 @@ namespace BPG.Api.Controllers
         /// Lấy chi tiết một phiếu hoàn trả vật tư cụ thể, kèm danh sách vật tư đã trả.
         /// </summary>
         [HttpGet("{id:long}")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetMaterialReturnDetail(long id)
         {
             var query = new GetMaterialReturnDetailQuery(id);

@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.Features.DailyLogs.Commands;
@@ -107,8 +107,6 @@ namespace BPG.Application.UnitTests.DailyLogs
             );
         }
 
-
-
         [Fact]
         public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnDailyLogDto()
         {
@@ -143,7 +141,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             _mockUserRepo.Setup(r => r.Query()).Returns(new List<User> { user }.AsQueryable().BuildMock());
 
             // Mock Progress Log history for old progress mapping
-            var progressLog = new TaskProgressLog { TaskId = TaskId, NewProgress = 50, OldProgress = 20, UpdatedAt = DateTime.UtcNow.AddMinutes(-5) };
+            var progressLog = new TaskProgressLog { TaskId = TaskId, NewProgress = 50, OldProgress = 20, CreatedBy = CurrentUserId, UpdatedAt = DateTime.UtcNow.AddMinutes(-5) };
             _mockProgressLogRepo.Setup(r => r.Query()).Returns(new List<TaskProgressLog> { progressLog }.AsQueryable().BuildMock());
 
             // Request keeps old1.jpg, removes old2.jpg, adds new1.jpg
@@ -181,7 +179,8 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<NotFoundException>();
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
         }
 
         [Fact]
@@ -211,7 +210,8 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<ForbiddenException>();
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be("AUTH_002");
         }
 
         [Fact]
@@ -234,7 +234,8 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
 
         [Fact]
@@ -261,7 +262,8 @@ namespace BPG.Application.UnitTests.DailyLogs
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
 
             // Assert
-            await act.Should().ThrowAsync<BusinessException>();
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_TASK_LOCKED");
         }
 
         [Fact]
@@ -380,6 +382,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
                 TaskId = TaskId,
                 NewProgressPercent = 50,
                 Description = "Old Description",
+                CreatedBy = CurrentUserId,
                 CreatedAt = DateTime.UtcNow.AddMinutes(-10),
                 Task = new ProjectTask
                 {
@@ -399,6 +402,7 @@ public async Task UTCID06_Handle_MultipleImages_ShouldSucceed()
                 TaskId = TaskId,
                 OldProgress = 40,
                 NewProgress = 50,
+                CreatedBy = CurrentUserId,
                 UpdatedAt = DateTime.UtcNow.AddMinutes(-10)
             };
             _mockProgressLogRepo.Setup(r => r.Query()).Returns(new List<TaskProgressLog> { progressLog }.AsQueryable().BuildMock());

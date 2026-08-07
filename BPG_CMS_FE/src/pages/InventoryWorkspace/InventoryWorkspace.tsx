@@ -1,14 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button, LoadingSpinner } from '../../components/ui';
+import { Button, TableLoader } from '../../components/ui';
+import toast from 'react-hot-toast';
 import { inventoryService } from '../../services/inventoryService';
 import type { CurrentInventory } from '../../types/inventory';
-import { useAuth } from '../../context/AuthContext';
-import { projectService } from '../../services/projectService';
 import { useNotification } from '../../context/NotificationContext';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../constants/realtimeEntities';
 
 const PROJECT_ZERO = 0;
+const INVENTORY_REALTIME_ENTITIES = [
+  ...RealtimeEntities.inventory,
+  ...RealtimeEntities.materials,
+] as const;
 
 // Import các sub-components được bóc tách
 import { InventoryOverviewCards } from './components/InventoryOverviewCards';
@@ -29,6 +37,7 @@ import {
   AlertTriangle,
   Plus
 } from 'lucide-react';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 interface InventoryWorkspaceProps {
   projectId: number;
@@ -37,14 +46,25 @@ interface InventoryWorkspaceProps {
 export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectId }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { connection } = useNotification();
-  const [activeSubTab, setActiveSubTab] = useState<'current' | 'receipts' | 'issuances' | 'ledger'>(
-    (searchParams.get('subTab') as any) || 'current'
+  type InventorySubTab = 'current' | 'receipts' | 'issuances' | 'ledger';
+  const normalizeSubTab = (subTab: string | null): InventorySubTab => {
+    if (subTab === 'receipts' || subTab === 'issuances' || subTab === 'ledger') return subTab;
+    if (subTab === 'returns') return 'issuances';
+    return 'current';
+  };
+
+  const [activeSubTab, setActiveSubTab] = useState<InventorySubTab>(
+    normalizeSubTab(searchParams.get('subTab'))
   );
+  const { isProjectLeader, canManageInventory } = useProjectAccess(projectId);
+  const canManageProjectInventory = isProjectLeader;
+  const canCreateReceipt = canManageProjectInventory;
+  const canCreateIssuance = canManageProjectInventory;
 
   useEffect(() => {
     const subTab = searchParams.get('subTab');
-    if (subTab && ['current', 'receipts', 'issuances', 'ledger', 'returns'].includes(subTab)) {
-      setActiveSubTab(subTab as any);
+    if (subTab) {
+      setActiveSubTab(normalizeSubTab(subTab));
     }
     const receiptId = searchParams.get('receiptId');
     if (receiptId) {
@@ -56,22 +76,44 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
       setSelectedIssuanceId(Number(issuanceId));
       setActiveSubTab('issuances');
     }
+    const returnId = searchParams.get('returnId');
+    if (returnId && !issuanceId) {
+      setActiveSubTab('issuances');
+      inventoryService.getMaterialReturnDetail(Number(returnId))
+        .then(detail => setSelectedIssuanceId(detail.originalIssuanceId))
+        .catch((err) => {
+          console.error('Error resolving material return notification:', err);
+          toast.error('Không thể mở phiếu hoàn trả vật tư từ thông báo.');
+        });
+    }
   }, [searchParams]);
 
   useEffect(() => {
     const openCreate = searchParams.get('openCreate');
-    if (openCreate === 'receipt' && activeSubTab === 'receipts') {
+    if (openCreate === 'receipt' && activeSubTab === 'receipts' && canCreateReceipt) {
       setIsCreateReceiptOpen(true);
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('openCreate');
       setSearchParams(newParams);
+    } else if (openCreate === 'receipt' && !canCreateReceipt) {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('openCreate');
+      setSearchParams(newParams, { replace: true });
     }
-  }, [searchParams, activeSubTab]);
+  }, [searchParams, activeSubTab, canCreateReceipt, setSearchParams]);
 
-  const handleSubTabChange = (subTab: 'current' | 'receipts' | 'issuances' | 'ledger') => {
+  const handleSubTabChange = (subTab: InventorySubTab) => {
     setActiveSubTab(subTab);
     const newParams = new URLSearchParams(searchParams);
     newParams.set('subTab', subTab);
+    newParams.delete('search');
+    newParams.delete('poNumber');
+    newParams.delete('poId');
+    newParams.delete('taskId');
+    newParams.delete('receiptId');
+    newParams.delete('issuanceId');
+    newParams.delete('returnId');
+    newParams.delete('openCreate');
     setSearchParams(newParams);
   };
   const [loading, setLoading] = useState(false);
@@ -82,28 +124,13 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
   // Key để bắt các sub-components gọi lại API khi có thay đổi dữ liệu (tạo mới/hủy)
   const [refreshKey, setRefreshKey] = useState(0);
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Quản lý trạng thái đóng/mở Modals
   const [isCreateReceiptOpen, setIsCreateReceiptOpen] = useState(false);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
   const [isCreateIssuanceOpen, setIsCreateIssuanceOpen] = useState(false);
   const [selectedIssuanceId, setSelectedIssuanceId] = useState<number | null>(null);
-
-  const { user } = useAuth();
-  const [isAssignedLeader, setIsAssignedLeader] = useState(false);
-
-  useEffect(() => {
-    if (projectId) {
-      projectService.getMembers(projectId.toString()).then(members => {
-        const currentMember = members.find(m => m.userId === user?.id);
-        setIsAssignedLeader(currentMember?.isLeader ?? false);
-      }).catch(console.error);
-    }
-  }, [projectId, user]);
-
-  const userRole = user?.role?.toLowerCase() || '';
-  const canCreateReceipt = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin';
-  const canCreateIssuance = isAssignedLeader || userRole === 'technicalmanager' || userRole === 'admin';
 
   // Tải thông tin kho hiện tại để làm dữ liệu thống kê
   useEffect(() => {
@@ -124,21 +151,37 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     }
   };
 
-  const handleRefreshAll = () => {
-    setRefreshKey(prev => prev + 1);
-  };
+  const handleRefreshAll = React.useCallback(() => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      setRefreshKey(prev => prev + 1);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  }, [projectId]);
+
+  useEffect(() => () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [projectId]);
 
   // Realtime: tham gia group dự án + group toàn cục (Project_0) để nhận cập nhật kho
   useEffect(() => {
     if (!connection) return;
+    let active = true;
 
     const joinGroups = () => {
+      if (!active || connection.state !== 'Connected') return;
       connection.invoke('JoinProjectGroup', Number(projectId)).catch((e) =>
         console.error('[SignalR] JoinProjectGroup error:', e)
       );
-      connection.invoke('JoinProjectGroup', PROJECT_ZERO).catch((e) =>
-        console.error('[SignalR] JoinProjectGroup (global) error:', e)
-      );
+      if (canManageInventory) {
+        connection.invoke('JoinProjectGroup', PROJECT_ZERO).catch((e) =>
+          console.error('[SignalR] JoinProjectGroup (global) error:', e)
+        );
+      }
     };
 
     if (connection.state === 'Connected') {
@@ -147,12 +190,15 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     connection.onreconnected(joinGroups);
 
     return () => {
+      active = false;
       if (connection.state === 'Connected') {
         connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
-        connection.invoke('LeaveProjectGroup', PROJECT_ZERO).catch(console.error);
+        if (canManageInventory) {
+          connection.invoke('LeaveProjectGroup', PROJECT_ZERO).catch(console.error);
+        }
       }
     };
-  }, [connection, projectId]);
+  }, [canManageInventory, connection, projectId]);
 
   // Realtime: khi có biến động kho từ SignalR, làm mới toàn bộ workspace
   useSignalREvent('GoodsReceiptChanged', () => handleRefreshAll());
@@ -160,14 +206,17 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   useSignalREvent('MaterialReturnChanged', () => handleRefreshAll());
   useSignalREvent('InventoryAdjustmentCreated', () => handleRefreshAll());
   useSignalREvent('InventoryAdjustmentUpdated', () => handleRefreshAll());
+  useRealtimeDataRefresh(handleRefreshAll, INVENTORY_REALTIME_ENTITIES, 0);
 
-  const handleCreateReceiptSuccess = () => {
+  const handleCreateReceiptSuccess = (message?: string) => {
     setIsCreateReceiptOpen(false);
+    console.log(message || 'Đã tạo phiếu nhập kho. Tồn kho đã được cập nhật.');
     handleRefreshAll();
   };
 
-  const handleCreateIssuanceSuccess = () => {
+  const handleCreateIssuanceSuccess = (message?: string) => {
     setIsCreateIssuanceOpen(false);
+    console.log(message || 'Đã tạo phiếu xuất kho. Tồn kho đã được cập nhật.');
     handleRefreshAll();
   };
 
@@ -260,7 +309,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
             }`}
           >
             <History size={16} />
-            <span>Nhật Ký Biến Động Vật Tư</span>
+            <span>Lịch Sử Biến Động Kho</span>
           </button>
         </div>
 
@@ -300,10 +349,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
       {/* 4. Phần Nội dung chính của Tab đang chọn */}
       {loading && inventoryList.length === 0 ? (
-        <div className="flex justify-center items-center py-20 gap-3 bg-white border border-slate-100 rounded-2xl shadow-sm">
-          <LoadingSpinner />
-          <span className="text-slate-500 text-sm">Đang tải thông tin kho...</span>
-        </div>
+        <TableLoader isTable={false} message="Đang tải thông tin kho..." />
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-5 flex flex-col gap-4">
           
@@ -352,7 +398,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           isOpen={selectedReceiptId !== null}
           onClose={() => setSelectedReceiptId(null)}
           receiptId={selectedReceiptId}
-          isAssignedLeader={isAssignedLeader}
+          canManageInventory={canManageProjectInventory}
           onSuccess={handleRefreshAll}
         />
       )}
@@ -372,7 +418,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           onClose={() => setSelectedIssuanceId(null)}
           issuanceId={selectedIssuanceId}
           projectId={projectId}
-          isAssignedLeader={isAssignedLeader}
+          canReturnMaterial={canManageProjectInventory}
           onSuccess={() => setRefreshKey(prev => prev + 1)}
         />
       )}

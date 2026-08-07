@@ -14,7 +14,10 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Commands
 {
-    public record ApproveMaterialRequestByDirectorCommand(long RequestId, string? Note) : IRequest<ApiResponse<bool>>;
+    public record ApproveMaterialRequestByDirectorCommand(long RequestId, string? Note)
+        : IRequest<ApiResponse<bool>>
+    {
+    }
 
     public class ApproveMaterialRequestByDirectorCommandHandler : IRequestHandler<ApproveMaterialRequestByDirectorCommand, ApiResponse<bool>>
     {
@@ -112,3 +115,4 @@ namespace BPG.Application.Features.MaterialRequests.Commands
         }
     }
 }
+

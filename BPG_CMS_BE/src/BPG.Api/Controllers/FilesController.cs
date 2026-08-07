@@ -1,12 +1,18 @@
 using BPG.Application.DTOs.Files;
+using BPG.Api.Configuration;
 using BPG.Application.IServices;
+using BPG.Domain.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using Microsoft.AspNetCore.RateLimiting;
+
 namespace BPG.Api.Controllers
 {
+    [Authorize]
     public class FilesController : BaseApiController
     {
         private readonly IFileStorageService _fileStorageService;
@@ -20,6 +26,7 @@ namespace BPG.Api.Controllers
         /// Tải lên một tệp đơn lẻ (Ảnh, PDF, v.v.) lên Cloudinary.
         /// </summary>
         [HttpPost("upload")]
+        [EnableRateLimiting(RateLimitPolicies.Upload)]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadSingleFile(IFormFile file, [FromForm] string? folder)
         {
@@ -38,13 +45,14 @@ namespace BPG.Api.Controllers
                 FileSizeBytes = file.Length
             };
 
-            return ApiOk(response, "Tải lên tệp thành công.");
+            return ApiOk(response, "Tải tệp lên thành công.");
         }
 
         /// <summary>
-        /// Tải lên nhiều tệp cùng một lúc lên Cloudinary.
+        /// Tải nhiều tệp cùng lúc lên Cloudinary.
         /// </summary>
         [HttpPost("upload-multiple")]
+        [EnableRateLimiting(RateLimitPolicies.Upload)]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadMultipleFiles(List<IFormFile> files, [FromForm] string? folder)
         {
@@ -77,27 +85,28 @@ namespace BPG.Api.Controllers
             var results = await Task.WhenAll(uploadTasks);
             var uploadResponses = new List<UploadFileResponse>(results);
 
-            return ApiOk(uploadResponses, "Tải lên các tệp thành công.");
+            return ApiOk(uploadResponses, "Tải lên tệp thành công.");
         }
 
         /// <summary>
-        /// Xóa tệp từ xa trên Cloudinary dựa trên URL.
+        /// xóa tệp qua URL.
         /// </summary>
         [HttpDelete("delete")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         public async Task<IActionResult> DeleteFile([FromQuery] string fileUrl)
         {
             if (string.IsNullOrWhiteSpace(fileUrl))
             {
-                return ApiBadRequest("Đường dẫn fileUrl không hợp lệ.");
+                return ApiBadRequest("Đường dẫn không hợp lệ.");
             }
 
             var deleted = await _fileStorageService.DeleteFileAsync(fileUrl);
             if (!deleted)
             {
-                return ApiBadRequest("Không thể xóa tệp. Vui lòng kiểm tra lại URL tệp.");
+                return ApiBadRequest("Không thể xóa tệp. Vui lòng kiểm tra lại.");
             }
 
-            return ApiOk(true, "Xóa tệp trên Cloudinary thành công.");
+            return ApiOk(true, "Xóa tệp thành công.");
         }
     }
 }

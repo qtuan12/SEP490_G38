@@ -19,7 +19,7 @@ const schema = z.object({
     const error = validatePhoneNumber(val ?? '');
     if (error) ctx.addIssue({ code: 'custom', message: error });
   }),
-  role: z.enum(['admin', 'director', 'technicalmanager', 'projectleader', 'siteengineer', 'accountant']),
+  role: z.enum(['admin', 'director', 'technicalmanager', 'siteengineer', 'accountant']),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -53,11 +53,10 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, o
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
       if (!user) throw new Error('Không có user');
-      await userService.updateUser(user.id, data);
-      return data;
+      return userService.updateUser(user.id, data);
     },
-    onSuccess: (data) => {
-      onSuccess(`Đã cập nhật tài khoản ${data.name} thành công.`);
+    onSuccess: (result) => {
+      onSuccess(result.message || 'Thao tác thành công.');
       onClose();
     }
   });
@@ -103,7 +102,6 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, o
               { label: 'Giám Đốc', value: 'director' },
               { label: 'Trưởng phòng Kĩ thuật (TechnicalManager)', value: 'technicalmanager' },
               { label: 'Nhân viên kỹ thuật (SiteEngineer)', value: 'siteengineer' },
-              { label: 'Chỉ Huy Trưởng (ProjectLeader)', value: 'projectleader' },
               { label: 'Kế Toán (Accountant)', value: 'accountant' },
             ]}
           />

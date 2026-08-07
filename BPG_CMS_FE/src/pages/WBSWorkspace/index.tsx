@@ -6,13 +6,15 @@ import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { wbsService } from '../../services/wbsService';
 import { incidentService } from '../../services/incidentService';
-import { useNotification } from '../../context/NotificationContext';
 import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
-import { FileText, BarChart2 } from 'lucide-react';
-import { ConfirmDialog } from '../../components/ui';
+import { FileText, BarChart2, Search } from 'lucide-react';
+import { ConfirmDialog, FullScreenLoading } from '../../components/ui';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { RoleGroup } from '../../auth/roles';
+import toast from 'react-hot-toast';
 
 
 interface WBSWorkspaceProps {
@@ -20,9 +22,9 @@ interface WBSWorkspaceProps {
 }
 
 export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
+  const { isProjectLeader } = useProjectAccess(projectId);
   const navigate = useNavigate();
-  const { connection } = useNotification();
 
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -60,10 +62,44 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     staleTime: 30_000,
   });
 
-  const phases = wbsData?.phases || [];
-  const tasks = wbsData?.tasks || [];
+  const allPhases = wbsData?.phases || [];
+  const allTasks = wbsData?.tasks || [];
+  const [searchTerm, setSearchTerm] = useState('');
+
+  let phases = allPhases;
+  let tasks = allTasks;
+
+  if (searchTerm.trim()) {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const matchingPhaseIds = new Set<string>();
+    const matchingTaskIds = new Set<string>();
+
+    allPhases.forEach(p => {
+      if (p.name.toLowerCase().includes(normalizedSearch)) matchingPhaseIds.add(p.id);
+    });
+    allTasks.forEach(t => {
+      if (t.name.toLowerCase().includes(normalizedSearch)) matchingTaskIds.add(t.id);
+    });
+
+    allTasks.forEach(t => {
+      if (matchingTaskIds.has(t.id)) {
+        if (t.parentTaskId) matchingTaskIds.add(t.parentTaskId);
+        matchingPhaseIds.add(t.phaseId);
+      }
+    });
+
+    allPhases.forEach(p => {
+      if (matchingPhaseIds.has(p.id)) {
+         if (p.name.toLowerCase().includes(normalizedSearch)) {
+            allTasks.filter(t => t.phaseId === p.id).forEach(t => matchingTaskIds.add(t.id));
+         }
+      }
+    });
+
+    phases = allPhases.filter(p => matchingPhaseIds.has(p.id));
+    tasks = allTasks.filter(t => matchingTaskIds.has(t.id));
+  }
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -173,6 +209,15 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     }
   }, [wbsData?.phases]);
 
+  // Auto-expand all phases when searching
+  useEffect(() => {
+    if (searchTerm.trim() && phases.length > 0) {
+      const expands: Record<string, boolean> = {};
+      phases.forEach(p => { expands[p.id] = true; });
+      setExpandedPhases(prev => ({ ...prev, ...expands }));
+    }
+  }, [searchTerm]);
+
   // Support opening task detail from URL
   useEffect(() => {
     const queryTaskId = searchParams.get('taskId');
@@ -187,29 +232,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     }
   }, [searchParams, tasks, setSearchParams]);
 
-  useEffect(() => {
-    if (!connection) return;
-
-    const numericProjectId = Number(projectId);
-    connection.invoke('JoinProjectGroup', numericProjectId)
-      .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
-      .catch(err => console.error('SignalR JoinProjectGroup error:', err));
-
-    const handleWbsUpdated = (payload: any) => {
-      console.log('SignalR: WbsTreeUpdated', payload);
-      queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
-    };
-
-    connection.on('WbsTreeUpdated', handleWbsUpdated);
-
-    return () => {
-      connection.off('WbsTreeUpdated', handleWbsUpdated);
-      connection.invoke('LeaveProjectGroup', numericProjectId)
-        .then(() => console.log(`Left SignalR project group: Project_${numericProjectId}`))
-        .catch(err => console.error('SignalR LeaveProjectGroup error:', err));
-    };
-  }, [connection, projectId]);
-
   const loadWBSData = async () => {
     await queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
   };
@@ -218,9 +240,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     setExpandedPhases(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
 
   const handleSuccess = (msg: string) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(null), 3000);
+    toast.success(msg);
     queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+    queryClient.invalidateQueries({ queryKey: ['task-progress-history'] });
     // Refresh supporting information in the background without blocking the tree.
     queryClient.invalidateQueries({ queryKey: ['wbsProject', projectId] });
     queryClient.invalidateQueries({ queryKey: ['wbsMembers', projectId] });
@@ -228,16 +250,15 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     queryClient.invalidateQueries({ queryKey: ['wbsIncidents', projectId] });
   };
   const handleError = (msg: string) => {
-    setError(msg);
-    setTimeout(() => setError(null), 4000);
+    toast.error(msg);
   };
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
 
-  const currentMember = members.find(m => m.userId === user?.id);
-  const isPL = (currentMember ? currentMember.isLeader : false) || user?.role === 'projectleader' || user?.role === 'admin' || user?.role === 'technicalmanager';
-  const isTPKTOrPL = isPL;
+  const isTPKT = hasAnyRole(RoleGroup.Technical);
+  const isPL = isProjectLeader;
+  const isTPKTOrPL = isTPKT || isPL;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
     const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
@@ -245,7 +266,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return phaseTasks.every(t => t.progress === 100);
   };
 
-  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
   const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
 
   const canEdit = isTPKTOrPL && (
@@ -394,16 +414,14 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask, handleDeleteTask, handleDeletePhase, navigate, loadWBSData
   };
 
+  if (loading) {
+    return <FullScreenLoading message="Đang tải dữ liệu WBS..." />;
+  }
+
   return (
     <WBSContext.Provider value={contextValue}>
       <div className="flex flex-col gap-5">
 
-        {/* Alerts */}
-        {success && (
-          <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
-            {success}
-          </div>
-        )}
         {error && (
           <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
             {error}
@@ -413,9 +431,18 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
             <h3 className="text-[1.15rem] font-semibold m-0">Cấu trúc công việc</h3>
-
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
+            <div className="relative shrink-0 w-full sm:w-auto">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Tìm giai đoạn, công việc..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-4 py-1.5 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-[220px]"
+              />
+            </div>
             <button
               onClick={() => navigate(`/projects/${projectId}/drawing`)}
               className={`flex items-center gap-2 py-2 px-4 shrink-0 rounded-sm text-[0.85rem] font-semibold transition-all duration-150 cursor-pointer ${project?.drawingUrl

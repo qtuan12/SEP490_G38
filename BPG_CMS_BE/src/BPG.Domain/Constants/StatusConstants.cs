@@ -54,11 +54,39 @@ public static class MaterialRequestStatus
 public static class PurchaseOrderStatus
 {
     public const string Draft = "Draft";
+    /// <summary>Kế toán đã lập đơn, chờ Giám đốc duyệt. Chưa được gửi NCC và chưa nhập kho được.</summary>
+    public const string PendingApproval = "PendingApproval";
+    /// <summary>Giám đốc từ chối. Số lượng vật tư được trả lại yêu cầu để lập đơn khác.</summary>
+    public const string Rejected = "Rejected";
     public const string Sent = "Sent";
     public const string PartiallyReceived = "PartiallyReceived";
     public const string FullyReceived = "FullyReceived";
     public const string Closed = "Closed";
     public const string Cancelled = "Cancelled";
+
+    /// <summary>
+    /// Các trạng thái KHÔNG còn giữ chỗ số lượng của yêu cầu vật tư — đơn ở những trạng thái này
+    /// coi như không tồn tại khi tính số lượng còn được đặt.
+    /// </summary>
+    public static bool IsVoid(string status) =>
+        status == Cancelled || status == Rejected;
+
+    /// <summary>
+    /// Nhãn tiếng Việt dùng khi ghép message trả về người dùng — không để lộ tên trạng thái tiếng Anh.
+    /// Đồng bộ với statusLabel bên frontend (pages/PurchaseOrders).
+    /// </summary>
+    public static string Label(string status) => status switch
+    {
+        Draft => "Nháp",
+        PendingApproval => "Chờ Giám đốc duyệt",
+        Rejected => "Bị từ chối",
+        Sent => "Đã gửi nhà cung cấp",
+        PartiallyReceived => "Nhập kho một phần",
+        FullyReceived => "Đã nhập đủ",
+        Closed => "Đã đóng",
+        Cancelled => "Đã hủy",
+        _ => status
+    };
 }
 
 public static class GoodsReceiptStatus
@@ -100,11 +128,35 @@ public static class InventoryAdjustmentStatus
     public const string Rejected = "Rejected";
 }
 
+/// <summary>
+/// Trạng thái DUYỆT CHI của phiếu mua trực tiếp (có được hoàn tiền hay không).
+/// Không gác tồn kho: tồn kho được cộng ngay tại bước Submit, độc lập với các trạng thái dưới đây.
+/// </summary>
 public static class DirectPurchaseStatus
 {
+    /// <summary>Nháp, chưa gửi. Chưa sinh PO/GR/tồn kho, chỉ người tạo nhìn thấy.</summary>
     public const string Draft = "Draft";
+    /// <summary>Đã gửi, chờ Kế toán đối chiếu hóa đơn. Áp dụng cho mọi phiếu, kể cả trong định mức BOQ.</summary>
+    public const string Pending = "Pending";
+    /// <summary>Kế toán đã soát hóa đơn, chờ Giám đốc duyệt chi.</summary>
+    public const string WaitingApproval = "WaitingApproval";
     public const string Approved = "Approved";
+    /// <summary>Không được hoàn tiền. Vật tư vẫn đã nhập kho và vẫn tiêu thụ định mức BOQ.</summary>
     public const string Rejected = "Rejected";
+
+    /// <summary>
+    /// Nhãn tiếng Việt dùng khi ghép message trả về người dùng — không để lộ tên trạng thái tiếng Anh.
+    /// Đồng bộ với DP_STATUS_LABEL bên frontend (services/directPurchaseService.ts).
+    /// </summary>
+    public static string Label(string status) => status switch
+    {
+        Draft => "Nháp",
+        Pending => "Chờ Kế toán",
+        WaitingApproval => "Chờ Giám đốc",
+        Approved => "Đã duyệt",
+        Rejected => "Từ chối",
+        _ => status
+    };
 }
 
 public static class DirectPurchaseAuditStatus

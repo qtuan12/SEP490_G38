@@ -13,11 +13,13 @@ public class DeleteTaskCommandHandler : IRequestHandler<DeleteTaskCommand, ApiRe
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly ICurrentUserService _currentUserService;
 
-    public DeleteTaskCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender)
+    public DeleteTaskCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _realtimeSender = realtimeSender;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse> Handle(DeleteTaskCommand request, CancellationToken ct)
@@ -25,11 +27,28 @@ public class DeleteTaskCommandHandler : IRequestHandler<DeleteTaskCommand, ApiRe
         var task = await _unitOfWork.Repository<ProjectTask>()
             .Query()
             .Include(t => t.Phase)
+            .ThenInclude(p => p.Project)
             .Include(t => t.SubTasks)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
+
+        if (task.Phase != null && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>()
+                .Query()
+                .AnyAsync(pm => pm.ProjectId == task.Phase!.ProjectId && pm.UserId == currentUserId && pm.IsLeader, ct);
+                
+            if (!isProjectLeader)
+            {
+                throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được phép xóa công việc.");
+            }
+        }
 
         if (task.ProgressPercent > 0)
             throw new BusinessException("ERR_TASK_IN_PROGRESS", "Không thể xóa công việc đã có tiến độ thực hiện (> 0%).");

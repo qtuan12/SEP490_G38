@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import { incidentService } from '../../services/incidentService';
@@ -7,6 +8,7 @@ import { ResolveIncidentModal } from '../Incidents/modals/ResolveIncidentModal';
 import { IncidentDetailModal } from '../Incidents/modals/IncidentDetailModal';
 import { ReportEmergencyStopModal } from '../Incidents/modals/ReportEmergencyStopModal';
 import { CreateDecreaseAdjustmentModal } from '../InventoryAdjustments/components/CreateDecreaseAdjustmentModal';
+import { LoadingSpinner } from '../../components/ui';
 import {
   AlertTriangle,
   CheckCircle,
@@ -15,6 +17,8 @@ import {
 import { Badge, Button } from '../../components/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
+import toast from 'react-hot-toast';
 
 interface Props {
   projectId: string;
@@ -23,6 +27,7 @@ interface Props {
 
 export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) => {
   const { user } = useAuth();
+  const { isProjectLeader } = useProjectAccess(projectId);
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
@@ -30,6 +35,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const [loading, setLoading] = useState(true);
   const { connection } = useNotification();
   const [projName, setProjName] = useState(projectName || '');
+  const [searchParams] = useSearchParams();
+  const taskIdFilterStr = searchParams.get('taskId');
 
   useEffect(() => {
     if (!projectName && projectId) {
@@ -62,11 +69,11 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const incListDtoAll = await incidentService.getIncidents(Number(projectId));
       const incListDto = incListDtoAll;
@@ -159,8 +166,10 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   // Tham gia SignalR group của dự án
   useEffect(() => {
     if (!connection) return;
+    let active = true;
 
     const joinGroup = () => {
+      if (!active || connection.state !== 'Connected') return;
       connection.invoke('JoinProjectGroup', Number(projectId))
         .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
     };
@@ -172,6 +181,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
     connection.onreconnected(joinGroup);
 
     return () => {
+      active = false;
       if (connection.state === 'Connected') {
         connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
       }
@@ -197,15 +207,13 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
 
   const handleSuccess = (msg?: string) => {
     if (msg) {
-      setSuccess(msg);
-      setTimeout(() => setSuccess(null), 3000);
+      console.log(msg);
     }
     loadData();
   };
 
   const handleError = (msg: string) => {
-    setError(msg);
-    setTimeout(() => setError(null), 4000);
+    toast.error(msg);
   };
 
   // Help functions for UI
@@ -252,6 +260,10 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
 
   // Filter logic
   const filteredIncidents = incidents.filter(inc => {
+    if (taskIdFilterStr && inc.taskId !== taskIdFilterStr) {
+      return false;
+    }
+
     if (filterType === 'construction' && inc.incidentType !== 'Construction') {
       return false;
     }
@@ -282,7 +294,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const totalPages = Math.ceil(filteredIncidents.length / ITEMS_PER_PAGE);
   const paginatedIncidents = filteredIncidents.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role?.toLowerCase() === 'admin';
+  const isPL = isProjectLeader;
   const hasActiveEmergencyStop = incidents.some(
     i => i.isEmergency && ['WaitingStopApproval', 'WaitingRecoveryPlan', 'WaitingDirectorApproval'].includes(i.status)
   );
@@ -290,12 +302,6 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   return (
     <div className="flex flex-col gap-5">
 
-      {/* Notifications */}
-      {success && (
-        <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
-          {success}
-        </div>
-      )}
       {error && (
         <div className="animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
           {error}
@@ -356,7 +362,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
         </div>
 
         {loading ? (
-          <div className="text-center py-8 text-[hsl(var(--text-muted))]">Đang tải báo cáo sự cố...</div>
+          <LoadingSpinner size="md" label="Đang tải báo cáo sự cố..." className="py-12" />
         ) : (
           <>
             {/* Filters Container */}
@@ -564,6 +570,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
           incident={selectedIncident}
           phase={effectivePhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}
+          task={selectedTask || undefined}
+          members={members}
           onResolveClick={() => {
             if (selectedIncident.incidentType === 'InventoryLoss' || selectedIncident.incidentType === 'InventoryDamage') {
               setIsDetailOpen(false);

@@ -1,24 +1,22 @@
 import React, { useState } from 'react';
 import { Modal, Button } from '../../../components/ui';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
-import { useAuth } from '../../../context/AuthContext';
-import { useLoading } from '../../../context/LoadingContext';
 import { incidentService } from '../../../services/incidentService';
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (approved: boolean, message?: string) => void;
   onError?: (msg: string) => void;
   adjustmentId: number;
   adjustmentData?: InventoryAdjustmentDto;
 }
 
 export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, adjustmentId, adjustmentData }) => {
-  const { user } = useAuth();
-  const { withLoading } = useLoading();
+  const { canApprove, canManageAccounting } = useProjectAccess(adjustmentData?.projectId);
   const [loading, setLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [mode, setMode] = useState<'view' | 'reject' | 'confirmApprove'>('view');
@@ -55,15 +53,15 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
     }
   }, [isOpen, adjustmentData]);
 
-  const canReview = user?.role === 'director' || user?.role === 'admin';
+  const canReview = adjustmentData?.adjustmentType === 'Increase' ? canManageAccounting : canApprove;
   const isPending = adjustmentData?.status === 'Pending';
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'Pending':    return 'Chờ duyệt';
-      case 'Approved':   return 'Đã duyệt';
-      case 'Rejected':   return 'Đã từ chối';
-      default:           return status;
+      case 'Pending': return 'Chờ duyệt';
+      case 'Approved': return 'Đã duyệt';
+      case 'Rejected': return 'Đã từ chối';
+      default: return status;
     }
   };
 
@@ -71,7 +69,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
     switch (status) {
       case 'Approved': return 'text-[hsl(var(--success))]';
       case 'Rejected': return 'text-[hsl(var(--danger))]';
-      default:         return 'text-amber-600';
+      default: return 'text-amber-600';
     }
   };
 
@@ -82,14 +80,12 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
   const handleConfirmApprove = async () => {
     setLoading(true);
     try {
-      await withLoading(async () => {
-        await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
-          isApproved: true
-        });
-      }, 'Đang duyệt phiếu kiểm kê...');
-      onSuccess();
+      const result = await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
+        isApproved: true
+      });
+      onSuccess(true, result.message);
     } catch (err: any) {
-      if (onError) onError(err.message || 'Lỗi khi duyệt phiếu.');
+      if (onError) onError(err.message || 'Không thể duyệt phiếu điều chỉnh tồn.');
     } finally {
       setLoading(false);
     }
@@ -103,15 +99,13 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
 
     setLoading(true);
     try {
-      await withLoading(async () => {
-        await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
-          isApproved: false,
-          rejectedReason: rejectReason
-        });
-      }, 'Đang xử lý từ chối phiếu...');
-      onSuccess();
+      const result = await inventoryAdjustmentService.approveDecrease(adjustmentData!.projectId, adjustmentId, {
+        isApproved: false,
+        rejectedReason: rejectReason
+      });
+      onSuccess(false, result.message);
     } catch (err: any) {
-      if (onError) onError(err.message || 'Lỗi khi từ chối phiếu.');
+      if (onError) onError(err.message || 'Không thể từ chối phiếu điều chỉnh tồn.');
     } finally {
       setLoading(false);
     }
@@ -176,7 +170,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Chi tiết Phiếu Kiểm Kê #${adjustmentData.adjustmentId}`} width="lg">
       <div className="flex flex-col gap-4">
-        
+
         <div className="border border-gray-800 rounded-2xl p-5 bg-white flex flex-col gap-4 text-sm">
           <h4 className="font-semibold text-sm text-gray-900 border-b border-gray-300 pb-3">
             Thông tin chung
@@ -206,16 +200,16 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
               <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Lý do điều chỉnh</span>
               <strong className="text-gray-900">{adjustmentData.reason}</strong>
             </div>
-            
+
             {accountantNote && (
               <div className="col-span-2 flex flex-col gap-1 mt-2">
-                <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Ghi chú của kế toán</span>
+                <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Ghi chú</span>
                 <div className="bg-slate-50 p-3 rounded-xl border border-gray-200 text-gray-800 whitespace-pre-wrap leading-relaxed mt-1">
                   {accountantNote}
                 </div>
               </div>
             )}
-            
+
             {adjustmentData.rejectedReason && (
               <div className="col-span-2 flex flex-col gap-1 mt-2">
                 <span className="text-red-500 text-xs uppercase tracking-wider font-semibold">Lý do từ chối</span>
@@ -232,7 +226,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
             <h4 className="font-semibold text-sm text-gray-900 border-b border-gray-300 pb-3">
               Thông tin sự cố đính kèm
             </h4>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: allImages.length > 0 ? '1.8fr 1fr' : '1fr', gap: '20px' }}>
               <div className="flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-4">

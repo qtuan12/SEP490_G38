@@ -1,6 +1,5 @@
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialReturns;
-using BPG.Application.Common.Interfaces;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -11,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialReturns.Queries
 {
-    public class GetMaterialReturnsQuery : PaginationRequest, IRequest<PagedList<MaterialReturnDto>>, IProjectRequirement
+    public class GetMaterialReturnsQuery : PaginationRequest, IRequest<PagedList<MaterialReturnDto>>
     {
         public long? ProjectId { get; set; }
         /// <summary>
@@ -43,3 +42,4 @@ namespace BPG.Application.Features.MaterialReturns.Queries
         }
     }
 }
+

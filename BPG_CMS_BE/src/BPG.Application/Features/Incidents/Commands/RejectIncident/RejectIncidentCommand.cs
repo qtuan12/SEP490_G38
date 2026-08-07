@@ -12,7 +12,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Incidents.Commands.RejectIncident;
 
-public record RejectIncidentCommand(long IncidentId, string Reason) : IRequest<ApiResponse<IncidentDto>>;
+public record RejectIncidentCommand(long IncidentId, string Reason)
+    : IRequest<ApiResponse<IncidentDto>>
+{
+}
 
 public class RejectIncidentCommandValidator : AbstractValidator<RejectIncidentCommand>
 {

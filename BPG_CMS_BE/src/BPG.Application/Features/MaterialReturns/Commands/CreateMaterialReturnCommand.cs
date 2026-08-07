@@ -1,4 +1,5 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
+using BPG.Domain.Constants;
 using MediatR;
 using System.Collections.Generic;
 
@@ -8,7 +9,9 @@ namespace BPG.Application.Features.MaterialReturns.Commands
         long OriginalIssuanceId,
         string Reason,
         List<ReturnItemDto> Items
-    ) : IRequest<ApiResponse<long>>;
+    ) : IRequest<ApiResponse<long>>
+    {
+    }
 
     public record ReturnItemDto(
         long MaterialId,
@@ -17,3 +20,4 @@ namespace BPG.Application.Features.MaterialReturns.Commands
         decimal ConversionRate = 1
     );
 }
+

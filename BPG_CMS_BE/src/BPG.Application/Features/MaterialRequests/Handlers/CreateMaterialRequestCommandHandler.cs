@@ -50,13 +50,18 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
             }
             if (project.Status != ProjectStatus.InProgress)
             {
-                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án hiện không ở trạng thái hoạt động (InProgress).");
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án hiện không ở trạng thái hoạt động.");
             }
 
-            // Kiểm tra xem người dùng hiện tại có phải là Project Leader (IsLeader == true) của dự án này không
-            var isLeader = await _uow.Repository<ProjectMember>().Query()
-                .AnyAsync(pm => pm.ProjectId == request.ProjectId && pm.UserId == currentUserId && pm.IsLeader, cancellationToken);
-            if (!isLeader)
+            // Kiểm tra quyền Trưởng dự án (Project Leader)
+            var isProjectLeader = await _uow.Repository<ProjectMember>().Query()
+                .AnyAsync(
+                    m => m.ProjectId == request.ProjectId
+                        && m.UserId == currentUserId
+                        && m.IsLeader,
+                    cancellationToken);
+
+            if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer) && !isProjectLeader)
             {
                 throw new ForbiddenException("Chỉ có trưởng nhóm của dự án mới được phép lập đề xuất yêu cầu vật tư.");
             }
@@ -74,7 +79,7 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
             }
             if (phase.Status == PhaseStatus.Approved)
             {
-                throw new BusinessException("ERR_PHASE_FROZEN", "Giai đoạn đã được nghiệm thu và đóng băng (Approved), không thể yêu cầu vật tư mới.");
+                throw new BusinessException("ERR_PHASE_FROZEN", "Giai đoạn đã được nghiệm thu, không thể yêu cầu vật tư mới.");
             }
 
             bool anyItemOverBOQ = false;

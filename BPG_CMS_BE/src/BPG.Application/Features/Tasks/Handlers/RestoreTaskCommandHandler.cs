@@ -34,29 +34,22 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
             .Query()
             .Include(t => t.Assignees)
             .Include(t => t.Phase)
+            .ThenInclude(p => p.Project)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
 
-        // Phân quyền: Phải là TechnicalManager hoặc là Leader của dự án
-        bool isTechnicalManager = _currentUserService.IsInRole("TechnicalManager");
-        bool isProjectLeader = false;
-        
-        if (!isTechnicalManager)
-        {
-            var member = await _unitOfWork.Repository<ProjectMember>()
-                .Query()
-                .FirstOrDefaultAsync(m => m.ProjectId == task.Phase.ProjectId && m.UserId == currentUserId, ct);
-            if (member != null && member.IsLeader)
-            {
-                isProjectLeader = true;
-            }
+        if (task.Phase != null && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+        {
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                ct);
             if (!isProjectLeader)
-            {
-                throw new ForbiddenException("Chỉ Quản lý dự án hoặc Trưởng phòng Kỹ thuật mới có quyền khôi phục công việc.");
-            }
+                throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được phép khôi phục công việc.");
         }
 
         if (task.Status != BPG.Domain.Constants.TaskStatus.Obsolete)

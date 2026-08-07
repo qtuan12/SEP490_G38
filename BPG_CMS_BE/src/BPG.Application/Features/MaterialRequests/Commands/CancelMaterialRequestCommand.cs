@@ -12,14 +12,19 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Commands
 {
-    public record CancelMaterialRequestCommand(long RequestId, string Reason) : IRequest<ApiResponse<bool>>;
+    public record CancelMaterialRequestCommand(long RequestId, string Reason)
+        : IRequest<ApiResponse<bool>>
+    {
+    }
 
     public class CancelMaterialRequestCommandHandler : IRequestHandler<CancelMaterialRequestCommand, ApiResponse<bool>>
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
 
-        public CancelMaterialRequestCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public CancelMaterialRequestCommandHandler(
+            IUnitOfWork uow,
+            ICurrentUserService currentUserService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
@@ -38,11 +43,19 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
             }
 
-            // Kiểm tra phân quyền: Phải là người tạo hoặc Project Leader của dự án
-            var isLeader = await _uow.Repository<ProjectMember>().Query()
-                .AnyAsync(pm => pm.ProjectId == mr.Phase.ProjectId && pm.UserId == currentUserId && pm.IsLeader, cancellationToken);
+            var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
+            var isProjectLeader = await _uow.Repository<ProjectMember>().Query()
+                .AnyAsync(
+                    m => m.ProjectId == mr.Phase.ProjectId
+                        && m.UserId == currentUserId
+                        && m.IsLeader,
+                    cancellationToken);
 
-            if (mr.CreatedBy != currentUserId && !isLeader)
+            if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer) && !isProjectLeader)
+            {
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được hủy yêu cầu vật tư.");
+            }
+            else if (!isManager && !isProjectLeader && mr.CreatedBy != currentUserId)
             {
                 throw new ForbiddenException("Bạn không có quyền hủy yêu cầu vật tư này.");
             }
@@ -68,3 +81,6 @@ namespace BPG.Application.Features.MaterialRequests.Commands
         }
     }
 }
+
+
+

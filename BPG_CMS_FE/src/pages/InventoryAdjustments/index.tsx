@@ -5,35 +5,53 @@ import type { Project } from '../../types/common';
 import { AdjustmentList } from './components/AdjustmentList';
 import { Loader2, FileSignature } from 'lucide-react';
 import { FormItem } from '../../components/ui';
+import { RoleGroup } from '../../auth/roles';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../../constants/realtimeEntities';
+
+const PROJECT_SELECTOR_REALTIME_ENTITIES = RealtimeEntities.projects.filter(
+  entity => entity === 'Project' || entity === 'ProjectMember',
+);
 
 export const InventoryAdjustmentsPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadProjects();
-  }, []);
+  const { hasAnyRole } = useAuth();
+  const isGlobalRole = hasAnyRole(RoleGroup.Reports);
 
-  const { user } = useAuth();
-  const isGlobalRole = user?.role === 'technicalmanager' || user?.role === 'admin' || user?.role === 'accountant' || user?.role === 'director';
-
-  const loadProjects = async () => {
-    setLoading(true);
+  const loadProjects = async (preserveSelection = false, showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const data = await projectService.getProjects();
       setProjects(data);
-      if (isGlobalRole) {
-        setSelectedProjectId('all');
-      } else if (data && data.length > 0) {
-        setSelectedProjectId(data[0].id);
-      }
+      setSelectedProjectId(current => {
+        if (
+          preserveSelection
+          && current
+          && ((current === 'all' && isGlobalRole) || data.some(project => project.id === current))
+        ) return current;
+
+        if (isGlobalRole) return 'all';
+        return data.length > 0 ? data[0].id : null;
+      });
     } catch (err) {
       console.error('Error loading projects:', err);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadProjects();
+  }, [isGlobalRole]);
+
+  // Keep the current project selected when the accessible project list changes.
+  useRealtimeDataRefresh(
+    () => loadProjects(true, false),
+    PROJECT_SELECTOR_REALTIME_ENTITIES,
+  );
 
   const parsedProjectId = selectedProjectId && selectedProjectId !== 'all'
     ? (parseInt(selectedProjectId.replace('p-', ''), 10) || null)

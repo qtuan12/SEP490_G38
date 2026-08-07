@@ -1,25 +1,41 @@
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetGanttChartData;
 
-public record GetGanttChartDataQuery(long ProjectId) : IRequest<ApiResponse<GanttChartDataDto>>;
+public record GetGanttChartDataQuery(long ProjectId)
+    : IRequest<ApiResponse<GanttChartDataDto>>
+{
+}
 
 public class GetGanttChartDataQueryHandler : IRequestHandler<GetGanttChartDataQuery, ApiResponse<GanttChartDataDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetGanttChartDataQueryHandler(IUnitOfWork unitOfWork)
+    public GetGanttChartDataQueryHandler(
+        IUnitOfWork unitOfWork,
+        IProjectAccessService projectAccessService)
     {
         _unitOfWork = unitOfWork;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<ApiResponse<GanttChartDataDto>> Handle(GetGanttChartDataQuery request, CancellationToken cancellationToken)
     {
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+        if (request.ProjectId > 0 && !accessibleProjectIds.Contains(request.ProjectId))
+        {
+            throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền truy cập báo cáo của dự án này.");
+        }
+
         var phases = await _unitOfWork.Repository<Phase>()
             .Query()
             .Include(p => p.Tasks.Where(t => t.Status != "Obsolete"))
@@ -62,3 +78,4 @@ public class GetGanttChartDataQueryHandler : IRequestHandler<GetGanttChartDataQu
         return ApiResponse<GanttChartDataDto>.SuccessResult(dto);
     }
 }
+

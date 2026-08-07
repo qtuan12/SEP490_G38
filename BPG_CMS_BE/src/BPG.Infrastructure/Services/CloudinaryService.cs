@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,8 +14,35 @@ namespace BPG.Infrastructure.Services
 {
     public class CloudinaryService : IFileStorageService
     {
+        private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp",
+            ".jfif", ".avif", ".heic", ".heif", ".tif", ".tiff",
+        };
+
         private readonly Cloudinary _cloudinary;
         private readonly ILogger<CloudinaryService> _logger;
+
+        /// <summary>
+        /// Ảnh BẮT BUỘC phải upload dưới dạng image, không được rơi vào nhánh raw: link raw của
+        /// Cloudinary trả về kèm Content-Disposition attachment, nên mở trên trình duyệt sẽ tải tệp
+        /// xuống thay vì hiện ảnh (thẻ img vẫn render được vì nó đọc theo nội dung, khiến lỗi này
+        /// rất dễ bị bỏ sót - thumbnail hiện bình thường nhưng bấm vào thì tải file).
+        ///
+        /// Ưu tiên MIME do trình duyệt gửi lên, vì tên tệp có thể mang đuôi lạ (.heic chụp từ
+        /// iPhone, .jfif tải từ web) hoặc không có đuôi.
+        /// </summary>
+        private static bool IsImage(string? contentType, string? fileName)
+        {
+            if (!string.IsNullOrWhiteSpace(contentType) &&
+                contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var extension = Path.GetExtension(fileName ?? string.Empty);
+            return !string.IsNullOrEmpty(extension) && ImageExtensions.Contains(extension);
+        }
 
         public CloudinaryService(IConfiguration configuration, ILogger<CloudinaryService> logger)
         {
@@ -43,9 +71,7 @@ namespace BPG.Infrastructure.Services
             _logger.LogInformation("Bắt đầu upload tệp '{FileName}' (Kích thước: {Length} bytes) lên thư mục '{Folder}'", file.FileName, file.Length, folder);
 
             using var stream = file.OpenReadStream();
-            var extension = Path.GetExtension(file.FileName).ToLower();
-            var isImage = extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".gif" || extension == ".webp" || extension == ".bmp";
-            var isPdf = extension == ".pdf";
+            var isImage = IsImage(file.ContentType, file.FileName);
 
             UploadResult uploadResult;
 
@@ -97,8 +123,8 @@ namespace BPG.Infrastructure.Services
             _logger.LogInformation("Bắt đầu upload tệp từ byte[] '{FileName}' (Kích thước: {Length} bytes) lên thư mục '{Folder}'", fileName, fileBytes.Length, folder);
 
             using var stream = new MemoryStream(fileBytes);
-            var extension = Path.GetExtension(fileName).ToLower();
-            var isImage = extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".gif" || extension == ".webp" || extension == ".bmp";
+            // Không có MIME ở overload này (dùng cho PDF biên bản nghiệm thu), chỉ còn tên tệp để suy.
+            var isImage = IsImage(null, fileName);
 
             UploadResult uploadResult;
 

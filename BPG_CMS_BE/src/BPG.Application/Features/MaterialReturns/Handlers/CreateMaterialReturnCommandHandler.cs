@@ -2,6 +2,7 @@ using BPG.Application.Common.Models;
 using BPG.Application.Features.MaterialReturns.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -67,26 +68,21 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với phiếu xuất kho này.");
             }
 
+            if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+            {
+                var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                    member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                    cancellationToken);
+                if (!isProjectLeader)
+                    throw new ForbiddenException("Chỉ Trưởng dự án mới được tạo phiếu hoàn trả vật tư.");
+            }
+
             var taskName = issuance.Task?.Name ?? "công việc liên quan";
 
             if (project.Status != ProjectStatus.InProgress)
             {
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án phải ở trạng thái đang tiến hành để hoàn trả vật tư.");
             }
-            // 1.5 Kiểm tra quyền: Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án (Leader) mới được phép tạo yêu cầu xuất dùng vật tư
-            bool isOfficeRole = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
-
-            if (!isOfficeRole)
-            {
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
-
-                if (!isLeader)
-                {
-                    throw new ForbiddenException("Chỉ Quản lý Kỹ thuật hoặc Trưởng dự án mới có quyền tạo yêu cầu xuất dùng vật tư.");
-                }
-            }
-
             // 2. Xây dựng map số lượng đã xuất từ phiếu xuất gốc (theo đơn vị cơ bản)
             // Key: MaterialId, Value: tổng base qty đã xuất trong phiếu đó
             var issuedBaseQtyMap = issuance.Items
@@ -142,7 +138,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
             try
             {
                 // Sinh mã phiếu hoàn trả chuẩn nghiệp vụ, ví dụ: PTra-20240630-A3F8B2
-                var vnNow = DateTime.UtcNow.AddHours(7);
+                var vnNow = VietnamTime.Now;
                 var returnNo = $"PTra-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
                 var materialReturn = new MaterialReturn
@@ -195,15 +191,6 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                     .Select(u => u.FullName)
                     .FirstOrDefaultAsync(cancellationToken) ?? "Người dùng";
 
-                await _notificationService.SendNotificationAsync(
-                    currentUserId,
-                    "Hoàn trả vật tư thành công",
-                    $"Bạn đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
-                    NotificationType.Procurement,
-                    $"/projects/{project.ProjectId}?tab=inventory&subTab=returns&returnId={materialReturn.MaterialReturnId}",
-                    materialReturn.MaterialReturnId,
-                    cancellationToken);
-
                 var assigneeIds = issuance.Task?.Assignees
                     .Select(a => a.UserId)
                     .Where(userId => userId != currentUserId && userId != issuance.CreatedBy)
@@ -217,7 +204,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                         "Vật tư đã được hoàn trả",
                         $"{actorName} đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
                         NotificationType.Procurement,
-                        $"/projects/{project.ProjectId}?tab=inventory&subTab=returns&returnId={materialReturn.MaterialReturnId}",
+                        $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
                         materialReturn.MaterialReturnId,
                         cancellationToken);
                 }
@@ -229,7 +216,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                         "Có phiếu hoàn trả vật tư",
                         $"{actorName} đã tạo phiếu hoàn trả vật tư {materialReturn.ReturnNo} từ phiếu xuất {issuance.IssuanceNo} cho công việc {taskName}.",
                         NotificationType.Procurement,
-                        $"/projects/{project.ProjectId}?tab=inventory&subTab=returns&returnId={materialReturn.MaterialReturnId}",
+                        $"/projects/{project.ProjectId}?tab=inventory&subTab=issuances&issuanceId={issuance.MaterialIssuanceId}",
                         materialReturn.MaterialReturnId,
                         cancellationToken);
                 }

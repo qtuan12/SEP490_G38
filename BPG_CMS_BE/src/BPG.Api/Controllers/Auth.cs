@@ -1,4 +1,5 @@
 using BPG.Application.Common.Models;
+using BPG.Api.Configuration;
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.Features.Auth.Queries;
 using BPG.Domain.Exceptions;
@@ -6,12 +7,16 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
+using Microsoft.AspNetCore.RateLimiting;
+
 namespace BPG.Api.Controllers;
 
 [Route("api/auth")]
 public class AuthController : BaseApiController
 {
     [HttpPost("login")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [AllowAnonymous]
     public async Task<IActionResult> Login(LoginCommand command)
     {
         var result = await Mediator.Send(command);
@@ -19,6 +24,8 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("refresh-token")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [AllowAnonymous]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command)
     {
         var result = await Mediator.Send(command);
@@ -26,6 +33,7 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("logout")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize]
     public async Task<IActionResult> Logout([FromBody] RefreshTokenCommand command)
     {
@@ -50,6 +58,7 @@ public class AuthController : BaseApiController
     }
 
     [HttpPatch("me")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand request)
     {
@@ -62,6 +71,7 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("change-password")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
     [Authorize]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand request)
     {
@@ -74,6 +84,8 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("forgot-password")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [AllowAnonymous]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand command)
     {
         await Mediator.Send(command);
@@ -81,6 +93,8 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("verify-otp")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [AllowAnonymous]
     public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpCommand command)
     {
         var resetToken = await Mediator.Send(command);
@@ -88,6 +102,8 @@ public class AuthController : BaseApiController
     }
 
     [HttpPost("reset-password")]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [AllowAnonymous]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand command)
     {
         await Mediator.Send(command);

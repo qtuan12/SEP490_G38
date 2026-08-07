@@ -1,62 +1,82 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { directPurchaseService } from '../../services/directPurchaseService';
-import { Badge, Pagination, Button } from '../../components/ui';
-import { AlertCircle, Loader2, Plus, Search, ChevronDown } from 'lucide-react';
+import {
+  directPurchaseService,
+  DP_STATUS,
+  DP_STATUS_LABEL,
+  DP_BOQ_CHECK,
+} from '../../services/directPurchaseService';
+import { Badge, Pagination, Button, TableLoader } from '../../components/ui';
+import { AlertCircle, Plus, Search, ChevronDown, AlertTriangle } from 'lucide-react';
 import { CreateDirectPurchaseModal } from './CreateDirectPurchaseModal';
 import { DirectPurchaseDetailModal } from './DirectPurchaseDetailModal';
-import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { formatPlainDate } from '../../utils/dateHelpers';
+import { useVirtualRows } from '../../hooks/useVirtualRows';
 
-const AUDIT_OPTIONS = [
-  { label: 'Tất cả', value: '' },
-  { label: 'Chờ kiểm toán', value: 'PendingAudit' },
-  { label: 'Đã kiểm toán', value: 'Audited' },
-  { label: 'Từ chối kiểm toán', value: 'Rejected' },
+const STATUS_OPTIONS = [
+  { label: 'Tất cả trạng thái', value: '' },
+  { label: 'Nháp', value: DP_STATUS.Draft },
+  { label: 'Chờ Kế toán', value: DP_STATUS.Pending },
+  { label: 'Chờ Giám đốc', value: DP_STATUS.WaitingApproval },
+  { label: 'Đã duyệt', value: DP_STATUS.Approved },
+  { label: 'Từ chối', value: DP_STATUS.Rejected },
 ];
 
-const auditLabel: Record<string, string> = {
-  PendingAudit: 'Chờ kiểm toán',
-  Audited: 'Đã kiểm toán',
-  Rejected: 'Từ chối',
-};
-
-const auditVariant: Record<string, 'default' | 'warning' | 'success' | 'danger'> = {
-  PendingAudit: 'warning',
-  Audited: 'success',
+const statusVariant: Record<string, 'default' | 'warning' | 'success' | 'danger'> = {
+  Draft: 'default',
+  Pending: 'warning',
+  WaitingApproval: 'warning',
+  Approved: 'success',
   Rejected: 'danger',
 };
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-};
 
 interface Props {
   projectId: number;
-  isLeader: boolean;
 }
 
-export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader }) => {
+export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { canManageTechnical, canManageAccounting, canApprove } = useProjectAccess(projectId);
   const { connection } = useNotification();
-  const isAccountant = user?.role === 'accountant';
-  const [auditFilter, setAuditFilter] = useState('');
+  const isAccountant = canManageAccounting;
+  // Technical Manager hoặc Trưởng dự án của chính dự án này - khớp với DirectPurchaseGuard ở backend.
+  // Dùng canManageTechnical (= TM || isLeader) chứ không phải canManageExecution, vì cái sau còn
+  // gồm mọi Site Engineer, kể cả người không phải Trưởng dự án - sẽ thấy nút rồi bị backend chặn.
+  const canCreate = canManageTechnical;
+  const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const pageSize = 10;
+
+  const closeEditor = () => { setIsCreateOpen(false); setEditingDraftId(null); };
+
+  // Deep-link từ thông báo: /projects/{id}?tab=directpurchases&directPurchaseId=123
+  // Mở thẳng chi tiết phiếu; đóng lại thì gỡ tham số để lộ ra danh sách của chính dự án này.
+  useEffect(() => {
+    const deepLinkId = searchParams.get('directPurchaseId');
+    if (deepLinkId) setDetailId(Number(deepLinkId));
+  }, [searchParams]);
+
+  const closeDetail = () => {
+    setDetailId(null);
+    if (searchParams.has('directPurchaseId')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('directPurchaseId');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const refetchList = () => queryClient.invalidateQueries({ queryKey: ['project-direct-purchases', projectId] });
 
@@ -69,11 +89,11 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
   }, [searchTerm]);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['project-direct-purchases', projectId, page, auditFilter, debouncedSearchTerm],
+    queryKey: ['project-direct-purchases', projectId, page, statusFilter, debouncedSearchTerm],
     queryFn: () =>
       directPurchaseService.getList({
         projectId,
-        auditStatus: auditFilter || undefined,
+        status: statusFilter || undefined,
         searchTerm: debouncedSearchTerm || undefined,
         pageNumber: page,
         pageSize,
@@ -81,6 +101,11 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
   });
 
   const items = data?.items ?? [];
+  const virtualDirectPurchases = useVirtualRows(items, {
+    rowHeight: 56,
+    containerHeight: 560,
+    threshold: 30,
+  });
 
   // Realtime: tự làm mới danh sách khi có phiếu mua khẩn cấp thay đổi (tạo/kiểm toán) từ người dùng khác
   useEffect(() => {
@@ -123,11 +148,11 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
           </div>
           <div className="relative w-full sm:w-auto">
             <select
-              className="appearance-none pl-3 pr-9 py-2 border border-[hsl(var(--border))] rounded-lg text-sm bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] w-full sm:w-52"
-              value={auditFilter}
-              onChange={e => { setAuditFilter(e.target.value); setPage(1); }}
+              className="appearance-none pl-3 pr-9 py-2 border border-[hsl(var(--border))] rounded-lg text-sm bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] w-full sm:w-48"
+              value={statusFilter}
+              onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
             >
-              {AUDIT_OPTIONS.map(opt => (
+              {STATUS_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
@@ -135,24 +160,24 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
           </div>
         </div>
 
-        {isLeader && (
+        {canCreate && (
           <Button variant="primary" className="flex items-center gap-1.5 text-sm w-full lg:w-auto justify-center" onClick={() => setIsCreateOpen(true)}>
             <Plus size={16} /> Tạo phiếu mua khẩn cấp
           </Button>
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className={`w-full min-w-[900px] table-fixed text-sm text-left ${isLoading ? 'opacity-50' : ''}`}>
+      <div className="overflow-x-auto" {...virtualDirectPurchases.scrollContainerProps}>
+        <table className={`w-full min-w-[920px] table-fixed text-sm text-left ${isLoading ? 'opacity-50' : ''}`}>
           <colgroup>
-            <col className="w-[13%]" />
-            <col className="w-[12%]" />
-            <col className="w-[11%]" />
             <col className="w-[14%]" />
             <col className="w-[13%]" />
-            <col className="w-[9%]" />
-            <col className="w-[15%]" />
+            <col className="w-[10%]" />
+            <col className="w-[14%]" />
             <col className="w-[13%]" />
+            <col className="w-[8%]" />
+            <col className="w-[16%]" />
+            <col className="w-[12%]" />
           </colgroup>
           <thead className="bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] border-b border-[hsl(var(--border))]">
             <tr>
@@ -162,20 +187,13 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
               <th className="px-4 py-3 font-medium">Người tạo</th>
               <th className="px-4 py-3 font-medium text-right">Tổng tiền</th>
               <th className="px-4 py-3 font-medium text-center">Vật tư</th>
-              <th className="px-4 py-3 font-medium text-center">Trạng thái kiểm toán</th>
+              <th className="px-4 py-3 font-medium text-center">Trạng thái</th>
               <th className="px-4 py-3 font-medium text-center">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {isLoading ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin" size={18} />
-                    Đang tải...
-                  </div>
-                </td>
-              </tr>
+              <TableLoader colSpan={8} message="Đang tải danh sách mua trực tiếp..." />
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
@@ -183,39 +201,59 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
                 </td>
               </tr>
             ) : (
-              items.map(dp => (
-                <tr
-                  key={dp.directPurchaseId}
-                  className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
-                  onClick={() => setDetailId(dp.directPurchaseId)}
-                >
-                  <td className="px-4 py-3 font-medium truncate" title={dp.requestNumber}>{dp.requestNumber}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.phaseName}>{dp.phaseName}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatDate(dp.purchaseDate)}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.requesterName}>{dp.requesterName}</td>
-                  <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(dp.totalAmount)}</td>
-                  <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{dp.itemCount} dòng</td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge variant={auditVariant[dp.auditStatus] ?? 'default'}>
-                      {auditLabel[dp.auditStatus] ?? dp.auditStatus}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDetailId(dp.directPurchaseId); }}
-                      className="text-[hsl(var(--primary))] font-semibold text-sm hover:underline"
-                    >
-                      Xem chi tiết
-                    </button>
-                  </td>
-                </tr>
-              ))
+              <>
+                {virtualDirectPurchases.topPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={8} style={{ height: virtualDirectPurchases.topPadding, padding: 0 }} />
+                  </tr>
+                )}
+                {virtualDirectPurchases.visibleRows.map(({ item: dp }) => (
+                  <tr
+                    key={dp.directPurchaseId}
+                    className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
+                    onClick={() => setDetailId(dp.directPurchaseId)}
+                  >
+                    <td className="px-4 py-3 font-medium truncate" title={dp.requestNumber}>
+                      <span className="flex items-center gap-1.5">
+                        {dp.requestNumber}
+                        {dp.boqCheckStatus === DP_BOQ_CHECK.OverBOQ && (
+                          <AlertTriangle size={13} className="text-[hsl(var(--warning))] flex-shrink-0" aria-label="Vượt định mức BOQ" />
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.phaseName}>{dp.phaseName}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatPlainDate(dp.purchaseDate)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={dp.requesterName}>{dp.requesterName}</td>
+                    <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(dp.totalAmount)}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{dp.itemCount} loại</td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant={statusVariant[dp.status] ?? 'default'}>
+                        {DP_STATUS_LABEL[dp.status] ?? dp.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDetailId(dp.directPurchaseId); }}
+                        className="text-[hsl(var(--primary))] font-semibold text-sm hover:underline"
+                      >
+                        Xem chi tiết
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {virtualDirectPurchases.bottomPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={8} style={{ height: virtualDirectPurchases.bottomPadding, padding: 0 }} />
+                  </tr>
+                )}
+              </>
+
             )}
           </tbody>
         </table>
       </div>
 
-      {data && data.totalPages > 1 && (
+      {data && (
         <div className="p-4 border-t border-[hsl(var(--border))]">
           <Pagination
             currentPage={page}
@@ -226,18 +264,23 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId, isLeader 
       )}
 
       <CreateDirectPurchaseModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
+        key={editingDraftId ?? 'new'}
+        isOpen={isCreateOpen || editingDraftId !== null}
+        onClose={closeEditor}
         onSuccess={refetchList}
         projectId={projectId}
+        draftId={editingDraftId}
       />
 
       <DirectPurchaseDetailModal
         isOpen={detailId !== null}
-        onClose={() => setDetailId(null)}
+        onClose={closeDetail}
         onAudited={refetchList}
         directPurchaseId={detailId}
         canAudit={isAccountant}
+        canApproveSpending={canApprove}
+        canCreateDraft={canCreate}
+        onEditDraft={(id) => setEditingDraftId(id)}
       />
     </div>
   );

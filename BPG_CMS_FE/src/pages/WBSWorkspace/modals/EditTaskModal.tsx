@@ -13,7 +13,7 @@ const editTaskSchema = z.object({
   name: z.string().min(1, 'Vui lòng nhập tên công việc.'),
   description: z.string().optional(),
   startDate: z.string().min(1, 'Vui lòng chọn ngày bắt đầu.'),
-  deadline: z.string().min(1, 'Vui lòng chọn hạn chót (Deadline).'),
+  deadline: z.string().min(1, 'Vui lòng chọn hạn chót.'),
   assignedTo: z.string().optional(),
   weight: z.any().optional(),
   isOutsourced: z.boolean().optional(),
@@ -216,7 +216,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     },
     onSuccess: (_, variables) => {
       const msg = `Đã cập nhật công việc: ${variables.name}`;
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       onClose();
     },

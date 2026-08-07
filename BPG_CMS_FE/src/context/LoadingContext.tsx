@@ -1,51 +1,63 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { BPGLoadingOverlay } from '../components/ui/BPGLoadingOverlay';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { FullScreenLoading } from '../components/ui/FullScreenLoading';
 
 interface LoadingContextType {
   isLoading: boolean;
-  loadingMessage: string | undefined;
+  loadingMessage: string;
   showLoading: (message?: string) => void;
   hideLoading: () => void;
-  withLoading: <T>(fn: () => Promise<T>, message?: string) => Promise<T>;
 }
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
 
+export const GLOBAL_SHOW_LOADING_EVENT = 'bpg_show_global_loading';
+export const GLOBAL_HIDE_LOADING_EVENT = 'bpg_hide_global_loading';
+
+export const triggerGlobalLoading = (message?: string) => {
+  window.dispatchEvent(new CustomEvent(GLOBAL_SHOW_LOADING_EVENT, { detail: { message } }));
+};
+
+export const triggerGlobalHideLoading = () => {
+  window.dispatchEvent(new CustomEvent(GLOBAL_HIDE_LOADING_EVENT));
+};
+
 export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeCount, setActiveCount] = useState(0);
-  const [loadingMessage, setLoadingMessage] = useState<string | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Hệ thống đang xử lý dữ liệu...');
 
   const showLoading = useCallback((message?: string) => {
-    setActiveCount((prev) => prev + 1);
     if (message) setLoadingMessage(message);
+    setIsLoading(true);
   }, []);
 
   const hideLoading = useCallback(() => {
-    setActiveCount((prev) => {
-      const next = Math.max(0, prev - 1);
-      if (next === 0) setLoadingMessage(undefined);
-      return next;
-    });
+    setIsLoading(false);
   }, []);
 
-  const withLoading = useCallback(
-    async <T,>(fn: () => Promise<T>, message?: string): Promise<T> => {
-      showLoading(message);
-      try {
-        return await fn();
-      } finally {
-        hideLoading();
-      }
-    },
-    [showLoading, hideLoading]
-  );
+  useEffect(() => {
+    const handleShow = (e: any) => {
+      const msg = e.detail?.message || 'Hệ thống đang xử lý dữ liệu...';
+      setLoadingMessage(msg);
+      setIsLoading(true);
+    };
 
-  const isLoading = activeCount > 0;
+    const handleHide = () => {
+      setIsLoading(false);
+    };
+
+    window.addEventListener(GLOBAL_SHOW_LOADING_EVENT, handleShow);
+    window.addEventListener(GLOBAL_HIDE_LOADING_EVENT, handleHide);
+
+    return () => {
+      window.removeEventListener(GLOBAL_SHOW_LOADING_EVENT, handleShow);
+      window.removeEventListener(GLOBAL_HIDE_LOADING_EVENT, handleHide);
+    };
+  }, []);
 
   return (
-    <LoadingContext.Provider value={{ isLoading, loadingMessage, showLoading, hideLoading, withLoading }}>
+    <LoadingContext.Provider value={{ isLoading, loadingMessage, showLoading, hideLoading }}>
       {children}
-      {isLoading && <BPGLoadingOverlay message={loadingMessage} fullScreen backdrop />}
+      <FullScreenLoading isOpen={isLoading} message={loadingMessage} />
     </LoadingContext.Provider>
   );
 };

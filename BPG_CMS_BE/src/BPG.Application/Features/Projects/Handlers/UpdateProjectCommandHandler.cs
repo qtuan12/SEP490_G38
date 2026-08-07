@@ -5,6 +5,7 @@ using BPG.Domain.Exceptions;
 using BPG.Application.Features.Projects.Commands;
 using BPG.Application.Features.Projects.DTOs;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
@@ -16,11 +17,13 @@ public class UpdateProjectCommandHandler : IRequestHandler<UpdateProjectCommand,
 {
     private readonly IUnitOfWork _uow;
     private readonly IMapper _mapper;
+    private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public UpdateProjectCommandHandler(IUnitOfWork uow, IMapper mapper)
+    public UpdateProjectCommandHandler(IUnitOfWork uow, IMapper mapper, IRealtimeNotificationSender realtimeSender)
     {
         _uow = uow;
         _mapper = mapper;
+        _realtimeSender = realtimeSender;
     }
 
     public async Task<ProjectDto> Handle(UpdateProjectCommand request, CancellationToken cancellationToken)
@@ -64,6 +67,12 @@ public class UpdateProjectCommandHandler : IRequestHandler<UpdateProjectCommand,
         }
 
         await _uow.SaveChangesAsync(cancellationToken);
+
+        await _realtimeSender.SendToGroupAsync(
+            $"Project_{project.ProjectId}",
+            HubMethodNames.ProjectUpdated,
+            new { ProjectId = project.ProjectId },
+            cancellationToken);
 
         return _mapper.Map<ProjectDto>(project);
     }

@@ -36,15 +36,12 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             }
 
             var userId = _currentUserService.GetRequiredUserId();
-            var isLeader = await _unitOfWork.Repository<ProjectMember>().Query()
-                .AnyAsync(m => m.ProjectId == request.ProjectId && m.UserId == userId && m.IsLeader, cancellationToken);
-            var isManagerOrAdmin = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
-
-            if (!isLeader && !isManagerOrAdmin)
-            {
-                throw new BusinessException(ErrorCodes.Forbidden, "Chỉ Trưởng dự án của dự án này hoặc Trưởng phòng Kĩ thuật mới có quyền tạo phiếu tăng tồn kho.");
-            }
-
+            var isAdmin = _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin);
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == request.ProjectId && member.UserId == userId && member.IsLeader,
+                cancellationToken);
+            if (!isAdmin && !isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được tạo phiếu tăng tồn.");
             var phase = await _unitOfWork.Repository<Phase>().GetByIdAsync(request.PhaseId);
             if (phase == null)
             {
@@ -62,12 +59,8 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 AdjustmentType = InventoryAdjustmentType.Increase,
                 Reason = request.Reason,
                 Description = request.Description,
-                Status = InventoryAdjustmentStatus.Approved, // Auto approved
-                ApprovedBy = _currentUserService.GetRequiredUserId(), // Auto approved by creator
-                ApprovedAt = System.DateTime.UtcNow
+                Status = InventoryAdjustmentStatus.Pending // Require approval by TPKT
             };
-
-            var transactionsToUpdate = new List<InventoryTransaction>();
 
             foreach (var item in request.Items)
             {
@@ -89,62 +82,15 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     Quantity = item.Quantity,
                     ConversionRate = 1
                 });
-
-                // Tăng tồn kho
-                var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
-                    .FirstOrDefaultAsync(x => x.ProjectId == request.ProjectId && x.MaterialId == item.MaterialId, cancellationToken);
-                
-                if (currentInventory == null)
-                {
-                    currentInventory = new CurrentInventory
-                    {
-                        ProjectId = request.ProjectId,
-                        MaterialId = item.MaterialId,
-                        UnitId = material.BaseUnitId,
-                        Quantity = item.Quantity,
-                        LastUpdated = System.DateTime.UtcNow
-                    };
-                    await _unitOfWork.Repository<CurrentInventory>().AddAsync(currentInventory);
-                }
-                else
-                {
-                    currentInventory.Quantity += item.Quantity;
-                    currentInventory.LastUpdated = System.DateTime.UtcNow;
-                    _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
-                }
-
-                // Ghi nhận thẻ kho (InventoryTransaction)
-                var transaction = new InventoryTransaction
-                {
-                    ProjectId = request.ProjectId,
-                    MaterialId = item.MaterialId,
-                    TransactionType = InventoryTransactionType.Adjustment,
-                    QuantityChange = item.Quantity, // Dương cho tăng
-                    BalanceAfter = currentInventory.Quantity,
-                    ReferenceType = EntityType.InventoryAdjustment,
-                    CreatedBy = userId,
-                    CreatedAt = System.DateTime.UtcNow
-                    // ReferenceId sẽ được update sau khi save adjustment, ta sẽ save adjustment trước
-                };
-                await _unitOfWork.Repository<InventoryTransaction>().AddAsync(transaction);
-                transactionsToUpdate.Add(transaction);
             }
 
             await _unitOfWork.Repository<InventoryAdjustment>().AddAsync(adjustment);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Cập nhật ReferenceId cho các transactions
-            foreach (var trans in transactionsToUpdate)
-            {
-                trans.ReferenceId = adjustment.AdjustmentId;
-                _unitOfWork.Repository<InventoryTransaction>().Update(trans);
-            }
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
             await _notificationService.SendNotificationToRoleAsync(
-                BPG.Domain.Constants.UserRole.Accountant,
-                "Phiếu điều chỉnh tăng tồn đã được tạo",
-                $"Một phiếu tăng tồn kho mới (#{adjustment.AdjustmentId}) đã được tạo và tự động phê duyệt. Tồn kho dự án đã được cập nhật.",
+                BPG.Domain.Constants.UserRole.TechnicalManager,
+                "Phiếu điều chỉnh tăng tồn kho cần phê duyệt",
+                $"Có phiếu tăng tồn kho mới (#{adjustment.AdjustmentId}) tại dự án {project.Name} đang chờ Trưởng phòng kỹ thuật phê duyệt.",
                 BPG.Domain.Constants.NotificationType.Procurement,
                 $"/projects/{request.ProjectId}/workspace/inventoryadjustments",
                 adjustment.AdjustmentId,
@@ -165,7 +111,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 adjustment.AdjustmentId,
                 cancellationToken);
 
-            return ApiResponse<long>.SuccessResult(adjustment.AdjustmentId, "Tạo phiếu điều chỉnh tăng tồn thành công (đã tự động phê duyệt)");
+            return ApiResponse<long>.SuccessResult(adjustment.AdjustmentId, "Tạo phiếu điều chỉnh tăng tồn thành công, chờ phê duyệt");
         }
     }
 }

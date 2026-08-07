@@ -16,24 +16,36 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
     private readonly IRealtimeNotificationSender _realtimeSender;
     private readonly AutoMapper.IMapper _mapper;
     private readonly IProgressRollupService _rollupService;
+    private readonly ICurrentUserService _currentUserService;
 
-    public CreateTaskCommandHandler(IUnitOfWork unitOfWork, INotificationService notificationService, IRealtimeNotificationSender realtimeSender, AutoMapper.IMapper mapper, IProgressRollupService rollupService)
+    public CreateTaskCommandHandler(
+        IUnitOfWork unitOfWork, 
+        INotificationService notificationService, 
+        IRealtimeNotificationSender realtimeSender, 
+        AutoMapper.IMapper mapper, 
+        IProgressRollupService rollupService,
+        ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
         _realtimeSender = realtimeSender;
         _mapper = mapper;
         _rollupService = rollupService;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse<long>> Handle(CreateTaskCommand request, CancellationToken ct)
     {
         var phase = await _unitOfWork.Repository<Phase>()
             .Query()
+            .Include(p => p.Project)
             .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct);
 
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
+
+        if (phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         if (phase.StartDate.HasValue && request.StartDate < phase.StartDate.Value)
         {
@@ -46,6 +58,19 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
                 $"Ngày kết thúc của công việc ({request.EndDate:dd/MM/yyyy}) không được sau ngày kết thúc của giai đoạn ({phase.EndDate.Value:dd/MM/yyyy}).");
         }
 
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>()
+                .Query()
+                .AnyAsync(pm => pm.ProjectId == phase.ProjectId && pm.UserId == currentUserId && pm.IsLeader, ct);
+                
+            if (!isProjectLeader)
+            {
+                throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được phép tạo công việc.");
+            }
+        }
+
         if (request.ParentTaskId.HasValue)
         {
             var parentTask = await _unitOfWork.Repository<ProjectTask>()
@@ -55,6 +80,11 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
 
             if (parentTask == null)
                 throw new NotFoundException("ParentTask", request.ParentTaskId.Value);
+
+            // Chặn tạo task cấp 3 trở lên (chỉ cho phép tối đa 2 cấp: cha → con)
+            if (parentTask.ParentTaskId.HasValue)
+                throw new BusinessException("ERR_MAX_DEPTH_EXCEEDED",
+                    "Hệ thống chỉ hỗ trợ tối đa 2 cấp công việc (cha → con). Không thể tạo công việc con cho một công việc đã là sub-task.");
 
             if (request.StartDate < parentTask.StartDate || request.EndDate > parentTask.EndDate)
             {

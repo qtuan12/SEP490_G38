@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 import type { ProjectMember } from '../types/common';
-import { userService } from '../services/userService';
 import type { UserProfile } from '../services/authService';
 import { Modal } from './ui/Modal';
-import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
-import { useNotification } from '../context/NotificationContext';
+import { LoadingSpinner } from './ui/LoadingSpinner';
+import { Crown, UserPlus, UserX, UserCheck, Phone } from 'lucide-react';
 import { useSignalREvent } from '../hooks/useSignalREvent';
+import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
+import { RoleGroup } from '../auth/roles';
 
 interface AvailableEngineer extends UserProfile {
   leaderProjectName?: string;
@@ -18,13 +19,12 @@ interface ProjectMembersProps {
 }
 
 export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => {
-  const { user } = useAuth();
-  const { connection } = useNotification();
+  const { user, hasAnyRole } = useAuth();
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [availableEngineers, setAvailableEngineers] = useState<AvailableEngineer[]>([]);
+  const [projectStatus, setProjectStatus] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   // Modal State
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -32,36 +32,55 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<{id: string, name: string} | null>(null);
+  const loadRequestIdRef = React.useRef(0);
 
-  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const isTechManagerOrAdmin = hasAnyRole(RoleGroup.Technical) || hasAnyRole(RoleGroup.AdminOnly);
+  const isCurrentProjectLeader = members.some(m => m.userId === user?.id && m.isLeader);
+
+  const isProjectCompleted = ['completed', 'closed', 'done'].includes((projectStatus || '').toLowerCase());
+
+  // TPKT/Admin hoặc Trưởng dự án (Project Leader) của dự án chưa hoàn thành đều có quyền thêm/xóa thành viên kỹ sư.
+  const canManageMembers = (isTechManagerOrAdmin || isCurrentProjectLeader) && !isProjectCompleted;
+  // Chỉ TPKT/Admin mới được chỉ định hoặc thay đổi Trưởng nhóm trong dự án chưa hoàn thành
+  const canToggleLeader = isTechManagerOrAdmin && !isProjectCompleted;
   const hasLeader = members.some(m => m.isLeader);
 
-  const loadData = async (bustCache = false) => {
-    setLoading(true);
-    setError(null);
+  const loadData = async (bustCache = false, silent = false) => {
+    const requestId = ++loadRequestIdRef.current;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const projMembers = await projectService.getMembers(projectId, bustCache);
+      if (requestId !== loadRequestIdRef.current) return;
       setMembers(projMembers);
 
-      // Only TPKT/Admin needs to load all users to add them
-      if (isTPKT) {
-        const usersResponse = await userService.getUsers({ pageSize: 1000 });
-        const allUsers = usersResponse.items;
-        // Filter out those who are not engineers or are already members of this project
-        const engineers = allUsers.filter(u =>
-          u.role?.toLowerCase() === 'siteengineer' && !projMembers.some(m => m.userId === u.id)
-        );
+      // Lấy tất cả dự án và thành viên để tìm thông tin dự án hiện tại và thông tin trưởng nhóm của các dự án đang làm
+      const allProjects = await projectService.getProjects();
+      if (requestId !== loadRequestIdRef.current) return;
 
-        // Lấy tất cả dự án và thành viên để tìm thông tin trưởng nhóm
-        const allProjects = await projectService.getProjects(true);
+      const currentProj = allProjects.find(p => p.id === projectId || p.id === `p-${projectId}` || p.id === projectId.replace('p-', ''));
+      if (currentProj) {
+        setProjectStatus(currentProj.status || '');
+      }
+
+      const isLeader = projMembers.some(m => m.userId === user?.id && m.isLeader);
+      const canManage = isTechManagerOrAdmin || isLeader;
+
+      if (canManage) {
+        const engineers = await projectService.getAvailableMembers(projectId);
+
         const allMembersPromises = allProjects.map(p => projectService.getMembers(p.id));
         const allMembersArrays = await Promise.all(allMembersPromises);
+        if (requestId !== loadRequestIdRef.current) return;
         
         const leaderMap = new Map<string, string>();
         allMembersArrays.forEach((mems, index) => {
           const project = allProjects[index];
           const statusLower = (project.status || '').toLowerCase();
-          if (statusLower === 'completed' || statusLower === 'closed') {
+          // Nếu dự án đã hoàn thành thì không còn tính người đó là trưởng dự án nữa
+          if (statusLower === 'completed' || statusLower === 'closed' || statusLower === 'done') {
             return;
           }
           mems.forEach(m => {
@@ -77,45 +96,33 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         }));
 
         setAvailableEngineers(engineersWithLeaderInfo);
+        setSelectedUserIds(current =>
+          current.filter(id => engineersWithLeaderInfo.some(engineer => engineer.id === id)),
+        );
       }
     } catch (err: any) {
-      setError(err.message || 'Không thể tải thành viên dự án.');
+      if (requestId !== loadRequestIdRef.current) return;
+      if (silent) console.error(err);
+      else setError(err.message || 'Không thể tải thành viên dự án.');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
-  }, [projectId]);
+  }, [projectId, isTechManagerOrAdmin]);
 
-  useEffect(() => {
-    if (!connection) return;
-
-    const joinGroup = () => {
-      connection.invoke('JoinProjectGroup', Number(projectId))
-        .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
-    };
-
-    if (connection.state === 'Connected') {
-      joinGroup();
-    }
-
-    connection.onreconnected(joinGroup);
-
-    return () => {
-      if (connection.state === 'Connected') {
-        connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
-      }
-    };
-  }, [connection, projectId]);
+  useEffect(() => () => {
+    loadRequestIdRef.current += 1;
+  }, [projectId, isTechManagerOrAdmin]);
 
   useSignalREvent('ProjectLeaderUpdated', () => {
-    loadData(true); // bust cache to fetch fresh data
+    loadData(true, true);
   });
 
   useSignalREvent('ProjectMemberAdded', () => {
-    loadData(true); // bust cache to refresh member list
+    loadData(true, true);
   });
 
   const openAddModal = () => {
@@ -129,27 +136,24 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     if (selectedUserIds.length === 0) return;
 
     try {
-      const usersResponse = await userService.getUsers({ pageSize: 1000 });
-      const allUsers = usersResponse.items;
+      const results = await Promise.all(selectedUserIds.map(id => {
+        const targetUser = availableEngineers.find(user => user.id === id);
+        if (!targetUser)
+          throw new Error('Kỹ sư đã chọn không còn khả dụng để thêm vào dự án.');
 
-      await Promise.all(selectedUserIds.map(id => {
-        const targetUser = allUsers.find(u => u.id === id);
-        if (targetUser) {
-          return projectService.addMember(projectId, {
-            id: targetUser.id,
-            name: targetUser.name,
-            email: targetUser.email,
-            role: targetUser.role
-          });
-        }
+        return projectService.addMember(projectId, {
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+          role: targetUser.role
+        });
       }));
 
-      setSuccess(`Đã thêm ${selectedUserIds.length} kỹ sư vào dự án.`);
+      console.log(selectedUserIds.length === 1 && results[0]?.__message ? results[0].__message : `Đã thêm ${selectedUserIds.length} kỹ sư vào dự án.`);
       setIsAddOpen(false);
-      setTimeout(() => setSuccess(null), 3000);
-      loadData();
+      void loadData(true, true);
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi gán thành viên. Có thể một số thành viên đã tồn tại.');
+      toast.error(err.message || 'Không thể thêm thành viên vào dự án.');
     }
   };
 
@@ -162,12 +166,11 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
     if (!memberToDelete) return;
 
     try {
-      await projectService.removeMember(projectId, memberToDelete.id);
-      setSuccess(`Đã xóa kỹ sư ${memberToDelete.name} khỏi dự án.`);
-      setTimeout(() => setSuccess(null), 3000);
-      loadData();
+      const message = await projectService.removeMember(projectId, memberToDelete.id);
+      console.log(message || `Đã xóa kỹ sư ${memberToDelete.name} khỏi dự án.`);
+      void loadData(true, true);
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi xóa thành viên.');
+      toast.error(err.message || 'Không thể xóa thành viên khỏi dự án.');
     } finally {
       setDeleteConfirmOpen(false);
       setMemberToDelete(null);
@@ -180,38 +183,35 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
       setMembers(updatedList);
 
       const target = updatedList.find(m => m.userId === userId);
-      setSuccess(`Đã ${target?.isLeader ? 'gán' : 'hủy'} vai trò Trưởng nhóm cho ${name}.`);
-      setTimeout(() => setSuccess(null), 3000);
+      console.log(updatedList.__message || `Đã ${target?.isLeader ? 'gán' : 'hủy'} vai trò Trưởng nhóm cho ${name}.`);
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi cập nhật vai trò trưởng nhóm.');
+      toast.error(err.message || 'Không thể cập nhật vai trò trưởng nhóm.');
     }
   };
 
+  // Danh sách kỹ sư khả dụng hiển thị trong Modal Thêm kỹ sư vào Dự án:
+  // - TPKT/Admin: Hiển thị tất cả kỹ sư, đồng thời gán mác "Trưởng nhóm - [Tên dự án]" cho người đang làm PL ở dự án chưa hoàn thành.
+  // - Trưởng dự án (PL): Chỉ hiển thị những kỹ sư KHÔNG phải là Trưởng nhóm của dự án chưa hoàn thành.
+  const candidateEngineers = availableEngineers.filter(u => {
+    if (!isTechManagerOrAdmin && u.leaderProjectName) {
+      return false;
+    }
+    const roleLower = (u.role || '').toLowerCase();
+    if (roleLower === 'technicalmanager' || roleLower === 'admin' || roleLower === 'director') return false;
+    return true;
+  });
+
+  const searchedEngineers = candidateEngineers.filter(u =>
+    u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '150px', gap: '8px' }}>
-        <Loader2 className="animate-spin" size={20} style={{ color: 'hsl(var(--primary))' }} />
-        <span>Đang tải danh sách thành viên...</span>
-      </div>
-    );
+    return <LoadingSpinner size="md" label="Đang tải danh sách thành viên..." className="py-12" />;
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-      {/* Notifications */}
-      {success && (
-        <div className="animate-fade-in" style={{
-          padding: '10px 14px',
-          backgroundColor: 'hsl(var(--success-glow))',
-          border: '1px solid hsl(var(--success) / 0.2)',
-          borderRadius: 'var(--radius-sm)',
-          color: 'hsl(142 70% 30%)',
-          fontSize: '0.85rem'
-        }}>
-          {success}
-        </div>
-      )}
 
       {error && (
         <div className="animate-fade-in" style={{
@@ -234,7 +234,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
             Danh sách nhân sự tham gia thi công và giám sát dự án
           </p>
         </div>
-        {isTPKT && (
+        {canManageMembers && (
           <button onClick={openAddModal} className="btn btn-primary" style={{ padding: '8px 12px', fontSize: '0.85rem' }}>
             <UserPlus size={16} />
             <span>Thêm kỹ sư</span>
@@ -244,42 +244,43 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
 
       {/* Member Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        {members.map((m) => (
-          <div
-            key={m.userId}
-            className="card"
-            style={{
-              padding: '20px',
-              position: 'relative',
-              border: m.isLeader ? '1px solid hsl(var(--primary) / 0.3)' : '1px solid hsl(var(--border))',
-              backgroundColor: m.isLeader ? 'hsl(var(--primary-glow) / 0.1)' : 'hsl(var(--bg-card))',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              boxShadow: m.isLeader ? 'var(--shadow-sm), 0 0 10px hsl(var(--primary-glow))' : 'var(--shadow-sm)'
-            }}
-          >
-            {/* Crown tag */}
-            {m.isLeader && (
-              <div style={{
-                position: 'absolute',
-                top: '-10px',
-                right: '16px',
-                backgroundColor: 'gold',
-                color: 'hsl(224 71% 4%)',
-                padding: '2px 8px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.7rem',
-                fontWeight: 700,
+        {members.map((m) => {
+          return (
+            <div
+              key={m.userId}
+              className="card"
+              style={{
+                padding: '20px',
+                position: 'relative',
+                border: m.isLeader ? '1px solid hsl(var(--primary) / 0.3)' : '1px solid hsl(var(--border))',
+                backgroundColor: m.isLeader ? 'hsl(var(--primary-glow) / 0.1)' : 'hsl(var(--bg-card))',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}>
-                <Crown size={12} fill="gold" />
-                <span>TRƯỞNG NHÓM</span>
-              </div>
-            )}
+                flexDirection: 'column',
+                gap: '14px',
+                boxShadow: m.isLeader ? 'var(--shadow-sm), 0 0 10px hsl(var(--primary-glow))' : 'var(--shadow-sm)'
+              }}
+            >
+              {/* Crown tag */}
+              {m.isLeader && (
+                <div style={{
+                  position: 'absolute',
+                  top: '-10px',
+                  right: '16px',
+                  backgroundColor: 'gold',
+                  color: 'hsl(224 71% 4%)',
+                  padding: '2px 8px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}>
+                  <Crown size={12} fill="gold" />
+                  <span>TRƯỞNG NHÓM</span>
+                </div>
+              )}
 
             {/* Profile info */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -313,18 +314,19 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
               </div>
             </div>
 
-            {/* Actions for TPKT */}
-            {isTPKT && (
+            {/* Actions for TPKT & Project Leader */}
+            {canManageMembers && (
               <div style={{
                 display: 'flex',
-                justifyContent: 'space-between',
+                justifyContent: 'flex-end',
                 alignItems: 'center',
+                gap: '6px',
                 borderTop: '1px solid hsl(var(--border) / 0.5)',
                 paddingTop: '12px',
                 marginTop: '4px'
               }}>
-                {/* Crown Assign Checkbox/Button */}
-                {(!hasLeader || m.isLeader) ? (
+                {/* Crown Assign Checkbox/Button: TPKT/Admin only */}
+                {canToggleLeader && (!hasLeader || m.isLeader) ? (
                   <button
                     onClick={() => handleToggleLeader(m.userId, m.userName)}
                     className={`btn ${m.isLeader ? 'btn-secondary' : 'btn-secondary'}`}
@@ -341,39 +343,40 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                     <Crown size={14} fill={m.isLeader ? 'none' : 'currentColor'} />
                     <span>{m.isLeader ? 'Hủy trưởng nhóm' : 'Gán trưởng nhóm'}</span>
                   </button>
-                ) : (
-                  <div></div>
-                )}
+                ) : null}
 
-                {/* Remove member button */}
-                <button
-                  onClick={() => handleRemoveMember(m.userId, m.userName)}
-                  className="btn btn-secondary"
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: '0.75rem',
-                    color: 'hsl(var(--danger))',
-                    borderColor: 'hsl(var(--danger) / 0.2)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <UserX size={14} />
-                  <span>Xóa</span>
-                </button>
+                {/* Remove member button: TPKT/Admin or Leader (on non-leader engineers) */}
+                {(canToggleLeader || !m.isLeader) && (
+                  <button
+                    onClick={() => handleRemoveMember(m.userId, m.userName)}
+                    className="btn btn-secondary"
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '0.75rem',
+                      color: 'hsl(var(--danger))',
+                      borderColor: 'hsl(var(--danger) / 0.2)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <UserX size={14} />
+                    <span>Xóa</span>
+                  </button>
+                )}
               </div>
             )}
 
             {/* Informational Read-only icons for other users */}
-            {!isTPKT && (
+            {!canManageMembers && (
               <div style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', display: 'flex', gap: '6px', alignItems: 'center' }}>
                 <UserCheck size={14} />
                 <span>Kỹ sư thi công dự án</span>
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
 
         {members.length === 0 && (
           <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '30px', color: 'hsl(var(--text-muted))', border: '1px dashed hsl(var(--border))', borderRadius: 'var(--radius-md)' }}>
@@ -401,8 +404,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
               className="input w-full mb-2 p-2 sm:p-2.5 text-sm sm:text-base rounded-[var(--radius-sm)] border border-[hsl(var(--border))]"
             />
             <div className="max-h-[45vh] sm:max-h-[300px] overflow-y-auto border border-[hsl(var(--border))] rounded-[var(--radius-sm)] bg-[hsl(var(--bg-card))]">
-              {availableEngineers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
-                availableEngineers.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.email.toLowerCase().includes(searchQuery.toLowerCase())).map((eng) => (
+              {searchedEngineers.length > 0 ? (
+                searchedEngineers.map((eng) => (
                   <label
                     key={eng.id}
                     className="flex items-center gap-3 p-3 border-b border-[hsl(var(--border)/0.5)] cursor-pointer transition-colors hover:bg-[hsl(var(--primary-glow)/0.05)]"
@@ -462,7 +465,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
               disabled={selectedUserIds.length === 0}
             >
               <UserPlus size={16} className="mr-1.5 sm:mr-2" />
-              Gán ({selectedUserIds.length})
+              Thêm ({selectedUserIds.length})
             </button>
           </div>
         </form>

@@ -7,7 +7,40 @@ public static class UserRole
     public const string TechnicalManager = "TechnicalManager";
     public const string SiteEngineer = "SiteEngineer";
     public const string Accountant = "Accountant";
-    public const string ProjectLeader = "ProjectLeader";
+}
+
+public static class RolePolicies
+{
+    public const string Admin = UserRole.Admin;
+    public const string TechnicalManager = UserRole.TechnicalManager;
+    public const string DirectorOrTechnicalManager = UserRole.Director + "," + UserRole.TechnicalManager;
+    public const string TechnicalManagerOrSiteEngineer = UserRole.TechnicalManager + "," + UserRole.SiteEngineer;
+    public const string Accountant = UserRole.Accountant;
+    public const string Director = UserRole.Director;
+    public const string DirectorTechnicalManagerAccountant =
+        UserRole.Director + "," + UserRole.TechnicalManager + "," + UserRole.Accountant;
+    public const string BusinessUsers =
+        UserRole.Director + "," + UserRole.TechnicalManager + "," +
+        UserRole.SiteEngineer + "," + UserRole.Accountant;
+    public const string AdminOrTechnicalManager = UserRole.Admin + "," + UserRole.TechnicalManager;
+    public const string AdminOrDirector = UserRole.Admin + "," + UserRole.Director;
+    public const string ProjectViewers =
+        UserRole.Director + "," +
+        UserRole.TechnicalManager + "," +
+        UserRole.SiteEngineer + "," +
+        UserRole.Accountant;
+    public const string SupplierViewers = ProjectViewers;
+    public const string SupplierManagers = UserRole.TechnicalManager + "," + UserRole.Accountant;
+    public const string Procurement =
+        UserRole.Accountant + "," +
+        UserRole.TechnicalManager + "," +
+        UserRole.Director;
+    public const string Reports =
+        UserRole.Admin + "," +
+        UserRole.Director + "," +
+        UserRole.TechnicalManager + "," +
+        UserRole.Accountant;
+    public const string MasterData = UserRole.TechnicalManager + "," + UserRole.Accountant;
 }
 
 public static class SupplierRelationshipHealth
@@ -86,6 +119,25 @@ public static class NotificationReferenceType
     public const string InventoryAdjustment = "InventoryAdjustment";
     public const string SurplusRequest = "SurplusRequest";
     public const string Project = "Project";
+}
+
+/// <summary>
+/// Đường dẫn workspace gửi kèm thông báo, đặt vào chỗ referenceType.
+/// Frontend nhận diện chuỗi bắt đầu bằng '/' là đường dẫn (xem resolveNotificationUrl) và
+/// dựng URL mở thẳng chi tiết phiếu trong phạm vi dự án, để bấm quay lại thì về đúng
+/// danh sách của dự án đó thay vì danh sách tổng.
+/// referenceId đi kèm phải là id của chính phiếu được nhắc tới.
+/// </summary>
+public static class NotificationLink
+{
+    public static string ProjectDirectPurchases(long projectId) =>
+        $"/projects/{projectId}/workspace/directpurchases";
+
+    public static string ProjectPurchaseOrders(long projectId) =>
+        $"/projects/{projectId}/workspace/purchaseorders";
+
+    public static string ProjectSurplus(long projectId) =>
+        $"/projects/{projectId}/workspace/surplus";
 }
 
 public static class EntityType

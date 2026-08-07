@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { LoadingSpinner } from '../../../components/ui';
+import { TableLoader } from '../../../components/ui';
 import { surplusService } from '../../../services/surplusService';
 import type { IncomingTransfer } from '../../../types/surplus';
 import { getSurplusTransferStatusDetails, formatDateVN } from '../../../utils/surplusHelpers';
-import { useAuth } from '../../../context/AuthContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import toast from 'react-hot-toast';
 import { RefreshCw, Package } from 'lucide-react';
 import { ReceiveTransferModal } from '../modals/ReceiveTransferModal';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../../constants/realtimeEntities';
 
 interface IncomingTransfersTabProps {
   projectId: number;
@@ -17,31 +22,56 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
   const [list, setList] = useState<IncomingTransfer[]>([]);
   const [loading, setLoading] = useState(false);
   const [receivingTransferId, setReceivingTransferId] = useState<number | null>(null);
-  const { user } = useAuth(); // Leader is a type of Site Engineer
-  const isSiteEngineer = user?.role === 'siteengineer';
+  const { isProjectLeader } = useProjectAccess(projectId);
+  const canReceiveTransfer = isProjectLeader;
   const [refreshKey, setRefreshKey] = useState(0);
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadRequestIdRef = React.useRef(0);
+
+  const loadData = async (showLoading = true) => {
+    const requestId = ++loadRequestIdRef.current;
+    if (showLoading) setLoading(true);
+    try {
+      const data = await surplusService.getIncomingTransfers(projectId);
+      if (requestId !== loadRequestIdRef.current) return;
+      setList(data);
+    } catch (err: any) {
+      if (requestId !== loadRequestIdRef.current) return;
+      if (showLoading) toast.error(err.message || 'Không thể tải danh sách vật tư chuyển đến.');
+      else console.error('Error refreshing incoming transfers:', err);
+    } finally {
+      if (requestId === loadRequestIdRef.current) setLoading(false);
+    }
+  };
+
+  const scheduleRealtimeRefresh = () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      void loadData(false);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  };
 
   useEffect(() => {
     if (projectId) loadData();
   }, [projectId, refreshKey]);
 
+  useEffect(() => () => {
+    loadRequestIdRef.current += 1;
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [projectId]);
+
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'SurplusRequest') {
-      setRefreshKey(k => k + 1);
+      scheduleRealtimeRefresh();
     }
   });
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const data = await surplusService.getIncomingTransfers(projectId);
-      setList(data);
-    } catch (err: any) {
-      toast.error(err.message || 'Lỗi tải danh sách hàng đến');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useRealtimeDataRefresh(scheduleRealtimeRefresh, RealtimeEntities.surplus, 0);
 
   const handleReceive = (transferId: number) => {
     setReceivingTransferId(transferId);
@@ -86,13 +116,7 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading && list.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-10 text-center">
-                  <div className="flex justify-center items-center gap-2">
-                    <LoadingSpinner /> <span className="text-slate-500">Đang tải dữ liệu...</span>
-                  </div>
-                </td>
-              </tr>
+              <TableLoader colSpan={7} message="Đang tải dữ liệu vật tư chuyển đến..." />
             ) : list.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-10 text-center text-slate-500">
@@ -129,7 +153,7 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      {item.status === 'Dispatched' && isSiteEngineer && (
+                      {item.status === 'Dispatched' && canReceiveTransfer && (
                         <button
                           onClick={() => handleReceive(item.surplusTransferId)}
                           className="px-3 py-1.5 text-xs font-bold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm"
@@ -150,7 +174,7 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
         <ReceiveTransferModal
           isOpen={!!receivingTransferId}
           onClose={() => setReceivingTransferId(null)}
-          onSuccess={() => setRefreshKey(k => k + 1)}
+          onSuccess={scheduleRealtimeRefresh}
           surplusTransferId={receivingTransferId}
         />
       )}

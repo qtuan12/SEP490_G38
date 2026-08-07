@@ -309,6 +309,12 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<long>("DirectPurchaseId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("Explanation")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsOverBOQ")
+                        .HasColumnType("bit");
+
                     b.Property<decimal>("LineTotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -347,6 +353,15 @@ namespace BPG.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("DirectPurchaseId"));
 
+                    b.Property<string>("ApprovalNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("AuditNote")
                         .HasColumnType("nvarchar(max)");
 
@@ -365,6 +380,11 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<long?>("AutoReceiptId")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("BOQCheckStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -395,6 +415,9 @@ namespace BPG.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<long?>("TaskId")
                         .HasColumnType("bigint");
 
@@ -409,6 +432,8 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("DirectPurchaseId");
+
+                    b.HasIndex("ApprovedBy");
 
                     b.HasIndex("AuditedBy");
 
@@ -1486,6 +1511,15 @@ namespace BPG.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("POId"));
 
+                    b.Property<string>("ApprovalNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("ApprovedBy")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("CancelledReason")
                         .HasColumnType("nvarchar(max)");
 
@@ -1515,10 +1549,14 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<string>("PONumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<long>("ProjectId")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("RejectedReason")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<long?>("RequestId")
                         .HasColumnType("bigint");
@@ -1541,6 +1579,11 @@ namespace BPG.Infrastructure.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("POId");
+
+                    b.HasIndex("ApprovedBy");
+
+                    b.HasIndex("PONumber")
+                        .IsUnique();
 
                     b.HasIndex("ProjectId");
 
@@ -1614,6 +1657,9 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<bool>("IsUsed")
                         .HasColumnType("bit");
+
+                    b.Property<string>("ReplacedByTokenHash")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("datetime2");
@@ -2128,6 +2174,15 @@ namespace BPG.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("TaskProgressLogId"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<byte>("NewProgress")
                         .HasColumnType("tinyint");
 
@@ -2140,10 +2195,15 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<string>("UpdateReason")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint");
+
                     b.HasKey("TaskProgressLogId");
+
+                    b.HasIndex("CreatedBy");
 
                     b.HasIndex("TaskId");
 
@@ -2251,7 +2311,8 @@ namespace BPG.Infrastructure.Migrations
                     b.HasKey("UserId");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("Users");
                 });
@@ -2434,6 +2495,11 @@ namespace BPG.Infrastructure.Migrations
 
             modelBuilder.Entity("BPG.Domain.Entities.DirectPurchaseRequest", b =>
                 {
+                    b.HasOne("BPG.Domain.Entities.User", "Approver")
+                        .WithMany()
+                        .HasForeignKey("ApprovedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BPG.Domain.Entities.User", "Auditor")
                         .WithMany()
                         .HasForeignKey("AuditedBy")
@@ -2461,6 +2527,8 @@ namespace BPG.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Approver");
 
                     b.Navigation("Auditor");
 
@@ -2867,6 +2935,11 @@ namespace BPG.Infrastructure.Migrations
 
             modelBuilder.Entity("BPG.Domain.Entities.PurchaseOrder", b =>
                 {
+                    b.HasOne("BPG.Domain.Entities.User", "Approver")
+                        .WithMany()
+                        .HasForeignKey("ApprovedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BPG.Domain.Entities.Project", "Project")
                         .WithMany("PurchaseOrders")
                         .HasForeignKey("ProjectId")
@@ -2881,6 +2954,8 @@ namespace BPG.Infrastructure.Migrations
                     b.HasOne("BPG.Domain.Entities.Supplier", "Supplier")
                         .WithMany("PurchaseOrders")
                         .HasForeignKey("SupplierId");
+
+                    b.Navigation("Approver");
 
                     b.Navigation("Project");
 
@@ -3081,11 +3156,18 @@ namespace BPG.Infrastructure.Migrations
 
             modelBuilder.Entity("BPG.Domain.Entities.TaskProgressLog", b =>
                 {
+                    b.HasOne("BPG.Domain.Entities.User", "Creator")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BPG.Domain.Entities.ProjectTask", "Task")
                         .WithMany("ProgressLogs")
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Creator");
 
                     b.Navigation("Task");
                 });

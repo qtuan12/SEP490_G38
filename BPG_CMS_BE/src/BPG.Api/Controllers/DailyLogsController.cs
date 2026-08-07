@@ -1,11 +1,15 @@
 using BPG.Application.DTOs.DailyLogs;
+using BPG.Api.Configuration;
 using BPG.Application.Features.Comments.Commands;
 using BPG.Application.Features.DailyLogs.Commands;
 using BPG.Application.Features.DailyLogs.Queries;
+using BPG.Domain.Constants;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace BPG.Api.Controllers
 {
@@ -16,6 +20,7 @@ namespace BPG.Api.Controllers
         /// Lấy danh sách nhật ký thi công phân trang theo dự án (và tùy chọn theo công việc).
         /// </summary>
         [HttpGet]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetDailyLogs([FromQuery] GetDailyLogsQuery query)
         {
             var result = await Mediator.Send(query);
@@ -25,6 +30,8 @@ namespace BPG.Api.Controllers
         /// Lấy lịch sử thay đổi tiến độ của một công việc (Task progress history log).
         /// </summary>
         [HttpGet("tasks/{taskId:long}/progress-history")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetTaskProgressHistory(long taskId)
         {
             var query = new GetTaskProgressHistoryQuery(taskId);
@@ -35,6 +42,8 @@ namespace BPG.Api.Controllers
         /// Tạo nhật ký thi công mới (bao gồm cập nhật tiến độ công việc và đính kèm danh sách URLs ảnh).
         /// </summary>
         [HttpPost]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = UserRole.SiteEngineer)]
         public async Task<IActionResult> CreateDailyLog([FromBody] CreateDailyLogCommand command)
         {
             var result = await Mediator.Send(command);
@@ -45,6 +54,8 @@ namespace BPG.Api.Controllers
         /// Cập nhật nội dung nhật ký thi công (chỉ cập nhật mô tả và danh sách hình ảnh đính kèm).
         /// </summary>
         [HttpPut("{logId:long}")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
         public async Task<IActionResult> UpdateDailyLog(long logId, [FromBody] UpdateDailyLogBody body)
         {
             var command = new UpdateDailyLogCommand
@@ -61,6 +72,8 @@ namespace BPG.Api.Controllers
         /// Thêm bình luận mới dưới một nhật ký thi công cụ thể.
         /// </summary>
         [HttpPost("{logId:long}/comments")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = RolePolicies.BusinessUsers)]
         public async Task<IActionResult> AddComment(long logId, [FromBody] AddCommentBody body)
         {
             var command = new AddCommentCommand
@@ -76,6 +89,7 @@ namespace BPG.Api.Controllers
         /// Cập nhật nội dung một bình luận.
         /// </summary>
         [HttpPut("comments/{commentId:long}")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         public async Task<IActionResult> UpdateComment(long commentId, [FromBody] UpdateCommentBody body)
         {
             var command = new UpdateCommentCommand
@@ -91,6 +105,7 @@ namespace BPG.Api.Controllers
         /// Xóa bình luận.
         /// </summary>
         [HttpDelete("comments/{commentId:long}")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         public async Task<IActionResult> DeleteComment(long commentId)
         {
             var command = new DeleteCommentCommand(commentId);

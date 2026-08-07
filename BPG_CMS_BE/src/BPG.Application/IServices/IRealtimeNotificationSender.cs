@@ -21,6 +21,11 @@ namespace BPG.Application.IServices
         Task SendNotificationToAllAsync(object notification, CancellationToken ct = default);
 
         /// <summary>
+        /// Gửi một sự kiện realtime bất kỳ đến tất cả client đang kết nối.
+        /// </summary>
+        Task SendToAllAsync(string methodName, object arg, CancellationToken ct = default);
+
+        /// <summary>
         /// Gửi một sự kiện realtime kèm payload đến một nhóm SignalR cụ thể.
         /// </summary>
         Task SendToGroupAsync(string groupName, string methodName, object arg, CancellationToken ct = default);

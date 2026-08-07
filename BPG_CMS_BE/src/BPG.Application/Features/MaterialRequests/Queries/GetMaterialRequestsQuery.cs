@@ -1,9 +1,10 @@
 using MediatR;
-using BPG.Application.Common.Interfaces;
 using AutoMapper;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.MaterialRequests;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -14,29 +15,33 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Queries
 {
-    public class GetMaterialRequestsQuery : PaginationRequest, IRequest<PagedList<MaterialRequestDto>>, IProjectRequirement
+    public class GetMaterialRequestsQuery : PaginationRequest, IRequest<PagedList<MaterialRequestDto>>
     {
         public long? ProjectId { get; set; }
         public long? PhaseId { get; set; }
         public string? Status { get; set; }
 
-        public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-        {
-            if (ProjectId == null)
-                throw new NotFoundException("ProjectId");
-            return Task.FromResult(ProjectId.Value);
-        }
+        public Task<long?> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
+            => Task.FromResult(ProjectId);
     }
 
     public class GetMaterialRequestsQueryHandler : IRequestHandler<GetMaterialRequestsQuery, PagedList<MaterialRequestDto>>
     {
         private readonly IUnitOfWork _uow;
         private readonly IMapper _mapper;
+        private readonly ICurrentUserService _currentUserService;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetMaterialRequestsQueryHandler(IUnitOfWork uow, IMapper mapper)
+        public GetMaterialRequestsQueryHandler(
+            IUnitOfWork uow,
+            IMapper mapper,
+            ICurrentUserService currentUserService,
+            IProjectAccessService projectAccessService)
         {
             _uow = uow;
             _mapper = mapper;
+            _currentUserService = currentUserService;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PagedList<MaterialRequestDto>> Handle(GetMaterialRequestsQuery request, CancellationToken cancellationToken)
@@ -50,6 +55,15 @@ namespace BPG.Application.Features.MaterialRequests.Queries
                 .Include(mr => mr.Items)
                     .ThenInclude(ri => ri.Unit)
                 .AsNoTracking();
+
+            if (!request.ProjectId.HasValue)
+            {
+                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Director))
+                    throw new ForbiddenException("Bạn không có quyền xem đề xuất vật tư toàn hệ thống.");
+
+                var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+                query = query.Where(mr => accessibleProjectIds.Contains(mr.Phase.ProjectId));
+            }
 
             // Áp dụng bộ lọc
             if (request.ProjectId.HasValue)
@@ -70,7 +84,7 @@ namespace BPG.Application.Features.MaterialRequests.Queries
             // Sắp xếp mặc định theo ngày tạo mới nhất
             query = query.OrderByDescending(mr => mr.CreatedAt);
 
-            // Phân trang
+            // Ph?n trang
             var pagedEntities = await query.ToPagedListAsync(request, cancellationToken);
 
             // Mapping sang DTO
@@ -103,3 +117,6 @@ namespace BPG.Application.Features.MaterialRequests.Queries
         }
     }
 }
+
+
+

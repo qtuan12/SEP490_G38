@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, Button, Input, FormItem, ConfirmDialog } from '../../../components/ui';
+import React, { useEffect, useRef, useState } from 'react';
+import { Modal, Button, Input, FormItem, ConfirmDialog, LoadingSpinner } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import type { GoodsReceiptDetail, GoodsReceiptItemDetail } from '../../../types/inventory';
-import { useAuth } from '../../../context/AuthContext';
 import {
   Calendar,
   User,
@@ -21,13 +20,19 @@ import {
 import { toast } from 'react-hot-toast';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
+import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../../../constants/realtimeEntities';
+
+const GOODS_RECEIPT_REALTIME_ENTITIES = RealtimeEntities.inventory.filter(
+  entity => entity === 'GoodsReceipt' || entity === 'GoodsReceiptItem',
+);
 
 
 interface ReceiptDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   receiptId: number | null;
-  isAssignedLeader?: boolean;
+  canManageInventory?: boolean;
   onSuccess?: () => void;
 }
 
@@ -35,10 +40,9 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
   isOpen,
   onClose,
   receiptId,
-  isAssignedLeader,
+  canManageInventory = false,
   onSuccess
 }) => {
-  const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<GoodsReceiptDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +50,8 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
 
   // Edit states
   const [isEditing, setIsEditing] = useState(false);
+  const isEditingRef = useRef(false);
+  isEditingRef.current = isEditing;
   const [delivererInfo, setDelivererInfo] = useState('');
   const [deliveryDocNo, setDeliveryDocNo] = useState('');
   const [existingImages, setExistingImages] = useState<string[]>([]);
@@ -77,25 +83,37 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     };
   }, [uploadedFiles]);
 
-  const fetchDetail = async () => {
+  const fetchDetail = async (showLoading = true, preserveEditForm = false) => {
     if (!receiptId) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const data = await inventoryService.getGoodsReceiptDetail(receiptId);
       setDetail(data);
+      setError(null);
 
-      // Initialize edit fields
-      setDelivererInfo(data.delivererInfo || '');
-      setDeliveryDocNo(data.deliveryDocNo || '');
-      setExistingImages(data.images || []);
-      setUploadedFiles([]);
+      // A realtime request may have started just before the user entered edit mode.
+      // Keep the freshly fetched detail, but never replace fields/files being edited.
+      if (!preserveEditForm || !isEditingRef.current) {
+        setDelivererInfo(data.delivererInfo || '');
+        setDeliveryDocNo(data.deliveryDocNo || '');
+        setExistingImages(data.images || []);
+        setUploadedFiles([]);
+      }
     } catch (err: any) {
       console.error('Error fetching receipt detail:', err);
-      setError(err.message || 'Không thể tải chi tiết phiếu nhập kho.');
+      if (showLoading) setError(err.message || 'Không thể tải chi tiết phiếu nhập kho.');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
+
+  useRealtimeDataRefresh(
+    () => {
+      if (!isOpen || !receiptId || isEditing) return;
+      return fetchDetail(false, true);
+    },
+    GOODS_RECEIPT_REALTIME_ENTITIES,
+  );
 
   const handleCancelReceipt = async () => {
     if (!receiptId || !detail) return;
@@ -103,13 +121,14 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     setCancelling(true);
     setActionError(null);
     try {
-      await inventoryService.cancelGoodsReceipt(receiptId);
+      const result = await inventoryService.cancelGoodsReceipt(receiptId);
+      console.log(result.message || 'Đã hủy phiếu nhập kho. Tồn kho đã được cập nhật.');
       setIsConfirmCancelOpen(false);
       await fetchDetail();
       if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Error cancelling goods receipt:', err);
-      setActionError(err.message || 'Lỗi hệ thống khi hủy phiếu nhập kho.');
+      setActionError(err.message || 'Không thể hủy phiếu nhập kho.');
       setIsConfirmCancelOpen(false);
     } finally {
       setCancelling(false);
@@ -139,26 +158,59 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
 
       const finalImages = [...existingImages, ...uploadedUrls];
 
-      await inventoryService.patchGoodsReceiptMetadata(receiptId, {
+      const result = await inventoryService.patchGoodsReceiptMetadata(receiptId, {
         receiptId,
         delivererInfo: delivererInfo.trim() || null,
         deliveryDocNo: deliveryDocNo.trim() || null,
         images: finalImages
       });
 
+      console.log(result.message || 'Đã cập nhật thông tin phiếu nhập kho.');
       setIsEditing(false);
       await fetchDetail();
       if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Error updating metadata:', err);
-      setActionError(err.message || 'Lỗi hệ thống khi cập nhật thông tin phiếu.');
+      setActionError(err.message || 'Không thể cập nhật thông tin phiếu nhập kho.');
     } finally {
       setSaving(false);
     }
   };
 
+  // Auto clear actionError when all uploaded files finish uploading successfully
+  useEffect(() => {
+    if (uploadedFiles.length > 0 && !uploadedFiles.some(f => f.status === 'uploading')) {
+      if (uploadedFiles.every(f => f.status === 'success' && f.url && f.url.startsWith('http'))) {
+        setActionError(null);
+      }
+    }
+  }, [uploadedFiles]);
+
+  const handleStartEdit = () => {
+    setActionError(null);
+    if (detail) {
+      setDelivererInfo(detail.delivererInfo || '');
+      setDeliveryDocNo(detail.deliveryDocNo || '');
+      setExistingImages(detail.images || []);
+      setUploadedFiles([]);
+    }
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setActionError(null);
+    setIsEditing(false);
+    if (detail) {
+      setDelivererInfo(detail.delivererInfo || '');
+      setDeliveryDocNo(detail.deliveryDocNo || '');
+      setExistingImages(detail.images || []);
+      setUploadedFiles([]);
+    }
+  };
+
   // Image editing helpers
   const removeExistingImage = (idxToRemove: number) => {
+    setActionError(null);
     setExistingImages(prev => prev.filter((_, idx) => idx !== idxToRemove));
   };
 
@@ -195,7 +247,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
           );
         },
         () => {
-          toast.error(`Tải ảnh ${file.name} lên thất bại.`);
+          toast.error(`Không thể tải ảnh ${file.name} lên.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
           );
@@ -214,10 +266,8 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
     });
   };
 
-  // Check role for Cancel permission (Manager roles and Admin)
-  const isManagerOrAdmin = currentUser && ['admin', 'technicalmanager', 'accountant', 'director'].includes(currentUser.role.toLowerCase());
-  const canCancel = isManagerOrAdmin && detail?.status !== 'Cancelled';
-  const canEdit = isAssignedLeader || (currentUser && ['admin', 'technicalmanager', 'accountant', 'director'].includes(currentUser.role.toLowerCase()));
+  const canCancel = canManageInventory && detail?.status !== 'Cancelled';
+  const canEdit = canManageInventory;
 
   return (
     <>
@@ -245,7 +295,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
             <div className="flex gap-2">
               {isEditing ? (
                 <>
-                  <Button variant="outline" onClick={() => { setIsEditing(false); fetchDetail(); }} disabled={saving}>
+                  <Button variant="outline" onClick={handleCancelEdit} disabled={saving}>
                     Hủy bỏ
                   </Button>
                   <Button variant="primary" onClick={handleSaveMetadata} isLoading={saving} className="flex items-center gap-1.5">
@@ -256,7 +306,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
               ) : (
                 <>
                   {detail?.status !== 'Cancelled' && canEdit && (
-                    <Button variant="outline" onClick={() => setIsEditing(true)} disabled={loading} className="flex items-center gap-1.5">
+                    <Button variant="outline" onClick={handleStartEdit} disabled={loading} className="flex items-center gap-1.5">
                       <Edit3 size={15} />
                       <span>Sửa thông tin</span>
                     </Button>
@@ -271,10 +321,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
         }
       >
         {loading ? (
-          <div className="flex justify-center items-center py-12 gap-3">
-            <Loader2 className="animate-spin text-blue-600" size={24} />
-            <span className="text-slate-500 text-sm">Đang tải thông tin chi tiết...</span>
-          </div>
+          <LoadingSpinner size="md" label="Đang tải thông tin chi tiết..." className="py-12" />
         ) : error ? (
           <div className="p-4 bg-red-50 text-red-700 text-sm border border-red-200 rounded">
             {error}
@@ -294,7 +341,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
               <span className="text-slate-500 font-medium">Trạng thái phiếu:</span>
               {detail.status === 'Cancelled' ? (
                 <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200 uppercase tracking-wide">
-                  Đã hủy (Reversed)
+                  Đã hủy
                 </span>
               ) : (
                 <span className="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wide">
@@ -340,14 +387,20 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                     <FormItem label="Thông tin người giao" required>
                       <Input
                         value={delivererInfo}
-                        onChange={e => setDelivererInfo(e.target.value)}
+                        onChange={e => {
+                          setDelivererInfo(e.target.value);
+                          setActionError(null);
+                        }}
                         placeholder="Tên người giao, SĐT..."
                       />
                     </FormItem>
                     <FormItem label="Mã phiếu giao hàng">
                       <Input
                         value={deliveryDocNo}
-                        onChange={e => setDeliveryDocNo(e.target.value)}
+                        onChange={e => {
+                          setDeliveryDocNo(e.target.value);
+                          setActionError(null);
+                        }}
                         placeholder="Ví dụ: GD-12345"
                       />
                     </FormItem>

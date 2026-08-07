@@ -6,6 +6,7 @@ using BPG.Application.Common.Models;
 using BPG.Application.Features.Projects.DTOs;
 using BPG.Application.Features.Projects.Queries;
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -17,19 +18,32 @@ public class GetProjectsQueryHandler : IRequestHandler<GetProjectsQuery, PagedLi
 {
     private readonly IUnitOfWork _uow;
     private readonly IMapper _mapper;
-    private readonly BPG.Application.IServices.ICurrentUserService _currentUserService;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetProjectsQueryHandler(IUnitOfWork uow, IMapper mapper, BPG.Application.IServices.ICurrentUserService currentUserService)
+    public GetProjectsQueryHandler(
+        IUnitOfWork uow,
+        IMapper mapper,
+        IProjectAccessService projectAccessService)
     {
         _uow = uow;
         _mapper = mapper;
-        _currentUserService = currentUserService;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<PagedList<ProjectDto>> Handle(GetProjectsQuery request, CancellationToken cancellationToken)
     {
         var query = _uow.Repository<Project>().Query()
             .AsNoTracking();
+
+        if (request.ListAllActive)
+        {
+            query = query.Where(p => p.Status == BPG.Domain.Constants.ProjectStatus.InProgress);
+        }
+        else
+        {
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+            query = query.Where(project => accessibleProjectIds.Contains(project.ProjectId));
+        }
 
         if (!string.IsNullOrEmpty(request.Status))
         {
@@ -41,13 +55,6 @@ public class GetProjectsQueryHandler : IRequestHandler<GetProjectsQuery, PagedLi
             var search = request.Search.ToLower();
             query = query.Where(p => p.Name.ToLower().Contains(search) || 
                                      (p.Address != null && p.Address.ToLower().Contains(search)));
-        }
-
-        // Restrict projects for Site Engineers to only those they are assigned to
-        if (!request.IgnoreRoleFilter && _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
-        {
-            var currentUserId = _currentUserService.GetRequiredUserId();
-            query = query.Where(p => p.Members.Any(m => m.UserId == currentUserId));
         }
 
         query = query.OrderByDescending(p => p.CreatedAt);

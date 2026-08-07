@@ -37,14 +37,14 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
         {
             var po = await _uow.Repository<PurchaseOrder>().Query()
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
-                ?? throw new NotFoundException(nameof(PurchaseOrder), request.POId);
+                ?? throw new NotFoundException("Không tìm thấy đơn mua hàng cần đóng.");
 
             if (po.Status != PurchaseOrderStatus.PartiallyReceived)
-                throw new BusinessException("ERR_PO_CANNOT_CLOSE",
+                throw new BusinessException(ErrorCodes.PoCannotClose,
                     "Chỉ có thể đóng đơn mua hàng đang ở trạng thái nhận một phần.");
 
             if (string.IsNullOrWhiteSpace(request.Reason))
-                throw new BusinessException("ERR_CLOSE_REASON_REQUIRED", "Vui lòng nhập lý do đóng đơn mua hàng.");
+                throw new BusinessException(ErrorCodes.PoCloseReasonRequired, "Vui lòng nhập lý do đóng đơn mua hàng.");
 
             po.Status = PurchaseOrderStatus.Closed;
             po.ClosedReason = request.Reason.Trim();
@@ -67,7 +67,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     projectLeaderId,
                     "Đơn hàng đã được đóng",
                     $"Đơn hàng {po.PONumber} đã được đóng. Phần vật tư chưa nhận được trả lại yêu cầu vật tư để tạo đơn hàng khác. Lý do: {po.ClosedReason}",
-                    NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
+                    NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
 
             return true;
         }

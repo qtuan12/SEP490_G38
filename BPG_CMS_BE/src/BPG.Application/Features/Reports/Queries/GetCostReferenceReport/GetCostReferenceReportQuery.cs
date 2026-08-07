@@ -1,32 +1,52 @@
-
+﻿
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetCostReferenceReport;
 
-public record GetCostReferenceReportQuery(long ProjectId) : IRequest<ApiResponse<CostReferenceReportDto>>;
+public record GetCostReferenceReportQuery(long ProjectId)
+    : IRequest<ApiResponse<CostReferenceReportDto>>
+{
+}
 
 public class GetCostReferenceReportQueryHandler : IRequestHandler<GetCostReferenceReportQuery, ApiResponse<CostReferenceReportDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetCostReferenceReportQueryHandler(IUnitOfWork unitOfWork)
+    public GetCostReferenceReportQueryHandler(
+        IUnitOfWork unitOfWork,
+        IProjectAccessService projectAccessService)
     {
         _unitOfWork = unitOfWork;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<ApiResponse<CostReferenceReportDto>> Handle(GetCostReferenceReportQuery request, CancellationToken cancellationToken)
     {
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+        if (request.ProjectId > 0 && !accessibleProjectIds.Contains(request.ProjectId))
+        {
+            throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền truy cập báo cáo của dự án này.");
+        }
+
         // PO Cost
         var pos = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
             .Include(p => p.Items)
             .Include(p => p.Request).ThenInclude(r => r!.Phase)
-            .Where(p => p.Request!.Phase!.ProjectId == request.ProjectId && (p.Status == "Sent" || p.Status == "PartiallyReceived" || p.Status == "FullyReceived" || p.Status == "Closed"))
+            .Where(p => p.ProjectId == request.ProjectId
+                && p.Status != PurchaseOrderStatus.Draft
+                && p.Status != PurchaseOrderStatus.PendingApproval
+                && p.Status != PurchaseOrderStatus.Rejected
+                && p.Status != PurchaseOrderStatus.Cancelled)
             .ToListAsync(cancellationToken);
 
         decimal totalPoCost = 0;
@@ -58,3 +78,4 @@ public class GetCostReferenceReportQueryHandler : IRequestHandler<GetCostReferen
         return ApiResponse<CostReferenceReportDto>.SuccessResult(dto);
     }
 }
+

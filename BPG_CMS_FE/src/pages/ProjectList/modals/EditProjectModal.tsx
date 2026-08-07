@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,8 +32,10 @@ interface EditProjectModalProps {
 export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onClose, onSuccess, project }) => {
   const [dragging, setDragging] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
+  const [hasFileChanges, setHasFileChanges] = useState(false);
+  const initializedProjectIdRef = useRef<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting, isDirty }, reset, setValue } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
     defaultValues: { drawingNames: [] }
   });
@@ -41,6 +43,14 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
   const isDraft = !project || project.status === 'draft';
 
   useEffect(() => {
+    if (!isOpen || !project) {
+      if (!isOpen) initializedProjectIdRef.current = null;
+      return;
+    }
+
+    const projectChanged = initializedProjectIdRef.current !== project.id;
+    if (!projectChanged && (isDirty || hasFileChanges)) return;
+
     if (project && isOpen) {
       reset({
         name: project.name,
@@ -75,8 +85,10 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
       } else {
         setUploadedFiles([]);
       }
+      setHasFileChanges(false);
+      initializedProjectIdRef.current = project.id;
     }
-  }, [project, isOpen, reset]);
+  }, [project, isOpen, reset, isDirty, hasFileChanges]);
 
   useEffect(() => {
     return () => {
@@ -162,10 +174,11 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
   const addFiles = (files: File[]) => {
     const totalSize = files.reduce((acc, f) => acc + f.size, 0);
     if (totalSize > 20 * 1024 * 1024) {
-      alert(`Tổng dung lượng các file không được vượt quá 20MB.`);
+      toast.error('Tổng dung lượng các file không được vượt quá 20MB.');
       return;
     }
 
+    setHasFileChanges(true);
     files.forEach(file => {
       const tempId = Math.random().toString(36).substring(7);
       const localUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
@@ -186,12 +199,12 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
           setUploadedFiles(prev => {
             const updated = prev.map(f => f.id === tempId ? { ...f, status: 'success' as const, url: uploadedUrl } : f);
             const successUrls = updated.filter(f => f.status === 'success' && f.url).map(f => f.url!);
-            setValue('drawingNames', successUrls, { shouldValidate: true });
+            setValue('drawingNames', successUrls, { shouldValidate: true, shouldDirty: true });
             return updated;
           });
         },
         () => {
-          toast.error(`Tải file ${file.name} lên thất bại.`);
+          toast.error(`Không thể tải file ${file.name} lên.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' as const } : f)
           );
@@ -202,6 +215,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
 
   const handleRemoveFile = (e: React.MouseEvent, idToRemove: string) => {
     e.stopPropagation();
+    setHasFileChanges(true);
     setUploadedFiles(prev => {
       const target = prev.find(f => f.id === idToRemove);
       if (target && target.url && target.url.startsWith('blob:')) {
@@ -209,7 +223,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
       }
       const filtered = prev.filter(f => f.id !== idToRemove);
       const successUrls = filtered.filter(f => f.status === 'success' && f.url).map(f => f.url!);
-      setValue('drawingNames', successUrls, { shouldValidate: true });
+      setValue('drawingNames', successUrls, { shouldValidate: true, shouldDirty: true });
       return filtered;
     });
   };

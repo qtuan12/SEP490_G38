@@ -5,9 +5,9 @@ using BPG.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using BPG.Application.Common.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Phases.Commands.UpdatePhase;
 
@@ -19,15 +19,8 @@ public record UpdatePhaseCommand(
     DateOnly? StartDate,
     DateOnly? EndDate,
     int Status
-) : IRequest<ApiResponse>, IRequireTechnicalManager
+) : IRequest<ApiResponse>
 {
-    public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-    {
-        var phase = await unitOfWork.Repository<Phase>().Query()
-            .FirstOrDefaultAsync(p => p.PhaseId == PhaseId, cancellationToken);
-        if (phase == null) throw new NotFoundException("Phase", PhaseId);
-        return phase.ProjectId;
-    }
 }
 
 public class UpdatePhaseCommandValidator : AbstractValidator<UpdatePhaseCommand>
@@ -58,10 +51,14 @@ public class UpdatePhaseCommandHandler : IRequestHandler<UpdatePhaseCommand, Api
         var phase = await _unitOfWork.Repository<Phase>()
             .Query()
             .Include(p => p.Tasks)
+            .Include(p => p.Project)
             .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct);
 
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
+
+        if (phase.Project.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         // Check rule: chỉ được sửa khi chưa có task hoặc tất cả task = 0%
         if (phase.Tasks.Any(t => t.ProgressPercent > 0))
@@ -81,3 +78,4 @@ public class UpdatePhaseCommandHandler : IRequestHandler<UpdatePhaseCommand, Api
         return ApiResponse.SuccessResult("Cập nhật phase thành công.");
     }
 }
+

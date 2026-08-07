@@ -6,31 +6,21 @@ import { USE_MOCK_API } from '../../../../services/api';
 import type { DailyLog, WBSTask, DailyLogComment, WBSPhase } from '../../../../types/common';
 import { Clock, Plus, ChevronDown, MessageSquare } from 'lucide-react';
 
-import { Modal, Button } from '../../../../components/ui';
+import { Modal, Button, LoadingSpinner } from '../../../../components/ui';
 import { DailyLogFormModal } from '../../modals/DailyLogFormModal';
 import { DailyLogFilters } from './DailyLogFilters';
 import { DailyLogCard } from './DailyLogCard';
 
 import { useSearchParams } from 'react-router-dom';
+import { useProjectAccess } from '../../../../hooks/useProjectAccess';
+import { canCreateDailyLog } from '../../../../utils/taskPermissions';
+import { RoleGroup } from '../../../../auth/roles';
 
 const PAGE_SIZE = 4;
 
-const formatDateTime = (dateStr?: string) => {
-  if (!dateStr) return '';
-  try {
-    const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr.replace(' ', 'T') + 'Z');
-    const d = new Date(normalized);
-    if (isNaN(d.getTime())) return dateStr;
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  } catch {
-    return dateStr.replace('T', ' ').slice(0, 16);
-  }
-};
+import { formatDateVietnam } from '../../../../utils/dateHelpers';
+
+const formatDateTime = (dateStr?: string) => formatDateVietnam(dateStr || '');
 
 const formatToLocalTime = (dateStr?: string): string => {
   if (!dateStr) return '';
@@ -64,7 +54,9 @@ interface DailyLogFeedProps {
 }
 
 export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId }) => {
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
+  const { canManageExecution, isProjectLeader } = useProjectAccess(projectId);
+  const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
   const { connection } = useNotification();
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
@@ -128,7 +120,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
         projectService.getMembers(projectId)
       ]);
       setLogs(logsResult.items);
-      setHasNextPage(logsResult.hasNextPage);
+      setHasNextPage(logsResult.items.length > 0 && logsResult.hasNextPage);
       setCurrentPage(1);
       setTasks(tasksData.filter(t => t.status !== 'obsolete'));
       setPhases(phasesData);
@@ -147,7 +139,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       const nextPage = currentPage + 1;
       const result = await projectService.getDailyLogsPage(projectId, nextPage, PAGE_SIZE, taskId);
       setLogs(prev => [...prev, ...result.items]);
-      setHasNextPage(result.hasNextPage);
+      setHasNextPage(result.items.length > 0 && result.hasNextPage);
       setCurrentPage(nextPage);
     } catch (err: any) {
       console.error('Error loading more daily logs:', err);
@@ -166,12 +158,18 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
     const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
     const numericProjectId = Number(parsedProjectId);
-    if (isNaN(numericProjectId)) return;
+    if (!Number.isInteger(numericProjectId) || numericProjectId <= 0) return;
+    let active = true;
 
-    // Join Project group
-    connection.invoke('JoinProjectGroup', numericProjectId)
-      .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
-      .catch((err: any) => console.error('Error joining Project Group:', err));
+    const joinGroup = () => {
+      if (!active || connection.state !== 'Connected') return;
+      connection.invoke('JoinProjectGroup', numericProjectId)
+        .then(() => console.log(`Joined SignalR project group: Project_${numericProjectId}`))
+        .catch((err: any) => console.error('Error joining Project Group:', err));
+    };
+
+    joinGroup();
+    connection.onreconnected(joinGroup);
 
     // Map helpers
     const mapRawComment = (c: any): DailyLogComment => ({
@@ -293,6 +291,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     connection.on('ReceiveCommentDeleted', handleCommentDeleted);
 
     return () => {
+      active = false;
       // Unsubscribe
       connection.off('ReceiveDailyLogCreated', handleDailyLogCreated);
       connection.off('ReceiveDailyLogUpdated', handleDailyLogUpdated);
@@ -462,13 +461,10 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     return formatted;
   };
 
-  const isPL = members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin';
-  const hasAnyAssignedTask = tasks.some(t => {
-    if (taskId && String(t.id).replace(/^t-/, '') !== String(taskId).replace(/^t-/, '')) return false;
-    const assignedIds = t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : [];
-    return user?.id && assignedIds.includes(user.id.toString());
-  });
-  const canReport = !!taskId && (isPL || hasAnyAssignedTask) && !currentTaskHasSubtasks;
+  const canReport = !!currentTask
+    && canCreateDailyLog(currentTask, user, isProjectLeader)
+    && !currentTaskHasSubtasks
+    && currentTask.status !== 'obsolete';
 
   return (
     <div className="flex flex-col gap-6 w-full mx-auto pb-10 text-left">
@@ -515,9 +511,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       />
 
       {loading ? (
-        <div className="text-center py-10 text-[hsl(var(--text-muted))]">
-          Đang tải dòng thời gian...
-        </div>
+        <LoadingSpinner size="md" label="Đang tải dòng thời gian nhật ký thi công..." className="py-12" />
       ) : groupedLogs.length === 0 ? (
         <div className="text-center py-16 text-[hsl(var(--text-muted))] border border-dashed border-[hsl(var(--border))] rounded-md">
           <MessageSquare size={36} className="mx-auto mb-3 opacity-40" />
@@ -539,8 +533,9 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
                   key={log.id}
                   log={log}
                   user={user}
-                  members={members}
-                  tasks={tasks}
+          members={members}
+          tasks={tasks}
+          canManageExecution={canManageExecution}
                   onEditLog={(l) => {
                     setEditLog(l);
                     setIsModalOpen(true);
@@ -554,7 +549,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
         </div>
       )}
 
-      {!loading && hasNextPage && (
+      {!loading && hasNextPage && logs.length > 0 && filteredLogs.length > 0 && (
         <div className="flex justify-center pt-2 pb-4">
           <button
             onClick={handleLoadMore}
@@ -601,7 +596,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           editLog={editLog}
           engineerId={user.id}
           engineerName={user.name}
-          isPL={members.some(m => m.userId === user?.id && m.isLeader) || user?.role === 'technicalmanager' || user?.role === 'admin'}
+          isPL={isProjectLeader}
+          canManageTechnical={canDecreaseDailyLogProgress}
           onSuccess={() => {
             loadData();
           }}

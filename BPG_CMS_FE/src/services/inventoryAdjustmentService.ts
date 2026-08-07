@@ -1,5 +1,5 @@
 import { apiClient } from './api';
-import type { ApiResponse, PagedList } from '../types/api';
+import type { ApiResponse, ApiResult, PagedList } from '../types/api';
 
 export interface AdjustmentItemDto {
   adjustmentItemId: number;
@@ -54,8 +54,13 @@ export interface ApproveDecreaseAdjustmentCommand {
 }
 
 const unwrap = <T>(res: ApiResponse<T>): T => {
-  if (!res.success) throw new Error(res.message || 'Yêu cầu thất bại.');
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
   return res.data;
+};
+
+const unwrapWithMessage = <T>(res: ApiResponse<T>): ApiResult<T> => {
+  if (!res.success) throw new Error(res.message || 'Không thể xử lý yêu cầu.');
+  return { data: res.data, message: res.message };
 };
 
 export const inventoryAdjustmentService = {
@@ -84,20 +89,20 @@ export const inventoryAdjustmentService = {
     );
   },
 
-  createIncrease: async (projectId: number, command: CreateIncreaseAdjustmentCommand): Promise<number> => {
-    return unwrap(
+  createIncrease: async (projectId: number, command: CreateIncreaseAdjustmentCommand): Promise<ApiResult<number>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<number>>(`/projects/${projectId}/inventory-adjustments/increase`, command)
     );
   },
 
-  createDecrease: async (projectId: number, command: CreateDecreaseAdjustmentCommand): Promise<number> => {
-    return unwrap(
+  createDecrease: async (projectId: number, command: CreateDecreaseAdjustmentCommand): Promise<ApiResult<number>> => {
+    return unwrapWithMessage(
       await apiClient.post<ApiResponse<number>>(`/projects/${projectId}/inventory-adjustments/decrease`, command)
     );
   },
 
-  approveDecrease: async (projectId: number, id: number, command: ApproveDecreaseAdjustmentCommand): Promise<boolean> => {
-    return unwrap(
+  approveDecrease: async (projectId: number, id: number, command: ApproveDecreaseAdjustmentCommand): Promise<ApiResult<boolean>> => {
+    return unwrapWithMessage(
       await apiClient.put<ApiResponse<boolean>>(`/projects/${projectId}/inventory-adjustments/${id}/approve`, command)
     );
   }

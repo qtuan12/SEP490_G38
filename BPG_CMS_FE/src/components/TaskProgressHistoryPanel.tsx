@@ -1,22 +1,28 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, TrendingDown, History, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, History, Minus, User } from 'lucide-react';
 import { projectService } from '../services/projectService';
 import type { TaskProgressLog } from '../types/common';
+import { parseDateSafe } from '../utils/dateHelpers';
 
 interface TaskProgressHistoryPanelProps {
   taskId: string;
   taskName?: string;
-  /** Số lượng bản ghi hiển thị khi compact. Mặc định hiển thị tất cả */
+  /** Số lượng bản ghi hiển thị khi compact. Mặc định hiển thị tất cả. */
   limit?: number;
   compact?: boolean;
 }
 
+type ProgressSource = {
+  label: string;
+  tone: 'direct' | 'dailyLog' | 'auto' | 'unknown';
+};
+
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr);
+    const d = parseDateSafe(dateStr);
     if (isNaN(d.getTime())) {
       return dateStr.replace('T', ' ').slice(0, 16);
     }
@@ -29,6 +35,55 @@ const formatDate = (dateStr: string) => {
   } catch {
     return dateStr.replace('T', ' ').slice(0, 16);
   }
+};
+
+const getProgressSource = (source?: string | null, reason?: string | null): ProgressSource => {
+  if (source === 'Auto') {
+    return { label: 'Tự động', tone: 'auto' };
+  }
+  if (source === 'DailyLog') {
+    return { label: 'Qua Daily Log', tone: 'dailyLog' };
+  }
+  if (source === 'Direct') {
+    return { label: 'Trực tiếp', tone: 'direct' };
+  }
+
+  const value = reason ?? '';
+  if (value.includes('Cập nhật tự động')) {
+    return { label: 'Tự động', tone: 'auto' };
+  }
+  if (value.includes('Cập nhật qua Daily Log')) {
+    return { label: 'Qua Daily Log', tone: 'dailyLog' };
+  }
+  if (value.includes('Điều chỉnh trực tiếp')) {
+    return { label: 'Trực tiếp', tone: 'direct' };
+  }
+  return { label: 'Chưa rõ nguồn', tone: 'unknown' };
+};
+
+const sourceStyle = (source: ProgressSource): React.CSSProperties => {
+  if (source.tone === 'auto') {
+    return {
+      backgroundColor: 'hsl(var(--border) / 0.65)',
+      color: 'hsl(var(--text-muted))',
+    };
+  }
+  if (source.tone === 'dailyLog') {
+    return {
+      backgroundColor: 'hsl(var(--success-glow))',
+      color: 'hsl(var(--success))',
+    };
+  }
+  if (source.tone === 'direct') {
+    return {
+      backgroundColor: 'hsl(var(--primary-glow))',
+      color: 'hsl(var(--primary))',
+    };
+  }
+  return {
+    backgroundColor: 'hsl(var(--bg-main))',
+    color: 'hsl(var(--text-muted))',
+  };
 };
 
 const ProgressDelta: React.FC<{ oldVal: number; newVal: number }> = ({ oldVal, newVal }) => {
@@ -101,7 +156,6 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? '6px' : '10px' }}>
-      {/* Header */}
       {!compact && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingBottom: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
           <History size={16} style={{ color: 'hsl(var(--primary))' }} />
@@ -122,7 +176,6 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
         </div>
       )}
 
-      {/* Bộ lọc tăng giảm - Chỉ hiện ở chế độ đầy đủ và khi có lịch sử */}
       {!compact && logs.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end', fontSize: '0.8rem', padding: '4px 0' }}>
           <span style={{ color: 'hsl(var(--text-muted))', fontWeight: 600 }}>Lọc biến động:</span>
@@ -149,7 +202,6 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
         </div>
       )}
 
-      {/* Empty state */}
       {displayedLogs.length === 0 ? (
         <div style={{
           padding: compact ? '8px 0' : '20px',
@@ -166,7 +218,8 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
         <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? '4px' : '8px' }}>
           {displayedLogs.map((log) => {
             const isDecrease = log.newProgress < log.oldProgress;
-            const isAutoSync = log.updateReason?.includes('Cập nhật tự động');
+            const progressSource = getProgressSource(log.source, log.updateReason);
+            const isAutoSync = progressSource.tone === 'auto';
 
             return (
               <div
@@ -190,7 +243,6 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                   fontSize: compact ? '0.75rem' : '0.82rem',
                 }}
               >
-                {/* Color dot indicator */}
                 <div style={{
                   width: '8px',
                   height: '8px',
@@ -205,22 +257,37 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                 }} />
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* Progress change row */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
-                      {log.oldProgress}% → {log.newProgress}%
+                      {log.oldProgress}% -&gt; {log.newProgress}%
                     </span>
                     <ProgressDelta oldVal={log.oldProgress} newVal={log.newProgress} />
-                    {isAutoSync && (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      padding: '1px 7px',
+                      borderRadius: '999px',
+                      ...sourceStyle(progressSource),
+                    }}>
+                      {progressSource.label}
+                    </span>
+                    {log.updatedByName && (
                       <span style={{
-                        fontSize: '0.65rem',
-                        padding: '1px 6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        padding: '1px 7px',
                         borderRadius: '999px',
-                        backgroundColor: 'hsl(var(--border))',
-                        color: 'hsl(var(--text-muted))',
-                        fontWeight: 600
+                        backgroundColor: isAutoSync ? 'hsl(var(--border) / 0.6)' : 'hsl(var(--primary-glow))',
+                        color: isAutoSync ? 'hsl(var(--text-muted))' : 'hsl(var(--primary))'
                       }}>
-                        Tự động
+                        {!isAutoSync && <User size={10} />}
+                        {log.updatedByName}
                       </span>
                     )}
                     <span style={{ marginLeft: 'auto', color: 'hsl(var(--text-muted))', fontSize: '0.7rem', flexShrink: 0 }}>
@@ -228,7 +295,6 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                     </span>
                   </div>
 
-                  {/* Reason */}
                   {log.updateReason && !compact && (
                     <div className="prose prose-sm max-w-none markdown-body" style={{ margin: '3px 0 0', color: 'hsl(var(--text-secondary))', lineHeight: 1.4, wordBreak: 'break-word', fontSize: '0.85rem' }}>
                       <ReactMarkdown>{log.updateReason}</ReactMarkdown>
@@ -241,7 +307,6 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
         </div>
       )}
 
-      {/* Trailing indicator if truncated */}
       {limit && logs.length > limit && (
         <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontStyle: 'italic' }}>
           ... và {logs.length - limit} lần cập nhật trước đó

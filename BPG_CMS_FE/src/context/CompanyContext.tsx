@@ -21,9 +21,18 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     retry: 1,
   });
 
+  const companyName = data?.companyName || DEFAULT_COMPANY_NAME;
+  const companyLogoUrl = data?.companyLogoUrl || DEFAULT_LOGO_URL;
+
+  React.useEffect(() => {
+    if (companyName) {
+      document.title = `${companyName} - Hệ Thống Quản Lý Thi Công Xây Dựng`;
+    }
+  }, [companyName]);
+
   const value: CompanyContextType = {
-    companyName: data?.companyName || DEFAULT_COMPANY_NAME,
-    companyLogoUrl: data?.companyLogoUrl || DEFAULT_LOGO_URL,
+    companyName,
+    companyLogoUrl,
     refetch: () => refetch(),
   };
 

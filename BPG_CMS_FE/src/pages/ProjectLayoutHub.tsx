@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../services/projectService';
@@ -9,7 +9,7 @@ import { WBSWorkspace } from './WBSWorkspace';
 import { DailyLogFeed } from './ProjectDailyLogs/components/DailyLogFeed';
 import { EditProjectModal } from './ProjectList/modals/EditProjectModal';
 import { Modal } from '../components/ui/Modal';
-import { Button, Input, FormItem } from '../components/ui';
+import { Button, Input, FormItem, FullScreenLoading } from '../components/ui';
 
 import {
   ArrowLeft,
@@ -17,7 +17,6 @@ import {
   FolderGit2,
   MapPin,
   Calendar,
-  Loader2,
   Pause,
   CheckCircle,
   Clock,
@@ -28,6 +27,7 @@ import {
   PackageMinus,
   ShoppingCart,
   ShoppingBag,
+  Truck,
   FileSignature,
   ClipboardList,
   History,
@@ -37,13 +37,17 @@ import { SurplusWorkspace } from './SurplusWorkspace/SurplusWorkspace';
 import { ProjectIncidents } from './ProjectIncidents';
 import { ProjectPOTab } from './ProjectLayoutHub/ProjectPOTab';
 import { ProjectDirectPurchaseTab } from './ProjectLayoutHub/ProjectDirectPurchaseTab';
+import { ProjectRelatedSuppliersTab } from './ProjectLayoutHub/ProjectRelatedSuppliersTab';
 import { AdjustmentList } from './InventoryAdjustments/components/AdjustmentList';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useSignalREvent } from '../hooks/useSignalREvent';
+import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { ProjectMaterialRequestsTab } from './MaterialRequests/components/ProjectMaterialRequestsTab';
 import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 import { isPWAMode } from '../utils/pwaHelpers';
+import { useProjectAccess } from '../hooks/useProjectAccess';
+import { RoleGroup } from '../auth/roles';
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
@@ -140,18 +144,22 @@ export const ProjectLayoutHub: React.FC = () => {
   });
   const hasApprovedEmergencyIncident = incidents?.some(i => i.isEmergency && i.status === 'Approved') ?? false;
 
-  const { user } = useAuth();
+  const { hasAnyRole } = useAuth();
+  const { canManageExecution, canManageTechnical, canManageAccounting, canViewReports, canApprove } = useProjectAccess(projectId);
   const { connection } = useNotification();
-  const [isPL, setIsPL] = useState(false);
-  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const isTPKT = canManageTechnical;
+  const canEditProject = hasAnyRole(RoleGroup.ProjectManagers);
+  const canChangeProjectStatus = hasAnyRole(RoleGroup.ProjectManagers) || hasAnyRole(RoleGroup.Approval);
+  // Giám đốc phải thấy tab này để duyệt chi phiếu mua khẩn cấp - mọi phiếu đều qua bước này.
+  const canManageDirectPurchase = canManageExecution || canManageAccounting || canApprove;
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const isAccountant = user?.role === 'accountant';
-  const [isAssignedLeader, setIsAssignedLeader] = useState(false);
+  const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const projectFetchRequestId = useRef(0);
 
-  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'directpurchases' | 'materialrequests';
-  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'directpurchases', 'materialrequests'];
+  type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'suppliers' | 'directpurchases' | 'materialrequests';
+  const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'suppliers', 'directpurchases', 'materialrequests'];
 
   const [activeTab, setActiveTab] = useState<TabKey>(
     (() => {
@@ -184,38 +192,59 @@ export const ProjectLayoutHub: React.FC = () => {
   const [isPausing, setIsPausing] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
-  const fetchProjectDetails = async (isInitial = true) => {
+  const fetchProjectDetails = async (isInitial = true, forceRefresh = false) => {
     if (!projectId) return;
+    const requestId = ++projectFetchRequestId.current;
     if (isInitial) setLoading(true);
     try {
       queryClient.invalidateQueries({ queryKey: ['projectIncidents', projectId] });
-      const data = await projectService.getProjectById(projectId);
+      const data = await projectService.getProjectById(projectId, forceRefresh);
+      if (requestId !== projectFetchRequestId.current) return;
       setProject(data);
 
-      const members = await projectService.getMembers(projectId);
-      const currentMember = members.find(m => m.userId === user?.id);
-      const memberIsLeader = currentMember?.isLeader ?? false;
-      setIsAssignedLeader(memberIsLeader);
-      setIsPL(memberIsLeader || user?.role === 'admin' || user?.role === 'technicalmanager');
     } catch (err) {
       console.error('Error loading project details:', err);
     } finally {
-      if (isInitial) setLoading(false);
+      // A silent realtime request may supersede the initial request. Whichever
+      // request is newest must also be allowed to release the initial spinner.
+      if (requestId === projectFetchRequestId.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProjectDetails(true);
+    fetchProjectDetails(true, true);
   }, [projectId]);
+
+  useEffect(() => () => {
+    if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
+    realtimeRefreshTimer.current = null;
+    projectFetchRequestId.current += 1;
+  }, [projectId]);
+
+  const refreshProjectFromRealtime = () => {
+    if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
+    realtimeRefreshTimer.current = setTimeout(() => {
+      realtimeRefreshTimer.current = null;
+      projectService.clearProjectDetailCache(projectId);
+      fetchProjectDetails(false, true);
+      queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['project-access', String(projectId)] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    }, 120);
+  };
+
+  useRealtimeDataRefresh(refreshProjectFromRealtime, ['Project', 'ProjectTask', 'Phase', 'DailyLog', 'TaskProgressLog']);
 
   useEffect(() => {
     if (!connection || !projectId) return;
 
     const numericProjectId = Number(projectId.replace('p-', ''));
-    if (isNaN(numericProjectId)) return;
+    if (!Number.isInteger(numericProjectId) || numericProjectId <= 0) return;
+
+    let active = true;
 
     const joinGroup = () => {
-      if (connection.state === 'Connected') {
+      if (active && connection.state === 'Connected') {
         connection.invoke('JoinProjectGroup', numericProjectId)
           .catch(err => console.error('SignalR JoinProjectGroup error in ProjectLayoutHub:', err));
       }
@@ -228,6 +257,7 @@ export const ProjectLayoutHub: React.FC = () => {
     connection.onreconnected(joinGroup);
 
     return () => {
+      active = false;
       if (connection.state === 'Connected') {
         connection.invoke('LeaveProjectGroup', numericProjectId)
           .catch(err => console.error('SignalR LeaveProjectGroup error in ProjectLayoutHub:', err));
@@ -235,34 +265,37 @@ export const ProjectLayoutHub: React.FC = () => {
     };
   }, [connection, projectId]);
 
+  // Một số workspace con cũng dùng chung project group và sẽ Leave khi đổi tab.
+  // Join lại sau mỗi lần đổi tab để màn hình cha luôn tiếp tục nhận realtime.
   useEffect(() => {
-    if (!connection || !projectId) return;
+    if (!connection || connection.state !== 'Connected' || !projectId) return;
+    const numericProjectId = Number(projectId.replace('p-', ''));
+    if (!Number.isInteger(numericProjectId) || numericProjectId <= 0) return;
+    connection.invoke('JoinProjectGroup', numericProjectId)
+      .catch(err => console.error('SignalR rejoin after tab change failed:', err));
+  }, [connection, projectId, activeTab]);
 
-    const handleWbsUpdated = () => {
-      console.log('ProjectLayoutHub received WbsTreeUpdated, reloading project details for progress...');
-      fetchProjectDetails(false);
-    };
-
-    connection.on('WbsTreeUpdated', handleWbsUpdated);
-
-    return () => {
-      connection.off('WbsTreeUpdated', handleWbsUpdated);
-    };
-  }, [connection, projectId]);
+  useSignalREvent('WbsTreeUpdated', refreshProjectFromRealtime);
+  useSignalREvent('ReceiveDailyLogCreated', refreshProjectFromRealtime);
+  useSignalREvent('ReceiveDailyLogUpdated', refreshProjectFromRealtime);
+  useSignalREvent('ReceiveDailyLogDeleted', refreshProjectFromRealtime);
+  useSignalREvent('ReceiveTaskProgressUpdated', refreshProjectFromRealtime);
+  useSignalREvent('TaskProgressUpdated', refreshProjectFromRealtime);
+  useSignalREvent('TaskUpdated', refreshProjectFromRealtime);
+  useSignalREvent('ProjectMemberAdded', refreshProjectFromRealtime);
+  useSignalREvent('ProjectMemberRemoved', refreshProjectFromRealtime);
+  useSignalREvent('ProjectLeaderUpdated', refreshProjectFromRealtime);
 
   useSignalREvent('IncidentUpdated', () => {
-    console.log('SignalR: IncidentUpdated received in ProjectLayoutHub, reloading project...');
-    fetchProjectDetails(false);
+    refreshProjectFromRealtime();
   });
 
   useSignalREvent('ProjectUpdated', () => {
-    console.log('SignalR: ProjectUpdated received in ProjectLayoutHub, reloading project...');
-    fetchProjectDetails(false);
+    refreshProjectFromRealtime();
   });
 
   useSignalREvent('IncidentCreated', () => {
-    console.log('SignalR: IncidentCreated received in ProjectLayoutHub, reloading project...');
-    fetchProjectDetails(false);
+    refreshProjectFromRealtime();
   });
 
   const handleStatusChange = async (newStatus: 'inprogress' | 'paused' | 'done') => {
@@ -324,12 +357,7 @@ export const ProjectLayoutHub: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px', gap: '10px' }}>
-        <Loader2 className="animate-spin" size={24} style={{ color: 'hsl(var(--primary))' }} />
-        <span>Đang tải thông tin không gian làm việc...</span>
-      </div>
-    );
+    return <FullScreenLoading message="Đang tải thông tin không gian làm việc..." />;
   }
 
   if (!project) {
@@ -437,7 +465,7 @@ export const ProjectLayoutHub: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {(user?.role === 'admin' || user?.role === 'accountant') && (
+            {canViewReports && (
               <>
                 <button onClick={() => navigate(`/projects/${projectId}/reports/boq`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Package size={16} /> Báo cáo BOQ
@@ -449,14 +477,14 @@ export const ProjectLayoutHub: React.FC = () => {
             )}
 
             {/* Nút Sửa chỉ dành cho TPKT */}
-            {user?.role === 'technicalmanager' && project.status !== 'done' && project.status !== 'paused' && (
+            {canEditProject && project.status !== 'done' && project.status !== 'paused' && (
               <button onClick={() => setIsEditOpen(true)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Edit3 size={16} /> Sửa
               </button>
             )}
 
             {/* Project Status Actions cho PL và TPKT */}
-            {isPL && (
+            {canChangeProjectStatus && (
               <>
                 {project.status === 'draft' && (
                   <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -465,11 +493,9 @@ export const ProjectLayoutHub: React.FC = () => {
                 )}
                 {project.status === 'inprogress' && (
                   <>
-                    {(user?.role === 'technicalmanager' || user?.role === 'director' || user?.role === 'admin') && (
-                      <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
-                        <Pause size={16} /> Tạm dừng
-                      </button>
-                    )}
+                    <button onClick={() => handleStatusChange('paused')} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: 'hsl(var(--warning))', color: 'hsl(var(--warning))' }}>
+                      <Pause size={16} /> Tạm dừng
+                    </button>
                     <button
                       onClick={() => handleStatusChange('done')}
                       disabled={project.progress < 100}
@@ -489,7 +515,7 @@ export const ProjectLayoutHub: React.FC = () => {
                     </button>
                   </>
                 )}
-                {project.status === 'paused' && (user?.role === 'technicalmanager' || user?.role === 'director' || user?.role === 'admin') && (
+                {project.status === 'paused' && (
                   <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Play size={16} /> Tiếp tục Dự án
                   </button>
@@ -662,7 +688,7 @@ export const ProjectLayoutHub: React.FC = () => {
           }}
         >
           <Package size={18} />
-          <span>Kiểm soát Vật tư</span>
+          <span>Quản lý kho</span>
         </button>
 
         <button
@@ -753,7 +779,29 @@ export const ProjectLayoutHub: React.FC = () => {
           <span>Đơn hàng</span>
         </button>
 
-        {(isAccountant || isAssignedLeader) && (
+        <button
+          onClick={() => handleTabChange('suppliers')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'suppliers' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'suppliers' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'suppliers' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <Truck size={18} />
+          <span>{'NCC \u0111\u00e3 giao d\u1ecbch'}</span>
+        </button>
+
+        {canManageDirectPurchase && (
           <button
             onClick={() => handleTabChange('directpurchases')}
             style={{
@@ -867,8 +915,9 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} projectName={project.name} />}
         {activeTab === 'inventoryincidents' && <GlobalInventoryIncidents projectId={Number(project.id)} />}
-        {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
-        {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} isLeader={isAssignedLeader} />}
+        {activeTab === 'purchaseorders' && <ProjectPOTab projectId={Number(project.id)} />}
+        {activeTab === 'suppliers' && <ProjectRelatedSuppliersTab projectId={Number(project.id)} />}
+        {activeTab === 'directpurchases' && <ProjectDirectPurchaseTab projectId={Number(project.id)} />}
       </div>
 
       {isEditOpen && project && (

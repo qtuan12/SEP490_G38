@@ -17,11 +17,13 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AddTaskDependencyCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender)
+    public AddTaskDependencyCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _realtimeSender = realtimeSender;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse> Handle(AddTaskDependencyCommand request, CancellationToken ct)
@@ -29,10 +31,24 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
         var task = await _unitOfWork.Repository<ProjectTask>()
             .Query()
             .Include(t => t.Phase)
+            .ThenInclude(p => p.Project)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
+
+        if (task.Phase != null && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                ct);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được thêm liên kết phụ thuộc.");
+        }
 
         var predecessor = await _unitOfWork.Repository<ProjectTask>()
             .Query()
@@ -75,8 +91,8 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
             currentChildParentId = parent?.ParentTaskId;
         }
 
-        if (task.Phase.ProjectId != predecessor.Phase.ProjectId)
-            throw new BusinessException("ERR_DEPENDENCY_DIFFERENT_PROJECTS", "Hai công việc phải thuộc cùng một dự án.");
+        if (task.PhaseId != predecessor.PhaseId)
+            throw new BusinessException("ERR_DEPENDENCY_DIFFERENT_PHASES", "Hai công việc phải thuộc cùng một giai đoạn.");
 
         // Check if dependency already exists
         var existing = await _unitOfWork.Repository<TaskDependency>()

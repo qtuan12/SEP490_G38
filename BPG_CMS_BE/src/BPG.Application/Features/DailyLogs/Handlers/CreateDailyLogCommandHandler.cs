@@ -3,6 +3,7 @@ using BPG.Application.DTOs.DailyLogs;
 using BPG.Application.Features.DailyLogs.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -60,19 +61,20 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = task.Phase.Project;
 
-            // 2. Kiểm tra quyền của User (Chỉ TM, Project Leader hoặc Assigned Engineer mới được tạo daily log)
-            bool isTM = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isTM)
+            var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
+            if (!isManager)
             {
-                // Kiểm tra xem User có phải là Project Leader của dự án này không
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
+                var isProjectLeader = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(
+                        m => m.ProjectId == project.ProjectId
+                            && m.UserId == currentUserId
+                            && m.IsLeader,
+                        cancellationToken);
 
-                // Kiểm tra xem User có được gán vào công việc này không
                 var isAssignee = await _uow.Repository<TaskAssignee>().Query()
                     .AnyAsync(ta => ta.TaskId == task.TaskId && ta.UserId == currentUserId, cancellationToken);
 
-                if (!isLeader && !isAssignee)
+                if (!isProjectLeader && !isAssignee)
                 {
                     throw new ForbiddenException("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
                 }
@@ -154,7 +156,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             byte oldProgress = task.ProgressPercent;
             if (request.NewProgressPercent < oldProgress)
             {
-                if (!isTM)
+                if (!isManager)
                 {
                     throw new BusinessException("ERR_DECREASE_PROGRESS_FORBIDDEN", 
                         "Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
@@ -181,7 +183,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 var log = new DailyLog
                 {
                     TaskId = request.TaskId,
-                    LogDate = DateOnly.FromDateTime(DateTime.Today),
+                    LogDate = VietnamTime.Today,
                     NewProgressPercent = request.NewProgressPercent,
                     Description = request.Description,
                     CreatedBy = currentUserId,
@@ -238,12 +240,15 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     TaskId = task.TaskId,
                     OldProgress = oldProgress,
                     NewProgress = request.NewProgressPercent,
-                    UpdateReason = request.Description,
-                    UpdatedAt = DateTime.UtcNow
+                    UpdateReason = $"Cập nhật qua Daily Log: {request.Description}",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = currentUserId,
+                    UpdatedAt = DateTime.UtcNow,
+                    UpdatedBy = currentUserId
                 };
                 await _uow.Repository<TaskProgressLog>().AddAsync(progressLog, cancellationToken);
 
-                // 9. Đồng bộ ngược tiến độ của các Task cha (Parent Tasks) nếu có
+                // 9. ?ồng bộ ngược tiến độ của các Task cha (Parent Tasks) nếu có
                 if (task.ParentTaskId.HasValue)
                 {
                     await _progressRollupService.RecalculateParentTaskProgressAsync(
@@ -331,7 +336,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
                 await _notificationService.SendNotificationAsync(
                     assigneeId,
-                    "Đồng nghiệp cập nhật tiến độ",
+                    "?ồng nghiệp cập nhật tiến độ",
                     $"Thành viên [{creatorName}] cùng thực hiện công việc [{task.Name}] đã cập nhật nhật ký tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
                     $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
@@ -353,3 +358,5 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         }
     }
 }
+
+

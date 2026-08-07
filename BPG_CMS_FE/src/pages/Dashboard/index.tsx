@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
 
@@ -10,7 +10,6 @@ import {
   Boxes,
   FileText,
   Truck,
-  ShoppingCart,
   Tags,
   Package,
   Hammer,
@@ -25,14 +24,17 @@ import { userService } from '../../services/userService';
 import { projectService } from '../../services/projectService';
 import { reportService } from '../../services/reportService';
 import { getRoleLabel } from '../../utils/roleHelpers';
+import { RoleGroup } from '../../auth/roles';
 
 import type { Project, MaterialRequest } from '../../types/common';
 import { useNavigate } from 'react-router-dom';
 import { DashboardStats } from '../Dashboard/components/DashboardStats';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities, RealtimeEntityGroups } from '../../constants/realtimeEntities';
 
 export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const [userCount, setUserCount] = useState(0);
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [warnings, setWarnings] = useState<import('../../types/common').DashboardWarningDto[]>([]);
@@ -43,17 +45,21 @@ export const Dashboard: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [projectExecData, setProjectExecData] = useState<any>(null);
   const [loadingProjectExec, setLoadingProjectExec] = useState<boolean>(false);
+  const [hasLeaderProject, setHasLeaderProject] = useState(false);
+  const selectedProjectIdRef = React.useRef(selectedProjectId);
+  const executiveRequestSequenceRef = React.useRef(0);
+  const dashboardProjectsRequestSequenceRef = React.useRef(0);
+  selectedProjectIdRef.current = selectedProjectId;
 
   const navigate = useNavigate();
+  const canManageUsers = hasAnyRole(RoleGroup.AdminOnly);
+  const canViewProcurement = hasAnyRole(RoleGroup.Procurement);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (canManageUsers) {
       navigate('/users', { replace: true });
     }
-  }, [user, navigate]);
-
-  const isAccountant = user?.role === 'accountant' || user?.role === 'admin';
-  const isDirector = user?.role === 'director' || user?.role === 'admin';
+  }, [canManageUsers, navigate]);
 
   const fetchMetrics = async () => {
     try {
@@ -91,42 +97,113 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const fetchExecutiveDashboard = useCallback(async (projectId: string, showLoading = false) => {
+    const requestSequence = ++executiveRequestSequenceRef.current;
+    if (showLoading) setLoadingProjectExec(true);
+
+    try {
+      const numericId = parseInt(projectId.replace('p-', '')) || 0;
+      const data = await reportService.getExecutiveDashboard(numericId);
+      if (
+        executiveRequestSequenceRef.current === requestSequence
+        && selectedProjectIdRef.current === projectId
+      ) {
+        setProjectExecData(data);
+      }
+    } catch (err) {
+      console.error('Error loading project exec dashboard:', err);
+    } finally {
+      if (
+        executiveRequestSequenceRef.current === requestSequence
+        && selectedProjectIdRef.current === projectId
+      ) {
+        setLoadingProjectExec(false);
+      }
+    }
+  }, []);
+
+  const fetchDashboardProjects = useCallback(async (preserveSelection = false): Promise<string> => {
+    if (user?.role !== 'siteengineer') return selectedProjectIdRef.current;
+    const requestSequence = ++dashboardProjectsRequestSequenceRef.current;
+
+    try {
+      const data = await projectService.getProjects();
+      const activeProjects = data.filter(p => p.status !== 'draft');
+      const projectAccess = await Promise.all(
+        activeProjects.map(project => projectService.getMyAccess(project.id)),
+      );
+      const dashboardProjects = activeProjects.filter((_, index) =>
+        projectAccess[index]?.isMember || projectAccess[index]?.isLeader,
+      );
+      if (dashboardProjectsRequestSequenceRef.current !== requestSequence) {
+        return selectedProjectIdRef.current;
+      }
+
+      setProjects(dashboardProjects);
+      setHasLeaderProject(projectAccess.some(access => access.isLeader));
+      const currentSelection = selectedProjectIdRef.current;
+      const nextSelection = preserveSelection
+        && dashboardProjects.some(project => project.id === currentSelection)
+        ? currentSelection
+        : (dashboardProjects[0]?.id ?? '');
+      setSelectedProjectId(nextSelection);
+      return nextSelection;
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      return selectedProjectIdRef.current;
+    }
+  }, [user?.role]);
+
+  useRealtimeDataRefresh(async () => {
+    const refreshes: Promise<unknown>[] = [fetchWarnings(), fetchMetrics()];
+    if (canManageUsers) refreshes.push(fetchUsers());
+    if (canViewProcurement) refreshes.push(fetchMaterialRequests());
+    const requestedProjectId = selectedProjectIdRef.current;
+    if (requestedProjectId) {
+      refreshes.push(fetchExecutiveDashboard(requestedProjectId));
+    }
+    await Promise.all(refreshes);
+  }, [...RealtimeEntityGroups.projectOverview, ...RealtimeEntities.users].filter(
+    entity => entity !== 'Project' && entity !== 'ProjectMember',
+  ));
+
+  useRealtimeDataRefresh(async () => {
+    const previousProjectId = selectedProjectIdRef.current;
+    const projectIdToRefresh = await fetchDashboardProjects(true);
+    const refreshes: Promise<unknown>[] = [fetchWarnings(), fetchMetrics()];
+
+    // Nếu danh sách vẫn giữ lựa chọn cũ thì refresh dashboard tại đây. Nếu lựa
+    // chọn buộc đổi, effect selectedProjectId bên dưới sẽ tải đúng dự án mới.
+    if (projectIdToRefresh && projectIdToRefresh === previousProjectId) {
+      refreshes.push(fetchExecutiveDashboard(projectIdToRefresh));
+    }
+
+    await Promise.all(refreshes);
+  }, ['Project', 'ProjectMember']);
+
   useEffect(() => {
-    fetchUsers();
-    if (isAccountant || isDirector) {
+    if (canManageUsers) {
+      fetchUsers();
+    }
+    if (canViewProcurement) {
       fetchMaterialRequests();
     }
     fetchWarnings();
     fetchMetrics();
 
     // Fetch project list for dropdown filters
-    if (user?.role === 'projectleader' || user?.role === 'siteengineer') {
-      projectService.getProjects()
-        .then((data) => {
-          const activeProjects = data.filter(p => p.status !== 'draft');
-          setProjects(activeProjects);
-          if (activeProjects.length > 0) {
-            setSelectedProjectId(activeProjects[0].id);
-          }
-        })
-        .catch((err) => console.error('Error fetching projects:', err));
-    }
-  }, [isAccountant, isDirector, user]);
+    void fetchDashboardProjects();
+  }, [canManageUsers, canViewProcurement, user, fetchDashboardProjects]);
 
   useEffect(() => {
     if (selectedProjectId) {
-      setLoadingProjectExec(true);
-      const numericId = parseInt(selectedProjectId.replace('p-', '')) || 0;
-      reportService.getExecutiveDashboard(numericId)
-        .then((data) => {
-          setProjectExecData(data);
-        })
-        .catch((err) => console.error('Error loading project exec dashboard:', err))
-        .finally(() => setLoadingProjectExec(false));
+      void fetchExecutiveDashboard(selectedProjectId, true);
     } else {
+      executiveRequestSequenceRef.current += 1;
       setProjectExecData(null);
+      setLoadingProjectExec(false);
     }
-  }, [selectedProjectId]);
+  }, [fetchExecutiveDashboard, selectedProjectId]);
 
   const pendingRequestsCount = materialRequests.filter(r => r.status === 'pending_accountant' || r.status === 'pending_director' || r.status === 'pending_disbursement').length;
   const overBOQPendingCount = materialRequests.filter(r => r.isOverBOQ && (r.status === 'pending_accountant' || r.status === 'pending_director')).length;
@@ -260,7 +337,7 @@ export const Dashboard: React.FC = () => {
                     w.warningType === 'Red' ? 'bg-red-50 border-red-200 text-red-700' :
                       'bg-yellow-50 border-yellow-200 text-yellow-700'
                     }`}
-                  onClick={() => navigate(`/projects/${w.projectId}?tab=wbs`)}
+                  onClick={() => navigate(`/projects/${w.projectId}?tab=wbs${w.taskId ? `&taskId=${w.taskId}` : ''}`)}
                 >
                   <div className="flex items-start gap-3">
                     <AlertTriangle size={20} className="shrink-0 mt-0.5" />
@@ -397,7 +474,7 @@ export const Dashboard: React.FC = () => {
             <TrendingUp size={18} className="text-[hsl(var(--primary))]" />
             <span>Phím tắt tác vụ tài chính & kho vận</span>
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div
               onClick={() => navigate('/suppliers')}
               className="card p-4 flex items-center gap-3.5 border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))] cursor-pointer hover:shadow-md transition-all rounded-lg"
@@ -408,19 +485,6 @@ export const Dashboard: React.FC = () => {
               <div>
                 <h4 className="font-bold text-sm">Nhà cung cấp</h4>
                 <p className="text-[10px] text-[hsl(var(--text-secondary))] mt-0.5">Quản lý nhà cung ứng vật tư</p>
-              </div>
-            </div>
-
-            <div
-              onClick={() => navigate('/purchase-orders')}
-              className="card p-4 flex items-center gap-3.5 border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))] cursor-pointer hover:shadow-md transition-all rounded-lg"
-            >
-              <div className="p-3 rounded-full bg-[hsl(142_70%_90%)] text-[hsl(142_70%_35%)] shrink-0">
-                <ShoppingCart size={20} />
-              </div>
-              <div>
-                <h4 className="font-bold text-sm">Đơn mua hàng (PO)</h4>
-                <p className="text-[10px] text-[hsl(var(--text-secondary))] mt-0.5">Soạn thảo, quản lý PO</p>
               </div>
             </div>
 
@@ -525,7 +589,7 @@ export const Dashboard: React.FC = () => {
                   {warnings.map((w, idx) => (
                     <div
                       key={idx}
-                      onClick={() => navigate(`/projects/${w.projectId}?tab=wbs`)}
+                      onClick={() => navigate(`/projects/${w.projectId}?tab=wbs${w.taskId ? `&taskId=${w.taskId}` : ''}`)}
                       className={`p-3 rounded border text-xs cursor-pointer hover:shadow-sm transition-all flex flex-col gap-1 ${w.warningType === 'Critical' ? 'bg-[hsl(var(--danger)/0.04)] border-[hsl(var(--danger)/0.25)] hover:border-[hsl(var(--danger))]' :
                         w.warningType === 'Red' ? 'bg-red-50/40 border-red-200 hover:border-red-400' :
                           'bg-yellow-50/40 border-yellow-200 hover:border-yellow-400'
@@ -755,7 +819,7 @@ export const Dashboard: React.FC = () => {
                         {projectExecData.delayedTasksList.map((task: any) => (
                           <tr
                             key={task.taskId}
-                            onClick={() => navigate(`/projects/${selectedProjectId.replace('p-', '')}/tasks/${task.taskId}/logs`)}
+                            onClick={() => navigate(`/projects/${selectedProjectId.replace('p-', '')}?tab=wbs&taskId=${task.taskId}`)}
                             className="hover:bg-[hsl(var(--bg-main))] transition-colors cursor-pointer"
                           >
                             <td className="px-4 py-2.5 whitespace-nowrap">
@@ -962,8 +1026,9 @@ export const Dashboard: React.FC = () => {
       {user?.role === 'admin' || user?.role === 'director' ? renderDirectorDashboard() :
         user?.role === 'accountant' ? renderAccountantDashboard() :
           user?.role === 'technicalmanager' ? renderTechnicalManagerDashboard() :
-            user?.role === 'projectleader' ? renderProjectLeaderDashboard() :
-              user?.role === 'siteengineer' ? renderSiteEngineerDashboard() : (
+            user?.role === 'siteengineer'
+              ? (hasLeaderProject ? renderProjectLeaderDashboard() : renderSiteEngineerDashboard())
+              : (
                 <div className="glass-panel p-6 text-center text-[hsl(var(--text-muted))]">
                   Giao diện đang được phát triển cho vai trò của bạn.
                 </div>

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -41,7 +42,10 @@ public class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswordComman
             _uow.Repository<OtpToken>().Update(old);
         }
 
-        var otp = Random.Shared.Next(100000, 999999).ToString();
+        // Bắt buộc dùng nguồn ngẫu nhiên mật mã: Random là PRNG tất định, quan sát vài mã là suy
+        // ra được trạng thái bộ sinh rồi đoán mã của người khác — mà mã này đổi được mật khẩu.
+        // Cận trên của GetInt32 là loại trừ nên dùng 1000000 để phủ hết dải 100000-999999.
+        var otp = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
 
         await _uow.Repository<OtpToken>().AddAsync(new OtpToken
         {

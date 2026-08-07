@@ -13,39 +13,41 @@ using UserRole = BPG.Domain.Constants.UserRole;
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
     public class GetPurchaseOrderByIdQueryHandler
-        : IRequestHandler<GetPurchaseOrderByIdQuery, ApiResponse<PurchaseOrderDetailDto>>
+        : IRequestHandler<GetPurchaseOrderByIdQuery, PurchaseOrderDetailDto>
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetPurchaseOrderByIdQueryHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public GetPurchaseOrderByIdQueryHandler(
+            IUnitOfWork uow,
+            ICurrentUserService currentUserService,
+            IProjectAccessService projectAccessService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _projectAccessService = projectAccessService;
         }
 
-        public async Task<ApiResponse<PurchaseOrderDetailDto>> Handle(
+        public async Task<PurchaseOrderDetailDto> Handle(
             GetPurchaseOrderByIdQuery request, CancellationToken cancellationToken)
         {
             var po = await _uow.Repository<PurchaseOrder>().Query()
                 .AsNoTracking()
                 .Include(p => p.Supplier)
                 .Include(p => p.Project)
+                .Include(p => p.Approver)
                 .Include(p => p.Items).ThenInclude(i => i.Material)
                 .Include(p => p.Items).ThenInclude(i => i.Unit)
                 .Include(p => p.Request).ThenInclude(mr => mr!.Phase)
                 .FirstOrDefaultAsync(p => p.POId == request.POId, cancellationToken)
-                ?? throw new NotFoundException(nameof(PurchaseOrder), request.POId);
+                ?? throw new NotFoundException("Không tìm thấy đơn mua hàng.");
 
-            // SiteEngineer chỉ được xem PO thuộc dự án mình được phân công.
-            if (_currentUserService.IsInRole(UserRole.SiteEngineer))
-            {
-                var currentUserId = _currentUserService.GetRequiredUserId();
-                var isMember = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == po.ProjectId && m.UserId == currentUserId, cancellationToken);
-                if (!isMember)
-                    throw new ForbiddenException("Bạn không được phân công vào dự án này nên không có quyền xem đơn hàng.");
-            }
+            // Endpoint mở cho ProjectViewers (gồm cả Kỹ sư công trường) nên phải chặn theo dự án:
+            // không có bước này thì dò id là đọc được giá mua và nhà cung cấp của mọi dự án.
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+            if (!accessibleProjectIds.Contains(po.ProjectId))
+                throw new ForbiddenException("Bạn không có quyền xem đơn mua hàng của dự án này.");
 
             // TotalReceived per material from approved GR items
             var receivedItems = await _uow.Repository<GoodsReceiptItem>().Query()
@@ -63,13 +65,17 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 POId = po.POId,
                 PONumber = po.PONumber,
                 Status = po.Status,
-                OrderDate = po.OrderDate,
+                OrderDate = DateOnly.FromDateTime(po.OrderDate),
                 ExpectedDeliveryDate = po.ExpectedDeliveryDate,
                 DeliveryAddress = po.DeliveryAddress,
                 Notes = po.Notes,
                 CancelledReason = po.CancelledReason,
                 ClosedReason = po.ClosedReason,
                 TotalAmount = po.TotalAmount,
+                ApproverName = po.Approver?.FullName,
+                ApprovedAt = po.ApprovedAt,
+                ApprovalNote = po.ApprovalNote,
+                RejectedReason = po.RejectedReason,
                 SupplierId = po.SupplierId,
                 SupplierName = po.Supplier?.SupplierName ?? string.Empty,
                 SupplierContactInfo = po.Supplier?.ContactInfo,
@@ -110,7 +116,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     }
             };
 
-            return ApiResponse<PurchaseOrderDetailDto>.SuccessResult(dto);
+            return dto;
         }
     }
 }

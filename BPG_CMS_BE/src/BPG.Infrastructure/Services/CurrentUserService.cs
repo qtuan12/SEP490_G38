@@ -25,7 +25,7 @@ public class CurrentUserService : ICurrentUserService
         get
         {
             if (!IsAuthenticated)
-                return 1; // Mock Admin ID khi chạy local chưa đăng nhập
+                return null;
 
             var raw = User!.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return long.TryParse(raw, out var id) ? id : null;
@@ -37,7 +37,7 @@ public class CurrentUserService : ICurrentUserService
         get
         {
             if (!IsAuthenticated)
-                return "admin@bpg.com";
+                return null;
 
             return User!.FindFirst(ClaimTypes.Email)?.Value;
         }
@@ -48,7 +48,7 @@ public class CurrentUserService : ICurrentUserService
         get
         {
             if (!IsAuthenticated)
-                return new List<string> { UserRole.Admin }; // Mock Admin role khi chưa đăng nhập
+                return Array.Empty<string>();
 
             return User!.FindAll(ClaimTypes.Role)
                         .Select(c => c.Value)
@@ -62,7 +62,7 @@ public class CurrentUserService : ICurrentUserService
     public long GetRequiredUserId()
     {
         if (!IsAuthenticated)
-            throw new UnauthorizedException();
+            throw new UnauthorizedException("Phiên làm việc đã hết hạn hoặc bạn chưa đăng nhập.");
 
         var id = UserId;
         if (id == null)

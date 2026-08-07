@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { projectService } from '../../../services/projectService';
 import type { DashboardMetricsDto, DashboardWarningDto } from '../../../types/common';
-import { Loader2, AlertTriangle, Briefcase, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Briefcase, TrendingUp } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/ui';
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid
@@ -29,9 +30,8 @@ export const PortfolioDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh] gap-3 text-[hsl(var(--text-muted))]">
-        <Loader2 size={24} className="animate-spin" />
-        <span>Đang tải Dữ liệu Portfolio...</span>
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <LoadingSpinner size="md" label="Đang tải Dữ liệu Portfolio..." />
       </div>
     );
   }
@@ -148,7 +148,7 @@ export const PortfolioDashboard: React.FC = () => {
                   w.warningType === 'Red' ? 'bg-red-50 border-red-200 text-red-700' :
                     'bg-yellow-50 border-yellow-200 text-yellow-700'
                   }`}
-                onClick={() => navigate(`/projects/${w.projectId}/tasks/${w.taskId}`)}
+                onClick={() => navigate(`/projects/${w.projectId}?tab=wbs${w.taskId ? `&taskId=${w.taskId}` : ''}`)}
               >
                 <div className="flex items-start gap-3">
                   <AlertTriangle size={20} className="shrink-0 mt-0.5" />

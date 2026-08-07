@@ -47,13 +47,13 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
         if (project.Status != ProjectStatus.InProgress)
             throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để tạo đề xuất xử lý vật tư thừa.");
 
-        // Verify caller is Leader of this project or higher role
         var isLeader = await _uow.Repository<ProjectMember>().Query()
-            .AnyAsync(m => m.ProjectId == request.ProjectId && m.UserId == userId && m.IsLeader, ct);
+            .AnyAsync(
+                member => member.ProjectId == request.ProjectId
+                    && member.UserId == userId
+                    && member.IsLeader,
+                ct);
         var isManagerOrAdmin = _currentUser.IsInAnyRole(Domain.Constants.UserRole.TechnicalManager, Domain.Constants.UserRole.Admin);
-        
-        if (!isLeader && !isManagerOrAdmin)
-            throw new BusinessException(ErrorCodes.Forbidden, "Chỉ Project Leader hoặc Trưởng phòng kỹ thuật mới được tạo đề xuất xử lý vật tư thừa.");
 
         // No active batch allowed
         var hasActiveBatch = await _uow.Repository<SurplusRequest>().Query()
@@ -103,7 +103,7 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
             notiContent,
             NotificationType.Procurement,
             excludeUserId: userId,
-            NotificationReferenceType.SurplusRequest,
+            NotificationLink.ProjectSurplus(request.ProjectId),
             batch.SurplusRequestId,
             ct);
 
@@ -122,7 +122,7 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
                     notiTitle,
                     notiContent,
                     NotificationType.Procurement,
-                    NotificationReferenceType.SurplusRequest,
+                    NotificationLink.ProjectSurplus(request.ProjectId),
                     batch.SurplusRequestId,
                     ct);
             }
@@ -137,7 +137,7 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
                 notiContent,
                 NotificationType.Procurement,
                 excludeUserId: userId,
-                NotificationReferenceType.SurplusRequest,
+                NotificationLink.ProjectSurplus(request.ProjectId),
                 batch.SurplusRequestId,
                 ct);
         }

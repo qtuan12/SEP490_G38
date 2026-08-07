@@ -12,7 +12,10 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Commands
 {
-    public record RejectMaterialRequestCommand(long RequestId, string Reason) : IRequest<ApiResponse<bool>>;
+    public record RejectMaterialRequestCommand(long RequestId, string Reason)
+        : IRequest<ApiResponse<bool>>
+    {
+    }
 
     public class RejectMaterialRequestCommandHandler : IRequestHandler<RejectMaterialRequestCommand, ApiResponse<bool>>
     {
@@ -55,15 +58,23 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                     $"Không thể từ chối yêu cầu vật tư đang ở trạng thái: {mr.Status}. Chỉ hỗ trợ từ chối phiếu ở trạng thái Chờ duyệt (Pending) hoặc Chờ Giám đốc (WaitingApproval).");
             }
 
+            var isAllowed = mr.Status == MaterialRequestStatus.Pending
+                ? _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant)
+                : _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Director);
+            if (!isAllowed)
+            {
+                throw new ForbiddenException("Bạn không có quyền từ chối đề xuất yêu cầu vật tư này.");
+            }
+
             if (mr.Status == MaterialRequestStatus.Pending)
             {
                 mr.CheckedBy = currentUserId;
-                mr.AccountantNote = $"Từ chối: {request.Reason}";
+                mr.AccountantNote = $"{request.Reason}";
             }
             else // WaitingApproval
             {
                 mr.ApprovedBy = currentUserId;
-                mr.ApprovalNote = $"Từ chối: {request.Reason}";
+                mr.ApprovalNote = $"{request.Reason}";
             }
 
             mr.Status = MaterialRequestStatus.Rejected;
@@ -100,3 +111,6 @@ namespace BPG.Application.Features.MaterialRequests.Commands
         }
     }
 }
+
+
+

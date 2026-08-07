@@ -65,8 +65,6 @@ export interface ResubmitMaterialRequestModalProps {
   onClose: () => void;
   request: MaterialRequest;
   projectId: string;
-  user: any;
-  isLeader?: boolean;
   onSuccess: (msg: string) => void;
   onError?: (msg: string) => void;
 }
@@ -75,8 +73,6 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   isOpen,
   onClose,
   request,
-  user,
-  isLeader,
   onSuccess
 }) => {
   const queryClient = useQueryClient();
@@ -140,13 +136,13 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
         invoiceImage: data.type === 'emergency' ? data.invoiceImage?.trim() : undefined,
         reason: data.reason?.trim() || undefined,
         isOverBOQ: data.isOverBOQ
-      }, user?.role, isLeader);
+      });
     },
     onSuccess: (_, variables) => {
       const msg = variables.type === 'emergency'
         ? 'Đã gửi lại yêu cầu mua ngoài khẩn cấp! Hệ thống tự động sinh PO & Phiếu nhập kho, tăng tồn kho ảo tức thì.'
         : 'Đã gửi lại yêu cầu cấp vật tư.';
-      toast.success(msg);
+      console.log(msg);
       onSuccess(msg);
       queryClient.invalidateQueries({ queryKey: ['materialRequests'] });
       onClose();
@@ -161,12 +157,12 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Sửa & Gửi lại Yêu cầu cấp Vật tư">
+    <Modal isOpen={isOpen} onClose={onClose} title="Gửi lại Yêu cầu Vật tư">
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
         <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-600">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <div className="text-sm">
-            Lý do từ chối trước đó: <strong>{request.rejectionReason || 'Không có'}</strong>
+            Lý do: <strong>{request.rejectionReason || 'Không có'}</strong>
           </div>
         </div>
 

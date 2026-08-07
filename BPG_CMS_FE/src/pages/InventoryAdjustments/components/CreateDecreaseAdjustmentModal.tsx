@@ -12,7 +12,7 @@ import { isDiscreteUnit } from '../../../utils/unitHelpers';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
   onError?: (msg: string) => void;
   projectId: number;
   incident?: IncidentReport; // Optional incident to link
@@ -26,7 +26,8 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   const [reason, setReason] = useState('Incident');
   const [description, setDescription] = useState('');
-  const [phaseId, setPhaseId] = useState<number | ''>('');
+  const [phaseId, setPhaseId] = useState<number | ''>(incident ? (incident as any).phaseId || '' : '');
+  const [createdAdjustmentId, setCreatedAdjustmentId] = useState<number | null>(null);
   const [items, setItems] = useState<{ materialId: number; quantity: number }[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -172,12 +173,24 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         ? `${description}\n\n--- Thông tin sự cố gốc ---\n${originalIncidentDesc}\n\n[System] Liên kết sự cố #${incident.id}`
         : description;
 
-      await withLoading(async () => {
-        await inventoryAdjustmentService.createDecrease(projectId, {
+      let newAdjustmentId = createdAdjustmentId;
+
+      if (!createdAdjustmentId) {
+        const result = await inventoryAdjustmentService.createDecrease(projectId, {
           reason,
           description: finalDesc,
           phaseId: Number(phaseId),
           items
+        });
+        newAdjustmentId = (result as any).data || (result as any).id || 1; // store in case confirmIncident fails
+        setCreatedAdjustmentId(newAdjustmentId);
+      }
+
+      if (incident) {
+        await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
+          incidentId: Number(incident.id || (incident as any).incidentId),
+          createReworkTask: false,
+          handlingInstruction: description || 'Kế toán đã xác minh.'
         });
 
         if (incident) {
@@ -189,9 +202,9 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         }
       }, 'Đang tạo phiếu giảm tồn kho...');
 
-      onSuccess();
+      onSuccess(createdAdjustmentId ? 'Xác minh thành công' : 'Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt');
     } catch (err: any) {
-      setLocalError(err.message || 'Lỗi khi tạo phiếu giảm tồn.');
+      setLocalError(err.message || 'Có lỗi xảy ra, vui lòng thử lại.');
     } finally {
       setLoading(false);
     }

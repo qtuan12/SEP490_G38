@@ -35,6 +35,10 @@ public class SoftDeleteInterceptor : SaveChangesInterceptor
 
         foreach (var entry in deletedEntries)
         {
+            // Do not convert Project to soft delete - allow hard delete from database
+            if (entry.Entity is Project)
+                continue;
+
             entry.State = EntityState.Modified;
             entry.Entity.IsDeleted = true;
         }

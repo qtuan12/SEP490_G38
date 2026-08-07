@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type {WBSPhase, WBSTask, Project} from '../../types/common';
 import { formatDate, formatDateOnly } from '../../utils/dateHelpers';
@@ -17,18 +16,20 @@ import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
 import html2pdf from 'html2pdf.js';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { toast } from 'react-hot-toast';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities } from '../../constants/realtimeEntities';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { canManageTechnical } = useProjectAccess(projectId);
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const [isRevoking, setIsRevoking] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');
@@ -49,12 +50,14 @@ export const PhaseAcceptance: React.FC = () => {
 
   const canRevoke = isViewingHistory ? !historicalAcceptance?.isCancelled : isSubmitted;
 
-  const isTPKT = user?.role === 'technicalmanager';
+  const isTPKT = canManageTechnical;
 
-  const loadData = React.useCallback(async () => {
+  const loadData = React.useCallback(async (silent = false) => {
     if (!projectId || !phaseId) return;
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const proj = await projectService.getProjectById(projectId);
       setProject(proj);
@@ -68,7 +71,12 @@ export const PhaseAcceptance: React.FC = () => {
       setTasks(phaseTasks);
 
       if (targetPhase?.status === 'frozen') {
-        const res = await phaseAcceptanceService.getPhaseAcceptances({ pageIndex: 1, pageSize: 10, phaseId: Number(phaseId) });
+        const res = await phaseAcceptanceService.getPhaseAcceptances({
+          pageIndex: 1,
+          pageSize: 10,
+          projectId: Number(projectId),
+          phaseId: Number(phaseId),
+        });
         const activeAcc = res.items.find((x: any) => !x.isCancelled);
         if (activeAcc) {
           setActiveReportContent(activeAcc.reportContent || '');
@@ -79,7 +87,12 @@ export const PhaseAcceptance: React.FC = () => {
       }
 
       if (historyId) {
-        const res = await phaseAcceptanceService.getPhaseAcceptances({ pageIndex: 1, pageSize: 10, phaseId: Number(phaseId) });
+        const res = await phaseAcceptanceService.getPhaseAcceptances({
+          pageIndex: 1,
+          pageSize: 10,
+          projectId: Number(projectId),
+          phaseId: Number(phaseId),
+        });
         const targetAcc = res.items.find((x: any) => x.acceptanceId === Number(historyId));
         if (targetAcc) {
           setHistoricalAcceptance(targetAcc);
@@ -87,9 +100,10 @@ export const PhaseAcceptance: React.FC = () => {
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi tải thông tin nghiệm thu.');
+      if (silent) console.error(err);
+      else setError(err.message || 'Lỗi khi tải thông tin nghiệm thu.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [projectId, phaseId, historyId]);
 
@@ -100,10 +114,14 @@ export const PhaseAcceptance: React.FC = () => {
   // Realtime notification via SignalR
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'PhaseAcceptance' || noti?.referenceType === 'Project' || noti?.referenceType?.includes('/acceptance') || noti?.referenceType?.includes('/phases')) {
-      loadData();
       toast('Thông tin nghiệm thu giai đoạn vừa được cập nhật!', { icon: '📝' });
     }
   });
+
+  useRealtimeDataRefresh(
+    () => loadData(true),
+    [...RealtimeEntities.projects, ...RealtimeEntities.phaseAcceptances],
+  );
 
   const handleRevoke = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,12 +166,10 @@ export const PhaseAcceptance: React.FC = () => {
     setSubmitting(true);
     setError(null);
     try {
-      await phaseAcceptanceService.cancelAcceptance(targetId, { cancellationReason: revokeReason });
+      const message = await phaseAcceptanceService.cancelAcceptance(targetId, { cancellationReason: revokeReason });
       setIsRevoking(false);
       setRevokeReason('');
-      setSuccess('Đã hủy nghiệm thu giai đoạn thành công!');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      setTimeout(() => setSuccess(null), 3000);
+      console.log(message || 'Đã hủy nghiệm thu giai đoạn.');
       
       // Navigate to the history view of the revoked acceptance
       navigate(`/projects/${projectId}/phases/${phaseId}/acceptance?historyId=${targetId}`, { replace: true });
@@ -219,13 +235,6 @@ export const PhaseAcceptance: React.FC = () => {
         </p>
       </div>
 
-      {/* Messages */}
-      {success && (
-        <div className="animate-fade-in py-3 px-4.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.9rem] font-medium">
-          {success}
-        </div>
-      )}
-
       {error && (
         <div className="animate-fade-in py-3 px-4.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.9rem] font-medium">
           {error}
@@ -267,8 +276,8 @@ export const PhaseAcceptance: React.FC = () => {
               phase={phase!} 
               project={project}
               allCompleted={allCompleted} 
-              onSuccess={(msg) => { setSuccess(msg); setTimeout(() => setSuccess(null), 4000); }} 
-              onError={(msg) => setError(msg)} 
+              onSuccess={(msg) => console.log(msg)}
+              onError={(msg) => toast.error(msg)}
               onPhaseUpdated={loadData} 
             />
           )}

@@ -8,7 +8,6 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using UserRole = BPG.Domain.Constants.UserRole;
 
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
@@ -16,32 +15,25 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
     {
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetPurchaseOrdersQueryHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+        public GetPurchaseOrdersQueryHandler(
+            IUnitOfWork uow,
+            ICurrentUserService currentUserService,
+            IProjectAccessService projectAccessService)
         {
             _uow = uow;
             _currentUserService = currentUserService;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PagedList<PurchaseOrderDto>> Handle(GetPurchaseOrdersQuery request, CancellationToken cancellationToken)
         {
-            // Danh sách PO chung (không lọc theo dự án) chỉ dành cho Accountant.
-            // Các role khác (TechnicalManager, SiteEngineer, Director) chỉ được xem PO trong phạm vi
-            // một dự án cụ thể (tab "Đơn hàng" trong workspace dự án), bắt buộc phải truyền ProjectId.
-            if (!_currentUserService.IsInRole(UserRole.Accountant))
+            if (!request.ProjectId.HasValue &&
+                !_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Director))
             {
-                if (!request.ProjectId.HasValue)
-                    throw new ForbiddenException("Bạn chỉ được xem đơn hàng trong phạm vi dự án được phân công.");
-
-                // SiteEngineer chỉ được xem đơn hàng của dự án mình được phân công là thành viên.
-                if (_currentUserService.IsInRole(UserRole.SiteEngineer))
-                {
-                    var currentUserId = _currentUserService.GetRequiredUserId();
-                    var isMember = await _uow.Repository<ProjectMember>().Query()
-                        .AnyAsync(m => m.ProjectId == request.ProjectId.Value && m.UserId == currentUserId, cancellationToken);
-                    if (!isMember)
-                        throw new ForbiddenException("Bạn không được phân công vào dự án này nên không có quyền xem đơn hàng.");
-                }
+                throw new ForbiddenException(
+                    "Bạn chỉ được xem đơn hàng trong phạm vi dự án được cấp quyền.");
             }
 
             var query = _uow.Repository<PurchaseOrder>().Query()
@@ -52,8 +44,22 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     .ThenInclude(i => i.Unit)
                 .AsNoTracking();
 
+            // Phạm vi dự án phải kiểm ở CẢ hai nhánh. Trước đây chỉ nhánh không truyền projectId mới
+            // lọc, mà câu chặn phía trên lại buộc người ngoài 4 vai trò toàn quyền phải truyền
+            // projectId — tức đẩy đúng người cần chặn vào nhánh không kiểm.
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+
             if (request.ProjectId.HasValue)
+            {
+                if (!accessibleProjectIds.Contains(request.ProjectId.Value))
+                    throw new ForbiddenException("Bạn không có quyền xem đơn mua hàng của dự án này.");
+
                 query = query.Where(po => po.ProjectId == request.ProjectId.Value);
+            }
+            else
+            {
+                query = query.Where(po => accessibleProjectIds.Contains(po.ProjectId));
+            }
 
             if (!string.IsNullOrEmpty(request.Status))
                 query = query.Where(po => po.Status == request.Status);
@@ -104,7 +110,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 PONumber = po.PONumber,
                 Status = po.Status,
                 TotalAmount = po.TotalAmount,
-                OrderDate = po.OrderDate,
+                OrderDate = DateOnly.FromDateTime(po.OrderDate),
                 SupplierName = po.Supplier?.SupplierName ?? "N/A",
                 Items = po.Items.Select(i =>
                 {
@@ -131,3 +137,5 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
         }
     }
 }
+
+

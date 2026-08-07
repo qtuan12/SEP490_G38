@@ -21,7 +21,7 @@ export const HeaderNotification: React.FC = () => {
   }, []);
 
   const handleItemClick = async (noti: any) => {
-    if (!noti.isRead) await markAsRead(noti.notificationId);
+    if (!noti.isRead) await markAsRead(noti.notificationId, false);
     setIsOpen(false);
     
     const url = resolveNotificationUrl(noti);

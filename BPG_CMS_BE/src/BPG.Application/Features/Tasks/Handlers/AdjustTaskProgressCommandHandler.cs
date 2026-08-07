@@ -15,13 +15,15 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
     private readonly IProgressRollupService _rollupService;
     private readonly INotificationService _notificationService;
     private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly ICurrentUserService _currentUserService;
 
-    public AdjustTaskProgressCommandHandler(IUnitOfWork unitOfWork, IProgressRollupService rollupService, INotificationService notificationService, IRealtimeNotificationSender realtimeSender)
+    public AdjustTaskProgressCommandHandler(IUnitOfWork unitOfWork, IProgressRollupService rollupService, INotificationService notificationService, IRealtimeNotificationSender realtimeSender, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _rollupService = rollupService;
         _notificationService = notificationService;
         _realtimeSender = realtimeSender;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse> Handle(AdjustTaskProgressCommand request, CancellationToken ct)
@@ -30,13 +32,24 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
             .Query()
             .Include(t => t.Assignees)
             .Include(t => t.Phase)
+            .ThenInclude(p => p.Project)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
 
+        if (task.Phase != null && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+
         if (task.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
             throw new BusinessException("ERR_TASK_OBSOLETE", "Không thể điều chỉnh tiến độ cho công việc đã báo lỗi thời.");
+
+        var currentUserId = _currentUserService.GetRequiredUserId();
+        var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.TechnicalManager);
+        if (!isManager)
+        {
+            throw new ForbiddenException("Chỉ Trưởng phòng kỹ thuật hoặc Quản trị viên mới được phép điều chỉnh tiến độ trực tiếp.");
+        }
 
         // Kiểm tra điều kiện phụ thuộc (Finish-to-Start)
         if (request.NewProgress > 0)
@@ -89,8 +102,11 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         {
             OldProgress = oldProgress,
             NewProgress = request.NewProgress,
-            UpdateReason = request.UpdateReason,
-            UpdatedAt = DateTime.UtcNow
+            UpdateReason = $"Điều chỉnh trực tiếp: {request.UpdateReason}",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = currentUserId,
+            UpdatedAt = DateTime.UtcNow,
+            UpdatedBy = currentUserId
         });
 
         _unitOfWork.Repository<ProjectTask>().Update(task);

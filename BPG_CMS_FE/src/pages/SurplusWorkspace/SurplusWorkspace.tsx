@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../../components/ui';
 import { RefreshCw, PackageX } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import { projectService } from '../../services/projectService';
 import { surplusService } from '../../services/surplusService';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useNotification } from '../../context/NotificationContext';
@@ -16,53 +14,58 @@ import { CreateReturnModal } from './modals/CreateReturnModal';
 import { CreateTransferModal } from './modals/CreateTransferModal';
 import { CreateLiquidationModal } from './modals/CreateLiquidationModal';
 import type { SurplusRequestItem } from '../../types/surplus';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../constants/realtimeEntities';
+
+const SURPLUS_WORKSPACE_REALTIME_ENTITIES = [
+  ...RealtimeEntities.surplus,
+  ...RealtimeEntities.inventory.filter(
+    entity => entity === 'CurrentInventory' || entity === 'InventoryTransaction',
+  ),
+] as const;
 
 interface SurplusWorkspaceProps {
   projectId: number;
   projectName: string;
 }
 
+import { useSearchParams } from 'react-router-dom';
+
 export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   projectId,
   projectName,
 }) => {
-  const { user } = useAuth();
   const { connection } = useNotification();
-  const [isLeader, setIsLeader] = useState(false);
-  
-  const isAccountant = user?.role === 'accountant';
-  const isTPKT = user?.role === 'technicalmanager' || user?.role === 'admin';
+  const { isProjectLeader, isTechnicalManager, canManageAccounting } = useProjectAccess(projectId);
+  const isLeader = isProjectLeader;
+  const isAccountant = canManageAccounting;
+  const isTPKT = isTechnicalManager;
+  const canCreateSurplusRequest = isLeader;
 
-  // isLeader = true nếu user là SiteEngineer VÀ được gán làm trưởng dự án trong bảng ProjectMembers
-  useEffect(() => {
-    const checkLeaderStatus = async () => {
-      if (user?.role === 'siteengineer') {
-        try {
-          const members = await projectService.getMembers(projectId.toString());
-          const me = members.find(m => m.userId === user.id);
-          setIsLeader(!!me?.isLeader);
-        } catch (err) {
-          console.error('Error checking leader status:', err);
-          setIsLeader(false);
-        }
-      } else {
-        setIsLeader(false);
-      }
-    };
-    checkLeaderStatus();
-  }, [projectId, user]);
-
-  // Quyền tạo đề xuất xử lý vật tư thừa:
-  // - Trưởng phòng kỹ thuật (TechnicalManager) hoặc Admin: luôn được tạo
-  // - Trưởng dự án (SiteEngineer có isLeader=true trong dự án): được tạo
-  // - Nhân viên kỹ thuật thường (SiteEngineer không phải leader): KHÔNG được tạo
-  const canCreateSurplusRequest = isTPKT || isLeader;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSurplusRequestId = searchParams.get('surplusRequestId');
 
   const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>('outbound');
-  const [view, setView] = useState<'list' | 'detail'>('list');
-  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(null);
+  const [view, setView] = useState<'list' | 'detail'>(initialSurplusRequestId ? 'detail' : 'list');
+  const [selectedBatchId, setSelectedBatchId] = useState<number | null>(
+    initialSurplusRequestId ? Number(initialSurplusRequestId) : null
+  );
   const [refreshKey, setRefreshKey] = useState(0);
   const [isCheckingCreateEligibility, setIsCheckingCreateEligibility] = useState(false);
+
+  // Clear query param when navigating back to list
+  const handleBack = () => {
+    setView('list');
+    setSelectedBatchId(null);
+    setSearchParams(params => {
+      params.delete('surplusRequestId');
+      return params;
+    });
+  };
 
   // Modal states
   const [showCreateBatch, setShowCreateBatch] = useState(false);
@@ -71,7 +74,28 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   const [liquidationItem, setLiquidationItem] = useState<SurplusRequestItem | null>(null);
 
 
-  const handleRefresh = () => setRefreshKey(k => k + 1);
+  const realtimeRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleRefresh = useCallback(() => setRefreshKey(k => k + 1), []);
+  const scheduleRealtimeRefresh = useCallback(() => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      handleRefresh();
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  }, [handleRefresh]);
+
+  useEffect(() => () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [projectId]);
+
+  // Some surplus actions do not send the legacy SurplusUpdated/notification
+  // event to every viewer. DataChanged keeps list/detail state in sync and the
+  // refresh key deliberately leaves the active view and parent modals intact.
+  useRealtimeDataRefresh(scheduleRealtimeRefresh, SURPLUS_WORKSPACE_REALTIME_ENTITIES, 0);
 
   // ── Join/Leave SignalR project group khi mở tab Xử lý Vật tư thừa ──
   useEffect(() => {
@@ -82,7 +106,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
       .catch(err => console.error('SurplusWorkspace: JoinProjectGroup error', err));
 
     const handleSurplusUpdated = (_payload: any) => {
-      handleRefresh();
+      scheduleRealtimeRefresh();
       toast('Dữ liệu Vật tư thừa đã được cập nhật!', { icon: '🔄' });
     };
 
@@ -93,13 +117,12 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
       connection.invoke('LeaveProjectGroup', numericProjectId)
         .catch(err => console.error('SurplusWorkspace: LeaveProjectGroup error', err));
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connection, projectId]);
+  }, [connection, projectId, scheduleRealtimeRefresh]);
 
   // ── Giữ lại listener ReceiveNotification cho các user có notification cá nhân ──
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'SurplusRequest') {
-      handleRefresh();
+      scheduleRealtimeRefresh();
     }
   });
 
@@ -108,10 +131,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
     setView('detail');
   };
 
-  const handleBack = () => {
-    setView('list');
-    setSelectedBatchId(null);
-  };
+  // Removed duplicate handleBack
 
   const handleOpenCreateBatch = async () => {
     if (isCheckingCreateEligibility) return;
@@ -138,9 +158,9 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
     }
   };
 
-  const handleActionSuccess = () => {
-    toast.success('Thao tác thành công!');
-    handleRefresh();
+  const handleActionSuccess = (message: string) => {
+    console.log(message);
+    scheduleRealtimeRefresh();
   };
 
   return (
@@ -204,7 +224,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
           <SurplusRequestDetailTab
             surplusRequestId={selectedBatchId}
             onBack={handleBack}
-            onRefresh={handleRefresh}
+            onRefresh={scheduleRealtimeRefresh}
             onCreateReturn={item => setReturnItem(item)}
             onCreateTransfer={item => setTransferItem(item)}
             onCreateLiquidation={item => setLiquidationItem(item)}
@@ -227,7 +247,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateSurplusRequestModal
           isOpen={showCreateBatch}
           onClose={() => setShowCreateBatch(false)}
-          onSuccess={() => { handleActionSuccess(); setShowCreateBatch(false); }}
+          onSuccess={() => { handleActionSuccess('Đã tạo đề xuất xử lý vật tư thừa.'); setShowCreateBatch(false); }}
           projectId={projectId}
           projectName={projectName}
         />
@@ -237,7 +257,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateReturnModal
           isOpen={!!returnItem}
           onClose={() => setReturnItem(null)}
-          onSuccess={() => { handleActionSuccess(); setReturnItem(null); }}
+          onSuccess={() => { handleActionSuccess('Đã tạo phiếu trả vật tư thừa cho nhà cung cấp.'); setReturnItem(null); }}
           item={returnItem}
           projectId={projectId}
         />
@@ -247,7 +267,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateTransferModal
           isOpen={!!transferItem}
           onClose={() => setTransferItem(null)}
-          onSuccess={() => { handleActionSuccess(); setTransferItem(null); }}
+          onSuccess={() => { handleActionSuccess('Đã tạo phiếu điều chuyển vật tư thừa.'); setTransferItem(null); }}
           item={transferItem}
           currentProjectId={projectId}
         />
@@ -257,7 +277,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateLiquidationModal
           isOpen={!!liquidationItem}
           onClose={() => setLiquidationItem(null)}
-          onSuccess={() => { handleActionSuccess(); setLiquidationItem(null); }}
+          onSuccess={() => { handleActionSuccess('Đã tạo phiếu thanh lý vật tư thừa.'); setLiquidationItem(null); }}
           item={liquidationItem}
         />
       )}

@@ -2,6 +2,7 @@ using BPG.Application.Common.Models;
 using BPG.Application.Features.GoodsReceipts.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -68,31 +69,29 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với đơn mua hàng này.");
             }
 
+            var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                cancellationToken);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án của đơn mua hàng mới được tạo phiếu nhập kho.");
+
             // 2. Kiểm tra trạng thái dự án
             if (project.Status != ProjectStatus.InProgress)
             {
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", ValidationMessages.ProjectNotActive);
             }
 
-            // 2.5 Kiểm tra quyền: Chỉ Trưởng phòng kỹ thuật hoặc Trưởng dự án mới được tạo phiếu nhập kho
-            bool isTechnicalManager = _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager);
-
-            if (!isTechnicalManager)
+            // 3. Kiểm tra trạng thái PO — đơn chưa được Giám đốc duyệt thì chưa được nhập kho
+            if (po.Status == PurchaseOrderStatus.PendingApproval)
             {
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
-
-                if (!isLeader)
-                {
-                    throw new ForbiddenException("Chỉ Trưởng phòng kỹ thuật hoặc Trưởng dự án mới có quyền nhập kho cho đơn hàng.");
-                }
+                throw new BusinessException(ErrorCodes.PoNotApproved,
+                    "Đơn hàng đang chờ Giám đốc duyệt, chưa thể nhập kho.");
             }
 
-            // 3. Kiểm tra trạng thái PO
             if (po.Status != PurchaseOrderStatus.Sent && po.Status != PurchaseOrderStatus.PartiallyReceived)
             {
                 throw new BusinessException("ERR_INVALID_PO_STATUS",
-                    $"Không thể nhập kho cho đơn hàng có trạng thái: {po.Status}. Chỉ chấp nhận đơn hàng ở trạng thái Đã đặt hàng hoặc Nhận một phần.");
+                    $"Không thể nhập kho cho đơn hàng có trạng thái: {PurchaseOrderStatus.Label(po.Status)}. Chỉ chấp nhận đơn hàng ở trạng thái Đã đặt hàng hoặc Nhận một phần.");
             }
 
             // 4. Kiểm tra ảnh chụp chứng minh nếu có validation bắt buộc (tối đa 5 ảnh)
@@ -158,8 +157,8 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
             try
             {
                 // Sinh mã phiếu nhập kho chuẩn nghiệp vụ, ví dụ: GR-20240624-A3F8B2
-                // Dùng UTC+7 (đúng giờ Việt Nam) + Guid để đảm bảo không trùng trong môi trường concurrent
-                var vnNow = DateTime.UtcNow.AddHours(7);
+                // Dùng giờ Việt Nam + Guid để đảm bảo không trùng trong môi trường concurrent
+                var vnNow = VietnamTime.Now;
                 var receiptNo = $"GR-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
                 var goodsReceipt = new GoodsReceipt

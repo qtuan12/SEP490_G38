@@ -58,9 +58,9 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ isOpen, on
         return materialCategoryService.createCategory(data);
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      onSuccess(category ? 'Cập nhật danh mục thành công.' : 'Thêm danh mục thành công.');
+      onSuccess(result.message || (category ? 'Cập nhật danh mục thành công.' : 'Thêm danh mục thành công.'));
       onClose();
     },
   });

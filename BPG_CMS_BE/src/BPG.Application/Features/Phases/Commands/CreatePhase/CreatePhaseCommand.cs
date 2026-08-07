@@ -5,9 +5,9 @@ using BPG.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using BPG.Application.Common.Interfaces;
 using System.Threading;
 using System.Threading.Tasks;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Phases.Commands.CreatePhase;
 
@@ -18,10 +18,8 @@ public record CreatePhaseCommand(
     int OrderIndex,
     DateOnly? StartDate,
     DateOnly? EndDate
-) : IRequest<ApiResponse<long>>, IRequireTechnicalManager
+) : IRequest<ApiResponse<long>>
 {
-    public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-        => Task.FromResult(ProjectId);
 }
 
 public class CreatePhaseCommandValidator : AbstractValidator<CreatePhaseCommand>
@@ -56,6 +54,9 @@ public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, Api
         if (project == null)
             throw new NotFoundException("Project", request.ProjectId);
 
+        if (project.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+
         if (request.StartDate.HasValue && request.StartDate.Value < project.PlannedStart)
         {
             throw new BusinessException("ERR_PHASE_DATE_INVALID", $"Ngày bắt đầu của giai đoạn ({request.StartDate.Value:dd/MM/yyyy}) không được trước ngày bắt đầu của dự án ({project.PlannedStart:dd/MM/yyyy}).");
@@ -83,3 +84,4 @@ public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, Api
         return ApiResponse<long>.SuccessResult(phase.PhaseId, "Tạo phase thành công.");
     }
 }
+

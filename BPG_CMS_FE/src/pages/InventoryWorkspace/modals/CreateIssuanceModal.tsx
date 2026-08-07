@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, Input, FormItem, Select } from '../../../components/ui';
+import { Modal, Button, Input, FormItem, Select, LoadingSpinner } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
 import { materialService } from '../../../services/materialService';
 import type { CurrentInventory } from '../../../types/inventory';
 import type { WBSTask } from '../../../types/common';
 import type { MaterialConversion } from '../../../types/material';
-import { Trash2, Plus, AlertCircle, Loader2 } from 'lucide-react';
+import { Trash2, Plus, AlertCircle } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
+import { formatQuantity, isGreaterThanQuantity, parseQuantityInput } from '../../../utils/inventoryHelpers';
 
 interface CreateIssuanceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (message?: string) => void;
   projectId: number;
 }
 
@@ -47,6 +48,11 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
   const [isTaskDropdownOpen, setIsTaskDropdownOpen] = useState(false);
   const [purpose, setPurpose] = useState('');
   const [selectedItems, setSelectedItems] = useState<IssuanceItemInput[]>([]);
+
+  // Field-specific error states
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const [purposeError, setPurposeError] = useState<string | null>(null);
+  const [itemsError, setItemsError] = useState<string | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,6 +63,9 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
       setIsTaskDropdownOpen(false);
       setPurpose('');
       setSelectedItems([]);
+      setTaskError(null);
+      setPurposeError(null);
+      setItemsError(null);
       setGeneralError(null);
     }
   }, [isOpen]);
@@ -67,8 +76,14 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
     try {
       // 1. Fetch tasks
       const allTasks = await projectService.getTasks(`p-${projectId}`);
-      // Lọc các công việc đang thi công và chưa bị khóa
-      const activeTasks = allTasks.filter(t => t.status !== 'obsolete' && !t.isLocked);
+      // Lọc các công việc đang thi công hợp lệ (chưa bị khóa, chưa hoàn thành, chưa bị dừng/hủy)
+      const inactiveStatuses = ['obsolete', 'completed', 'approved', 'done', 'paused', 'stopped', 'cancelled', 'canceled'];
+      const activeTasks = allTasks.filter(t => {
+        if (t.isLocked) return false;
+        if ((t.progress ?? 0) >= 100) return false;
+        const statusLower = (t.status || '').toLowerCase();
+        return !inactiveStatuses.includes(statusLower);
+      });
       setTasks(activeTasks);
 
       // Tự động chọn task nếu có tham số tìm kiếm từ URL chuyển qua
@@ -204,7 +219,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
     setSelectedItems(prev => {
       const copy = [...prev];
       const item = copy[index];
-      const num = parseFloat(val);
+      const num = parseQuantityInput(val);
 
       let err: string | undefined = undefined;
       if (!val) {
@@ -213,8 +228,8 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
         err = 'Số lượng xuất phải lớn hơn 0.';
       } else if (num < 0.001) {
         err = 'Số lượng xuất tối thiểu là 0.001.';
-      } else if (num > item.maxQty) {
-        err = `Không vượt quá tồn khả dụng (${item.maxQty.toFixed(3)} ${item.unitName}).`;
+      } else if (isGreaterThanQuantity(num, item.maxQty)) {
+        err = `Không vượt quá tồn khả dụng (${formatQuantity(item.maxQty)} ${item.unitName}).`;
       } else if (isDiscreteUnit(item.unitName) && num % 1 !== 0) {
         err = `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`;
       }
@@ -230,49 +245,59 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setGeneralError(null);
+    setTaskError(null);
+    setPurposeError(null);
+    setItemsError(null);
+
+    let hasError = false;
+
     if (!selectedTaskId) {
-      setGeneralError('Vui lòng chọn công việc thi công.');
-      return;
+      setTaskError('Vui lòng chọn công việc thi công.');
+      hasError = true;
     }
     if (!purpose.trim()) {
-      setGeneralError('Vui lòng nhập mục đích xuất kho.');
-      return;
+      setPurposeError('Vui lòng nhập mục đích xuất kho.');
+      hasError = true;
     }
     if (selectedItems.length === 0) {
-      setGeneralError('Vui lòng thêm ít nhất một vật tư xuất kho.');
-      return;
+      setItemsError('Vui lòng thêm ít nhất một vật tư xuất kho.');
+      hasError = true;
     }
 
     // Check for errors in items
-    const hasErrors = selectedItems.some(i => i.error || !i.quantity);
-    if (hasErrors) {
-      setGeneralError('Vui lòng sửa các lỗi số lượng vật tư trước khi lưu.');
+    const hasItemErrors = selectedItems.some(i => i.error || !i.quantity);
+    if (hasItemErrors) {
+      setItemsError('Vui lòng sửa các lỗi số lượng vật tư trước khi lưu.');
+      hasError = true;
+    }
+
+    if (hasError) {
       return;
     }
 
     setSubmitting(true);
-    setGeneralError(null);
 
     try {
       // Chuẩn hóa TaskId (bỏ tiền tố 't-' nếu có)
       const numericTaskId = parseInt(selectedTaskId.replace('t-', ''));
 
-      await inventoryService.createMaterialIssuance({
+      const result = await inventoryService.createMaterialIssuance({
         taskId: numericTaskId,
         purpose: purpose.trim(),
         items: selectedItems.map(i => ({
           materialId: i.materialId,
           unitId: i.unitId,
-          quantity: parseFloat(i.quantity),
+          quantity: parseQuantityInput(i.quantity),
           conversionRate: i.conversionRate
         }))
       });
 
-      onSuccess();
+      onSuccess(result.message);
       onClose();
     } catch (err: any) {
       console.error('Error creating material issuance:', err);
-      setGeneralError(err.message || 'Lỗi hệ thống khi tạo phiếu xuất kho.');
+      setGeneralError(err.message || 'Không thể tạo phiếu xuất kho.');
     } finally {
       setSubmitting(false);
     }
@@ -296,10 +321,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
       }
     >
       {loadingData ? (
-        <div className="flex justify-center items-center py-12 gap-3">
-          <Loader2 className="animate-spin text-blue-600" size={24} />
-          <span className="text-slate-500 text-sm">Đang tải dữ liệu khởi tạo...</span>
-        </div>
+        <LoadingSpinner size="md" label="Đang tải dữ liệu khởi tạo..." className="py-12" />
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-sm text-left">
           {generalError && (
@@ -310,7 +332,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormItem label="Công việc thi công liên quan" required>
+            <FormItem label="Công việc thi công liên quan" required error={taskError || undefined}>
               <div className="relative">
                 <input
                   type="text"
@@ -319,6 +341,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                   onChange={e => {
                     setTaskSearchQuery(e.target.value);
                     setSelectedTaskId(''); // Reset id khi người dùng đang gõ tìm kiếm mới
+                    setTaskError(null);
                     setIsTaskDropdownOpen(true);
                   }}
                   onFocus={() => setIsTaskDropdownOpen(true)}
@@ -333,7 +356,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                       }
                     }, 200);
                   }}
-                  className="block w-full rounded-md shadow-sm sm:text-sm pl-3 pr-10 py-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  className={`block w-full rounded-md shadow-sm sm:text-sm pl-3 pr-10 py-2 border ${taskError ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} bg-white`}
                 />
                 <div className="absolute right-3 top-2.5 flex items-center pointer-events-none text-slate-400">
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -357,6 +380,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                             e.preventDefault(); // Ngăn sự kiện blur của input ẩn dropdown trước khi kịp chọn
                             setSelectedTaskId(t.id);
                             setTaskSearchQuery(t.name);
+                            setTaskError(null);
                             setIsTaskDropdownOpen(false);
                           }}
                           className="px-3 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-100 last:border-0 text-left"
@@ -377,11 +401,15 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
               </div>
             </FormItem>
 
-            <FormItem label="Mục đích xuất kho" required>
+            <FormItem label="Mục đích xuất kho" required error={purposeError || undefined}>
               <Input
                 value={purpose}
-                onChange={e => setPurpose(e.target.value)}
+                onChange={e => {
+                  setPurpose(e.target.value);
+                  setPurposeError(null);
+                }}
                 placeholder="Ví dụ: Đổ bê tông móng, Xây tường trục A..."
+                className={purposeError ? 'border-red-500 focus:ring-red-200' : ''}
               />
             </FormItem>
           </div>
@@ -393,7 +421,10 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleAddItem}
+                onClick={() => {
+                  handleAddItem();
+                  setItemsError(null);
+                }}
                 disabled={inventoryList.length === 0}
                 className="flex items-center gap-1"
               >
@@ -401,6 +432,13 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                 <span>Thêm vật tư</span>
               </Button>
             </div>
+
+            {itemsError && (
+              <div className="p-2.5 bg-red-50 border border-red-200 rounded-md text-red-600 text-xs font-medium flex items-center gap-1.5 mb-2 animate-fade-in">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{itemsError}</span>
+              </div>
+            )}
 
             {selectedItems.length === 0 ? (
               <div className="text-center py-8 bg-slate-50 border border-slate-200 rounded-xl text-slate-400 italic">
@@ -471,9 +509,9 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
 
                       {/* Dòng hiển thị thông tin tồn kho còn lại & lỗi validate */}
                       <div className="flex justify-between items-center px-1 text-xs min-h-[16px]">
-                        {item.quantity && !isNaN(parseFloat(item.quantity)) && parseFloat(item.quantity) > 0 && parseFloat(item.quantity) <= item.maxQty ? (
+                        {item.quantity && !isNaN(parseQuantityInput(item.quantity)) && parseQuantityInput(item.quantity) > 0 && !isGreaterThanQuantity(parseQuantityInput(item.quantity), item.maxQty) ? (
                           <span className="text-emerald-600 font-medium">
-                            Còn lại sau xuất: {(item.maxQty - parseFloat(item.quantity)).toFixed(3)} {item.unitName}
+                            Còn lại sau xuất: {formatQuantity(item.maxQty - parseQuantityInput(item.quantity))} {item.unitName}
                           </span>
                         ) : (
                           <span></span>

@@ -3,23 +3,23 @@ import { useAuth } from '../../context/AuthContext';
 import { useCompany } from '../../context/CompanyContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, Mail, AlertTriangle, Eye, EyeOff } from 'lucide-react';
-import { Button, Input, FormItem } from '../../components/ui';
-import { useLoading } from '../../context/LoadingContext';
+import { Button, Input, FormItem, ThemeToggle } from '../../components/ui';
 
-import { isPWAMode } from '../../utils/pwaHelpers';
+import { isPWAMode, isPWAOptimizedRole } from '../../utils/pwaHelpers';
 
 const getRoleDashboard = (role: string): string => {
-  if (isPWAMode()) {
-    return '/field?standalone=true';
-  }
   const normRole = role?.toLowerCase() || '';
+  if (isPWAMode()) {
+    // PWA chỉ tối ưu cho Nhân viên kỹ thuật (gồm project leader);
+    // chức vụ khác vào thẳng trang cá nhân, mọi màn hình khác sẽ hiện cảnh báo.
+    return isPWAOptimizedRole(normRole) ? '/field?standalone=true' : '/profile';
+  }
   switch (normRole) {
     case 'admin':
       return '/users';
     case 'siteengineer':
       return '/field';
     case 'technicalmanager':
-    case 'projectleader':
       return '/projects';
     default:
       return '/dashboard';
@@ -128,7 +128,7 @@ export const Login: React.FC = () => {
         setLockoutTimeLeft(15 * 60);
         setError('Tài khoản đã bị khóa trong 15 phút do nhập sai mật khẩu 5 lần.');
       } else {
-        setError(err.message || 'Đăng nhập thất bại.');
+        setError(err.message || 'Không thể đăng nhập.');
       }
     } finally {
       setLoading(false);
@@ -136,8 +136,11 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-5 bg-[radial-gradient(circle_at_top,_hsl(240_100%_96%)_0%,_hsl(var(--bg-main))_70%)]">
-      <div className="glass-panel animate-slide-up w-full max-w-[440px] p-10 relative shadow-[0_20px_40px_rgba(0,0,0,0.06),0_0_40px_hsl(var(--primary-glow))]">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[hsl(var(--bg-main))] relative">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle showText />
+      </div>
+      <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl shadow-xl w-full max-w-[420px] p-6 sm:p-8 transition-all">
         
         {/* Header */}
         <div className="text-center mb-8">

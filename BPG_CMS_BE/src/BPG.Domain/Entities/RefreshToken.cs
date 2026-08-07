@@ -10,5 +10,11 @@ public class RefreshToken
     public DateTime? RevokedAt { get; set; }
     public bool IsUsed { get; set; } = false;
 
+    /// <summary>
+    /// Hash của token được cấp thay thế khi rotate. Dùng để lần lại chuỗi rotation khi client
+    /// mất response (reload/mất mạng giữa chừng) và gửi lại token cũ trong grace window.
+    /// </summary>
+    public string? ReplacedByTokenHash { get; set; }
+
     public User User { get; set; } = null!;
 }

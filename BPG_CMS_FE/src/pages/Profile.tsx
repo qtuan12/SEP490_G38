@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import type { UserDetailProfile } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/ui/Modal';
-import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X } from 'lucide-react';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X, LogOut } from 'lucide-react';
 import { passwordRules, validatePassword } from '../utils/passwordPolicy';
 import { validateFullName, validatePhoneNumber } from '../utils/profileValidation';
+import { formatDateVietnam } from '../utils/dateHelpers';
+import { usePWA } from '../context/PWAContext';
+import { PWARestrictedNotice } from '../components/PWARestrictedNotice';
 
 import imageCompression from 'browser-image-compression';
 
@@ -15,7 +20,6 @@ const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gi
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Quản trị viên',
   technicalmanager: 'Trưởng phòng Kỹ thuật',
-  projectleader: 'Trưởng dự án',
   siteengineer: 'Nhân viên kỹ thuật',
   accountant: 'Kế toán',
   director: 'Giám đốc',
@@ -23,14 +27,13 @@ const ROLE_LABELS: Record<string, string> = {
 
 const formatDateTime = (iso: string | null): string => {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+  return formatDateVietnam(iso);
 };
 
 export const Profile: React.FC = () => {
-  const { updateUser } = useAuth();
+  const { updateUser, logout } = useAuth();
+  const { shouldBlock } = usePWA();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<UserDetailProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -89,7 +92,7 @@ export const Profile: React.FC = () => {
       updateUser({ name: updated.fullName, avatarUrl: updated.avatarUrl });
       setShowEditModal(false);
     } catch (err: any) {
-      setEditError(err.message || 'Cập nhật thất bại.');
+      setEditError(err.message || 'Không thể cập nhật hồ sơ.');
     } finally {
       setEditLoading(false);
     }
@@ -133,7 +136,7 @@ export const Profile: React.FC = () => {
       updateUser({ name: updated.fullName, avatarUrl: updated.avatarUrl });
     } catch (err: any) {
       setProfile(prev => prev ? { ...prev, avatarUrl: previousAvatarUrl } : null);
-      setAvatarError(err.message || 'Tải ảnh đại diện thất bại.');
+      setAvatarError(err.message || 'Không thể tải ảnh đại diện lên.');
     } finally {
       setAvatarUploading(false);
       URL.revokeObjectURL(localUrl);
@@ -145,6 +148,11 @@ export const Profile: React.FC = () => {
     setShowCurrent(false); setShowNew(false); setShowConfirm(false);
     setPwError(null); setPwSuccess(false);
     setShowModal(true);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   const closeModal = () => {
@@ -170,19 +178,14 @@ export const Profile: React.FC = () => {
       await authService.changePassword(currentPassword, newPassword);
       setPwSuccess(true);
     } catch (err: any) {
-      setPwError(err.message || 'Đổi mật khẩu thất bại.');
+      setPwError(err.message || 'Không thể đổi mật khẩu.');
     } finally {
       setPwLoading(false);
     }
   };
 
   if (loadingProfile) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', gap: '10px' }}>
-        <Loader2 className="animate-spin" size={22} style={{ color: 'hsl(var(--primary))' }} />
-        <span>Đang tải thông tin...</span>
-      </div>
-    );
+    return <LoadingSpinner size="md" label="Đang tải thông tin cá nhân..." className="py-16" />;
   }
 
   if (profileError || !profile) {
@@ -198,6 +201,13 @@ export const Profile: React.FC = () => {
 
   return (
     <div className="animate-fade-in flex flex-col gap-8 w-full">
+
+      {/* PWA: chức vụ không nằm trong nhóm được tối ưu — cảnh báo và lối đi tiếp nằm ngay tại đây */}
+      {shouldBlock && (
+        <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] shadow-sm px-4 py-2">
+          <PWARestrictedNotice />
+        </div>
+      )}
 
       {/* Profile Card */}
       <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] shadow-sm overflow-hidden">
@@ -261,6 +271,10 @@ export const Profile: React.FC = () => {
               <button className="btn btn-secondary flex items-center gap-2 text-sm px-4 py-2.5" onClick={openModal}>
                 <KeyRound size={16} />
                 Đổi mật khẩu
+              </button>
+              <button className="btn btn-secondary flex items-center gap-2 text-sm px-4 py-2.5 text-[hsl(var(--danger))]" onClick={handleLogout}>
+                <LogOut size={16} />
+                Đăng xuất
               </button>
             </div>
           </div>
@@ -351,7 +365,7 @@ export const Profile: React.FC = () => {
         {pwSuccess ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '10px 0 6px' }}>
             <CheckCircle2 size={48} style={{ color: 'hsl(var(--success))' }} />
-            <p style={{ fontWeight: 600, fontSize: '1rem', textAlign: 'center' }}>Đổi mật khẩu thành công!</p>
+            <p style={{ fontWeight: 600, fontSize: '1rem', textAlign: 'center' }}>Đã đổi mật khẩu.</p>
             <p style={{ fontSize: '0.875rem', color: 'hsl(var(--text-muted))', textAlign: 'center' }}>
               Mật khẩu mới của bạn đã được cập nhật.
             </p>

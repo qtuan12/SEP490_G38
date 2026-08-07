@@ -10,25 +10,26 @@ using Microsoft.EntityFrameworkCore;
 namespace BPG.Application.Features.PurchaseOrders.Handlers
 {
     public class GetApprovedRequestsForPOQueryHandler
-        : IRequestHandler<GetApprovedRequestsForPOQuery, ApiResponse<List<ApprovedRequestForPODto>>>
+        : IRequestHandler<GetApprovedRequestsForPOQuery, List<ApprovedRequestForPODto>>
     {
         private readonly IUnitOfWork _uow;
 
         public GetApprovedRequestsForPOQueryHandler(IUnitOfWork uow) => _uow = uow;
 
-        public async Task<ApiResponse<List<ApprovedRequestForPODto>>> Handle(
+        public async Task<List<ApprovedRequestForPODto>> Handle(
             GetApprovedRequestsForPOQuery request, CancellationToken cancellationToken)
         {
             var requests = await _uow.Repository<MaterialRequest>().Query()
                 .AsNoTracking()
                 .Include(r => r.Phase).ThenInclude(p => p.Project)
-                .Include(r => r.Items).ThenInclude(i => i.Material)
+                .Include(r => r.Items).ThenInclude(i => i.Material).ThenInclude(m => m.BaseUnit)
                 .Include(r => r.Items).ThenInclude(i => i.Unit)
                 .Where(r => r.Phase.ProjectId == request.ProjectId
                          && r.Status == MaterialRequestStatus.Approved)
                 .ToListAsync(cancellationToken);
 
-            // Sum quantities already ordered per (request, material) via active (non-cancelled) POs.
+            // Sum quantities already ordered per (request, material) via active POs — không tính đơn
+            // đã hủy hoặc bị Giám đốc từ chối.
             // PO đã đóng (Closed) chỉ còn giữ chỗ phần ĐÃ NHẬN thực tế — phần chưa nhận được giải phóng
             // trở lại yêu cầu vật tư để có thể tạo PO khác.
             var requestIds = requests.Select(r => r.RequestId).ToList();
@@ -36,7 +37,8 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .AsNoTracking()
                 .Where(pi => pi.PurchaseOrder.RequestId != null
                           && requestIds.Contains(pi.PurchaseOrder.RequestId.Value)
-                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled)
+                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
+                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Rejected)
                 .Select(pi => new
                 {
                     RequestId = pi.PurchaseOrder.RequestId!.Value,
@@ -98,12 +100,14 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                         Quantity = i.Quantity,
                         ConversionRate = i.ConversionRate,
                         OrderedQuantity = ordered,
-                        RemainingQuantity = remaining < 0 ? 0 : remaining
+                        RemainingQuantity = remaining < 0 ? 0 : remaining,
+                        IsDiscreteUnit = i.Material.BaseUnit?.IsDiscrete ?? false,
+                        BaseUnitName = i.Material.BaseUnit?.UnitName ?? i.Unit.UnitName
                     };
                 }).ToList()
             }).ToList();
 
-            return ApiResponse<List<ApprovedRequestForPODto>>.SuccessResult(dtos);
+            return dtos;
         }
     }
 }

@@ -4,7 +4,6 @@ using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
-using BPG.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -14,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.GoodsReceipts.Queries
 {
-    public record GetGoodsReceiptDetailQuery(long ReceiptId) : IRequest<ApiResponse<GoodsReceiptDetailDto>>, IProjectRequirement
+    public record GetGoodsReceiptDetailQuery(long ReceiptId) : IRequest<ApiResponse<GoodsReceiptDetailDto>>
     {
         public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
@@ -141,3 +140,4 @@ namespace BPG.Application.Features.GoodsReceipts.Queries
         }
     }
 }
+

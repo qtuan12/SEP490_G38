@@ -49,9 +49,9 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({ isOpen, onClose, u
         return unitService.createUnit(data);
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['units'] });
-      onSuccess(unit ? 'Cập nhật đơn vị tính thành công.' : 'Thêm đơn vị tính thành công.');
+      onSuccess(result.message || (unit ? 'Cập nhật đơn vị tính thành công.' : 'Thêm đơn vị tính thành công.'));
       onClose();
     },
   });

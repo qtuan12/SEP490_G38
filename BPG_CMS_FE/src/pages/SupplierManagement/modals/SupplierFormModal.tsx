@@ -44,7 +44,7 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
     reset,
     setValue,
   } = useForm<SupplierFormData>({
@@ -104,12 +104,14 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
         return await supplierService.createSupplier(payload);
       }
     },
-    onSuccess: (data) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      const savedSupplier = result.data;
       onSuccess(
-        isEdit
-          ? `Đã cập nhật thông tin nhà cung cấp ${data.supplierName} thành công.`
-          : `Đã thêm nhà cung cấp ${data.supplierName} thành công.`
+        result.message ||
+        (isEdit
+          ? `Đã cập nhật thông tin nhà cung cấp ${savedSupplier.supplierName} thành công.`
+          : `Đã thêm nhà cung cấp ${savedSupplier.supplierName} thành công.`)
       );
       onClose();
     },
@@ -123,10 +125,10 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
 
   const footer = (
     <>
-      <Button variant="outline" onClick={onClose} disabled={isSubmitting || mutation.isPending} className="mr-3">
+      <Button variant="outline" onClick={onClose} disabled={mutation.isPending} className="mr-3">
         Hủy
       </Button>
-      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={isSubmitting || mutation.isPending}>
+      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={mutation.isPending} disabled={mutation.isPending}>
         Xác nhận
       </Button>
     </>

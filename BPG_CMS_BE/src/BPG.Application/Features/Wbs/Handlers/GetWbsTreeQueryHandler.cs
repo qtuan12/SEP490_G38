@@ -1,3 +1,4 @@
+using BPG.Domain.Common;
 using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
 using BPG.Application.Common.Extensions;
@@ -75,7 +76,8 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                         Name = b.Material.Name,
                         Quantity = b.Quantity,
                         UnitId = b.UnitId,
-                        Unit = b.Unit.UnitName
+                        Unit = b.Unit.UnitName,
+                        ConversionRate = b.ConversionRate
                     })
                     .ToList()
             };
@@ -157,7 +159,7 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
 
             var taskDeadline = node.EndDate.ToDateTime(new TimeOnly(23, 59, 59));
             var projectStart = project.PlannedStart.ToDateTime(TimeOnly.MinValue);
-            var today = DateTime.Now;
+            var today = VietnamTime.Now;
 
             if (node.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
             {

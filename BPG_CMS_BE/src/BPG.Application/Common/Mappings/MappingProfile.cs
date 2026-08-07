@@ -67,9 +67,6 @@ namespace BPG.Application.Common.Mappings
                 .ForMember(dest => dest.Images, opt => opt.Ignore())
                 .ForMember(dest => dest.Comments, opt => opt.MapFrom(src => src.Comments));
 
-            // Mapping cho TaskProgressLog
-            CreateMap<TaskProgressLog, BPG.Application.DTOs.DailyLogs.TaskProgressLogDto>();
-
             // Mapping cho WBS Tasks
             CreateMap<BPG.Application.Features.Tasks.Commands.CreateTaskCommand, ProjectTask>()
                 .ForMember(dest => dest.Assignees, opt => opt.Ignore());

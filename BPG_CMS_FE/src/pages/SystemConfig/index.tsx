@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { systemConfigService, type SystemConfigDto } from '../../services/systemConfigService';
-import { Button, Input, Card, CardHeader, CardTitle, CardBody, Badge, FormItem, type BadgeVariant } from '../../components/ui';
+import { Button, Input, Card, CardHeader, CardTitle, CardBody, Badge, FormItem, LoadingSpinner, type BadgeVariant } from '../../components/ui';
 import { useCompany } from '../../context/CompanyContext';
 import { compressAndUploadFile } from '../../utils/uploadHelper';
 import {
@@ -48,12 +48,12 @@ const CompanySettingsCard: React.FC = () => {
 
   const saveMutation = useMutation({
     mutationFn: () => systemConfigService.updateCompanySettings(name.trim(), logoUrl),
-    onSuccess: () => {
-      toast.success('Cập nhật thông tin công ty thành công.');
+    onSuccess: (result) => {
+      console.log(result.message || 'Đã cập nhật thông tin công ty.');
       queryClient.invalidateQueries({ queryKey: ['company-info'] });
       refetch();
     },
-    onError: (err: any) => toast.error(err.message || 'Cập nhật thất bại.'),
+    onError: (err: any) => toast.error(err.message || 'Không thể cập nhật thông tin công ty.'),
   });
 
   const handlePickLogo = () => fileInputRef.current?.click();
@@ -72,7 +72,7 @@ const CompanySettingsCard: React.FC = () => {
         setIsUploading(false);
       },
       () => {
-        toast.error('Tải logo lên thất bại. Vui lòng thử lại.');
+        toast.error('Không thể tải logo lên. Vui lòng thử lại.');
         setIsUploading(false);
       }
     );
@@ -177,13 +177,13 @@ const SystemParametersCard: React.FC = () => {
 
   const updateMutation = useMutation({
     mutationFn: ({ key, value }: EditState) => systemConfigService.update(key, value),
-    onSuccess: () => {
-      toast.success('Cập nhật cấu hình thành công.');
+    onSuccess: (result) => {
+      console.log(result.message || 'Đã cập nhật cấu hình hệ thống.');
       setEditing(null);
       setEditError(null);
       queryClient.invalidateQueries({ queryKey: ['system-configs'] });
     },
-    onError: (err: any) => setEditError(err.message || 'Cập nhật thất bại.'),
+    onError: (err: any) => setEditError(err.message || 'Không thể cập nhật cấu hình hệ thống.'),
   });
 
   const startEdit = (cfg: SystemConfigDto) => {
@@ -219,9 +219,8 @@ const SystemParametersCard: React.FC = () => {
         )}
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-[160px] gap-2.5">
-            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={22} />
-            <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải cấu hình...</span>
+          <div className="flex justify-center items-center h-[160px]">
+            <LoadingSpinner size="md" label="Đang tải cấu hình..." />
           </div>
         ) : configs.length === 0 ? (
           <div className="px-5 py-10 text-center text-slate-400 text-sm">Chưa có tham số nào trong hệ thống.</div>

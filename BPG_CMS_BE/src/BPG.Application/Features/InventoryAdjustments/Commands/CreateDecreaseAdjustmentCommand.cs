@@ -1,4 +1,5 @@
-using BPG.Application.Common.Models;
+﻿using BPG.Application.Common.Models;
+using BPG.Domain.Constants;
 using FluentValidation;
 using MediatR;
 using System.Collections.Generic;
@@ -30,3 +31,4 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
         }
     }
 }
+

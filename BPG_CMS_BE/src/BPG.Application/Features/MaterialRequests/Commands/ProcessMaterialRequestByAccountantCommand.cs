@@ -14,7 +14,10 @@ using System.Threading.Tasks;
 
 namespace BPG.Application.Features.MaterialRequests.Commands
 {
-    public record ProcessMaterialRequestByAccountantCommand(long RequestId, string? Note) : IRequest<ApiResponse<bool>>;
+    public record ProcessMaterialRequestByAccountantCommand(long RequestId, string? Note)
+        : IRequest<ApiResponse<bool>>
+    {
+    }
 
     public class ProcessMaterialRequestByAccountantCommandHandler : IRequestHandler<ProcessMaterialRequestByAccountantCommand, ApiResponse<bool>>
     {
@@ -136,3 +139,4 @@ namespace BPG.Application.Features.MaterialRequests.Commands
         }
     }
 }
+

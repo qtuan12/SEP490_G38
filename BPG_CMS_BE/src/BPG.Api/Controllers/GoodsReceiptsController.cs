@@ -1,4 +1,6 @@
 using BPG.Application.Features.GoodsReceipts.Commands;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.Features.GoodsReceipts.Queries;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
@@ -14,6 +16,8 @@ namespace BPG.Api.Controllers
         /// Tạo phiếu nhập kho mới từ đơn mua hàng PO.
         /// </summary>
         [HttpPost]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = UserRole.SiteEngineer)]
         public async Task<IActionResult> CreateGoodsReceipt([FromBody] CreateGoodsReceiptCommand command)
         {
             var result = await Mediator.Send(command);
@@ -24,6 +28,7 @@ namespace BPG.Api.Controllers
         /// Lấy danh sách phiếu nhập kho, có lọc theo dự án (ProjectId) và phân trang.
         /// </summary>
         [HttpGet]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetGoodsReceipts([FromQuery] GetGoodsReceiptsQuery query)
         {
             var result = await Mediator.Send(query);
@@ -34,6 +39,8 @@ namespace BPG.Api.Controllers
         /// Lấy thông tin chi tiết của một phiếu nhập kho cụ thể.
         /// </summary>
         [HttpGet("{id:long}")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
+        [Authorize(Roles = RolePolicies.ProjectViewers)]
         public async Task<IActionResult> GetGoodsReceiptDetail(long id)
         {
             var query = new GetGoodsReceiptDetailQuery(id);
@@ -46,6 +53,8 @@ namespace BPG.Api.Controllers
         /// Mở cho mọi Site Engineer hoặc cấp quản lý để thuận tiện điều chỉnh lỗi nhập liệu thông tin.
         /// </summary>
         [HttpPatch("{id:long}/metadata")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = UserRole.SiteEngineer)]
         public async Task<IActionResult> PatchGoodsReceiptMetadata(long id, [FromBody] PatchGoodsReceiptMetadataCommand command)
         {
             if (id != command.ReceiptId)
@@ -61,7 +70,8 @@ namespace BPG.Api.Controllers
         /// Hệ thống sẽ kiểm tra tồn kho trước khi hủy để tránh bị âm kho.
         /// </summary>
         [HttpPost("{id:long}/cancel")]
-        [Authorize(Policy = PolicyNames.RequireManagerOrAbove)]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = UserRole.SiteEngineer)]
         public async Task<IActionResult> CancelGoodsReceipt(long id)
         {
             var command = new CancelGoodsReceiptCommand(id);

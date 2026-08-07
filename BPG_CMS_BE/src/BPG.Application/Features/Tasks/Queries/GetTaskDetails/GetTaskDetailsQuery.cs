@@ -8,7 +8,10 @@ using BPG.Application.DTOs.Tasks;
 
 namespace BPG.Application.Features.Tasks.Queries.GetTaskDetails;
 
-public record GetTaskDetailsQuery(long TaskId) : IRequest<ApiResponse<TaskDetailsDto>>;
+public record GetTaskDetailsQuery(long TaskId)
+    : IRequest<ApiResponse<TaskDetailsDto>>
+{
+}
 
 public class GetTaskDetailsQueryHandler : IRequestHandler<GetTaskDetailsQuery, ApiResponse<TaskDetailsDto>>
 {
@@ -51,12 +54,14 @@ public class GetTaskDetailsQueryHandler : IRequestHandler<GetTaskDetailsQuery, A
                 a.User.FullName,
                 a.User.Email
             )).ToList(),
-            ProgressLogs = task.ProgressLogs.OrderByDescending(p => p.UpdatedAt).Select(p => new TaskProgressLogDto(
+            ProgressLogs = task.ProgressLogs.OrderByDescending(p => p.CreatedAt != default ? p.CreatedAt : (p.UpdatedAt ?? DateTime.UtcNow)).Select(p => new TaskProgressLogDto(
                 p.TaskProgressLogId,
                 p.OldProgress,
                 p.NewProgress,
                 p.UpdateReason,
-                p.UpdatedAt
+                p.UpdatedAt ?? p.CreatedAt,
+                p.CreatedBy,
+                null
             )).ToList(),
             DailyLogs = task.DailyLogs.OrderByDescending(d => d.LogDate).Select(d => new TaskDailyLogDto(
                 d.LogId,
@@ -70,3 +75,4 @@ public class GetTaskDetailsQueryHandler : IRequestHandler<GetTaskDetailsQuery, A
         return ApiResponse<TaskDetailsDto>.SuccessResult(dto);
     }
 }
+

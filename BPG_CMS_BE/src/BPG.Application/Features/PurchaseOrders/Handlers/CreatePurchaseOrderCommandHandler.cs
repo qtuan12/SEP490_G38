@@ -1,4 +1,5 @@
 using BPG.Application.Features.PurchaseOrders.Commands;
+using BPG.Application.Features.PurchaseOrders.Services;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
@@ -37,33 +38,40 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .Include(r => r.Items).ThenInclude(i => i.Material).ThenInclude(m => m!.BaseUnit)
                 .Include(r => r.Phase)
                 .FirstOrDefaultAsync(r => r.RequestId == request.RequestId, cancellationToken)
-                ?? throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
+                ?? throw new NotFoundException("Không tìm thấy yêu cầu vật tư đã chọn.");
 
             if (linkedRequest.Status != MaterialRequestStatus.Approved)
-                throw new BusinessException("ERR_REQUEST_NOT_APPROVED", "Yêu cầu vật tư chưa được duyệt.");
+                throw new BusinessException(ErrorCodes.PoRequestNotApproved, "Yêu cầu vật tư chưa được duyệt.");
 
-            // 1b. Validate ngày PO và hạn giao hàng nằm trong khoảng thời gian giai đoạn (BOQ)
+            // 1b. Validate ngày PO và hạn giao hàng.
+            // Không bắt buộc nằm trong khoảng của giai đoạn: chỉ cần không sớm hơn ngày bắt đầu dự án
+            // và không vượt quá ngày kết thúc giai đoạn (mua trước cho giai đoạn sau là hợp lệ).
             var phase = linkedRequest.Phase;
-            var orderDateOnly = DateOnly.FromDateTime(request.OrderDate.Date);
+            var orderDateOnly = request.OrderDate;
 
-            if (phase.StartDate.HasValue && orderDateOnly < phase.StartDate.Value)
-                throw new BusinessException("ERR_ORDER_DATE_BEFORE_PHASE",
-                    $"Ngày đơn hàng ({orderDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu giai đoạn '{phase.Name}' ({phase.StartDate.Value:dd/MM/yyyy}) trở đi.");
+            var project = await _uow.Repository<Project>().Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId, cancellationToken)
+                ?? throw new NotFoundException("Không tìm thấy dự án của đơn hàng.");
+
+            if (orderDateOnly < project.PlannedStart)
+                throw new BusinessException(ErrorCodes.PoOrderDateBeforeProject,
+                    $"Ngày đơn hàng ({orderDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu dự án '{project.Name}' ({project.PlannedStart:dd/MM/yyyy}) trở đi.");
 
             if (phase.EndDate.HasValue && orderDateOnly > phase.EndDate.Value)
-                throw new BusinessException("ERR_ORDER_DATE_AFTER_PHASE",
+                throw new BusinessException(ErrorCodes.PoOrderDateAfterPhase,
                     $"Ngày đơn hàng ({orderDateOnly:dd/MM/yyyy}) vượt quá ngày kết thúc giai đoạn '{phase.Name}' ({phase.EndDate.Value:dd/MM/yyyy}).");
 
             if (request.ExpectedDeliveryDate.HasValue)
             {
                 var deliveryDate = request.ExpectedDeliveryDate.Value;
 
-                if (phase.StartDate.HasValue && deliveryDate < phase.StartDate.Value)
-                    throw new BusinessException("ERR_DELIVERY_DATE_BEFORE_PHASE",
-                        $"Hạn giao hàng ({deliveryDate:dd/MM/yyyy}) phải từ ngày bắt đầu giai đoạn '{phase.Name}' ({phase.StartDate.Value:dd/MM/yyyy}) trở đi.");
+                if (deliveryDate < project.PlannedStart)
+                    throw new BusinessException(ErrorCodes.PoDeliveryDateBeforeProject,
+                        $"Hạn giao hàng ({deliveryDate:dd/MM/yyyy}) phải từ ngày bắt đầu dự án '{project.Name}' ({project.PlannedStart:dd/MM/yyyy}) trở đi.");
 
                 if (phase.EndDate.HasValue && deliveryDate > phase.EndDate.Value)
-                    throw new BusinessException("ERR_DELIVERY_DATE_AFTER_PHASE",
+                    throw new BusinessException(ErrorCodes.PoDeliveryDateAfterPhase,
                         $"Hạn giao hàng ({deliveryDate:dd/MM/yyyy}) vượt quá ngày kết thúc giai đoạn '{phase.Name}' ({phase.EndDate.Value:dd/MM/yyyy}).");
             }
 
@@ -76,13 +84,14 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .GroupBy(i => i.MaterialId)
                 .ToDictionary(g => g.Key, g => g.First().Material?.Name ?? $"#{g.Key}");
 
-            // Số lượng đã đặt cho yêu cầu này qua các PO còn hiệu lực (không tính PO đã hủy).
-            // PO đã đóng (Closed) chỉ còn giữ chỗ phần ĐÃ NHẬN thực tế — phần chưa nhận được giải phóng
-            // trở lại yêu cầu vật tư để có thể tạo PO khác.
+            // Số lượng đã đặt cho yêu cầu này qua các PO còn hiệu lực (không tính PO đã hủy hoặc bị
+            // Giám đốc từ chối). PO đã đóng (Closed) chỉ còn giữ chỗ phần ĐÃ NHẬN thực tế — phần chưa
+            // nhận được giải phóng trở lại yêu cầu vật tư để có thể tạo PO khác.
             var poItemRows = await _uow.Repository<PurchaseOrderItem>().Query()
                 .AsNoTracking()
                 .Where(pi => pi.PurchaseOrder.RequestId == request.RequestId
-                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled)
+                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
+                          && pi.PurchaseOrder.Status != PurchaseOrderStatus.Rejected)
                 .Select(pi => new { pi.POId, pi.MaterialId, pi.Quantity, POStatus = pi.PurchaseOrder.Status })
                 .ToListAsync(cancellationToken);
 
@@ -114,14 +123,14 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             foreach (var item in request.Items)
             {
                 if (!maxQtyByMaterial.TryGetValue(item.MaterialId, out var requestedQty))
-                    throw new BusinessException("ERR_MATERIAL_NOT_IN_REQUEST",
+                    throw new BusinessException(ErrorCodes.PoMaterialNotInRequest,
                         $"Vật tư (MaterialId={item.MaterialId}) không thuộc yêu cầu vật tư đã chọn.");
 
                 orderedByMaterial.TryGetValue(item.MaterialId, out var alreadyOrdered);
                 var remaining = requestedQty - alreadyOrdered;
 
                 if (item.Quantity > remaining)
-                    throw new BusinessException("ERR_PO_QTY_EXCEEDS_REQUEST",
+                    throw new BusinessException(ErrorCodes.PoQtyExceedsRequest,
                         $"Vật tư '{materialNames[item.MaterialId]}' vượt số lượng yêu cầu. " +
                         $"Đã yêu cầu {requestedQty}, đã đặt {alreadyOrdered} qua các đơn hàng trước, " +
                         $"chỉ còn được đặt tối đa {(remaining < 0 ? 0 : remaining)}.");
@@ -130,75 +139,93 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 var material = reqItem?.Material;
                 if (material?.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
                 {
-                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity,
                         $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng đặt hàng phải là số nguyên.");
                 }
             }
 
-            // 3. Auto-generate or validate PONumber
-            var poNumber = request.PONumber?.Trim();
-            if (string.IsNullOrEmpty(poNumber))
-            {
-                var prefix = $"PO-{request.OrderDate:yyyyMMdd}-";
-                var todayCount = await _uow.Repository<PurchaseOrder>().Query()
-                    .CountAsync(po => po.PONumber.StartsWith(prefix), cancellationToken);
-                poNumber = $"{prefix}{(todayCount + 1):D4}";
-            }
-            else
-            {
-                var exists = await _uow.Repository<PurchaseOrder>().Query()
-                    .AnyAsync(po => po.PONumber == poNumber, cancellationToken);
-                if (exists)
-                    throw new BusinessException("ERR_PO_NUMBER_EXISTS", $"Số đơn hàng '{poNumber}' đã tồn tại trong hệ thống.");
-            }
-
-            // 4. Create PurchaseOrder
+            // 3. Sinh mã PO và ghi đơn hàng trong một transaction.
+            // Mã tự sinh dựa trên số thứ tự lớn nhất trong ngày nên hai người tạo cùng lúc sẽ đọc
+            // ra cùng một số. Khóa theo ngày bằng sp_getapplock để tuần tự hóa đúng nhóm đó —
+            // cùng cách CreateDailyLogCommandHandler chống tranh chấp tiến độ.
             var totalAmount = request.Items.Sum(i => i.Quantity * i.UnitPrice);
-            var po = new PurchaseOrder
+            var manualPoNumber = request.PONumber?.Trim();
+            PurchaseOrder po;
+
+            await _uow.BeginTransactionAsync(cancellationToken);
+            try
             {
-                PONumber = poNumber,
-                RequestId = request.RequestId,
-                ProjectId = request.ProjectId,
-                SupplierId = request.SupplierId,
-                OrderDate = request.OrderDate,
-                ExpectedDeliveryDate = request.ExpectedDeliveryDate,
-                DeliveryAddress = request.DeliveryAddress?.Trim(),
-                Notes = request.Notes?.Trim(),
-                TotalAmount = totalAmount,
-                Status = PurchaseOrderStatus.Sent,
-            };
+                string poNumber;
+                if (string.IsNullOrEmpty(manualPoNumber))
+                {
+                    var lockResource = PoNumberGenerator.LockResource(request.OrderDate);
+                    await _uow.ExecuteSqlAsync(
+                        $"EXEC sp_getapplock @Resource = {lockResource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction'",
+                        cancellationToken);
 
-            await _uow.Repository<PurchaseOrder>().AddAsync(po, cancellationToken);
-            await _uow.SaveChangesAsync(cancellationToken);
+                    poNumber = await PoNumberGenerator.NextAsync(_uow, request.OrderDate, cancellationToken);
+                }
+                else
+                {
+                    if (await PoNumberGenerator.ExistsAsync(_uow, manualPoNumber, cancellationToken))
+                        throw new BusinessException(ErrorCodes.PoNumberExists, $"Số đơn hàng '{manualPoNumber}' đã tồn tại trong hệ thống.");
 
-            // 5. Create PO items
-            var poItems = request.Items.Select(i => new PurchaseOrderItem
+                    poNumber = manualPoNumber;
+                }
+
+                po = new PurchaseOrder
+                {
+                    PONumber = poNumber,
+                    RequestId = request.RequestId,
+                    ProjectId = request.ProjectId,
+                    SupplierId = request.SupplierId,
+                    OrderDate = request.OrderDate.ToDateTime(TimeOnly.MinValue),
+                    ExpectedDeliveryDate = request.ExpectedDeliveryDate,
+                    DeliveryAddress = request.DeliveryAddress?.Trim(),
+                    Notes = request.Notes?.Trim(),
+                    TotalAmount = totalAmount,
+                    // Mọi đơn hàng đều phải qua Giám đốc duyệt trước khi gửi nhà cung cấp / nhập kho.
+                    Status = PurchaseOrderStatus.PendingApproval,
+                };
+
+                await _uow.Repository<PurchaseOrder>().AddAsync(po, cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+
+                // 4. Create PO items
+                var poItems = request.Items.Select(i => new PurchaseOrderItem
+                {
+                    POId = po.POId,
+                    MaterialId = i.MaterialId,
+                    UnitId = i.UnitId,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    LineTotal = i.Quantity * i.UnitPrice,
+                    ConversionRate = i.ConversionRate,
+                    Notes = i.Notes?.Trim()
+                }).ToList();
+
+                await _uow.Repository<PurchaseOrderItem>().AddRangeAsync(poItems, cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+
+                await _uow.CommitTransactionAsync(cancellationToken);
+            }
+            catch
             {
-                POId = po.POId,
-                MaterialId = i.MaterialId,
-                UnitId = i.UnitId,
-                Quantity = i.Quantity,
-                UnitPrice = i.UnitPrice,
-                LineTotal = i.Quantity * i.UnitPrice,
-                ConversionRate = i.ConversionRate,
-                Notes = i.Notes?.Trim()
-            }).ToList();
-
-            await _uow.Repository<PurchaseOrderItem>().AddRangeAsync(poItems, cancellationToken);
-
-            await _uow.SaveChangesAsync(cancellationToken);
+                await _uow.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
 
             await _realtimeSender.SendToGroupAsync(
                 $"Project_{request.ProjectId}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
 
-            // Thông báo cho những người liên quan: kế toán (theo dõi thanh toán) và trưởng dự án (theo dõi vật tư)
+            // Giám đốc là người phải hành động tiếp theo (duyệt/từ chối), trưởng dự án được báo để theo dõi vật tư.
             var currentUserId = _currentUserService.UserId;
-            var notiTitle = "Đơn hàng mới được tạo";
-            var notiContent = $"Đơn hàng {po.PONumber} vừa được tạo cho giai đoạn '{phase.Name}'. Tổng giá trị: {totalAmount:N0}đ.";
+            var notiTitle = "Đơn hàng mới chờ duyệt";
+            var notiContent = $"Đơn hàng {po.PONumber} cho giai đoạn '{phase.Name}' đang chờ Giám đốc duyệt. Tổng giá trị: {totalAmount:N0}đ.";
 
             await _notificationService.SendNotificationToRoleAsync(
-                UserRole.Accountant, notiTitle, notiContent,
-                NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
+                UserRole.Director, notiTitle, notiContent,
+                NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
 
             var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
                 .Where(m => m.ProjectId == request.ProjectId && m.IsLeader && m.UserId != currentUserId)
@@ -208,7 +235,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             if (projectLeaderId > 0)
                 await _notificationService.SendNotificationAsync(
                     projectLeaderId, notiTitle, notiContent,
-                    NotificationType.Procurement, NotificationReferenceType.PurchaseOrder, po.POId, cancellationToken);
+                    NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
 
             return po.POId;
         }

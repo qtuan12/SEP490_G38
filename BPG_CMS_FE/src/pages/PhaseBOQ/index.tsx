@@ -9,10 +9,11 @@ import { Loader2, Plus, Trash2, ArrowLeft, ClipboardList, AlertTriangle } from '
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import type { WBSPhase, Project } from '../../types/common';
-import { Button, SearchSelect } from '../../components/ui';
+import { Button, SearchSelect, TableLoader } from '../../components/ui';
 import { isDiscreteUnit } from '../../utils/unitHelpers';
-import { useAuth } from '../../context/AuthContext';
-import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import { RealtimeEntities, RealtimeEntityGroups } from '../../constants/realtimeEntities';
 
 const phaseBOQSchema = z.object({
   materials: z.array(
@@ -54,8 +55,8 @@ export const PhaseBOQ: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const canEdit = user && ['admin', 'technicalmanager'].includes(user.role);
+  const { isTechnicalManager } = useProjectAccess(projectId);
+  const canEdit = isTechnicalManager;
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
@@ -71,15 +72,17 @@ export const PhaseBOQ: React.FC = () => {
     queryKey: ['materialCatalogList'],
     queryFn: () => materialService.getMaterials({ pageNumber: 1, pageSize: 1000 })
   });
-  const materialList = materialsData?.items || [];
+  const materialList = React.useMemo(() => materialsData?.items ?? [], [materialsData?.items]);
 
-  const { register, control, handleSubmit, reset, setValue, watch, trigger, formState: { errors } } = useForm<PhaseBOQForm>({
+  const { register, control, handleSubmit, reset, setValue, watch, trigger, formState: { errors, isDirty } } = useForm<PhaseBOQForm>({
     resolver: zodResolver(phaseBOQSchema),
     mode: 'onTouched',
     defaultValues: {
       materials: [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }]
     }
   });
+  const isDirtyRef = React.useRef(isDirty);
+  isDirtyRef.current = isDirty;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -88,9 +91,9 @@ export const PhaseBOQ: React.FC = () => {
 
   const watchedMaterials = watch('materials') || [];
 
-  const loadPhaseData = React.useCallback(async () => {
+  const loadPhaseData = React.useCallback(async (silent = false) => {
     if (!projectId || !phaseId) return;
-    setLoadingPhase(true);
+    if (!silent) setLoadingPhase(true);
     try {
       const pList = await projectService.getPhases(projectId);
       const currentPhase = pList.find(p => p.id === phaseId);
@@ -104,9 +107,9 @@ export const PhaseBOQ: React.FC = () => {
       setHasActiveMRs(phaseHasActiveMRs);
     } catch (err) {
       console.error('Error loading BOQ data:', err);
-      toast.error('Lỗi khi tải thông tin Giai đoạn.');
+      if (!silent) toast.error('Lỗi khi tải thông tin Giai đoạn.');
     } finally {
-      setLoadingPhase(false);
+      if (!silent) setLoadingPhase(false);
     }
   }, [projectId, phaseId]);
 
@@ -114,31 +117,42 @@ export const PhaseBOQ: React.FC = () => {
     loadPhaseData();
   }, [loadPhaseData]);
 
-  // Lắng nghe thay đổi từ SignalR
-  useSignalREvent('ReceiveNotification', (noti: any) => {
-    // Reload khi có thông báo liên quan tới MaterialRequest hoặc Project (không bật toast lặp)
-    if (noti?.referenceType === 'MaterialRequest' || noti?.referenceType === 'Project' || noti?.referenceType?.includes('/materialrequests') || noti?.referenceType?.includes('/boq')) {
-      loadPhaseData();
-    }
-  });
+  useRealtimeDataRefresh(async () => {
+    if (isDirty) return;
+    await loadPhaseData(true);
+  }, [...RealtimeEntities.projects, ...RealtimeEntityGroups.projectMaterials]);
 
-  // Map initial values from phase.materials using material names and pre-load their units
+  // Chỉ đồng bộ dữ liệu phase vào form khi phase thay đổi và người dùng không có
+  // chỉnh sửa chưa lưu. Dùng ref để reset(savedForm) sau khi lưu không kích hoạt
+  // effect này lần nữa với dữ liệu phase cũ.
+  useEffect(() => {
+    if (isDirtyRef.current || !phase) return;
+
+    const initialMaterials = phase.materials && phase.materials.length > 0
+      ? phase.materials.map(it => ({
+        materialId: it.materialId,
+        quantity: it.quantity,
+        unitId: it.unitId,
+        unit: it.unit
+      }))
+      : [];
+
+    reset({ materials: initialMaterials });
+  }, [phase, reset]);
+
+  // Material catalog có thể refetch realtime; chỉ cập nhật lựa chọn đơn vị,
+  // không reset giá trị form.
   useEffect(() => {
     if (phase && materialList.length > 0) {
       const initialMaterials = phase.materials && phase.materials.length > 0
-        ? phase.materials.map(it => {
-          return {
-            materialId: it.materialId,
-            quantity: it.quantity,
-            unitId: it.unitId,
-            unit: it.unit
-          };
-        })
+        ? phase.materials.map(it => ({
+          materialId: it.materialId,
+          quantity: it.quantity,
+          unitId: it.unitId,
+          unit: it.unit
+        }))
         : [];
 
-      reset({ materials: initialMaterials });
-
-      // Fetch units options for each material
       initialMaterials.forEach(async (item) => {
         if (item.materialId > 0) {
           const matchMat = materialList.find(m => m.materialId === item.materialId);
@@ -157,13 +171,13 @@ export const PhaseBOQ: React.FC = () => {
         }
       });
     }
-  }, [phase, reset, materialList]);
+  }, [phase, materialList]);
 
   const handleMaterialChange = async (idx: number, selectedId: number) => {
     const mat = materialList.find(m => m.materialId === selectedId);
     if (mat) {
-      setValue(`materials.${idx}.unitId` as any, mat.baseUnitId);
-      setValue(`materials.${idx}.unit` as any, mat.baseUnitName || 'bao');
+      setValue(`materials.${idx}.unitId` as any, mat.baseUnitId, { shouldDirty: true });
+      setValue(`materials.${idx}.unit` as any, mat.baseUnitName || 'bao', { shouldDirty: true });
 
       try {
         const convs = await materialService.getConversions(selectedId);
@@ -177,8 +191,8 @@ export const PhaseBOQ: React.FC = () => {
         setRowConversions(prev => ({ ...prev, [selectedId]: [{ unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' }] }));
       }
     } else {
-      setValue(`materials.${idx}.unitId` as any, 0);
-      setValue(`materials.${idx}.unit` as any, '');
+      setValue(`materials.${idx}.unitId` as any, 0, { shouldDirty: true });
+      setValue(`materials.${idx}.unit` as any, '', { shouldDirty: true });
     }
   };
 
@@ -192,10 +206,12 @@ export const PhaseBOQ: React.FC = () => {
       }));
       return projectService.updatePhaseMaterials(projectId, phase.id, payload);
     },
-    onSuccess: async () => {
+    onSuccess: async (_result, savedForm) => {
+      // Đánh dấu dữ liệu vừa lưu là trạng thái gốc để các cập nhật realtime tiếp theo
+      // không bị chặn bởi guard bảo vệ thay đổi chưa lưu.
+      reset(savedForm);
       const msg = `Đã cập nhật Bảng vật tư cho Giai đoạn: ${phase?.name}`;
-      toast.success(msg);
-      queryClient.invalidateQueries();
+      console.log(msg);
 
       // Reload phase data to display updated values in place
       if (projectId && phaseId) {
@@ -204,6 +220,9 @@ export const PhaseBOQ: React.FC = () => {
           const currentPhase = pList.find(p => p.id === phaseId);
           if (currentPhase) {
             setPhase(currentPhase);
+            // Chỉ refresh query sau khi phase đã có dữ liệu mới, tránh material
+            // catalog làm effect reset form về BOQ cũ ngay sau khi lưu.
+            await queryClient.invalidateQueries();
           }
         } catch (err) {
           console.error('Lỗi khi tải lại dữ liệu giai đoạn:', err);
@@ -221,10 +240,7 @@ export const PhaseBOQ: React.FC = () => {
 
   if (loadingPhase || loadingMaterials) {
     return (
-      <div className="flex flex-col justify-center items-center h-[350px] gap-3">
-        <Loader2 size={36} className="animate-spin text-[hsl(var(--primary))]" />
-        <span className="text-sm text-[hsl(var(--text-secondary))]">Đang tải thông tin định mức vật tư giai đoạn...</span>
-      </div>
+      <TableLoader isTable={false} message="Đang tải thông tin định mức vật tư giai đoạn..." minHeight="350px" />
     );
   }
 
@@ -342,7 +358,7 @@ export const PhaseBOQ: React.FC = () => {
                           disabled={isReadOnly}
                           onChange={async (val) => {
                             const selectedId = parseInt(val) || 0;
-                            setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true });
+                            setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true, shouldDirty: true });
                             handleMaterialChange(idx, selectedId);
                             await trigger('materials');
                           }}
@@ -377,11 +393,12 @@ export const PhaseBOQ: React.FC = () => {
                           disabled={isReadOnly}
                           onChange={(e) => {
                             const uId = parseInt(e.target.value);
+                            setValue(`materials.${idx}.unitId`, uId, { shouldValidate: true, shouldDirty: true });
                             const currentMatId = watchedMaterials[idx]?.materialId;
                             const opts = (currentMatId && rowConversions[currentMatId]) || [];
                             const opt = opts.find(o => o.unitId === uId);
                             if (opt) {
-                              setValue(`materials.${idx}.unit` as any, opt.unitName);
+                              setValue(`materials.${idx}.unit` as any, opt.unitName, { shouldDirty: true });
                             }
                           }}
                           className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.unitId ? 'border-red-500' : 'border-slate-200'} ${isReadOnly ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 pr-8`}

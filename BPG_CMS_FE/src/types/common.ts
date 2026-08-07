@@ -30,12 +30,19 @@ export interface ProjectMember {
   isLeader: boolean; // crown icon 👑 if true
 }
 
+export interface ProjectAccess {
+  projectId: number;
+  isMember: boolean;
+  isLeader: boolean;
+}
+
 export interface PhaseMaterialItem {
   materialId: number;
   name: string;
   quantity: number;
   unitId: number;
   unit: string;
+  conversionRate?: number;
 }
 
 export interface AcceptanceRecord {
@@ -125,6 +132,7 @@ export interface MaterialRequestItem {
   name: string;
   quantity: number;
   unit: string;
+  conversionRate?: number;
 }
 
 export interface MaterialRequest {
@@ -224,7 +232,9 @@ export interface TaskProgressLog {
   oldProgress: number;
   newProgress: number;
   updateReason?: string;
+  source?: 'Direct' | 'DailyLog' | 'Auto' | string;
   updatedAt: string; // ISO datetime string
+  updatedByName?: string;
 }
 
 export interface AcceptanceData {

@@ -4,12 +4,17 @@ import { materialService } from '../../../services/materialService';
 import { materialCategoryService } from '../../../services/materialCategoryService';
 import { MaterialFormModal } from './modals/MaterialFormModal';
 import { MaterialConversionDrawer } from './drawers/MaterialConversionDrawer';
-import { ConfirmDialog, Button, Select, DataTable, Pagination } from '../../../components/ui';
+import { ConfirmDialog, Button, Select, DataTable, Pagination, TableLoader } from '../../../components/ui';
 import type { MaterialCatalog } from '../../../types/material';
-import { Search, Plus, Edit2, Trash2, AlertCircle, Loader2, CheckCircle2, Package, ArrowRightLeft } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, AlertCircle, Package, ArrowRightLeft } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../../context/AuthContext';
+import { RoleGroup, hasAnyRole } from '../../../auth/roles';
 
 export const MaterialManagement: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canManageMasterData = hasAnyRole(user?.roles, RoleGroup.MasterData);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,7 +29,6 @@ export const MaterialManagement: React.FC = () => {
 
   // State
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialCatalog | null>(null);
 
   // Categories Dropdown
@@ -46,20 +50,19 @@ export const MaterialManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(null), 3000);
+    console.log(message);
   };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => materialService.deleteMaterial(id),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['materials'] });
       setIsDeleteOpen(false);
-      showSuccess(`Đã xóa vật tư ${selectedMaterial?.name} thành công.`);
+      showSuccess(result.message || `Đã xóa vật tư ${selectedMaterial?.name} thành công.`);
       setSelectedMaterial(null);
     },
     onError: (err: any) => {
-      setError(err.message || 'Không thể xóa vật tư.');
+      toast.error(err.message || 'Không thể xóa vật tư.');
       setIsDeleteOpen(false);
     },
   });
@@ -111,39 +114,42 @@ export const MaterialManagement: React.FC = () => {
       header: 'Quy cách',
       render: (m: MaterialCatalog) => <span className="text-[hsl(var(--text-secondary))] text-xs">{m.specification || '-'}</span>,
     },
-    {
+    ...(canManageMasterData ? [{
       key: 'actions',
       header: 'Hành động',
-      render: (m: MaterialCatalog) => (
+      render: (mat: MaterialCatalog) => (
         <div className="flex gap-2 justify-end">
           <Button
             variant="secondary"
             title="Quy đổi đơn vị"
-            onClick={() => openConversionDrawer(m)}
-            className="px-3 py-1.5 h-auto bg-[hsl(var(--success-glow))] text-emerald-800 border border-solid border-[hsl(var(--success))]/0.3"
+            onClick={() => openConversionDrawer(mat)}
+            className="p-2 h-auto"
           >
-            <ArrowRightLeft size={14} className="mr-1" /> Quy đổi
+            <ArrowRightLeft size={15} className="text-[hsl(var(--primary))]" />
           </Button>
-          <Button variant="secondary" title="Chỉnh sửa" onClick={() => openEditModal(m)} className="p-2 h-auto">
+          <Button
+            variant="secondary"
+            title="Chỉnh sửa vật tư"
+            onClick={() => openEditModal(mat)}
+            className="p-2 h-auto"
+          >
             <Edit2 size={15} className="text-[hsl(var(--primary-hover))]" />
           </Button>
-          <Button variant="secondary" title="Xóa" onClick={() => openDeleteModal(m)} className="p-2 h-auto">
+          <Button
+            variant="secondary"
+            title="Xóa vật tư"
+            onClick={() => openDeleteModal(mat)}
+            className="p-2 h-auto"
+          >
             <Trash2 size={15} className="text-[hsl(var(--danger))]" />
           </Button>
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (
     <div className="flex flex-col gap-6">
-      {success && (
-        <div className="flex items-center gap-2.5 bg-[hsl(var(--success-glow))] border border-solid border-[hsl(var(--success))]/0.3 rounded px-4 py-3 text-emerald-800 text-sm font-medium">
-          <CheckCircle2 size={18} className="text-[hsl(var(--success))] shrink-0" />
-          <span>{success}</span>
-        </div>
-      )}
-
       {(error || isError) && (
         <div className="flex items-center gap-2.5 bg-[hsl(var(--danger-glow))] border border-solid border-[hsl(var(--danger))]/0.3 rounded px-4 py-3 text-rose-800 text-sm font-medium">
           <AlertCircle size={18} className="text-[hsl(var(--danger))] shrink-0" />
@@ -176,17 +182,16 @@ export const MaterialManagement: React.FC = () => {
             </div>
           </div>
 
-          <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
-            <Plus size={18} />
-            <span>Thêm Vật tư</span>
-          </Button>
+          {canManageMasterData && (
+            <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
+              <Plus size={18} />
+              <span>Thêm Vật tư</span>
+            </Button>
+          )}
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-[200px] gap-2.5">
-            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={24} />
-            <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải dữ liệu...</span>
-          </div>
+          <TableLoader isTable={false} message="Đang tải dữ liệu vật tư..." minHeight="200px" />
         ) : (
           <div className="flex flex-col gap-4">
             <DataTable

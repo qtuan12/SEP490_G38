@@ -49,28 +49,17 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với phiếu nhập kho này.");
             }
 
-            // 2. Kiểm tra quyền: Chỉ Kế toán, Trưởng phòng kỹ thuật, Giám đốc hoặc Trưởng dự án mới có quyền sửa metadata
-            bool isOfficeRole = _currentUserService.IsInAnyRole(
-                BPG.Domain.Constants.UserRole.Accountant,
-                BPG.Domain.Constants.UserRole.TechnicalManager,
-                BPG.Domain.Constants.UserRole.Director);
-
-            if (!isOfficeRole)
-            {
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
-
-                if (!isLeader)
-                {
-                    throw new ForbiddenException("Chỉ Kế toán, Quản lý Kỹ thuật, Giám đốc hoặc Trưởng dự án mới có quyền chỉnh sửa thông tin chứng từ.");
-                }
-            }
-
             // 3. Kiểm tra trạng thái dự án
             if (project.Status != ProjectStatus.InProgress)
             {
                 throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án liên kết không còn hoạt động, không thể chỉnh sửa thông tin.");
             }
+
+            var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                cancellationToken);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được sửa thông tin phiếu nhập kho.");
 
             // 3. Thực hiện cập nhật trong Transaction
             await _uow.BeginTransactionAsync(cancellationToken);

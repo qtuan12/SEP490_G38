@@ -27,5 +27,12 @@ namespace BPG.Application.DTOs.PurchaseOrders
         public decimal OrderedQuantity { get; set; }
         /// <summary>Số lượng còn được phép đặt = Quantity - OrderedQuantity.</summary>
         public decimal RemainingQuantity { get; set; }
+        /// <summary>
+        /// Đơn vị cơ sở của vật tư có yêu cầu số lượng nguyên hay không (Material.BaseUnit.IsDiscrete).
+        /// FE dùng cờ này để chặn nhập số lẻ ngay tại ô nhập, khớp đúng rule của BE khi tạo PO.
+        /// </summary>
+        public bool IsDiscreteUnit { get; set; }
+        /// <summary>Tên đơn vị cơ sở dùng trong message khi số lượng không nguyên.</summary>
+        public string BaseUnitName { get; set; } = string.Empty;
     }
 }

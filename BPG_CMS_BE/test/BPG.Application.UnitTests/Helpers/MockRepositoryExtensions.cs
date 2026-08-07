@@ -25,6 +25,10 @@ public static class MockRepositoryExtensions
             .ReturnsAsync((Expression<Func<T, bool>> predicate, CancellationToken ct) =>
                 data.AsQueryable().FirstOrDefault(predicate));
 
+        mock.Setup(r => r.AnyAsync(It.IsAny<Expression<Func<T, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<T, bool>> predicate, CancellationToken ct) =>
+                data.AsQueryable().Any(predicate));
+
         return mock;
     }
 }

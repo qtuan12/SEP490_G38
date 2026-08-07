@@ -1,27 +1,43 @@
 using BPG.Application.IRepositories;
+using BPG.Application.IServices;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.Reports.Queries.GetInventoryLedgerReport;
 
-public record GetInventoryLedgerReportQuery(long ProjectId) : IRequest<ApiResponse<InventoryLedgerReportDto>>;
+public record GetInventoryLedgerReportQuery(long ProjectId)
+    : IRequest<ApiResponse<InventoryLedgerReportDto>>
+{
+}
 
 public class GetInventoryLedgerReportQueryHandler
     : IRequestHandler<GetInventoryLedgerReportQuery, ApiResponse<InventoryLedgerReportDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetInventoryLedgerReportQueryHandler(IUnitOfWork unitOfWork)
+    public GetInventoryLedgerReportQueryHandler(
+        IUnitOfWork unitOfWork,
+        IProjectAccessService projectAccessService)
     {
         _unitOfWork = unitOfWork;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<ApiResponse<InventoryLedgerReportDto>> Handle(
         GetInventoryLedgerReportQuery request, CancellationToken cancellationToken)
     {
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+        if (request.ProjectId > 0 && !accessibleProjectIds.Contains(request.ProjectId))
+        {
+            throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền truy cập báo cáo của dự án này.");
+        }
+
         var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
             .Query()
             .Include(i => i.Material)
@@ -88,3 +104,4 @@ public class GetInventoryLedgerReportQueryHandler
         return ApiResponse<InventoryLedgerReportDto>.SuccessResult(dto);
     }
 }
+

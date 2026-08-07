@@ -1,8 +1,6 @@
 // Force IDE TS Server to re-parse this file
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../context/AuthContext';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
-import { projectService } from '../../../services/projectService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import { Button, Badge, Pagination } from '../../../components/ui';
 import { Plus, Minus, CheckCircle, XCircle, Clock, Search } from 'lucide-react';
@@ -11,35 +9,46 @@ import { CreateDecreaseAdjustmentModal } from './CreateDecreaseAdjustmentModal';
 import { ReviewAdjustmentModal } from './ReviewAdjustmentModal';
 import { useNotification } from '../../../context/NotificationContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
+
+import toast from 'react-hot-toast';
+
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../../constants/realtimeEntities';
+
+const INVENTORY_ADJUSTMENT_REALTIME_ENTITIES = RealtimeEntities.inventory.filter(
+  entity => entity === 'InventoryAdjustment' || entity === 'AdjustmentItem',
+);
 
 interface AdjustmentListProps {
   projectId: number;
 }
 
 export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => {
-  const { user } = useAuth();
+  const { isProjectLeader, canManageAccounting, canApprove } = useProjectAccess(projectId > 0 ? projectId : null);
+
   const [data, setData] = useState<InventoryAdjustmentDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const { connection } = useNotification();
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isProjectLeader, setIsProjectLeader] = useState(false);
 
   // Modals state
   const [isIncreaseOpen, setIsIncreaseOpen] = useState(false);
   const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
   const [reviewId, setReviewId] = useState<number | null>(null);
 
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await inventoryAdjustmentService.getAdjustments(projectId, {
         pageNumber: page,
@@ -53,7 +62,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -65,34 +74,13 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     return () => clearTimeout(timeout);
   }, [projectId, page, pageSize, typeFilter, statusFilter, searchTerm]);
 
-  useEffect(() => {
-    if (projectId === null || projectId === undefined || projectId <= 0) return;
-    const checkLeader = async () => {
-      if (!user) return;
-      if (user.role === 'admin') {
-        setIsProjectLeader(true);
-        return;
-      }
-      try {
-        const members = await projectService.getMembers(projectId.toString());
-        const me = members.find(m => m.userId === user.id?.toString() || m.userId === user.id);
-        if (me && me.isLeader) {
-          setIsProjectLeader(true);
-        } else {
-          setIsProjectLeader(false);
-        }
-      } catch (err) {
-        console.error('Failed to check leader role:', err);
-      }
-    };
-    checkLeader();
-  }, [projectId, user]);
-
   // Tham gia SignalR group của dự án (hoặc group chung Project_0 nếu projectId = 0)
   useEffect(() => {
     if (!connection || projectId === null || projectId === undefined || projectId < 0) return;
+    let active = true;
 
     const joinGroup = () => {
+      if (!active || connection.state !== 'Connected') return;
       connection.invoke('JoinProjectGroup', Number(projectId))
         .catch((e) => console.error(`[SignalR] JoinProjectGroup error:`, e));
     };
@@ -104,34 +92,52 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     connection.onreconnected(joinGroup);
 
     return () => {
+      active = false;
       if (connection.state === 'Connected') {
         connection.invoke('LeaveProjectGroup', Number(projectId)).catch(console.error);
       }
     };
   }, [connection, projectId]);
 
-  useSignalREvent('InventoryAdjustmentCreated', () => {
-    loadData();
-  });
+  const scheduleRealtimeRefresh = () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      void loadData(false);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  };
 
-  useSignalREvent('InventoryAdjustmentUpdated', () => {
-    loadData();
-  });
+  useEffect(() => () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, [projectId, page, pageSize, typeFilter, statusFilter, searchTerm]);
+
+  useSignalREvent('InventoryAdjustmentCreated', scheduleRealtimeRefresh);
+  useSignalREvent('InventoryAdjustmentUpdated', scheduleRealtimeRefresh);
+
+  // Covers inventory/incident writes that do not emit the legacy named event.
+  // loadData only replaces the table rows, so any open review/create modal stays open.
+  useRealtimeDataRefresh(
+    scheduleRealtimeRefresh,
+    INVENTORY_ADJUSTMENT_REALTIME_ENTITIES,
+    0,
+  );
 
   const handleSuccess = (msg?: string) => {
     setIsIncreaseOpen(false);
     setIsDecreaseOpen(false);
     setReviewId(null);
     if (msg) {
-      setSuccess(msg);
-      setTimeout(() => setSuccess(null), 3000);
+      console.log(msg);
     }
-    loadData();
+    scheduleRealtimeRefresh();
   };
 
   const handleError = (msg: string) => {
-    setError(msg);
-    setTimeout(() => setError(null), 4000);
+    toast.error(msg);
   };
 
   const getStatusBadge = (status: string) => {
@@ -149,21 +155,15 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     return <span>{type}</span>;
   };
 
-  const canCreateIncrease = projectId > 0 && (isProjectLeader || user?.role === 'admin');
-  const canCreateDecrease = projectId > 0 && (user?.role === 'accountant' || user?.role === 'admin');
+  const canCreateIncrease =
+    projectId > 0 &&
+    isProjectLeader;
+  const canCreateDecrease =
+    projectId > 0 &&
+    canManageAccounting;
 
   return (
     <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl shadow-sm overflow-hidden flex flex-col">
-      {success && (
-        <div className="m-4 mb-0 animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--success-glow))] border border-[hsl(var(--success)/0.2)] rounded-sm text-[hsl(142_70%_30%)] text-[0.85rem]">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="m-4 mb-0 animate-fade-in py-2.5 px-3.5 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-sm text-[hsl(346_84%_35%)] text-[0.85rem]">
-          {error}
-        </div>
-      )}
       <div className="p-4 border-b border-[hsl(var(--border))] flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div className="flex flex-col md:flex-row gap-2 w-full lg:w-auto">
           <div className="relative">
@@ -245,7 +245,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
                   <td className="px-4 py-3">{item.approverName || '-'}</td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" size="sm" onClick={() => setReviewId(item.adjustmentId)}>
-                      {item.status === 'Pending' && (user?.role === 'director' || user?.role === 'admin') ? 'Chi tiết' : 'Xem chi tiết'}
+                      {item.status === 'Pending' && canApprove ? 'Chi tiết' : 'Xem chi tiết'}
                     </Button>
                   </td>
                 </tr>
@@ -267,7 +267,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <CreateIncreaseAdjustmentModal
           isOpen={isIncreaseOpen}
           onClose={() => setIsIncreaseOpen(false)}
-          onSuccess={() => handleSuccess('Tạo phiếu tăng thành công.')}
+          onSuccess={(message) => handleSuccess(message || 'Đã tạo phiếu tăng tồn. Phiếu đang chờ Trưởng phòng kỹ thuật phê duyệt.')}
           onError={handleError}
           projectId={projectId}
         />
@@ -277,7 +277,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <CreateDecreaseAdjustmentModal
           isOpen={isDecreaseOpen}
           onClose={() => setIsDecreaseOpen(false)}
-          onSuccess={handleSuccess}
+          onSuccess={(message) => handleSuccess(message || 'Đã tạo phiếu giảm tồn. Phiếu đang chờ Giám đốc phê duyệt.')}
           onError={handleError}
           projectId={projectId}
         />
@@ -287,7 +287,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <ReviewAdjustmentModal
           isOpen={reviewId !== null}
           onClose={() => setReviewId(null)}
-          onSuccess={() => handleSuccess('Duyệt phiếu thành công.')}
+          onSuccess={(approved, message) => handleSuccess(message || (approved ? 'Đã duyệt phiếu điều chỉnh tồn. Tồn kho đã được cập nhật.' : 'Đã từ chối phiếu điều chỉnh tồn.'))}
           onError={handleError}
           adjustmentId={reviewId}
           adjustmentData={data.find(x => x.adjustmentId === reviewId)}

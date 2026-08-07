@@ -1,4 +1,7 @@
 using BPG.Application.Features.SystemConfigs;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
+using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,6 +14,7 @@ namespace BPG.Api.Controllers
         /// Lấy danh sách toàn bộ cấu hình hệ thống.
         /// </summary>
         [HttpGet]
+        [Authorize(Roles = RolePolicies.Admin)]
         public async Task<IActionResult> GetSystemConfigs(CancellationToken ct)
         {
             var result = await Mediator.Send(new GetSystemConfigsQuery(), ct);
@@ -21,7 +25,8 @@ namespace BPG.Api.Controllers
         /// Admin cập nhật giá trị một tham số cấu hình.
         /// </summary>
         [HttpPut("{key}")]
-        [Authorize(Roles = "Admin")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = RolePolicies.Admin)]
         public async Task<IActionResult> UpdateSystemConfig(string key, [FromBody] UpdateConfigBody body, CancellationToken ct)
         {
             await Mediator.Send(new UpdateSystemConfigCommand { ConfigKey = key, ConfigValue = body.ConfigValue }, ct);
@@ -43,7 +48,8 @@ namespace BPG.Api.Controllers
         /// Admin cập nhật tên và logo công ty.
         /// </summary>
         [HttpPut("company")]
-        [Authorize(Roles = "Admin")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = RolePolicies.Admin)]
         public async Task<IActionResult> UpdateCompanySettings([FromBody] UpdateCompanySettingsCommand command, CancellationToken ct)
         {
             await Mediator.Send(command, ct);

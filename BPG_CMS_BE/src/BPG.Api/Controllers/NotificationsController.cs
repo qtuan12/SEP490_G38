@@ -1,4 +1,6 @@
 using BPG.Application.Common.Models;
+using Microsoft.AspNetCore.RateLimiting;
+using BPG.Api.Configuration;
 using BPG.Application.DTOs.Notifications;
 using BPG.Application.Features.Notifications.Commands;
 using BPG.Application.Features.Notifications.Queries;
@@ -33,6 +35,7 @@ namespace BPG.Api.Controllers
         /// Đánh dấu một hoặc tất cả thông báo của người dùng hiện tại là đã đọc.
         /// </summary>
         [HttpPost("mark-read")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
         public async Task<IActionResult> MarkAsRead([FromBody] MarkNotificationRequest request)
         {
             var command = new MarkNotificationAsReadCommand(

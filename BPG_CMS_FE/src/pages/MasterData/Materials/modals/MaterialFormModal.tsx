@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,6 +30,7 @@ interface MaterialFormModalProps {
 export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, onClose, material, onSuccess }) => {
   const { withLoading } = useLoading();
   const queryClient = useQueryClient();
+  const initializedFormKeyRef = useRef<string | null>(null);
 
   // Load dropdown data (we can use page 1, size 1000 for simplicity in master data)
   const { data: categoriesData, isLoading: isLoadingCategories } = useQuery({
@@ -50,7 +51,7 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
     reset,
     setValue,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
     defaultValues: {
@@ -63,6 +64,14 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
   });
 
   useEffect(() => {
+    if (!isOpen) {
+      initializedFormKeyRef.current = null;
+      return;
+    }
+
+    const formKey = material ? `edit:${material.materialId}` : 'create';
+    if (initializedFormKeyRef.current === formKey && isDirty) return;
+
     if (isOpen) {
       if (material) {
         reset({
@@ -81,8 +90,9 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
           specification: '',
         });
       }
+      initializedFormKeyRef.current = formKey;
     }
-  }, [isOpen, material, reset]);
+  }, [isOpen, material, reset, isDirty]);
 
   const mutation = useMutation({
     mutationFn: async (data: MaterialFormData) => {
@@ -92,9 +102,9 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
         return materialService.createMaterial(data);
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['materials'] });
-      onSuccess(material ? 'Cập nhật vật tư thành công.' : 'Thêm vật tư thành công.');
+      onSuccess(result.message || (material ? 'Cập nhật vật tư thành công.' : 'Thêm vật tư thành công.'));
       onClose();
     },
   });
@@ -151,7 +161,7 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
             <SearchSelect
               options={categoriesData?.items.map(c => ({ label: c.categoryName, value: c.categoryId.toString() })) || []}
               value={watch('categoryId')?.toString() || ''}
-              onChange={(val) => setValue('categoryId', Number(val) || 0, { shouldValidate: true })}
+              onChange={(val) => setValue('categoryId', Number(val) || 0, { shouldValidate: true, shouldDirty: true })}
               disabled={isLoadingCategories || isSubmitting || mutation.isPending}
               placeholder="-- Chọn danh mục --"
               error={!!errors.categoryId}
@@ -162,7 +172,7 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
             <SearchSelect
               options={unitsData?.items.map(u => ({ label: `${u.unitName} (${u.unitCode})`, value: u.unitId.toString() })) || []}
               value={watch('baseUnitId')?.toString() || ''}
-              onChange={(val) => setValue('baseUnitId', Number(val) || 0, { shouldValidate: true })}
+              onChange={(val) => setValue('baseUnitId', Number(val) || 0, { shouldValidate: true, shouldDirty: true })}
               disabled={isLoadingUnits || isSubmitting || mutation.isPending || !!material} // Không nên đổi đơn vị cơ sở sau khi tạo
               placeholder="-- Chọn đơn vị cơ sở --"
               error={!!errors.baseUnitId}

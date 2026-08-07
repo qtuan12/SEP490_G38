@@ -38,7 +38,7 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
 
   const loadProjects = async () => {
     try {
-      const data = await projectService.getProjects(true); // ignoreRoleFilter = true
+      const data = await projectService.getAllActiveProjects();
       // Exclude current project; id is string
       setProjects(
         data
@@ -65,7 +65,7 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Lỗi hệ thống.');
+      setError(err.message || 'Không thể tạo phiếu điều chuyển vật tư thừa.');
     } finally {
       setSubmitting(false);
     }

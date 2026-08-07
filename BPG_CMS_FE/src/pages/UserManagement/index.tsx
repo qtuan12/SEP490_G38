@@ -3,7 +3,7 @@ import { userService } from '../../services/userService';
 import type { UserProfile } from '../../services/authService';
 import { CreateUserModal } from './modals/CreateUserModal';
 import { EditUserModal } from './modals/EditUserModal';
-import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination } from '../../components/ui';
+import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination, TableLoader } from '../../components/ui';
 import {
   Search,
   UserPlus,
@@ -12,14 +12,13 @@ import {
   Lock,
   Unlock,
   AlertCircle,
-  Loader2,
-  CheckCircle2,
   User as UserIcon,
   Phone,
   Mail
 } from 'lucide-react';
 import { getRoleLabel, getRoleBadgeVariant as getRoleVariant } from '../../utils/roleHelpers';
-import { useLoading } from '../../context/LoadingContext';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import toast from 'react-hot-toast';
 
 const PAGE_SIZE = 20;
 
@@ -28,7 +27,6 @@ export const UserManagement: React.FC = () => {
   const [allUsers, setAllUsers] = useState<UserProfile[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,25 +39,37 @@ export const UserManagement: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const loadRequestIdRef = React.useRef(0);
 
-  const loadAllUsers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const loadAllUsers = useCallback(async (silent = false) => {
+    const requestId = ++loadRequestIdRef.current;
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const data = await userService.getUsers({
         pageNumber: 1,
         pageSize: 1000,
       });
+      if (requestId !== loadRequestIdRef.current) return;
       setAllUsers(data.items);
     } catch (err: any) {
-      setError(err.message || 'Không thể tải danh sách người dùng.');
+      if (requestId !== loadRequestIdRef.current) return;
+      if (silent) console.error(err);
+      else setError(err.message || 'Không thể tải danh sách người dùng.');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) setLoading(false);
     }
   }, []);
 
+  useRealtimeDataRefresh(() => loadAllUsers(true), ['User', 'UserRole']);
+
   useEffect(() => {
     loadAllUsers();
+    return () => {
+      loadRequestIdRef.current += 1;
+    };
   }, [loadAllUsers]);
 
   const filteredUsers = React.useMemo(() => {
@@ -88,34 +98,30 @@ export const UserManagement: React.FC = () => {
   };
 
   const showSuccess = (message: string) => {
-    setSuccess(message);
-    setTimeout(() => setSuccess(null), 3500);
+    console.log(message);
   };
 
   const handleDeleteSubmit = async () => {
     if (!selectedUser) return;
     try {
-      await withLoading(async () => {
-        await userService.deleteUser(selectedUser.id);
-      }, 'Đang xoá tài khoản...');
+      const result = await userService.deleteUser(selectedUser.id);
       setIsDeleteOpen(false);
-      showSuccess(`Đã xoá tài khoản ${selectedUser.name} khỏi hệ thống.`);
+      showSuccess(result.message || 'Thao tác thành công.');
       setSelectedUser(null);
       loadAllUsers();
     } catch (err: any) {
-      setError(err.message || 'Không thể xoá tài khoản.');
+      toast.error(err.message || 'Không thể xoá tài khoản.');
     }
   };
 
-  const handleToggleStatus = async (id: string, name: string) => {
+  // Tên tài khoản không cần truyền vào nữa: message xác nhận do backend sinh, đã kèm sẵn tên.
+  const handleToggleStatus = async (id: string) => {
     try {
-      const updated = await withLoading(async () => {
-        return await userService.toggleUserStatus(id);
-      }, 'Đang cập nhật trạng thái tài khoản...');
-      showSuccess(`Đã ${updated.status === 'active' ? 'mở khoá' : 'khoá'} tài khoản ${name}.`);
+      const result = await userService.toggleUserStatus(id);
+      showSuccess(result.message || 'Thao tác thành công.');
       loadAllUsers();
     } catch (err: any) {
-      setError(err.message || 'Không thể thay đổi trạng thái tài khoản.');
+      toast.error(err.message || 'Không thể thay đổi trạng thái tài khoản.');
     }
   };
 
@@ -180,7 +186,7 @@ export const UserManagement: React.FC = () => {
             variant="secondary"
             className="p-2 h-auto"
             title={user.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa'}
-            onClick={() => handleToggleStatus(user.id, user.name)}
+            onClick={() => handleToggleStatus(user.id)}
           >
             {user.status === 'active'
               ? <Lock size={15} className="text-amber-600" />
@@ -231,13 +237,6 @@ export const UserManagement: React.FC = () => {
         </Button>
       </div>
 
-      {success && (
-        <div className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-xl py-3 px-4 text-emerald-800 text-sm font-medium animate-fade-in shadow-sm">
-          <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-          <span>{success}</span>
-        </div>
-      )}
-
       {error && (
         <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 rounded-xl py-3 px-4 text-red-800 text-sm font-medium animate-fade-in shadow-sm">
           <AlertCircle size={18} className="text-red-600 shrink-0" />
@@ -287,10 +286,7 @@ export const UserManagement: React.FC = () => {
 
         {/* Content Area */}
         {loading ? (
-          <div className="flex justify-center items-center h-48 gap-2.5">
-            <Loader2 className="animate-spin text-blue-600" size={24} />
-            <span className="text-slate-500 text-sm">Đang tải danh sách thành viên...</span>
-          </div>
+          <TableLoader isTable={false} message="Đang tải danh sách thành viên..." minHeight="200px" />
         ) : filteredUsers.length === 0 ? (
           <div className="text-center py-12 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
             <UserIcon size={36} className="text-slate-300 mx-auto mb-2" />
@@ -350,7 +346,7 @@ export const UserManagement: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => handleToggleStatus(u.id, u.name)}
+                        onClick={() => handleToggleStatus(u.id)}
                         className="p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
                         title={u.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa'}
                       >

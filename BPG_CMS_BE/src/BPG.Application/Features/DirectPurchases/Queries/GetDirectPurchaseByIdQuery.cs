@@ -1,4 +1,3 @@
-using BPG.Application.Common.Interfaces;
 using BPG.Application.DTOs.DirectPurchases;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
@@ -10,7 +9,7 @@ using System.Threading.Tasks;
 namespace BPG.Application.Features.DirectPurchases.Queries
 {
     public record GetDirectPurchaseByIdQuery(long DirectPurchaseId)
-        : IRequest<DirectPurchaseDetailDto>, IProjectRequirement
+        : IRequest<DirectPurchaseDetailDto>
     {
         public async Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
         {
@@ -23,3 +22,4 @@ namespace BPG.Application.Features.DirectPurchases.Queries
         }
     }
 }
+

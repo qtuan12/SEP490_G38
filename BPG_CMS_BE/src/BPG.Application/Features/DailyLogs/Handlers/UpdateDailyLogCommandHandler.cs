@@ -56,21 +56,24 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = log.Task.Phase.Project;
 
-            // 2. Kiểm tra quyền chỉnh sửa (Chỉ TM, Project Leader hoặc Kỹ sư được gán vào công việc mới được sửa nhật ký)
-            bool isTM = _currentUserService.IsInAnyRole( BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isTM)
+            var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
+            if (!isManager)
             {
-                // Kiểm tra xem User có phải là Project Leader của dự án này không
-                var isLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(m => m.ProjectId == project.ProjectId && m.UserId == currentUserId && m.IsLeader, cancellationToken);
+                var isProjectLeader = await _uow.Repository<ProjectMember>().Query()
+                    .AnyAsync(
+                        m => m.ProjectId == project.ProjectId
+                            && m.UserId == currentUserId
+                            && m.IsLeader,
+                        cancellationToken);
 
-                // Kiểm tra xem User có được gán vào công việc này không
                 var isAssignee = await _uow.Repository<TaskAssignee>().Query()
                     .AnyAsync(ta => ta.TaskId == log.TaskId && ta.UserId == currentUserId, cancellationToken);
 
-                if (!isLeader && !isAssignee)
+                var isCreator = log.CreatedBy == currentUserId;
+
+                if (!isProjectLeader && !isAssignee && !isCreator)
                 {
-                    throw new ForbiddenException("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép chỉnh sửa nhật ký thi công.");
+                    throw new ForbiddenException("Chỉ người tạo nhật ký, Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép chỉnh sửa nhật ký thi công.");
                 }
             }
 
@@ -188,14 +191,14 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                         .ThenInclude(ur => ur.Role)
                     .FirstOrDefaultAsync(u => u.UserId == log.CreatedBy, cancellationToken);
 
-                // Lấy lại danh sách progress logs của Task này để xác định OldProgressPercent
-                var progressLogs = await _uow.Repository<TaskProgressLog>().Query()
+                // Lấy OldProgress của DailyLog này từ TaskProgressLog tương ứng (khớp TaskId và NewProgress gần nhất lúc tạo nhật ký)
+                var candidateProgressLogs = await _uow.Repository<TaskProgressLog>().Query()
                     .AsNoTracking()
-                    .Where(tpl => tpl.TaskId == log.TaskId && tpl.NewProgress == log.NewProgressPercent)
+                    .Where(tpl => tpl.TaskId == log.TaskId && tpl.NewProgress == log.NewProgressPercent && tpl.CreatedBy == log.CreatedBy)
                     .ToListAsync(cancellationToken);
 
-                var progressLog = progressLogs
-                    .OrderBy(tpl => Math.Abs((tpl.UpdatedAt - log.CreatedAt).TotalSeconds))
+                var progressLog = candidateProgressLogs
+                    .OrderBy(tpl => Math.Abs((tpl.CreatedAt - log.CreatedAt).TotalSeconds))
                     .FirstOrDefault();
 
                 var dto = _mapper.Map<DailyLogDto>(log);
@@ -219,3 +222,4 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         }
     }
 }
+

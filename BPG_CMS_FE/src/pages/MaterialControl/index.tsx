@@ -1,21 +1,26 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import type { MaterialRequest } from '../../types/common';
+import { RoleGroup } from '../../auth/roles';
 import { MaterialRequestTable } from '../Dashboard/components/MaterialRequestTable';
 import { Modal } from '../../components/ui/Modal';
 import { Pagination, Input, Select } from '../../components/ui';
 import toast from 'react-hot-toast';
 import { Boxes, Search } from 'lucide-react';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
+import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
+import {
+  REALTIME_DATA_CHANGED_AGGREGATION_MS,
+  RealtimeEntities,
+} from '../../constants/realtimeEntities';
 
 export const MaterialControl: React.FC = () => {
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
-
-  const [isAccountant, setIsAccountant] = useState(false);
-  const [isDirector, setIsDirector] = useState(false);
+  const realtimeRefreshTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchRequestIdRef = React.useRef(0);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,11 +32,6 @@ export const MaterialControl: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  useEffect(() => {
-    setIsAccountant(user?.role === 'accountant' || user?.role === 'admin');
-    setIsDirector(user?.role === 'director' || user?.role === 'admin');
-  }, [user]);
-
   // States for custom request processing modal
   const [actionModalOpen, setActionModalOpen] = useState(false);
   const [actionType, setActionType] = useState<'verify' | 'disburse' | 'approve' | 'reject' | null>(null);
@@ -40,23 +40,51 @@ export const MaterialControl: React.FC = () => {
   const [actionNoteError, setActionNoteError] = useState('');
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
-  const fetchMaterialRequests = async () => {
-    setLoadingRequests(true);
+  const fetchMaterialRequests = async (showLoading = true) => {
+    const requestId = ++fetchRequestIdRef.current;
+    if (showLoading) setLoadingRequests(true);
     try {
       const list = await projectService.getAllMaterialRequests();
+      if (requestId !== fetchRequestIdRef.current) return;
       setMaterialRequests(list);
     } catch (err) {
+      if (requestId !== fetchRequestIdRef.current) return;
       console.error('Error loading material requests:', err);
-      toast.error('Lỗi khi tải danh sách yêu cầu vật tư.');
+      if (showLoading) toast.error('Lỗi khi tải danh sách yêu cầu vật tư.');
     } finally {
-      setLoadingRequests(false);
+      if (requestId === fetchRequestIdRef.current) setLoadingRequests(false);
     }
   };
+
+  const scheduleRealtimeRefresh = () => {
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+    realtimeRefreshTimerRef.current = setTimeout(() => {
+      realtimeRefreshTimerRef.current = null;
+      void fetchMaterialRequests(false);
+    }, REALTIME_DATA_CHANGED_AGGREGATION_MS);
+  };
+
+  useEffect(() => () => {
+    fetchRequestIdRef.current += 1;
+    if (realtimeRefreshTimerRef.current) {
+      clearTimeout(realtimeRefreshTimerRef.current);
+    }
+  }, []);
+
+  // Also refresh for changes made in sessions that do not receive the same
+  // personal notification.
+  useRealtimeDataRefresh(
+    scheduleRealtimeRefresh,
+    RealtimeEntities.materialRequests,
+    0,
+  );
 
   // ─── SignalR: tự động reload khi có notification liên quan đến yêu cầu vật tư ───
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'MaterialRequest' || noti?.referenceType?.includes('/materialrequests')) {
-      fetchMaterialRequests();
+      scheduleRealtimeRefresh();
       toast('Danh sách yêu cầu vật tư vừa được cập nhật!', { icon: '📋' });
     }
   });
@@ -89,25 +117,25 @@ export const MaterialControl: React.FC = () => {
   const handleVerifyRequestByAccountant = async (reqId: string, note?: string) => {
     try {
       const req = materialRequests.find(r => r.id === reqId);
-      await projectService.processMaterialRequestByAccountant(reqId, note);
+      const updated = await projectService.processMaterialRequestByAccountant(reqId, note);
       if (req?.isOverBOQ) {
-        toast.success('Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
+        console.log((updated as any).__message || 'Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
       } else {
-        toast.success('Yêu cầu trong định mức hợp lệ. Đã duyệt thành công.');
+        console.log((updated as any).__message || 'Đã duyệt yêu cầu vật tư trong định mức.');
       }
       fetchMaterialRequests();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi soát xét.');
+      toast.error(err.message || 'Không thể soát xét yêu cầu vật tư.');
     }
   };
 
   const handleDisburseRequestByAccountant = async (reqId: string, note?: string) => {
     try {
-      await projectService.disburseEmergencyRequest(reqId, note);
-      toast.success('Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp thành công.');
+      const updated = await projectService.disburseEmergencyRequest(reqId, note);
+      console.log((updated as any).__message || 'Đã phê duyệt giải ngân chi phí mua ngoài khẩn cấp.');
       fetchMaterialRequests();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi giải ngân.');
+      toast.error(err.message || 'Không thể phê duyệt giải ngân.');
     }
   };
 
@@ -115,20 +143,20 @@ export const MaterialControl: React.FC = () => {
     try {
       const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'director', note);
       const totalCost = updated.items.reduce((sum, item) => sum + (item.quantity * ((item as any).price || 0)), 0);
-      toast.success(`Phê duyệt thành công! Khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND đã được ghi nhận.`);
+      console.log((updated as any).__message || `Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
       fetchMaterialRequests();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi phê duyệt.');
+      toast.error(err.message || 'Không thể phê duyệt yêu cầu vật tư.');
     }
   };
 
   const handleRejectRequest = async (reqId: string, reason: string) => {
     try {
-      await projectService.rejectMaterialRequest(reqId, reason.trim());
-      toast.success('Đã từ chối yêu cầu vật tư.');
+      const updated = await projectService.rejectMaterialRequest(reqId, reason.trim());
+      console.log((updated as any).__message || 'Đã từ chối yêu cầu vật tư.');
       fetchMaterialRequests();
     } catch (err: any) {
-      toast.error(err.message || 'Lỗi khi từ chối.');
+      toast.error(err.message || 'Không thể từ chối yêu cầu vật tư.');
     }
   };
 
@@ -233,8 +261,8 @@ export const MaterialControl: React.FC = () => {
         <MaterialRequestTable
           materialRequests={paginatedRequests}
           loadingRequests={loadingRequests}
-          isAccountant={isAccountant}
-          isDirector={isDirector}
+          canAccountForRequest={() => hasAnyRole(RoleGroup.Accounting)}
+          canApproveRequest={() => hasAnyRole(RoleGroup.Approval)}
           handleVerifyRequestByAccountant={(id) => openActionModal('verify', id)}
           handleDisburseRequestByAccountant={(id) => openActionModal('disburse', id)}
           handleApproveRequestByDirector={(id) => openActionModal('approve', id)}

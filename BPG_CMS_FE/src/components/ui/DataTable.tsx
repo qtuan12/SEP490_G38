@@ -1,6 +1,7 @@
 import React from 'react';
 import { LoadingSpinner } from './LoadingSpinner';
 import { Pagination } from './Pagination';
+import { useVirtualRows } from '../../hooks/useVirtualRows';
 
 export interface ColumnDef<T> {
   key: string;
@@ -21,6 +22,10 @@ export interface DataTableProps<T> {
   onPageChange?: (page: number) => void;
   onRowClick?: (item: T) => void;
   className?: string;
+  enableVirtualization?: boolean;
+  virtualizeThreshold?: number;
+  virtualRowHeight?: number;
+  virtualTableHeight?: number;
 }
 
 export function DataTable<T>({
@@ -34,18 +39,28 @@ export function DataTable<T>({
   onPageChange,
   onRowClick,
   className = '',
+  enableVirtualization = true,
+  virtualizeThreshold = 50,
+  virtualRowHeight = 56,
+  virtualTableHeight = 520,
 }: DataTableProps<T>) {
+  const virtual = useVirtualRows(data, {
+    rowHeight: virtualRowHeight,
+    containerHeight: virtualTableHeight,
+    threshold: enableVirtualization ? virtualizeThreshold : Number.MAX_SAFE_INTEGER,
+  });
+
   return (
-    <div className={`overflow-hidden border border-slate-200 rounded-xl bg-white ${className}`}>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-          <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
+    <div className={`overflow-hidden border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 ${className}`}>
+      <div className="overflow-x-auto" {...virtual.scrollContainerProps}>
+        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800 text-left text-sm">
+          <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-semibold uppercase text-xs">
             <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
                   scope="col"
-                  className={`px-4 py-3 text-slate-500 font-semibold uppercase whitespace-nowrap ${
+                  className={`px-4 py-3 text-slate-500 dark:text-slate-400 font-semibold uppercase whitespace-nowrap ${
                     col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                   }`}
                   style={{ width: col.width }}
@@ -55,7 +70,7 @@ export function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-slate-200">
+          <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800">
             {isLoading ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-8 text-center">
@@ -64,22 +79,28 @@ export function DataTable<T>({
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-slate-500">
+                <td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
-              data.map((item) => (
+              <>
+                {virtual.topPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={columns.length} style={{ height: virtual.topPadding, padding: 0 }} />
+                  </tr>
+                )}
+                {virtual.visibleRows.map(({ item }) => (
                 <tr
                   key={keyExtractor(item)}
-                  className="hover:bg-slate-50 transition-colors"
+                  className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                   onClick={onRowClick ? () => onRowClick(item) : undefined}
                   style={onRowClick ? { cursor: 'pointer' } : undefined}
                 >
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={`px-4 py-3.5 text-sm text-slate-700 whitespace-normal break-words ${
+                      className={`px-4 py-3.5 text-sm text-slate-700 dark:text-slate-200 whitespace-normal break-words ${
                         col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                       }`}
                     >
@@ -87,7 +108,13 @@ export function DataTable<T>({
                     </td>
                   ))}
                 </tr>
-              ))
+                ))}
+                {virtual.bottomPadding > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={columns.length} style={{ height: virtual.bottomPadding, padding: 0 }} />
+                  </tr>
+                )}
+              </>
             )}
           </tbody>
         </table>

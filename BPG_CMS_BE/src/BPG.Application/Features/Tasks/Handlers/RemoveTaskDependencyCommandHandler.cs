@@ -15,11 +15,13 @@ public class RemoveTaskDependencyCommandHandler : IRequestHandler<RemoveTaskDepe
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly ICurrentUserService _currentUserService;
 
-    public RemoveTaskDependencyCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender)
+    public RemoveTaskDependencyCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender, ICurrentUserService currentUserService)
     {
         _unitOfWork = unitOfWork;
         _realtimeSender = realtimeSender;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse> Handle(RemoveTaskDependencyCommand request, CancellationToken ct)
@@ -28,10 +30,24 @@ public class RemoveTaskDependencyCommandHandler : IRequestHandler<RemoveTaskDepe
             .Query()
             .Include(d => d.Task)
                 .ThenInclude(t => t.Phase)
+                .ThenInclude(p => p.Project)
             .FirstOrDefaultAsync(d => d.TaskId == request.TaskId && d.PredecessorTaskId == request.PredecessorTaskId, ct);
 
         if (dep == null)
             throw new NotFoundException("TaskDependency", $"{request.TaskId}-{request.PredecessorTaskId}");
+
+        if (dep.Task?.Phase != null && dep.Task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+        {
+            var currentUserId = _currentUserService.GetRequiredUserId();
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == dep.Task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                ct);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được xóa liên kết phụ thuộc.");
+        }
 
         _unitOfWork.Repository<TaskDependency>().Remove(dep);
         await _unitOfWork.SaveChangesAsync(ct);
