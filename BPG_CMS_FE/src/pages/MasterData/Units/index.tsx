@@ -41,7 +41,7 @@ export const UnitManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    console.log(message);
+    toast.success(message);
   };
 
   // Delete mutation
@@ -124,6 +124,7 @@ export const UnitManagement: React.FC = () => {
     ...(canManageMasterData ? [{
       key: 'actions',
       header: 'Hành động',
+      align: 'right' as const,
       render: (unit: Unit) => (
         <div className="flex gap-2 justify-end">
           <Button

@@ -50,7 +50,7 @@ export const MaterialManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    console.log(message);
+    toast.success(message);
   };
 
   const deleteMutation = useMutation({
@@ -117,6 +117,7 @@ export const MaterialManagement: React.FC = () => {
     ...(canManageMasterData ? [{
       key: 'actions',
       header: 'Hành động',
+      align: 'right' as const,
       render: (mat: MaterialCatalog) => (
         <div className="flex gap-2 justify-end">
           <Button

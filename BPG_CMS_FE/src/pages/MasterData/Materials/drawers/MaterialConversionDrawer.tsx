@@ -50,25 +50,7 @@ export const MaterialConversionDrawer: React.FC<MaterialConversionDrawerProps> =
     name: 'conversions',
   });
 
-  useEffect(() => {
-    if (!isOpen) {
-      initializedMaterialIdRef.current = null;
-      return;
-    }
 
-    const materialId = material?.materialId ?? null;
-    const materialChanged = initializedMaterialIdRef.current !== materialId;
-    if (isOpen && conversions && !isLoadingConversions) {
-      if (!materialChanged && isDirty) return;
-      reset({
-        conversions: conversions.map(c => ({
-          alternativeUnitId: c.alternativeUnitId,
-          conversionRate: c.conversionRate,
-        })),
-      });
-      initializedMaterialIdRef.current = materialId;
-    }
-  }, [isOpen, material?.materialId, conversions, isLoadingConversions, reset, isDirty]);
 
   const mutation = useMutation({
     mutationFn: async (data: ConversionFormData) => {
@@ -80,6 +62,29 @@ export const MaterialConversionDrawer: React.FC<MaterialConversionDrawerProps> =
       onClose();
     },
   });
+
+  useEffect(() => {
+    if (!isOpen) {
+      initializedMaterialIdRef.current = null;
+      return;
+    }
+
+    const materialId = material?.materialId ?? null;
+    const materialChanged = initializedMaterialIdRef.current !== materialId;
+    if (isOpen) {
+      mutation.reset();
+    }
+    if (isOpen && conversions && !isLoadingConversions) {
+      if (!materialChanged && isDirty) return;
+      reset({
+        conversions: conversions.map(c => ({
+          alternativeUnitId: c.alternativeUnitId,
+          conversionRate: c.conversionRate,
+        })),
+      });
+      initializedMaterialIdRef.current = materialId;
+    }
+  }, [isOpen, material?.materialId, conversions, isLoadingConversions, reset, isDirty]);
 
   const onSubmit = (data: ConversionFormData) => {
     mutation.mutate(data);
