@@ -56,18 +56,20 @@ namespace BPG.Application.Features.MaterialRequests.Queries
                     .ThenInclude(ri => ri.Unit)
                 .AsNoTracking();
 
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+
             if (!request.ProjectId.HasValue)
             {
                 if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Director))
                     throw new ForbiddenException("Bạn không có quyền xem đề xuất vật tư toàn hệ thống.");
 
-                var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
                 query = query.Where(mr => accessibleProjectIds.Contains(mr.Phase.ProjectId));
             }
-
-            // Áp dụng bộ lọc
-            if (request.ProjectId.HasValue)
+            else
             {
+                if (!accessibleProjectIds.Contains(request.ProjectId.Value))
+                    throw new ForbiddenException("Bạn không có quyền xem đề xuất vật tư của dự án này.");
+
                 query = query.Where(mr => mr.Phase.ProjectId == request.ProjectId.Value);
             }
 

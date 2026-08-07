@@ -31,6 +31,7 @@ import {
   FileSignature,
   ClipboardList,
   History,
+  ShieldAlert,
 } from 'lucide-react';
 import { InventoryWorkspace } from './InventoryWorkspace/InventoryWorkspace';
 import { SurplusWorkspace } from './SurplusWorkspace/SurplusWorkspace';
@@ -145,7 +146,7 @@ export const ProjectLayoutHub: React.FC = () => {
   const hasApprovedEmergencyIncident = incidents?.some(i => i.isEmergency && i.status === 'Approved') ?? false;
 
   const { hasAnyRole } = useAuth();
-  const { canManageExecution, canManageTechnical, canManageAccounting, canViewReports, canApprove } = useProjectAccess(projectId);
+  const { canViewProject, isLoading: isAccessLoading, canManageExecution, canManageTechnical, canManageAccounting, canViewReports, canApprove } = useProjectAccess(projectId);
   const { connection } = useNotification();
   const isTPKT = canManageTechnical;
   const canEditProject = hasAnyRole(RoleGroup.ProjectManagers);
@@ -154,6 +155,7 @@ export const ProjectLayoutHub: React.FC = () => {
   const canManageDirectPurchase = canManageExecution || canManageAccounting || canApprove;
 
   const [project, setProject] = useState<Project | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectFetchRequestId = useRef(0);
@@ -196,17 +198,19 @@ export const ProjectLayoutHub: React.FC = () => {
     if (!projectId) return;
     const requestId = ++projectFetchRequestId.current;
     if (isInitial) setLoading(true);
+    setProjectError(null);
     try {
       queryClient.invalidateQueries({ queryKey: ['projectIncidents', projectId] });
       const data = await projectService.getProjectById(projectId, forceRefresh);
       if (requestId !== projectFetchRequestId.current) return;
       setProject(data);
-
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading project details:', err);
+      if (requestId === projectFetchRequestId.current) {
+        setProjectError(err?.response?.data?.message || err?.message || 'Bạn không có quyền truy cập vào dự án này.');
+        setProject(null);
+      }
     } finally {
-      // A silent realtime request may supersede the initial request. Whichever
-      // request is newest must also be allowed to release the initial spinner.
       if (requestId === projectFetchRequestId.current) setLoading(false);
     }
   };
@@ -356,15 +360,26 @@ export const ProjectLayoutHub: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (loading || isAccessLoading) {
     return <FullScreenLoading message="Đang tải thông tin không gian làm việc..." />;
   }
 
-  if (!project) {
+  if (!canViewProject || projectError || !project) {
     return (
-      <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
-        <h3>Không tìm thấy dự án</h3>
-        <button onClick={() => navigate('/projects')} className="btn btn-primary" style={{ marginTop: '16px' }}>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/50 flex items-center justify-center text-red-600 dark:text-red-400 mb-4">
+          <ShieldAlert size={32} />
+        </div>
+        <h2 className="text-xl font-bold text-[hsl(var(--text-primary))] mb-2">
+          Truy cập bị từ chối
+        </h2>
+        <p className="text-sm text-[hsl(var(--text-muted))] max-w-md mb-6">
+          {projectError || 'Bạn không có quyền truy cập vào dự án này. Chỉ các thành viên thuộc dự án hoặc người có thẩm quyền mới có thể xem thông tin dự án.'}
+        </p>
+        <button
+          onClick={() => navigate('/projects')}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow transition-colors cursor-pointer"
+        >
           Quay lại danh sách dự án
         </button>
       </div>
