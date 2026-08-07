@@ -514,12 +514,12 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             }}
             className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
               imageError
-                ? 'border-red-400 bg-red-50/20'
+                ? 'border-red-500 bg-red-500/10'
                 : uploadedFiles.length >= 5
-                  ? 'border-slate-200 bg-slate-100 cursor-not-allowed opacity-60'
+                  ? 'border-[hsl(var(--border))] bg-[hsl(var(--bg-main))] cursor-not-allowed opacity-60'
                   : dragging
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+                    ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary-glow))]'
+                    : 'border-[hsl(var(--border))] bg-[hsl(var(--bg-main))/0.4] hover:bg-[hsl(var(--bg-main))]'
             }`}
           >
             <input
@@ -531,64 +531,84 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
               onChange={handleFileSelect}
               disabled={uploadedFiles.length >= 5 || submitting}
             />
-            <UploadCloud size={32} className="text-slate-400 mx-auto mb-2" />
-            <p className="text-sm font-medium text-slate-600 mb-0.5">
-              Kéo thả hình ảnh vào đây hoặc click để chọn ảnh
-            </p>
-            <span className="text-xs text-slate-500">
-              Đã chọn {uploadedFiles.length}/5 ảnh (Bắt buộc ít nhất 1 ảnh chụp vật tư thực tế)
-            </span>
-          </div>
+            <UploadCloud size={28} className="text-[hsl(var(--text-muted))] mx-auto mb-1.5" />
 
-          {uploadedFiles.length > 0 && (
-            <div className="flex gap-3 mt-3 flex-wrap">
-              {uploadedFiles.map((file) => (
-                <div key={file.id} className="relative w-20 h-20 rounded-md overflow-hidden border border-slate-200 group">
-                  <div className={`relative w-full h-full rounded overflow-hidden border ${file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-slate-200'}`}>
-                    <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+            {uploadedFiles && uploadedFiles.length > 0 ? (
+              <div>
+                <div
+                  className="flex flex-wrap items-center justify-center gap-3 my-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {uploadedFiles.map((file) => (
+                    <div key={file.id} className="flex flex-col items-center gap-1 group relative">
+                      <div className={`relative w-16 h-16 rounded overflow-hidden shadow-sm border ${
+                        file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-emerald-500' : 'border-[hsl(var(--border))]'
+                      }`}>
+                        <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
 
-                    {file.status === 'uploading' && (
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <Loader2 size={16} className="animate-spin text-white" />
+                        {file.status === 'uploading' && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <Loader2 size={16} className="animate-spin text-white" />
+                          </div>
+                        )}
+
+                        {file.status === 'error' && (
+                          <>
+                            <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                retryUpload(file.id);
+                              }}
+                              className="absolute top-1 left-1 bg-blue-600 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 transition-opacity z-10"
+                              title="Thử lại upload"
+                            >
+                              <RotateCcw size={10} />
+                            </button>
+                          </>
+                        )}
+
+                        {file.status === 'success' && (
+                          <span className="absolute bottom-0 left-0 right-0 bg-emerald-600 text-white text-[8px] text-center py-0.5 font-bold">OK</span>
+                        )}
                       </div>
-                    )}
 
-                    {file.status === 'error' && (
-                      <>
-                        <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            retryUpload(file.id);
-                          }}
-                          className="absolute top-1 left-1 bg-blue-600 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 transition-opacity z-10"
-                          title="Thử lại upload"
-                        >
-                          <RotateCcw size={10} />
-                        </button>
-                      </>
-                    )}
+                      <span className="text-[10px] text-[hsl(var(--text-secondary))] truncate w-16 text-center" title={file.name}>
+                        {file.name}
+                      </span>
 
-                    {file.status === 'success' && (
-                      <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">OK</span>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFile(file.id);
-                    }}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-80 hover:opacity-100 transition-opacity z-10 border-none outline-none cursor-pointer"
-                  >
-                    <X size={12} />
-                  </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFile(file.id);
+                        }}
+                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-80 group-hover:opacity-100 transition-opacity z-10 border-none outline-none cursor-pointer"
+                        title="Xóa ảnh"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+                {uploadedFiles.length < 5 && (
+                  <p className="text-xs text-[hsl(var(--text-muted))] mt-1">
+                    Click vào khoảng trống hoặc kéo thả để thêm ảnh ({uploadedFiles.length}/5)
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm font-semibold text-[hsl(var(--text-primary))] mb-0.5">
+                  Kéo thả hình ảnh vào đây hoặc click để chọn ảnh
+                </p>
+                <span className="text-xs text-[hsl(var(--text-muted))]">
+                  Hỗ trợ PNG, JPG, JPEG tối đa 5 ảnh (Bắt buộc ít nhất 1 ảnh chụp vật tư thực tế)
+                </span>
+              </div>
+            )}
+          </div>
         </FormItem>
       </form>
     </Modal>
