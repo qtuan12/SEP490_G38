@@ -448,7 +448,9 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     const payloadBody = {
       phaseId: Number(selectedPhaseId),
       reason: reason.trim(),
-      purchaseDate: new Date(purchaseDate).toISOString(),
+      // Backend nhận DateOnly nên phải gửi đúng 'yyyy-MM-dd' — state đã ở dạng này sẵn.
+      // toISOString() vừa sai kiểu, vừa quy về UTC làm lệch ngày khi ở VN (UTC+7).
+      purchaseDate,
       items: buildItems(),
       invoicePhotoUrls: invoiceUrls(),
     };
@@ -676,7 +678,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         {serverErrors.length > 0 && (
           <div style={issueBoxStyle}>
             <div style={issueTitleStyle}>
-              <AlertTriangle size={15} /> Máy chủ từ chối gửi phiếu
+              <AlertTriangle size={15} /> Hệ thống từ chối gửi phiếu
             </div>
             <ul style={issueListStyle}>
               {serverErrors.map((err, i) => <li key={i}>{err}</li>)}

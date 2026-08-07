@@ -136,10 +136,9 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
                 if (spentInPhase + totalAmount > phaseMaxAmount)
                     throw new BusinessException(ErrorCodes.DpOverPhaseMaxAmount,
-                        $"Giai đoạn '{dp.Phase.Name}' đã mua khẩn cấp {spentInPhase:N0}đ, " +
-                        $"cộng phiếu này ({totalAmount:N0}đ) là {spentInPhase + totalAmount:N0}đ, " +
-                        $"vượt hạn mức mua khẩn cấp của một giai đoạn ({phaseMaxAmount:N0}đ) do Quản trị viên cấu hình. " +
-                        "Vui lòng lập Yêu cầu vật tư theo quy trình thường, hoặc liên hệ Kế toán/Quản trị viên để được xử lý.");
+                        $"Giai đoạn '{dp.Phase.Name}' chỉ được mua khẩn cấp tối đa {phaseMaxAmount:N0}đ. " +
+                        $"Đã dùng {spentInPhase:N0}đ, phiếu này {totalAmount:N0}đ, tổng {spentInPhase + totalAmount:N0}đ — vượt {spentInPhase + totalAmount - phaseMaxAmount:N0}đ. " +
+                        "Vui lòng bớt vật tư khỏi phiếu, lập Yêu cầu vật tư theo quy trình thường, hoặc liên hệ Kế toán/Quản trị viên.");
             }
 
             var project = await _uow.Repository<Project>().Query()

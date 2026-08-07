@@ -6,6 +6,8 @@ interface LoadingContextType {
   loadingMessage: string;
   showLoading: (message?: string) => void;
   hideLoading: () => void;
+  /** Bọc một tác vụ async: bật overlay trước, tắt sau, kể cả khi tác vụ ném lỗi. */
+  withLoading: <T>(task: () => Promise<T>, message?: string) => Promise<T>;
 }
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
@@ -34,6 +36,17 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsLoading(false);
   }, []);
 
+  // finally chứ không tắt sau await: tác vụ ném lỗi mà overlay còn treo thì người dùng kẹt luôn,
+  // không bấm được gì để thử lại.
+  const withLoading = useCallback(async <T,>(task: () => Promise<T>, message?: string): Promise<T> => {
+    showLoading(message);
+    try {
+      return await task();
+    } finally {
+      hideLoading();
+    }
+  }, [showLoading, hideLoading]);
+
   useEffect(() => {
     const handleShow = (e: any) => {
       const msg = e.detail?.message || 'Hệ thống đang xử lý dữ liệu...';
@@ -55,7 +68,7 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   return (
-    <LoadingContext.Provider value={{ isLoading, loadingMessage, showLoading, hideLoading }}>
+    <LoadingContext.Provider value={{ isLoading, loadingMessage, showLoading, hideLoading, withLoading }}>
       {children}
       <FullScreenLoading isOpen={isLoading} message={loadingMessage} />
     </LoadingContext.Provider>

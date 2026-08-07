@@ -23,7 +23,6 @@ import toast from 'react-hot-toast';
 const PAGE_SIZE = 20;
 
 export const UserManagement: React.FC = () => {
-  const { withLoading } = useLoading();
   const [allUsers, setAllUsers] = useState<UserProfile[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
