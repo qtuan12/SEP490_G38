@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { projectService } from '../services/projectService';
 
-import type {Project} from '../types/common';
+import type { Project } from '../types/common';
 import { useAuth } from '../context/AuthContext';
 import { RoleGroup } from '../auth/roles';
 import { Modal } from '../components/ui/Modal';
@@ -25,7 +25,7 @@ export const ProjectDrawing: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { hasAnyRole } = useAuth();
-  
+
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -179,13 +179,13 @@ export const ProjectDrawing: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px - 48px)', margin: '-24px', backgroundColor: 'hsl(var(--bg-main))' }}>
       {/* Top bar control */}
       <div style={{
-        display: 'flex', 
-        alignItems: 'center', 
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
         padding: '16px 24px',
         borderBottom: '1px solid hsl(var(--border))',
         backgroundColor: 'hsl(var(--bg-card))',
-        flexWrap: 'wrap', 
+        flexWrap: 'wrap',
         gap: '12px',
         zIndex: 10
       }}>
@@ -225,7 +225,7 @@ export const ProjectDrawing: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {/* Zoom tool */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', padding: '2px 6px', background: 'hsl(var(--bg-main))' }}>
-              <button 
+              <button
                 onClick={() => setZoomLevel(prev => Math.max(0.5, prev - 0.25))}
                 style={{ padding: '2px 8px', fontSize: '0.75rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'hsl(var(--text-primary))' }}
                 title="Thu nhỏ"
@@ -235,7 +235,7 @@ export const ProjectDrawing: React.FC = () => {
               <span style={{ fontSize: '0.75rem', minWidth: '45px', textAlign: 'center', fontWeight: 600 }}>
                 {Math.round(zoomLevel * 100)}%
               </span>
-              <button 
+              <button
                 onClick={() => setZoomLevel(prev => Math.min(3, prev + 0.25))}
                 style={{ padding: '2px 8px', fontSize: '0.75rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'hsl(var(--text-primary))' }}
                 title="Phóng to"
@@ -243,7 +243,7 @@ export const ProjectDrawing: React.FC = () => {
                 <ZoomIn size={13} />
               </button>
               {zoomLevel !== 1 && (
-                <button 
+                <button
                   onClick={() => setZoomLevel(1)}
                   style={{ display: 'flex', alignItems: 'center', border: 'none', background: 'transparent', padding: '0 4px', cursor: 'pointer', color: 'hsl(var(--primary))' }}
                   title="Đặt lại tỉ lệ"
@@ -290,25 +290,25 @@ export const ProjectDrawing: React.FC = () => {
       )}
 
       {/* Main viewport canvas */}
-      <div 
-        style={{ 
-          flex: 1, 
-          overflow: 'auto', 
-          backgroundColor: 'hsl(var(--bg-main))', 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
+      <div
+        style={{
+          flex: 1,
+          overflow: 'auto',
+          backgroundColor: 'hsl(var(--bg-main))',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
           padding: '40px',
           position: 'relative'
         }}
       >
         {currentViewUrl && (currentViewUrl.startsWith('http') || currentViewUrl.startsWith('blob:') || currentViewUrl.startsWith('data:')) ? (
           /* Large Interactive Blueprint Viewer */
-          <div 
-            style={{ 
-              transform: `scale(${zoomLevel})`, 
-              transformOrigin: 'center center', 
-              transition: 'transform 0.15s ease-out', 
+          <div
+            style={{
+              transform: `scale(${zoomLevel})`,
+              transformOrigin: 'center center',
+              transition: 'transform 0.15s ease-out',
               width: '100%',
               maxWidth: '1200px',
               boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
@@ -318,34 +318,34 @@ export const ProjectDrawing: React.FC = () => {
             }}
           >
             {currentViewUrl.toLowerCase().includes('.pdf') ? (
-               pdfError ? (
-                 <div style={{ padding: '40px', textAlign: 'center', color: 'hsl(var(--danger))' }}>
-                   <AlertTriangle size={48} style={{ margin: '0 auto 16px' }} />
-                   <h4>{pdfError}</h4>
-                 </div>
-               ) : blobUrl ? (
-                 <iframe 
-                   src={blobUrl}
-                   style={{ width: '100%', height: '800px', border: 'none' }} 
-                   title="Bản vẽ PDF"
-                 />
-               ) : (
-                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '800px', gap: '12px', color: 'hsl(var(--text-muted))' }}>
-                   <Loader2 size={24} className="animate-spin" />
-                   <span>Đang xử lý PDF...</span>
-                 </div>
-               )
+              pdfError ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: 'hsl(var(--danger))' }}>
+                  <AlertTriangle size={48} style={{ margin: '0 auto 16px' }} />
+                  <h4>{pdfError}</h4>
+                </div>
+              ) : blobUrl ? (
+                <iframe
+                  src={blobUrl}
+                  style={{ width: '100%', height: '800px', border: 'none' }}
+                  title="Bản vẽ PDF"
+                />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '800px', gap: '12px', color: 'hsl(var(--text-muted))' }}>
+                  <Loader2 size={24} className="animate-spin" />
+                  <span>Đang xử lý PDF...</span>
+                </div>
+              )
             ) : (
-               <img 
-                 src={currentViewUrl} 
-                 alt="Bản vẽ thiết kế" 
-                 style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }} 
-               />
+              <img
+                src={currentViewUrl}
+                alt="Bản vẽ thiết kế"
+                style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }}
+              />
             )}
           </div>
         ) : currentViewUrl ? (
           /* Invalid URL state */
-          <div 
+          <div
             style={{
               border: '2px dashed hsl(var(--danger) / 0.3)',
               backgroundColor: 'hsl(var(--danger-glow))',
@@ -366,7 +366,7 @@ export const ProjectDrawing: React.FC = () => {
             <div>
               <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 700, color: 'hsl(var(--danger))' }}>Lỗi hiển thị bản vẽ</h3>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', maxWidth: '440px', lineHeight: 1.5 }}>
-                File bản vẽ không khả dụng (đường dẫn bị lỗi hoặc chưa được đồng bộ lên Cloudinary). Vui lòng cập nhật lại file mới.
+                File bản vẽ không khả dụng. Vui lòng cập nhật lại file mới.
               </p>
             </div>
             {canEdit && (
@@ -381,7 +381,7 @@ export const ProjectDrawing: React.FC = () => {
           </div>
         ) : (
           /* Empty / Upload state */
-          <div 
+          <div
             style={{
               border: '2px dashed hsl(var(--border-light))',
               backgroundColor: 'hsl(var(--bg-card) / 0.5)',
@@ -403,8 +403,8 @@ export const ProjectDrawing: React.FC = () => {
             <div>
               <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 700 }}>Chưa có bản vẽ thiết kế</h3>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'hsl(var(--text-muted))', maxWidth: '440px', lineHeight: 1.5 }}>
-                {canEdit 
-                  ? 'Dự án này chưa được tải lên bản thiết kế tổng thể. Hãy vào mục "Sửa thông tin" dự án để tải lên.' 
+                {canEdit
+                  ? 'Dự án này chưa được tải lên bản thiết kế tổng thể. Hãy vào mục "Sửa thông tin" dự án để tải lên.'
                   : 'Dự án này chưa được tải lên bản vẽ thiết kế tổng thể. Vui lòng liên hệ Trưởng phòng Kỹ thuật hoặc Leader dự án để cập nhật.'
                 }
               </p>
@@ -431,8 +431,8 @@ export const ProjectDrawing: React.FC = () => {
               const attachmentInfo = project.attachments?.find(a => a.fileUrl === url);
               const isSelected = currentViewUrl === url;
               return (
-                <div 
-                  key={idx} 
+                <div
+                  key={idx}
                   onClick={() => { setCurrentViewUrl(url); setShowSelectModal(false); }}
                   className={`p-3 border rounded-md cursor-pointer transition-colors flex items-center gap-3 ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}
                 >
@@ -448,7 +448,7 @@ export const ProjectDrawing: React.FC = () => {
                       {attachmentInfo ? attachmentInfo.fileName : url.split('/').pop()}
                     </p>
                     {attachmentInfo && (
-                       <p className="text-xs text-gray-500 mt-1">{((attachmentInfo.fileSizeBytes || 0) / 1024).toFixed(0)} KB</p>
+                      <p className="text-xs text-gray-500 mt-1">{((attachmentInfo.fileSizeBytes || 0) / 1024).toFixed(0)} KB</p>
                     )}
                   </div>
                   {isSelected && (

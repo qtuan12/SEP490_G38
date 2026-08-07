@@ -150,8 +150,8 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   };
 
   const getTypeBadge = (type: string) => {
-    if (type === 'Increase') return <span className="text-[hsl(var(--success))] font-medium flex items-center gap-1"><Plus size={14} /> Tăng</span>;
-    if (type === 'Decrease') return <span className="text-[hsl(var(--danger))] font-medium flex items-center gap-1"><Minus size={14} /> Giảm</span>;
+    if (type === 'Increase') return <span className="text-[hsl(var(--success))] font-medium">Tăng</span>;
+    if (type === 'Decrease') return <span className="text-[hsl(var(--danger))] font-medium">Giảm</span>;
     return <span>{type}</span>;
   };
 

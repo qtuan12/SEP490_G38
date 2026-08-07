@@ -424,30 +424,72 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {(() => {
                 const isCancelledByEmergencyIncident = selectedTask.status === 'obsolete' && (
-                  selectedTask.obsoleteReason?.includes('Sự cố khẩn cấp') || selectedTask.obsoleteReason?.includes('Sự cố')
+                  selectedTask.obsoleteReason?.includes('Sự cố khẩn cấp') || 
+                  selectedTask.obsoleteReason?.includes('đặc biệt nghiêm trọng')
                 );
+                const isCancelledByNormalIncident = selectedTask.status === 'obsolete' && !isCancelledByEmergencyIncident && (
+                  selectedTask.obsoleteReason?.includes('Sự cố')
+                );
+
+                const getBoxStyle = () => {
+                  if (selectedTask.status !== 'obsolete') {
+                    return {
+                      backgroundColor: 'hsl(var(--success-glow))',
+                      border: '1px solid hsl(var(--success) / 0.2)',
+                      color: 'hsl(var(--success))'
+                    };
+                  }
+                  if (isCancelledByEmergencyIncident) {
+                    return {
+                      backgroundColor: 'hsl(var(--danger-glow))',
+                      border: '1px solid hsl(var(--danger) / 0.2)',
+                      color: 'hsl(var(--danger))'
+                    };
+                  }
+                  return {
+                    backgroundColor: 'hsl(var(--warning) / 0.15)',
+                    border: '1px solid hsl(var(--warning) / 0.3)',
+                    color: 'hsl(var(--warning))'
+                  };
+                };
+
+                const getMessageText = () => {
+                  if (selectedTask.status !== 'obsolete') {
+                    return 'Phase này đã được nghiệm thu và khóa tiến độ.';
+                  }
+                  if (isCancelledByEmergencyIncident) {
+                    return 'Công việc đã bị hủy do sự cố khẩn cấp (theo phương án được Giám đốc phê duyệt) và không thể khôi phục.';
+                  }
+                  if (isCancelledByNormalIncident) {
+                    return 'Công việc đã bị hủy/thay thế do xử lý sự cố thi công.';
+                  }
+                  return selectedTask.obsoleteReason || 'Công việc đã bị tạm dừng.';
+                };
+
+                const boxStyle = getBoxStyle();
+
                 return (
                   <>
                     <div style={{ 
                       display: 'flex', 
                       flexDirection: 'column', 
                       gap: '8px', 
-                      backgroundColor: isCancelledByEmergencyIncident ? 'hsl(var(--danger-glow))' : 'hsl(var(--success-glow))', 
+                      backgroundColor: boxStyle.backgroundColor, 
                       padding: '12px', 
                       borderRadius: 'var(--radius-sm)', 
-                      border: isCancelledByEmergencyIncident ? '1px solid hsl(var(--danger) / 0.2)' : '1px solid hsl(var(--success) / 0.2)', 
+                      border: boxStyle.border, 
                       fontSize: '0.85rem', 
-                      color: isCancelledByEmergencyIncident ? 'hsl(var(--danger))' : 'hsl(var(--success))' 
+                      color: boxStyle.color 
                     }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        {isCancelledByEmergencyIncident ? <AlertCircle size={16} style={{ flexShrink: 0 }} /> : <CheckCircle size={16} style={{ flexShrink: 0 }} />}
-                        <span>
-                          {selectedTask.status === 'obsolete' 
-                            ? (isCancelledByEmergencyIncident 
-                                ? 'Công việc đã bị hủy do sự cố khẩn cấp (theo phương án được Giám đốc phê duyệt) và không thể khôi phục.' 
-                                : 'Công việc đã bị tạm dừng.') 
-                            : 'Phase này đã được nghiệm thu và khóa tiến độ.'}
-                        </span>
+                        {isCancelledByEmergencyIncident ? (
+                          <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                        ) : selectedTask.status === 'obsolete' ? (
+                          <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                        ) : (
+                          <CheckCircle size={16} style={{ flexShrink: 0 }} />
+                        )}
+                        <span>{getMessageText()}</span>
                       </div>
                       {selectedTask.status !== 'obsolete' && (
                         <button onClick={() => navigate(`/projects/${project?.id}/phases/${selectedTask.phaseId}/acceptance`)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'fit-content', marginTop: '4px', borderColor: 'hsl(var(--success))', color: 'hsl(var(--success))', backgroundColor: 'transparent' }}>

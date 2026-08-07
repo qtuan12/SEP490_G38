@@ -143,6 +143,9 @@ export const ProjectLayoutHub: React.FC = () => {
     enabled: !!projectId
   });
   const hasApprovedEmergencyIncident = incidents?.some(i => i.isEmergency && i.status === 'Approved') ?? false;
+  const hasUnapprovedEmergencyIncident = incidents?.some(
+    i => i.isEmergency && (i.status === 'WaitingStopApproval' || i.status === 'WaitingRecoveryPlan' || i.status === 'WaitingDirectorApproval')
+  ) ?? false;
 
   const { hasAnyRole } = useAuth();
   const { canManageExecution, canManageTechnical, canManageAccounting, canViewReports, canApprove } = useProjectAccess(projectId);
@@ -458,6 +461,11 @@ export const ProjectLayoutHub: React.FC = () => {
                       {pauseTime && <span>🕒 Thời gian: {pauseTime}</span>}
                       <span>👤 Thực hiện bởi: <strong>{pauseUser}</strong></span>
                     </div>
+                    {hasUnapprovedEmergencyIncident && (
+                      <div style={{ marginTop: '6px', fontSize: '0.82rem', color: 'hsl(346 84% 35%)', fontWeight: 600 }}>
+                        🔒 Đang chờ Giám đốc phê duyệt phương án khắc phục sự cố khẩn cấp.
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -515,7 +523,7 @@ export const ProjectLayoutHub: React.FC = () => {
                     </button>
                   </>
                 )}
-                {project.status === 'paused' && (
+                {project.status === 'paused' && !hasUnapprovedEmergencyIncident && (
                   <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Play size={16} /> Tiếp tục Dự án
                   </button>

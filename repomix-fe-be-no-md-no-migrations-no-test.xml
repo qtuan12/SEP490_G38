@@ -57639,7 +57639,7 @@ export const ProjectDrawing: React.FC = () => {
             <div>
               <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: 700, color: 'hsl(var(--danger))' }}>Lỗi hiển thị bản vẽ</h3>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'hsl(var(--text-secondary))', maxWidth: '440px', lineHeight: 1.5 }}>
-                File bản vẽ không khả dụng (đường dẫn bị lỗi hoặc chưa được đồng bộ lên Cloudinary). Vui lòng cập nhật lại file mới.
+                File bản vẽ không khả dụng . Vui lòng cập nhật lại file mới.
               </p>
             </div>
             {canEdit && (
@@ -63566,7 +63566,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         ) : (
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
             <button onClick={() => setIsResubmittingByDirector(true)} className="btn btn-outline" style={{ minWidth: '180px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--warning))', borderColor: 'hsl(var(--warning))' }}>
-              ⚠️ Yêu cầu làm lại (Resubmit)
+              ⚠️ Yêu cầu làm lại
             </button>
             <button
               onClick={() => directorApproveDirectlyMutation.mutate()}

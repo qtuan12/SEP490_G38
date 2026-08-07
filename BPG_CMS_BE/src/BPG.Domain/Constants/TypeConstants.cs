@@ -39,7 +39,8 @@ public static class RolePolicies
         UserRole.Admin + "," +
         UserRole.Director + "," +
         UserRole.TechnicalManager + "," +
-        UserRole.Accountant;
+        UserRole.Accountant + "," +
+        UserRole.SiteEngineer;
     public const string MasterData = UserRole.TechnicalManager + "," + UserRole.Accountant;
 }
 
