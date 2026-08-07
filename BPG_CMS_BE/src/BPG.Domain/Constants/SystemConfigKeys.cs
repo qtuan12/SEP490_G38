@@ -22,4 +22,7 @@ public static class SystemConfigKeys
 
     public const string ExpectedDelayPercent = "ExpectedDelayPercent";      // % trễ tiến độ tối đa trước khi báo động đỏ
     public const string DailyLogEditWindowHours = "DailyLogEditWindowHours"; // Số giờ được phép chỉnh sửa nhật ký thi công kể từ lúc tạo
+
+    // Hạn mức tiền mua khẩn cấp CỘNG DỒN trong một giai đoạn. Đặt 0 = không giới hạn (tắt chặn).
+    public const string DirectPurchasePhaseMaxAmount = "DirectPurchasePhaseMaxAmount";
 }

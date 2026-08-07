@@ -39,6 +39,8 @@ namespace BPG.Application.UnitTests.DirectPurchases
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo = new();
         private readonly Mock<IGenericRepository<MaterialCatalog>> _mockMaterialRepo = new();
         private readonly Mock<IGenericRepository<Unit>> _mockUnitRepo = new();
+        private readonly Mock<IGenericRepository<SystemConfig>> _mockConfigRepo = new();
+        private readonly List<DirectPurchaseRequest> _dpRows = new();
         private readonly Mock<ICurrentUserService> _mockCurrentUser = new();
         private readonly Mock<IDirectPurchaseFulfillmentService> _mockFulfillment = new();
         private readonly SubmitDirectPurchaseCommandHandler _handler;
@@ -54,6 +56,10 @@ namespace BPG.Application.UnitTests.DirectPurchases
             _mockUow.Setup(u => u.Repository<MaterialCatalog>()).Returns(_mockMaterialRepo.Object);
             _mockUow.Setup(u => u.Repository<Unit>()).Returns(_mockUnitRepo.Object);
             _mockUow.Setup(u => u.Repository<DirectPurchaseItem>()).Returns(Mock.Of<IGenericRepository<DirectPurchaseItem>>());
+            _mockUow.Setup(u => u.Repository<SystemConfig>()).Returns(_mockConfigRepo.Object);
+
+            // Mặc định không có hạn mức để các test khác không vướng rule tiền.
+            SetPhaseLimitConfig();
 
             _mockMaterialRepo.Setup(r => r.Query()).Returns(new List<MaterialCatalog>
             {
@@ -135,8 +141,44 @@ namespace BPG.Application.UnitTests.DirectPurchases
                 }
             };
 
-            _mockDpRepo.Setup(r => r.Query()).Returns(new List<DirectPurchaseRequest> { dp }.AsQueryable().BuildMock());
+            _dpRows.Clear();
+            _dpRows.Add(dp);
+            RefreshDpRepo();
         }
+
+        private void RefreshDpRepo() =>
+            _mockDpRepo.Setup(r => r.Query()).Returns(_dpRows.AsQueryable().BuildMock());
+
+        /// <summary>Thêm một phiếu đã gửi trước đó để kiểm tra phần cộng dồn theo giai đoạn.</summary>
+        private void AddSubmittedDp(decimal totalAmount, string status = DirectPurchaseStatus.Approved,
+            long phaseId = PhaseId, bool isDeleted = false)
+        {
+            _dpRows.Add(new DirectPurchaseRequest
+            {
+                DirectPurchaseId = 1000 + _dpRows.Count,
+                ProjectId = ProjectId,
+                PhaseId = phaseId,
+                RequestedBy = UserId,
+                Status = status,
+                TotalAmount = totalAmount,
+                IsDeleted = isDeleted,
+            });
+            RefreshDpRepo();
+        }
+
+        /// <summary>Đặt hạn mức tiền cộng dồn của giai đoạn; null = chưa cấu hình key (không giới hạn).</summary>
+        private void SetPhaseLimitConfig(string? perPhase = null)
+        {
+            var rows = perPhase is null
+                ? new List<SystemConfig>()
+                : new List<SystemConfig>
+                {
+                    new() { ConfigKey = SystemConfigKeys.DirectPurchasePhaseMaxAmount, ConfigValue = perPhase, DataType = "number" }
+                };
+            _mockConfigRepo.Setup(r => r.Query()).Returns(rows.AsQueryable().BuildMock());
+        }
+
+        private DirectPurchaseRequest Draft() => _dpRows.Single(r => r.DirectPurchaseId == DpId);
 
         private Task<string> Submit() => _handler.Handle(new SubmitDirectPurchaseCommand(DpId), CancellationToken.None);
 
@@ -225,6 +267,80 @@ namespace BPG.Application.UnitTests.DirectPurchases
 
             (await act.Should().ThrowAsync<BusinessException>())
                 .Which.ErrorCode.Should().Be(ErrorCodes.DpProjectNotActive);
+        }
+
+        // ---------- Hạn mức tiền mua khẩn cấp cộng dồn theo giai đoạn ----------
+        // Phiếu mẫu: 10 x 1.000đ = 10.000đ.
+
+        [Fact]
+        public async Task Submit_MaxAmountZero_ShouldMeanUnlimited()
+        {
+            SetDraft(TodayVn);
+            SetPhaseLimitConfig("0");
+            AddSubmittedDp(999_999_999m);
+
+            await Submit();
+
+            Draft().Status.Should().Be(DirectPurchaseStatus.Pending);
+        }
+
+        [Fact]
+        public async Task Submit_PhaseSpendingOverLimit_ShouldThrowAndNotTouchInventory()
+        {
+            SetDraft(TodayVn);
+            SetPhaseLimitConfig("25000");
+            AddSubmittedDp(20000m);   // đã tiêu 20.000, phiếu này 10.000 -> 30.000 > 25.000
+
+            var act = Submit;
+
+            (await act.Should().ThrowAsync<BusinessException>())
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpOverPhaseMaxAmount);
+
+            _mockFulfillment.Verify(f => f.MaterializeAsync(
+                It.IsAny<DirectPurchaseRequest>(), It.IsAny<List<DirectPurchaseItem>>(),
+                It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
+            Draft().Status.Should().Be(DirectPurchaseStatus.Draft);
+        }
+
+        [Fact]
+        public async Task Submit_PhaseSpendingExactlyAtLimit_ShouldPass()
+        {
+            SetDraft(TodayVn);
+            SetPhaseLimitConfig("30000");
+            AddSubmittedDp(20000m);
+
+            await Submit();
+
+            Draft().Status.Should().Be(DirectPurchaseStatus.Pending);
+        }
+
+        [Fact]
+        public async Task Submit_PhaseSpending_ShouldCountRejectedRequests()
+        {
+            // Phiếu bị từ chối duyệt chi vẫn đã nhập kho và vẫn tiêu thụ định mức BOQ,
+            // nên cũng phải tiêu thụ hạn mức tiền của giai đoạn.
+            SetDraft(TodayVn);
+            SetPhaseLimitConfig("25000");
+            AddSubmittedDp(20000m, status: DirectPurchaseStatus.Rejected);
+
+            var act = Submit;
+
+            (await act.Should().ThrowAsync<BusinessException>())
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpOverPhaseMaxAmount);
+        }
+
+        [Fact]
+        public async Task Submit_PhaseSpending_ShouldIgnoreDraftsOtherPhasesAndDeleted()
+        {
+            SetDraft(TodayVn);
+            SetPhaseLimitConfig("25000");
+            AddSubmittedDp(20000m, status: DirectPurchaseStatus.Draft);   // nháp: chưa phát sinh gì
+            AddSubmittedDp(20000m, phaseId: PhaseId + 1);                 // giai đoạn khác
+            AddSubmittedDp(20000m, isDeleted: true);                      // đã xóa mềm
+
+            await Submit();
+
+            Draft().Status.Should().Be(DirectPurchaseStatus.Pending);
         }
 
         [Fact]
