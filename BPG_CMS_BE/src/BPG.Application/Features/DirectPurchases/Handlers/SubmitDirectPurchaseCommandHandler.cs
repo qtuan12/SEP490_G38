@@ -235,7 +235,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             }
 
             await _realtimeSender.SendToGroupAsync(
-                $"Project_{dp.ProjectId}", "DirectPurchaseUpdated",
+                $"Project_{dp.ProjectId}", HubMethodNames.DirectPurchaseUpdated,
                 new { DirectPurchaseId = dp.DirectPurchaseId }, ct);
 
             var title = anyOverBOQ
