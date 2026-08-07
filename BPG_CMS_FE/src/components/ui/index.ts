@@ -2,6 +2,7 @@ export * from './Button';
 export * from './Badge';
 export * from './Avatar';
 export * from './LoadingSpinner';
+export * from './BPGLoadingOverlay';
 export * from './Card';
 export * from './Input';
 export * from './DateInput';
@@ -17,3 +18,5 @@ export * from './DataTable';
 export * from './SearchSelect';
 export * from './FullScreenLoading';
 export * from './TableLoader';
+export * from './ThemeToggle';
+

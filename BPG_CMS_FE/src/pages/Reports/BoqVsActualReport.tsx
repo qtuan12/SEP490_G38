@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { reportService, type BoqVsActualItemDto, type MonthlyBoqConsumptionTrendDto } from '../../services/reportService';
 import { projectService } from '../../services/projectService';
 import type { Project } from '../../types/common';
-import { ArrowLeft, Loader2, AlertTriangle, PackageCheck, TrendingUp } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, PackageCheck, TrendingUp } from 'lucide-react';
+import { LoadingSpinner } from '../../components/ui';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 
 interface Props {
@@ -65,12 +66,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
   }, [projectId, fromDate, toDate]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh] gap-3 text-[hsl(var(--text-muted))]">
-        <Loader2 size={24} className="animate-spin text-[hsl(var(--primary))]" />
-        <span>Đang tải Báo cáo Định mức BOQ...</span>
-      </div>
-    );
+    return <LoadingSpinner size="md" label="Đang tải Báo cáo Định mức BOQ..." className="py-20" />;
   }
 
   if (error) {

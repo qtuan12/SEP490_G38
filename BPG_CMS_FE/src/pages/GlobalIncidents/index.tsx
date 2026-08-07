@@ -14,6 +14,7 @@ import {
   Clock,
   Loader2
 } from 'lucide-react';
+import { LoadingSpinner } from '../../components/ui';
 import { Badge, Button, Pagination, Select } from '../../components/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
@@ -396,10 +397,7 @@ export const GlobalIncidents: React.FC = () => {
         </h4>
 
         {loading ? (
-          <div className="flex justify-center items-center py-10 gap-2 text-[hsl(var(--text-muted))]">
-            <Loader2 className="animate-spin" size={20} />
-            Đang tải dữ liệu toàn hệ thống...
-          </div>
+          <LoadingSpinner size="md" label="Đang tải dữ liệu toàn hệ thống..." className="py-10" />
         ) : visibleIncidents.length === 0 ? (
           <div className="text-center py-10 text-[hsl(var(--text-muted))] text-[0.9rem] border border-dashed border-[hsl(var(--border))] rounded-md">
             Hệ thống chưa ghi nhận sự cố nào.

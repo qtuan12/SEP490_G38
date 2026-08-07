@@ -42,10 +42,7 @@ export const formatRelativeTime = (dateString: string): string => {
   if (diffMins < 60) return `${diffMins} phút trước`;
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours} giờ trước`;
-  const d = parseDateSafe(dateString);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  return `${day}/${month}`;
+  return formatDateOnly(dateString);
 };
 
 /**
@@ -62,26 +59,49 @@ export const formatPlainDate = (dateString?: string | null): string => {
   return `${day}/${month}/${year}`;
 };
 
-/** dd/mm/yyyy hh:mm cho mốc thời gian UTC từ backend. */
-export const formatDate = (dateString: string): string => {
-  if (!dateString) return '';
-  const d = parseDateSafe(dateString);
-  if (isNaN(d.getTime())) return dateString;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+/**
+ * Định dạng ngày giờ theo múi giờ Việt Nam (UTC+7 / Asia/Ho_Chi_Minh).
+ * Định dạng xuất ra: dd/MM/yyyy HH:mm
+ */
+export const formatDateVietnam = (date: string | Date): string => {
+  if (!date) return '';
+  const d = typeof date === 'string' ? parseDateSafe(date) : date;
+  if (isNaN(d.getTime())) return typeof date === 'string' ? date : '';
+
+  const formatter = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(d);
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+  return `${getPart('day')}/${getPart('month')}/${getPart('year')} ${getPart('hour')}:${getPart('minute')}`;
 };
 
-/** dd/mm/yyyy cho mốc thời gian UTC từ backend (bỏ phần giờ khi hiển thị). */
+/** dd/mm/yyyy hh:mm cho mốc thời gian UTC từ backend (quy về giờ Việt Nam UTC+7). */
+export const formatDate = (dateString: string): string => {
+  return formatDateVietnam(dateString);
+};
+
+/** dd/mm/yyyy cho mốc thời gian UTC từ backend (bỏ phần giờ khi hiển thị, theo giờ VN). */
 export const formatDateOnly = (dateString: string): string => {
   if (!dateString) return '';
   const d = parseDateSafe(dateString);
   if (isNaN(d.getTime())) return dateString;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
+
+  const formatter = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
+  const parts = formatter.formatToParts(d);
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+  return `${getPart('day')}/${getPart('month')}/${getPart('year')}`;
 };

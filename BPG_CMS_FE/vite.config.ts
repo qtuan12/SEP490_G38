@@ -22,16 +22,16 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'script-defer',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'logo.png'],
       devOptions: {
         enabled: true,
         type: 'module'
       },
       manifest: {
-        name: 'BPG CMS',
+        name: 'BPG CMS - Quản Lý Thi Công Xây Dựng',
         short_name: 'BPG CMS',
-        description: 'BPG Construction Management System - Field Mode',
-        theme_color: '#863bff',
+        description: 'BPG Construction Management System - Quản Lý Thi Công & Vật Tư Công Trình',
+        theme_color: '#2563eb',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/field?standalone=true',
@@ -47,4 +47,4 @@ export default defineConfig({
       },
     }),
   ],
-})
+});

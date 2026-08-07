@@ -67,7 +67,7 @@ export const WBSTree = () => {
 
             {phases.length === 0 && !isCreatePhaseOpen && (
               <div style={{ textAlign: 'center', margin: 'auto', color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>
-                Chưa có dữ liệu WBS. Nhấn "+ Thêm Giai đoạn" để bắt đầu.
+                Chưa có dữ liệu công việc. Nhấn "+ Thêm Giai đoạn" để bắt đầu.
               </div>
             )}
 

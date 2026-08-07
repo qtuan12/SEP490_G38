@@ -97,7 +97,7 @@ export const UserManagement: React.FC = () => {
   };
 
   const showSuccess = (message: string) => {
-    console.log(message);
+    toast.success(message, { duration: 3000, position: 'top-right' });
   };
 
   const handleDeleteSubmit = async () => {
@@ -401,7 +401,7 @@ export const UserManagement: React.FC = () => {
       <CreateUserModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={(msg) => { showSuccess(msg); setPageNumber(1); loadAllUsers(); }}
+        onSuccess={(msg: string) => { showSuccess(msg); setPageNumber(1); loadAllUsers(); }}
       />
 
       <EditUserModal

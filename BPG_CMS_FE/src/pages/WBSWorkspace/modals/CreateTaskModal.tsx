@@ -13,7 +13,7 @@ const createTaskSchema = z.object({
   name: z.string().min(1, 'Vui lòng nhập tên công việc.'),
   description: z.string().optional(),
   startDate: z.string().min(1, 'Vui lòng chọn ngày bắt đầu.'),
-  deadline: z.string().min(1, 'Vui lòng chọn hạn chót (Deadline).'),
+  deadline: z.string().min(1, 'Vui lòng chọn hạn chót.'),
   assignedTo: z.string().optional(),
   weight: z.any().optional(),
   isOutsourced: z.boolean().optional(),
@@ -142,7 +142,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const mutation = useMutation({
     mutationFn: async (data: CreateTaskForm) => {
       if (parentDeadline && new Date(data.deadline) > new Date(parentDeadline)) {
-        throw new Error(`Hạn chót không được vượt quá deadline của cấp cha (${parentDeadline}).`);
+        throw new Error(`Hạn chót không được vượt quá hạn chót của công việc cha (${parentDeadline}).`);
       }
 
       return wbsService.createTask(parseInt(phaseId.replace('ph-', '')), {
@@ -206,39 +206,61 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} width="xl" title={parentTaskId ? "Thêm Công việc con (Sub-Task)" : "Thêm Công việc mới"}>
+    <Modal isOpen={isOpen} onClose={onClose} width="xl" title={parentTaskId ? "Thêm Công việc con" : "Thêm Công việc mới"}>
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 max-h-[85vh] overflow-y-auto p-2">
 
-        {/* THÔNG TIN THỜI GIAN PHASE & PROJECT */}
-        {(project || phase) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 -mb-2">
-            {project && (
-              <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3.5 rounded-xl border border-indigo-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
-                <div className="bg-white/80 p-2 rounded-lg text-indigo-600 shadow-sm border border-indigo-50">
-                  <Calendar size={18} className="stroke-[1.75]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 mb-1">Thời gian dự án</p>
-                  <p className="text-[13px] font-semibold text-slate-700 truncate">
-                    {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
-                  </p>
-                </div>
-              </div>
-            )}
-            {phase && (
-              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-3.5 rounded-xl border border-emerald-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
-                <div className="bg-white/80 p-2 rounded-lg text-emerald-600 shadow-sm border border-emerald-50">
-                  <CalendarDays size={18} className="stroke-[1.75]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-500 mb-1">Thời gian Giai đoạn</p>
-                  <p className="text-[13px] font-semibold text-slate-700 truncate">
-                    {phase.startDate ? new Date(phase.startDate).toLocaleDateString('vi-VN') : '---'} - {phase.endDate ? new Date(phase.endDate).toLocaleDateString('vi-VN') : (phase.deadline ? new Date(phase.deadline).toLocaleDateString('vi-VN') : '---')}
-                  </p>
+        {/* THÔNG TIN THỜI GIAN */}
+        {parentTaskId ? (
+          (() => {
+            const parentTask = tasks.find(t => t.id === parentTaskId);
+            if (!parentTask) return null;
+            return (
+              <div className="grid grid-cols-1 gap-4 -mb-2">
+                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3.5 rounded-xl border border-indigo-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+                  <div className="bg-white/80 p-2 rounded-lg text-indigo-600 shadow-sm border border-indigo-50">
+                    <CalendarDays size={18} className="stroke-[1.75]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 mb-1">Thời gian công việc cha</p>
+                    <p className="text-[13px] font-semibold text-slate-700 truncate">
+                      {parentTask.startDate ? new Date(parentTask.startDate).toLocaleDateString('vi-VN') : '---'} - {parentTask.deadline ? new Date(parentTask.deadline).toLocaleDateString('vi-VN') : '---'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+            );
+          })()
+        ) : (
+          (project || phase) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 -mb-2">
+              {project && (
+                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3.5 rounded-xl border border-indigo-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+                  <div className="bg-white/80 p-2 rounded-lg text-indigo-600 shadow-sm border border-indigo-50">
+                    <Calendar size={18} className="stroke-[1.75]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 mb-1">Thời gian dự án</p>
+                    <p className="text-[13px] font-semibold text-slate-700 truncate">
+                      {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {phase && (
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-3.5 rounded-xl border border-emerald-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+                  <div className="bg-white/80 p-2 rounded-lg text-emerald-600 shadow-sm border border-emerald-50">
+                    <CalendarDays size={18} className="stroke-[1.75]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-500 mb-1">Thời gian Giai đoạn</p>
+                    <p className="text-[13px] font-semibold text-slate-700 truncate">
+                      {phase.startDate ? new Date(phase.startDate).toLocaleDateString('vi-VN') : '---'} - {phase.endDate ? new Date(phase.endDate).toLocaleDateString('vi-VN') : (phase.deadline ? new Date(phase.deadline).toLocaleDateString('vi-VN') : '---')}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -424,7 +446,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
           <button type="button" className="btn btn-secondary px-5" onClick={onClose} disabled={mutation.isPending}>Hủy</button>
           <button type="submit" className="btn btn-primary px-5" disabled={mutation.isPending}>
-            {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : (parentTaskId ? 'Thêm Sub-Task' : 'Tạo mới Task')}
+            {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : (parentTaskId ? 'Thêm Công việc con' : 'Tạo mới Task')}
           </button>
         </div>
       </form>

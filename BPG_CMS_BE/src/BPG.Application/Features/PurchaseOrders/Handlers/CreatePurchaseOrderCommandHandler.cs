@@ -47,7 +47,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             // Không bắt buộc nằm trong khoảng của giai đoạn: chỉ cần không sớm hơn ngày bắt đầu dự án
             // và không vượt quá ngày kết thúc giai đoạn (mua trước cho giai đoạn sau là hợp lệ).
             var phase = linkedRequest.Phase;
-            var orderDateOnly = DateOnly.FromDateTime(request.OrderDate.Date);
+            var orderDateOnly = request.OrderDate;
 
             var project = await _uow.Repository<Project>().Query()
                 .AsNoTracking()
@@ -179,7 +179,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     RequestId = request.RequestId,
                     ProjectId = request.ProjectId,
                     SupplierId = request.SupplierId,
-                    OrderDate = request.OrderDate,
+                    OrderDate = request.OrderDate.ToDateTime(TimeOnly.MinValue),
                     ExpectedDeliveryDate = request.ExpectedDeliveryDate,
                     DeliveryAddress = request.DeliveryAddress?.Trim(),
                     Notes = request.Notes?.Trim(),
@@ -216,7 +216,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             }
 
             await _realtimeSender.SendToGroupAsync(
-                $"Project_{request.ProjectId}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
+                $"Project_{request.ProjectId}", HubMethodNames.PurchaseOrderUpdated, new { POId = po.POId }, cancellationToken);
 
             // Giám đốc là người phải hành động tiếp theo (duyệt/từ chối), trưởng dự án được báo để theo dõi vật tư.
             var currentUserId = _currentUserService.UserId;

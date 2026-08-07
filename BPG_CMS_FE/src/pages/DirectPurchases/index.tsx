@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { directPurchaseService, DP_STATUS_LABEL } from '../../services/directPurchaseService';
 import type { DirectPurchaseRequestDto } from '../../services/directPurchaseService';
-import { Select, Badge } from '../../components/ui';
+import { Select, Badge, LoadingSpinner } from '../../components/ui';
 import { DataTable } from '../../components/ui/DataTable';
 import { DirectPurchaseDetailModal } from '../ProjectLayoutHub/DirectPurchaseDetailModal';
 import { useAuth } from '../../context/AuthContext';
 import { RoleGroup } from '../../auth/roles';
-import { ShoppingBag, AlertCircle, Loader2 } from 'lucide-react';
+import { ShoppingBag, AlertCircle } from 'lucide-react';
 import { formatPlainDate } from '../../utils/dateHelpers';
 
 const STATUS_OPTIONS = [
@@ -166,10 +166,7 @@ export const DirectPurchaseList: React.FC = () => {
       </div>
 
       {isLoading && (
-        <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
-          <Loader2 size={20} className="animate-spin" />
-          <span>Đang tải...</span>
-        </div>
+        <LoadingSpinner size="md" label="Đang tải..." className="py-16" />
       )}
 
       {isError && (

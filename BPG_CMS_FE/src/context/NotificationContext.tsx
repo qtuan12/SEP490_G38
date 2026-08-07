@@ -19,7 +19,7 @@ interface NotificationContextType {
   isLoading: boolean;
   hasEmergencyUnread: boolean;
   fetchNotifications: (page?: number, size?: number) => Promise<void>;
-  markAsRead: (notificationId: number) => Promise<void>;
+  markAsRead: (notificationId: number, showToast?: boolean) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   connection: HubConnection | null;
 }
@@ -128,7 +128,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [isAuthenticated]);
 
   // Đánh dấu 1 thông báo là đã đọc
-  const markAsRead = async (notificationId: number) => {
+  const markAsRead = async (notificationId: number, showToast: boolean = true) => {
     try {
       await notificationService.markAsRead(notificationId, false);
       setNotifications(prev => {
@@ -138,6 +138,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return updated;
       });
       setUnreadCount(prev => Math.max(0, prev - 1));
+      if (showToast) {
+        toast.success('Đã đánh dấu thông báo là đã đọc.');
+      }
     } catch (error) {
       console.error('Lỗi khi đánh dấu đã đọc:', error);
       toast.error('Không thể cập nhật trạng thái thông báo.');
@@ -153,7 +156,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       );
       setUnreadCount(0);
       setHasEmergencyUnread(false);
-      console.log(result.message || 'Đã đánh dấu đọc tất cả thông báo.');
+      toast.success(result.message || 'Đã đánh dấu đọc tất cả thông báo.');
     } catch (error) {
       console.error('Lỗi khi đánh dấu đọc tất cả:', error);
       toast.error('Không thể đánh dấu đọc tất cả.');

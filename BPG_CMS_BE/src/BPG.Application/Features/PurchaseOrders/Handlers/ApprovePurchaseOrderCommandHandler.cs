@@ -51,7 +51,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             await _uow.SaveChangesAsync(cancellationToken);
 
             await _realtimeSender.SendToGroupAsync(
-                $"Project_{po.ProjectId}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
+                $"Project_{po.ProjectId}", HubMethodNames.PurchaseOrderUpdated, new { POId = po.POId }, cancellationToken);
 
             var director = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
             var directorName = director?.FullName ?? "Giám đốc";

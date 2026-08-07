@@ -53,6 +53,62 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 _mockUow.Object,
                 _mockCurrentUserService.Object);
         }
+
+        [Fact]
+        public async Task UTCID01_Handle_ValidRequest_ShouldReturnTrue()
+        {
+            SetupUser(RoleConstants.SiteEngineer, hasRole: false);
+            SetupReceipts(Receipt());
+            SetupAttachments(Attachment());
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
+
+            var result = await _handler.Handle(Command(), CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().BeTrue();
+            result.Message.Should().Be("Cập nhật thông tin phiếu nhập kho thành công.");
+        }
+
+        [Fact]
+        public async Task UTCID02_Handle_ReceiptNotFound_ShouldThrowNotFoundException()
+        {
+            SetupUser(RoleConstants.SiteEngineer, hasRole: false);
+            SetupReceipts();
+
+            var act = async () => await _handler.Handle(Command(receiptId: 999), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("GoodsReceipt với ID [999] không tồn tại.");
+        }
+
+        [Fact]
+        public async Task UTCID03_Handle_ReceiptWithoutProject_ShouldThrowBusinessException()
+        {
+            SetupUser(RoleConstants.SiteEngineer, hasRole: false);
+            SetupReceipts(Receipt(hasProject: false));
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
+            exception.Which.Message.Should().Be("Không tìm thấy dự án liên kết với phiếu nhập kho này.");
+        }
+
+        [Fact]
+        public async Task UTCID04_Handle_UserIsNotProjectLeader_ShouldThrowForbiddenException()
+        {
+            SetupUser(RoleConstants.SiteEngineer, hasRole: false);
+            SetupReceipts(Receipt());
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = false });
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be("AUTH_002");
+            exception.Which.Message.Should().Be("Chỉ Trưởng dự án mới được sửa thông tin phiếu nhập kho.");
+        }
+
         [Fact]
         public async Task UTCID06_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
         {
@@ -121,6 +177,11 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private void SetupProjectMembers(params ProjectMember[] members)
         {
             _mockMemberRepo.Setup(repository => repository.Query()).Returns(members.AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(repository => repository.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>> predicate, CancellationToken ct) =>
+                {
+                    return members.AsQueryable().Any(predicate);
+                });
         }
     }
 }

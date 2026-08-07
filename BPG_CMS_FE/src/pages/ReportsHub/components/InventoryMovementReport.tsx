@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { reportService, type InventoryMovementReportDto } from '../../../services/reportService';
-import { Loader2, ArrowUpRight, ArrowDownLeft, RefreshCw, Layers } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, RefreshCw, Layers } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/ui';
 
 interface Props {
   projectId: string;
@@ -24,9 +25,8 @@ export const InventoryMovementReport: React.FC<Props> = ({ projectId, fromDate, 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px] gap-2 text-[hsl(var(--text-muted))]">
-        <Loader2 className="animate-spin" size={20} />
-        <span>Đang tải báo cáo biến động tồn kho...</span>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="md" label="Đang tải báo cáo biến động tồn kho..." />
       </div>
     );
   }

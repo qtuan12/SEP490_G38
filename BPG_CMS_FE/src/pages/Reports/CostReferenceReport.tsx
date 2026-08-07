@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { reportService, type CostReferenceReportDto } from '../../services/reportService';
 import { projectService } from '../../services/projectService';
 import type {Project} from '../../types/common';
-import { ArrowLeft, Loader2, DollarSign, ShoppingCart, AlertCircle } from 'lucide-react';
+import { ArrowLeft, DollarSign, ShoppingCart, AlertCircle } from 'lucide-react';
+import { LoadingSpinner } from '../../components/ui';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 interface Props {
@@ -60,12 +61,7 @@ export const CostReferenceReport: React.FC<Props> = ({ embeddedProjectId }) => {
   }, [projectId]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh] gap-3 text-[hsl(var(--text-muted))]">
-        <Loader2 size={24} className="animate-spin" />
-        <span>Đang tải Báo cáo Chi phí tham khảo...</span>
-      </div>
-    );
+    return <LoadingSpinner size="md" label="Đang tải Báo cáo Chi phí tham khảo..." className="py-20" />;
   }
 
   if (error) {

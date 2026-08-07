@@ -38,10 +38,14 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
     {
         var phase = await _unitOfWork.Repository<Phase>()
             .Query()
+            .Include(p => p.Project)
             .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId, ct);
 
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
+
+        if (phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         if (phase.StartDate.HasValue && request.StartDate < phase.StartDate.Value)
         {

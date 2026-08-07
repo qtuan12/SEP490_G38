@@ -110,7 +110,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 PONumber = po.PONumber,
                 Status = po.Status,
                 TotalAmount = po.TotalAmount,
-                OrderDate = po.OrderDate,
+                OrderDate = DateOnly.FromDateTime(po.OrderDate),
                 SupplierName = po.Supplier?.SupplierName ?? "N/A",
                 Items = po.Items.Select(i =>
                 {

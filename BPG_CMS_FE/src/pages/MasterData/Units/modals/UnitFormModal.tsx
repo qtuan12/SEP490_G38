@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { unitService } from '../../../../services/unitService';
 import { Modal, Button, Input, FormItem } from '../../../../components/ui';
+import { useLoading } from '../../../../context/LoadingContext';
 import type { Unit } from '../../../../types/unit';
 
 const unitSchema = z.object({
@@ -23,6 +24,7 @@ interface UnitFormModalProps {
 }
 
 export const UnitFormModal: React.FC<UnitFormModalProps> = ({ isOpen, onClose, unit, onSuccess }) => {
+  const { withLoading } = useLoading();
   const queryClient = useQueryClient();
 
   const {
@@ -66,7 +68,9 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({ isOpen, onClose, u
   }, [isOpen, unit, reset]);
 
   const onSubmit = (data: UnitFormData) => {
-    mutation.mutate(data);
+    withLoading(async () => {
+      await mutation.mutateAsync(data);
+    }, unit ? 'Đang cập nhật đơn vị tính...' : 'Đang thêm đơn vị tính mới...');
   };
 
   return (

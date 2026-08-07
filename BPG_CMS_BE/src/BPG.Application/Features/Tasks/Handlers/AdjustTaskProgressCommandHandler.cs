@@ -32,10 +32,14 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
             .Query()
             .Include(t => t.Assignees)
             .Include(t => t.Phase)
+            .ThenInclude(p => p.Project)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
+
+        if (task.Phase != null && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         if (task.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
             throw new BusinessException("ERR_TASK_OBSOLETE", "Không thể điều chỉnh tiến độ cho công việc đã báo lỗi thời.");
@@ -98,7 +102,7 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
         {
             OldProgress = oldProgress,
             NewProgress = request.NewProgress,
-            UpdateReason = request.UpdateReason,
+            UpdateReason = $"Điều chỉnh trực tiếp: {request.UpdateReason}",
             CreatedAt = DateTime.UtcNow,
             CreatedBy = currentUserId,
             UpdatedAt = DateTime.UtcNow,
