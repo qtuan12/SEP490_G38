@@ -141,6 +141,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var exception = await act.Should().ThrowAsync<NotFoundException>();
             exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("ProjectTask với ID [999] không tồn tại.");
         }
 
         [Fact]
@@ -153,6 +154,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be(ValidationMessages.ProjectNotActive);
         }
 
         [Fact]
@@ -167,6 +169,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_TASK_LOCKED");
+            exception.Which.Message.Should().Be("Không thể cập nhật tiến độ vì công việc hoặc cấp cha [Structure Parent] đã được nghiệm thu và khóa.");
         }
 
         [Fact]
@@ -179,6 +182,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_TASK_HAS_SUBTASKS");
+            exception.Which.Message.Should().Be("Không thể cập nhật tiến độ thủ công cho công việc cha có chứa các công việc con.");
         }
 
         [Fact]
@@ -194,6 +198,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_TASK_DEPENDENCY_BLOCKED");
+            exception.Which.Message.Should().Be("Không thể cập nhật tiến độ. Các công việc tiên quyết chưa hoàn thành: Unfinished Foundation Work");
         }
 
         [Fact]
@@ -207,6 +212,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_DECREASE_PROGRESS_FORBIDDEN");
+            exception.Which.Message.Should().Be("Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
         }
 
         [Fact]
@@ -219,6 +225,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_DECREASE_PROGRESS_REASON_REQUIRED");
+            exception.Which.Message.Should().Be("Vui lòng nhập lý do giảm tiến độ công việc.");
         }
 
         [Fact]
@@ -248,6 +255,7 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var exception = await act.Should().ThrowAsync<ForbiddenException>();
             exception.Which.ErrorCode.Should().Be("AUTH_002");
+            exception.Which.Message.Should().Be("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
         }
 
         [Fact]
@@ -263,6 +271,21 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             result.NewProgressPercent.Should().Be(0);
             result.CanEdit.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task UTCID13_Handle_ProjectLeaderIncreasesProgress_ShouldReturnDailyLogDto()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer, hasRole: false);
+            SetupTasks(LeafTask(name: "Leader Task", progress: 10));
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
+
+            var result = await _handler.Handle(Command(progress: 40, description: "Leader progress update"), CancellationToken.None);
+
+            result.TaskName.Should().Be("Leader Task");
+            result.OldProgressPercent.Should().Be(10);
+            result.NewProgressPercent.Should().Be(40);
+            result.Description.Should().Be("Leader progress update");
         }
 
         private static CreateDailyLogCommand Command(
