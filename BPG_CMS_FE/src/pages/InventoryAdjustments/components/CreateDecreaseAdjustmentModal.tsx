@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, FormItem } from '../../../components/ui';
-import { useLoading } from '../../../context/LoadingContext';
 import { inventoryAdjustmentService } from '../../../services/inventoryAdjustmentService';
 import { inventoryService } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
@@ -19,7 +18,6 @@ interface Props {
 }
 
 export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId, incident }) => {
-  const { withLoading } = useLoading();
   const [loading, setLoading] = useState(false);
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
   const [phases, setPhases] = useState<any[]>([]);
@@ -192,15 +190,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
           createReworkTask: false,
           handlingInstruction: description || 'Kế toán đã xác minh.'
         });
-
-        if (incident) {
-          await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
-            incidentId: Number(incident.id || (incident as any).incidentId),
-            createReworkTask: false,
-            handlingInstruction: description || 'Kế toán đã xác minh.'
-          });
-        }
-      }, 'Đang tạo phiếu giảm tồn kho...');
+      }
 
       onSuccess(createdAdjustmentId ? 'Xác minh thành công' : 'Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt');
     } catch (err: any) {

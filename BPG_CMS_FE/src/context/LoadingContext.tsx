@@ -6,6 +6,7 @@ interface LoadingContextType {
   loadingMessage: string;
   showLoading: (message?: string) => void;
   hideLoading: () => void;
+  withLoading: <T>(fn: () => Promise<T>, message?: string) => Promise<T>;
 }
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
@@ -34,6 +35,15 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsLoading(false);
   }, []);
 
+  const withLoading = useCallback(async <T,>(fn: () => Promise<T>, message?: string): Promise<T> => {
+    showLoading(message);
+    try {
+      return await fn();
+    } finally {
+      hideLoading();
+    }
+  }, [showLoading, hideLoading]);
+
   useEffect(() => {
     const handleShow = (e: any) => {
       const msg = e.detail?.message || 'Hệ thống đang xử lý dữ liệu...';
@@ -55,7 +65,7 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   return (
-    <LoadingContext.Provider value={{ isLoading, loadingMessage, showLoading, hideLoading }}>
+    <LoadingContext.Provider value={{ isLoading, loadingMessage, showLoading, hideLoading, withLoading }}>
       {children}
       <FullScreenLoading isOpen={isLoading} message={loadingMessage} />
     </LoadingContext.Provider>

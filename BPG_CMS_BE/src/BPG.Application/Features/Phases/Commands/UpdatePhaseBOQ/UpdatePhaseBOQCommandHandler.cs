@@ -45,7 +45,7 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
             throw new NotFoundException("Phase", request.PhaseId);
         }
 
-        if (phase.Project.Status != ProjectStatus.InProgress)
+        if (phase.Project != null && phase.Project.Status != ProjectStatus.InProgress)
             throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
         // 2. Verify Phase is not frozen
