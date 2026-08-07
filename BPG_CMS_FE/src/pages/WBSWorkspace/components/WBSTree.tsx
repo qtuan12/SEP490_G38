@@ -598,20 +598,28 @@ export const WBSTree = () => {
                                           <History size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Xem nhật ký thi công</span>
                                         </div>
 
-                                        {isPL && (
-                                          <div
-                                            style={menuItemStyle}
-                                            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                            onClick={() => {
-                                              setTaskMenuId(null);
-                                              navigate(`/projects/${ph.projectId}?tab=inventory&subTab=issuances&search=${encodeURIComponent(t.name)}`);
-                                            }}
-                                          >
-                                            <Box size={12} style={{ color: 'hsl(var(--success))' }} />
-                                            <span style={{ color: 'hsl(var(--success))' }}>Cấp phát vật tư</span>
-                                          </div>
-                                        )}
+                                        {isPL && (() => {
+                                          const hasIncompletePredecessor = t.predecessorTaskIds && t.predecessorTaskIds.length > 0 && t.predecessorTaskIds.some(preId => {
+                                            const predecessor = tasks.find(p => p.id === String(preId) || p.id === `t-${preId}`);
+                                            if (!predecessor) return false;
+                                            return (predecessor.progress ?? 0) < 100 && (predecessor.status || '').toLowerCase() !== 'obsolete';
+                                          });
+                                          if (hasIncompletePredecessor) return null;
+                                          return (
+                                            <div
+                                              style={menuItemStyle}
+                                              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                              onClick={() => {
+                                                setTaskMenuId(null);
+                                                navigate(`/projects/${ph.projectId}?tab=inventory&subTab=issuances&search=${encodeURIComponent(t.name)}`);
+                                              }}
+                                            >
+                                              <Box size={12} style={{ color: 'hsl(var(--success))' }} />
+                                              <span style={{ color: 'hsl(var(--success))' }}>Cấp phát vật tư</span>
+                                            </div>
+                                          );
+                                        })()}
                                       </>
                                     )}
 
