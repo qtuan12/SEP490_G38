@@ -67,6 +67,108 @@ namespace BPG.Application.UnitTests.MaterialReturns
                 ServiceStubFactory.RealtimeSender(),
                 ServiceStubFactory.NotificationService());
         }
+
+        [Fact]
+        public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnCreatedReturnId()
+        {
+            SetupTechnicalManager();
+            SetupIssuances(Issuance(IssuanceItem(CementId, 30)));
+
+            var result = await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().Be(GeneratedReturnId);
+            result.Message.Should().StartWith("Tạo phiếu hoàn trả PTra-");
+            result.Message.Should().EndWith("thành công. Tồn kho đã được cập nhật.");
+        }
+
+        [Fact]
+        public async Task UTCID02_Handle_EmptyItems_ShouldThrowBusinessException()
+        {
+            SetupTechnicalManager();
+
+            var act = async () => await _handler.Handle(Command(items: Array.Empty<ReturnItemDto>()), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_EMPTY_ITEMS");
+            exception.Which.Message.Should().Be("Danh sách vật tư hoàn trả không được để trống.");
+        }
+
+        [Fact]
+        public async Task UTCID03_Handle_OriginalIssuanceNotFound_ShouldThrowNotFoundException()
+        {
+            SetupTechnicalManager();
+            SetupIssuances();
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("MaterialIssuance với ID [500] không tồn tại.");
+        }
+
+        [Fact]
+        public async Task UTCID04_Handle_IssuanceWithoutProject_ShouldThrowBusinessException()
+        {
+            SetupTechnicalManager();
+            SetupIssuances(new MaterialIssuance
+            {
+                MaterialIssuanceId = OriginalIssuanceId,
+                IssuanceNo = "PXK-500",
+                Task = new ProjectTask
+                {
+                    TaskId = 100,
+                    Phase = null!,
+                    Assignees = new List<TaskAssignee>()
+                },
+                Items = new List<MaterialIssuanceItem> { IssuanceItem(CementId, 30) }
+            });
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
+            exception.Which.Message.Should().Be("Không tìm thấy dự án liên kết với phiếu xuất kho này.");
+        }
+
+        [Fact]
+        public async Task UTCID05_Handle_UserIsNotTechnicalManagerOrProjectLeader_ShouldThrowForbiddenException()
+        {
+            SetupStandardUser();
+            SetupIssuances(Issuance(IssuanceItem(CementId, 30)));
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be("AUTH_002");
+            exception.Which.Message.Should().Be("Chỉ Trưởng dự án mới được tạo phiếu hoàn trả vật tư.");
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
+        {
+            SetupTechnicalManager();
+            SetupIssuances(Issuance(ProjectStatus.Completed, IssuanceItem(CementId, 30)));
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be("Dự án phải ở trạng thái đang tiến hành để hoàn trả vật tư.");
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_ProjectLeaderWithValidRequest_ShouldReturnCreatedReturnId()
+        {
+            SetupProjectLeader();
+            SetupIssuances(Issuance(IssuanceItem(CementId, 30)));
+
+            var result = await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().Be(GeneratedReturnId);
+        }
+
         [Fact]
         public async Task UTCID08_Handle_MaterialNotInOriginalIssuance_ShouldThrowBusinessException()
         {
@@ -77,6 +179,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_MATERIAL_NOT_IN_ISSUANCE");
+            exception.Which.Message.Should().Be("Vật tư ID 99 không có trong phiếu xuất kho gốc #PXK-500. Chỉ được hoàn trả vật tư đã xuất.");
         }
 
         [Fact]
@@ -89,6 +192,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_INVALID_QUANTITY");
+            exception.Which.Message.Should().Be("Số lượng hoàn trả phải lớn hơn 0.");
         }
 
         [Fact]
@@ -101,6 +205,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_RETURN_EXCEEDS_ISSUED");
+            exception.Which.Message.Should().Be("Số lượng hoàn trả (15.000) vượt quá giới hạn còn lại có thể trả (10.000) cho vật tư ID 50 (Tổng xuất: 10.000, Đã trả trước đó: 0.000) trong phiếu xuất #PXK-500.");
         }
 
         [Fact]
@@ -114,6 +219,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_RETURN_EXCEEDS_ISSUED");
+            exception.Which.Message.Should().Be("Số lượng hoàn trả (5.000) vượt quá giới hạn còn lại có thể trả (4.000) cho vật tư ID 50 (Tổng xuất: 10.000, Đã trả trước đó: 6.000) trong phiếu xuất #PXK-500.");
         }
 
         private static CreateMaterialReturnCommand Command(
@@ -139,6 +245,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
                 Task = new ProjectTask
                 {
                     TaskId = 100,
+                    Assignees = new List<TaskAssignee>(),
                     Phase = new Phase
                     {
                         Project = new Project { ProjectId = ProjectId, Status = projectStatus }
@@ -195,6 +302,11 @@ namespace BPG.Application.UnitTests.MaterialReturns
         private void SetupProjectMembers(params ProjectMember[] members)
         {
             _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>> predicate, CancellationToken ct) =>
+                {
+                    return members.AsQueryable().Any(predicate);
+                });
         }
 
         private void SetupUsers(params User[] users)
