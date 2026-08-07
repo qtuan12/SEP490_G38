@@ -37,6 +37,18 @@ public class ResumeProjectCommandHandler : IRequestHandler<ResumeProjectCommand,
         if (project.Status != ProjectStatus.Paused)
             throw new BusinessException("ERR_PROJECT_RESUME", $"Chỉ có thể tiếp tục dự án khi đang ở trạng thái Paused. Trạng thái hiện tại: {project.Status}");
 
+        var unapprovedEmergencyIncident = await _uow.Repository<Incident>()
+            .Query()
+            .FirstOrDefaultAsync(i => i.ProjectId == request.ProjectId
+                && i.IsEmergency
+                && (i.Status == "WaitingStopApproval" || i.Status == "WaitingRecoveryPlan" || i.Status == "WaitingDirectorApproval"),
+                cancellationToken);
+
+        if (unapprovedEmergencyIncident != null)
+        {
+            throw new BusinessException("ERR_EMERGENCY_RECOVERY_NOT_APPROVED", "Dự án đang tạm dừng do sự cố khẩn cấp. Nút Tiếp tục Dự án chỉ xuất hiện và được phép thực hiện sau khi Giám đốc phê duyệt phương án khắc phục.");
+        }
+
         var userId = _currentUserService.UserId;
         var userName = "Hệ thống";
         if (userId.HasValue)

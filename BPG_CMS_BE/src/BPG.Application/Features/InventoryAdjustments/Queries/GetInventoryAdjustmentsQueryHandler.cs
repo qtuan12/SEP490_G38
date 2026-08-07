@@ -51,11 +51,16 @@ namespace BPG.Application.Features.InventoryAdjustments.Queries
 
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
-                var term = request.SearchTerm.ToLower();
+                var term = request.SearchTerm.Trim().ToLower();
+                var cleanTerm = term.Replace("adj-", "").Replace("adj", "").TrimStart('0');
+                long.TryParse(cleanTerm, out long searchId);
+
                 query = query.Where(x => 
                     x.Reason.ToLower().Contains(term) ||
+                    (x.Description != null && x.Description.ToLower().Contains(term)) ||
                     x.AdjustmentId.ToString().Contains(term) ||
-                    (x.Description != null && x.Description.ToLower().Contains(term))
+                    (searchId > 0 && x.AdjustmentId == searchId) ||
+                    x.Items.Any(i => (i.Material != null && i.Material.Name.ToLower().Contains(term)) || (i.Material != null && i.Material.Code.ToLower().Contains(term)))
                 );
             }
 

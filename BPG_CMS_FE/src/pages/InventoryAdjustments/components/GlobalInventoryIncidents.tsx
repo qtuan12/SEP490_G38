@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../../context/AuthContext';
 import { projectService } from '../../../services/projectService';
 import { incidentService } from '../../../services/incidentService';
@@ -351,8 +352,9 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
         <CreateDecreaseAdjustmentModal
           isOpen={isDecreaseOpen}
           onClose={() => setIsDecreaseOpen(false)}
-          onSuccess={() => {
+          onSuccess={(msg) => {
             setIsDecreaseOpen(false);
+            if (msg) toast.success(msg);
             scheduleRealtimeRefresh();
           }}
           projectId={projectId}

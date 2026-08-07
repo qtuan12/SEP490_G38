@@ -44,7 +44,7 @@ namespace BPG.Api.Controllers
 
         [HttpPut("{id:long}/approve")]
         [EnableRateLimiting(RateLimitPolicies.Mutation)]
-        [Authorize(Roles = RolePolicies.Director)]
+        [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
         public async Task<IActionResult> ApproveDecrease(long projectId, long id, [FromBody] ApproveDecreaseAdjustmentCommand command)
         {
             command.AdjustmentId = id;

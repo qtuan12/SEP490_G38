@@ -16,7 +16,7 @@ interface Props {
 }
 
 export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, adjustmentId, adjustmentData }) => {
-  const { canApprove, canManageAccounting } = useProjectAccess(adjustmentData?.projectId);
+  const { canApprove, isTechnicalManager } = useProjectAccess(adjustmentData?.projectId);
   const [loading, setLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [mode, setMode] = useState<'view' | 'reject' | 'confirmApprove'>('view');
@@ -53,7 +53,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
     }
   }, [isOpen, adjustmentData]);
 
-  const canReview = adjustmentData?.adjustmentType === 'Increase' ? canManageAccounting : canApprove;
+  const canReview = adjustmentData?.adjustmentType === 'Increase' ? isTechnicalManager : canApprove;
   const isPending = adjustmentData?.status === 'Pending';
 
   const getStatusLabel = (status: string) => {
