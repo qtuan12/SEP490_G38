@@ -40,7 +40,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
   });
 
   const mutation = useMutation({
-    mutationFn: async (data: FormData) => userService.createUser(data),
+    mutationFn: async (data: UserFormData) => userService.createUser(data),
     onSuccess: (result) => {
       onSuccess(result.message || 'Thao tác thành công.');
       reset();
