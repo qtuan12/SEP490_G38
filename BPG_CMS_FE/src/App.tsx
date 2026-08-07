@@ -526,6 +526,7 @@ function App() {
             </PWAProvider>
           </Router>
         </NotificationProvider>
+        </LoadingProvider>
       </AuthProvider>
     </LoadingProvider>
       </CompanyProvider>

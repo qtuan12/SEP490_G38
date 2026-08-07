@@ -73,6 +73,7 @@ function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string
 }
 
 export const PODetailPage: React.FC = () => {
+  const { withLoading } = useLoading();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();

@@ -27,6 +27,7 @@ const getRoleDashboard = (role: string): string => {
 };
 
 export const Login: React.FC = () => {
+  const { withLoading } = useLoading();
   const { login } = useAuth();
   const { companyName, companyLogoUrl } = useCompany();
   const navigate = useNavigate();
@@ -105,7 +106,9 @@ export const Login: React.FC = () => {
     const attemptsKey = `bpg_failed_attempts_${emailKey}`;
 
     try {
-      const loggedInUser = await login({ email, password });
+      const loggedInUser = await withLoading(async () => {
+        return await login({ email, password });
+      }, 'Đang xác thực tài khoản...');
       localStorage.removeItem(attemptsKey);
       localStorage.removeItem(`bpg_lock_time_${emailKey}`);
       navigate(getRoleDashboard(loggedInUser.role), { replace: true });

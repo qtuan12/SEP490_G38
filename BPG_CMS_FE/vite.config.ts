@@ -44,6 +44,16 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
       },
-    }),
+    })
+  }
+} catch {
+  // Fallback cleanly if vite-plugin-pwa is not in node_modules
+}
+
+export default defineConfig({
+  plugins: [
+    tailwindcss(),
+    react(),
+    ...(pwaPlugin ? [pwaPlugin] : []),
   ],
 })

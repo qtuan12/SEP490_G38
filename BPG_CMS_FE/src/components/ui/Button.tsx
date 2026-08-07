@@ -27,7 +27,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       lg: 'px-6 py-3 text-base',
     };
 
-    const classes = `${baseStyles} ${variants[variant]} ${sizes[size]} ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${className}`;
+    const classes = `${baseStyles} ${variants[variant]} ${sizes[size]} ${disabled || isLoading ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''} ${className}`;
 
     return (
       <button ref={ref} className={classes} disabled={disabled || isLoading} {...props}>
