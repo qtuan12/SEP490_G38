@@ -3,9 +3,9 @@ import { useFieldArray, useForm } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { materialService } from '../../../../services/materialService';
 import { unitService } from '../../../../services/unitService';
-import { Button, Input, Select } from '../../../../components/ui';
+import { Button, Input, Select, LoadingSpinner } from '../../../../components/ui';
 import type { MaterialCatalog, MaterialConversionRequest } from '../../../../types/material';
-import { X, Plus, Trash2, ArrowRightLeft, Loader2, Save } from 'lucide-react';
+import { X, Plus, Trash2, ArrowRightLeft, Save } from 'lucide-react';
 
 interface ConversionFormData {
   conversions: MaterialConversionRequest[];
@@ -125,9 +125,7 @@ export const MaterialConversionDrawer: React.FC<MaterialConversionDrawerProps> =
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           {isLoadingConversions ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-              <Loader2 className="animate-spin" style={{ color: 'hsl(var(--primary))' }} size={24} />
-            </div>
+            <LoadingSpinner size="md" className="py-10" />
           ) : (
             <form id="conversion-form" onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {mutation.isError && (

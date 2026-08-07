@@ -161,6 +161,26 @@ export const projectService = {
     return [];
   },
 
+  async getAllActiveProjects(): Promise<Project[]> {
+    if (!USE_MOCK_API) {
+      const res = await apiClient.get<ApiResponse<{ items: import('../types/common').ProjectDto[], totalCount: number }>>('/projects?pageSize=100&ListAllActive=true');
+      if (!res.success) throw new Error(res.message || 'Lỗi lấy danh sách dự án');
+      
+      return res.data.items.map(p => ({
+        id: p.projectId.toString(),
+        name: p.name,
+        address: p.address || '',
+        startDate: p.plannedStart,
+        endDate: p.plannedEnd,
+        status: p.status.toLowerCase() as any,
+        progress: p.progress || 0,
+        pauseReason: p.pauseReason,
+        pausedAt: p.pausedAt
+      }));
+    }
+    return this.getProjects();
+  },
+
   async getProjects(): Promise<Project[]> {
     if (!USE_MOCK_API) {
       const res = await apiClient.get<ApiResponse<{ items: import('../types/common').ProjectDto[], totalCount: number }>>('/projects?pageSize=100');

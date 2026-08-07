@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Button, Input, FormItem } from '../../../components/ui';
+import { Modal, Button, Input, FormItem, LoadingSpinner } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN, formatQuantity, isGreaterThanQuantity, parseQuantityInput } from '../../../utils/inventoryHelpers';
 import type { MaterialIssuanceDetail, MaterialIssuanceItemDetail, MaterialReturn } from '../../../types/inventory';
@@ -327,10 +327,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
       }
     >
       {loading ? (
-        <div className="flex justify-center items-center py-16 gap-3">
-          <Loader2 className="animate-spin text-blue-600" size={24} />
-          <span className="text-slate-500 text-sm">Đang tải thông tin chi tiết...</span>
-        </div>
+        <LoadingSpinner size="md" label="Đang tải thông tin chi tiết..." className="py-12" />
       ) : error ? (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-center gap-2">
           <AlertCircle size={18} className="shrink-0" />

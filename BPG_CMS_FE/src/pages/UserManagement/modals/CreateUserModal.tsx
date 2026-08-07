@@ -7,6 +7,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { Button, Input, Select, FormItem } from '../../../components/ui';
 import { userService } from '../../../services/userService';
 import { validateFullName, validatePhoneNumber } from '../../../utils/profileValidation';
+import { useLoading } from '../../../context/LoadingContext';
 
 const schema = z.object({
   name: z.string().superRefine((val, ctx) => {
@@ -21,7 +22,7 @@ const schema = z.object({
   role: z.enum(['admin', 'director', 'technicalmanager', 'siteengineer', 'accountant']).default('siteengineer'),
 });
 
-type FormData = z.infer<typeof schema>;
+type UserFormData = z.infer<typeof schema>;
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -30,7 +31,8 @@ interface CreateUserModalProps {
 }
 
 export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<FormData>({
+  const { withLoading } = useLoading();
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<UserFormData>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       role: 'siteengineer'
@@ -46,16 +48,18 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
     }
   });
 
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+  const onSubmit = (data: UserFormData) => {
+    withLoading(async () => {
+      await mutation.mutateAsync(data);
+    }, 'Đang tạo tài khoản mới...');
   };
 
   const footer = (
     <>
-      <Button variant="outline" onClick={onClose} disabled={isSubmitting} className="mr-3">
+      <Button variant="outline" onClick={onClose} disabled={isSubmitting || mutation.isPending} className="mr-3">
         Hủy
       </Button>
-      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={isSubmitting}>
+      <Button variant="primary" onClick={handleSubmit(onSubmit)} isLoading={isSubmitting || mutation.isPending}>
         Xác nhận
       </Button>
     </>

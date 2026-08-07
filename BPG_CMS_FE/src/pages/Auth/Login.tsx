@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCompany } from '../../context/CompanyContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, Mail, AlertTriangle, Eye, EyeOff } from 'lucide-react';
-import { Button, Input, FormItem } from '../../components/ui';
+import { Button, Input, FormItem, ThemeToggle } from '../../components/ui';
 
 import { isPWAMode, isPWAOptimizedRole } from '../../utils/pwaHelpers';
 
@@ -27,6 +27,7 @@ const getRoleDashboard = (role: string): string => {
 };
 
 export const Login: React.FC = () => {
+  const { withLoading } = useLoading();
   const { login } = useAuth();
   const { companyName, companyLogoUrl } = useCompany();
   const navigate = useNavigate();
@@ -105,7 +106,9 @@ export const Login: React.FC = () => {
     const attemptsKey = `bpg_failed_attempts_${emailKey}`;
 
     try {
-      const loggedInUser = await login({ email, password });
+      const loggedInUser = await withLoading(async () => {
+        return await login({ email, password });
+      }, 'Đang xác thực tài khoản...');
       localStorage.removeItem(attemptsKey);
       localStorage.removeItem(`bpg_lock_time_${emailKey}`);
       navigate(getRoleDashboard(loggedInUser.role), { replace: true });
@@ -133,8 +136,11 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-5 bg-[radial-gradient(circle_at_top,_hsl(240_100%_96%)_0%,_hsl(var(--bg-main))_70%)]">
-      <div className="glass-panel animate-slide-up w-full max-w-[440px] p-10 relative shadow-[0_20px_40px_rgba(0,0,0,0.06),0_0_40px_hsl(var(--primary-glow))]">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[hsl(var(--bg-main))] relative">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle showText />
+      </div>
+      <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl shadow-xl w-full max-w-[420px] p-6 sm:p-8 transition-all">
         
         {/* Header */}
         <div className="text-center mb-8">

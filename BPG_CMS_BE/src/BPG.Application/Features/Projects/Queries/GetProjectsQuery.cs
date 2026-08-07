@@ -7,4 +7,5 @@ using MediatR;
 public class GetProjectsQuery : PaginationRequest, IRequest<PagedList<ProjectDto>>
 {
     public string? Status { get; set; }
+    public bool ListAllActive { get; set; }
 }

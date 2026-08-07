@@ -6,7 +6,7 @@ import { USE_MOCK_API } from '../../../../services/api';
 import type { DailyLog, WBSTask, DailyLogComment, WBSPhase } from '../../../../types/common';
 import { Clock, Plus, ChevronDown, MessageSquare } from 'lucide-react';
 
-import { Modal, Button } from '../../../../components/ui';
+import { Modal, Button, LoadingSpinner } from '../../../../components/ui';
 import { DailyLogFormModal } from '../../modals/DailyLogFormModal';
 import { DailyLogFilters } from './DailyLogFilters';
 import { DailyLogCard } from './DailyLogCard';
@@ -18,22 +18,9 @@ import { RoleGroup } from '../../../../auth/roles';
 
 const PAGE_SIZE = 4;
 
-const formatDateTime = (dateStr?: string) => {
-  if (!dateStr) return '';
-  try {
-    const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr.replace(' ', 'T') + 'Z');
-    const d = new Date(normalized);
-    if (isNaN(d.getTime())) return dateStr;
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  } catch {
-    return dateStr.replace('T', ' ').slice(0, 16);
-  }
-};
+import { formatDateVietnam } from '../../../../utils/dateHelpers';
+
+const formatDateTime = (dateStr?: string) => formatDateVietnam(dateStr || '');
 
 const formatToLocalTime = (dateStr?: string): string => {
   if (!dateStr) return '';
@@ -524,9 +511,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       />
 
       {loading ? (
-        <div className="text-center py-10 text-[hsl(var(--text-muted))]">
-          Đang tải dòng thời gian...
-        </div>
+        <LoadingSpinner size="md" label="Đang tải dòng thời gian nhật ký thi công..." className="py-12" />
       ) : groupedLogs.length === 0 ? (
         <div className="text-center py-16 text-[hsl(var(--text-muted))] border border-dashed border-[hsl(var(--border))] rounded-md">
           <MessageSquare size={36} className="mx-auto mb-3 opacity-40" />

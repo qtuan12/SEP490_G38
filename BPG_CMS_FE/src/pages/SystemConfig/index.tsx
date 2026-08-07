@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { systemConfigService, type SystemConfigDto } from '../../services/systemConfigService';
-import { Button, Input, Card, CardHeader, CardTitle, CardBody, Badge, FormItem, type BadgeVariant } from '../../components/ui';
+import { Button, Input, Card, CardHeader, CardTitle, CardBody, Badge, FormItem, LoadingSpinner, type BadgeVariant } from '../../components/ui';
 import { useCompany } from '../../context/CompanyContext';
 import { compressAndUploadFile } from '../../utils/uploadHelper';
 import { parseDateSafe } from '../../utils/dateHelpers';
@@ -222,9 +222,8 @@ const SystemParametersCard: React.FC = () => {
         )}
 
         {isLoading ? (
-          <div className="flex justify-center items-center h-[160px] gap-2.5">
-            <Loader2 className="animate-spin text-[hsl(var(--primary))]" size={22} />
-            <span className="text-[hsl(var(--text-secondary))] font-medium">Đang tải cấu hình...</span>
+          <div className="flex justify-center items-center h-[160px]">
+            <LoadingSpinner size="md" label="Đang tải cấu hình..." />
           </div>
         ) : configs.length === 0 ? (
           <div className="px-5 py-10 text-center text-slate-400 text-sm">Chưa có tham số nào trong hệ thống.</div>

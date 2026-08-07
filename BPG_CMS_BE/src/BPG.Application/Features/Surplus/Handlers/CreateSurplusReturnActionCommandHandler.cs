@@ -43,6 +43,9 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
             .FirstOrDefaultAsync(i => i.SurplusRequestItemId == request.SurplusRequestItemId, ct)
             ?? throw new NotFoundException(nameof(SurplusRequestItem), request.SurplusRequestItemId);
 
+        if (item.SurplusRequest.Project.Status != ProjectStatus.InProgress)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+
         if (item.SurplusRequest.Status == SurplusRequestStatus.Processed)
             throw new BusinessException(ErrorCodes.AlreadyApproved, "Batch đã hoàn tất, không thể thêm action mới.");
 
@@ -145,13 +148,13 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.Accountant,
             notiTitle, notiContent,
-            NotificationType.Procurement, NotificationReferenceType.SurplusRequest, item.SurplusRequestId, ct);
+            NotificationType.Procurement, NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
 
         // 2. Notify Technical Manager
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.TechnicalManager,
             notiTitle, notiContent,
-            NotificationType.Procurement, NotificationReferenceType.SurplusRequest, item.SurplusRequestId, ct);
+            NotificationType.Procurement, NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
 
         // 3. Notify Project Leader
         var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
@@ -163,7 +166,7 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
             await _notificationService.SendNotificationAsync(
                 projectLeaderId,
                 notiTitle, notiContent,
-                NotificationType.Procurement, NotificationReferenceType.SurplusRequest, item.SurplusRequestId, ct);
+                NotificationType.Procurement, NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
         }
 
         return ApiResponse<long>.SuccessResult(returnRecord.SurplusReturnSupplierId, ResponseMessages.CreateSuccess);

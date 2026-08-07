@@ -14,6 +14,8 @@ import { RoleGroup } from './auth/roles';
 import { NotificationProvider } from './context/NotificationContext';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 import { queryClient } from './lib/queryClient';
+import { ThemeProvider } from './context/ThemeContext';
+
 
 // ─── Lazy-loaded page components ──────────────────────────────────────────────
 // Auth pages (small, loaded early but still split)
@@ -154,8 +156,9 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <CompanyProvider>
-        <LoadingProvider>
+      <ThemeProvider>
+        <CompanyProvider>
+          <LoadingProvider>
           <AuthProvider>
             <NotificationProvider>
           <Router>
@@ -523,9 +526,11 @@ function App() {
             </PWAProvider>
           </Router>
         </NotificationProvider>
+        </LoadingProvider>
       </AuthProvider>
     </LoadingProvider>
-  </CompanyProvider>
+      </CompanyProvider>
+      </ThemeProvider>
       <Toaster position="top-right" />
     </QueryClientProvider>
   );

@@ -67,7 +67,7 @@ namespace BPG.Api.Controllers
         [HttpGet("next-number")]
         [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
         [Authorize(Roles = RolePolicies.Accountant)]
-        public async Task<IActionResult> GetNextPoNumber([FromQuery] DateTime orderDate, CancellationToken ct)
+        public async Task<IActionResult> GetNextPoNumber([FromQuery] DateOnly orderDate, CancellationToken ct)
         {
             var result = await Mediator.Send(new GetNextPoNumberQuery(orderDate), ct);
             return ApiOk(result, "Lấy mã đơn hàng dự kiến thành công");

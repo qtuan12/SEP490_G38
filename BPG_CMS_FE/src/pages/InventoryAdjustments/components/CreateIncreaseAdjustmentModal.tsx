@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, FormItem } from '../../../components/ui';
+import { useLoading } from '../../../context/LoadingContext';
 import { inventoryAdjustmentService } from '../../../services/inventoryAdjustmentService';
 import { masterDataService } from '../../../services/masterDataService';
 import { projectService } from '../../../services/projectService';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId }) => {
+  const { withLoading } = useLoading();
   const [loading, setLoading] = useState(false);
   const [materials, setMaterials] = useState<MaterialCatalog[]>([]);
   const [phases, setPhases] = useState<any[]>([]);

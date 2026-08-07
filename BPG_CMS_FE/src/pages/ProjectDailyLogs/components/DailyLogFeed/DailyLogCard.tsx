@@ -17,18 +17,9 @@ interface DailyLogCardProps {
   onReloadLogs: () => Promise<void>;
 }
 
-const formatCommentDate = (dateStr: string): string => {
-  if (!dateStr) return '';
-  const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : (dateStr.includes('T') ? dateStr + 'Z' : dateStr.replace(' ', 'T') + 'Z');
-  const d = new Date(normalized);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
-};
+import { formatDateVietnam } from '../../../../utils/dateHelpers';
+
+const formatCommentDate = (dateStr: string): string => formatDateVietnam(dateStr);
 
 export const DailyLogCard: React.FC<DailyLogCardProps> = ({
   log,
@@ -420,10 +411,10 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                 variant="primary"
                 isLoading={isSubmittingComment}
                 disabled={isSubmittingComment || !commentInput.trim()}
-                className="h-[42px] px-3.5 rounded-md shrink-0 flex items-center justify-center"
+                className="h-[42px] min-w-[46px] px-3.5 rounded-md shrink-0 flex items-center justify-center"
                 title="Gửi bình luận"
               >
-                <Send size={15} />
+                <Send size={19} strokeWidth={2.5} />
               </Button>
             </form>
           )}

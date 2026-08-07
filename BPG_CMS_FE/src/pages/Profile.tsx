@@ -4,10 +4,11 @@ import { authService } from '../services/authService';
 import type { UserDetailProfile } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/ui/Modal';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X, LogOut } from 'lucide-react';
 import { passwordRules, validatePassword } from '../utils/passwordPolicy';
 import { validateFullName, validatePhoneNumber } from '../utils/profileValidation';
-import { parseDateSafe } from '../utils/dateHelpers';
+import { formatDateVietnam } from '../utils/dateHelpers';
 import { usePWA } from '../context/PWAContext';
 import { PWARestrictedNotice } from '../components/PWARestrictedNotice';
 
@@ -26,10 +27,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const formatDateTime = (iso: string | null): string => {
   if (!iso) return '—';
-  return parseDateSafe(iso).toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+  return formatDateVietnam(iso);
 };
 
 export const Profile: React.FC = () => {
@@ -187,12 +185,7 @@ export const Profile: React.FC = () => {
   };
 
   if (loadingProfile) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', gap: '10px' }}>
-        <Loader2 className="animate-spin" size={22} style={{ color: 'hsl(var(--primary))' }} />
-        <span>Đang tải thông tin...</span>
-      </div>
-    );
+    return <LoadingSpinner size="md" label="Đang tải thông tin cá nhân..." className="py-16" />;
   }
 
   if (profileError || !profile) {

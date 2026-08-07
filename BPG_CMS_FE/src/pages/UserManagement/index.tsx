@@ -23,6 +23,7 @@ import toast from 'react-hot-toast';
 const PAGE_SIZE = 20;
 
 export const UserManagement: React.FC = () => {
+  const { withLoading } = useLoading();
   const [allUsers, setAllUsers] = useState<UserProfile[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -401,7 +402,7 @@ export const UserManagement: React.FC = () => {
       <CreateUserModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={(msg) => { showSuccess(msg); setPageNumber(1); loadAllUsers(); }}
+        onSuccess={(msg: string) => { showSuccess(msg); setPageNumber(1); loadAllUsers(); }}
       />
 
       <EditUserModal

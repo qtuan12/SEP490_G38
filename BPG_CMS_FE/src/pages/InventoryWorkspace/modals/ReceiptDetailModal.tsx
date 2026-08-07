@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Button, Input, FormItem, ConfirmDialog } from '../../../components/ui';
+import { Modal, Button, Input, FormItem, ConfirmDialog, LoadingSpinner } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import type { GoodsReceiptDetail, GoodsReceiptItemDetail } from '../../../types/inventory';
@@ -321,10 +321,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
         }
       >
         {loading ? (
-          <div className="flex justify-center items-center py-12 gap-3">
-            <Loader2 className="animate-spin text-blue-600" size={24} />
-            <span className="text-slate-500 text-sm">Đang tải thông tin chi tiết...</span>
-          </div>
+          <LoadingSpinner size="md" label="Đang tải thông tin chi tiết..." className="py-12" />
         ) : error ? (
           <div className="p-4 bg-red-50 text-red-700 text-sm border border-red-200 rounded">
             {error}

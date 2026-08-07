@@ -3,7 +3,8 @@ import { projectService } from '../services/projectService';
 import type { ProjectMember } from '../types/common';
 import type { UserProfile } from '../services/authService';
 import { Modal } from './ui/Modal';
-import { Crown, UserPlus, UserX, Loader2, UserCheck, Phone } from 'lucide-react';
+import { LoadingSpinner } from './ui/LoadingSpinner';
+import { Crown, UserPlus, UserX, UserCheck, Phone } from 'lucide-react';
 import { useSignalREvent } from '../hooks/useSignalREvent';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -206,12 +207,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   );
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '150px', gap: '8px' }}>
-        <Loader2 className="animate-spin" size={20} style={{ color: 'hsl(var(--primary))' }} />
-        <span>Đang tải danh sách thành viên...</span>
-      </div>
-    );
+    return <LoadingSpinner size="md" label="Đang tải danh sách thành viên..." className="py-12" />;
   }
 
   return (

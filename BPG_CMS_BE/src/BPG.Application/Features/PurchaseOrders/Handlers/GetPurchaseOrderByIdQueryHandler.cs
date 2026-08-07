@@ -65,7 +65,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 POId = po.POId,
                 PONumber = po.PONumber,
                 Status = po.Status,
-                OrderDate = po.OrderDate,
+                OrderDate = DateOnly.FromDateTime(po.OrderDate),
                 ExpectedDeliveryDate = po.ExpectedDeliveryDate,
                 DeliveryAddress = po.DeliveryAddress,
                 Notes = po.Notes,
