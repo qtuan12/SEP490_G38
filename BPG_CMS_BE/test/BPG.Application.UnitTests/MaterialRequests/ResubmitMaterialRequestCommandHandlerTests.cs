@@ -130,7 +130,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
             _mockMRRepo.Verify(r => r.Update(mr), Times.Once);
             _mockMRItemRepo.Verify(r => r.RemoveRange(It.IsAny<IEnumerable<MaterialRequestItem>>()), Times.Once);
             _mockMRItemRepo.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<MaterialRequestItem>>(), It.IsAny<CancellationToken>()), Times.Once);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(3));
         }
 
         [Fact]

@@ -46,6 +46,13 @@ namespace BPG.Application.UnitTests.MaterialRequests
             _mockUow.Setup(u => u.Repository<MaterialRequest>()).Returns(_mockMRRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
 
+            var mockMRItemRepo = new Mock<IGenericRepository<MaterialRequestItem>>();
+            var mockBOQRepo = new Mock<IGenericRepository<BOQItem>>();
+            mockMRItemRepo.Setup(r => r.Query()).Returns(new List<MaterialRequestItem>().AsQueryable().BuildMock());
+            mockBOQRepo.Setup(r => r.Query()).Returns(new List<BOQItem>().AsQueryable().BuildMock());
+            _mockUow.Setup(u => u.Repository<MaterialRequestItem>()).Returns(mockMRItemRepo.Object);
+            _mockUow.Setup(u => u.Repository<BOQItem>()).Returns(mockBOQRepo.Object);
+
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.Director);
 
             _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -83,7 +90,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
             mr.ApprovalNote.Should().Be("Duyệt yêu cầu vượt định mức");
 
             _mockMRRepo.Verify(r => r.Update(mr), Times.Once);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
         [Fact]

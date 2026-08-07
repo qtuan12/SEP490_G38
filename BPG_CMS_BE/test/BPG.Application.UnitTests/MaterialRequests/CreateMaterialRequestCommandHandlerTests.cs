@@ -80,6 +80,8 @@ namespace BPG.Application.UnitTests.MaterialRequests
                 .Callback<MaterialRequest, CancellationToken>((mr, ct) => mr.RequestId = 100)
                 .Returns(Task.CompletedTask);
 
+            _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest>().AsQueryable().BuildMock());
+
             _handler = new CreateMaterialRequestCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
