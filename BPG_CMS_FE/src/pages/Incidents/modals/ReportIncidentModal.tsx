@@ -502,7 +502,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
             )}
             {mutation.isPending
               ? 'Đang lưu...'
-              : '🏗 Lưu & Trình TPKT thẩm định'}
+              : 'Gửi báo cáo'}
           </button>
         </div>
       </form>

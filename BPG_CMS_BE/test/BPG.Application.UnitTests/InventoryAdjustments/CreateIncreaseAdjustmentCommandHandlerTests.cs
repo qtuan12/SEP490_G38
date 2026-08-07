@@ -68,6 +68,19 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
                 ServiceStubFactory.NotificationService());
         }
         [Fact]
+        public async Task UTCID02_Handle_ProjectInactive_ShouldThrowBusinessException()
+        {
+            SetupProject(Project(status: ProjectStatus.Paused));
+            SetupUser(RoleConstants.Admin);
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be("Dự án đang tạm dừng, đã đóng hoặc chưa bắt đầu, không thể thực hiện thao tác này.");
+        }
+
+        [Fact]
         public async Task UTCID03_Handle_PhaseNotFound_ShouldThrowNotFoundException()
         {
             SetupProject(Project());
@@ -160,8 +173,8 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
                 Items = new List<AdjustmentItemRequest> { new() { MaterialId = MaterialId, Quantity = quantity } }
             };
 
-        private static Project Project()
-            => new() { ProjectId = ProjectId, Name = "Project Alpha" };
+        private static Project Project(string status = ProjectStatus.InProgress)
+            => new() { ProjectId = ProjectId, Name = "Project Alpha", Status = status };
 
         private static Phase Phase()
             => new() { PhaseId = PhaseId, ProjectId = ProjectId };

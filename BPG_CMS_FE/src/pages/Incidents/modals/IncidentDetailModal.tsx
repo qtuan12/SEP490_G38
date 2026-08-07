@@ -1545,7 +1545,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                       textDecoration: 'none'
                     }}
                   >
-                    📥 Tải tài liệu (${parsedDoc.files.length} tệp)
+                    📥 Tải tài liệu ({parsedDoc.files.length})
                   </a>
                 ) : (
                   <a
@@ -1938,16 +1938,16 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               ❌ Từ chối
             </button>
             <button onClick={() => setIsResolving(true)} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}>
-              🏗 Thẩm định &amp; Phê duyệt (TPKT)
+              Phê duyệt
             </button>
           </div>
         )
       )}
       {isInventoryIncident && incident.status === 'Reported' && isProjectLeader && (
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
-          <button 
-            onClick={() => plPushToAccountantMutation.mutate()} 
-            className="btn btn-primary" 
+          <button
+            onClick={() => plPushToAccountantMutation.mutate()}
+            className="btn btn-primary"
             style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}
             disabled={plPushToAccountantMutation.isPending}
           >
@@ -2043,7 +2043,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       {incident.isEmergency && incident.status === 'WaitingRecoveryPlan' && isTPKT && (
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
           <button onClick={() => setIsPlanModalOpen(true)} className="btn btn-primary" style={{ minWidth: '240px', fontSize: '0.85rem', padding: '10px' }}>
-            📋 Lập Báo cáo &amp; Kế hoạch Khắc phục
+            Lập báo cáo và Kế hoạch Khắc phục
           </button>
         </div>
       )}
@@ -2070,9 +2070,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
             </div>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '10px solid hsl(var(--border))' }}>
             <button onClick={() => setIsResubmittingByDirector(true)} className="btn btn-outline" style={{ minWidth: '180px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--warning))', borderColor: 'hsl(var(--warning))' }}>
-              ⚠️ Yêu cầu làm lại (Resubmit)
+              ⚠️ Yêu cầu làm lại
             </button>
             <button
               onClick={() => directorApproveDirectlyMutation.mutate()}
@@ -2080,7 +2080,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}
               disabled={directorApproveDirectlyMutation.isPending}
             >
-              {directorApproveDirectlyMutation.isPending ? 'Đang xử lý...' : '🏗 Duyệt & Áp dụng Phương án'}
+              {directorApproveDirectlyMutation.isPending ? 'Đang xử lý...' : ' Duyệt Phương án'}
             </button>
           </div>
         )

@@ -41,7 +41,7 @@ export const WBSModalsContainer = () => {
   } = useWBS();
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
-  const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) || null : null;
+  const selectedTaskPhase = selectedTask ? phases.find(p => String(p.id).replace('ph-', '') === String(selectedTask.phaseId).replace('ph-', '')) || null : null;
   const selectedTaskHasChildren = !!selectedTask && tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
   const canOpenDailyLogForm = !!selectedTask && !!user && !selectedTaskHasChildren && canCreateDailyLog(selectedTask, user, isPL);
 
@@ -79,7 +79,7 @@ export const WBSModalsContainer = () => {
         />
       )}
 
-      {isReportIncidentOpen && selectedTask && selectedTaskPhase && project && (
+      {isReportIncidentOpen && selectedTask && project && (
         <ReportIncidentModal
           isOpen={isReportIncidentOpen}
           onClose={() => setIsReportIncidentOpen(false)}

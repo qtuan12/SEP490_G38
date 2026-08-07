@@ -35,6 +35,14 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             if (adjustment == null) throw new NotFoundException(nameof(InventoryAdjustment), request.AdjustmentId);
 
+            var project = await _unitOfWork.Repository<Project>().GetByIdAsync(adjustment.ProjectId);
+            if (project == null) throw new NotFoundException(nameof(Project), adjustment.ProjectId);
+
+            if (project.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án đang tạm dừng, đã đóng hoặc chưa bắt đầu, không thể thực hiện thao tác này.");
+            }
+
             if (adjustment.Status != InventoryAdjustmentStatus.Pending)
                 throw new BusinessException("ERR_INVALID_STATUS", "Phiếu không ở trạng thái chờ duyệt");
 

@@ -85,7 +85,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             await _uow.SaveChangesAsync(ct);
 
             await _realtimeSender.SendToGroupAsync(
-                $"Project_{dp.ProjectId}", "DirectPurchaseUpdated",
+                $"Project_{dp.ProjectId}", HubMethodNames.DirectPurchaseUpdated,
                 new { DirectPurchaseId = dp.DirectPurchaseId }, ct);
 
             var accountant = await _uow.Repository<User>().GetByIdAsync(userId, ct);

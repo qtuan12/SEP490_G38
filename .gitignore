@@ -105,3 +105,4 @@ BPG_CMS_BE/.github/copilot-instructions.md
 outputs/
 scripts/
 test-cases/
+unit-test/

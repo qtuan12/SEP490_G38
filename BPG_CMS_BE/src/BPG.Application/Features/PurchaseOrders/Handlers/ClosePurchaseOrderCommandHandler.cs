@@ -52,7 +52,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             await _uow.SaveChangesAsync(cancellationToken);
 
             await _realtimeSender.SendToGroupAsync(
-                $"Project_{po.ProjectId}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
+                $"Project_{po.ProjectId}", HubMethodNames.PurchaseOrderUpdated, new { POId = po.POId }, cancellationToken);
 
             // Thông báo cho trưởng dự án: vật tư chưa nhận đã được trả lại yêu cầu vật tư, có thể tạo đơn hàng khác.
             // Không cần báo lại vai trò Kế toán vì chỉ Kế toán mới có quyền thực hiện thao tác này.

@@ -89,7 +89,7 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand command)
     {
         await Mediator.Send(command);
-        return ApiOk("Nếu email tồn tại trong hệ thống, mã OTP đã được gửi.");
+        return ApiOk("Mã OTP đã được gửi đến email của bạn.");
     }
 
     [HttpPost("verify-otp")]
