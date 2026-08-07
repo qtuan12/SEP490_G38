@@ -53,7 +53,7 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
 
         if (!string.IsNullOrEmpty(task.ObsoleteReason) && (task.ObsoleteReason.Contains("Sự cố khẩn cấp") || task.ObsoleteReason.Contains("Sự cố")))
         {
-            throw new BusinessException("ERR_TASK_CANNOT_BE_RESTORED", "Công việc này đã bị hủy do sự cố khẩn cấp (theo phương án được Giám đốc phê duyệt) và không thể khôi phục.");
+            throw new BusinessException("ERR_TASK_CANNOT_BE_RESTORED", "Công việc này đã bị hủy/thay thế do xử lý sự cố thi công và không thể khôi phục.");
         }
 
         var hasObsoletePredecessor = await _unitOfWork.Repository<TaskDependency>()

@@ -30519,7 +30519,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
             )}
             {mutation.isPending
               ? 'Đang lưu...'
-              : '🏗 Lưu & Trình TPKT thẩm định'}
+              : 'Gửi báo cáo'}
           </button>
         </div>
       </form>
@@ -63446,7 +63446,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               ❌ Từ chối
             </button>
             <button onClick={onResolveClick} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}>
-              🏗 Thẩm định &amp; Phê duyệt (TPKT)
+              Phê duyệt 
             </button>
           </div>
         )

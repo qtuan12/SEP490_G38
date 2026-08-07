@@ -266,6 +266,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         var reworkTask = new ProjectTask
                         {
                             PhaseId = incident.Task.PhaseId,
+                            ParentTaskId = incident.Task.ParentTaskId,
                             Name = request.ReworkTaskName!,
                             Description = string.Empty,
                             StartDate = DateOnly.FromDateTime(request.ReworkTaskStartDate!.Value),
@@ -382,6 +383,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 var reworkTask = new ProjectTask
                 {
                     PhaseId = incident.Task.PhaseId,
+                    ParentTaskId = incident.Task.ParentTaskId,
                     Name = request.ReworkTaskName!,
                     Description = string.Empty,
                     StartDate = DateOnly.FromDateTime(request.ReworkTaskStartDate!.Value),

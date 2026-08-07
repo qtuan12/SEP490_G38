@@ -468,6 +468,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
                 const boxStyle = getBoxStyle();
 
+                const isCancelledByIncident = isCancelledByEmergencyIncident || isCancelledByNormalIncident;
+
                 return (
                   <>
                     <div style={{ 
@@ -497,7 +499,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         </button>
                       )}
                     </div>
-                    {selectedTask.status === 'obsolete' && !isCancelledByEmergencyIncident && isTPKTOrPL && (
+                    {selectedTask.status === 'obsolete' && !isCancelledByIncident && isTPKTOrPL && (
                       <button 
                         onClick={() => setIsRestoreConfirmOpen(true)} 
                         className="btn" 

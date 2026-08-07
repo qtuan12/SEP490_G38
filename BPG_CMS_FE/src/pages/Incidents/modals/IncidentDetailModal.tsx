@@ -1938,7 +1938,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               ❌ Từ chối
             </button>
             <button onClick={() => setIsResolving(true)} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px' }}>
-              🏗 Thẩm định &amp; Phê duyệt (TPKT)
+              Phê duyệt
             </button>
           </div>
         )
