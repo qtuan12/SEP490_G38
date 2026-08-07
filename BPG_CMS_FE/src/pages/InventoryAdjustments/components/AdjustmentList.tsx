@@ -28,7 +28,7 @@ interface AdjustmentListProps {
 }
 
 export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => {
-  const { isProjectLeader, canManageAccounting, canApprove } = useProjectAccess(projectId > 0 ? projectId : null);
+  const { isProjectLeader, canManageAccounting, canApprove, isTechnicalManager } = useProjectAccess(projectId > 0 ? projectId : null);
 
   const [data, setData] = useState<InventoryAdjustmentDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,7 +131,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     setIsDecreaseOpen(false);
     setReviewId(null);
     if (msg) {
-      console.log(msg);
+      toast.success(msg);
     }
     scheduleRealtimeRefresh();
   };
@@ -245,7 +245,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
                   <td className="px-4 py-3">{item.approverName || '-'}</td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" size="sm" onClick={() => setReviewId(item.adjustmentId)}>
-                      {item.status === 'Pending' && canApprove ? 'Chi tiết' : 'Xem chi tiết'}
+                      {item.status === 'Pending' && (item.adjustmentType === 'Increase' ? isTechnicalManager : canApprove) ? 'Duyệt' : 'Xem chi tiết'}
                     </Button>
                   </td>
                 </tr>
