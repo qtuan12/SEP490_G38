@@ -10,7 +10,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
 {
     public class GetNextPoNumberQueryHandlerTests
     {
-        private static readonly DateTime OrderDate = new(2026, 3, 10);
+        private static readonly DateOnly OrderDate = new(2026, 3, 10);
 
         private readonly Mock<IGenericRepository<PurchaseOrder>> _mockPoRepo;
         private readonly GetNextPoNumberQueryHandler _handler;

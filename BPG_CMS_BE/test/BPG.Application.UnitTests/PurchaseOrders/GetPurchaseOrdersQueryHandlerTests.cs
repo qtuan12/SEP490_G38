@@ -23,7 +23,9 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         private const long CementId = 50;
         private const int UnitId = 1;
 
-        private static readonly DateTime OrderDate = new(2026, 3, 10);
+        private static readonly DateOnly OrderDate = new(2026, 3, 10);
+        // Entity PurchaseOrder.OrderDate vẫn là DateTime, chỉ Command/DTO dùng DateOnly.
+        private static readonly DateTime OrderDateTime = OrderDate.ToDateTime(TimeOnly.MinValue);
 
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<PurchaseOrder>> _mockPoRepo;
@@ -225,7 +227,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
                 ProjectId = projectId,
                 PONumber = poNumber,
                 Status = status,
-                OrderDate = orderDate ?? OrderDate,
+                OrderDate = orderDate ?? OrderDateTime,
                 TotalAmount = 15_000_000m,
                 SupplierId = supplierName == null ? null : 30,
                 Supplier = supplierName == null

@@ -23,7 +23,9 @@ namespace BPG.Application.UnitTests.DirectPurchases
         private const long DpId = 700;
         private const long OtherDpId = 701;
 
-        private static readonly DateTime PurchaseDate = new(2026, 3, 10);
+        private static readonly DateOnly PurchaseDate = new(2026, 3, 10);
+        // Entity DirectPurchaseRequest.PurchaseDate vẫn là DateTime, chỉ Command/DTO dùng DateOnly.
+        private static readonly DateTime PurchaseDateTime = PurchaseDate.ToDateTime(TimeOnly.MinValue);
 
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<DirectPurchaseRequest>> _mockDpRepo;
@@ -238,7 +240,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
                 AuditStatus = auditStatus,
                 BOQCheckStatus = boqCheckStatus,
                 TotalAmount = 15_000_000m,
-                PurchaseDate = PurchaseDate,
+                PurchaseDate = PurchaseDateTime,
                 CreatedAt = createdAt ?? new DateTime(2026, 3, 10),
                 AuditNote = "Hóa đơn hợp lệ.",
                 Project = new Project { ProjectId = projectId, Name = "Nhà máy Bắc Ninh" },

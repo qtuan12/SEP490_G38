@@ -25,7 +25,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         private const int UnitId = 1;
         private const decimal RequestedCementQty = 100m;
 
-        private static readonly DateTime OrderDate = new(2026, 3, 10);
+        private static readonly DateOnly OrderDate = new(2026, 3, 10);
         private static readonly DateOnly ProjectStart = new(2026, 1, 1);
         private static readonly DateOnly PhaseEnd = new(2026, 12, 31);
 
@@ -128,7 +128,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         [Fact]
         public async Task UTCID05_Handle_OrderDateBeforeProjectStart_ShouldThrowBusinessException()
         {
-            var command = Command(orderDate: ProjectStart.AddDays(-1).ToDateTime(TimeOnly.MinValue));
+            var command = Command(orderDate: ProjectStart.AddDays(-1));
 
             Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
 
@@ -139,7 +139,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         [Fact]
         public async Task UTCID06_Handle_OrderDateAfterPhaseEnd_ShouldThrowBusinessException()
         {
-            var command = Command(orderDate: PhaseEnd.AddDays(1).ToDateTime(TimeOnly.MinValue));
+            var command = Command(orderDate: PhaseEnd.AddDays(1));
 
             Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
 
@@ -264,7 +264,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
 
         private static CreatePurchaseOrderCommand Command(
             string? poNumber = null,
-            DateTime? orderDate = null,
+            DateOnly? orderDate = null,
             DateOnly? expectedDeliveryDate = null,
             long requestId = RequestId,
             IEnumerable<CreatePOItemDto>? items = null)

@@ -24,7 +24,7 @@ namespace BPG.Application.UnitTests.DirectPurchases
         private const long CementId = 50;
         private const int UnitId = 1;
 
-        private static readonly DateTime PurchaseDate = new(2026, 3, 10);
+        private static readonly DateOnly PurchaseDate = new(2026, 3, 10);
 
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<DirectPurchaseRequest>> _mockDpRepo;
