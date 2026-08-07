@@ -2,7 +2,9 @@ using BPG.Application.IRepositories;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Surplus;
 using BPG.Application.Features.Surplus.Queries;
+using BPG.Application.IServices;
 using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,14 +13,21 @@ namespace BPG.Application.Features.Surplus.Handlers;
 public class GetIncomingTransfersQueryHandler : IRequestHandler<GetIncomingTransfersQuery, ApiResponse<List<IncomingSurplusTransferDto>>>
 {
     private readonly IUnitOfWork _uow;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetIncomingTransfersQueryHandler(IUnitOfWork uow)
+    public GetIncomingTransfersQueryHandler(IUnitOfWork uow, IProjectAccessService projectAccessService)
     {
         _uow = uow;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<ApiResponse<List<IncomingSurplusTransferDto>>> Handle(GetIncomingTransfersQuery request, CancellationToken ct)
     {
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(ct);
+        if (!accessibleProjectIds.Contains(request.ProjectId))
+        {
+            throw new ForbiddenException("Bạn không có quyền xem danh sách chuyển điều chuyển vật tư thừa của dự án này.");
+        }
         var transfers = await _uow.Repository<SurplusTransfer>().Query()
             .Include(t => t.FromProject)
             .Include(t => t.ToProject)

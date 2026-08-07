@@ -11,19 +11,26 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BPG.Application.IServices;
+using BPG.Domain.Exceptions;
+
 namespace BPG.Application.Features.GoodsReceipts.Handlers
 {
     public class GetGoodsReceiptsQueryHandler : IRequestHandler<GetGoodsReceiptsQuery, PagedList<GoodsReceiptDto>>
     {
         private readonly IUnitOfWork _uow;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetGoodsReceiptsQueryHandler(IUnitOfWork uow)
+        public GetGoodsReceiptsQueryHandler(IUnitOfWork uow, IProjectAccessService projectAccessService)
         {
             _uow = uow;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PagedList<GoodsReceiptDto>> Handle(GetGoodsReceiptsQuery request, CancellationToken cancellationToken)
         {
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+
             var query = _uow.Repository<GoodsReceipt>().Query()
                 .Include(gr => gr.PurchaseOrder)
                     .ThenInclude(po => po!.Request)
@@ -32,9 +39,16 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
 
             if (request.ProjectId.HasValue)
             {
+                if (!accessibleProjectIds.Contains(request.ProjectId.Value))
+                    throw new ForbiddenException("Bạn không có quyền xem phiếu nhập kho của dự án này.");
+
                 query = query.Where(gr => gr.PurchaseOrder != null && 
                     (gr.PurchaseOrder.ProjectId == request.ProjectId.Value || 
                      (gr.PurchaseOrder.Request != null && gr.PurchaseOrder.Request.Phase != null && gr.PurchaseOrder.Request.Phase.ProjectId == request.ProjectId.Value)));
+            }
+            else
+            {
+                query = query.Where(gr => gr.PurchaseOrder != null && accessibleProjectIds.Contains(gr.PurchaseOrder.ProjectId));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Search))

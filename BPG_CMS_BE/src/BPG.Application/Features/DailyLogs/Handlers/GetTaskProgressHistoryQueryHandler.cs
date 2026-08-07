@@ -75,7 +75,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 {
                     source = "Auto";
                 }
-                else if (reason.Contains("Cập nhật qua Daily Log"))
+                else if (reason.Contains("Cập nhật qua nhật ký thi công"))
                 {
                     source = "DailyLog";
                 }

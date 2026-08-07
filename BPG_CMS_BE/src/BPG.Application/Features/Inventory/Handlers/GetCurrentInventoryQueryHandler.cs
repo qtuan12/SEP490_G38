@@ -11,19 +11,29 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BPG.Application.IServices;
+using BPG.Domain.Exceptions;
+
 namespace BPG.Application.Features.Inventory.Handlers
 {
     public class GetCurrentInventoryQueryHandler : IRequestHandler<GetCurrentInventoryQuery, ApiResponse<List<CurrentInventoryDto>>>
     {
         private readonly IUnitOfWork _uow;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetCurrentInventoryQueryHandler(IUnitOfWork uow)
+        public GetCurrentInventoryQueryHandler(IUnitOfWork uow, IProjectAccessService projectAccessService)
         {
             _uow = uow;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<ApiResponse<List<CurrentInventoryDto>>> Handle(GetCurrentInventoryQuery request, CancellationToken cancellationToken)
         {
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+            if (!accessibleProjectIds.Contains(request.ProjectId))
+            {
+                throw new ForbiddenException("Bạn không có quyền xem tồn kho của dự án này.");
+            }
             var config = await _uow.Repository<SystemConfig>().Query()
                 .FirstOrDefaultAsync(c => c.ConfigKey == SystemConfigKeys.LowStockThreshold
                                        || c.ConfigKey == SystemConfigKeys.LowStockThresholdEn, cancellationToken);

@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Inventory;
 using BPG.Application.Features.Inventory.Handlers;
 using BPG.Application.Features.Inventory.Queries;
@@ -15,6 +15,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
+using BPG.Application.IServices;
+
 namespace BPG.Application.UnitTests.Inventory
 {
     public class GetCurrentInventoryQueryHandlerTests
@@ -26,6 +28,7 @@ namespace BPG.Application.UnitTests.Inventory
         private readonly Mock<IGenericRepository<MaterialIssuanceItem>> _mockIssuanceItemRepo;
         private readonly Mock<IGenericRepository<PurchaseOrderItem>> _mockPoItemRepo;
         private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
+        private readonly Mock<IProjectAccessService> _mockProjectAccessService;
         private readonly GetCurrentInventoryQueryHandler _handler;
 
         public GetCurrentInventoryQueryHandlerTests()
@@ -37,6 +40,11 @@ namespace BPG.Application.UnitTests.Inventory
             _mockIssuanceItemRepo = new Mock<IGenericRepository<MaterialIssuanceItem>>();
             _mockPoItemRepo = new Mock<IGenericRepository<PurchaseOrderItem>>();
             _mockInventoryRepo = new Mock<IGenericRepository<CurrentInventory>>();
+            _mockProjectAccessService = new Mock<IProjectAccessService>();
+
+            _mockProjectAccessService
+                .Setup(p => p.GetAccessibleProjectIdsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new HashSet<long> { 1, 2, 3, 4, 5, 10, 100 });
 
             _mockUow.Setup(u => u.Repository<SystemConfig>()).Returns(_mockConfigRepo.Object);
             _mockUow.Setup(u => u.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
@@ -53,7 +61,7 @@ namespace BPG.Application.UnitTests.Inventory
             _mockPoItemRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrderItem>().AsQueryable().BuildMock());
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory>().AsQueryable().BuildMock());
 
-            _handler = new GetCurrentInventoryQueryHandler(_mockUow.Object);
+            _handler = new GetCurrentInventoryQueryHandler(_mockUow.Object, _mockProjectAccessService.Object);
         }
 
         [Fact]

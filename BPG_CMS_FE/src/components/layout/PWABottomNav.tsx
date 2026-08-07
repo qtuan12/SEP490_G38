@@ -67,7 +67,7 @@ export const PWABottomNav: React.FC = () => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-lg px-2 pt-1.5 flex justify-around items-center md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-[hsl(var(--bg-card))]/95 backdrop-blur-md border-t border-[hsl(var(--border))] shadow-lg px-2 pt-1.5 flex justify-around items-center md:hidden"
       style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
     >
       {visibleItems.map((item) => {
@@ -79,8 +79,8 @@ export const PWABottomNav: React.FC = () => {
             onClick={() => handleNavClick(item.path)}
             className={`flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all relative ${
               active
-                ? 'text-blue-600 font-semibold'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'text-[hsl(var(--primary))] font-semibold'
+                : 'text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'
             }`}
           >
             <span className="relative flex items-center justify-center">
@@ -90,8 +90,8 @@ export const PWABottomNav: React.FC = () => {
                   item.emergency
                     ? 'text-red-500'
                     : active
-                      ? 'scale-110 transition-transform text-blue-600'
-                      : 'text-slate-500'
+                      ? 'scale-110 transition-transform text-[hsl(var(--primary))]'
+                      : 'text-[hsl(var(--text-muted))]'
                 }
               />
               {!!item.badge && item.badge > 0 && (

@@ -42,7 +42,7 @@ const getProgressSource = (source?: string | null, reason?: string | null): Prog
     return { label: 'Tự động', tone: 'auto' };
   }
   if (source === 'DailyLog') {
-    return { label: 'Qua Daily Log', tone: 'dailyLog' };
+    return { label: 'Qua nhật ký thi công', tone: 'dailyLog' };
   }
   if (source === 'Direct') {
     return { label: 'Trực tiếp', tone: 'direct' };
@@ -52,8 +52,8 @@ const getProgressSource = (source?: string | null, reason?: string | null): Prog
   if (value.includes('Cập nhật tự động')) {
     return { label: 'Tự động', tone: 'auto' };
   }
-  if (value.includes('Cập nhật qua Daily Log')) {
-    return { label: 'Qua Daily Log', tone: 'dailyLog' };
+  if (value.includes('Cập nhật qua nhật ký thi công')) {
+    return { label: 'Qua nhật ký thi công', tone: 'dailyLog' };
   }
   if (value.includes('Điều chỉnh trực tiếp')) {
     return { label: 'Trực tiếp', tone: 'direct' };
@@ -186,7 +186,7 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
               padding: '4px 8px',
               borderRadius: '6px',
               border: '1px solid hsl(var(--border))',
-              background: 'white',
+              background: 'hsl(var(--bg-card))',
               color: 'hsl(var(--text-primary))',
               outline: 'none',
               cursor: 'pointer',
@@ -195,9 +195,9 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
               boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
             }}
           >
-            <option value="all">Tất cả thay đổi ({logs.length})</option>
-            <option value="increase">Chỉ tăng tiến độ ({logs.filter(l => l.newProgress > l.oldProgress).length})</option>
-            <option value="decrease">Chỉ giảm tiến độ ({logs.filter(l => l.newProgress < l.oldProgress).length})</option>
+            <option value="all" style={{ background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}>Tất cả thay đổi ({logs.length})</option>
+            <option value="increase" style={{ background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}>Chỉ tăng tiến độ ({logs.filter(l => l.newProgress > l.oldProgress).length})</option>
+            <option value="decrease" style={{ background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))' }}>Chỉ giảm tiến độ ({logs.filter(l => l.newProgress < l.oldProgress).length})</option>
           </select>
         </div>
       )}
@@ -233,13 +233,13 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                   backgroundColor: isDecrease
                     ? 'hsl(var(--danger-glow))'
                     : isAutoSync
-                    ? 'hsl(var(--bg-main) / 0.4)'
-                    : 'hsl(var(--success-glow))',
+                      ? 'hsl(var(--bg-main) / 0.4)'
+                      : 'hsl(var(--success-glow))',
                   border: `1px solid ${isDecrease
                     ? 'hsl(var(--danger) / 0.2)'
                     : isAutoSync
-                    ? 'hsl(var(--border))'
-                    : 'hsl(var(--success) / 0.2)'}`,
+                      ? 'hsl(var(--border))'
+                      : 'hsl(var(--success) / 0.2)'}`,
                   fontSize: compact ? '0.75rem' : '0.82rem',
                 }}
               >
@@ -250,8 +250,8 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                   backgroundColor: isDecrease
                     ? 'hsl(var(--danger))'
                     : isAutoSync
-                    ? 'hsl(var(--text-muted))'
-                    : 'hsl(var(--success))',
+                      ? 'hsl(var(--text-muted))'
+                      : 'hsl(var(--success))',
                   flexShrink: 0,
                   marginTop: '4px'
                 }} />
