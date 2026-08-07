@@ -598,7 +598,7 @@ export const WBSTree = () => {
                                           <History size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Xem nhật ký thi công</span>
                                         </div>
 
-                                        {isPL && !t.parentTaskId && (
+                                        {isPL && (
                                           <div
                                             style={menuItemStyle}
                                             onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
