@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { incidentService } from '../../../services/incidentService';
 import { projectService } from '../../../services/projectService';
-import { UploadCloud, X, HardHat, Loader2 } from 'lucide-react';
+import { UploadCloud, X, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
@@ -61,24 +61,7 @@ interface ReportIncidentModalProps {
   onError: (msg: string) => void;
 }
 
-const BRANCH_LABELS = {
-  construction: {
-    icon: HardHat,
-    title: 'Sự cố Thi công',
-    subtitle: 'Hỏng việc(do Trưởng dự án báo cáo sau khi xuống hiện trường)',
-    color: 'hsl(28, 90%, 50%)',
-    bg: 'hsl(28, 100%, 97%)',
-    border: 'hsl(28, 80%, 75%)',
-  },
-  inventory: {
-    icon: null as any,
-    title: 'Nhánh 2 — Sự cố Vật tư Kho',
-    subtitle: 'Mất mát, hư hỏng khi chưa xuất dùng (do PL báo cáo kèm biên bản)',
-    color: 'hsl(210, 70%, 45%)',
-    bg: 'hsl(210, 100%, 97%)',
-    border: 'hsl(210, 70%, 75%)',
-  },
-};
+
 
 export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   isOpen,
@@ -244,29 +227,8 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
 
   if (!isOpen) return null;
 
-  const branchCfg = BRANCH_LABELS.construction;
-  const Icon = branchCfg.icon;
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Thi công " width="xl">
-
-      {/* ── Banner phân loại ────────────────────────────────────── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        padding: '10px 14px',
-        borderRadius: '8px',
-        background: branchCfg.bg,
-        border: `1px solid ${branchCfg.border}`,
-        marginBottom: '16px',
-      }}>
-        <Icon size={18} color={branchCfg.color} />
-        <div>
-          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: branchCfg.color }}>{branchCfg.title}</div>
-          <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>{branchCfg.subtitle}</div>
-        </div>
-      </div>
+    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Thi công" width="xl">
 
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="flex flex-col gap-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -288,7 +250,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   background: 'hsl(var(--bg-card))',
                   border: '1px solid hsl(var(--border))',
                   fontSize: '0.9rem',
-                  color: BRANCH_LABELS.construction.color,
+                  color: 'hsl(var(--primary))',
                   fontWeight: 600,
                 }}>
                   🏗 Sự cố Thi công
@@ -360,12 +322,12 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   onDrop={handleDrop}
                   onClick={() => { if (uploadedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
                   style={{
-                    border: `2px dashed ${dragging ? branchCfg.color : 'hsl(var(--border))'}`,
+                    border: `2px dashed ${dragging ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
                     borderRadius: '8px',
                     padding: '16px',
                     textAlign: 'center',
                     cursor: uploadedFiles.length >= 5 ? 'not-allowed' : 'pointer',
-                    background: dragging ? branchCfg.bg : 'hsl(var(--bg-card))',
+                    background: dragging ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-card))',
                     opacity: uploadedFiles.length >= 5 ? 0.6 : 1,
                     transition: 'all 0.2s',
                   }}

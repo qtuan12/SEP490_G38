@@ -54,6 +54,16 @@ public class ExceptionMiddleware
                 response = ApiResponse.FailureResult(ErrorCodes.DatabaseError, "Dữ liệu tồn kho hoặc thông tin liên quan đã bị thay đổi bởi một phiên làm việc khác. Vui lòng tải lại trang và thực hiện lại.");
                 break;
 
+            case DbUpdateException ex:
+                _logger.LogError(ex, "DbUpdateException occurred: {InnerMessage}", ex.InnerException?.Message);
+                statusCode = HttpStatusCode.InternalServerError;
+                var dbMsg = _env.IsDevelopment() ? (ex.InnerException?.Message ?? ex.Message) : ResponseMessages.InternalError;
+                var dbDevErrors = _env.IsDevelopment()
+                    ? new List<string> { ex.StackTrace ?? "" }
+                    : null;
+                response = ApiResponse.FailureResult(ErrorCodes.DatabaseError, dbMsg, dbDevErrors);
+                break;
+
             case NotFoundException ex:
                 statusCode = HttpStatusCode.NotFound;
                 response = ApiResponse.FailureResult(ex.ErrorCode, ex.Message);

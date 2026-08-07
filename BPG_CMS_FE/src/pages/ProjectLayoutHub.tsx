@@ -403,7 +403,7 @@ export const ProjectLayoutHub: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{project.name}</h1>
               {project.status === 'draft' && <span className="badge" style={{ backgroundColor: 'hsl(var(--text-muted))', color: 'white' }}>Bản nháp </span>}
-              {project.status === 'inprogress' && <span className="badge badge-primary">Đang triển khai</span>}
+              {project.status === 'inprogress' && <span className="badge badge-success">Đang chạy</span>}
               {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng </span>}
               {project.status === 'done' && <span className="badge badge-success">Hoàn thành </span>}
               {project.pauseReason && (

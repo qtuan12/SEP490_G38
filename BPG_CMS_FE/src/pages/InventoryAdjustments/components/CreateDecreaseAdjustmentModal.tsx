@@ -179,8 +179,9 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         originalIncidentDesc += '\n\n**Hình ảnh đính kèm:**\n' + incident.images.map((url, i) => `![Ảnh ${i + 1}](${url})`).join('\n');
       }
 
+      const actualIncidentId = incident ? (incident.id || (incident as any).incidentId) : null;
       const finalDesc = incident
-        ? `${description}\n\n--- Thông tin sự cố gốc ---\n${originalIncidentDesc}\n\n[System] Liên kết sự cố #${incident.id}`
+        ? `${description}\n\n--- Thông tin sự cố gốc ---\n${originalIncidentDesc}\n\n[System] Liên kết sự cố #${actualIncidentId}`
         : description;
 
       let newAdjustmentId = createdAdjustmentId;
@@ -190,6 +191,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
           reason,
           description: finalDesc,
           phaseId: Number(phaseId),
+          incidentId: actualIncidentId ? Number(actualIncidentId) : undefined,
           items
         });
         newAdjustmentId = (result as any).data || (result as any).id || 1; // store in case confirmIncident fails

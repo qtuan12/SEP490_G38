@@ -1874,38 +1874,45 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         </div>
       )}
 
-      {/* ── BƯỚC 3: Kết quả phê duyệt ────────────────────────────── */}
-      {incident.status === 'Approved' && (
-        <div style={{ border: '1px solid hsl(var(--success) / 0.4)', borderRadius: '10px', padding: '14px', background: 'hsl(var(--success-glow))', display: 'flex', gap: '10px' }}>
-          <CheckCircle size={18} style={{ color: 'hsl(var(--success))', flexShrink: 0, marginTop: '2px' }} />
-          <div>
-            <span style={{ fontSize: '0.7rem', color: 'hsl(var(--success))', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Bước 3: Đã xử lý bởi {incident.reviewerName?.toUpperCase()}
-            </span>
-            <p style={{ margin: '6px 0 0', fontSize: '0.85rem', color: 'hsl(var(--text-primary))' }}>
-              {isInventoryIncident
-                ? 'Giám đốc đã phê duyệt phiếu giảm tồn kho liên quan. Sự cố vật tư kho đã được xử lý hoàn tất.'
-                : 'Sự cố đã được TPKT thẩm định. Rework Task hoặc điều chỉnh tiến độ đã được áp dụng.'}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* ── Handling Instruction ─────────────────────────────────────── */}
-      {incident.status !== 'Assessing' && incident.status !== 'Rejected' && (isTPKT || isDirector) && (
-        <div style={{ border: '1px solid hsl(var(--border))', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', background: 'hsl(var(--bg-muted))' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {isInventoryIncident ? 'Ghi chú / Hướng dẫn xử lý' : 'Hướng dẫn xử lý'}
+      {incident.status !== 'Assessing' && incident.status !== 'Rejected' && (
+        <div style={{
+          border: '1.5px solid hsl(var(--primary))',
+          borderRadius: '10px',
+          overflow: 'hidden',
+          boxShadow: '0 2px 8px hsl(var(--primary) / 0.1)',
+          backgroundColor: 'hsl(var(--bg-card))'
+        }}>
+          <div style={{
+            padding: '10px 14px',
+            background: 'hsl(var(--primary-glow))',
+            borderBottom: '1px solid hsl(var(--primary) / 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <FileText size={16} style={{ color: 'hsl(var(--primary))', flexShrink: 0 }} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'hsl(var(--primary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {isInventoryIncident ? 'Ghi chú / Hướng dẫn xử lý' : 'Hướng dẫn xử lý / Giải quyết'}
             </span>
           </div>
-          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {incident.handlingInstruction ? (
-              <div style={{ padding: '10px', background: 'hsl(var(--bg-card))', borderRadius: '6px', border: '1px solid hsl(var(--border))', fontSize: '0.85rem', color: 'hsl(var(--text-primary))', whiteSpace: 'pre-wrap' }}>
+              <div style={{
+                padding: '12px 14px',
+                background: 'hsl(var(--bg-main) / 0.5)',
+                borderRadius: '8px',
+                border: '1px solid hsl(var(--border))',
+                fontSize: '0.9rem',
+                lineHeight: '1.5',
+                fontWeight: 500,
+                color: 'hsl(var(--text-primary))',
+                whiteSpace: 'pre-wrap'
+              }}>
                 {incident.handlingInstruction}
               </div>
             ) : (
-              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Chưa có hướng dẫn xử lý.</span>
+              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', fontStyle: 'italic' }}>Chưa có hướng dẫn xử lý.</span>
             )}
           </div>
         </div>

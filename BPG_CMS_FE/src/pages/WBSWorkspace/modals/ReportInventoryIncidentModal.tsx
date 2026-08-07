@@ -120,7 +120,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
       });
     },
     onSuccess: () => {
-      onSuccess('Báo cáo sự cố vật tư đã được lưu thành công.');
+      onSuccess('Báo cáo sự cố vật tư kho đã được lưu và gửi thông báo tới Kế toán xác minh.');
       reset();
       setUploadedFiles([]);
       onClose();
@@ -224,7 +224,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
         <Package size={18} color="hsl(210, 70%, 45%)" />
         <div>
           <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'hsl(210, 70%, 45%)' }}>Sự cố Vật tư Kho</div>
-          <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>Mất mát, hư hỏng khi chưa xuất dùng (do PL báo cáo kèm biên bản) - Giai đoạn: {phaseName}</div>
+          <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>Mất mát, hư hỏng khi chưa xuất dùng  - Giai đoạn: {phaseName}</div>
         </div>
       </div>
 
@@ -314,13 +314,13 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                     {uploadedFiles.map((file) => (
                       <div key={file.id} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: file.status === 'error' ? '1px solid #dc2626' : file.status === 'success' ? '1px solid #16a34a' : '1px solid hsl(var(--border))' }}>
                         <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        
+
                         {file.status === 'uploading' && (
                           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Loader2 size={12} className="animate-spin" style={{ color: '#fff' }} />
                           </div>
                         )}
-                        
+
                         <button
                           type="button"
                           onClick={e => { e.stopPropagation(); removeImage(file.id); }}
@@ -462,18 +462,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 )}
               </div>
 
-              <div style={{
-                padding: '10px 14px',
-                borderRadius: '8px',
-                background: 'hsl(210, 100%, 97%)',
-                border: '1px solid hsl(210, 70%, 85%)',
-                fontSize: '0.8rem',
-                color: 'hsl(210, 50%, 40%)',
-                lineHeight: 1.6,
-              }}>
-                <strong>📋 Quy trình tiếp theo:</strong><br />
-                Sau khi PL lưu báo cáo này, <strong>Kế toán</strong> sẽ xem xét, xác minh và tạo <strong>Phiếu Kiểm kê Giảm Tồn Kho</strong> để trình <strong>Giám đốc</strong> phê duyệt.
-              </div>
+
             </div>
           </div>
         </div>

@@ -137,7 +137,7 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             EstimatedDelayDays = request.EstimatedDelayDays,
             ProposedAction = request.ProposedAction,
             IsEmergency = request.IsEmergency,
-            Status = request.IsEmergency ? "WaitingStopApproval" : (isInventoryIncident ? "Reported" : "WaitingReview"),
+            Status = request.IsEmergency ? "WaitingStopApproval" : (isInventoryIncident ? "WaitingAccountant" : "WaitingReview"),
         };
 
         await _unitOfWork.Repository<Incident>().AddAsync(incident);
@@ -153,7 +153,13 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
 
         if (isInventoryIncident)
         {
-            // Trưởng dự án sẽ đẩy (push) sự cố sau nên không gửi thông báo cho kế toán ở bước này
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.Accountant,
+                "📦 Báo cáo sự cố vật tư kho mới",
+                $"Dự án {project.Name} vừa báo cáo sự cố vật tư kho. Vui lòng xác minh và tạo phiếu kiểm kê giảm tồn kho.",
+                "InventoryIncidentReported",
+                $"/projects/{project.ProjectId}/workspace/incidents"
+            );
         }
         else
         {

@@ -57,6 +57,11 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 throw new BusinessException(ErrorCodes.InvalidTransition, "Giai đoạn không thuộc dự án này.");
             }
 
+            if (request.Items.Select(x => x.MaterialId).Distinct().Count() != request.Items.Count)
+            {
+                throw new BusinessException("ERR_DUPLICATE_MATERIAL", "Danh sách vật tư không được chứa vật tư trùng lặp.");
+            }
+
             var adjustment = new InventoryAdjustment
             {
                 ProjectId = request.ProjectId,
@@ -64,7 +69,8 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 AdjustmentType = InventoryAdjustmentType.Increase,
                 Reason = request.Reason,
                 Description = request.Description,
-                Status = InventoryAdjustmentStatus.Pending // Require approval by TPKT
+                Status = InventoryAdjustmentStatus.Pending, // Require approval by TPKT
+                CreatedBy = userId
             };
 
             foreach (var item in request.Items)
