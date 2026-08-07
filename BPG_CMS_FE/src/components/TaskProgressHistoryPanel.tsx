@@ -42,7 +42,7 @@ const getProgressSource = (source?: string | null, reason?: string | null): Prog
     return { label: 'Tự động', tone: 'auto' };
   }
   if (source === 'DailyLog') {
-    return { label: 'Qua Daily Log', tone: 'dailyLog' };
+    return { label: 'Qua nhật ký thi công', tone: 'dailyLog' };
   }
   if (source === 'Direct') {
     return { label: 'Trực tiếp', tone: 'direct' };
@@ -52,8 +52,8 @@ const getProgressSource = (source?: string | null, reason?: string | null): Prog
   if (value.includes('Cập nhật tự động')) {
     return { label: 'Tự động', tone: 'auto' };
   }
-  if (value.includes('Cập nhật qua Daily Log')) {
-    return { label: 'Qua Daily Log', tone: 'dailyLog' };
+  if (value.includes('Cập nhật qua nhật ký thi công')) {
+    return { label: 'Qua nhật ký thi công', tone: 'dailyLog' };
   }
   if (value.includes('Điều chỉnh trực tiếp')) {
     return { label: 'Trực tiếp', tone: 'direct' };
@@ -233,13 +233,13 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                   backgroundColor: isDecrease
                     ? 'hsl(var(--danger-glow))'
                     : isAutoSync
-                    ? 'hsl(var(--bg-main) / 0.4)'
-                    : 'hsl(var(--success-glow))',
+                      ? 'hsl(var(--bg-main) / 0.4)'
+                      : 'hsl(var(--success-glow))',
                   border: `1px solid ${isDecrease
                     ? 'hsl(var(--danger) / 0.2)'
                     : isAutoSync
-                    ? 'hsl(var(--border))'
-                    : 'hsl(var(--success) / 0.2)'}`,
+                      ? 'hsl(var(--border))'
+                      : 'hsl(var(--success) / 0.2)'}`,
                   fontSize: compact ? '0.75rem' : '0.82rem',
                 }}
               >
@@ -250,8 +250,8 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                   backgroundColor: isDecrease
                     ? 'hsl(var(--danger))'
                     : isAutoSync
-                    ? 'hsl(var(--text-muted))'
-                    : 'hsl(var(--success))',
+                      ? 'hsl(var(--text-muted))'
+                      : 'hsl(var(--success))',
                   flexShrink: 0,
                   marginTop: '4px'
                 }} />
