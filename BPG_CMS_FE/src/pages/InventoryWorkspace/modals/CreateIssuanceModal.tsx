@@ -108,6 +108,24 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
         if (matchedTask) {
           setSelectedTaskId(matchedTask.id);
           setTaskSearchQuery(matchedTask.name);
+        } else {
+          // Nếu task được tìm kiếm từ URL nhưng không nằm trong activeTasks, thông báo lý do cụ thể
+          const rawTask = allTasks.find(t => t.name.toLowerCase() === decodedSearch.toLowerCase());
+          if (rawTask) {
+            if (rawTask.predecessorTaskIds && rawTask.predecessorTaskIds.length > 0) {
+              const incompletePres = rawTask.predecessorTaskIds
+                .map(preId => allTasks.find(p => p.id === String(preId) || p.id === `t-${preId}`))
+                .filter(p => p && (p.progress ?? 0) < 100 && (p.status || '').toLowerCase() !== 'obsolete');
+              if (incompletePres.length > 0) {
+                const names = incompletePres.map(p => `'${p!.name}'`).join(', ');
+                setTaskError(`Công việc [${rawTask.name}] chưa được phép tiến hành do các công việc tiền nhiệm (${names}) chưa hoàn thành 100%.`);
+              }
+            } else if ((rawTask.progress ?? 0) >= 100) {
+              setTaskError(`Công việc [${rawTask.name}] đã hoàn thành (100%), không thể xuất thêm vật tư.`);
+            } else if (rawTask.isLocked) {
+              setTaskError(`Công việc [${rawTask.name}] đang bị khóa, không thể xuất vật tư.`);
+            }
+          }
         }
       }
 
