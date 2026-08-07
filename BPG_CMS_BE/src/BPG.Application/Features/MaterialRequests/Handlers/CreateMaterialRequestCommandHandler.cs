@@ -179,6 +179,11 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
             if (anyItemOverBOQ)
             {
                 boqCheckStatus = BOQCheckStatus.OverBOQ;
+                if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length < 5)
+                {
+                    throw new BusinessException("ERR_REASON_REQUIRED_FOR_OVER_BOQ", 
+                        "Yêu cầu vượt định mức bắt buộc phải nhập lý do giải trình (tối thiểu 5 ký tự).");
+                }
             }
 
             // 5. Tạo bản ghi MaterialRequest

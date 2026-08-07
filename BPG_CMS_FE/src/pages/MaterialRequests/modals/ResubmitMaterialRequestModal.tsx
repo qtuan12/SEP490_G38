@@ -147,6 +147,11 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
 
   const mutation = useMutation({
     mutationFn: async (data: ResubmitMaterialRequestForm) => {
+      const checkOverBOQ = isPhaseRequest ? request.isOverBOQ : data.isOverBOQ;
+      if (checkOverBOQ && (!data.reason || data.reason.trim().length < 5)) {
+        throw new Error('Yêu cầu vượt định mức bắt buộc phải nhập lý do giải trình (tối thiểu 5 ký tự)!');
+      }
+
       return projectService.resubmitMaterialRequest(request.id, {
         items: data.items.map(it => ({ name: it.name.trim(), quantity: it.quantity, unit: it.unit.trim() })),
         type: data.type,
@@ -170,6 +175,11 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   });
 
   const onSubmit = (data: ResubmitMaterialRequestForm) => {
+    const checkOverBOQ = isPhaseRequest ? request.isOverBOQ : data.isOverBOQ;
+    if (checkOverBOQ && (!data.reason || data.reason.trim().length < 5)) {
+      setError('reason', { type: 'manual', message: 'Yêu cầu vượt định mức bắt buộc phải nhập lý do giải trình (tối thiểu 5 ký tự)!' });
+      return;
+    }
     mutation.mutate(data);
   };
 

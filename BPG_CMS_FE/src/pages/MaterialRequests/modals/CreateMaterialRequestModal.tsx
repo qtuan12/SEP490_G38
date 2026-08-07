@@ -333,8 +333,8 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
   const mutation = useMutation({
     mutationFn: async (data: CreateMaterialRequestForm) => {
-      if (isOverBOQ && (!data.reason || data.reason.trim() === '')) {
-        throw new Error('Yêu cầu VƯỢT ĐỊNH MỨC bắt buộc phải nhập Lý do giải trình!');
+      if (isOverBOQ && (!data.reason || data.reason.trim().length < 5)) {
+        throw new Error('Yêu cầu vượt định mức bắt buộc phải nhập lý do giải trình (tối thiểu 5 ký tự)!');
       }
 
       return projectService.createMaterialRequest({
@@ -365,8 +365,8 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
   });
 
   const onSubmit = (data: CreateMaterialRequestForm) => {
-    if (isOverBOQ && (!data.reason || data.reason.trim() === '')) {
-      setError('reason', { type: 'manual', message: 'Yêu cầu vượt định mức bắt buộc phải nhập lý do giải trình!' });
+    if (isOverBOQ && (!data.reason || data.reason.trim().length < 5)) {
+      setError('reason', { type: 'manual', message: 'Yêu cầu vượt định mức bắt buộc phải nhập lý do giải trình (tối thiểu 5 ký tự)!' });
       return;
     }
     mutation.mutate(data);

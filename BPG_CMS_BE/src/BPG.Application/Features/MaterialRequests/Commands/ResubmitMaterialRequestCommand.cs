@@ -161,6 +161,12 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             // Cập nhật phiếu: reset về Pending để bắt đầu lại quy trình duyệt
             mr.Status = MaterialRequestStatus.Pending;
             mr.BOQCheckStatus = anyItemOverBOQ ? BOQCheckStatus.OverBOQ : BOQCheckStatus.WithinBOQ;
+
+            if (anyItemOverBOQ && (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length < 5))
+            {
+                throw new BusinessException("ERR_REASON_REQUIRED_FOR_OVER_BOQ", 
+                    "Yêu cầu vượt định mức bắt buộc phải nhập lý do giải trình (tối thiểu 5 ký tự).");
+            }
             mr.Reason = request.Reason.Trim();
             mr.CheckedBy = null;
             mr.ApprovedBy = null;
