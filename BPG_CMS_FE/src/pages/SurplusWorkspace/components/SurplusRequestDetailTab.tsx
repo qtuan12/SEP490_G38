@@ -219,7 +219,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                         setExpandedActionId(null);
                         setExpandedActionType(null);
                       }}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors"
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     >
                       {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                       {item.actions.length} thao tác
@@ -230,21 +230,21 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
 
               {/* Expanded actions summary */}
               {isExpanded && item.actions.length > 0 && (
-                <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">
+                <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 px-4 py-3">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">
                     Lịch sử xử lý
                   </p>
-                  <div className="overflow-x-auto rounded-lg border border-slate-200 mt-2">
-                    <table className="w-full text-left border-collapse bg-white">
+                  <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 mt-2">
+                    <table className="w-full text-left border-collapse bg-white dark:bg-slate-900">
                       <thead>
-                        <tr className="bg-slate-100/70 border-b border-slate-200 text-[11px] text-slate-500 uppercase tracking-wide">
+                        <tr className="bg-slate-100/70 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                           <th className="py-2 px-3 font-semibold w-24">Mã phiếu</th>
                           <th className="py-2 px-3 font-semibold">Loại xử lý</th>
                           <th className="py-2 px-3 font-semibold text-right">Số lượng</th>
                           <th className="py-2 px-3 font-semibold text-center">Trạng thái</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {item.actions.map((action, idx) => {
                           const typeBadge = getSurplusActionTypeLabel(action.actionType);
                           const isActionExpanded = expandedActionId === action.actionId && expandedActionType === action.actionType;
@@ -252,7 +252,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                           return (
                             <React.Fragment key={idx}>
                               <tr 
-                                className={`hover:bg-slate-50 transition-colors cursor-pointer ${isActionExpanded ? 'bg-slate-50' : ''}`}
+                                className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${isActionExpanded ? 'bg-slate-50 dark:bg-slate-800/50' : ''}`}
                                 onClick={() => {
                                   if (isActionExpanded) {
                                     setExpandedActionId(null);
@@ -263,7 +263,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                                   }
                                 }}
                               >
-                                <td className="py-2 px-3 text-xs text-blue-600 hover:underline font-mono">
+                                <td className="py-2 px-3 text-xs text-blue-600 dark:text-blue-400 hover:underline font-mono">
                                   #{action.actionId}
                                 </td>
                                 <td className="py-2 px-3 text-xs">
@@ -271,11 +271,11 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                                     {typeBadge.name}
                                   </span>
                                 </td>
-                                <td className="py-2 px-3 text-xs text-slate-700 font-semibold text-right">
-                                  {action.quantity} <span className="text-slate-500 font-normal">{item.unitName}</span>
+                                <td className="py-2 px-3 text-xs text-slate-700 dark:text-slate-200 font-semibold text-right">
+                                  {action.quantity} <span className="text-slate-500 dark:text-slate-400 font-normal">{item.unitName}</span>
                                 </td>
                                 <td className="py-2 px-3 text-xs text-center">
-                                  <span className="text-slate-600 font-medium">
+                                  <span className="text-slate-600 dark:text-slate-300 font-medium">
                                     {getGeneralActionStatusName(action.status)}
                                   </span>
                                 </td>

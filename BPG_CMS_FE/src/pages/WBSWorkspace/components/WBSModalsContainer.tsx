@@ -114,7 +114,19 @@ export const WBSModalsContainer = () => {
 
 
       {isLogOpen && selectedTask && user && canOpenDailyLogForm && (
-        <DailyLogFormModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} task={selectedTask} engineerId={user.id} engineerName={user.name} isPL={isPL} canManageTechnical={isTPKT} onSuccess={handleSuccess} onError={handleError} />
+        <DailyLogFormModal
+          isOpen={isLogOpen}
+          onClose={() => setIsLogOpen(false)}
+          task={selectedTask}
+          engineerId={user.id}
+          engineerName={user.name}
+          isPL={isPL}
+          canManageTechnical={isTPKT}
+          onSuccess={() => {
+            loadWBSData();
+          }}
+          onError={handleError}
+        />
       )}
 
       {isCreateMatReqOpen && selectedTask && (

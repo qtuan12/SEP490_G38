@@ -115,8 +115,8 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-6 gap-2 bg-slate-50/50">
-        <LoadingSpinner /><span className="text-sm text-slate-500">Đang tải chi tiết...</span>
+      <div className="flex justify-center items-center py-6 gap-2 bg-slate-50/50 dark:bg-slate-900/50 dark:text-slate-400">
+        <LoadingSpinner /><span className="text-sm text-slate-500 dark:text-slate-400">Đang tải chi tiết...</span>
       </div>
     );
   }
@@ -124,29 +124,29 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
   if (!data) return null;
 
   return (
-    <div className="bg-slate-50/50 p-4 border-t border-slate-100 shadow-inner">
+    <div className="bg-slate-50/50 dark:bg-slate-900/50 p-4 border-t border-slate-100 dark:border-slate-800 shadow-inner">
       {/* Returns */}
       {data.returns.map(r => (
-        <div key={r.surplusReturnSupplierId} className="border border-purple-100 bg-purple-50/50 rounded-lg px-4 py-3 text-sm">
+        <div key={r.surplusReturnSupplierId} className="border border-purple-100 dark:border-purple-900/50 bg-purple-50/50 dark:bg-purple-950/30 rounded-lg px-4 py-3 text-sm">
           <div className="flex justify-between flex-wrap gap-2">
-            <span className="font-semibold text-slate-700">
+            <span className="font-semibold text-slate-700 dark:text-slate-200">
               #{r.surplusReturnSupplierId} — Nhà cung cấp: {r.supplierName || 'Không xác định'}
             </span>
-            <span className="text-slate-500">{formatDateVN(r.createdAt)}</span>
+            <span className="text-slate-500 dark:text-slate-400">{formatDateVN(r.createdAt)}</span>
           </div>
-          <p className="text-slate-600 mt-1">
+          <p className="text-slate-600 dark:text-slate-300 mt-1">
             Số lượng trả: <strong>{r.returnQuantity} {unitName}</strong>
             {r.refundAmount != null && (
-              <> &nbsp;|&nbsp; Số tiền thu hồi: <strong className="text-green-700">{formatCurrency(r.refundAmount)}</strong></>
+              <> &nbsp;|&nbsp; Số tiền thu hồi: <strong className="text-green-700 dark:text-green-400">{formatCurrency(r.refundAmount)}</strong></>
             )}
           </p>
-          {r.note && <p className="text-slate-500 text-xs mt-1.5 p-2 bg-white rounded border border-purple-100/50">Ghi chú: {r.note}</p>}
+          {r.note && <p className="text-slate-500 dark:text-slate-300 text-xs mt-1.5 p-2 bg-white dark:bg-slate-800 rounded border border-purple-100/50 dark:border-purple-900/40">Ghi chú: {r.note}</p>}
           {r.attachments && r.attachments.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-purple-200/50">
-              <p className="text-xs font-medium text-slate-500 mb-1">File đính kèm:</p>
+            <div className="mt-2 pt-2 border-t border-purple-200/50 dark:border-purple-900/40">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">File đính kèm:</p>
               <div className="flex flex-wrap gap-2">
                 {r.attachments.map(att => (
-                  <a key={att.attachmentId} href={att.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-purple-200 rounded text-xs text-purple-700 hover:bg-purple-50">
+                  <a key={att.attachmentId} href={att.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-800 border border-purple-200 dark:border-purple-800 rounded text-xs text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-slate-700">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                     {att.fileName}
                   </a>
@@ -161,26 +161,26 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
       {data.transfers.map(t => {
         const isActioning = actioning === t.surplusTransferId;
         return (
-          <div key={t.surplusTransferId} className="border border-blue-100 bg-blue-50/50 rounded-lg px-4 py-3 text-sm">
+          <div key={t.surplusTransferId} className="border border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/30 rounded-lg px-4 py-3 text-sm">
             <div className="flex justify-between flex-wrap gap-2 items-start">
               <div>
-                <span className="font-semibold text-slate-700">Phiếu chuyển kho #{t.surplusTransferId}</span>
-                <span className="text-slate-500 ml-2">
-                  Dự án gửi: <strong className="text-slate-700">{t.fromProjectName}</strong> → Dự án nhận: <strong className="text-slate-700">{t.toProjectName}</strong>
+                <span className="font-semibold text-slate-700 dark:text-slate-200">Phiếu chuyển kho #{t.surplusTransferId}</span>
+                <span className="text-slate-500 dark:text-slate-400 ml-2">
+                  Dự án gửi: <strong className="text-slate-700 dark:text-slate-200">{t.fromProjectName}</strong> → Dự án nhận: <strong className="text-slate-700 dark:text-slate-200">{t.toProjectName}</strong>
                 </span>
               </div>
             </div>
-            <p className="text-slate-600 mt-2">
+            <p className="text-slate-600 dark:text-slate-300 mt-2">
               Số lượng: <strong>{t.transferQuantity} {unitName}</strong>
               &nbsp;|&nbsp; Ngày tạo: {formatDateVN(t.createdAt)}
             </p>
 
             {t.attachments && t.attachments.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-blue-200/50">
-                <p className="text-xs font-medium text-slate-500 mb-1">File đính kèm:</p>
+              <div className="mt-2 pt-2 border-t border-blue-200/50 dark:border-blue-900/40">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">File đính kèm:</p>
                 <div className="flex flex-wrap gap-2">
                   {t.attachments.map(att => (
-                    <a key={att.attachmentId} href={att.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-blue-200 rounded text-xs text-blue-700 hover:bg-blue-50">
+                    <a key={att.attachmentId} href={att.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 rounded text-xs text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-slate-700">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                       {att.fileName}
                     </a>
@@ -203,7 +203,7 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
                   <button
                     disabled={isActioning}
                     onClick={() => doTransferAction(t.surplusTransferId, 'review-reject')}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 disabled:opacity-50"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900 hover:bg-red-200 dark:hover:bg-red-900/60 disabled:opacity-50"
                   >
                     {isActioning ? '...' : '✕ Từ chối'}
                   </button>
@@ -234,23 +234,23 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
 
       {/* Liquidations */}
       {data.liquidations.map(l => (
-        <div key={l.surplusLiquidationId} className="border border-orange-100 bg-orange-50/50 rounded-lg px-4 py-3 text-sm">
+        <div key={l.surplusLiquidationId} className="border border-orange-100 dark:border-orange-900/50 bg-orange-50/50 dark:bg-orange-950/30 rounded-lg px-4 py-3 text-sm">
           <div className="flex justify-between flex-wrap gap-2">
-            <span className="font-semibold text-slate-700">
+            <span className="font-semibold text-slate-700 dark:text-slate-200">
               #{l.surplusLiquidationId} — Khách hàng: {l.buyerName}
             </span>
-            <span className="text-slate-500">{formatDateVN(l.createdAt)}</span>
+            <span className="text-slate-500 dark:text-slate-400">{formatDateVN(l.createdAt)}</span>
           </div>
-          <p className="text-slate-600 mt-1">
+          <p className="text-slate-600 dark:text-slate-300 mt-1">
             Số lượng thanh lý: <strong>{l.liquidationQuantity} {unitName}</strong>
-            &nbsp;|&nbsp; Giá trị thu hồi: <strong className="text-green-700">{formatCurrency(l.totalAmount)}</strong>
+            &nbsp;|&nbsp; Giá trị thu hồi: <strong className="text-green-700 dark:text-green-400">{formatCurrency(l.totalAmount)}</strong>
           </p>
           {l.attachments && l.attachments.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-orange-200/50">
-              <p className="text-xs font-medium text-slate-500 mb-1">File đính kèm:</p>
+            <div className="mt-2 pt-2 border-t border-orange-200/50 dark:border-orange-900/40">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">File đính kèm:</p>
               <div className="flex flex-wrap gap-2">
                 {l.attachments.map(att => (
-                  <a key={att.attachmentId} href={att.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-orange-200 rounded text-xs text-orange-700 hover:bg-orange-50">
+                  <a key={att.attachmentId} href={att.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-800 border border-orange-200 dark:border-orange-800 rounded text-xs text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-slate-700">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                     {att.fileName}
                   </a>

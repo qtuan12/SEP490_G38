@@ -1,9 +1,10 @@
-﻿
+
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Incidents;
 using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using MediatR;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
@@ -11,26 +12,32 @@ using Microsoft.EntityFrameworkCore;
 namespace BPG.Application.Features.Incidents.Queries.GetIncidents;
 
 public record GetIncidentsQuery(long ProjectId)
-    : IRequest<ApiResponse<List<IncidentDto>>>
-{
-    public Task<long> GetProjectIdAsync(IUnitOfWork unitOfWork, CancellationToken cancellationToken)
-        => Task.FromResult(ProjectId);
-}
-
+    : IRequest<ApiResponse<List<IncidentDto>>>;
 
 public class GetIncidentsQueryHandler : IRequestHandler<GetIncidentsQuery, ApiResponse<List<IncidentDto>>>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetIncidentsQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+    public GetIncidentsQueryHandler(
+        IUnitOfWork unitOfWork,
+        IMapper mapper,
+        IProjectAccessService projectAccessService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<ApiResponse<List<IncidentDto>>> Handle(GetIncidentsQuery request, CancellationToken cancellationToken)
     {
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+        if (!accessibleProjectIds.Contains(request.ProjectId))
+        {
+            throw new ForbiddenException("Bạn không có quyền xem sự cố của dự án này.");
+        }
+
         var incidents = await _unitOfWork.Repository<Incident>()
             .Query()
             .Include(i => i.Reporter)

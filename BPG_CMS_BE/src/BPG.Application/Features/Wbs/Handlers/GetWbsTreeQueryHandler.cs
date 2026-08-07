@@ -9,19 +9,35 @@ using Microsoft.EntityFrameworkCore;
 using BPG.Application.DTOs.Wbs;
 using BPG.Application.Features.Wbs.Queries;
 
+using BPG.Application.IServices;
+using BPG.Domain.Constants;
+
 namespace BPG.Application.Features.Wbs.Handlers;
 
 public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDto>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetWbsTreeQueryHandler(IUnitOfWork unitOfWork)
+    public GetWbsTreeQueryHandler(
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService,
+        IProjectAccessService projectAccessService)
     {
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<WbsTreeDto> Handle(GetWbsTreeQuery request, CancellationToken ct)
     {
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(ct);
+        if (!accessibleProjectIds.Contains(request.ProjectId))
+        {
+            throw new ForbiddenException("Bạn không có quyền truy cập vào WBS của dự án này.");
+        }
+
         var project = await _unitOfWork.Repository<Project>()
             .Query()
             .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId, ct);

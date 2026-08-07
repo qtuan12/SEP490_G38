@@ -76,13 +76,25 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
     try {
       // 1. Fetch tasks
       const allTasks = await projectService.getTasks(`p-${projectId}`);
-      // Lọc các công việc đang thi công hợp lệ (chưa bị khóa, chưa hoàn thành, chưa bị dừng/hủy)
+      // Lọc các công việc đang thi công hợp lệ (chưa bị khóa, chưa hoàn thành, chưa bị dừng/hủy, và đã xong các task tiền nhiệm)
       const inactiveStatuses = ['obsolete', 'completed', 'approved', 'done', 'paused', 'stopped', 'cancelled', 'canceled'];
       const activeTasks = allTasks.filter(t => {
         if (t.isLocked) return false;
         if ((t.progress ?? 0) >= 100) return false;
         const statusLower = (t.status || '').toLowerCase();
-        return !inactiveStatuses.includes(statusLower);
+        if (inactiveStatuses.includes(statusLower)) return false;
+
+        // Kiểm tra công việc tiền nhiệm (predecessor) chưa hoàn thành 100%
+        if (t.predecessorTaskIds && t.predecessorTaskIds.length > 0) {
+          const hasIncompletePredecessor = t.predecessorTaskIds.some(preId => {
+            const predecessor = allTasks.find(p => p.id === String(preId) || p.id === `t-${preId}`);
+            if (!predecessor) return false;
+            return (predecessor.progress ?? 0) < 100 && (predecessor.status || '').toLowerCase() !== 'obsolete';
+          });
+          if (hasIncompletePredecessor) return false;
+        }
+
+        return true;
       });
       setTasks(activeTasks);
 
@@ -96,6 +108,24 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
         if (matchedTask) {
           setSelectedTaskId(matchedTask.id);
           setTaskSearchQuery(matchedTask.name);
+        } else {
+          // Nếu task được tìm kiếm từ URL nhưng không nằm trong activeTasks, thông báo lý do cụ thể
+          const rawTask = allTasks.find(t => t.name.toLowerCase() === decodedSearch.toLowerCase());
+          if (rawTask) {
+            if (rawTask.predecessorTaskIds && rawTask.predecessorTaskIds.length > 0) {
+              const incompletePres = rawTask.predecessorTaskIds
+                .map(preId => allTasks.find(p => p.id === String(preId) || p.id === `t-${preId}`))
+                .filter(p => p && (p.progress ?? 0) < 100 && (p.status || '').toLowerCase() !== 'obsolete');
+              if (incompletePres.length > 0) {
+                const names = incompletePres.map(p => `'${p!.name}'`).join(', ');
+                setTaskError(`Công việc [${rawTask.name}] chưa được phép tiến hành do các công việc tiền nhiệm (${names}) chưa hoàn thành 100%.`);
+              }
+            } else if ((rawTask.progress ?? 0) >= 100) {
+              setTaskError(`Công việc [${rawTask.name}] đã hoàn thành (100%), không thể xuất thêm vật tư.`);
+            } else if (rawTask.isLocked) {
+              setTaskError(`Công việc [${rawTask.name}] đang bị khóa, không thể xuất vật tư.`);
+            }
+          }
         }
       }
 

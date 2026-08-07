@@ -58,7 +58,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
       setTotalPages(pagedData.totalPages);
     } catch (err: any) {
       console.error('Error loading transactions:', err);
-      setError(err.message || 'Không thể tải lịch sử thẻ kho.');
+      setError(err.message || 'Không thể tải lịch sử biến động.');
     } finally {
       setLoading(false);
     }
@@ -133,7 +133,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
       )}
 
       {loading && transactionsList.length === 0 ? (
-        <TableLoader isTable={false} message="Đang tải lịch sử thẻ kho..." />
+        <TableLoader isTable={false} message="Đang tải lịch sử biến động kho..." />
       ) : (
         <>
           {/* Bảng Thẻ kho */}
@@ -144,9 +144,9 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
                   <th className="px-4 py-3">Ngày giờ</th>
                   <th className="px-4 py-3">Mã vật tư</th>
                   <th className="px-4 py-3">Vật tư</th>
-                  <th className="px-4 py-3 text-center">Loại giao dịch</th>
+                  <th className="px-4 py-3 text-center">Loại </th>
                   <th className="px-4 py-3 text-right">Lượng thay đổi</th>
-                  <th className="px-4 py-3 text-right">Tồn sau GD</th>
+                  <th className="px-4 py-3 text-right">Tồn sau biến động</th>
                   <th className="px-4 py-3">Người thực hiện</th>
                 </tr>
               </thead>
@@ -165,37 +165,37 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
                       </tr>
                     )}
                     {virtualTransactions.visibleRows.map(({ item: t }) => {
-                    const typeInfo = getTransactionTypeDetails(t.transactionType);
-                    return (
-                      <tr key={t.transactionId} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3.5 text-slate-600">
-                          {formatDateTimeVN(t.createdAt)}
-                        </td>
-                        <td className="px-4 py-3.5 font-mono text-xs text-slate-500">
-                          {t.materialCode}
-                        </td>
-                        <td className="px-4 py-3.5 font-medium text-slate-800">
-                          {t.materialName}
-                        </td>
-                        <td className="px-4 py-3.5 text-center">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${typeInfo.color}`}>
-                            {typeInfo.name}
-                          </span>
-                        </td>
-                        <td className={`px-4 py-3.5 text-right font-bold ${t.quantityChange > 0 ? 'text-emerald-600' : 'text-rose-600'
-                          }`}>
-                          {t.quantityChange > 0 ? `+${t.quantityChange}` : t.quantityChange}{' '}
-                          <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
-                          {t.balanceAfter}{' '}
-                          <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
-                        </td>
-                        <td className="px-4 py-3.5 text-slate-700">
-                          {t.createdByName}
-                        </td>
-                      </tr>
-                    );
+                      const typeInfo = getTransactionTypeDetails(t.transactionType);
+                      return (
+                        <tr key={t.transactionId} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3.5 text-slate-600">
+                            {formatDateTimeVN(t.createdAt)}
+                          </td>
+                          <td className="px-4 py-3.5 font-mono text-xs text-slate-500">
+                            {t.materialCode}
+                          </td>
+                          <td className="px-4 py-3.5 font-medium text-slate-800">
+                            {t.materialName}
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${typeInfo.color}`}>
+                              {typeInfo.name}
+                            </span>
+                          </td>
+                          <td className={`px-4 py-3.5 text-right font-bold ${t.quantityChange > 0 ? 'text-emerald-600' : 'text-rose-600'
+                            }`}>
+                            {t.quantityChange > 0 ? `+${t.quantityChange}` : t.quantityChange}{' '}
+                            <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
+                            {t.balanceAfter}{' '}
+                            <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-700">
+                            {t.createdByName}
+                          </td>
+                        </tr>
+                      );
                     })}
                     {virtualTransactions.bottomPadding > 0 && (
                       <tr aria-hidden="true">

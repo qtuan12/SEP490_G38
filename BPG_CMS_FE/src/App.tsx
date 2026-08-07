@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
+import { ShieldAlert } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CompanyProvider } from './context/CompanyContext';
 import { LoadingProvider } from './context/LoadingContext';
@@ -11,6 +12,7 @@ import { isPWAMode, isPWAOptimizedRole } from './utils/pwaHelpers';
 import { PWAProvider } from './context/PWAContext';
 import { DesktopOnlyGuard } from './components/DesktopOnlyGuard';
 import { RoleGroup } from './auth/roles';
+import { useProjectAccess } from './hooks/useProjectAccess';
 import { NotificationProvider } from './context/NotificationContext';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 import { queryClient } from './lib/queryClient';
@@ -103,9 +105,40 @@ const ProtectedRoute: React.FC<{
 
 const ProjectRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { projectId } = useParams();
+  const { canViewProject, isLoading, isFetched } = useProjectAccess(projectId);
 
   if (!projectId) {
     return <Navigate to="/projects" replace />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (isFetched && !canViewProject) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/50 flex items-center justify-center text-red-600 dark:text-red-400 mb-4">
+          <ShieldAlert size={32} />
+        </div>
+        <h2 className="text-xl font-bold text-[hsl(var(--text-primary))] mb-2">
+          Truy cập bị từ chối
+        </h2>
+        <p className="text-sm text-[hsl(var(--text-muted))] max-w-md mb-6">
+          Bạn không có quyền truy cập vào dự án này. Chỉ các thành viên thuộc dự án hoặc người có thẩm quyền mới có thể xem thông tin dự án.
+        </p>
+        <button
+          onClick={() => window.location.href = '/projects'}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow transition-colors cursor-pointer"
+        >
+          Quay lại danh sách dự án
+        </button>
+      </div>
+    );
   }
 
   return <>{children}</>;
@@ -118,8 +151,37 @@ const ProjectOrRoleRoute: React.FC<{
   const { hasAnyRole } = useAuth();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('projectId');
+  const { canViewProject, isLoading, isFetched } = useProjectAccess(projectId);
 
   if (projectId) {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      );
+    }
+    if (isFetched && !canViewProject) {
+      return (
+        <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/50 flex items-center justify-center text-red-600 dark:text-red-400 mb-4">
+            <ShieldAlert size={32} />
+          </div>
+          <h2 className="text-xl font-bold text-[hsl(var(--text-primary))] mb-2">
+            Truy cập bị từ chối
+          </h2>
+          <p className="text-sm text-[hsl(var(--text-muted))] max-w-md mb-6">
+            Bạn không có quyền truy cập vào dự án này.
+          </p>
+          <button
+            onClick={() => window.location.href = '/projects'}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow transition-colors cursor-pointer"
+          >
+            Quay lại danh sách dự án
+          </button>
+        </div>
+      );
+    }
     return <>{children}</>;
   }
 
