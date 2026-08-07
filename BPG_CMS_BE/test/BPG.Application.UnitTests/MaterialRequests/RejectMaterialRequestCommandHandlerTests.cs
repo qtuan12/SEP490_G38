@@ -70,7 +70,11 @@ namespace BPG.Application.UnitTests.MaterialRequests
             {
                 RequestId = RequestId,
                 Status = MaterialRequestStatus.Pending,
-                Items = new List<MaterialRequestItem>()
+                Items = new List<MaterialRequestItem>(),
+                Phase = new Phase
+                {
+                    Project = new Project { Status = ProjectStatus.InProgress }
+                }
             };
             _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
 
@@ -111,7 +115,11 @@ namespace BPG.Application.UnitTests.MaterialRequests
             {
                 RequestId = RequestId,
                 Status = MaterialRequestStatus.Pending,
-                Items = new List<MaterialRequestItem>()
+                Items = new List<MaterialRequestItem>(),
+                Phase = new Phase
+                {
+                    Project = new Project { Status = ProjectStatus.InProgress }
+                }
             };
             _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
 
@@ -149,7 +157,11 @@ namespace BPG.Application.UnitTests.MaterialRequests
             {
                 RequestId = RequestId,
                 Status = MaterialRequestStatus.Approved, // Already approved
-                Items = new List<MaterialRequestItem>()
+                Items = new List<MaterialRequestItem>(),
+                Phase = new Phase
+                {
+                    Project = new Project { Status = ProjectStatus.InProgress }
+                }
             };
             _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
 
@@ -161,6 +173,32 @@ namespace BPG.Application.UnitTests.MaterialRequests
             // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("Không thể từ chối yêu cầu vật tư đang ở trạng thái: Approved.*");
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_ProjectNotActive_ShouldThrowBusinessException()
+        {
+            // Arrange
+            var mr = new MaterialRequest
+            {
+                RequestId = RequestId,
+                Status = MaterialRequestStatus.Pending,
+                Items = new List<MaterialRequestItem>(),
+                Phase = new Phase
+                {
+                    Project = new Project { Status = ProjectStatus.Paused } // project is paused
+                }
+            };
+            _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
+
+            var command = new RejectMaterialRequestCommand(RequestId, "Từ chối");
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
     }
 }

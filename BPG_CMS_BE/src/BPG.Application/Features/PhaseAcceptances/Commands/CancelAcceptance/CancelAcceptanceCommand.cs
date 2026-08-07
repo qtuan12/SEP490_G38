@@ -55,6 +55,11 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
         if (acceptance == null)
             throw new NotFoundException(nameof(PhaseAcceptance), request.AcceptanceId);
 
+        if (acceptance.Phase?.Project?.Status != ProjectStatus.InProgress)
+        {
+            throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án hiện không ở trạng thái hoạt động.");
+        }
+
         if (acceptance.IsCancelled)
             throw new BusinessException("INVALID_STATUS", "Biên bản nghiệm thu này đã bị hủy trước đó.");
 

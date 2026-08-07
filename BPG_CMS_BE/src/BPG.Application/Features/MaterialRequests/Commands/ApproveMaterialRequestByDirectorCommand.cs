@@ -50,6 +50,11 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
             }
 
+            if (mr.Phase?.Project?.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án hiện không ở trạng thái hoạt động.");
+            }
+
             if (mr.Status != MaterialRequestStatus.WaitingApproval)
             {
                 throw new BusinessException("ERR_INVALID_STATUS_FOR_APPROVAL", 
