@@ -765,6 +765,9 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           }}
           projectId={projectId.toString()}
           request={selectedResubmitRequest}
+          user={user}
+          allMaterialRequests={requests}
+          phases={phases}
         />
       )}
     </div>
