@@ -5,7 +5,7 @@ import { projectService } from '../../../services/projectService';
 import { inventoryService } from '../../../services/inventoryService';
 import type { MaterialRequest, WBSPhase } from '../../../types/common';
 import { MaterialRequestDetailModal } from '../modals/MaterialRequestDetailModal';
-import { Badge, Button, Pagination } from '../../../components/ui';
+import { Badge, Button, Pagination, TableLoader } from '../../../components/ui';
 import {
   Search,
   Eye,
@@ -405,13 +405,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     }
   };
 
-  if (loading) {
-    return (
-      <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl p-8 text-center text-[hsl(var(--text-muted))]">
-        Đang tải dữ liệu yêu cầu vật tư...
-      </div>
-    );
-  }
+
 
   return (
     <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl shadow-sm overflow-hidden flex flex-col animate-fade-in">
@@ -475,7 +469,9 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
       {/* TABLE */}
       <div className="table-container w-full overflow-x-auto">
-        {filteredRequests.length === 0 ? (
+        {loading && requests.length === 0 ? (
+          <TableLoader isTable={false} message="Đang tải dữ liệu yêu cầu vật tư..." />
+        ) : filteredRequests.length === 0 ? (
           <div className="text-center py-12 text-[hsl(var(--text-muted))] text-sm">
             Không tìm thấy phiếu yêu cầu vật tư nào phù hợp.
           </div>
