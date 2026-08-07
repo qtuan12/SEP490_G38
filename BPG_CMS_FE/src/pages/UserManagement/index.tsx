@@ -401,7 +401,7 @@ export const UserManagement: React.FC = () => {
       <CreateUserModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={(msg) => { showSuccess(msg); setPageNumber(1); loadAllUsers(); }}
+        onSuccess={(msg: string) => { showSuccess(msg); setPageNumber(1); loadAllUsers(); }}
       />
 
       <EditUserModal

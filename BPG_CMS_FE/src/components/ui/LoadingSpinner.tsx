@@ -5,6 +5,7 @@ import { FullScreenLoading } from './FullScreenLoading';
 export interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   fullScreen?: boolean;
+  message?: string;
   className?: string;
   label?: string;
 }
@@ -36,3 +37,4 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     </div>
   );
 };
+
