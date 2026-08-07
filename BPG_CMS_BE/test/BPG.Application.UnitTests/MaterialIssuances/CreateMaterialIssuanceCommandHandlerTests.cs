@@ -25,6 +25,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
+        private readonly Mock<IGenericRepository<TaskDependency>> _mockTaskDepRepo;
         private readonly Mock<IGenericRepository<MaterialIssuance>> _mockIssuanceRepo;
         private readonly Mock<IGenericRepository<MaterialIssuanceItem>> _mockIssuanceItemRepo;
         private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
@@ -37,6 +38,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         {
             _mockUow = new Mock<IUnitOfWork>();
             _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
+            _mockTaskDepRepo = new Mock<IGenericRepository<TaskDependency>>();
             _mockIssuanceRepo = new Mock<IGenericRepository<MaterialIssuance>>();
             _mockIssuanceItemRepo = new Mock<IGenericRepository<MaterialIssuanceItem>>();
             _mockInventoryRepo = new Mock<IGenericRepository<CurrentInventory>>();
@@ -45,11 +47,13 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             _mockCurrentUserService = new Mock<ICurrentUserService>();
 
             _mockUow.Setup(u => u.Repository<ProjectTask>()).Returns(_mockTaskRepo.Object);
+            _mockUow.Setup(u => u.Repository<TaskDependency>()).Returns(_mockTaskDepRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialIssuance>()).Returns(_mockIssuanceRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialIssuanceItem>()).Returns(_mockIssuanceItemRepo.Object);
             _mockUow.Setup(u => u.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
+            _mockTaskDepRepo.Setup(r => r.Query()).Returns(new List<TaskDependency>().AsQueryable().BuildMock());
             _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -59,7 +63,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             SetupTasks();
             SetupInventories();
-            SetupProjectMembers();
+            SetupProjectLeader();
             SetupUsers(new User { UserId = CurrentUserId, FullName = "Current User" });
             SetupIssuanceIdGeneration();
 

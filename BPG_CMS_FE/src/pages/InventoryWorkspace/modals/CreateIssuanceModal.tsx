@@ -76,13 +76,25 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
     try {
       // 1. Fetch tasks
       const allTasks = await projectService.getTasks(`p-${projectId}`);
-      // Lọc các công việc đang thi công hợp lệ (chưa bị khóa, chưa hoàn thành, chưa bị dừng/hủy)
+      // Lọc các công việc đang thi công hợp lệ (chưa bị khóa, chưa hoàn thành, chưa bị dừng/hủy, và đã xong các task tiền nhiệm)
       const inactiveStatuses = ['obsolete', 'completed', 'approved', 'done', 'paused', 'stopped', 'cancelled', 'canceled'];
       const activeTasks = allTasks.filter(t => {
         if (t.isLocked) return false;
         if ((t.progress ?? 0) >= 100) return false;
         const statusLower = (t.status || '').toLowerCase();
-        return !inactiveStatuses.includes(statusLower);
+        if (inactiveStatuses.includes(statusLower)) return false;
+
+        // Kiểm tra công việc tiền nhiệm (predecessor) chưa hoàn thành 100%
+        if (t.predecessorTaskIds && t.predecessorTaskIds.length > 0) {
+          const hasIncompletePredecessor = t.predecessorTaskIds.some(preId => {
+            const predecessor = allTasks.find(p => p.id === String(preId) || p.id === `t-${preId}`);
+            if (!predecessor) return false;
+            return (predecessor.progress ?? 0) < 100 && (predecessor.status || '').toLowerCase() !== 'obsolete';
+          });
+          if (hasIncompletePredecessor) return false;
+        }
+
+        return true;
       });
       setTasks(activeTasks);
 
