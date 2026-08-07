@@ -70,6 +70,85 @@ namespace BPG.Application.UnitTests.MaterialIssuances
                 ServiceStubFactory.RealtimeSender(),
                 ServiceStubFactory.NotificationService());
         }
+
+        [Fact]
+        public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnCreatedIssuanceId()
+        {
+            SetupTechnicalManager();
+            SetupTasks(ProjectTask());
+            SetupInventories(Inventory(CementId, "Cement", quantity: 20));
+
+            var result = await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().Be(GeneratedIssuanceId);
+            result.Message.Should().Be("Tạo phiếu xuất kho thành công.");
+        }
+
+        [Fact]
+        public async Task UTCID02_Handle_EmptyItems_ShouldThrowBusinessException()
+        {
+            SetupTechnicalManager();
+
+            var act = async () => await _handler.Handle(Command(items: Array.Empty<CreateMaterialIssuanceItemDto>()), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_EMPTY_ITEMS");
+            exception.Which.Message.Should().Be("Danh sách vật tư xuất dùng không được để trống.");
+        }
+
+        [Fact]
+        public async Task UTCID03_Handle_TaskNotFound_ShouldThrowNotFoundException()
+        {
+            SetupTechnicalManager();
+            SetupTasks();
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("ProjectTask với ID [100] không tồn tại.");
+        }
+
+        [Fact]
+        public async Task UTCID04_Handle_TaskWithoutProject_ShouldThrowBusinessException()
+        {
+            SetupTechnicalManager();
+            SetupTasks(new ProjectTask { TaskId = TaskId, Phase = null!, Assignees = new List<TaskAssignee>() });
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
+            exception.Which.Message.Should().Be("Không tìm thấy dự án liên kết với công việc này.");
+        }
+
+        [Fact]
+        public async Task UTCID05_Handle_UserIsNotTechnicalManagerOrProjectLeader_ShouldThrowForbiddenException()
+        {
+            SetupStandardUser();
+            SetupTasks(ProjectTask());
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be("AUTH_002");
+            exception.Which.Message.Should().Be("Chỉ Trưởng dự án mới được tạo phiếu xuất vật tư.");
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_ProjectLeaderWithValidRequest_ShouldReturnCreatedIssuanceId()
+        {
+            SetupProjectLeader();
+            SetupTasks(ProjectTask());
+            SetupInventories(Inventory(CementId, "Cement", quantity: 20));
+
+            var result = await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().Be(GeneratedIssuanceId);
+        }
+
         [Fact]
         public async Task UTCID07_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
         {
@@ -80,6 +159,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be("Dự án liên kết phải ở trạng thái đang tiến hành (InProgress).");
         }
 
         [Fact]
@@ -92,6 +172,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_TASK_INACTIVE");
+            exception.Which.Message.Should().Be("Không thể xuất kho cho công việc đã bị dừng, tạm dừng, hoàn thành hoặc đã bị hủy.");
         }
 
         [Fact]
@@ -105,6 +186,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_NO_INVENTORY");
+            exception.Which.Message.Should().Be("Vật tư ID 99 không tồn tại trong kho của dự án.");
         }
 
         [Fact]
@@ -118,6 +200,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            exception.Which.Message.Should().Be("Đơn vị tính 'Panel' của vật tư [Precast Panel] yêu cầu số lượng xuất phải là số nguyên.");
         }
 
         [Fact]
@@ -133,6 +216,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_INSUFFICIENT_STOCK");
+            exception.Which.Message.Should().Be("Không đủ tồn kho khả dụng cho vật tư [Sand]. Yêu cầu xuất: 10 Bag, tồn khả dụng còn lại: 5 Bag.");
         }
 
         private static CreateMaterialIssuanceCommand Command(
@@ -152,6 +236,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
             {
                 TaskId = TaskId,
                 IsLocked = isLocked,
+                Assignees = new List<TaskAssignee>(),
                 Phase = new Phase
                 {
                     Project = new Project { ProjectId = ProjectId, Status = projectStatus }
@@ -209,6 +294,11 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         private void SetupProjectMembers(params ProjectMember[] members)
         {
             _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+            _mockMemberRepo.Setup(r => r.AnyAsync(It.IsAny<System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((System.Linq.Expressions.Expression<System.Func<ProjectMember, bool>> predicate, CancellationToken ct) =>
+                {
+                    return members.AsQueryable().Any(predicate);
+                });
         }
 
         private void SetupUsers(params User[] users)
