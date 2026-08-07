@@ -63,6 +63,23 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
     },
   });
 
+
+
+  const mutation = useMutation({
+    mutationFn: async (data: MaterialFormData) => {
+      if (material) {
+        return materialService.updateMaterial(material.materialId, data);
+      } else {
+        return materialService.createMaterial(data);
+      }
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['materials'] });
+      onSuccess(result.message || (material ? 'Cập nhật vật tư thành công.' : 'Thêm vật tư thành công.'));
+      onClose();
+    },
+  });
+
   useEffect(() => {
     if (!isOpen) {
       initializedFormKeyRef.current = null;
@@ -73,6 +90,7 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
     if (initializedFormKeyRef.current === formKey && isDirty) return;
 
     if (isOpen) {
+      mutation.reset();
       if (material) {
         reset({
           code: material.code,
@@ -93,21 +111,6 @@ export const MaterialFormModal: React.FC<MaterialFormModalProps> = ({ isOpen, on
       initializedFormKeyRef.current = formKey;
     }
   }, [isOpen, material, reset, isDirty]);
-
-  const mutation = useMutation({
-    mutationFn: async (data: MaterialFormData) => {
-      if (material) {
-        return materialService.updateMaterial(material.materialId, data);
-      } else {
-        return materialService.createMaterial(data);
-      }
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['materials'] });
-      onSuccess(result.message || (material ? 'Cập nhật vật tư thành công.' : 'Thêm vật tư thành công.'));
-      onClose();
-    },
-  });
 
   const onSubmit = (data: MaterialFormData) => {
     withLoading(async () => {

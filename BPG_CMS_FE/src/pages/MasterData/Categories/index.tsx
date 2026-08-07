@@ -41,7 +41,7 @@ export const CategoryManagement: React.FC = () => {
   });
 
   const showSuccess = (message: string) => {
-    console.log(message);
+    toast.success(message);
   };
 
   // Delete mutation
@@ -113,6 +113,7 @@ export const CategoryManagement: React.FC = () => {
     ...(canManageMasterData ? [{
       key: 'actions',
       header: 'Hành động',
+      align: 'right' as const,
       render: (cat: MaterialCategory) => (
         <div className="flex gap-2 justify-end">
           <Button

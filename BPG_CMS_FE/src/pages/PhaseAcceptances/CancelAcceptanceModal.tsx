@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
 import { Button, Modal, Textarea } from '../../components/ui';
 import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
 
@@ -18,6 +17,7 @@ export const CancelAcceptanceModal: React.FC<CancelAcceptanceModalProps> = ({
   onSuccess
 }) => {
   const [reason, setReason] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const cancelMutation = useMutation({
     mutationFn: () => phaseAcceptanceService.cancelAcceptance(acceptanceId, { cancellationReason: reason }),
@@ -26,16 +26,17 @@ export const CancelAcceptanceModal: React.FC<CancelAcceptanceModalProps> = ({
       onSuccess();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Không thể hủy biên bản nghiệm thu.');
+      setErrorMsg(error.message || 'Không thể hủy biên bản nghiệm thu.');
     }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
-      toast.error('Vui lòng nhập lý do hủy');
+      setErrorMsg('Vui lòng nhập lý do hủy');
       return;
     }
+    setErrorMsg(null);
     cancelMutation.mutate();
   };
 
@@ -50,27 +51,35 @@ export const CancelAcceptanceModal: React.FC<CancelAcceptanceModalProps> = ({
             <li>Chỉ cho phép hủy trong vòng 7 ngày kể từ khi nghiệm thu.</li>
           </ul>
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Lý do hủy
           </label>
-          <Textarea 
-            placeholder="Nhập lý do chi tiết..." 
+          <Textarea
+            placeholder="Nhập lý do chi tiết..."
             value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            onChange={(e) => {
+              setReason(e.target.value);
+              if (errorMsg) setErrorMsg(null);
+            }}
             required
             rows={4}
           />
+          {errorMsg && (
+            <div className="text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded p-2.5 mt-2">
+              {errorMsg}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-[hsl(var(--border-light))]">
           <Button type="button" variant="outline" onClick={onClose}>
             Đóng
           </Button>
-          <Button 
-            type="submit" 
-            variant="danger" 
+          <Button
+            type="submit"
+            variant="danger"
             isLoading={cancelMutation.isPending}
             disabled={!reason.trim()}
           >

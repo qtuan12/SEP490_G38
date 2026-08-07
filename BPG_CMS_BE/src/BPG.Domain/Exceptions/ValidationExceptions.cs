@@ -18,6 +18,14 @@ public class DuplicateEntryException : DomainException
             "email" => "Địa chỉ email",
             "username" => "Tên đăng nhập",
             "fullname" => "Họ và tên",
+            "categoryname" => "Tên danh mục",
+            "unitcode" => "Mã đơn vị",
+            "unitname" => "Tên đơn vị",
+            "code" => "Mã vật tư",
+            "name" => "Tên vật tư",
+            "materialid" => "Vật tư",
+            "alternativeunitid" => "Đơn vị quy đổi",
+            "conversionrate" => "Tỷ lệ quy đổi",
             _ => fieldName
         };
     }

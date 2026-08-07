@@ -49,12 +49,18 @@ namespace BPG.Application.Features.MaterialRequests.Commands
 
             var mr = await _uow.Repository<MaterialRequest>().Query()
                 .Include(x => x.Phase)
+                    .ThenInclude(p => p.Project)
                 .Include(x => x.Items)
                 .FirstOrDefaultAsync(x => x.RequestId == request.RequestId, cancellationToken);
 
             if (mr == null)
             {
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
+            }
+
+            if (mr.Phase?.Project?.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án hiện không ở trạng thái hoạt động.");
             }
 
             if (mr.CreatedBy != currentUserId)
@@ -161,6 +167,12 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             // Cập nhật phiếu: reset về Pending để bắt đầu lại quy trình duyệt
             mr.Status = MaterialRequestStatus.Pending;
             mr.BOQCheckStatus = anyItemOverBOQ ? BOQCheckStatus.OverBOQ : BOQCheckStatus.WithinBOQ;
+
+            if (anyItemOverBOQ && (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length < 5))
+            {
+                throw new BusinessException("ERR_REASON_REQUIRED_FOR_OVER_BOQ", 
+                    "Yêu cầu vượt định mức bắt buộc phải nhập lý do giải trình (tối thiểu 5 ký tự).");
+            }
             mr.Reason = request.Reason.Trim();
             mr.CheckedBy = null;
             mr.ApprovedBy = null;
@@ -178,6 +190,9 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 newItem.RequestId = mr.RequestId;
             }
             await _uow.Repository<MaterialRequestItem>().AddRangeAsync(newItems, cancellationToken);
+            await _uow.SaveChangesAsync(cancellationToken);
+
+            await BPG.Application.Common.Helpers.BOQStatusReevaluator.ReevaluateSiblingRequestsAsync(_uow, mr.PhaseId, mr.RequestId, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
             // Gửi thông báo đến vai trò Kế toán
