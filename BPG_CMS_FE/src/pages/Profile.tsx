@@ -197,7 +197,6 @@ export const Profile: React.FC = () => {
   }
 
   const roleLabel = ROLE_LABELS[profile.role.toLowerCase()] ?? profile.role;
-  const initials = profile.fullName.trim().split(' ').map(w => w[0]).slice(-2).join('').toUpperCase();
 
   return (
     <div className="animate-fade-in flex flex-col gap-8 w-full">
@@ -221,18 +220,18 @@ export const Profile: React.FC = () => {
           />
         </div>
 
-        <div className="px-8 sm:px-12 pb-8">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 -mt-12 sm:-mt-16">
-            <div className="flex items-end gap-5">
+        <div className="px-5 sm:px-12 pb-8">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5 sm:gap-6 -mt-12 sm:-mt-16">
+            <div className="flex flex-col items-center text-center gap-3 sm:flex-row sm:items-end sm:text-left sm:gap-5">
               <div className="relative flex-shrink-0">
                 <div
-                  className="w-32 h-32 sm:w-36 sm:h-36 rounded-full border-4 border-[hsl(var(--bg-card))] shadow-lg overflow-hidden flex items-center justify-center text-4xl font-bold"
+                  className="w-28 h-28 sm:w-36 sm:h-36 rounded-full border-4 border-[hsl(var(--border))] shadow-lg overflow-hidden flex items-center justify-center text-4xl font-bold"
                   style={{
-                    background: profile.avatarUrl ? `url(${profile.avatarUrl}) center/cover no-repeat` : 'hsl(var(--primary-glow))',
-                    color: 'hsl(var(--primary))',
+                    background: profile.avatarUrl ? `url(${profile.avatarUrl}) center/cover no-repeat` : 'hsl(var(--bg-card))',
+                    color: 'hsl(var(--text-muted))',
                   }}
                 >
-                  {!profile.avatarUrl && (initials || <User size={44} />)}
+                  {!profile.avatarUrl && <User size={64} strokeWidth={1.5} />}
                   {avatarUploading && (
                     <div className="absolute inset-0 rounded-full bg-[hsl(224_71%_4%/0.5)] flex items-center justify-center">
                       <Loader2 size={28} className="animate-spin text-white" />
@@ -254,26 +253,26 @@ export const Profile: React.FC = () => {
                 />
               </div>
 
-              <div className="pb-2">
-                <h2 className="text-2xl sm:text-3xl font-bold text-[hsl(var(--text-primary))]">{profile.fullName}</h2>
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <div className="min-w-0 sm:pb-2">
+                <h2 className="text-xl sm:text-3xl font-bold break-words text-[hsl(var(--text-primary))]">{profile.fullName}</h2>
+                <div className="flex items-center justify-center sm:justify-start gap-2 mt-2 flex-wrap">
                   <span className="badge badge-primary text-sm px-3 py-1">{roleLabel}</span>
                   {!profile.isActive && <span className="badge badge-danger text-sm px-3 py-1">Bị khóa</span>}
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3 sm:pb-2">
-              <button className="btn btn-secondary flex items-center gap-2 text-sm px-4 py-2.5" onClick={openEditModal}>
-                <Pencil size={16} />
+            <div className="grid grid-cols-1 gap-2 sm:flex sm:gap-3 sm:pb-2">
+              <button className="btn btn-secondary flex items-center justify-center sm:justify-start gap-2 text-sm px-4 py-2.5 whitespace-nowrap" onClick={openEditModal}>
+                <Pencil size={16} className="flex-shrink-0" />
                 Chỉnh sửa
               </button>
-              <button className="btn btn-secondary flex items-center gap-2 text-sm px-4 py-2.5" onClick={openModal}>
-                <KeyRound size={16} />
+              <button className="btn btn-secondary flex items-center justify-center sm:justify-start gap-2 text-sm px-4 py-2.5 whitespace-nowrap" onClick={openModal}>
+                <KeyRound size={16} className="flex-shrink-0" />
                 Đổi mật khẩu
               </button>
-              <button className="btn btn-secondary flex items-center gap-2 text-sm px-4 py-2.5 text-[hsl(var(--danger))]" onClick={handleLogout}>
-                <LogOut size={16} />
+              <button className="btn btn-secondary flex items-center justify-center sm:justify-start gap-2 text-sm px-4 py-2.5 whitespace-nowrap text-[hsl(var(--danger))]" onClick={handleLogout}>
+                <LogOut size={16} className="flex-shrink-0" />
                 Đăng xuất
               </button>
             </div>

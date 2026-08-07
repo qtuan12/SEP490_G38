@@ -87,9 +87,9 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
             options={[
               { label: 'Admin', value: 'admin' },
               { label: 'Giám Đốc', value: 'director' },
-              { label: 'Trưởng phòng Kĩ thuật (TechnicalManager)', value: 'technicalmanager' },
-              { label: 'Nhân viên kỹ thuật (SiteEngineer)', value: 'siteengineer' },
-              { label: 'Kế Toán (Accountant)', value: 'accountant' },
+              { label: 'Trưởng phòng Kĩ thuật', value: 'technicalmanager' },
+              { label: 'Nhân viên kỹ thuật', value: 'siteengineer' },
+              { label: 'Kế Toán', value: 'accountant' },
             ]}
           />
         </FormItem>

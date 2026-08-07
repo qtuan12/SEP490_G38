@@ -20,6 +20,9 @@ public static class HubMethodNames
     public const string InventoryAdjustmentUpdated = "InventoryAdjustmentUpdated"; // Phiếu điều chỉnh kho được cập nhật
     public const string DataChanged = "DataChanged";                       // Dữ liệu hệ thống đã thay đổi
 
+    public const string PurchaseOrderUpdated = "PurchaseOrderUpdated";     // Đơn hàng thay đổi (tạo/duyệt/từ chối/hủy/đóng)
+    public const string DirectPurchaseUpdated = "DirectPurchaseUpdated";   // Phiếu mua trực tiếp thay đổi (gửi/kiểm/duyệt chi)
+
     public const string GoodsReceiptChanged = "GoodsReceiptChanged";       // Nhập kho thay đổi (tạo/hủy phiếu)
     public const string MaterialIssuanceChanged = "MaterialIssuanceChanged"; // Xuất dùng thay đổi
     public const string MaterialReturnChanged = "MaterialReturnChanged";  // Hoàn trả vật tư thay đổi

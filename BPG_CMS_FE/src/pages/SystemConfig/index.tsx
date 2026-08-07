@@ -4,6 +4,7 @@ import { systemConfigService, type SystemConfigDto } from '../../services/system
 import { Button, Input, Card, CardHeader, CardTitle, CardBody, Badge, FormItem, LoadingSpinner, type BadgeVariant } from '../../components/ui';
 import { useCompany } from '../../context/CompanyContext';
 import { compressAndUploadFile } from '../../utils/uploadHelper';
+import { parseDateSafe } from '../../utils/dateHelpers';
 import {
   Pencil, Check, X, AlertCircle, Loader2, Info, Camera,
   Building2, SlidersHorizontal, Package, CalendarClock, FileEdit,
@@ -12,8 +13,10 @@ import toast from 'react-hot-toast';
 
 const COMPANY_KEYS = ['CompanyName', 'CompanyLogoUrl'];
 
+// Backend trả mốc thời gian UTC nhưng không kèm hậu tố 'Z' — new Date() sẽ hiểu nhầm là giờ máy
+// và hiển thị chậm 7 tiếng. parseDateSafe gắn 'Z' trước khi parse.
 const fmtDate = (s?: string) =>
-  s ? new Date(s).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
+  s ? parseDateSafe(s).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
 
 const dataTypeMeta: Record<string, { label: string; variant: BadgeVariant }> = {
   number: { label: 'Số', variant: 'info' },
@@ -253,7 +256,6 @@ const SystemParametersCard: React.FC = () => {
                           </div>
                           <div className="min-w-0">
                             <div className="font-semibold text-slate-900">{cfg.displayName || cfg.configKey}</div>
-                            <div className="text-[11px] text-slate-400 mt-0.5 font-mono">{cfg.configKey}</div>
                           </div>
                         </div>
                       </td>
@@ -352,7 +354,7 @@ export const SystemConfigPage: React.FC = () => {
       <div className="flex items-start gap-3 bg-[hsl(var(--primary-glow))] border border-[hsl(var(--primary))/0.2] rounded-xl p-4 text-sm">
         <Info size={18} className="text-[hsl(var(--primary))] shrink-0 mt-0.5" />
         <span className="text-[hsl(var(--text-secondary))] leading-relaxed font-medium">
-          Các cấu hình này ảnh hưởng đến toàn hệ thống. Chỉ Admin mới có quyền chỉnh sửa.
+          Các cấu hình này ảnh hưởng đến toàn hệ thống. Chỉ Quản trị viên mới có quyền chỉnh sửa.
         </span>
       </div>
 

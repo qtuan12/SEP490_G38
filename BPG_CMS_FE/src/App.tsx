@@ -526,9 +526,9 @@ function App() {
             </PWAProvider>
           </Router>
         </NotificationProvider>
-      </AuthProvider>
-    </LoadingProvider>
-      </CompanyProvider>
+          </AuthProvider>
+          </LoadingProvider>
+        </CompanyProvider>
       </ThemeProvider>
       <Toaster position="top-right" />
     </QueryClientProvider>

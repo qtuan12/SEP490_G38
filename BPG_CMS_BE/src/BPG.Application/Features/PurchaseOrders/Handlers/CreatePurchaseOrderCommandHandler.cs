@@ -216,7 +216,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             }
 
             await _realtimeSender.SendToGroupAsync(
-                $"Project_{request.ProjectId}", "PurchaseOrderUpdated", new { POId = po.POId }, cancellationToken);
+                $"Project_{request.ProjectId}", HubMethodNames.PurchaseOrderUpdated, new { POId = po.POId }, cancellationToken);
 
             // Giám đốc là người phải hành động tiếp theo (duyệt/từ chối), trưởng dự án được báo để theo dõi vật tư.
             var currentUserId = _currentUserService.UserId;

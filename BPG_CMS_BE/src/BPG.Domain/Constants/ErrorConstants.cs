@@ -79,6 +79,7 @@ public static class ErrorCodes
     public const string DpDuplicateMaterial = "BIZ_040";         // Vật tư bị khai báo trùng trong phiếu
     public const string DpInvalidUnit = "BIZ_044";               // ĐVT không thuộc đơn vị cơ bản/quy đổi của vật tư
     public const string DpMaterialNotInBoq = "BIZ_049";          // Vật tư chưa có trong định mức BOQ của giai đoạn
+    public const string DpOverPhaseMaxAmount = "BIZ_050";        // Mua khẩn cấp cộng dồn của giai đoạn vượt hạn mức
 
     // ==================== TÀI KHOẢN NGƯỜI DÙNG ====================
     public const string UserCannotDeleteSelf = "BIZ_045";        // Tự xóa/khóa chính tài khoản đang đăng nhập
