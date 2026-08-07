@@ -186,26 +186,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     }
   });
 
-  const directorApproveInventoryMutation = useMutation({
-    mutationFn: () =>
-      incidentService.confirmIncident(Number(incident.id), {
-        incidentId: Number(incident.id),
-        createReworkTask: false,
-        handlingInstruction: 'Giám đốc phê duyệt điều chỉnh giảm tồn kho vật tư bị thiệt hại.',
-      }),
-    onSuccess: (result) => {
-      console.log(result.message || 'Đã phê duyệt phiếu giảm tồn kho. Tồn kho đã được cập nhật.');
-      if (onSuccessAction) onSuccessAction('Phê duyệt giảm tồn kho');
-      else {
-        queryClient.invalidateQueries({ queryKey: ['incidents'] });
-        queryClient.invalidateQueries({ queryKey: ['globalIncidents'] });
-      }
-      onClose();
-    },
-    onError: (err: any) => {
-      toast.error(err.message || 'Không thể phê duyệt phiếu giảm tồn kho.');
-    }
-  });
+
 
 
   const plPushToAccountantMutation = useMutation({
@@ -536,49 +517,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     `;
   };
 
-  const handleExportReportPdf = () => {
-    const reportHtml = getIncidentReportHtml();
-    if (!reportHtml) return;
-    const printContent = `
-      <html>
-      <head>
-        <title>Biên bản báo cáo sự cố công trình - Sự cố #${incident.id}</title>
-        <style>
-          @page {
-            size: A4;
-            margin: 20mm;
-          }
-          body {
-            font-family: 'Times New Roman', Times, serif;
-            font-size: 12pt;
-            line-height: 1.5;
-            color: #000;
-            background: #fff;
-            padding: 0;
-            margin: 0;
-          }
-        </style>
-      </head>
-      <body>
-        ${reportHtml}
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
-        </script>
-      </body>
-      </html>
-    `;
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.open();
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-    } else {
-      toast.error('Vui lòng cho phép trình duyệt mở popup để in.');
-    }
-  };
+
 
   const handleExportReportWord = () => {
     const reportHtml = getIncidentReportHtml();

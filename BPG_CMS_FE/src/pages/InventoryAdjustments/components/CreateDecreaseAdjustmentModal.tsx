@@ -127,18 +127,18 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
                 // Try to find in master catalog
                 const catItem = catItems.find((x: any) =>
-                  (materialCode && x.materialCode?.toLowerCase() === materialCode.toLowerCase()) ||
+                  (materialCode && (x.code || x.materialCode)?.toLowerCase() === materialCode.toLowerCase()) ||
                   (materialName && x.name?.toLowerCase() === materialName.toLowerCase())
                 );
 
-                const foundMatId = invItem?.materialId || catItem?.id;
+                const foundMatId = invItem?.materialId || catItem?.materialId || (catItem as any)?.id;
 
                 if (foundMatId) {
                   if (!newItems.some(x => x.materialId === foundMatId)) {
                     newItems.push({
                       materialId: foundMatId,
                       quantity: qty,
-                      fallbackCode: invItem?.materialCode || catItem?.materialCode || materialCode,
+                      fallbackCode: invItem?.materialCode || catItem?.code || (catItem as any)?.materialCode || materialCode,
                       fallbackName: invItem?.materialName || catItem?.name || materialName,
                       fallbackUnit: invItem?.unitName || catItem?.baseUnitName || unitName
                     });
