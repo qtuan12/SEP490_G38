@@ -54,6 +54,8 @@ export const normalizeRole = (role: string): UserRole =>
 export const hasAnyRole = (
   roles: readonly string[] | undefined,
   allowedRoles: readonly string[],
-): boolean => roles?.some(
-  (role) => allowedRoles.includes(role.toLowerCase()),
-) ?? false;
+): boolean => {
+  if (!roles || roles.length === 0) return false;
+  const normalizedAllowed = allowedRoles.map((a) => a.toLowerCase());
+  return roles.some((role) => normalizedAllowed.includes(role.toLowerCase()));
+};

@@ -209,7 +209,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
       case 'WaitingAccountant':
         return <Badge className="normal-case bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-50">Chờ Kế toán xác minh</Badge>;
       case 'WaitingDirector':
-        return <Badge className="normal-case bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-50">Chờ Giám đốc phê duyệt</Badge>;
+        return <Badge className="normal-case bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-50">Chờ Giám đốc duyệt</Badge>;
       case 'Approved':
       case 'Confirmed':
       case 'Closed':

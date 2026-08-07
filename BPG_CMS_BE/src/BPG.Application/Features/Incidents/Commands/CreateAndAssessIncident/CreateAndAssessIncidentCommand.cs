@@ -160,6 +160,22 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                 "InventoryIncidentReported",
                 $"/projects/{project.ProjectId}/workspace/incidents"
             );
+
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.TechnicalManager,
+                "📦 Báo cáo sự cố vật tư kho mới",
+                $"Dự án {project.Name} vừa báo cáo sự cố vật tư kho.",
+                "InventoryIncidentReported",
+                $"/projects/{project.ProjectId}/workspace/incidents"
+            );
+
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.Director,
+                "📦 Báo cáo sự cố vật tư kho mới",
+                $"Dự án {project.Name} vừa báo cáo sự cố vật tư kho.",
+                "InventoryIncidentReported",
+                $"/projects/{project.ProjectId}/workspace/incidents"
+            );
         }
         else
         {

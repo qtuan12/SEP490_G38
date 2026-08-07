@@ -289,7 +289,8 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
               {log.comments?.map((comm) => {
                 const isManager = comm.role === 'technicalmanager' || comm.role === 'director';
                 let commentClass = isManager ? "comment-highlight-manager" : "";
-                const canEditComment = String(comm.userId) === String(user?.id) || user?.role === 'admin' || user?.role === 'technicalmanager';
+                const userRole = (user?.role || '').toLowerCase();
+                const canEditComment = String(comm.userId) === String(user?.id) || userRole === 'admin' || userRole === 'technicalmanager';
 
                 return (
                   <div

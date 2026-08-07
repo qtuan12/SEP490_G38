@@ -878,7 +878,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </div>
       )}
 
-      {project.status === 'paused' && (
+      {(project.status || '').toLowerCase() === 'paused' && (
         <style>{`
           .paused-project-readonly-container form:not(.search-form):not(.filter-form) {
             pointer-events: none !important;
@@ -911,7 +911,7 @@ export const ProjectLayoutHub: React.FC = () => {
       )}
 
       <div
-        className={`animate-fade-in ${project.status === 'paused' && activeTab !== 'incidents' && !(activeTab === 'wbs' && isTPKT && hasApprovedEmergencyIncident) ? 'paused-project-readonly-container' : ''}`}
+        className={`animate-fade-in ${(project.status || '').toLowerCase() === 'paused' && activeTab !== 'incidents' && !(activeTab === 'wbs' && isTPKT && hasApprovedEmergencyIncident) ? 'paused-project-readonly-container' : ''}`}
         style={{ marginTop: '10px' }}
       >
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}

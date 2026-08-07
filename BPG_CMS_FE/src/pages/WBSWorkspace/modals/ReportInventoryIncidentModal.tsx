@@ -9,8 +9,9 @@ import { UploadCloud, X, Package, Plus, Trash2, Search, Loader2 } from 'lucide-r
 import { toast } from 'react-hot-toast';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
+import { directPurchaseService } from '../../../services/directPurchaseService';
+import type { PhaseBOQItemDto } from '../../../services/directPurchaseService';
 import { inventoryService } from '../../../services/inventoryService';
-import type { CurrentInventory } from '../../../types/inventory';
 
 const getLocalISOString = () => {
   const now = new Date();
@@ -57,18 +58,41 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const [dragging, setDragging] = useState(false);
 
-  const [damagedMaterials, setDamagedMaterials] = useState<Array<CurrentInventory & { quantityLost: number }>>([]);
-  const [inventory, setInventory] = useState<CurrentInventory[]>([]);
+  const [damagedMaterials, setDamagedMaterials] = useState<Array<PhaseBOQItemDto & { stockQuantity: number; quantityLost: number }>>([]);
+  const [boqItems, setBoqItems] = useState<Array<PhaseBOQItemDto & { stockQuantity: number }>>([]);
+  const [loadingBOQ, setLoadingBOQ] = useState(false);
   const [showMaterialSelector, setShowMaterialSelector] = useState(false);
   const [searchMaterial, setSearchMaterial] = useState('');
 
   React.useEffect(() => {
-    if (isOpen) {
-      inventoryService.getCurrentInventory(Number(projectId))
-        .then(res => setInventory(res))
-        .catch(console.error);
+    if (isOpen && phaseId) {
+      setLoadingBOQ(true);
+      setBoqItems([]);
+      setDamagedMaterials([]);
+      Promise.all([
+        directPurchaseService.getPhaseBOQ(Number(projectId), Number(phaseId)).catch(() => []),
+        inventoryService.getCurrentInventory(Number(projectId)).catch(() => [])
+      ])
+        .then(([boqRes, invRes]) => {
+          const invMap = new Map<number, number>();
+          (invRes || []).forEach(inv => {
+            const qty = inv.availableQuantity ?? inv.quantity ?? 0;
+            invMap.set(inv.materialId, qty);
+          });
+
+          const filtered = (boqRes || [])
+            .map(item => ({
+              ...item,
+              stockQuantity: invMap.get(item.materialId) || 0
+            }))
+            .filter(item => item.stockQuantity > 0);
+
+          setBoqItems(filtered);
+        })
+        .catch(console.error)
+        .finally(() => setLoadingBOQ(false));
     }
-  }, [isOpen, projectId]);
+  }, [isOpen, projectId, phaseId]);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<any>({
     resolver: zodResolver(schema) as any,
@@ -139,6 +163,21 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
       toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
       return;
     }
+
+    if (damagedMaterials.length > 0) {
+      const emptyItem = damagedMaterials.find(m => !m.quantityLost || isNaN(m.quantityLost) || m.quantityLost <= 0);
+      if (emptyItem) {
+        toast.error(`Vui lòng nhập số lượng lỗi/mất lớn hơn 0 cho vật tư "${emptyItem.materialName}".`);
+        return;
+      }
+
+      const overStockItem = damagedMaterials.find(m => m.quantityLost > m.stockQuantity);
+      if (overStockItem) {
+        toast.error(`Số lượng thiệt hại của "${overStockItem.materialName}" (${overStockItem.quantityLost}) không được vượt quá số lượng tồn kho hiện có (${overStockItem.stockQuantity}).`);
+        return;
+      }
+    }
+
     mutation.mutate(data);
   };
 
@@ -209,7 +248,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Vật tư Kho (Trưởng nhóm)" width="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Vật tư Kho " width="xl">
 
       <div style={{
         display: 'flex',
@@ -374,14 +413,18 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                       </div>
                     </div>
                     <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--bg-card))' }}>
-                      {inventory.filter(item =>
+                      {loadingBOQ ? (
+                        <div style={{ padding: '10px', textAlign: 'center', fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
+                          <Loader2 size={14} className="animate-spin inline mr-1" />Đang tải danh sách vật tư ...
+                        </div>
+                      ) : boqItems.filter(item =>
                         item.materialCode.toLowerCase().includes(searchMaterial.toLowerCase()) ||
                         item.materialName.toLowerCase().includes(searchMaterial.toLowerCase())
                       ).slice(0, 20).map(item => (
                         <div key={item.materialId} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderBottom: '1px solid hsl(var(--border))', fontSize: '0.8rem' }}>
                           <div>
                             <div style={{ fontWeight: 600 }}>{item.materialCode} - {item.materialName}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>Tồn: {item.availableQuantity} {item.unitName}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>BOQ: {item.boqQuantity} {item.unitName} · Tồn kho hiện có: <span style={{ color: 'hsl(var(--primary))', fontWeight: 600 }}>{item.stockQuantity} {item.unitName}</span></div>
                           </div>
                           <button
                             type="button"
@@ -397,9 +440,9 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                           </button>
                         </div>
                       ))}
-                      {inventory.length === 0 && (
+                      {!loadingBOQ && boqItems.length === 0 && (
                         <div style={{ padding: '10px', textAlign: 'center', fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
-                          Không có vật tư nào trong kho.
+                          Không có vật tư nào vừa thuộc BOQ giai đoạn vừa có sẵn trong kho.
                         </div>
                       )}
                     </div>
@@ -424,21 +467,35 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                               <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>{m.materialName}</div>
                             </td>
                             <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  className="input"
-                                  style={{ width: '80px', padding: '4px 8px' }}
-                                  value={m.quantityLost === 0 ? '' : m.quantityLost}
-                                  onChange={e => {
-                                    const val = parseFloat(e.target.value) || 0;
-                                    const newArr = [...damagedMaterials];
-                                    newArr[idx].quantityLost = val;
-                                    setDamagedMaterials(newArr);
-                                  }}
-                                />
-                                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>{m.unitName}</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <input
+                                    type="number"
+                                    min={0.01}
+                                    step="any"
+                                    placeholder="Nhập SL..."
+                                    className="input"
+                                    style={{
+                                      width: '90px',
+                                      padding: '4px 8px',
+                                      borderColor: (!m.quantityLost || m.quantityLost <= 0 || m.quantityLost > m.stockQuantity) ? '#dc2626' : undefined
+                                    }}
+                                    value={m.quantityLost === 0 ? '' : m.quantityLost}
+                                    onChange={e => {
+                                      const val = parseFloat(e.target.value) || 0;
+                                      const newArr = [...damagedMaterials];
+                                      newArr[idx].quantityLost = val;
+                                      setDamagedMaterials(newArr);
+                                    }}
+                                  />
+                                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>{m.unitName}</span>
+                                </div>
+                                {(!m.quantityLost || m.quantityLost <= 0) && (
+                                  <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Vui lòng nhập SL &gt; 0</span>
+                                )}
+                                {m.quantityLost > m.stockQuantity && (
+                                  <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Vượt tồn kho ({m.stockQuantity})</span>
+                                )}
                               </div>
                             </td>
                             <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', textAlign: 'center' }}>

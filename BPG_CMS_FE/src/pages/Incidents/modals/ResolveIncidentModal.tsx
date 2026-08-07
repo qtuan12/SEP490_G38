@@ -61,7 +61,7 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
     defaultValues: {
       resolutionAction: 'rework',
       handlingInstruction: '',
-      reworkName: `[Rework] Khắc phục - ${incident.taskName}`,
+      reworkName: `[ Khắc phục ] - ${incident.taskName}`,
       reworkDeadline: phase?.deadline || '',
       reworkAssigneeId: members.length > 0 ? members[0].userId : '',
       reduceProgressValue: 0
@@ -76,7 +76,7 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
     reset({
       handlingInstruction: '',
       resolutionAction: 'rework',
-      reworkName: `[Rework] Khắc phục - ${incident.taskName}`,
+      reworkName: `[ Khắc phục ] - ${incident.taskName}`,
       reworkDeadline: phase?.deadline || '',
       reworkAssigneeId: members.length > 0 ? members[0].userId : '',
       reduceProgressValue: 0
@@ -159,21 +159,8 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-        <div style={{ padding: '16px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-card))' }}>
-          <label htmlFor="handlingInstruction" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Hướng dẫn xử lý / Giải quyết <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-          <textarea
-            id="handlingInstruction"
-            rows={3}
-            className="input"
-            style={{ marginTop: '6px' }}
-            placeholder="Nhập hướng giải quyết cho sự cố này..."
-            {...register('handlingInstruction')}
-          />
-          {errors.handlingInstruction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.handlingInstruction.message}</span>}
-        </div>
-
         {/* Option Cards for Selection */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           <label
             style={{
               display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px',
@@ -219,6 +206,19 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
               Chấp nhận trừ trực tiếp vào % hoàn thành của công việc hiện tại để làm lại phần lỗi.
             </span>
           </label>
+        </div>
+
+        <div style={{ padding: '16px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-card))' }}>
+          <label htmlFor="handlingInstruction" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Hướng dẫn xử lý / Giải quyết <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+          <textarea
+            id="handlingInstruction"
+            rows={3}
+            className="input"
+            style={{ marginTop: '6px' }}
+            placeholder="Nhập hướng giải quyết cho sự cố này..."
+            {...register('handlingInstruction')}
+          />
+          {errors.handlingInstruction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.handlingInstruction.message}</span>}
         </div>
 
         <div style={{ padding: '20px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-main)/0.3)' }}>

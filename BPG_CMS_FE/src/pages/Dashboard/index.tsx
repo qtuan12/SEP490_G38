@@ -229,7 +229,7 @@ export const Dashboard: React.FC = () => {
     { title: 'Dự án đang chạy', value: metrics ? metrics.activeProjects.toString() : '...', change: `Tổng số: ${metrics?.totalProjects || 0}`, isPositive: true, icon: <Layers size={24} />, color: 'hsl(var(--primary))' },
     { title: 'Yêu cầu Vật tư chờ duyệt', value: pendingRequestsCount.toString(), change: `${overBOQPendingCount} Vượt định mức`, isPositive: false, icon: <Boxes size={24} />, color: 'hsl(var(--danger))' },
     { title: 'Dự án đã đóng / Tạm dừng', value: metrics ? (metrics.closedProjects + metrics.pausedProjects).toString() : '...', change: `${metrics?.closedProjects || 0} Đóng, ${metrics?.pausedProjects || 0} Tạm dừng`, isPositive: true, icon: <ClipboardList size={24} />, color: 'hsl(var(--success))' },
-    { title: 'Tổng số nhân viên', value: userCount.toString(), change: 'Cập nhật thời gian thực', isPositive: true, icon: <Users size={24} />, color: 'hsl(var(--primary-hover))' },
+    { title: 'Tổng số thành viên', value: userCount.toString(), change: 'Cập nhật thời gian thực', isPositive: true, icon: <Users size={24} />, color: 'hsl(var(--primary-hover))' },
   ];
 
   // =========================================================================
@@ -1040,16 +1040,20 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Conditional Role Dashboard Renderer */}
-      {user?.role === 'admin' || user?.role === 'director' ? renderDirectorDashboard() :
-        user?.role === 'accountant' ? renderAccountantDashboard() :
-          user?.role === 'technicalmanager' ? renderTechnicalManagerDashboard() :
-            user?.role === 'siteengineer'
-              ? (Boolean(projectAccessMap[selectedProjectId]?.isLeader) ? renderProjectLeaderDashboard() : renderSiteEngineerDashboard())
-              : (
-                <div className="glass-panel p-6 text-center text-[hsl(var(--text-muted))]">
-                  Giao diện đang được phát triển cho vai trò của bạn.
-                </div>
-              )}
+      {(() => {
+        const r = (user?.role || '').toLowerCase();
+        if (r === 'admin' || r === 'director') return renderDirectorDashboard();
+        if (r === 'accountant') return renderAccountantDashboard();
+        if (r === 'technicalmanager') return renderTechnicalManagerDashboard();
+        if (r === 'siteengineer') {
+          return Boolean(projectAccessMap[selectedProjectId]?.isLeader) ? renderProjectLeaderDashboard() : renderSiteEngineerDashboard();
+        }
+        return (
+          <div className="glass-panel p-6 text-center text-[hsl(var(--text-muted))]">
+            Giao diện đang được phát triển cho vai trò của bạn.
+          </div>
+        );
+      })()}
     </div>
   );
 };
