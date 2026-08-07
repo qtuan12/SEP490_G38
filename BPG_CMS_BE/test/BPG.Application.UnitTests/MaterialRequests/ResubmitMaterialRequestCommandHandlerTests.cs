@@ -86,7 +86,12 @@ namespace BPG.Application.UnitTests.MaterialRequests
         {
             // Arrange
             SetupProjectLeader(true);
-            var phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.InProgress };
+            var phase = new Phase 
+            { 
+                PhaseId = PhaseId, 
+                Status = PhaseStatus.InProgress,
+                Project = new Project { Status = ProjectStatus.InProgress }
+            };
             var mr = new MaterialRequest
             {
                 RequestId = RequestId,
@@ -130,7 +135,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
             _mockMRRepo.Verify(r => r.Update(mr), Times.Once);
             _mockMRItemRepo.Verify(r => r.RemoveRange(It.IsAny<IEnumerable<MaterialRequestItem>>()), Times.Once);
             _mockMRItemRepo.Verify(r => r.AddRangeAsync(It.IsAny<IEnumerable<MaterialRequestItem>>(), It.IsAny<CancellationToken>()), Times.Once);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(3));
         }
 
         [Fact]
@@ -157,7 +162,12 @@ namespace BPG.Application.UnitTests.MaterialRequests
                 RequestId = RequestId,
                 CreatedBy = 999, // Different from CurrentUserId (10)
                 Status = MaterialRequestStatus.Rejected,
-                Phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.InProgress },
+                Phase = new Phase 
+                { 
+                    PhaseId = PhaseId, 
+                    Status = PhaseStatus.InProgress,
+                    Project = new Project { Status = ProjectStatus.InProgress }
+                },
                 Items = new List<MaterialRequestItem>()
             };
 
@@ -187,7 +197,12 @@ namespace BPG.Application.UnitTests.MaterialRequests
                 RequestId = RequestId,
                 CreatedBy = CurrentUserId,
                 Status = MaterialRequestStatus.Pending,
-                Phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.InProgress },
+                Phase = new Phase 
+                { 
+                    PhaseId = PhaseId, 
+                    Status = PhaseStatus.InProgress,
+                    Project = new Project { Status = ProjectStatus.InProgress }
+                },
                 Items = new List<MaterialRequestItem>()
             };
 
@@ -212,7 +227,12 @@ namespace BPG.Application.UnitTests.MaterialRequests
         {
             // Arrange
             SetupProjectLeader(true);
-            var phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.Approved };
+            var phase = new Phase 
+            { 
+                PhaseId = PhaseId, 
+                Status = PhaseStatus.Approved,
+                Project = new Project { Status = ProjectStatus.InProgress }
+            };
             var mr = new MaterialRequest
             {
                 RequestId = RequestId,
@@ -243,7 +263,12 @@ namespace BPG.Application.UnitTests.MaterialRequests
         {
             // Arrange
             SetupProjectLeader(true);
-            var phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.InProgress };
+            var phase = new Phase 
+            { 
+                PhaseId = PhaseId, 
+                Status = PhaseStatus.InProgress,
+                Project = new Project { Status = ProjectStatus.InProgress }
+            };
             var mr = new MaterialRequest
             {
                 RequestId = RequestId,
@@ -281,6 +306,42 @@ namespace BPG.Application.UnitTests.MaterialRequests
             // Assert
             result.Success.Should().BeTrue();
             mr.BOQCheckStatus.Should().Be(BOQCheckStatus.OverBOQ);
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_ProjectNotActive_ShouldThrowBusinessException()
+        {
+            // Arrange
+            SetupProjectLeader(true);
+            var phase = new Phase 
+            { 
+                PhaseId = PhaseId, 
+                Status = PhaseStatus.InProgress,
+                Project = new Project { Status = ProjectStatus.Paused } // project is paused
+            };
+            var mr = new MaterialRequest
+            {
+                RequestId = RequestId,
+                CreatedBy = CurrentUserId,
+                Status = MaterialRequestStatus.Rejected,
+                Phase = phase,
+                Items = new List<MaterialRequestItem>()
+            };
+
+            _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
+
+            var command = new ResubmitMaterialRequestCommand(
+                RequestId: RequestId,
+                Reason: "Sửa",
+                Items: new List<MaterialRequestItemInput> { new MaterialRequestItemInput("Cát", 15, "Khối") }
+            );
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
     }
 }

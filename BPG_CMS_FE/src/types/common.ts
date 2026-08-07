@@ -133,6 +133,8 @@ export interface MaterialRequestItem {
   quantity: number;
   unit: string;
   conversionRate?: number;
+  isOverBOQ?: boolean;
+  explanation?: string;
 }
 
 export interface MaterialRequest {

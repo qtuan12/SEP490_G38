@@ -39,15 +39,7 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ isOpen, on
     },
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      if (category) {
-        reset({ categoryName: category.categoryName, description: category.description || '' });
-      } else {
-        reset({ categoryName: '', description: '' });
-      }
-    }
-  }, [isOpen, category, reset]);
+
 
   const mutation = useMutation({
     mutationFn: async (data: CategoryFormData) => {
@@ -64,6 +56,17 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ isOpen, on
       onClose();
     },
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      mutation.reset();
+      if (category) {
+        reset({ categoryName: category.categoryName, description: category.description || '' });
+      } else {
+        reset({ categoryName: '', description: '' });
+      }
+    }
+  }, [isOpen, category, reset]);
 
   const onSubmit = (data: CategoryFormData) => {
     withLoading(async () => {

@@ -65,6 +65,11 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         if (phase == null)
             throw new NotFoundException(nameof(Phase), request.PhaseId);
 
+        if (phase.Project?.Status != ProjectStatus.InProgress)
+        {
+            throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án hiện không ở trạng thái hoạt động.");
+        }
+
         if (phase.Status == PhaseStatus.Approved)
             throw new BusinessException("INVALID_STATUS", "Phase này đã được nghiệm thu và hoàn thành trước đó.");
 

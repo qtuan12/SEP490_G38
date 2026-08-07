@@ -290,17 +290,15 @@ export const WBSTree = () => {
                                 </>
                               )}
 
-                              {project?.status !== 'draft' && (
-                                <div
-                                  style={menuItemStyle}
-                                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
-                                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
-                                  onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/boq`); }}
-                                >
-                                  <Box size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                  <span>{isFrozen ? 'Bảng định mức vật tư' : 'Bảng định mức vật tư'}</span>
-                                </div>
-                              )}
+                              <div
+                                style={menuItemStyle}
+                                onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/boq`); }}
+                              >
+                                <Box size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                <span>Bảng định mức vật tư</span>
+                              </div>
 
                               {project?.status !== 'draft' && (
                                 <>

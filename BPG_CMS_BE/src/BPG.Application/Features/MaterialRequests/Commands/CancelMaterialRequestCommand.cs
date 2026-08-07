@@ -36,11 +36,17 @@ namespace BPG.Application.Features.MaterialRequests.Commands
 
             var mr = await _uow.Repository<MaterialRequest>().Query()
                 .Include(x => x.Phase)
+                    .ThenInclude(p => p.Project)
                 .FirstOrDefaultAsync(x => x.RequestId == request.RequestId, cancellationToken);
 
             if (mr == null)
             {
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
+            }
+
+            if (mr.Phase?.Project?.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án hiện không ở trạng thái hoạt động.");
             }
 
             var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
@@ -75,6 +81,9 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             mr.UpdatedBy = currentUserId;
 
             _uow.Repository<MaterialRequest>().Update(mr);
+            await _uow.SaveChangesAsync(cancellationToken);
+
+            await BPG.Application.Common.Helpers.BOQStatusReevaluator.ReevaluateSiblingRequestsAsync(_uow, mr.PhaseId, mr.RequestId, cancellationToken);
             await _uow.SaveChangesAsync(cancellationToken);
 
             return ApiResponse<bool>.SuccessResult(true, "Hủy yêu cầu vật tư thành công.");
