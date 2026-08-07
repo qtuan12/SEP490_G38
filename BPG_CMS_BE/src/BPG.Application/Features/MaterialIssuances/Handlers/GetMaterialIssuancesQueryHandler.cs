@@ -11,19 +11,26 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BPG.Application.IServices;
+using BPG.Domain.Exceptions;
+
 namespace BPG.Application.Features.MaterialIssuances.Handlers
 {
     public class GetMaterialIssuancesQueryHandler : IRequestHandler<GetMaterialIssuancesQuery, PagedList<MaterialIssuanceDto>>
     {
         private readonly IUnitOfWork _uow;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetMaterialIssuancesQueryHandler(IUnitOfWork uow)
+        public GetMaterialIssuancesQueryHandler(IUnitOfWork uow, IProjectAccessService projectAccessService)
         {
             _uow = uow;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PagedList<MaterialIssuanceDto>> Handle(GetMaterialIssuancesQuery request, CancellationToken cancellationToken)
         {
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+
             var query = _uow.Repository<MaterialIssuance>().Query()
                 .Include(mi => mi.Task)
                     .ThenInclude(t => t.Phase)
@@ -32,7 +39,14 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
 
             if (request.ProjectId.HasValue)
             {
+                if (!accessibleProjectIds.Contains(request.ProjectId.Value))
+                    throw new ForbiddenException("Bạn không có quyền xem phiếu xuất vật tư của dự án này.");
+
                 query = query.Where(mi => mi.Task.Phase.ProjectId == request.ProjectId.Value);
+            }
+            else
+            {
+                query = query.Where(mi => accessibleProjectIds.Contains(mi.Task.Phase.ProjectId));
             }
 
             if (!string.IsNullOrWhiteSpace(request.Search))

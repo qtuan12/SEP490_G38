@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { RoleGroup } from '../auth/roles';
+import { Role, RoleGroup } from '../auth/roles';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 
@@ -27,20 +27,33 @@ export const useProjectAccess = (
 
   const isPaused = (projectQuery.data?.status || '').toLowerCase() === 'paused';
 
+  const isGlobalAuthority = hasAnyRole([
+    Role.Admin,
+    Role.TechnicalManager,
+    Role.Accountant,
+    Role.Director,
+  ]);
+
+  const isProjectMember = query.data?.isMember ?? false;
+  const isProjectLeader = query.data?.isLeader ?? false;
+  const canViewProject = isGlobalAuthority || (query.data?.canViewProject ?? isProjectMember);
+
   return {
     ...query,
     access: query.data,
     project: projectQuery.data,
     isPaused,
-    isProjectMember: query.data?.isMember ?? false,
-    isProjectLeader: query.data?.isLeader ?? false,
-    isTechnicalManager: hasAnyRole(RoleGroup.Technical),
-    canViewProject: hasAnyRole(RoleGroup.ProjectViewers) || (query.data?.isMember ?? false),
-    canManageExecution: !isPaused && (hasAnyRole(RoleGroup.Execution) || (query.data?.isLeader ?? false)),
-    canManageTechnical: !isPaused && (hasAnyRole(RoleGroup.Technical) || (query.data?.isLeader ?? false)),
+    isGlobalAuthority,
+    isProjectMember,
+    isProjectLeader,
+    isTechnicalManager:
+      hasAnyRole(RoleGroup.Technical) || hasAnyRole(RoleGroup.AdminOnly),
+    canViewProject,
+    canManageExecution: !isPaused && (hasAnyRole(RoleGroup.Execution) || isProjectLeader),
+    canManageTechnical: !isPaused && (hasAnyRole(RoleGroup.Technical) || isProjectLeader),
     canManageAccounting: !isPaused && hasAnyRole(RoleGroup.Accounting),
     canManageInventory: !isPaused && hasAnyRole(RoleGroup.Inventory),
     canApprove: !isPaused && hasAnyRole(RoleGroup.Approval),
-    canViewReports: hasAnyRole(RoleGroup.Reports) || (query.data?.isMember ?? false),
+    canViewReports: hasAnyRole(RoleGroup.Reports) || isProjectMember,
   };
 };

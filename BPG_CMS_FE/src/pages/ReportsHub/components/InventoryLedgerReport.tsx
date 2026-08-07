@@ -187,10 +187,10 @@ export const InventoryLedgerReport: React.FC<Props> = ({ projectId }) => {
             <table className="w-full text-sm text-left relative">
               <thead className="bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] sticky top-0 z-10 border-b border-[hsl(var(--border))] shadow-sm">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Ngày GD</th>
+                  <th className="px-4 py-3 font-semibold">Ngày biến động</th>
                   <th className="px-4 py-3 font-semibold">Vật tư</th>
                   <th className="px-4 py-3 font-semibold text-right">Số lượng</th>
-                  <th className="px-4 py-3 font-semibold text-right">Tồn sau GD</th>
+                  <th className="px-4 py-3 font-semibold text-right">Tồn sau biến động</th>
                   <th className="px-4 py-3 font-semibold">Người thực hiện</th>
                 </tr>
               </thead>

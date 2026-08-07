@@ -186,24 +186,24 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
             />
           </div>
           <select
-            className="px-3 py-1.5 border border-[hsl(var(--border))] rounded-lg text-sm bg-transparent"
+            className="px-3 py-1.5 border border-[hsl(var(--border))] rounded-lg text-sm bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]"
             value={typeFilter}
             onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
           >
-            <option value="">Tất cả loại</option>
-            <option value="Increase">Tăng tồn kho</option>
-            <option value="Decrease">Giảm tồn kho</option>
+            <option value="" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Tất cả loại</option>
+            <option value="Increase" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Tăng tồn kho</option>
+            <option value="Decrease" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Giảm tồn kho</option>
           </select>
 
           <select
-            className="px-3 py-1.5 border border-[hsl(var(--border))] rounded-lg text-sm bg-transparent"
+            className="px-3 py-1.5 border border-[hsl(var(--border))] rounded-lg text-sm bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]"
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           >
-            <option value="">Tất cả trạng thái</option>
-            <option value="Pending">Chờ duyệt</option>
-            <option value="Approved">Đã duyệt</option>
-            <option value="Rejected">Từ chối</option>
+            <option value="" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Tất cả trạng thái</option>
+            <option value="Pending" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Chờ duyệt</option>
+            <option value="Approved" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Đã duyệt</option>
+            <option value="Rejected" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Từ chối</option>
           </select>
         </div>
 

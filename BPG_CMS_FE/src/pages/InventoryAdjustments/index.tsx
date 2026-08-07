@@ -75,14 +75,14 @@ export const InventoryAdjustmentsPage: React.FC = () => {
           <div className="w-full md:w-1/3">
             <FormItem label="Chọn dự án">
               <select
-                className="w-full px-3 py-2 border border-[hsl(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))] bg-transparent"
+                className="w-full px-3 py-2 border border-[hsl(var(--border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))] bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]"
                 value={selectedProjectId || ''}
                 onChange={(e) => setSelectedProjectId(e.target.value)}
               >
-                {isGlobalRole && <option value="all">-- Tất cả dự án --</option>}
-                {!isGlobalRole && <option value="" disabled>-- Chọn dự án --</option>}
+                {isGlobalRole && <option value="all" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">-- Tất cả dự án --</option>}
+                {!isGlobalRole && <option value="" disabled className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">-- Chọn dự án --</option>}
                 {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.id} value={p.id} className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">
                     {p.name}
                   </option>
                 ))}

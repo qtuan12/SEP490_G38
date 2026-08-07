@@ -65,13 +65,12 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với công việc này.");
             }
 
-            if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+            var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                cancellationToken);
+            if (!isProjectLeader)
             {
-                var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
-                    member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
-                    cancellationToken);
-                if (!isProjectLeader)
-                    throw new ForbiddenException("Chỉ Trưởng dự án mới được tạo phiếu xuất vật tư.");
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được tạo phiếu xuất vật tư.");
             }
 
             // 2. Kiểm tra trạng thái dự án
@@ -96,6 +95,42 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
             if (isInactiveTask)
             {
                 throw new BusinessException("ERR_TASK_INACTIVE", "Không thể xuất kho cho công việc đã bị dừng, tạm dừng, hoàn thành hoặc đã bị hủy.");
+            }
+
+            // 3.5. Kiểm tra điều kiện phụ thuộc (Finish-to-Start): Công việc chưa được phép tiến hành nếu các task tiền nhiệm chưa hoàn thành
+            var incompletePredecessors = await _uow.Repository<TaskDependency>()
+                .Query()
+                .Include(td => td.Predecessor)
+                .Where(td => td.TaskId == task.TaskId 
+                    && td.Predecessor.ProgressPercent < 100
+                    && td.Predecessor.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+                .ToListAsync(cancellationToken);
+
+            if (incompletePredecessors.Any())
+            {
+                // Tìm tất cả các ancestor IDs để loại trừ khỏi danh sách chặn (nếu task cha phụ thuộc vào task con)
+                var ancestorIds = new HashSet<long>();
+                long? currentParentId = task.ParentTaskId;
+                while (currentParentId.HasValue)
+                {
+                    ancestorIds.Add(currentParentId.Value);
+                    var parent = await _uow.Repository<ProjectTask>()
+                        .Query()
+                        .Select(t => new { t.TaskId, t.ParentTaskId })
+                        .FirstOrDefaultAsync(t => t.TaskId == currentParentId.Value, cancellationToken);
+                    currentParentId = parent?.ParentTaskId;
+                }
+
+                var blockedPredecessors = incompletePredecessors
+                    .Where(td => !ancestorIds.Contains(td.PredecessorTaskId))
+                    .ToList();
+
+                if (blockedPredecessors.Any())
+                {
+                    var predecessorNames = string.Join(", ", blockedPredecessors.Select(p => $"'{p.Predecessor?.Name ?? "ID " + p.PredecessorTaskId}'"));
+                    throw new BusinessException("ERR_TASK_DEPENDENCY_INCOMPLETE", 
+                        $"Công việc [{task.Name}] chưa được phép tiến hành do các công việc tiền nhiệm ({predecessorNames}) chưa hoàn thành 100%. Vui lòng hoàn thành các công việc tiền nhiệm trước khi xuất dùng vật tư.");
+                }
             }
 
             // 4. Kiểm tra tồn kho khả dụng của từng vật tư

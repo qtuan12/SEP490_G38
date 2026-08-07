@@ -11,19 +11,30 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BPG.Application.IServices;
+using BPG.Domain.Exceptions;
+
 namespace BPG.Application.Features.Inventory.Handlers
 {
     public class GetInventoryTransactionsQueryHandler : IRequestHandler<GetInventoryTransactionsQuery, PagedList<InventoryTransactionDto>>
     {
         private readonly IUnitOfWork _uow;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetInventoryTransactionsQueryHandler(IUnitOfWork uow)
+        public GetInventoryTransactionsQueryHandler(IUnitOfWork uow, IProjectAccessService projectAccessService)
         {
             _uow = uow;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PagedList<InventoryTransactionDto>> Handle(GetInventoryTransactionsQuery request, CancellationToken cancellationToken)
         {
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+            if (!accessibleProjectIds.Contains(request.ProjectId))
+            {
+                throw new ForbiddenException("Bạn không có quyền xem biến động kho của dự án này.");
+            }
+
             var query = _uow.Repository<InventoryTransaction>().Query()
                 .Include(t => t.Material)
                     .ThenInclude(m => m.BaseUnit)
