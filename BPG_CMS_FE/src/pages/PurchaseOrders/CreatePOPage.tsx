@@ -5,7 +5,6 @@ import { inventoryService } from '../../services/inventoryService';
 import { supplierService } from '../../services/supplierService';
 import { projectService } from '../../services/projectService';
 import { Button, Input, Select } from '../../components/ui';
-import { useLoading } from '../../context/LoadingContext';
 import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ApiError } from '../../services/api';
@@ -57,7 +56,6 @@ const label: React.CSSProperties = {
 };
 
 export const CreatePOPage: React.FC = () => {
-  const { withLoading } = useLoading();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryProjectId = searchParams.get('projectId');
