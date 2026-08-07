@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
 import { Button, Modal, Textarea } from '../../components/ui';
 import { phaseAcceptanceService } from '../../services/phaseAcceptanceService';
 
@@ -52,13 +51,13 @@ export const CancelAcceptanceModal: React.FC<CancelAcceptanceModalProps> = ({
             <li>Chỉ cho phép hủy trong vòng 7 ngày kể từ khi nghiệm thu.</li>
           </ul>
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Lý do hủy
           </label>
-          <Textarea 
-            placeholder="Nhập lý do chi tiết..." 
+          <Textarea
+            placeholder="Nhập lý do chi tiết..."
             value={reason}
             onChange={(e) => {
               setReason(e.target.value);
@@ -78,9 +77,9 @@ export const CancelAcceptanceModal: React.FC<CancelAcceptanceModalProps> = ({
           <Button type="button" variant="outline" onClick={onClose}>
             Đóng
           </Button>
-          <Button 
-            type="submit" 
-            variant="danger" 
+          <Button
+            type="submit"
+            variant="danger"
             isLoading={cancelMutation.isPending}
             disabled={!reason.trim()}
           >

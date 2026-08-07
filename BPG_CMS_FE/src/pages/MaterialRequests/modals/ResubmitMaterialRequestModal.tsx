@@ -92,8 +92,8 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
   isOpen,
   onClose,
   request,
-  projectId,
-  user,
+
+
   allMaterialRequests,
   phases,
   onSuccess

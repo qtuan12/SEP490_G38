@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { AlertTriangle, CheckCircle, FileCheck2, Info, Calendar, User, ClipboardList, Layers, ExternalLink } from 'lucide-react';
+import { AlertTriangle, CheckCircle, FileCheck2, Info, Calendar, User, Layers, ExternalLink } from 'lucide-react';
 import { projectService } from '../../../services/projectService';
 import type { MaterialRequest, WBSPhase } from '../../../types/common';
 import { Modal } from '../../../components/ui/Modal';

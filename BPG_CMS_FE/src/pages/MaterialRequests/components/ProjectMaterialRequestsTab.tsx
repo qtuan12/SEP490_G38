@@ -41,7 +41,7 @@ interface ProjectMaterialRequestsTabProps {
 export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProps> = ({ projectId }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { canManageTechnical, canManageAccounting, canApprove, isProjectLeader } = useProjectAccess(projectId);
+  const { canManageTechnical, canManageAccounting, canApprove } = useProjectAccess(projectId);
   const [searchParams] = useSearchParams();
   const urlPhaseId = searchParams.get('phaseId');
   const urlRequestId = searchParams.get('requestId');
