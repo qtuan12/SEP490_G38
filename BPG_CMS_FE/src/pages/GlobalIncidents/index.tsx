@@ -220,7 +220,7 @@ export const GlobalIncidents: React.FC = () => {
 
   const handleSuccess = (msg?: string) => {
     if (msg) {
-      console.log(msg);
+      toast.success(msg);
     }
     loadData();
   };
