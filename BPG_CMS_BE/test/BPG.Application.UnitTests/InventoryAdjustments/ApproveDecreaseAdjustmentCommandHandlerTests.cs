@@ -142,7 +142,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         [Fact]
         public async Task UTCID06_Handle_ApproveIncreaseAdjustment_ShouldReturnSuccessResponse()
         {
-            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.Accountant)).Returns(true);
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager)).Returns(true);
             SetupAdjustments(Adjustment(adjustmentType: BPG.Domain.Constants.InventoryAdjustmentType.Increase, quantity: 15));
             SetupInventories(Inventory(quantity: 10));
 
@@ -156,7 +156,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         [Fact]
         public async Task UTCID07_Handle_RejectIncreaseAdjustment_ShouldReturnSuccessResponse()
         {
-            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.Accountant)).Returns(true);
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager)).Returns(true);
             SetupAdjustments(Adjustment(adjustmentType: BPG.Domain.Constants.InventoryAdjustmentType.Increase, quantity: 15));
 
             var result = await _handler.Handle(Command(isApproved: false, rejectedReason: "Số lượng sai thực tế"), CancellationToken.None);
