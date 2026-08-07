@@ -6,6 +6,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
 using Moq;
+using BPG.Domain.Constants;
 using InventoryAdjustmentStatus = BPG.Domain.Constants.InventoryAdjustmentStatus;
 
 namespace BPG.Application.UnitTests.InventoryAdjustments
@@ -19,6 +20,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
+        private readonly Mock<IGenericRepository<Project>> _mockProjectRepo;
         private readonly Mock<IGenericRepository<InventoryAdjustment>> _mockAdjustmentRepo;
         private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
         private readonly Mock<IGenericRepository<Incident>> _mockIncidentRepo;
@@ -28,15 +30,20 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         {
             _mockUow = new Mock<IUnitOfWork>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
+            _mockProjectRepo = new Mock<IGenericRepository<Project>>();
             _mockAdjustmentRepo = new Mock<IGenericRepository<InventoryAdjustment>>();
             _mockInventoryRepo = new Mock<IGenericRepository<CurrentInventory>>();
             _mockIncidentRepo = new Mock<IGenericRepository<Incident>>();
             var transactionRepo = new Mock<IGenericRepository<InventoryTransaction>>();
 
+            _mockUow.Setup(uow => uow.Repository<Project>()).Returns(_mockProjectRepo.Object);
             _mockUow.Setup(uow => uow.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
             _mockUow.Setup(uow => uow.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
             _mockUow.Setup(uow => uow.Repository<InventoryTransaction>()).Returns(transactionRepo.Object);
             _mockUow.Setup(uow => uow.Repository<Incident>()).Returns(_mockIncidentRepo.Object);
+
+            _mockProjectRepo.Setup(r => r.GetByIdAsync(ProjectId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Project { ProjectId = ProjectId, Name = "Project Alpha", Status = ProjectStatus.InProgress });
 
             _mockCurrentUserService.SetupUser(CurrentUserId);
             _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment>());
@@ -74,6 +81,21 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_INVALID_STATUS");
             exception.Which.Message.Should().Be("Phiếu không ở trạng thái chờ duyệt");
+        }
+
+        [Fact]
+        public async Task UTCID02B_Handle_ProjectInactive_ShouldThrowBusinessException()
+        {
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.Director)).Returns(true);
+            _mockProjectRepo.Setup(r => r.GetByIdAsync(ProjectId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Project { ProjectId = ProjectId, Name = "Project Alpha", Status = ProjectStatus.Paused });
+            SetupAdjustments(Adjustment(status: InventoryAdjustmentStatus.Pending));
+
+            var act = async () => await _handler.Handle(Command(isApproved: true), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be("Dự án đang tạm dừng, đã đóng hoặc chưa bắt đầu, không thể thực hiện thao tác này.");
         }
 
         [Fact]

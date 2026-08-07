@@ -45,7 +45,7 @@ export const Dashboard: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [projectExecData, setProjectExecData] = useState<any>(null);
   const [loadingProjectExec, setLoadingProjectExec] = useState<boolean>(false);
-  const [hasLeaderProject, setHasLeaderProject] = useState(false);
+  const [projectAccessMap, setProjectAccessMap] = useState<Record<string, { isMember: boolean; isLeader: boolean }>>({});
   const selectedProjectIdRef = React.useRef(selectedProjectId);
   const executiveRequestSequenceRef = React.useRef(0);
   const dashboardProjectsRequestSequenceRef = React.useRef(0);
@@ -53,6 +53,7 @@ export const Dashboard: React.FC = () => {
 
   const navigate = useNavigate();
   const canManageUsers = hasAnyRole(RoleGroup.AdminOnly);
+  const canViewUsersCount = hasAnyRole(RoleGroup.ProjectViewers) || canManageUsers;
   const canViewProcurement = hasAnyRole(RoleGroup.Procurement);
 
   useEffect(() => {
@@ -102,7 +103,12 @@ export const Dashboard: React.FC = () => {
     if (showLoading) setLoadingProjectExec(true);
 
     try {
-      const numericId = parseInt(projectId.replace('p-', '')) || 0;
+      const numericId = parseInt(String(projectId).replace('p-', ''), 10) || 0;
+      if (!numericId) {
+        setProjectExecData(null);
+        setLoadingProjectExec(false);
+        return;
+      }
       const data = await reportService.getExecutiveDashboard(numericId);
       if (
         executiveRequestSequenceRef.current === requestSequence
@@ -139,8 +145,19 @@ export const Dashboard: React.FC = () => {
         return selectedProjectIdRef.current;
       }
 
+      const accessMap: Record<string, { isMember: boolean; isLeader: boolean }> = {};
+      dashboardProjects.forEach((project) => {
+        const originalIndex = activeProjects.findIndex(ap => ap.id === project.id);
+        if (originalIndex !== -1 && projectAccess[originalIndex]) {
+          accessMap[project.id] = {
+            isMember: projectAccess[originalIndex].isMember,
+            isLeader: projectAccess[originalIndex].isLeader,
+          };
+        }
+      });
+      setProjectAccessMap(accessMap);
+
       setProjects(dashboardProjects);
-      setHasLeaderProject(projectAccess.some(access => access.isLeader));
       const currentSelection = selectedProjectIdRef.current;
       const nextSelection = preserveSelection
         && dashboardProjects.some(project => project.id === currentSelection)
@@ -156,7 +173,7 @@ export const Dashboard: React.FC = () => {
 
   useRealtimeDataRefresh(async () => {
     const refreshes: Promise<unknown>[] = [fetchWarnings(), fetchMetrics()];
-    if (canManageUsers) refreshes.push(fetchUsers());
+    if (canViewUsersCount) refreshes.push(fetchUsers());
     if (canViewProcurement) refreshes.push(fetchMaterialRequests());
     const requestedProjectId = selectedProjectIdRef.current;
     if (requestedProjectId) {
@@ -182,7 +199,7 @@ export const Dashboard: React.FC = () => {
   }, ['Project', 'ProjectMember']);
 
   useEffect(() => {
-    if (canManageUsers) {
+    if (canViewUsersCount) {
       fetchUsers();
     }
     if (canViewProcurement) {
@@ -193,7 +210,7 @@ export const Dashboard: React.FC = () => {
 
     // Fetch project list for dropdown filters
     void fetchDashboardProjects();
-  }, [canManageUsers, canViewProcurement, user, fetchDashboardProjects]);
+  }, [canViewUsersCount, canViewProcurement, user, fetchDashboardProjects]);
 
   useEffect(() => {
     if (selectedProjectId) {
@@ -1027,7 +1044,7 @@ export const Dashboard: React.FC = () => {
         user?.role === 'accountant' ? renderAccountantDashboard() :
           user?.role === 'technicalmanager' ? renderTechnicalManagerDashboard() :
             user?.role === 'siteengineer'
-              ? (hasLeaderProject ? renderProjectLeaderDashboard() : renderSiteEngineerDashboard())
+              ? (Boolean(projectAccessMap[selectedProjectId]?.isLeader) ? renderProjectLeaderDashboard() : renderSiteEngineerDashboard())
               : (
                 <div className="glass-panel p-6 text-center text-[hsl(var(--text-muted))]">
                   Giao diện đang được phát triển cho vai trò của bạn.

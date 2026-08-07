@@ -78,14 +78,18 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             throw new NotFoundException(nameof(Project), request.ProjectId);
         }
 
-        var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
-            member => member.ProjectId == request.ProjectId && member.UserId == currentUserId && member.IsLeader,
+        var isProjectMember = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+            member => member.ProjectId == request.ProjectId && member.UserId == currentUserId,
             cancellationToken);
 
-        if (!isProjectLeader)
+        var isManagementRole = _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager) || _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director);
+
+        if (!isProjectMember && !isManagementRole)
         {
-            throw new ForbiddenException("Chỉ Trưởng dự án mới được báo cáo sự cố.");
+            throw new ForbiddenException("Bạn không có quyền báo cáo sự cố cho dự án này.");
         }
+
+        long? phaseId = request.PhaseId;
 
         if (request.TaskId.HasValue)
         {
@@ -97,17 +101,22 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             {
                 throw new NotFoundException(nameof(ProjectTask), request.TaskId.Value);
             }
+
+            if (!phaseId.HasValue)
+            {
+                phaseId = task.PhaseId;
+            }
         }
 
-        if (request.PhaseId.HasValue)
+        if (phaseId.HasValue)
         {
             var phase = await _unitOfWork.Repository<Phase>()
                 .Query()
-                .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId.Value, cancellationToken);
+                .FirstOrDefaultAsync(p => p.PhaseId == phaseId.Value, cancellationToken);
 
             if (phase == null)
             {
-                throw new NotFoundException(nameof(Phase), request.PhaseId.Value);
+                throw new NotFoundException(nameof(Phase), phaseId.Value);
             }
         }
 
@@ -118,7 +127,7 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         {
             ProjectId = request.ProjectId,
             TaskId = request.TaskId,
-            PhaseId = request.PhaseId,
+            PhaseId = phaseId,
             ReportedBy = currentUserId,
             IncidentType = request.IncidentType,
             Description = request.Description,

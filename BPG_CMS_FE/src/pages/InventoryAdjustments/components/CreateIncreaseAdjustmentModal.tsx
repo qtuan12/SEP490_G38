@@ -59,7 +59,15 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   };
 
   const handleAddItem = () => {
-    if (!selectedMaterialId || !selectedQuantity || Number(selectedQuantity) <= 0) return;
+    if (!selectedMaterialId) {
+      setLocalError('Vui lòng chọn vật tư.');
+      return;
+    }
+
+    if (selectedQuantity === '' || isNaN(Number(selectedQuantity)) || Number(selectedQuantity) <= 0) {
+      setLocalError('Số lượng tăng phải là số dương lớn hơn 0.');
+      return;
+    }
 
     // Check if already exists
     if (items.some(x => x.materialId === Number(selectedMaterialId))) {
@@ -89,6 +97,10 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       setLocalError('Vui lòng chọn giai đoạn.');
       return;
     }
+    if (!reason.trim()) {
+      setLocalError('Vui lòng nhập lý do điều chỉnh.');
+      return;
+    }
     if (items.length === 0) {
       setLocalError('Vui lòng thêm ít nhất 1 vật tư.');
       return;
@@ -113,7 +125,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Tạo Phiếu Tăng Tồn Kho " width="lg">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         {localError && (
           <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg animate-fade-in">
             {localError}
@@ -122,7 +134,6 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
         <FormItem label="Chọn giai đoạn (*)">
           <select
-            required
             className="w-full px-3 py-2 border rounded-lg"
             value={phaseId}
             onChange={e => setPhaseId(Number(e.target.value))}
@@ -140,7 +151,6 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         <FormItem label="Lý do điều chỉnh (*)">
           <input
             type="text"
-            required
             className="w-full px-3 py-2 border rounded-lg"
             value={reason}
             onChange={e => setReason(e.target.value)}
@@ -178,17 +188,13 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
               <FormItem label="Số lượng tăng">
                 <input
                   type="number"
-                  min={(() => {
-                    const sel = materials.find(m => m.materialId === Number(selectedMaterialId));
-                    return sel && isDiscreteUnit(sel.baseUnitName) ? "1" : "0.01";
-                  })()}
                   step={(() => {
                     const sel = materials.find(m => m.materialId === Number(selectedMaterialId));
                     return sel && isDiscreteUnit(sel.baseUnitName) ? "1" : "any";
                   })()}
                   className="w-full px-3 py-2 border rounded-lg"
                   value={selectedQuantity}
-                  onChange={e => setSelectedQuantity(Number(e.target.value))}
+                  onChange={e => setSelectedQuantity(e.target.value === '' ? '' : Number(e.target.value))}
                 />
               </FormItem>
             </div>

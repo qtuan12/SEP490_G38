@@ -34,7 +34,12 @@ export const RoleGroup = {
     Role.Accountant,
     Role.Director,
   ],
-  Reports: [Role.TechnicalManager, Role.Accountant, Role.Director],
+  Reports: [
+    Role.TechnicalManager,
+    Role.SiteEngineer,
+    Role.Accountant,
+    Role.Director,
+  ],
   MasterData: [Role.TechnicalManager, Role.Accountant],
   Execution: [Role.TechnicalManager, Role.SiteEngineer],
   Technical: [Role.TechnicalManager],
