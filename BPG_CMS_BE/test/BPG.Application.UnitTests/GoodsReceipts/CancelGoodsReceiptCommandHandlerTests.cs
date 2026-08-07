@@ -66,6 +66,35 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 ServiceStubFactory.InventoryService(),
                 ServiceStubFactory.RealtimeSender());
         }
+
+        [Fact]
+        public async Task UTCID01_Handle_ValidRequest_ShouldReturnTrue()
+        {
+            SetupUser(RoleConstants.SiteEngineer, hasRole: false);
+            SetupReceipts(Receipt());
+            SetupInventories(Inventory(quantity: 20));
+
+            var result = await _handler.Handle(Command(), CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().BeTrue();
+            result.Message.Should().Be("Hủy phiếu nhập kho thành công.");
+        }
+
+        [Fact]
+        public async Task UTCID02_Handle_UserIsNotProjectLeader_ShouldThrowForbiddenException()
+        {
+            SetupUser(RoleConstants.SiteEngineer, hasRole: false);
+            SetupReceipts(Receipt());
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = false });
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be("AUTH_002");
+            exception.Which.Message.Should().Be("Chỉ Trưởng dự án mới được hủy phiếu nhập kho.");
+        }
+
         [Fact]
         public async Task UTCID03_Handle_ReceiptNotFound_ShouldThrowNotFoundException()
         {

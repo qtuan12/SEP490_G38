@@ -74,6 +74,102 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         }
 
         [Fact]
+        public async Task UTCID01_Handle_ValidRequest_ShouldReturnCreatedReceiptId()
+        {
+            SetupProjectLeader();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
+
+            var result = await _handler.Handle(Command(items: new[] { Item(CementId, 5) }), CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().Be(GeneratedReceiptId);
+            result.Message.Should().Be("Tạo phiếu nhập kho thành công.");
+        }
+
+        [Fact]
+        public async Task UTCID02_Handle_EmptyItems_ShouldThrowBusinessException()
+        {
+            SetupProjectLeader();
+
+            var act = async () => await _handler.Handle(Command(items: Array.Empty<CreateGoodsReceiptItemDto>()), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_EMPTY_ITEMS");
+            exception.Which.Message.Should().Be("Danh sách vật tư nhận thực tế không được để trống.");
+        }
+
+        [Fact]
+        public async Task UTCID03_Handle_PurchaseOrderNotFound_ShouldThrowNotFoundException()
+        {
+            SetupProjectLeader();
+            SetupPurchaseOrders();
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<NotFoundException>();
+            exception.Which.ErrorCode.Should().Be("BIZ_001");
+            exception.Which.Message.Should().Be("PurchaseOrder với ID [100] không tồn tại.");
+        }
+
+        [Fact]
+        public async Task UTCID04_Handle_PurchaseOrderWithoutProject_ShouldThrowBusinessException()
+        {
+            SetupProjectLeader();
+            SetupPurchaseOrders(new PurchaseOrder
+            {
+                POId = POId,
+                Status = PurchaseOrderStatus.Sent,
+                Request = new MaterialRequest { Phase = new Phase { Project = null! } },
+                Items = new List<PurchaseOrderItem> { POItem(CementId, "Cement", 10) }
+            });
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_FOUND");
+            exception.Which.Message.Should().Be("Không tìm thấy dự án liên kết với đơn mua hàng này.");
+        }
+
+        [Fact]
+        public async Task UTCID05_Handle_UserIsNotProjectLeader_ShouldThrowForbiddenException()
+        {
+            SetupStandardUser();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, POItem(CementId, "Cement", 10)));
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be("AUTH_002");
+            exception.Which.Message.Should().Be("Chỉ Trưởng dự án của đơn mua hàng mới được tạo phiếu nhập kho.");
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
+        {
+            SetupProjectLeader();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.Sent, ProjectStatus.Completed, POItem(CementId, "Cement", 10)));
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be(ValidationMessages.ProjectNotActive);
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_PendingApprovalPO_ShouldThrowBusinessException()
+        {
+            SetupProjectLeader();
+            SetupPurchaseOrders(PurchaseOrderWithItems(PurchaseOrderStatus.PendingApproval, POItem(CementId, "Cement", 10)));
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoNotApproved);
+            exception.Which.Message.Should().Be("Đơn hàng đang chờ Giám đốc duyệt, chưa thể nhập kho.");
+        }
+
+        [Fact]
         public async Task UTCID08_Handle_InvalidPOStatus_ShouldThrowBusinessException()
         {
             SetupProjectLeader();
