@@ -379,7 +379,7 @@ export const PhaseBOQ: React.FC = () => {
                             const selectedId = parseInt(val) || 0;
                             setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true, shouldDirty: true });
                             handleMaterialChange(idx, selectedId);
-                            
+
                             // Trigger validation for all rows that have a material selected, to update duplicate state!
                             watchedMaterials.forEach((m, i) => {
                               if (m.materialId > 0 || i === idx) {
@@ -444,7 +444,7 @@ export const PhaseBOQ: React.FC = () => {
                           ))}
                         </select>
                         {errors.materials?.[idx]?.unitId && (
-                          <p className="text-red-500 text-xs mt-1 mb-0">{errors.materials[idx]?.unitId?.message}</p>
+                          <p className="text-red-500 text-xs mt-1 mb-0">{errors.materials[idx]?.unitId?.message as string}</p>
                         )}
                       </td>
 

@@ -483,7 +483,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                           <option key={u} value={u}>{u}</option>
                         ))}
                       </select>
-                      {errors.items?.[idx]?.unit && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.unit?.message}</p>}
+                      {errors.items?.[idx]?.unit && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.unit?.message as string}</p>}
                     </div>
 
                     <button

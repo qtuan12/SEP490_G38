@@ -419,7 +419,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
                         onChange={async (selName) => {
                           setValue(`items.${idx}.name`, selName, { shouldValidate: true, shouldDirty: true });
                           await handleMaterialChange(idx, selName);
-                          
+
                           // Trigger validation for all rows that have a material selected, to update duplicate state!
                           watchedItems.forEach((it, i) => {
                             if (it.name || i === idx) {
@@ -467,7 +467,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
                           <option key={u} value={u}>{u}</option>
                         ))}
                       </select>
-                      {errors.items?.[idx]?.unit && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.unit?.message}</p>}
+                      {errors.items?.[idx]?.unit && <p className="text-red-500 text-xs mt-1">{errors.items[idx]?.unit?.message as string}</p>}
                     </div>
 
                     <button
