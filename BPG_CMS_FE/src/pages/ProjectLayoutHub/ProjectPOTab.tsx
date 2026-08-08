@@ -9,6 +9,7 @@ import { AlertCircle, Loader2, Lock, Ban, Search, MoreVertical, Eye, PackagePlus
 import { useNotification } from '../../context/NotificationContext';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { formatPlainDate } from '../../utils/dateHelpers';
+import { getPOSupplierDisplayName } from '../../utils/purchaseOrderHelpers';
 import { useVirtualRows } from '../../hooks/useVirtualRows';
 
 const menuItemStyle: React.CSSProperties = {
@@ -499,7 +500,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
                     onClick={() => navigate(`/purchase-orders/${po.poId}`)}
                   >
                     <td className="px-4 py-3 font-semibold text-[hsl(var(--primary))] truncate" title={po.poNumber}>{po.poNumber}</td>
-                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={po.supplierName || 'N/A'}>{po.supplierName || 'N/A'}</td>
+                    <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={getPOSupplierDisplayName(po.supplierName, po.poNumber) || 'N/A'}>{getPOSupplierDisplayName(po.supplierName, po.poNumber) || 'N/A'}</td>
                     <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatPlainDate(po.orderDate)}</td>
                     <td className="px-4 py-3 font-semibold text-right whitespace-nowrap">{formatCurrency(po.totalAmount)}</td>
                     <td className="px-4 py-3 text-[hsl(var(--text-muted))] text-center whitespace-nowrap">{po.items.length} loại</td>

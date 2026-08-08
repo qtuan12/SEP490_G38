@@ -35,7 +35,7 @@ Test requirement: Passed `10`, Failed `0`, Untested `0`, N/A/B `6 / 2 / 2`, Tota
 |  | `TotalCount = 1`, `Items` chỉ chứa PO 300 |  |  | O |  |  |  |  | O |  |  |
 |  | `Items` chỉ chứa PO 301 |  |  |  |  | O | O | O |  |  |  |
 |  | `{ TotalCount = 2, TotalPages = 2, HasPreviousPage = true, HasNextPage = false, Items = [PO 300] }` |  |  |  |  |  |  |  |  | O |  |
-|  | `Items[0].SupplierName = "N/A"` |  |  |  |  |  |  |  |  |  | O |
+|  | `Items[0].SupplierName = null` |  |  |  |  |  |  |  |  |  | O |
 | Confirm | Exception |  |  |  |  |  |  |  |  |  |  |
 |  | Throws `ForbiddenException` — `AUTH_002`: `Bạn chỉ được xem đơn hàng trong phạm vi dự án được cấp quyền.` |  | O |  |  |  |  |  |  |  |  |
 |  | Throws `ForbiddenException` — `AUTH_002`: `Bạn không có quyền xem đơn mua hàng của dự án này.` |  |  |  | O |  |  |  |  |  |  |
