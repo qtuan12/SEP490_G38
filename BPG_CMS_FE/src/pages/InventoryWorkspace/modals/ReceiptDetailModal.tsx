@@ -467,7 +467,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                     <div className="flex items-center gap-2 text-slate-600">
                       <FileText size={16} className="text-slate-400" />
                       <span className="font-medium">Số phiếu Nhà cung cấp:</span>
-                      <span className="text-slate-900 font-mono bg-slate-200 px-1.5 py-0.5 rounded text-xs">{detail.deliveryDocNo || 'Chưa cập nhật'}</span>
+                      <span className="text-slate-900">{detail.deliveryDocNo || 'Chưa cập nhật'}</span>
                     </div>
                     <div className="flex items-center gap-2 text-slate-600">
                       <User size={16} className="text-slate-400" />

@@ -6,23 +6,42 @@ using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
+using BPG.Application.IServices;
+using BPG.Domain.Exceptions;
+
 namespace BPG.Application.Features.Surplus.Handlers;
 
 public class GetSurplusRequestListQueryHandler : IRequestHandler<GetSurplusRequestListQuery, PagedList<SurplusRequestDto>>
 {
     private readonly IUnitOfWork _uow;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetSurplusRequestListQueryHandler(IUnitOfWork uow) => _uow = uow;
+    public GetSurplusRequestListQueryHandler(IUnitOfWork uow, IProjectAccessService projectAccessService)
+    {
+        _uow = uow;
+        _projectAccessService = projectAccessService;
+    }
 
     public async Task<PagedList<SurplusRequestDto>> Handle(GetSurplusRequestListQuery request, CancellationToken ct)
     {
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(ct);
+
         var query = _uow.Repository<SurplusRequest>().Query()
             .Include(sr => sr.Project)
             .Include(sr => sr.Items)
             .AsNoTracking();
 
         if (request.ProjectId.HasValue)
+        {
+            if (!accessibleProjectIds.Contains(request.ProjectId.Value))
+                throw new ForbiddenException("Bạn không có quyền xem yêu cầu vật tư thừa của dự án này.");
+
             query = query.Where(sr => sr.ProjectId == request.ProjectId.Value);
+        }
+        else
+        {
+            query = query.Where(sr => accessibleProjectIds.Contains(sr.ProjectId));
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Status))
             query = query.Where(sr => sr.Status == request.Status);

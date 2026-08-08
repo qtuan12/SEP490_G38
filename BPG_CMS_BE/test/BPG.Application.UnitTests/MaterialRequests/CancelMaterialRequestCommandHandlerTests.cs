@@ -47,6 +47,13 @@ namespace BPG.Application.UnitTests.MaterialRequests
             _mockUow.Setup(u => u.Repository<MaterialRequest>()).Returns(_mockMRRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
 
+            var mockMRItemRepo = new Mock<IGenericRepository<MaterialRequestItem>>();
+            var mockBOQRepo = new Mock<IGenericRepository<BOQItem>>();
+            mockMRItemRepo.Setup(r => r.Query()).Returns(new List<MaterialRequestItem>().AsQueryable().BuildMock());
+            mockBOQRepo.Setup(r => r.Query()).Returns(new List<BOQItem>().AsQueryable().BuildMock());
+            _mockUow.Setup(u => u.Repository<MaterialRequestItem>()).Returns(mockMRItemRepo.Object);
+            _mockUow.Setup(u => u.Repository<BOQItem>()).Returns(mockBOQRepo.Object);
+
             SetupProjectLeader(true);
 
             _handler = new CancelMaterialRequestCommandHandler(
@@ -69,7 +76,12 @@ namespace BPG.Application.UnitTests.MaterialRequests
             // Arrange
             SetupProjectLeader(true);
 
-            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId };
+            var phase = new Phase 
+            { 
+                PhaseId = PhaseId, 
+                ProjectId = ProjectId,
+                Project = new Project { Status = ProjectStatus.InProgress }
+            };
             var mr = new MaterialRequest
             {
                 RequestId = RequestId,
@@ -92,7 +104,7 @@ namespace BPG.Application.UnitTests.MaterialRequests
             mr.UpdatedBy.Should().Be(CurrentUserId);
 
             _mockMRRepo.Verify(r => r.Update(mr), Times.Once);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
         [Fact]
@@ -101,7 +113,12 @@ namespace BPG.Application.UnitTests.MaterialRequests
             // Arrange
             SetupProjectLeader(false);
 
-            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId };
+            var phase = new Phase 
+            { 
+                PhaseId = PhaseId, 
+                ProjectId = ProjectId,
+                Project = new Project { Status = ProjectStatus.InProgress }
+            };
             var mr = new MaterialRequest
             {
                 RequestId = RequestId,
@@ -130,7 +147,12 @@ namespace BPG.Application.UnitTests.MaterialRequests
             // Arrange
             SetupProjectLeader(true);
 
-            var phase = new Phase { PhaseId = PhaseId, ProjectId = ProjectId };
+            var phase = new Phase 
+            { 
+                PhaseId = PhaseId, 
+                ProjectId = ProjectId,
+                Project = new Project { Status = ProjectStatus.InProgress }
+            };
             var mr = new MaterialRequest
             {
                 RequestId = RequestId,
@@ -166,6 +188,38 @@ namespace BPG.Application.UnitTests.MaterialRequests
 
             // Assert
             await act.Should().ThrowAsync<NotFoundException>();
+        }
+
+        [Fact]
+        public async Task UTCID05_Handle_ProjectNotActive_ShouldThrowBusinessException()
+        {
+            // Arrange
+            SetupProjectLeader(true);
+
+            var phase = new Phase 
+            { 
+                PhaseId = PhaseId, 
+                ProjectId = ProjectId,
+                Project = new Project { Status = ProjectStatus.Paused } // project is paused
+            };
+            var mr = new MaterialRequest
+            {
+                RequestId = RequestId,
+                Status = MaterialRequestStatus.Pending,
+                Phase = phase,
+                CreatedBy = CurrentUserId
+            };
+
+            _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
+
+            var command = new CancelMaterialRequestCommand(RequestId, "Hủy");
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
     }
 }

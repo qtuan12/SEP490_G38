@@ -5,7 +5,7 @@ import { projectService } from '../../../services/projectService';
 import { inventoryService } from '../../../services/inventoryService';
 import type { MaterialRequest, WBSPhase } from '../../../types/common';
 import { MaterialRequestDetailModal } from '../modals/MaterialRequestDetailModal';
-import { Badge, Button, Pagination } from '../../../components/ui';
+import { Badge, Button, Pagination, TableLoader } from '../../../components/ui';
 import {
   Search,
   Eye,
@@ -41,7 +41,7 @@ interface ProjectMaterialRequestsTabProps {
 export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProps> = ({ projectId }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { canManageTechnical, canManageAccounting, canApprove, isProjectLeader } = useProjectAccess(projectId);
+  const { canManageTechnical, canManageAccounting, canApprove } = useProjectAccess(projectId);
   const [searchParams] = useSearchParams();
   const urlPhaseId = searchParams.get('phaseId');
   const urlRequestId = searchParams.get('requestId');
@@ -405,13 +405,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     }
   };
 
-  if (loading) {
-    return (
-      <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl p-8 text-center text-[hsl(var(--text-muted))]">
-        Đang tải dữ liệu yêu cầu vật tư...
-      </div>
-    );
-  }
+
 
   return (
     <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl shadow-sm overflow-hidden flex flex-col animate-fade-in">
@@ -475,7 +469,9 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
       {/* TABLE */}
       <div className="table-container w-full overflow-x-auto">
-        {filteredRequests.length === 0 ? (
+        {loading && requests.length === 0 ? (
+          <TableLoader isTable={false} message="Đang tải dữ liệu yêu cầu vật tư..." />
+        ) : filteredRequests.length === 0 ? (
           <div className="text-center py-12 text-[hsl(var(--text-muted))] text-sm">
             Không tìm thấy phiếu yêu cầu vật tư nào phù hợp.
           </div>
@@ -487,7 +483,6 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                 <th className="px-4 py-3">Ngày yêu cầu</th>
                 <th className="px-4 py-3">Giai đoạn / Công việc</th>
                 <th className="px-4 py-3">Người yêu cầu</th>
-                <th className="px-4 py-3">Vật tư yêu cầu</th>
                 <th className="px-4 py-3">Phân loại</th>
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3 text-center">Thao tác</th>
@@ -515,20 +510,6 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                   <td className="px-4 py-3.5 whitespace-nowrap font-medium text-[hsl(var(--text-primary))]">
                     {req.requesterName}
                   </td>
-                  <td className="px-4 py-3.5 max-w-[280px]">
-                    <div className="text-[0.8rem] flex flex-col gap-0.5">
-                      {req.items.slice(0, 2).map((it, idx) => (
-                        <span key={idx} className="text-[hsl(var(--text-secondary))]">
-                          - {it.name}: <strong>{it.quantity}</strong> {it.unit}
-                        </span>
-                      ))}
-                      {req.items.length > 2 && (
-                        <span className="text-[0.72rem] text-[hsl(var(--text-muted))] italic ml-2">
-                          và {req.items.length - 2} vật tư khác...
-                        </span>
-                      )}
-                    </div>
-                  </td>
                   <td className="px-4 py-3.5 whitespace-nowrap">
                     {getClassificationBadge(req)}
                   </td>
@@ -551,7 +532,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                         <span>Chi tiết</span>
                       </Button>
 
-                      {isProjectLeader && req.createdBy === Number(user?.id) && req.status === 'rejected' && (
+                      {canManageTechnical && req.createdBy === Number(user?.id) && req.status === 'rejected' && (
                         <Button
                           variant="primary"
                           size="sm"
@@ -600,7 +581,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       </div>
 
       {/* PAGINATION */}
-      {totalPages > 1 && (
+      {totalPages >= 1 && (
         <div className="p-4 border-t border-[hsl(var(--border))] flex justify-center">
           <Pagination
             currentPage={currentPage}
@@ -784,6 +765,9 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           }}
           projectId={projectId.toString()}
           request={selectedResubmitRequest}
+          user={user}
+          allMaterialRequests={requests}
+          phases={phases}
         />
       )}
     </div>

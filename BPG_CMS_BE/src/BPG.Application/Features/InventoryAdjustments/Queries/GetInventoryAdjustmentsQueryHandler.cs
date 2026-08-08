@@ -7,7 +7,6 @@ using BPG.Application.DTOs.Inventory;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,15 +16,22 @@ namespace BPG.Application.Features.InventoryAdjustments.Queries
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetInventoryAdjustmentsQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
+        public GetInventoryAdjustmentsQueryHandler(
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            IProjectAccessService projectAccessService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PagedList<InventoryAdjustmentDto>> Handle(GetInventoryAdjustmentsQuery request, CancellationToken cancellationToken)
         {
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+
             var query = _unitOfWork.Repository<InventoryAdjustment>().Query()
                 .Include(x => x.Project)
                 .Include(x => x.Phase)
@@ -36,7 +42,14 @@ namespace BPG.Application.Features.InventoryAdjustments.Queries
 
             if (request.ProjectId > 0)
             {
+                if (!accessibleProjectIds.Contains(request.ProjectId))
+                    throw new ForbiddenException("Bạn không có quyền xem phiếu kiểm kê của dự án này.");
+
                 query = query.Where(x => x.ProjectId == request.ProjectId);
+            }
+            else
+            {
+                query = query.Where(x => accessibleProjectIds.Contains(x.ProjectId));
             }
 
             if (!string.IsNullOrEmpty(request.AdjustmentType))

@@ -15,36 +15,53 @@ import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities, RealtimeEntityGroups } from '../../constants/realtimeEntities';
 
-const phaseBOQSchema = z.object({
-  materials: z.array(
-    z.object({
-      materialId: z.number().min(1, 'Vui lòng chọn vật tư.'),
-      quantity: z.number({ message: 'Vui lòng nhập số lượng.' }).min(0.001, 'Số lượng phải lớn hơn 0'),
-      unitId: z.number().min(1, 'ĐVT không hợp lệ'),
-      unit: z.string()
-    })
-  )
+const materialItemSchema = z.object({
+  materialId: z.number().min(1, 'Vui lòng chọn vật tư.'),
+  quantity: z.number({ message: 'Vui lòng nhập số lượng.' }).min(0.001, 'Số lượng phải lớn hơn 0'),
+  unitId: z.any(),
+  unit: z.any()
 }).superRefine((data, ctx) => {
-  // 1. Kiểm tra trùng lặp vật tư
-  const ids = data.materials.map(m => m.materialId).filter(id => id > 0);
-  if (ids.length !== new Set(ids).size) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Danh sách vật tư không được trùng lặp.',
-      path: ['materials']
-    });
-  }
+  if (data.materialId > 0) {
+    const uId = Number(data.unitId);
+    if (isNaN(uId) || uId < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ĐVT không hợp lệ',
+        path: ['unitId']
+      });
+    }
 
-  // 2. Ràng buộc ĐVT số nguyên không chấp nhận số lượng lẻ
-  data.materials.forEach((m, idx) => {
-    if (m.materialId > 0 && isDiscreteUnit(m.unit)) {
-      if (m.quantity % 1 !== 0) {
+    if (isDiscreteUnit(data.unit)) {
+      if (data.quantity % 1 !== 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `Đơn vị "${m.unit}" yêu cầu số lượng phải là số nguyên.`,
-          path: ['materials', idx, 'quantity']
+          message: `Đơn vị "${data.unit}" yêu cầu số lượng phải là số nguyên.`,
+          path: ['quantity']
         });
       }
+    }
+  }
+});
+
+const phaseBOQSchema = z.object({
+  materials: z.array(materialItemSchema)
+}).superRefine((data, ctx) => {
+  // Find all duplicate materialIds
+  const counts: Record<number, number> = {};
+  data.materials.forEach(m => {
+    if (m.materialId > 0) {
+      counts[m.materialId] = (counts[m.materialId] || 0) + 1;
+    }
+  });
+
+  // Flag duplicate rows
+  data.materials.forEach((m, idx) => {
+    if (m.materialId > 0 && counts[m.materialId] > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Vật tư này bị trùng lặp trong danh sách.',
+        path: ['materials', idx, 'materialId']
+      });
     }
   });
 });
@@ -64,7 +81,9 @@ export const PhaseBOQ: React.FC = () => {
   const [loadingPhase, setLoadingPhase] = useState(true);
   const [rowConversions, setRowConversions] = useState<Record<number, { unitId: number; unitName: string }[]>>({});
 
-  const isFrozen = phase?.status === 'frozen' || (phase?.status as string) === 'Approved' || (phase?.status as string) === 'Completed';
+  const isDraft = !project?.status || project?.status?.toLowerCase() === 'draft';
+
+  const isFrozen = !isDraft;
   const isReadOnly = isFrozen || hasActiveMRs || !canEdit;
 
   // Fetch materials catalog for dropdown list
@@ -135,10 +154,10 @@ export const PhaseBOQ: React.FC = () => {
         unitId: it.unitId,
         unit: it.unit
       }))
-      : [];
+      : (isDraft ? [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }] : []);
 
     reset({ materials: initialMaterials });
-  }, [phase, reset]);
+  }, [phase, reset, isDraft]);
 
   // Material catalog có thể refetch realtime; chỉ cập nhật lựa chọn đơn vị,
   // không reset giá trị form.
@@ -176,8 +195,8 @@ export const PhaseBOQ: React.FC = () => {
   const handleMaterialChange = async (idx: number, selectedId: number) => {
     const mat = materialList.find(m => m.materialId === selectedId);
     if (mat) {
-      setValue(`materials.${idx}.unitId` as any, mat.baseUnitId, { shouldDirty: true });
-      setValue(`materials.${idx}.unit` as any, mat.baseUnitName || 'bao', { shouldDirty: true });
+      setValue(`materials.${idx}.unitId` as any, mat.baseUnitId, { shouldDirty: true, shouldValidate: true });
+      setValue(`materials.${idx}.unit` as any, mat.baseUnitName || 'bao', { shouldDirty: true, shouldValidate: true });
 
       try {
         const convs = await materialService.getConversions(selectedId);
@@ -191,8 +210,8 @@ export const PhaseBOQ: React.FC = () => {
         setRowConversions(prev => ({ ...prev, [selectedId]: [{ unitId: mat.baseUnitId, unitName: mat.baseUnitName || 'bao' }] }));
       }
     } else {
-      setValue(`materials.${idx}.unitId` as any, 0, { shouldDirty: true });
-      setValue(`materials.${idx}.unit` as any, '', { shouldDirty: true });
+      setValue(`materials.${idx}.unitId` as any, 0, { shouldDirty: true, shouldValidate: true });
+      setValue(`materials.${idx}.unit` as any, '', { shouldDirty: true, shouldValidate: true });
     }
   };
 
@@ -265,7 +284,7 @@ export const PhaseBOQ: React.FC = () => {
           className="inline-flex items-center gap-1.5 bg-transparent border-none text-[hsl(var(--text-secondary))] cursor-pointer text-[0.9rem] font-medium w-fit hover:text-[hsl(var(--primary))] transition-colors p-0"
         >
           <ArrowLeft size={16} />
-          <span>Quay lại không gian dự án</span>
+          <span>Quay lại</span>
         </button>
         <h1 className="text-[1.75rem] font-extrabold m-0">Bảng định mức vật tư</h1>
         <p className="text-[0.875rem] text-[hsl(var(--text-secondary))] m-0">
@@ -273,13 +292,13 @@ export const PhaseBOQ: React.FC = () => {
         </p>
       </div>
 
-      {/* Cảnh báo trạng thái khóa nếu có */}
-      {isFrozen ? (
+      {/* Cảnh báo trạng thái khóa nếu không ở dạng Nháp (Draft) */}
+      {!isDraft ? (
         <div className="card bg-amber-50 border border-amber-200 rounded-lg p-4 shadow-sm text-amber-800 flex items-center gap-3">
           <AlertTriangle size={20} className="shrink-0 text-amber-600" />
           <div className="text-xs text-slate-700 leading-relaxed">
-            <strong className="text-sm text-amber-900 block font-semibold mb-0.5">Giai đoạn đã nghiệm thu</strong>
-            Bảng định mức vật tư của giai đoạn này không thể chỉnh sửa.
+            <strong className="text-sm text-amber-900 block font-semibold mb-0.5">Dự án đã hoạt động</strong>
+            Bảng định mức vật tư chỉ được phép sửa đổi khi dự án chưa kích hoạt).
           </div>
         </div>
       ) : hasActiveMRs ? (
@@ -311,7 +330,7 @@ export const PhaseBOQ: React.FC = () => {
           )}
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 w-full">
+        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6 w-full">
           {fields.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 bg-[hsl(var(--bg-main))/0.2] border border-dashed border-[hsl(var(--border))] rounded-lg text-slate-500">
               <ClipboardList size={40} className="text-slate-400 mb-2" />
@@ -340,9 +359,9 @@ export const PhaseBOQ: React.FC = () => {
                 </thead>
                 <tbody>
                   {fields.map((item, idx) => (
-                    <tr key={item.id} className="border-b border-[hsl(var(--border-light))] align-middle hover:bg-[hsl(var(--bg-main))/0.3]">
+                    <tr key={item.id} className="border-b border-[hsl(var(--border-light))] align-top hover:bg-[hsl(var(--bg-main))/0.3]">
                       {/* STT */}
-                      <td className="py-3 pl-3 font-medium text-[hsl(var(--text-secondary))] text-center">
+                      <td className="pt-4 pl-3 font-medium text-[hsl(var(--text-secondary))] text-center">
                         {idx + 1}
                       </td>
 
@@ -360,7 +379,15 @@ export const PhaseBOQ: React.FC = () => {
                             const selectedId = parseInt(val) || 0;
                             setValue(`materials.${idx}.materialId`, selectedId, { shouldValidate: true, shouldDirty: true });
                             handleMaterialChange(idx, selectedId);
-                            await trigger('materials');
+
+                            // Trigger validation for all rows that have a material selected, to update duplicate state!
+                            watchedMaterials.forEach((m, i) => {
+                              if (m.materialId > 0 || i === idx) {
+                                void trigger(`materials.${i}.materialId`);
+                              }
+                            });
+                            await trigger(`materials.${idx}.quantity`);
+                            await trigger(`materials.${idx}.unitId`);
                           }}
                           placeholder="-- Chọn vật tư kỹ thuật --"
                           error={!!errors.materials?.[idx]?.materialId}
@@ -377,7 +404,12 @@ export const PhaseBOQ: React.FC = () => {
                           step={isDiscreteUnit(watchedMaterials[idx]?.unit) ? "1" : "any"}
                           min={isDiscreteUnit(watchedMaterials[idx]?.unit) ? 1 : 0.001}
                           placeholder="Nhập SL..."
-                          {...register(`materials.${idx}.quantity` as const, { valueAsNumber: true })}
+                          {...register(`materials.${idx}.quantity` as const, {
+                            valueAsNumber: true,
+                            onChange: async () => {
+                              await trigger(`materials.${idx}.quantity`);
+                            }
+                          })}
                           disabled={isReadOnly}
                           className={`w-full text-center text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.quantity ? 'border-red-500' : 'border-slate-200'} ${isReadOnly ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
                         />
@@ -391,7 +423,7 @@ export const PhaseBOQ: React.FC = () => {
                         <select
                           {...register(`materials.${idx}.unitId` as const, { valueAsNumber: true })}
                           disabled={isReadOnly}
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const uId = parseInt(e.target.value);
                             setValue(`materials.${idx}.unitId`, uId, { shouldValidate: true, shouldDirty: true });
                             const currentMatId = watchedMaterials[idx]?.materialId;
@@ -400,6 +432,8 @@ export const PhaseBOQ: React.FC = () => {
                             if (opt) {
                               setValue(`materials.${idx}.unit` as any, opt.unitName, { shouldDirty: true });
                             }
+                            await trigger(`materials.${idx}.quantity`);
+                            await trigger(`materials.${idx}.unitId`);
                           }}
                           className={`w-full text-sm px-3 py-2 rounded-md border ${errors.materials?.[idx]?.unitId ? 'border-red-500' : 'border-slate-200'} ${isReadOnly ? 'bg-slate-100/50 cursor-not-allowed' : 'bg-white'} text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 pr-8`}
                         >
@@ -410,13 +444,13 @@ export const PhaseBOQ: React.FC = () => {
                           ))}
                         </select>
                         {errors.materials?.[idx]?.unitId && (
-                          <p className="text-red-500 text-xs mt-1 mb-0">{errors.materials[idx]?.unitId?.message}</p>
+                          <p className="text-red-500 text-xs mt-1 mb-0">{errors.materials[idx]?.unitId?.message as string}</p>
                         )}
                       </td>
 
                       {/* Hợp tác hành động */}
                       {!isReadOnly && (
-                        <td className="py-2.5 pr-3 text-center align-middle">
+                        <td className="pt-3.5 pr-3 text-center align-top">
                           <button
                             type="button"
                             onClick={async () => {
@@ -444,22 +478,16 @@ export const PhaseBOQ: React.FC = () => {
           )}
 
           {/* Các nút Submit */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-[hsl(var(--border-light))]">
-            {!isReadOnly ? (
-              <>
-                <Button type="button" variant="secondary" onClick={() => navigate(`/projects/${projectId}`)} disabled={mutation.isPending}>
-                  Hủy bỏ
-                </Button>
-                <Button type="submit" variant="primary" disabled={mutation.isPending}>
-                  {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu bảng định mức'}
-                </Button>
-              </>
-            ) : (
-              <Button type="button" variant="primary" onClick={() => navigate(`/projects/${projectId}`)}>
-                Quay lại không gian dự án
+          {!isReadOnly && (
+            <div className="flex justify-end gap-3 pt-4 border-t border-[hsl(var(--border-light))]">
+              <Button type="button" variant="secondary" onClick={() => navigate(`/projects/${projectId}`)} disabled={mutation.isPending}>
+                Hủy bỏ
               </Button>
-            )}
-          </div>
+              <Button type="submit" variant="primary" disabled={mutation.isPending}>
+                {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu bảng định mức'}
+              </Button>
+            </div>
+          )}
         </form>
       </div>
     </div>

@@ -57,6 +57,27 @@ public class UpdateMaterialCatalogCommandHandler : IRequestHandler<UpdateMateria
             throw new DuplicateEntryException("Code", request.Code);
         }
 
+        if (entity.BaseUnitId != request.BaseUnitId)
+        {
+            // Kiểm tra xem vật tư đã phát sinh giao dịch/yêu cầu nào chưa
+            bool isUsed = await _uow.Repository<BOQItem>().Query().AnyAsync(x => x.MaterialId == request.MaterialId, cancellationToken)
+                || await _uow.Repository<MaterialRequestItem>().Query().AnyAsync(x => x.MaterialId == request.MaterialId, cancellationToken)
+                || await _uow.Repository<PurchaseOrderItem>().Query().AnyAsync(x => x.MaterialId == request.MaterialId, cancellationToken)
+                || await _uow.Repository<GoodsReceiptItem>().Query().AnyAsync(x => x.MaterialId == request.MaterialId, cancellationToken)
+                || await _uow.Repository<MaterialIssuanceItem>().Query().AnyAsync(x => x.MaterialId == request.MaterialId, cancellationToken)
+                || await _uow.Repository<InventoryTransaction>().Query().AnyAsync(x => x.MaterialId == request.MaterialId, cancellationToken)
+                || await _uow.Repository<DirectPurchaseItem>().Query().AnyAsync(x => x.MaterialId == request.MaterialId, cancellationToken)
+                || await _uow.Repository<AdjustmentItem>().Query().AnyAsync(x => x.MaterialId == request.MaterialId, cancellationToken)
+                || await _uow.Repository<SurplusRequestItem>().Query().AnyAsync(x => x.MaterialId == request.MaterialId, cancellationToken)
+                || await _uow.Repository<MaterialReturnItem>().Query().AnyAsync(x => x.MaterialId == request.MaterialId, cancellationToken);
+
+            if (isUsed)
+            {
+                throw new BusinessException("ERR_CANNOT_CHANGE_BASE_UNIT", 
+                    "Không thể thay đổi Đơn vị tính cơ bản của vật tư đã phát sinh giao dịch.");
+            }
+        }
+
         entity.CategoryId = request.CategoryId;
         entity.BaseUnitId = request.BaseUnitId;
         entity.Code = trimmedCode;

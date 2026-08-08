@@ -93,7 +93,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
                 ProjectId = ProjectId,
                 Name = "Giai đoạn 1",
                 Status = PhaseStatus.InProgress,
-                Project = new Project { ProjectId = ProjectId, Name = "Dự án A" }
+                Project = new Project { ProjectId = ProjectId, Name = "Dự án A", Status = ProjectStatus.InProgress }
             };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
 
@@ -145,7 +145,8 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
             var phase = new Phase
             {
                 PhaseId = PhaseId,
-                Status = PhaseStatus.Approved
+                Status = PhaseStatus.Approved,
+                Project = new Project { Status = ProjectStatus.InProgress }
             };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
             var command = new AcceptPhaseCommand(PhaseId, "Giai đoạn đã hoàn thành");
@@ -165,7 +166,8 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
             var phase = new Phase
             {
                 PhaseId = PhaseId,
-                Status = PhaseStatus.InProgress
+                Status = PhaseStatus.InProgress,
+                Project = new Project { Status = ProjectStatus.InProgress }
             };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
 
@@ -194,7 +196,8 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
             var phase = new Phase
             {
                 PhaseId = PhaseId,
-                Status = PhaseStatus.InProgress
+                Status = PhaseStatus.InProgress,
+                Project = new Project { Status = ProjectStatus.InProgress }
             };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
 
@@ -210,6 +213,28 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
             // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("Không thể nghiệm thu Phase khi chưa hoàn thành 100% tất cả các công việc hoạt động.");
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_ProjectNotActive_ShouldThrowBusinessException()
+        {
+            // Arrange
+            var phase = new Phase
+            {
+                PhaseId = PhaseId,
+                Status = PhaseStatus.InProgress,
+                Project = new Project { Status = ProjectStatus.Paused } // project is paused
+            };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
+
+            var command = new AcceptPhaseCommand(PhaseId, "Nghiệm thu");
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
     }
 }

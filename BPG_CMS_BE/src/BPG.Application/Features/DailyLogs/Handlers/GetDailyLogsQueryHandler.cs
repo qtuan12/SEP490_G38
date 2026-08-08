@@ -12,21 +12,32 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BPG.Application.IServices;
+using BPG.Domain.Exceptions;
+
 namespace BPG.Application.Features.DailyLogs.Handlers
 {
     public class GetDailyLogsQueryHandler : IRequestHandler<GetDailyLogsQuery, PagedList<DailyLogDto>>
     {
         private readonly IUnitOfWork _uow;
         private readonly IMapper _mapper;
+        private readonly IProjectAccessService _projectAccessService;
 
-        public GetDailyLogsQueryHandler(IUnitOfWork uow, IMapper mapper)
+        public GetDailyLogsQueryHandler(IUnitOfWork uow, IMapper mapper, IProjectAccessService projectAccessService)
         {
             _uow = uow;
             _mapper = mapper;
+            _projectAccessService = projectAccessService;
         }
 
         public async Task<PagedList<DailyLogDto>> Handle(GetDailyLogsQuery request, CancellationToken cancellationToken)
         {
+            var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+            if (!accessibleProjectIds.Contains(request.ProjectId))
+            {
+                throw new ForbiddenException("Bạn không có quyền xem nhật ký thi công của dự án này.");
+            }
+
             // Query các DailyLog thuộc dự án
             var query = _uow.Repository<DailyLog>().Query()
                 .AsNoTracking()

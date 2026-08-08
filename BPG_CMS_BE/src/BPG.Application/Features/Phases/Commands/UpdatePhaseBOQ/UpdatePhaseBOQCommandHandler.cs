@@ -45,13 +45,12 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
             throw new NotFoundException("Phase", request.PhaseId);
         }
 
-        if (phase.Project != null && phase.Project.Status != ProjectStatus.InProgress)
-            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+        // 2. Verify Project is in Draft status (BOQ can only be updated during Project Draft)
+        bool isProjectDraft = phase.Project == null || string.Equals(phase.Project.Status, ProjectStatus.Draft, StringComparison.OrdinalIgnoreCase);
 
-        // 2. Verify Phase is not frozen
-        if (phase.Status == "frozen" || phase.Status == "Approved")
+        if (!isProjectDraft)
         {
-            throw new BusinessException("ERR_PHASE_FROZEN", "Giai đoạn đã nghiệm thu, không thể cập nhật định mức vật tư.");
+            throw new BusinessException("ERR_BOQ_NOT_DRAFT", "Chỉ được phép thay đổi định mức vật tư khi dự án chưa kích hoạt.");
         }
 
         // 3. Fetch all existing BOQItems of the Phase (including soft-deleted ones)

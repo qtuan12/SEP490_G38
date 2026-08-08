@@ -1,3 +1,5 @@
+using BPG.Application.IServices;
+
 namespace BPG.Application.Features.Projects.Handlers;
 
 using AutoMapper;
@@ -19,16 +21,28 @@ public class GetProjectByIdQueryHandler : IRequestHandler<GetProjectByIdQuery, P
     private readonly IUnitOfWork _uow;
     private readonly IMapper _mapper;
     private readonly BPG.Application.IServices.ICurrentUserService _currentUserService;
+    private readonly IProjectAccessService _projectAccessService;
 
-    public GetProjectByIdQueryHandler(IUnitOfWork uow, IMapper mapper, BPG.Application.IServices.ICurrentUserService currentUserService)
+    public GetProjectByIdQueryHandler(
+        IUnitOfWork uow,
+        IMapper mapper,
+        BPG.Application.IServices.ICurrentUserService currentUserService,
+        IProjectAccessService projectAccessService)
     {
         _uow = uow;
         _mapper = mapper;
         _currentUserService = currentUserService;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<ProjectDetailDto> Handle(GetProjectByIdQuery request, CancellationToken cancellationToken)
     {
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(cancellationToken);
+        if (!accessibleProjectIds.Contains(request.Id))
+        {
+            throw new ForbiddenException("Bạn không có quyền truy cập vào dự án này.");
+        }
+
         var project = await _uow.Repository<Project>().Query()
             .AsNoTracking()
             .Include(p => p.Members)

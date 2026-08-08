@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Inventory;
 using BPG.Application.Features.Inventory.Handlers;
 using BPG.Application.Features.Inventory.Queries;
@@ -15,6 +15,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
+using BPG.Application.IServices;
+
 namespace BPG.Application.UnitTests.Inventory
 {
     public class GetInventoryTransactionsQueryHandlerTests
@@ -22,6 +24,7 @@ namespace BPG.Application.UnitTests.Inventory
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<InventoryTransaction>> _mockTxRepo;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
+        private readonly Mock<IProjectAccessService> _mockProjectAccessService;
         private readonly GetInventoryTransactionsQueryHandler _handler;
 
         public GetInventoryTransactionsQueryHandlerTests()
@@ -29,11 +32,16 @@ namespace BPG.Application.UnitTests.Inventory
             _mockUow = new Mock<IUnitOfWork>();
             _mockTxRepo = new Mock<IGenericRepository<InventoryTransaction>>();
             _mockUserRepo = new Mock<IGenericRepository<User>>();
+            _mockProjectAccessService = new Mock<IProjectAccessService>();
+
+            _mockProjectAccessService
+                .Setup(p => p.GetAccessibleProjectIdsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new HashSet<long> { 1, 2, 3, 4, 5, 10, 99, 100 });
 
             _mockUow.Setup(u => u.Repository<InventoryTransaction>()).Returns(_mockTxRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
 
-            _handler = new GetInventoryTransactionsQueryHandler(_mockUow.Object);
+            _handler = new GetInventoryTransactionsQueryHandler(_mockUow.Object, _mockProjectAccessService.Object);
         }
 
         private List<InventoryTransaction> GetMockTxList()

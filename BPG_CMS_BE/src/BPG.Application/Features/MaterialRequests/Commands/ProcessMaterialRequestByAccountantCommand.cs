@@ -50,6 +50,11 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 throw new NotFoundException(nameof(MaterialRequest), request.RequestId);
             }
 
+            if (mr.Phase?.Project?.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án hiện không ở trạng thái hoạt động.");
+            }
+
             if (mr.Status != MaterialRequestStatus.Pending)
             {
                 throw new BusinessException("ERR_INVALID_STATUS_FOR_PROCESS", 
@@ -84,6 +89,10 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 }
 
                 await _uow.SaveChangesAsync(cancellationToken);
+
+                await BPG.Application.Common.Helpers.BOQStatusReevaluator.ReevaluateSiblingRequestsAsync(_uow, mr.PhaseId, mr.RequestId, cancellationToken);
+                await _uow.SaveChangesAsync(cancellationToken);
+
                 await _uow.CommitTransactionAsync(cancellationToken);
 
                 // Gửi thông báo realtime

@@ -62,8 +62,8 @@ export const WBSModalsContainer = () => {
           isTPKT={isTPKT}
           isPL={isPL}
           onCreateMatReqOpen={(type) => { setIsDetailOpen(false); setCreateMatReqType(type); setIsCreateMatReqOpen(true); }}
-          onObsolete={() => { 
-            setIsDetailOpen(false); 
+          onObsolete={() => {
+            setIsDetailOpen(false);
             if (selectedTask.progress > 0) {
               setIsObsoleteOpen(true);
             } else {
@@ -95,7 +95,7 @@ export const WBSModalsContainer = () => {
           onError={handleError}
         />
       )}
-    
+
       {isObsoleteOpen && selectedTask && (
         <ObsoleteTaskModal
           isOpen={isObsoleteOpen}
@@ -107,14 +107,26 @@ export const WBSModalsContainer = () => {
           }}
         />
       )}
-    
+
       {isAssignOpen && selectedTask && (
         <AssignEngineerModal isOpen={isAssignOpen} onClose={() => setIsAssignOpen(false)} taskId={selectedTask.id} taskName={selectedTask.name} projectId={projectId} onSuccess={handleSuccess} onError={handleError} />
       )}
 
 
       {isLogOpen && selectedTask && user && canOpenDailyLogForm && (
-        <DailyLogFormModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} task={selectedTask} engineerId={user.id} engineerName={user.name} isPL={isPL} canManageTechnical={isTPKT} onSuccess={handleSuccess} onError={handleError} />
+        <DailyLogFormModal
+          isOpen={isLogOpen}
+          onClose={() => setIsLogOpen(false)}
+          task={selectedTask}
+          engineerId={user.id}
+          engineerName={user.name}
+          isPL={isPL}
+          canManageTechnical={isTPKT}
+          onSuccess={() => {
+            loadWBSData();
+          }}
+          onError={handleError}
+        />
       )}
 
       {isCreateMatReqOpen && selectedTask && (
@@ -196,6 +208,9 @@ export const WBSModalsContainer = () => {
             // Mở rộng sau: fetch lại data
           }}
           onError={handleError}
+          allMaterialRequests={materialRequests}
+          phases={phases}
+          user={user}
         />
       )}
       {/* Create Phase Material Request Modal */}

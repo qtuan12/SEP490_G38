@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { RoleGroup } from '../auth/roles';
+import { Role, RoleGroup } from '../auth/roles';
 import { useAuth } from '../context/AuthContext';
 import { projectService } from '../services/projectService';
 
@@ -18,21 +18,33 @@ export const useProjectAccess = (
     staleTime: 30_000,
   });
 
+  const isGlobalAuthority = hasAnyRole([
+    Role.Admin,
+    Role.TechnicalManager,
+    Role.Accountant,
+    Role.Director,
+  ]);
+
+  const isProjectMember = query.data?.isMember ?? false;
+  const isProjectLeader = query.data?.isLeader ?? false;
+  const canViewProject = isGlobalAuthority || (query.data?.canViewProject ?? isProjectMember);
+
   return {
     ...query,
     access: query.data,
-    isProjectMember: query.data?.isMember ?? false,
-    isProjectLeader: query.data?.isLeader ?? false,
+    isGlobalAuthority,
+    isProjectMember,
+    isProjectLeader,
     isTechnicalManager:
       hasAnyRole(RoleGroup.Technical) || hasAnyRole(RoleGroup.AdminOnly),
-    canViewProject: hasAnyRole(RoleGroup.ProjectViewers) || (query.data?.isMember ?? false),
+    canViewProject,
     canManageExecution:
-      hasAnyRole(RoleGroup.Execution) || (query.data?.isLeader ?? false),
+      hasAnyRole(RoleGroup.Execution) || isProjectLeader,
     canManageTechnical:
-      hasAnyRole(RoleGroup.Technical) || (query.data?.isLeader ?? false),
+      hasAnyRole(RoleGroup.Technical) || isProjectLeader,
     canManageAccounting: hasAnyRole(RoleGroup.Accounting),
     canManageInventory: hasAnyRole(RoleGroup.Inventory),
     canApprove: hasAnyRole(RoleGroup.Approval),
-    canViewReports: hasAnyRole(RoleGroup.Reports) || (query.data?.isMember ?? false),
+    canViewReports: hasAnyRole(RoleGroup.Reports) || isProjectMember,
   };
 };

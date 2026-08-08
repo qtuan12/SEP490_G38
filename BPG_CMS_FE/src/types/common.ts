@@ -34,6 +34,7 @@ export interface ProjectAccess {
   projectId: number;
   isMember: boolean;
   isLeader: boolean;
+  canViewProject?: boolean;
 }
 
 export interface PhaseMaterialItem {
@@ -133,6 +134,8 @@ export interface MaterialRequestItem {
   quantity: number;
   unit: string;
   conversionRate?: number;
+  isOverBOQ?: boolean;
+  explanation?: string;
 }
 
 export interface MaterialRequest {

@@ -1,9 +1,9 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
-import type {WBSPhase, WBSTask, Project} from '../../types/common';
+import type { WBSPhase, WBSTask, Project } from '../../types/common';
 import { formatDate, formatDateOnly } from '../../utils/dateHelpers';
-import { 
+import {
   ArrowLeft,
   Download,
   AlertTriangle
@@ -34,6 +34,7 @@ export const PhaseAcceptance: React.FC = () => {
   const [isRevoking, setIsRevoking] = useState(false);
   const [revokeReason, setRevokeReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
 
   const [searchParams] = useSearchParams();
   const historyId = searchParams.get('historyId');
@@ -47,6 +48,7 @@ export const PhaseAcceptance: React.FC = () => {
   const [activeAcceptanceDate, setActiveAcceptanceDate] = useState<string>('');
   const [activeCreatorName, setActiveCreatorName] = useState<string>('');
   const [activeAcceptanceId, setActiveAcceptanceId] = useState<number | null>(null);
+  const [activePdfUrl, setActivePdfUrl] = useState<string>('');
 
   const canRevoke = isViewingHistory ? !historicalAcceptance?.isCancelled : isSubmitted;
 
@@ -83,6 +85,7 @@ export const PhaseAcceptance: React.FC = () => {
           setActiveAcceptanceDate(formatDateOnly(activeAcc.acceptanceDate));
           setActiveCreatorName(activeAcc.acceptedByName || '');
           setActiveAcceptanceId(activeAcc.acceptanceId);
+          setActivePdfUrl(activeAcc.pdfUrl || '');
         }
       }
 
@@ -148,10 +151,10 @@ export const PhaseAcceptance: React.FC = () => {
       if (acceptDateObj && !isNaN(acceptDateObj.getTime())) {
         const now = new Date();
         const diffTime = now.getTime() - acceptDateObj.getTime();
-        const diffDays = diffTime / (1000 * 60 * 60 * 24); 
-        
+        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
         if (diffDays > 7) {
-          setError('Không thể hủy nghiệm thu. Đã quá 7 ngày kể từ ngày đóng băng.');
+          setRevokeError('Không thể hủy nghiệm thu. Đã quá 7 ngày kể từ ngày đóng băng.');
           return;
         }
       }
@@ -159,38 +162,45 @@ export const PhaseAcceptance: React.FC = () => {
 
     const targetId = isViewingHistory ? historicalAcceptance?.acceptanceId : activeAcceptanceId;
     if (!targetId) {
-      setError('Không tìm thấy biên bản nghiệm thu cần hủy.');
+      setRevokeError('Không tìm thấy biên bản nghiệm thu cần hủy.');
       return;
     }
 
     setSubmitting(true);
-    setError(null);
+    setRevokeError(null);
     try {
       const message = await phaseAcceptanceService.cancelAcceptance(targetId, { cancellationReason: revokeReason });
       setIsRevoking(false);
       setRevokeReason('');
       console.log(message || 'Đã hủy nghiệm thu giai đoạn.');
-      
+
       // Navigate to the history view of the revoked acceptance
       navigate(`/projects/${projectId}/phases/${phaseId}/acceptance?historyId=${targetId}`, { replace: true });
     } catch (err: any) {
-      setError(err.message || 'Có lỗi xảy ra khi hủy nghiệm thu.');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setRevokeError(err.message || 'Có lỗi xảy ra khi hủy nghiệm thu.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDownloadPDF = async () => {
+    const currentPdfUrl = isViewingHistory ? historicalAcceptance?.pdfUrl : activePdfUrl;
+
+    if (currentPdfUrl && (currentPdfUrl.startsWith('http://') || currentPdfUrl.startsWith('https://'))) {
+      window.open(currentPdfUrl, '_blank');
+      return;
+    }
+
     const element = document.getElementById('printable-acceptance-doc');
     if (!element) return;
-    
+
     const opt = {
-      margin:       10, // top, left, bottom, right
-      filename:     `Bien_Ban_Nghiem_Thu_${phase?.name || 'Giai_Doan'}.pdf`,
-      image:        { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+      margin: 10, // top, left, bottom, right
+      filename: `Bien_Ban_Nghiem_Thu_${phase?.name || 'Giai_Doan'}.pdf`,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(element).save();
@@ -219,11 +229,11 @@ export const PhaseAcceptance: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto animate-fade-in">
-      
+
       {/* Navigation and Title */}
       <div className="flex flex-col gap-3">
-        <button 
-          onClick={() => historyId ? navigate(`/phase-acceptances?projectId=${projectId}&phaseId=${phaseId}`) : navigate(`/projects/${projectId}`)} 
+        <button
+          onClick={() => historyId ? navigate(`/phase-acceptances?projectId=${projectId}&phaseId=${phaseId}`) : navigate(`/projects/${projectId}`)}
           className="inline-flex items-center gap-1.5 bg-transparent border-none text-[hsl(var(--text-secondary))] cursor-pointer text-[0.9rem] font-medium w-fit hover:text-[hsl(var(--primary))] transition-colors p-0"
         >
           <ArrowLeft size={16} />
@@ -247,7 +257,7 @@ export const PhaseAcceptance: React.FC = () => {
       {/* Evaluation Form or History Detail */}
       {(isTPKT || isViewingHistory || isSubmitted) ? (
         <div className="card flex flex-col gap-5 bg-[hsl(var(--bg-card))]">
-          
+
           {isViewingHistory && historicalAcceptance && (
             <div className={`p-4 rounded-xl border ${historicalAcceptance.isCancelled ? 'bg-[hsl(var(--danger-glow))] border-[hsl(var(--danger)/0.2)]' : 'bg-[hsl(var(--success-glow))] border-[hsl(var(--success)/0.2)]'}`}>
               <h3 className={`text-md font-semibold mb-2 flex items-center gap-2 ${historicalAcceptance.isCancelled ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
@@ -272,13 +282,13 @@ export const PhaseAcceptance: React.FC = () => {
           ) : isSubmitted ? (
             <AcceptanceDocument project={project} phase={phase} reportContent={activeReportContent || ''} creatorName={activeCreatorName} acceptanceDate={activeAcceptanceDate || formatDateOnly(new Date().toISOString())} />
           ) : (
-            <AcceptanceForm 
-              phase={phase!} 
+            <AcceptanceForm
+              phase={phase!}
               project={project}
-              allCompleted={allCompleted} 
+              allCompleted={allCompleted}
               onSuccess={(msg) => console.log(msg)}
               onError={(msg) => toast.error(msg)}
-              onPhaseUpdated={loadData} 
+              onPhaseUpdated={loadData}
             />
           )}
 
@@ -297,9 +307,9 @@ export const PhaseAcceptance: React.FC = () => {
                 </Button>
 
                 {canRevoke && !isRevoking && isTPKT ? (
-                  <Button 
-                    type="button" 
-                    onClick={() => setIsRevoking(true)}
+                  <Button
+                    type="button"
+                    onClick={() => { setIsRevoking(true); setRevokeError(null); }}
                     variant="outline"
                     style={{
                       display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px',
@@ -310,21 +320,29 @@ export const PhaseAcceptance: React.FC = () => {
                     Yêu cầu Hủy Nghiệm Thu
                   </Button>
                 ) : canRevoke && isRevoking && isTPKT ? (
-                  <div className="w-full mt-3 p-4 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm">
+                  <div className="w-full mt-3 p-4 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm text-left">
                     <label htmlFor="revoke-reason" className="text-[hsl(var(--danger))] font-semibold block mb-2">
                       Lý do hủy nghiệm thu (Tối thiểu 20 ký tự) <span className="text-[hsl(var(--danger))]">*</span>
                     </label>
                     <textarea
                       id="revoke-reason"
-                      placeholder="Nêu rõ nguyên nhân hủy bỏ (VD: Phát hiện sai sót trong biên bản, thi công chưa đạt chuẩn sau kiểm tra...)"
+                      placeholder=""
                       value={revokeReason}
-                      onChange={(e) => setRevokeReason(e.target.value)}
+                      onChange={(e) => {
+                        setRevokeReason(e.target.value);
+                        if (revokeError) setRevokeError(null);
+                      }}
                       rows={3}
                       disabled={submitting}
                       className="w-full mb-3 p-2.5 rounded-sm border border-[hsl(var(--danger)/0.3)] bg-[hsl(var(--bg-main))] text-[0.9rem] font-medium resize-y focus:outline-none focus:border-[hsl(var(--danger))]"
                     />
+                    {revokeError && (
+                      <div className="text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded p-2.5 mb-3">
+                        {revokeError}
+                      </div>
+                    )}
                     <div className="flex justify-between text-[0.8rem] text-[hsl(var(--danger))] mb-3">
-                      <span>Lưu ý: Chỉ có thể hủy nghiệm thu trong vòng 7 ngày kể từ lúc đóng băng.</span>
+                      <span></span>
                       <span className="font-semibold">{revokeReason.trim().length} / 20</span>
                     </div>
                     <div className="flex justify-end gap-2">
@@ -337,14 +355,14 @@ export const PhaseAcceptance: React.FC = () => {
                           backgroundColor: 'hsl(var(--bg-main))', color: 'hsl(var(--text-secondary))',
                           border: '1px solid hsl(var(--border))'
                         }}
-                        onClick={() => { setIsRevoking(false); setRevokeReason(''); }}
+                        onClick={() => { setIsRevoking(false); setRevokeReason(''); setRevokeError(null); }}
                       >
                         Hủy bỏ
                       </Button>
-                      <Button 
-                        type="button" 
+                      <Button
+                        type="button"
                         variant="danger"
-                        onClick={handleRevoke} 
+                        onClick={handleRevoke}
                         disabled={revokeReason.trim().length < 20 || submitting}
                       >
                         {submitting ? 'Đang xử lý...' : 'Xác nhận Hủy Nghiệm Thu'}
