@@ -10,10 +10,9 @@ export default defineConfig({
     // Chỉ có hiệu lực khi biến môi trường VITE_DEV_TUNNEL_HOST được set (dùng bởi
     // test-mobile-pwa.ps1 khi test qua tunnel HTTPS) — mặc định không ảnh hưởng gì.
     allowedHosts: process.env.VITE_DEV_TUNNEL_HOST ? ['.trycloudflare.com'] : undefined,
-    hmr: {
-      protocol: 'wss',
-      host: 'localhost',
-    },
+    hmr: process.env.VITE_FORCE_HTTPS
+      ? { protocol: 'wss', host: 'localhost' }
+      : { protocol: 'ws', host: 'localhost' },
   },
   plugins: [
     // Mặc định dev chạy HTTP: localhost vốn đã là secure context nên service worker/PWA vẫn

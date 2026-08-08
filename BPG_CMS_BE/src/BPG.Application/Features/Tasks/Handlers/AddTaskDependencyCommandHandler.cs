@@ -44,7 +44,7 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
         {
             var currentUserId = _currentUserService.GetRequiredUserId();
             var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
-                member => member.ProjectId == task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                member => member.ProjectId == task.Phase!.ProjectId && member.UserId == currentUserId && member.IsLeader,
                 ct);
             if (!isProjectLeader)
                 throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được thêm liên kết phụ thuộc.");
@@ -102,7 +102,7 @@ public class AddTaskDependencyCommandHandler : IRequestHandler<AddTaskDependency
             return ApiResponse.SuccessResult("Liên kết phụ thuộc đã tồn tại.");
 
         // Circular Dependency Validation
-        var projectId = task.Phase.ProjectId;
+        var projectId = task.Phase!.ProjectId;
         var allDeps = await _unitOfWork.Repository<TaskDependency>()
             .Query()
             .Where(d => d.Task.Phase.ProjectId == projectId)

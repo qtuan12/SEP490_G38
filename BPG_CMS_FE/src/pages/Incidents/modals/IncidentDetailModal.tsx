@@ -186,26 +186,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     }
   });
 
-  const directorApproveInventoryMutation = useMutation({
-    mutationFn: () =>
-      incidentService.confirmIncident(Number(incident.id), {
-        incidentId: Number(incident.id),
-        createReworkTask: false,
-        handlingInstruction: 'Giám đốc phê duyệt điều chỉnh giảm tồn kho vật tư bị thiệt hại.',
-      }),
-    onSuccess: (result) => {
-      console.log(result.message || 'Đã phê duyệt phiếu giảm tồn kho. Tồn kho đã được cập nhật.');
-      if (onSuccessAction) onSuccessAction('Phê duyệt giảm tồn kho');
-      else {
-        queryClient.invalidateQueries({ queryKey: ['incidents'] });
-        queryClient.invalidateQueries({ queryKey: ['globalIncidents'] });
-      }
-      onClose();
-    },
-    onError: (err: any) => {
-      toast.error(err.message || 'Không thể phê duyệt phiếu giảm tồn kho.');
-    }
-  });
+
 
 
   const plPushToAccountantMutation = useMutation({
@@ -536,49 +517,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     `;
   };
 
-  const handleExportReportPdf = () => {
-    const reportHtml = getIncidentReportHtml();
-    if (!reportHtml) return;
-    const printContent = `
-      <html>
-      <head>
-        <title>Biên bản báo cáo sự cố công trình - Sự cố #${incident.id}</title>
-        <style>
-          @page {
-            size: A4;
-            margin: 20mm;
-          }
-          body {
-            font-family: 'Times New Roman', Times, serif;
-            font-size: 12pt;
-            line-height: 1.5;
-            color: #000;
-            background: #fff;
-            padding: 0;
-            margin: 0;
-          }
-        </style>
-      </head>
-      <body>
-        ${reportHtml}
-        <script>
-          window.onload = function() {
-            window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
-        </script>
-      </body>
-      </html>
-    `;
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.open();
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-    } else {
-      toast.error('Vui lòng cho phép trình duyệt mở popup để in.');
-    }
-  };
+
 
   const handleExportReportWord = () => {
     const reportHtml = getIncidentReportHtml();
@@ -1012,9 +951,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     : (isDescriptionJson ? (parsedDescJson?.imageUrls || []) : extractedImages);
 
   const statusColor = {
-    WaitingReview: { label: 'Chờ TPKT Thẩm định', color: 'hsl(38, 92%, 50%)', bg: 'hsl(38, 100%, 96%)' },
+    WaitingReview: { label: 'Chờ phê duyệt', color: 'hsl(38, 92%, 50%)', bg: 'hsl(38, 100%, 96%)' },
     WaitingAccountant: { label: 'Chờ Kế toán Xác minh', color: 'hsl(210, 70%, 45%)', bg: 'hsl(210, 100%, 97%)' },
-    WaitingDirector: { label: 'Chờ Giám đốc Phê duyệt', color: 'hsl(280, 70%, 45%)', bg: 'hsl(280, 100%, 97%)' },
+    WaitingDirector: { label: 'Chờ Giám đốc duyệt', color: 'hsl(280, 70%, 45%)', bg: 'hsl(280, 100%, 97%)' },
     WaitingStopApproval: { label: 'Chờ Duyệt Dừng Thi Công', color: 'hsl(0, 92%, 50%)', bg: 'hsl(0, 100%, 96%)' },
     WaitingRecoveryPlan: { label: 'Chờ Lập Kế Hoạch', color: 'hsl(280, 70%, 45%)', bg: 'hsl(280, 100%, 97%)' },
     WaitingDirectorApproval: { label: 'Chờ Giám Đốc Duyệt', color: 'hsl(142, 71%, 40%)', bg: 'hsl(142, 100%, 97%)' },
@@ -1028,9 +967,10 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
     Resolved: { label: 'Đã xử lý', color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' },
   }[incident.status as string] ?? { label: incident.status, color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' };
 
-  const isTPKT = user?.role === 'technicalmanager';
-  const isAccountant = user?.role === 'accountant';
-  const isDirector = user?.role === 'director';
+  const userRole = (user?.role || '').toLowerCase();
+  const isTPKT = userRole === 'technicalmanager' || userRole === 'admin';
+  const isAccountant = userRole === 'accountant' || userRole === 'admin';
+  const isDirector = userRole === 'director' || userRole === 'admin';
 
   const incidentDetailsJSX = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1107,54 +1047,33 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         </div>
       )}
 
-      {/* ── BƯỚC 1: Thông tin sự cố ─────────────────────────────── */}
+      {/* ── Thông tin Báo cáo & Đánh giá sự cố ─────────────────────────────── */}
       <div style={{ border: `1px solid ${meta.border}`, borderRadius: '10px', overflow: 'hidden' }}>
         <div style={{ padding: '10px 14px', background: meta.bg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.7rem', fontWeight: 700, color: meta.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Bước 1: Báo cáo Sự cố (Trưởng nhóm dự án)
+            Báo cáo Sự cố (Trưởng nhóm dự án)
           </span>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {isDescriptionJson && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleExportReportPdf}
-                  style={{
-                    padding: '2px 8px',
-                    fontSize: '0.65rem',
-                    fontWeight: 600,
-                    color: '#fff',
-                    background: 'hsl(var(--primary))',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  🖨️ In Báo cáo
-                </button>
-                <button
-                  type="button"
-                  onClick={handleExportReportWord}
-                  style={{
-                    padding: '2px 8px',
-                    fontSize: '0.65rem',
-                    fontWeight: 600,
-                    color: '#fff',
-                    background: 'hsl(210, 70%, 45%)',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  📝 Xuất Word
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={handleExportReportWord}
+                style={{
+                  padding: '2px 8px',
+                  fontSize: '0.65rem',
+                  fontWeight: 600,
+                  color: '#fff',
+                  background: 'hsl(210, 70%, 45%)',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                📝 Xuất Word
+              </button>
             )}
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
               {incident.reporterName} · {incident.date}
@@ -1231,7 +1150,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                                 <tr style={{ background: '#f2f2f2' }}>
                                   <th style={{ border: '1px solid #000', padding: '6px', width: '50px', textAlign: 'center' }}>STT</th>
                                   <th style={{ border: '1px solid #000', padding: '6px', textAlign: 'left' }}>Tên vật liệu / tài sản hỏng</th>
-                                  <th style={{ border: '1px solid #000', padding: '6px', width: '180px', textAlign: 'right' }}>Ước tính chi phí sơ bộ (VNĐ)</th>
+                                  <th style={{ border: '1px solid #000', padding: '6px', width: '180px', textAlign: 'right' }}>Ưóc tính chi phí sơ bộ (VNĐ)</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -1366,153 +1285,152 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               </div>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* ── BƯỚC 2: Đánh giá thiệt hại ───────────────────────────── */}
-      {incident.damageDescription && (
-        <div style={{ border: '1px solid hsl(var(--border))', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', background: 'hsl(var(--bg-muted))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Bước 2: {isInventoryIncident ? 'Thống kê Vật tư Thiệt hại' : 'Đánh giá Thiệt hại & Vật tư Cấp bù'}
-            </span>
-          </div>
+          {/* Seamless Damage Assessment & Supplementary Details (Only for non-JSON formal reports) */}
+          {!isDescriptionJson && incident.damageDescription && (
+            <div style={{ borderTop: '1px solid hsl(var(--border))', paddingTop: '14px', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {isInventoryIncident ? 'Thống kê Vật tư Thiệt hại' : 'Đánh giá Thiệt hại & Vật tư Cấp bù'}
+              </span>
 
-          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Unified Stats & Meta Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
-              {isConstruction && incident.isEmergency && (
-                <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+              {/* Unified Stats & Meta Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
+                {isConstruction && incident.isEmergency && !!incident.estimatedMaterialLoss && (
+                  <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <AlertCircle size={12} />
+                      Ước tính chi phí vật tư sơ bộ
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
+                      {incident.estimatedMaterialLoss.toLocaleString('vi-VN')} VNĐ
+                    </strong>
+                  </div>
+                )}
 
-                  <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
-                    {incident.estimatedMaterialLoss ? incident.estimatedMaterialLoss.toLocaleString('vi-VN') + ' VNĐ' : 'Chưa xác định'}
-                  </strong>
+                {Object.entries(damageMetaClean).map(([key, val]) => (
+                  <div key={key} style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <AlertCircle size={12} />
+                      {key}
+                    </div>
+                    <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{val}</strong>
+                  </div>
+                ))}
+
+                {isConstruction && incident.proposedAction && (
+                  <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))', gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} />Đề xuất xử lý</div>
+                    <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--primary))' }}>{incident.proposedAction}</strong>
+                  </div>
+                )}
+              </div>
+
+              {/* Table for Inventory Incidents */}
+              {isInventoryIncident && parsedDamagedItems.length > 0 && (
+                <div style={{ marginTop: '10px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+                    Bảng thống kê vật tư thiệt hại
+                  </span>
+                  <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
+                    <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: 'hsl(var(--bg-muted))', textAlign: 'left', borderBottom: '1px solid hsl(var(--border))' }}>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Mã VT</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Tên vật tư</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))', textAlign: 'center' }}>Tồn kho ban đầu</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))', textAlign: 'center' }}>SL Lỗi/Mất</th>
+                          <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))', textAlign: 'right' }}>Tồn kho sau trừ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parsedDamagedItems.map((it, idx) => {
+                          const invItem = inventory.find(inv => inv.materialCode === it.code);
+                          const hasInv = !!invItem;
+
+                          let stockBeforeStr = '-';
+                          let stockAfterStr = '-';
+
+                          if (hasInv) {
+                            const isAlreadyDecreased = incident.status === 'Approved';
+                            const stockBeforeVal = isAlreadyDecreased ? invItem.quantity + it.quantityLost : invItem.quantity;
+                            const stockAfterVal = isAlreadyDecreased ? invItem.quantity : invItem.quantity - it.quantityLost;
+
+                            stockBeforeStr = `${stockBeforeVal} ${it.unit}`;
+                            stockAfterStr = `${stockAfterVal} ${it.unit}`;
+                          }
+
+                          return (
+                            <tr key={idx} style={{ borderBottom: idx < parsedDamagedItems.length - 1 ? '1px solid hsl(var(--border))' : 'none' }}>
+                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))' }}>{it.code}</td>
+                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))' }}>{it.name}</td>
+                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))', textAlign: 'center' }}>{stockBeforeStr}</td>
+                              <td style={{ padding: '8px 12px', color: 'red', fontWeight: 600, textAlign: 'center' }}>
+                                -{it.quantityLost} {it.unit}
+                              </td>
+                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))', fontWeight: 700, textAlign: 'right' }}>{stockAfterStr}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
-              {Object.entries(damageMetaClean).map(([key, val]) => (
-                <div key={key} style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <AlertCircle size={12} />
-                    {key}
+              {/* Damage description as Markdown (only for construction incidents or if there is extra text) */}
+              {damageDescClean && !isInventoryIncident && (
+                <div style={{ marginTop: '2px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>
+                    {damageDescClean.startsWith('[') ? 'Danh sách tài sản/vật tư bị thiệt hại' : 'Ghi chú thiệt hại bổ sung'}
+                  </span>
+                  <div style={{ color: 'hsl(var(--text-primary))', fontSize: '0.85rem' }} className="[&>p:last-child]:mb-0 [&>p]:mt-1">
+                    {damageDescClean.startsWith('[') ? (
+                      (() => {
+                        try {
+                          const items = JSON.parse(damageDescClean);
+                          const total = items.reduce((sum: number, it: any) => sum + (it.chiPhiSoBo || 0), 0);
+                          return (
+                            <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid hsl(var(--border))', fontSize: '0.8rem', marginTop: '6px', borderRadius: '6px', overflow: 'hidden' }}>
+                              <thead>
+                                <tr style={{ background: 'hsl(var(--bg-muted))', textAlign: 'left', borderBottom: '1px solid hsl(var(--border))' }}>
+                                  <th style={{ padding: '6px 10px', width: '50px', textAlign: 'center', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>STT</th>
+                                  <th style={{ padding: '6px 10px', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Tên vật liệu / tài sản hỏng</th>
+                                  <th style={{ padding: '6px 10px', width: '180px', textAlign: 'right', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Ước tính chi phí sơ bộ</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {items.map((it: any, idx: number) => (
+                                  <tr key={idx} style={{ borderBottom: idx < items.length - 1 ? '1px solid hsl(var(--border))' : 'none' }}>
+                                    <td style={{ padding: '6px 10px', textAlign: 'center', color: 'hsl(var(--text-secondary))' }}>{it.stt}</td>
+                                    <td style={{ padding: '6px 10px', color: 'hsl(var(--text-primary))' }}>{it.tenVatLieu}</td>
+                                    <td style={{ padding: '6px 10px', textAlign: 'right', color: 'hsl(var(--text-primary))', fontWeight: 600 }}>{it.chiPhiSoBo ? it.chiPhiSoBo.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</td>
+                                  </tr>
+                                ))}
+                                <tr style={{ background: 'hsl(var(--bg-muted))', fontWeight: 700 }}>
+                                  <td colSpan={2} style={{ padding: '8px 10px', textAlign: 'right', color: 'hsl(var(--text-secondary))' }}>Tổng thiệt hại:</td>
+                                  <td style={{ padding: '8px 10px', textAlign: 'right', color: 'red' }}>{total.toLocaleString('vi-VN')} VNĐ</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          );
+                        } catch (e) {
+                          console.error(e);
+                        }
+                        return <MiniMarkdown content={damageDescClean} />;
+                      })()
+                    ) : (
+                      <MiniMarkdown content={damageDescClean} />
+                    )}
                   </div>
-                  <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{val}</strong>
-                </div>
-              ))}
-
-              {isConstruction && incident.proposedAction && (
-                <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))', gridColumn: '1 / -1' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} />Đề xuất xử lý</div>
-                  <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--primary))' }}>{incident.proposedAction}</strong>
                 </div>
               )}
             </div>
-
-            {/* Table for Inventory Incidents */}
-            {isInventoryIncident && parsedDamagedItems.length > 0 && (
-              <div style={{ marginTop: '10px' }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
-                  Bảng thống kê vật tư thiệt hại
-                </span>
-                <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
-                  <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: 'hsl(var(--bg-muted))', textAlign: 'left', borderBottom: '1px solid hsl(var(--border))' }}>
-                        <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Mã VT</th>
-                        <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Tên vật tư</th>
-                        <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))', textAlign: 'center' }}>Tồn kho ban đầu</th>
-                        <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))', textAlign: 'center' }}>SL Lỗi/Mất</th>
-                        <th style={{ padding: '8px 12px', fontWeight: 600, color: 'hsl(var(--text-secondary))', textAlign: 'right' }}>Tồn kho sau trừ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedDamagedItems.map((it, idx) => {
-                        const invItem = inventory.find(inv => inv.materialCode === it.code);
-                        const hasInv = !!invItem;
-
-                        let stockBeforeStr = '-';
-                        let stockAfterStr = '-';
-
-                        if (hasInv) {
-                          const isAlreadyDecreased = incident.status === 'Approved';
-                          const stockBeforeVal = isAlreadyDecreased ? invItem.quantity + it.quantityLost : invItem.quantity;
-                          const stockAfterVal = isAlreadyDecreased ? invItem.quantity : invItem.quantity - it.quantityLost;
-
-                          stockBeforeStr = `${stockBeforeVal} ${it.unit}`;
-                          stockAfterStr = `${stockAfterVal} ${it.unit}`;
-                        }
-
-                        return (
-                          <tr key={idx} style={{ borderBottom: idx < parsedDamagedItems.length - 1 ? '1px solid hsl(var(--border))' : 'none' }}>
-                            <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))' }}>{it.code}</td>
-                            <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))' }}>{it.name}</td>
-                            <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))', textAlign: 'center' }}>{stockBeforeStr}</td>
-                            <td style={{ padding: '8px 12px', color: 'red', fontWeight: 600, textAlign: 'center' }}>
-                              -{it.quantityLost} {it.unit}
-                            </td>
-                            <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))', fontWeight: 700, textAlign: 'right' }}>{stockAfterStr}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Damage description as Markdown (only for construction incidents or if there is extra text) */}
-            {damageDescClean && !isInventoryIncident && (
-              <div style={{ marginTop: '2px' }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>
-                  {damageDescClean.startsWith('[') ? 'Danh sách tài sản/vật tư bị thiệt hại' : 'Ghi chú thiệt hại bổ sung'}
-                </span>
-                <div style={{ color: 'hsl(var(--text-primary))', fontSize: '0.85rem' }} className="[&>p:last-child]:mb-0 [&>p]:mt-1">
-                  {damageDescClean.startsWith('[') ? (
-                    (() => {
-                      try {
-                        const items = JSON.parse(damageDescClean);
-                        const total = items.reduce((sum: number, it: any) => sum + (it.chiPhiSoBo || 0), 0);
-                        return (
-                          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid hsl(var(--border))', fontSize: '0.8rem', marginTop: '6px', borderRadius: '6px', overflow: 'hidden' }}>
-                            <thead>
-                              <tr style={{ background: 'hsl(var(--bg-muted))', textAlign: 'left', borderBottom: '1px solid hsl(var(--border))' }}>
-                                <th style={{ padding: '6px 10px', width: '50px', textAlign: 'center', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>STT</th>
-                                <th style={{ padding: '6px 10px', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Tên vật liệu / tài sản hỏng</th>
-                                <th style={{ padding: '6px 10px', width: '180px', textAlign: 'right', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>Ước tính chi phí sơ bộ</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {items.map((it: any, idx: number) => (
-                                <tr key={idx} style={{ borderBottom: idx < items.length - 1 ? '1px solid hsl(var(--border))' : 'none' }}>
-                                  <td style={{ padding: '6px 10px', textAlign: 'center', color: 'hsl(var(--text-secondary))' }}>{it.stt}</td>
-                                  <td style={{ padding: '6px 10px', color: 'hsl(var(--text-primary))' }}>{it.tenVatLieu}</td>
-                                  <td style={{ padding: '6px 10px', textAlign: 'right', color: 'hsl(var(--text-primary))', fontWeight: 600 }}>{it.chiPhiSoBo ? it.chiPhiSoBo.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</td>
-                                </tr>
-                              ))}
-                              <tr style={{ background: 'hsl(var(--bg-muted))', fontWeight: 700 }}>
-                                <td colSpan={2} style={{ padding: '8px 10px', textAlign: 'right', color: 'hsl(var(--text-secondary))' }}>Tổng thiệt hại:</td>
-                                <td style={{ padding: '8px 10px', textAlign: 'right', color: 'red' }}>{total.toLocaleString('vi-VN')} VNĐ</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        );
-                      } catch (e) {
-                        console.error(e);
-                      }
-                      return <MiniMarkdown content={damageDescClean} />;
-                    })()
-                  ) : (
-                    <MiniMarkdown content={damageDescClean} />
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* ── BƯỚC THÊM: Báo cáo khắc phục (báo cáo.md) ─────────────────────────── */}
-      {incident.recoveryPlanText && (isTPKT || isDirector) && (
+      {/* Hồ sơ Báo cáo & Kế hoạch Khắc phục Thiệt hại */}
+      {incident.recoveryPlanText && (
         <div style={{ border: '1px solid hsl(var(--primary) / 0.4)', borderRadius: '10px', overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', background: 'hsl(var(--primary-glow))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--primary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -1874,45 +1792,65 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         </div>
       )}
 
-      {/* ── BƯỚC 3: Kết quả phê duyệt ────────────────────────────── */}
-      {incident.status === 'Approved' && (
-        <div style={{ border: '1px solid hsl(var(--success) / 0.4)', borderRadius: '10px', padding: '14px', background: 'hsl(var(--success-glow))', display: 'flex', gap: '10px' }}>
-          <CheckCircle size={18} style={{ color: 'hsl(var(--success))', flexShrink: 0, marginTop: '2px' }} />
-          <div>
-            <span style={{ fontSize: '0.7rem', color: 'hsl(var(--success))', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Bước 3: Đã xử lý bởi {incident.reviewerName?.toUpperCase()}
-            </span>
-            <p style={{ margin: '6px 0 0', fontSize: '0.85rem', color: 'hsl(var(--text-primary))' }}>
-              {isInventoryIncident
-                ? 'Giám đốc đã phê duyệt phiếu giảm tồn kho liên quan. Sự cố vật tư kho đã được xử lý hoàn tất.'
-                : 'Sự cố đã được TPKT thẩm định. Rework Task hoặc điều chỉnh tiến độ đã được áp dụng.'}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* ── Handling Instruction ─────────────────────────────────────── */}
-      {incident.status !== 'Assessing' && incident.status !== 'Rejected' && (isTPKT || isDirector) && (
-        <div style={{ border: '1px solid hsl(var(--border))', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', background: 'hsl(var(--bg-muted))' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {isInventoryIncident ? 'Ghi chú / Hướng dẫn xử lý' : 'Hướng dẫn xử lý'}
+      {incident.status !== 'Assessing' && incident.status !== 'Rejected' && (
+        <div style={{
+          border: '1.5px solid hsl(var(--primary))',
+          borderRadius: '10px',
+          overflow: 'hidden',
+          boxShadow: '0 2px 8px hsl(var(--primary) / 0.1)',
+          backgroundColor: 'hsl(var(--bg-card))'
+        }}>
+          <div style={{
+            padding: '10px 14px',
+            background: 'hsl(var(--primary-glow))',
+            borderBottom: '1px solid hsl(var(--primary) / 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <FileText size={16} style={{ color: 'hsl(var(--primary))', flexShrink: 0 }} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'hsl(var(--primary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {isInventoryIncident ? 'Ghi chú / Hướng dẫn xử lý' : 'Hướng dẫn xử lý / Giải quyết'}
             </span>
           </div>
-          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {incident.handlingInstruction ? (
-              <div style={{ padding: '10px', background: 'hsl(var(--bg-card))', borderRadius: '6px', border: '1px solid hsl(var(--border))', fontSize: '0.85rem', color: 'hsl(var(--text-primary))', whiteSpace: 'pre-wrap' }}>
-                {incident.handlingInstruction}
+              <div style={{
+                padding: '12px 14px',
+                background: 'hsl(var(--bg-main) / 0.5)',
+                borderRadius: '8px',
+                border: '1px solid hsl(var(--border))',
+                fontSize: '0.9rem',
+                lineHeight: '1.5',
+                fontWeight: 500,
+                color: 'hsl(var(--text-primary))',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {(() => {
+                  let text = incident.handlingInstruction || '';
+                  if (text.includes('--- Thông tin sự cố gốc ---')) {
+                    text = text.split('--- Thông tin sự cố gốc ---')[0];
+                  }
+                  if (text.includes('[System] Liên kết sự cố')) {
+                    text = text.split('[System] Liên kết sự cố')[0];
+                  }
+                  text = text
+                    .split('\n')
+                    .filter(l => !l.trim().startsWith('**Ngày/Giờ phát hiện:') && !l.trim().startsWith('**Vị trí kho/Lô hàng:') && !l.trim().startsWith('**Người làm chứng/Liên đới:'))
+                    .join('\n');
+                  return text.trim() || 'Chưa có hướng dẫn xử lý.';
+                })()}
               </div>
             ) : (
-              <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Chưa có hướng dẫn xử lý.</span>
+              <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', fontStyle: 'italic' }}>Chưa có hướng dẫn xử lý.</span>
             )}
           </div>
         </div>
       )}
 
       {/* ── Action buttons ─────────────────────────────────────────── */}
-      {!isInventoryIncident && incident.status === 'WaitingReview' && isTPKT && (
+      {!isInventoryIncident && incident.status === 'WaitingReview' && isTPKT && !isResolving && (
         isRejecting ? (
           <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
@@ -1957,7 +1895,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       )}
 
 
-      {isInventoryIncident && incident.status === 'WaitingAccountant' && isAccountant && (
+      {isInventoryIncident && (incident.status === 'WaitingAccountant' || (incident.status as string) === 'Pending') && isAccountant && (
         isRejecting ? (
           <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
@@ -1989,8 +1927,10 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         )
       )}
 
-      {/* Giám đốc phê duyệt phiếu giảm tồn cho sự cố vật tư */}
-      {isInventoryIncident && incident.status === 'WaitingDirector' && isDirector && (
+
+
+      {/* TPKT duyệt dừng thi công cho sự cố khẩn cấp */}
+      {incident.isEmergency && incident.status === 'WaitingStopApproval' && isTPKT && (
         isRejecting ? (
           <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
@@ -2012,35 +1952,18 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           </div>
         ) : (
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
-            <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }}>
+            <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }} disabled={approveStopMutation.isPending}>
               ❌ Từ chối
             </button>
-            <button
-              onClick={() => directorApproveInventoryMutation.mutate()}
-              className="btn btn-primary"
-              style={{ minWidth: '240px', fontSize: '0.85rem', padding: '10px', background: 'hsl(142, 71%, 40%)' }}
-              disabled={directorApproveInventoryMutation.isPending}
-            >
-              {directorApproveInventoryMutation.isPending ? 'Đang xử lý...' : '🏗 Phê duyệt Giảm tồn (Giám đốc)'}
+            <button onClick={() => approveStopMutation.mutate()} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(0, 72%, 45%)' }} disabled={approveStopMutation.isPending}>
+              {approveStopMutation.isPending ? 'Đang xử lý...' : '🛑 Phê duyệt Dừng thi công'}
             </button>
           </div>
         )
       )}
 
-      {/* TPKT duyệt dừng thi công cho sự cố khẩn cấp */}
-      {incident.isEmergency && incident.status === 'WaitingStopApproval' && isTPKT && (
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
-          <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }} disabled={approveStopMutation.isPending}>
-            ❌ Từ chối
-          </button>
-          <button onClick={() => approveStopMutation.mutate()} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(0, 72%, 45%)' }} disabled={approveStopMutation.isPending}>
-            {approveStopMutation.isPending ? 'Đang xử lý...' : '🛑 Phê duyệt Dừng thi công'}
-          </button>
-        </div>
-      )}
-
       {/* TPKT lập báo cáo khắc phục */}
-      {incident.isEmergency && incident.status === 'WaitingRecoveryPlan' && isTPKT && (
+      {incident.isEmergency && incident.status === 'WaitingRecoveryPlan' && isTPKT && !isPlanModalOpen && (
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
           <button onClick={() => setIsPlanModalOpen(true)} className="btn btn-primary" style={{ minWidth: '240px', fontSize: '0.85rem', padding: '10px' }}>
             Lập báo cáo và Kế hoạch Khắc phục

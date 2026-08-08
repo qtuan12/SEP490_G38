@@ -15,7 +15,6 @@ const schema = z.object({
   reworkDeadline: z.string().optional(),
   reworkAssigneeId: z.string().optional(),
   reduceProgressValue: z.number().min(0).max(100).optional(),
-  reduceProgressReason: z.string().optional()
 }).superRefine((data, ctx) => {
   if (data.resolutionAction === 'rework') {
     if (!data.reworkName || data.reworkName.trim().length === 0) {
@@ -30,9 +29,6 @@ const schema = z.object({
   } else {
     if (data.reduceProgressValue === undefined || data.reduceProgressValue <= 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phần trăm giảm phải lớn hơn 0', path: ['reduceProgressValue'] });
-    }
-    if (!data.reduceProgressReason || data.reduceProgressReason.trim().length === 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Vui lòng nhập lý do', path: ['reduceProgressReason'] });
     }
   }
 });
@@ -65,11 +61,10 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
     defaultValues: {
       resolutionAction: 'rework',
       handlingInstruction: '',
-      reworkName: `[Rework] Khắc phục - ${incident.taskName}`,
+      reworkName: `[ Khắc phục ] - ${incident.taskName}`,
       reworkDeadline: phase?.deadline || '',
       reworkAssigneeId: members.length > 0 ? members[0].userId : '',
-      reduceProgressValue: 0,
-      reduceProgressReason: ''
+      reduceProgressValue: 0
     }
   });
 
@@ -81,11 +76,10 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
     reset({
       handlingInstruction: '',
       resolutionAction: 'rework',
-      reworkName: `[Rework] Khắc phục - ${incident.taskName}`,
+      reworkName: `[ Khắc phục ] - ${incident.taskName}`,
       reworkDeadline: phase?.deadline || '',
       reworkAssigneeId: members.length > 0 ? members[0].userId : '',
-      reduceProgressValue: 0,
-      reduceProgressReason: ''
+      reduceProgressValue: 0
     });
   }, [incident, phase, members, reset]);
 
@@ -118,7 +112,7 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
           reworkTaskEndDate,
           reworkAssigneeId: data.reworkAssigneeId ? Number(data.reworkAssigneeId) : undefined,
           decreaseProgressTo,
-          decreaseProgressReason: data.reduceProgressReason,
+          decreaseProgressReason: data.handlingInstruction,
           handlingInstruction: data.handlingInstruction
         }
       );
@@ -156,7 +150,6 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
     console.error('[ResolveIncidentModal] Validation errors:', errs);
     let msg = 'Vui lòng kiểm tra lại các thông tin bắt buộc.';
     if (errs.reduceProgressValue?.message) msg = errs.reduceProgressValue.message;
-    else if (errs.reduceProgressReason?.message) msg = errs.reduceProgressReason.message;
     else if (errs.reworkName?.message) msg = errs.reworkName.message;
 
     onError(msg);
@@ -166,21 +159,8 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-        <div style={{ padding: '16px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-card))' }}>
-          <label htmlFor="handlingInstruction" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Hướng dẫn xử lý / Giải quyết <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-          <textarea
-            id="handlingInstruction"
-            rows={3}
-            className="input"
-            style={{ marginTop: '6px' }}
-            placeholder="Nhập hướng giải quyết cho sự cố này..."
-            {...register('handlingInstruction')}
-          />
-          {errors.handlingInstruction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.handlingInstruction.message}</span>}
-        </div>
-
         {/* Option Cards for Selection */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           <label
             style={{
               display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px',
@@ -226,6 +206,19 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
               Chấp nhận trừ trực tiếp vào % hoàn thành của công việc hiện tại để làm lại phần lỗi.
             </span>
           </label>
+        </div>
+
+        <div style={{ padding: '16px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-card))' }}>
+          <label htmlFor="handlingInstruction" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Hướng dẫn xử lý / Giải quyết <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+          <textarea
+            id="handlingInstruction"
+            rows={3}
+            className="input"
+            style={{ marginTop: '6px' }}
+            placeholder="Nhập hướng giải quyết cho sự cố này..."
+            {...register('handlingInstruction')}
+          />
+          {errors.handlingInstruction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.handlingInstruction.message}</span>}
         </div>
 
         <div style={{ padding: '20px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-main)/0.3)' }}>
@@ -334,19 +327,6 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
                   </div>
                 </div>
                 {errors.reduceProgressValue && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '6px', display: 'block' }}>{errors.reduceProgressValue.message}</span>}
-              </div>
-
-              <div>
-                <label htmlFor="reduce-progress-reason" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Lý do/Ghi chú <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-                <textarea
-                  id="reduce-progress-reason"
-                  rows={3}
-                  className="input"
-                  style={{ marginTop: '6px' }}
-                  placeholder="Ghi chú chi tiết lý do trừ tiến độ..."
-                  {...register('reduceProgressReason')}
-                />
-                {errors.reduceProgressReason && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.reduceProgressReason.message}</span>}
               </div>
             </div>
           )}

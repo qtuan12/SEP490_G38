@@ -41,7 +41,7 @@ public class AssignTaskCommandHandler : IRequestHandler<AssignTaskCommand, ApiRe
         {
             var currentUserId = _currentUserService.GetRequiredUserId();
             var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
-                member => member.ProjectId == task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                member => member.ProjectId == task.Phase!.ProjectId && member.UserId == currentUserId && member.IsLeader,
                 ct);
             if (!isProjectLeader)
                 throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được phân công công việc.");
@@ -55,7 +55,7 @@ public class AssignTaskCommandHandler : IRequestHandler<AssignTaskCommand, ApiRe
         {
             var projectMemberUserIds = await _unitOfWork.Repository<ProjectMember>()
                 .Query()
-                .Where(pm => pm.ProjectId == task.Phase.ProjectId && distinctAssigneeIds.Contains(pm.UserId))
+                .Where(pm => pm.ProjectId == task.Phase!.ProjectId && distinctAssigneeIds.Contains(pm.UserId))
                 .Select(pm => pm.UserId)
                 .Distinct()
                 .ToListAsync(ct);

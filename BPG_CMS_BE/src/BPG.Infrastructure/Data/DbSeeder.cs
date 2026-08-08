@@ -2135,11 +2135,20 @@ public static class DbSeeder
         List<MaterialCatalog> catalogs)
     {
         const string marker = "SEED_TEST_INVENTORY_INCIDENT";
-        if (await context.InventoryAdjustments.AnyAsync(a => a.Reason.Contains(marker)) ||
-            await context.Incidents.AnyAsync(i => i.Description.Contains(marker)))
+        var oldAdjustments = await context.InventoryAdjustments.Where(a => a.Reason.Contains(marker)).ToListAsync();
+        if (oldAdjustments.Any())
         {
-            return;
+            var oldAdjIds = oldAdjustments.Select(a => a.AdjustmentId).ToList();
+            var oldItems = await context.AdjustmentItems.Where(i => oldAdjIds.Contains(i.AdjustmentId)).ToListAsync();
+            context.AdjustmentItems.RemoveRange(oldItems);
+            context.InventoryAdjustments.RemoveRange(oldAdjustments);
         }
+        var oldIncidents = await context.Incidents.Where(i => i.Description.Contains(marker)).ToListAsync();
+        if (oldIncidents.Any())
+        {
+            context.Incidents.RemoveRange(oldIncidents);
+        }
+        await context.SaveChangesAsync();
 
         if (!users.TryGetValue("tpkt@bpg.com", out var tpkt) ||
             !users.TryGetValue("ketoan@bpg.com", out var ketoan) ||

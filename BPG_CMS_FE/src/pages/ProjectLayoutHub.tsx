@@ -418,7 +418,7 @@ export const ProjectLayoutHub: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{project.name}</h1>
               {project.status === 'draft' && <span className="badge" style={{ backgroundColor: 'hsl(var(--text-muted))', color: 'white' }}>Bản nháp </span>}
-              {project.status === 'inprogress' && <span className="badge badge-primary">Đang triển khai</span>}
+              {project.status === 'inprogress' && <span className="badge badge-success">Đang chạy</span>}
               {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng </span>}
               {project.status === 'done' && <span className="badge badge-success">Hoàn thành </span>}
               {project.pauseReason && (
@@ -893,7 +893,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </div>
       )}
 
-      {project.status === 'paused' && (
+      {(project.status || '').toLowerCase() === 'paused' && (
         <style>{`
           .paused-project-readonly-container form:not(.search-form):not(.filter-form) {
             pointer-events: none !important;
@@ -926,7 +926,7 @@ export const ProjectLayoutHub: React.FC = () => {
       )}
 
       <div
-        className={`animate-fade-in ${project.status === 'paused' && activeTab !== 'incidents' && !(activeTab === 'wbs' && isTPKT && hasApprovedEmergencyIncident) ? 'paused-project-readonly-container' : ''}`}
+        className={`animate-fade-in ${(project.status || '').toLowerCase() === 'paused' && activeTab !== 'incidents' && !(activeTab === 'wbs' && isTPKT && hasApprovedEmergencyIncident) ? 'paused-project-readonly-container' : ''}`}
         style={{ marginTop: '10px' }}
       >
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}

@@ -6,8 +6,10 @@ import type { WBSTask } from '../types/common';
  * qua hook `useProjectAccess(projectId).isProjectLeader`. Admin/TechnicalManager quản lý toàn
  * hệ thống nên luôn coi như leader ở mọi dự án (khớp với backend: IsInAnyRole(Admin, TechnicalManager)).
  */
-export const isManagerRole = (user: { role: string } | null | undefined): boolean =>
-  user?.role === 'admin' || user?.role === 'technicalmanager';
+export const isManagerRole = (user: { role: string } | null | undefined): boolean => {
+  const r = (user?.role || '').toLowerCase();
+  return r === 'admin' || r === 'technicalmanager';
+};
 
 /** TM/Admin hoặc leader thật của dự án này xem toàn bộ công việc; còn lại chỉ xem đúng việc được gán cho mình. */
 export const isProjectWideView = (

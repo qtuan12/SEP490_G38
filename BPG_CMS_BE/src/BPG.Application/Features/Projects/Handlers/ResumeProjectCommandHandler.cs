@@ -83,17 +83,31 @@ public class ResumeProjectCommandHandler : IRequestHandler<ResumeProjectCommand,
         {
             await _notificationService.SendNotificationAsync(
                 pm.UserId,
-                "Dự án đã được kích hoạt lại",
+                "🚀 Dự án đã tiếp tục thi công",
                 $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
                 "ProjectResumed",
                 $"/projects/{project.ProjectId}/workspace/incidents"
             );
         }
 
-        // Notify Director as well
+        // Notify Key Roles (Director, TechnicalManager, Accountant)
         await _notificationService.SendNotificationToRoleAsync(
             BPG.Domain.Constants.UserRole.Director,
-            "Dự án đã được kích hoạt lại",
+            "🚀 Dự án đã tiếp tục thi công",
+            $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
+            "ProjectResumed",
+            $"/projects/{project.ProjectId}/workspace/incidents"
+        );
+        await _notificationService.SendNotificationToRoleAsync(
+            BPG.Domain.Constants.UserRole.TechnicalManager,
+            "🚀 Dự án đã tiếp tục thi công",
+            $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
+            "ProjectResumed",
+            $"/projects/{project.ProjectId}/workspace/incidents"
+        );
+        await _notificationService.SendNotificationToRoleAsync(
+            BPG.Domain.Constants.UserRole.Accountant,
+            "🚀 Dự án đã tiếp tục thi công",
             $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
             "ProjectResumed",
             $"/projects/{project.ProjectId}/workspace/incidents"

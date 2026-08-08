@@ -43,7 +43,7 @@ public class RemoveTaskDependencyCommandHandler : IRequestHandler<RemoveTaskDepe
         {
             var currentUserId = _currentUserService.GetRequiredUserId();
             var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
-                member => member.ProjectId == dep.Task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                member => member.ProjectId == dep.Task!.Phase!.ProjectId && member.UserId == currentUserId && member.IsLeader,
                 ct);
             if (!isProjectLeader)
                 throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được xóa liên kết phụ thuộc.");

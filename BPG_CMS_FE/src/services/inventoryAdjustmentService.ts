@@ -20,6 +20,7 @@ export interface InventoryAdjustmentDto {
   projectName: string;
   phaseId: number;
   phaseName: string;
+  incidentId?: number | null;
   adjustmentType: string;
   reason: string;
   description: string | null;
@@ -43,6 +44,7 @@ export interface CreateIncreaseAdjustmentCommand {
 
 export interface CreateDecreaseAdjustmentCommand {
   phaseId: number;
+  incidentId?: number;
   reason: string;
   description?: string;
   items: { materialId: number; quantity: number }[];
