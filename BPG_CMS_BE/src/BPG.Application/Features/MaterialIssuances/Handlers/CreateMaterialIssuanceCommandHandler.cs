@@ -56,7 +56,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
 
             if (task == null)
             {
-                throw new NotFoundException(nameof(ProjectTask), request.TaskId);
+                throw new NotFoundException("Công việc", request.TaskId);
             }
 
             var project = task.Phase?.Project;
