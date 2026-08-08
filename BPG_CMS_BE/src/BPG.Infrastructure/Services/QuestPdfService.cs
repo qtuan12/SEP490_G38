@@ -73,7 +73,21 @@ public class QuestPdfService : IPdfService
             column.Item().LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
             column.Item().Text("Nội dung đánh giá:").SemiBold();
-            column.Item().Text(model.ReportContent);
+            if (!string.IsNullOrEmpty(model.ReportContent))
+            {
+                var lines = model.ReportContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        column.Item().Height(5);
+                    }
+                    else
+                    {
+                        column.Item().ShowEntire().Text(line).LineHeight(1.2f);
+                    }
+                }
+            }
 
             column.Item().PaddingTop(15).Text("Danh sách Công việc (Tasks) đã hoàn thành:").SemiBold();
             
