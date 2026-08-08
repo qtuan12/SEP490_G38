@@ -8,6 +8,7 @@ import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
 import { getPOStatusLabel } from '../../../utils/inventoryHelpers';
+import { getPOSupplierDisplayName } from '../../../utils/purchaseOrderHelpers';
 
 interface CreateReceiptModalProps {
   isOpen: boolean;
@@ -390,7 +391,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
               options={[
                 { label: '-- Chọn đơn hàng --', value: '' },
                 ...purchaseOrders.map(po => ({
-                  label: `${po.poNumber} (${po.supplierName}) - ${getPOStatusLabel(po.status)}`,
+                  label: `${po.poNumber} (${getPOSupplierDisplayName(po.supplierName, po.poNumber) || 'N/A'}) - ${getPOStatusLabel(po.status)}`,
                   value: po.poId.toString()
                 }))
               ]}

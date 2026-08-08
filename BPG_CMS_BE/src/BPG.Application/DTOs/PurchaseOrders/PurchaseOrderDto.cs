@@ -7,7 +7,8 @@ namespace BPG.Application.DTOs.PurchaseOrders
         public string Status { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public DateOnly OrderDate { get; set; }
-        public string SupplierName { get; set; } = string.Empty;
+        /// <summary>Null khi đơn không gắn NCC - đơn tự sinh từ phiếu mua khẩn cấp.</summary>
+        public string? SupplierName { get; set; }
         public List<PurchaseOrderItemDto> Items { get; set; } = new();
     }
 

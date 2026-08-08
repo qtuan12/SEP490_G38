@@ -46,7 +46,7 @@ namespace BPG.Application.Features.GoodsReceipts.Queries
         public string ReceiptNo { get; set; } = string.Empty;
         public long POId { get; set; }
         public string PONumber { get; set; } = string.Empty;
-        public string SupplierName { get; set; } = string.Empty;
+        public string? SupplierName { get; set; }
         public string? DelivererInfo { get; set; }
         public string? DeliveryDocNo { get; set; }
         public string Status { get; set; } = string.Empty;
@@ -116,7 +116,7 @@ namespace BPG.Application.Features.GoodsReceipts.Queries
                 ReceiptNo = gr.ReceiptNo,
                 POId = gr.POId,
                 PONumber = gr.PurchaseOrder?.PONumber ?? string.Empty,
-                SupplierName = gr.PurchaseOrder?.Supplier?.SupplierName ?? "N/A",
+                SupplierName = gr.PurchaseOrder?.Supplier?.SupplierName,
                 DelivererInfo = gr.DelivererInfo,
                 DeliveryDocNo = gr.DeliveryDocNo,
                 Status = gr.Status,

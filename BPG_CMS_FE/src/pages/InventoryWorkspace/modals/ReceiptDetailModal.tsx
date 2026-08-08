@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Input, FormItem, ConfirmDialog, LoadingSpinner } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
+import { getPOSupplierDisplayName } from '../../../utils/purchaseOrderHelpers';
 import type { GoodsReceiptDetail, GoodsReceiptItemDetail } from '../../../types/inventory';
 import {
   Calendar,
@@ -364,7 +365,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                       <div className="flex items-center gap-2">
                         <Tag size={16} className="text-slate-400" />
                         <span className="font-medium">Nhà cung cấp:</span>
-                        <span className="text-slate-900 font-semibold">{detail.supplierName}</span>
+                        <span className="text-slate-900 font-semibold">{getPOSupplierDisplayName(detail.supplierName, detail.poNumber) || '—'}</span>
                       </div>
                     </div>
                     <div className="flex flex-col gap-2.5 text-slate-600 justify-center">
@@ -417,7 +418,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                     <div className="flex items-center gap-2 text-slate-600">
                       <Tag size={16} className="text-slate-400" />
                       <span className="font-medium">Nhà cung cấp:</span>
-                      <span className="text-slate-900 font-semibold">{detail.supplierName}</span>
+                      <span className="text-slate-900 font-semibold">{getPOSupplierDisplayName(detail.supplierName, detail.poNumber) || '—'}</span>
                     </div>
                     <div className="flex items-center gap-2 text-slate-600">
                       <Calendar size={16} className="text-slate-400" />
