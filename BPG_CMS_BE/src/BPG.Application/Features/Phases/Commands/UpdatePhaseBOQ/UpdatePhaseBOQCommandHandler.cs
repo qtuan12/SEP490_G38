@@ -212,43 +212,6 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
 
         await _uow.SaveChangesAsync(cancellationToken);
 
-        // Gửi thông báo realtime
-        try
-        {
-            var currentUserId = _currentUserService.GetRequiredUserId();
-            var user = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
-            var userName = user?.FullName ?? "Quản lý";
-
-            // 1. Gửi thông báo tới Technical Manager
-            await _notificationService.SendNotificationToRoleAsync(
-                BPG.Domain.Constants.UserRole.TechnicalManager,
-                "Cập nhật định mức vật tư",
-                $"Định mức vật tư giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' vừa được cập nhật bởi '{userName}'.",
-                NotificationType.Procurement,
-                $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/boq",
-                phase.PhaseId,
-                cancellationToken);
-
-            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án
-            var projectLeader = await _uow.Repository<ProjectMember>().Query()
-                .FirstOrDefaultAsync(pm => pm.ProjectId == phase.ProjectId && pm.IsLeader, cancellationToken);
-            if (projectLeader != null && projectLeader.UserId != currentUserId)
-            {
-                await _notificationService.SendNotificationAsync(
-                    projectLeader.UserId,
-                    "Cập nhật định mức vật tư",
-                    $"Định mức vật tư giai đoạn '{phase.Name}' vừa được cập nhật bởi '{userName}'.",
-                    NotificationType.Procurement,
-                    $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/boq",
-                    phase.PhaseId,
-                    cancellationToken);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error sending BOQ update notification");
-        }
-
         return true;
     }
 }

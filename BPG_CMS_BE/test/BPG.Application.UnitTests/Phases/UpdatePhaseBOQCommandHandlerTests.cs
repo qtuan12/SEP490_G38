@@ -120,7 +120,6 @@ namespace BPG.Application.UnitTests.Phases
             Assert.True(result);
             _mockBoqRepo.Verify(r => r.AddAsync(It.Is<BOQItem>(b => b.MaterialId == 10 && b.Quantity == 50), It.IsAny<CancellationToken>()), Times.Once);
             _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-            _mockNotificationService.Verify(n => n.SendNotificationToRoleAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long?>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]
