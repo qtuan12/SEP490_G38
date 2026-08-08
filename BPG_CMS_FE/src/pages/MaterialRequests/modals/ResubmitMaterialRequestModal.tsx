@@ -428,7 +428,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
                           return {
                             label: sm.name,
                             value: sm.name,
-                            sublabel: isBOQ ? `BOQ: ${(sm as any).quantity} ${(sm as any).unit}` : undefined
+                            sublabel: isBOQ ? `Định mức: ${(sm as any).quantity} ${(sm as any).unit}` : undefined
                           };
                         })}
                         value={watchedItems[idx]?.name || ''}

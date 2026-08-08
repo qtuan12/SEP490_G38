@@ -387,7 +387,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
       case 'approved':
         return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> Đã phê duyệt</Badge>;
       case 'rejected':
-        return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Bị từ chối</Badge>;
+        return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Từ chối</Badge>;
       case 'cancelled':
         return <Badge variant="default"><XCircle size={12} className="mr-1" /> Đã hủy</Badge>;
       default:
@@ -451,7 +451,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
               <option value="pending_accountant">Chờ phê duyệt</option>
               <option value="pending_director">Chờ duyệt vượt định mức</option>
               <option value="approved">Đã phê duyệt</option>
-              <option value="rejected">Bị từ chối</option>
+              <option value="rejected">Từ chối</option>
               <option value="cancelled">Đã hủy</option>
             </select>
           </div>
@@ -553,21 +553,18 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                       {isAccountant && req.status === 'approved' && (() => {
                         const numericId = req.id.replace('mat-req-', '');
                         const canCreatePO = poEligibility[numericId] !== false;
+                        if (!canCreatePO) return null;
                         return (
                           <Button
-                            variant={canCreatePO ? 'primary' : 'secondary'}
+                            variant="primary"
                             size="sm"
                             disabled={checkingPORequestId === req.id}
                             onClick={() => handleCreatePOClick(req)}
-                            className={
-                              canCreatePO
-                                ? 'py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-[hsl(var(--primary))] text-white border-none hover:bg-[hsl(var(--primary-hover))]'
-                                : 'py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-[hsl(var(--bg-main))] text-[hsl(var(--text-muted))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--border-light))]'
-                            }
-                            title={canCreatePO ? 'Tạo đơn mua hàng cho yêu cầu này' : 'Yêu cầu này hiện không thể tạo đơn mua hàng'}
+                            className="py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-[hsl(var(--primary))] text-white border-none hover:bg-[hsl(var(--primary-hover))]"
+                            title="Tạo đơn mua hàng cho yêu cầu này"
                           >
                             <ShoppingCart size={13} />
-                            <span>{checkingPORequestId === req.id ? 'Đang kiểm tra...' : 'Tạo PO'}</span>
+                            <span>{checkingPORequestId === req.id ? 'Đang kiểm tra...' : 'Đơn Hàng'}</span>
                           </Button>
                         );
                       })()}
@@ -626,7 +623,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           isOpen={actionModalOpen}
           onClose={() => !isSubmittingAction && setActionModalOpen(false)}
           title={
-            actionType === 'verify' ? 'Xác nhận Soát xét Yêu cầu' :
+            actionType === 'verify' ? 'Xác nhận Yêu cầu' :
               actionType === 'disburse' ? 'Xác nhận Giải ngân Tạm ứng' :
                 actionType === 'approve' ? 'Xác nhận Phê duyệt Vượt định mức' :
                   actionType === 'cancel' ? 'Hủy yêu cầu vật tư' :
@@ -637,7 +634,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           <div className="flex flex-col gap-4">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                {actionType === 'reject' ? 'Lý do từ chối' : actionType === 'cancel' ? 'Lý do hủy yêu cầu' : 'Ý kiến xử lý'}
+                {actionType === 'reject' ? 'Lý do từ chối' : actionType === 'cancel' ? 'Lý do hủy yêu cầu' : 'Ghi chú'}
                 {(actionType === 'reject' || actionType === 'cancel') && <span style={{ color: 'hsl(var(--danger))' }}> *</span>}
               </label>
               <textarea
@@ -646,7 +643,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                     ? 'Nhập lý do từ chối (tối thiểu 5 ký tự)...'
                     : actionType === 'cancel'
                       ? 'Nhập lý do hủy yêu cầu (tối thiểu 5 ký tự)...'
-                      : 'Nhập ý kiến xử lý (tùy chọn)...'
+                      : ''
                 }
                 value={actionNote}
                 onChange={(e) => {

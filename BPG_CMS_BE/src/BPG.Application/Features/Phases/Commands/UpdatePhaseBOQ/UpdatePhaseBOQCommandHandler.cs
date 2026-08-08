@@ -45,12 +45,41 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
             throw new NotFoundException("Phase", request.PhaseId);
         }
 
-        // 2. Verify Project is in Draft status (BOQ can only be updated during Project Draft)
-        bool isProjectDraft = phase.Project == null || string.Equals(phase.Project.Status, ProjectStatus.Draft, StringComparison.OrdinalIgnoreCase);
+        // 2. Verify Project status allows BOQ modifications
+        bool isProjectEditable = phase.Project == null || 
+            string.Equals(phase.Project.Status, ProjectStatus.Draft, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(phase.Project.Status, ProjectStatus.InProgress, StringComparison.OrdinalIgnoreCase);
 
-        if (!isProjectDraft)
+        if (!isProjectEditable)
         {
-            throw new BusinessException("ERR_BOQ_NOT_DRAFT", "Chỉ được phép thay đổi định mức vật tư khi dự án chưa kích hoạt.");
+            throw new BusinessException("ERR_BOQ_PROJECT_NOT_EDITABLE", "Không thể thay đổi định mức vật tư của dự án đã hoàn thành hoặc đã đóng.");
+        }
+
+        bool isPhaseEditable = !string.Equals(phase.Status, PhaseStatus.Approved, StringComparison.OrdinalIgnoreCase) &&
+                               !string.Equals(phase.Status, PhaseStatus.Completed, StringComparison.OrdinalIgnoreCase);
+
+        if (!isPhaseEditable)
+        {
+            throw new BusinessException("ERR_BOQ_PHASE_APPROVED", "Không thể thay đổi định mức vật tư của giai đoạn đã nghiệm thu hoặc hoàn thành.");
+        }
+
+        if (phase.Project != null && string.Equals(phase.Project.Status, ProjectStatus.InProgress, StringComparison.OrdinalIgnoreCase))
+        {
+            var hasMR = await _uow.Repository<MaterialRequest>().Query()
+                .AnyAsync(r => r.PhaseId == request.PhaseId 
+                            && !r.IsDeleted 
+                            && r.Status != MaterialRequestStatus.Rejected 
+                            && r.Status != MaterialRequestStatus.Cancelled, cancellationToken);
+
+            var hasDP = await _uow.Repository<DirectPurchaseRequest>().Query()
+                .AnyAsync(dp => dp.PhaseId == request.PhaseId 
+                             && !dp.IsDeleted 
+                             && dp.Status != DirectPurchaseStatus.Rejected, cancellationToken);
+
+            if (hasMR || hasDP)
+            {
+                throw new BusinessException("ERR_BOQ_PHASE_IN_USE", "Không thể thay đổi định mức vật tư do giai đoạn đã phát sinh yêu cầu cấp phát hoặc mua sắm.");
+            }
         }
 
         // 3. Fetch all existing BOQItems of the Phase (including soft-deleted ones)
@@ -182,43 +211,6 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
         }
 
         await _uow.SaveChangesAsync(cancellationToken);
-
-        // Gửi thông báo realtime
-        try
-        {
-            var currentUserId = _currentUserService.GetRequiredUserId();
-            var user = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
-            var userName = user?.FullName ?? "Quản lý";
-
-            // 1. Gửi thông báo tới Technical Manager
-            await _notificationService.SendNotificationToRoleAsync(
-                BPG.Domain.Constants.UserRole.TechnicalManager,
-                "Cập nhật định mức vật tư",
-                $"Định mức vật tư giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' vừa được cập nhật bởi '{userName}'.",
-                NotificationType.Procurement,
-                $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/boq",
-                phase.PhaseId,
-                cancellationToken);
-
-            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án
-            var projectLeader = await _uow.Repository<ProjectMember>().Query()
-                .FirstOrDefaultAsync(pm => pm.ProjectId == phase.ProjectId && pm.IsLeader, cancellationToken);
-            if (projectLeader != null && projectLeader.UserId != currentUserId)
-            {
-                await _notificationService.SendNotificationAsync(
-                    projectLeader.UserId,
-                    "Cập nhật định mức vật tư",
-                    $"Định mức vật tư giai đoạn '{phase.Name}' vừa được cập nhật bởi '{userName}'.",
-                    NotificationType.Procurement,
-                    $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/boq",
-                    phase.PhaseId,
-                    cancellationToken);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error sending BOQ update notification");
-        }
 
         return true;
     }
