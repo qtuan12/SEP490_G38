@@ -243,8 +243,9 @@ export const PhaseBOQ: React.FC = () => {
       // Đánh dấu dữ liệu vừa lưu là trạng thái gốc để các cập nhật realtime tiếp theo
       // không bị chặn bởi guard bảo vệ thay đổi chưa lưu.
       reset(savedForm);
-      const msg = `Đã cập nhật Bảng vật tư cho Giai đoạn: ${phase?.name}`;
+      const msg = `Đã cập nhật bảng định mức vật tư giai đoạn thành công.`;
       console.log(msg);
+      toast.success(msg);
 
       // Reload phase data to display updated values in place
       if (projectId && phaseId) {
