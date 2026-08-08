@@ -94,7 +94,7 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
         var creatorName = creator?.FullName ?? "Ai đó";
 
         var notiTitle = "Yêu cầu xử lý vật tư thừa mới";
-        var notiContent = $"[{creatorName}] đã tạo phiếu xử lý vật tư thừa (Mã: {batch.SurplusRequestId}) cho dự án [{project.Name}].";
+        var notiContent = $"{creatorName} đã tạo phiếu xử lý vật tư thừa cho dự án {project.Name}.";
 
         // 1. Luôn thông báo đến Kế toán (trừ người tạo)
         await _notificationService.SendNotificationToRoleAsync(

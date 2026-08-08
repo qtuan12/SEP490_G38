@@ -137,9 +137,9 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
             await _uow.BeginTransactionAsync(cancellationToken);
             try
             {
-                // Sinh mã phiếu hoàn trả chuẩn nghiệp vụ, ví dụ: PTra-20240630-A3F8B2
+                // Sinh mã phiếu trả hàng, ví dụ: MR-20240624-A3F8B2
                 var vnNow = VietnamTime.Now;
-                var returnNo = $"PTra-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
+                var returnNo = $"MR-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
                 var materialReturn = new MaterialReturn
                 {

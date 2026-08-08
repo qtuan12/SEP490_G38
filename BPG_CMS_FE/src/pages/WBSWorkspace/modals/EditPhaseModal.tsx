@@ -4,9 +4,9 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Calendar, Clock } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
-import type { WBSPhase } from '../../../types/common';
+import type { WBSPhase, Project } from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
 const editPhaseSchema = z.object({
@@ -32,13 +32,17 @@ interface EditPhaseModalProps {
   phase: WBSPhase;
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
+  project: Project | null;
+  phases: WBSPhase[];
 }
 
 export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
   isOpen,
   onClose,
   phase,
-  onSuccess
+  onSuccess,
+  project,
+  phases
 }) => {
   const { register, handleSubmit, reset, formState: { errors } } = useForm<EditPhaseForm>({
     resolver: zodResolver(editPhaseSchema),
@@ -89,9 +93,47 @@ export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
     mutation.mutate(data);
   };
 
+  const previousPhase = phases.filter(p => p.sortOrder < phase.sortOrder)
+                              .sort((a, b) => b.sortOrder - a.sortOrder)[0];
+  const prevDateStr = previousPhase ? (previousPhase.endDate || previousPhase.deadline || previousPhase.startDate) : undefined;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Chỉnh sửa giai đoạn">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+        {(project || previousPhase) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+            {project && (
+              <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-3.5 rounded-xl border border-indigo-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+                <div className="bg-white/80 p-2 rounded-lg text-indigo-600 shadow-sm border border-indigo-50">
+                  <Calendar size={18} className="stroke-[1.75]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 mb-1">Thời gian dự án</p>
+                  <p className="text-[13px] font-semibold text-slate-700 truncate">
+                    {new Date(project.startDate).toLocaleDateString('vi-VN')} - {new Date(project.endDate).toLocaleDateString('vi-VN')}
+                  </p>
+                </div>
+              </div>
+            )}
+            {previousPhase && (
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-3.5 rounded-xl border border-amber-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+                <div className="bg-white/80 p-2 rounded-lg text-amber-600 shadow-sm border border-amber-50">
+                  <Clock size={18} className="stroke-[1.75]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="mb-1 truncate" title={`Giai đoạn trước: ${previousPhase.name}`}>
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-amber-600/70 mr-1">Giai đoạn trước:</span>
+                    <span className="text-[12px] font-bold text-amber-700">{previousPhase.name}</span>
+                  </div>
+                  <p className="text-[13px] font-semibold text-slate-700 truncate">
+                    {previousPhase.startDate ? new Date(previousPhase.startDate).toLocaleDateString('vi-VN') : 'N/A'} - {prevDateStr ? new Date(prevDateStr).toLocaleDateString('vi-VN') : 'N/A'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium mb-1.5 text-slate-600">
             Tên Giai đoạn <span className="text-red-500">*</span>

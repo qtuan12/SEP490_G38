@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/ui/Modal';
-import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft, Users, RotateCcw } from 'lucide-react';
+import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft, Users, RotateCcw, PauseCircle } from 'lucide-react';
 import { AssignEngineerForm } from './AssignEngineerModal';
 import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';
@@ -381,7 +381,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       onObsolete();
                     }
                   }} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: activeForm === 'obsolete' ? 'hsl(var(--danger))' : 'hsl(var(--bg-main))', color: activeForm === 'obsolete' ? '#fff' : 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
-                    <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Tạm dừng công việc' : 'Xóa công việc'}</span>
+                    {selectedTask.progress > 0 ? <PauseCircle size={16} /> : <Trash2 size={16} />}<span>{selectedTask.progress > 0 ? 'Tạm dừng công việc' : 'Xóa công việc'}</span>
                   </button>
                 </>
               )}

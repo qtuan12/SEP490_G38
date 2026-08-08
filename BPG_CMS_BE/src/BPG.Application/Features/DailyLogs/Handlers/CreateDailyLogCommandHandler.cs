@@ -92,7 +92,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             {
                 if (tempTask.IsLocked)
                 {
-                    throw new BusinessException("ERR_TASK_LOCKED", $"Không thể cập nhật tiến độ vì công việc hoặc cấp cha [{tempTask.Name}] đã được nghiệm thu và khóa.");
+                    throw new BusinessException("ERR_TASK_LOCKED", $"Không thể cập nhật tiến độ vì công việc hoặc cấp cha {tempTask.Name} đã được nghiệm thu và khóa.");
                 }
                 if (tempTask.ParentTaskId.HasValue)
                 {
@@ -314,7 +314,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 await _notificationService.SendNotificationAsync(
                     leaderId,
                     "Cập nhật nhật ký tiến độ",
-                    $"Thành viên [{creatorName}] đã cập nhật nhật ký cho công việc [{task.Name}] với tiến độ mới là {newProgress}%.",
+                    $"Thành viên {creatorName} đã cập nhật nhật ký cho công việc {task.Name} với tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
                     $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                     task.TaskId,
@@ -337,7 +337,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 await _notificationService.SendNotificationAsync(
                     assigneeId,
                     "?ồng nghiệp cập nhật tiến độ",
-                    $"Thành viên [{creatorName}] cùng thực hiện công việc [{task.Name}] đã cập nhật nhật ký tiến độ mới là {newProgress}%.",
+                    $"Thành viên {creatorName} cùng thực hiện công việc {task.Name} đã cập nhật nhật ký tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
                     $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                     task.TaskId,
@@ -349,7 +349,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.TechnicalManager,
                 "Cập nhật nhật ký tiến độ",
-                $"Nhật ký tiến độ mới cho công việc [{task.Name}] tại dự án [{project.Name}] vừa được cập nhật ({newProgress}%).",
+                $"Nhật ký tiến độ mới cho công việc {task.Name} tại dự án {project.Name} vừa được cập nhật ({newProgress}%).",
                 NotificationType.Progress,
                 $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                 task.TaskId,

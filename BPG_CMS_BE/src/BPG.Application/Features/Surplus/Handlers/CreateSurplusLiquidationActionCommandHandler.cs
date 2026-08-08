@@ -129,7 +129,7 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
 
         // Notifications
         var notiTitle = "Thông báo thanh lý vật tư thừa";
-        var notiContent = $"Vật tư thừa từ dự án [{item.SurplusRequest.Project.Name}] đã được thanh lý (Mã thanh lý: {liquidation.SurplusLiquidationId}).";
+        var notiContent = $"Vật tư thừa từ dự án {item.SurplusRequest.Project.Name} đã được thanh lý.";
 
         // 1. Notify Accountant
         await _notificationService.SendNotificationToRoleAsync(

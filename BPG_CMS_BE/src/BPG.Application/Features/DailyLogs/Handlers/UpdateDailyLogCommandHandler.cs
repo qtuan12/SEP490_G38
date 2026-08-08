@@ -97,13 +97,13 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 if (tempTask.IsLocked)
                 {
                     throw new BusinessException("ERR_TASK_LOCKED",
-                        $"Không thể chỉnh sửa nhật ký vì công việc hoặc cấp cha [{tempTask.Name}] đã được nghiệm thu và khóa.");
+                        $"Không thể chỉnh sửa nhật ký vì công việc hoặc cấp cha {tempTask.Name} đã được nghiệm thu và khóa.");
                 }
 
                 if (tempTask.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
                 {
                     throw new BusinessException("ERR_TASK_OBSOLETE",
-                        $"Không thể chỉnh sửa nhật ký vì công việc hoặc cấp cha [{tempTask.Name}] đã bị loại bỏ (obsolete).");
+                        $"Không thể chỉnh sửa nhật ký vì công việc hoặc cấp cha {tempTask.Name} đã bị loại bỏ (obsolete).");
                 }
 
                 if (tempTask.ParentTaskId.HasValue)

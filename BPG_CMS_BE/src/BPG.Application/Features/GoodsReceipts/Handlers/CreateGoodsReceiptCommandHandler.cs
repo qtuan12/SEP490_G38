@@ -121,7 +121,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 if (item.Quantity < 0)
                 {
                     throw new BusinessException("ERR_INVALID_QUANTITY",
-                        $"Số lượng nhận của vật tư [{poItem.Material.Name}] phải lớn hơn hoặc bằng 0.");
+                        $"Số lượng nhận của vật tư {poItem.Material.Name} phải lớn hơn hoặc bằng 0.");
                 }
 
                 if (item.Quantity == 0)
@@ -132,7 +132,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 if (poItem.Material.BaseUnit != null && poItem.Material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
                 {
                     throw new BusinessException(ErrorCodes.InvalidUnitQuantity,
-                        $"Đơn vị tính '{poItem.Material.BaseUnit.UnitName}' của vật tư [{poItem.Material.Name}] yêu cầu số lượng nhận phải là số nguyên.");
+                        $"Đơn vị tính '{poItem.Material.BaseUnit.UnitName}' của vật tư {poItem.Material.Name} yêu cầu số lượng nhận phải là số nguyên.");
                 }
 
                 receivedQtyMap.TryGetValue(item.MaterialId, out decimal totalReceivedBefore);
@@ -141,7 +141,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 if (item.Quantity > remainingQty)
                 {
                     throw new BusinessException("ERR_QUANTITY_EXCEEDED",
-                        $"Số lượng nhận ({item.Quantity}) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [{poItem.Material.Name}] (còn thiếu {remainingQty}).");
+                        $"Số lượng nhận ({item.Quantity}) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư {poItem.Material.Name} (còn thiếu {remainingQty}).");
                 }
 
                 validItems.Add(item);

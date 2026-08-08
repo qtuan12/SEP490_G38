@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
 import { toast } from 'react-hot-toast';
+import { Bell, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { notificationService } from '../services/notificationService';
 import type { Notification } from '../types/notification';
@@ -207,7 +208,23 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         // Cập nhật trạng thái khẩn cấp — chuông đỏ nhấp nháy trên header
         setHasEmergencyUnread(true);
       } else {
-        toast(noti.title, { duration: 4000 });
+        const getIcon = (type: string) => {
+          if (type === 'Progress' || type === 'Procurement') return <CheckCircle size={20} color="hsl(var(--success, #22c55e))" />;
+          if (type === 'Incident') return <AlertTriangle size={20} color="hsl(var(--warning, #f59e0b))" />;
+          return <Bell size={20} color="hsl(var(--primary))" />;
+        };
+
+        toast(() => (
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <div style={{ marginTop: '2px' }}>
+              {getIcon(noti.notificationType)}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{noti.title}</strong>
+              <span style={{ fontSize: '0.85rem', color: 'hsl(var(--text-secondary, #666))', lineHeight: 1.4 }}>{noti.content}</span>
+            </div>
+          </div>
+        ), { duration: 4000 });
       }
     });
 

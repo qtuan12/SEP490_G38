@@ -79,7 +79,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             if (invoiceCount == 0)
                 throw new BusinessException(ErrorCodes.DpNoInvoice, "Bắt buộc phải tải ảnh hóa đơn.");
 
-            // Gom hết lỗi của mọi dòng rồi mới ném, kèm vị trí dòng theo dạng "Items[i].Quantity"
+            // Gom hết lỗi của mọi dòng rồi mới ném, kèm vị trí dòng theo dạng "Itemsi.Quantity"
             // để FE gắn được dòng đỏ ngay dưới đúng ô nhập. Dừng ở lỗi đầu tiên sẽ bắt người dùng
             // sửa - gửi lại - lại lỗi, mỗi lần một dòng.
             //
@@ -94,12 +94,12 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
                 if (item.Quantity <= 0)
                     itemFailures.Add(new ValidationFailure(
-                        $"Items[{index}].Quantity", "Số lượng phải lớn hơn 0.")
+                        $"Items{index}.Quantity", "Số lượng phải lớn hơn 0.")
                     { ErrorCode = ErrorCodes.DpInvalidQuantity });
 
                 if (item.UnitPrice <= 0)
                     itemFailures.Add(new ValidationFailure(
-                        $"Items[{index}].UnitPrice", "Đơn giá phải lớn hơn 0.")
+                        $"Items{index}.UnitPrice", "Đơn giá phải lớn hơn 0.")
                     { ErrorCode = ErrorCodes.DpInvalidUnitPrice });
             }
 

@@ -4,9 +4,9 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Calendar, CalendarDays, Clock } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
-import type {ProjectMember, WBSTask} from '../../../types/common';
+import type {ProjectMember, WBSTask, Project} from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
 const editTaskSchema = z.object({
@@ -43,6 +43,8 @@ interface EditTaskModalProps {
   tasks: WBSTask[];
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
+  project: Project | null;
+  phase: import('../../../types/common').WBSPhase | null;
 }
 
 export const EditTaskModal: React.FC<EditTaskModalProps> = ({
@@ -52,7 +54,9 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   parentDeadline,
   members,
   tasks,
-  onSuccess
+  onSuccess,
+  project,
+  phase
 }) => {
   const [selectedPredecessorIds, setSelectedPredecessorIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -249,6 +253,39 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} width="xl" title="Chỉnh sửa Công việc">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 max-h-[85vh] overflow-y-auto p-2">
+        {/* THÔNG TIN THỜI GIAN */}
+        <div className="grid grid-cols-1 gap-4 -mb-2">
+          {task.parentTaskId ? (() => {
+            const parentTask = tasks.find(t => t.id === task.parentTaskId);
+            if (!parentTask) return null;
+            return (
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-3.5 rounded-xl border border-amber-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+                <div className="bg-white/80 p-2 rounded-lg text-amber-600 shadow-sm border border-amber-50">
+                  <Clock size={18} className="stroke-[1.75]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-amber-500 mb-1">Thời gian Công việc cha</p>
+                  <p className="text-[13px] font-semibold text-slate-700 truncate" title={parentTask.name}>
+                    {parentTask.startDate ? new Date(parentTask.startDate).toLocaleDateString('vi-VN') : '---'} - {parentTask.deadline ? new Date(parentTask.deadline).toLocaleDateString('vi-VN') : '---'}
+                  </p>
+                </div>
+              </div>
+            );
+          })() : phase ? (
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-3.5 rounded-xl border border-emerald-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all hover:shadow-md">
+              <div className="bg-white/80 p-2 rounded-lg text-emerald-600 shadow-sm border border-emerald-50">
+                <CalendarDays size={18} className="stroke-[1.75]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-500 mb-1">Thời gian Giai đoạn</p>
+                <p className="text-[13px] font-semibold text-slate-700 truncate">
+                  {phase.startDate ? new Date(phase.startDate).toLocaleDateString('vi-VN') : '---'} - {phase.endDate ? new Date(phase.endDate).toLocaleDateString('vi-VN') : (phase.deadline ? new Date(phase.deadline).toLocaleDateString('vi-VN') : '---')}
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
           {/* CỘT TRÁI: Thông tin cơ bản */}
@@ -285,7 +322,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 {errors.startDate && <p className="text-red-500 text-xs mt-1">{errors.startDate.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5 text-slate-600">Hạn chót (Deadline) <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium mb-1.5 text-slate-600">Hạn chót <span className="text-red-500">*</span></label>
                 <input 
                   type="date" 
                   {...register('deadline')} 

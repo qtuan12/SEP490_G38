@@ -118,7 +118,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     string matName = poItem?.Material?.Name ?? $"ID {item.MaterialId}";
                     decimal availableQty = inv != null ? (inv.Quantity - inv.ReservedQuantity) : 0;
                     throw new BusinessException("ERR_INSUFFICIENT_INVENTORY",
-                        $"Không thể hủy phiếu nhập kho. Vật tư [{matName}] đã được xuất dùng hoặc đóng băng cho kế hoạch thi công " +
+                        $"Không thể hủy phiếu nhập kho. Vật tư {matName} đã được xuất dùng hoặc đóng băng cho kế hoạch thi công " +
                         $"(tồn kho khả dụng hiện tại chỉ còn {availableQty.ToString("G29")}, yêu cầu hoàn trả {baseQty.ToString("G29")}). Vui lòng lập Phiếu Điều Chỉnh Kho.");
                 }
             }

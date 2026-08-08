@@ -82,7 +82,7 @@ export const AdjustDeadlineModal: React.FC<AdjustDeadlineModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Yêu cầu dời Hạn chót (Deadline)">
+    <Modal isOpen={isOpen} onClose={onClose} title="Yêu cầu dời Hạn chót">
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <div>
           <p className="text-sm text-slate-500 mb-1">
