@@ -339,14 +339,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           )}
 
           {/* Actions */}
-          {project?.status !== 'inprogress' ? (
+          {project?.status?.toLowerCase() !== 'inprogress' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', gap: '8px', backgroundColor: 'hsl(var(--danger-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--danger))' }}>
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>
-                  {project?.status === 'paused'
+                  {project?.status?.toLowerCase() === 'paused'
                     ? 'Dự án đang bị tạm dừng thi công không thể thao tác được'
-                    : project?.status === 'done'
+                    : (project?.status?.toLowerCase() === 'completed' || project?.status?.toLowerCase() === 'closed')
                     ? 'Dự án đã hoàn thành không thể thao tác được'
                     : 'Dự án đang là bản nháp không thể thao tác được'}
                 </span>
@@ -455,7 +455,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
                 const getMessageText = () => {
                   if (selectedTask.status !== 'obsolete') {
-                    return 'Phase này đã được nghiệm thu và khóa tiến độ.';
+                    return 'Giai đoạn này đã được nghiệm thu và khóa tiến độ.';
                   }
                   if (isCancelledByEmergencyIncident) {
                     return 'Công việc đã bị hủy do sự cố khẩn cấp (theo phương án được Giám đốc phê duyệt) và không thể khôi phục.';

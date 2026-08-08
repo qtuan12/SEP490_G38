@@ -57,8 +57,8 @@ public class UpdatePhaseCommandHandler : IRequestHandler<UpdatePhaseCommand, Api
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
 
-        if (phase.Project.Status != ProjectStatus.InProgress)
-            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+        if (phase.Project.Status != ProjectStatus.InProgress && phase.Project.Status != ProjectStatus.Draft)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
 
         // Check rule: chỉ được sửa khi chưa có task hoặc tất cả task = 0%
         if (phase.Tasks.Any(t => t.ProgressPercent > 0))
