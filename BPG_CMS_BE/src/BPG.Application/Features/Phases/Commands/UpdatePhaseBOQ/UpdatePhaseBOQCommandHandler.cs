@@ -45,12 +45,41 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
             throw new NotFoundException("Phase", request.PhaseId);
         }
 
-        // 2. Verify Project is in Draft status (BOQ can only be updated during Project Draft)
-        bool isProjectDraft = phase.Project == null || string.Equals(phase.Project.Status, ProjectStatus.Draft, StringComparison.OrdinalIgnoreCase);
+        // 2. Verify Project status allows BOQ modifications
+        bool isProjectEditable = phase.Project == null || 
+            string.Equals(phase.Project.Status, ProjectStatus.Draft, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(phase.Project.Status, ProjectStatus.InProgress, StringComparison.OrdinalIgnoreCase);
 
-        if (!isProjectDraft)
+        if (!isProjectEditable)
         {
-            throw new BusinessException("ERR_BOQ_NOT_DRAFT", "Chỉ được phép thay đổi định mức vật tư khi dự án chưa kích hoạt.");
+            throw new BusinessException("ERR_BOQ_PROJECT_NOT_EDITABLE", "Không thể thay đổi định mức vật tư của dự án đã hoàn thành hoặc đã đóng.");
+        }
+
+        bool isPhaseEditable = !string.Equals(phase.Status, PhaseStatus.Approved, StringComparison.OrdinalIgnoreCase) &&
+                               !string.Equals(phase.Status, PhaseStatus.Completed, StringComparison.OrdinalIgnoreCase);
+
+        if (!isPhaseEditable)
+        {
+            throw new BusinessException("ERR_BOQ_PHASE_APPROVED", "Không thể thay đổi định mức vật tư của giai đoạn đã nghiệm thu hoặc hoàn thành.");
+        }
+
+        if (phase.Project != null && string.Equals(phase.Project.Status, ProjectStatus.InProgress, StringComparison.OrdinalIgnoreCase))
+        {
+            var hasMR = await _uow.Repository<MaterialRequest>().Query()
+                .AnyAsync(r => r.PhaseId == request.PhaseId 
+                            && !r.IsDeleted 
+                            && r.Status != MaterialRequestStatus.Rejected 
+                            && r.Status != MaterialRequestStatus.Cancelled, cancellationToken);
+
+            var hasDP = await _uow.Repository<DirectPurchaseRequest>().Query()
+                .AnyAsync(dp => dp.PhaseId == request.PhaseId 
+                             && !dp.IsDeleted 
+                             && dp.Status != DirectPurchaseStatus.Rejected, cancellationToken);
+
+            if (hasMR || hasDP)
+            {
+                throw new BusinessException("ERR_BOQ_PHASE_IN_USE", "Không thể thay đổi định mức vật tư do giai đoạn đã phát sinh yêu cầu cấp phát hoặc mua sắm.");
+            }
         }
 
         // 3. Fetch all existing BOQItems of the Phase (including soft-deleted ones)

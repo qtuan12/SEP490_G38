@@ -78,13 +78,17 @@ export const PhaseBOQ: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
   const [hasActiveMRs, setHasActiveMRs] = useState(false);
+  const [hasActiveDPs, setHasActiveDPs] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(true);
   const [rowConversions, setRowConversions] = useState<Record<number, { unitId: number; unitName: string }[]>>({});
 
-  const isDraft = !project?.status || project?.status?.toLowerCase() === 'draft';
+  const isProjectEditable = project?.status && (
+    project.status.toLowerCase() === 'draft' ||
+    project.status.toLowerCase() === 'inprogress'
+  );
+  const isPhaseApproved = phase?.status?.toLowerCase() === 'approved' || phase?.status?.toLowerCase() === 'completed';
 
-  const isFrozen = !isDraft;
-  const isReadOnly = isFrozen || hasActiveMRs || !canEdit;
+  const isReadOnly = !isProjectEditable || isPhaseApproved || hasActiveMRs || hasActiveDPs || !canEdit;
 
   // Fetch materials catalog for dropdown list
   const { data: materialsData, isLoading: loadingMaterials } = useQuery({
@@ -119,11 +123,21 @@ export const PhaseBOQ: React.FC = () => {
       setPhase(currentPhase || null);
 
       const allProjs = await projectService.getProjects();
-      setProject(allProjs.find(p => p.id === projectId) || null);
+      const currentProject = allProjs.find(p => p.id === projectId) || null;
+      setProject(currentProject);
 
       const reqs = await projectService.getMaterialRequests(projectId);
-      const phaseHasActiveMRs = reqs.some(mr => mr.phaseId === phaseId && mr.status !== 'rejected');
+      const phaseHasActiveMRs = reqs.some(mr => mr.phaseId === phaseId && mr.status !== 'rejected' && mr.status !== 'cancelled');
       setHasActiveMRs(phaseHasActiveMRs);
+
+      try {
+        const { directPurchaseService } = await import('../../services/directPurchaseService');
+        const dpData = await directPurchaseService.getList({ projectId: Number(projectId) });
+        const phaseHasDPs = dpData.items.some(dp => dp.phaseName === currentPhase?.name && dp.status !== 'Rejected');
+        setHasActiveDPs(phaseHasDPs);
+      } catch (dpErr) {
+        console.error('Error fetching direct purchases for BOQ screen:', dpErr);
+      }
     } catch (err) {
       console.error('Error loading BOQ data:', err);
       if (!silent) toast.error('Lỗi khi tải thông tin Giai đoạn.');
@@ -154,10 +168,10 @@ export const PhaseBOQ: React.FC = () => {
         unitId: it.unitId,
         unit: it.unit
       }))
-      : (isDraft ? [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }] : []);
+      : (!isReadOnly ? [{ materialId: 0, quantity: 1, unitId: 0, unit: '' }] : []);
 
     reset({ materials: initialMaterials });
-  }, [phase, reset, isDraft]);
+  }, [phase, reset, isReadOnly]);
 
   // Material catalog có thể refetch realtime; chỉ cập nhật lựa chọn đơn vị,
   // không reset giá trị form.
@@ -292,21 +306,29 @@ export const PhaseBOQ: React.FC = () => {
         </p>
       </div>
 
-      {/* Cảnh báo trạng thái khóa nếu không ở dạng Nháp (Draft) */}
-      {!isDraft ? (
-        <div className="card bg-amber-50 border border-amber-200 rounded-lg p-4 shadow-sm text-amber-800 flex items-center gap-3">
-          <AlertTriangle size={20} className="shrink-0 text-amber-600" />
+      {/* Cảnh báo trạng thái khóa nếu có */}
+      {!isProjectEditable ? (
+        <div className="card bg-slate-100 border border-slate-200 rounded-lg p-4 shadow-sm text-slate-800 flex items-center gap-3">
+          <AlertTriangle size={20} className="shrink-0 text-slate-600" />
           <div className="text-xs text-slate-700 leading-relaxed">
-            <strong className="text-sm text-amber-900 block font-semibold mb-0.5">Dự án đã hoạt động</strong>
-            Bảng định mức vật tư chỉ được phép sửa đổi khi dự án chưa kích hoạt).
+            <strong className="text-sm text-slate-900 block font-semibold mb-0.5"></strong>
+            Đã khóa chỉnh sửa định mức vật tư.
           </div>
         </div>
-      ) : hasActiveMRs ? (
+      ) : isPhaseApproved ? (
+        <div className="card bg-slate-100 border border-slate-200 rounded-lg p-4 shadow-sm text-slate-800 flex items-center gap-3">
+          <AlertTriangle size={20} className="shrink-0 text-slate-600" />
+          <div className="text-xs text-slate-700 leading-relaxed">
+            <strong className="text-sm text-slate-900 block font-semibold mb-0.5"></strong>
+            Đã khóa chỉnh sửa định mức vật tư.
+          </div>
+        </div>
+      ) : (hasActiveMRs || hasActiveDPs) ? (
         <div className="card bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.2)] rounded-lg p-4 shadow-sm text-[hsl(var(--danger))] flex items-center gap-3">
           <AlertTriangle size={20} className="shrink-0" />
           <div className="text-xs text-[hsl(var(--text-secondary))] leading-relaxed">
-            <strong className="text-sm text-[hsl(var(--danger))] block font-semibold mb-0.5">Giai đoạn đã phát sinh Yêu cầu Vật tư</strong>
-            Đã khóa chỉnh sửa bảng định mức.
+            <strong className="text-sm text-[hsl(var(--danger))] block font-semibold mb-0.5"></strong>
+            Đã khóa chỉnh sửa định mức vật tư.
           </div>
         </div>
       ) : null}

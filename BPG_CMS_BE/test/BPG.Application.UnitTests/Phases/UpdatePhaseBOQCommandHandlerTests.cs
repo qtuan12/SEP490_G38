@@ -31,6 +31,8 @@ namespace BPG.Application.UnitTests.Phases
         private readonly Mock<IGenericRepository<MaterialIssuanceItem>> _mockIssuanceItemRepo;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
+        private readonly Mock<IGenericRepository<MaterialRequest>> _mockRequestRepo;
+        private readonly Mock<IGenericRepository<DirectPurchaseRequest>> _mockPurchaseRepo;
 
         private readonly UpdatePhaseBOQCommandHandler _handler;
 
@@ -61,6 +63,11 @@ namespace BPG.Application.UnitTests.Phases
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
 
+            _mockRequestRepo = new Mock<IGenericRepository<MaterialRequest>>();
+            _mockPurchaseRepo = new Mock<IGenericRepository<DirectPurchaseRequest>>();
+            _mockUow.Setup(u => u.Repository<MaterialRequest>()).Returns(_mockRequestRepo.Object);
+            _mockUow.Setup(u => u.Repository<DirectPurchaseRequest>()).Returns(_mockPurchaseRepo.Object);
+
             _mockCurrentUserService.Setup(c => c.GetRequiredUserId()).Returns(1);
 
             _handler = new UpdatePhaseBOQCommandHandler(
@@ -82,6 +89,8 @@ namespace BPG.Application.UnitTests.Phases
             _mockPurchaseItemRepo.Setup(r => r.Query()).Returns(new List<DirectPurchaseItem>().AsQueryable().BuildMockDbSet().Object);
             _mockIssuanceItemRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuanceItem>().AsQueryable().BuildMockDbSet().Object);
             _mockConversionRepo.Setup(r => r.Query()).Returns(new List<MaterialConversion>().AsQueryable().BuildMockDbSet().Object);
+            _mockRequestRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest>().AsQueryable().BuildMockDbSet().Object);
+            _mockPurchaseRepo.Setup(r => r.Query()).Returns(new List<DirectPurchaseRequest>().AsQueryable().BuildMockDbSet().Object);
         }
 
         private UpdatePhaseBOQCommand Command(long phaseId = 1, long projectId = 1, List<BOQItemInput>? items = null)
@@ -124,16 +133,16 @@ namespace BPG.Application.UnitTests.Phases
         }
 
         [Fact]
-        public async Task UTCID03_Handle_ProjectNotDraft_ShouldThrowBusinessException()
+        public async Task UTCID03_Handle_ProjectNotEditable_ShouldThrowBusinessException()
         {
-            var project = new Project { ProjectId = 1, Status = "Active" };
+            var project = new Project { ProjectId = 1, Status = "Completed" };
             var phase = new Phase { PhaseId = 1, ProjectId = 1, Project = project };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMockDbSet().Object);
             
             var command = Command();
             
             var ex = await Assert.ThrowsAsync<BusinessException>(() => _handler.Handle(command, CancellationToken.None));
-            Assert.Equal("ERR_BOQ_NOT_DRAFT", ex.ErrorCode);
+            Assert.Equal("ERR_BOQ_PROJECT_NOT_EDITABLE", ex.ErrorCode);
         }
 
         [Fact]
