@@ -42,14 +42,22 @@ export const getVisibleTasksForUser = (
 /** Backend chỉ cho Admin / Trưởng dự án (leader) / Kỹ sư được gán vào đúng task đó tạo nhật ký. Technical Manager không được tạo nhật ký. */
 export const canCreateDailyLog = (
   task: WBSTask | null | undefined,
-  user: { id: string | number; role: string } | null | undefined,
+  user: any,
   isProjectLeader: boolean
 ): boolean => {
   if (!task || task.status === 'obsolete') return false;
   if (!hasAssignee(task)) return false;
   if (!user) return false;
-  const role = (user.role || '').toLowerCase();
-  if (role === 'technicalmanager') return false;
-  if (role === 'admin' || isProjectLeader) return true;
-  return role === 'siteengineer' && isAssignedTo(task, user.id);
+
+  const rawRoles: string[] = [];
+  if (user.role) rawRoles.push(String(user.role));
+  if (Array.isArray(user.roles)) user.roles.forEach((r: any) => rawRoles.push(String(r)));
+
+  const roles = rawRoles.map(r => r.toLowerCase());
+  const isTechnicalManager = roles.some(r => r === 'technicalmanager' || r === 'technical_manager' || r === 'tpkt');
+
+  if (isTechnicalManager) return false;
+  if (roles.includes('admin')) return true;
+  if (isProjectLeader) return true;
+  return roles.includes('siteengineer') && isAssignedTo(task, user.id);
 };
