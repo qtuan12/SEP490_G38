@@ -553,21 +553,18 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                       {isAccountant && req.status === 'approved' && (() => {
                         const numericId = req.id.replace('mat-req-', '');
                         const canCreatePO = poEligibility[numericId] !== false;
+                        if (!canCreatePO) return null;
                         return (
                           <Button
-                            variant={canCreatePO ? 'primary' : 'secondary'}
+                            variant="primary"
                             size="sm"
                             disabled={checkingPORequestId === req.id}
                             onClick={() => handleCreatePOClick(req)}
-                            className={
-                              canCreatePO
-                                ? 'py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-[hsl(var(--primary))] text-white border-none hover:bg-[hsl(var(--primary-hover))]'
-                                : 'py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-[hsl(var(--bg-main))] text-[hsl(var(--text-muted))] border border-[hsl(var(--border))] hover:bg-[hsl(var(--border-light))]'
-                            }
-                            title={canCreatePO ? 'Tạo đơn mua hàng cho yêu cầu này' : 'Yêu cầu này hiện không thể tạo đơn mua hàng'}
+                            className="py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-[hsl(var(--primary))] text-white border-none hover:bg-[hsl(var(--primary-hover))]"
+                            title="Tạo đơn mua hàng cho yêu cầu này"
                           >
                             <ShoppingCart size={13} />
-                            <span>{checkingPORequestId === req.id ? 'Đang kiểm tra...' : 'Tạo PO'}</span>
+                            <span>{checkingPORequestId === req.id ? 'Đang kiểm tra...' : 'Đơn Hàng'}</span>
                           </Button>
                         );
                       })()}
