@@ -125,7 +125,8 @@ export interface PurchaseOrderDto {
   status: string;
   totalAmount: number;
   orderDate: string;
-  supplierName: string;
+  /** Null với đơn tự sinh từ phiếu mua khẩn cấp - xem getPOSupplierDisplayName. */
+  supplierName: string | null;
   items: PurchaseOrderItemDto[];
 }
 

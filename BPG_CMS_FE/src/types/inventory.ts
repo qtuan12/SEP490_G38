@@ -69,7 +69,8 @@ export interface GoodsReceiptDetail {
   receiptNo: string;
   poId: number;
   poNumber: string;
-  supplierName: string;
+  /** Null với phiếu nhập của đơn tự sinh từ phiếu mua khẩn cấp. */
+  supplierName: string | null;
   delivererInfo: string | null;
   deliveryDocNo: string | null;
   status: string;
