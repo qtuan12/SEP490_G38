@@ -25,7 +25,9 @@ export const useProjectAccess = (
     staleTime: 10_000,
   });
 
-  const isPaused = (projectQuery.data?.status || '').toLowerCase() === 'paused';
+  const projectStatus = (projectQuery.data?.status || '').toLowerCase();
+  const isProjectActive = projectStatus === 'inprogress';
+  const isPaused = projectStatus === 'paused';
 
   const isGlobalAuthority = hasAnyRole([
     Role.Admin,
@@ -42,6 +44,8 @@ export const useProjectAccess = (
     ...query,
     access: query.data,
     project: projectQuery.data,
+    projectStatus,
+    isProjectActive,
     isPaused,
     isGlobalAuthority,
     isProjectMember,
@@ -49,11 +53,11 @@ export const useProjectAccess = (
     isTechnicalManager:
       hasAnyRole(RoleGroup.Technical) || hasAnyRole(RoleGroup.AdminOnly),
     canViewProject,
-    canManageExecution: !isPaused && (hasAnyRole(RoleGroup.Execution) || isProjectLeader),
-    canManageTechnical: !isPaused && (hasAnyRole(RoleGroup.Technical) || isProjectLeader),
-    canManageAccounting: !isPaused && hasAnyRole(RoleGroup.Accounting),
-    canManageInventory: !isPaused && hasAnyRole(RoleGroup.Inventory),
-    canApprove: !isPaused && hasAnyRole(RoleGroup.Approval),
+    canManageExecution: isProjectActive && (hasAnyRole(RoleGroup.Execution) || isProjectLeader),
+    canManageTechnical: isProjectActive && (hasAnyRole(RoleGroup.Technical) || isProjectLeader),
+    canManageAccounting: isProjectActive && hasAnyRole(RoleGroup.Accounting),
+    canManageInventory: isProjectActive && hasAnyRole(RoleGroup.Inventory),
+    canApprove: isProjectActive && hasAnyRole(RoleGroup.Approval),
     canViewReports: hasAnyRole(RoleGroup.Reports) || isProjectMember,
   };
 };

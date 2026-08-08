@@ -40,11 +40,11 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   projectName,
 }) => {
   const { connection } = useNotification();
-  const { isProjectLeader, isTechnicalManager, canManageAccounting } = useProjectAccess(projectId);
+  const { isProjectLeader, isTechnicalManager, canManageAccounting, isProjectActive } = useProjectAccess(projectId);
   const isLeader = isProjectLeader;
   const isAccountant = canManageAccounting;
   const isTPKT = isTechnicalManager;
-  const canCreateSurplusRequest = isLeader;
+  const canCreateSurplusRequest = isLeader && isProjectActive;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSurplusRequestId = searchParams.get('surplusRequestId');

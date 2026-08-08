@@ -210,13 +210,13 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
   const handleCreateReceiptSuccess = (message?: string) => {
     setIsCreateReceiptOpen(false);
-    console.log(message || 'Đã tạo phiếu nhập kho. Tồn kho đã được cập nhật.');
+    toast.success(message || 'Tạo phiếu nhập kho thành công! Tồn kho đã được cập nhật.');
     handleRefreshAll();
   };
 
   const handleCreateIssuanceSuccess = (message?: string) => {
     setIsCreateIssuanceOpen(false);
-    console.log(message || 'Đã tạo phiếu xuất kho. Tồn kho đã được cập nhật.');
+    toast.success(message || 'Xuất kho thi công thành công! Tồn kho đã được cập nhật.');
     handleRefreshAll();
   };
 

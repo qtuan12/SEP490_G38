@@ -17,6 +17,7 @@ import {
 import toast from 'react-hot-toast';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../../../constants/realtimeEntities';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 const MATERIAL_ISSUANCE_REALTIME_ENTITIES = RealtimeEntities.inventory.filter(
   entity => [
@@ -52,11 +53,14 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
   isOpen,
   onClose,
   issuanceId,
+  projectId,
   canReturnMaterial = false,
   onSuccess
 }) => {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<MaterialIssuanceDetail | null>(null);
+  const { isProjectActive, canManageInventory } = useProjectAccess(projectId);
+  const allowReturn = (canReturnMaterial || canManageInventory) && isProjectActive;
   const [error, setError] = useState<string | null>(null);
 
   // Return history
@@ -244,7 +248,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         }))
       });
 
-      console.log(result.message || 'Đã tạo phiếu hoàn trả vật tư. Tồn kho đã được cập nhật.');
+      toast.success(result.message || 'Tạo phiếu hoàn trả vật tư thành công! Tồn kho đã được cập nhật.');
       
       // Reload history and state
       await fetchDetailAndHistory();
@@ -286,7 +290,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
               Quay lại chi tiết
             </Button>
           ) : (
-            canReturnMaterial ? (
+            allowReturn ? (
               <Button
                 variant="outline"
                 onClick={() => setIsReturning(true)}

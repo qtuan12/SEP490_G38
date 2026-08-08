@@ -28,7 +28,7 @@ interface AdjustmentListProps {
 }
 
 export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => {
-  const { isProjectLeader, canManageAccounting, canApprove, isTechnicalManager, isPaused } = useProjectAccess(projectId > 0 ? projectId : null);
+  const { isProjectLeader, canManageAccounting, canApprove, isTechnicalManager, isPaused, isProjectActive } = useProjectAccess(projectId > 0 ? projectId : null);
 
   const [data, setData] = useState<InventoryAdjustmentDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -166,7 +166,8 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
 
   const canCreateIncrease =
     projectId > 0 &&
-    isProjectLeader;
+    isProjectLeader &&
+    isProjectActive;
   const canCreateDecrease =
     projectId > 0 &&
     canManageAccounting;
