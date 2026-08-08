@@ -42,8 +42,8 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
 
-        if (task.Phase != null && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
-            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+        if (task.Phase != null && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.Draft)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
 
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {

@@ -48,7 +48,6 @@ export const PhaseAcceptance: React.FC = () => {
   const [activeAcceptanceDate, setActiveAcceptanceDate] = useState<string>('');
   const [activeCreatorName, setActiveCreatorName] = useState<string>('');
   const [activeAcceptanceId, setActiveAcceptanceId] = useState<number | null>(null);
-  const [activePdfUrl, setActivePdfUrl] = useState<string>('');
 
   const canRevoke = isViewingHistory ? !historicalAcceptance?.isCancelled : isSubmitted;
 
@@ -85,7 +84,6 @@ export const PhaseAcceptance: React.FC = () => {
           setActiveAcceptanceDate(formatDateOnly(activeAcc.acceptanceDate));
           setActiveCreatorName(activeAcc.acceptedByName || '');
           setActiveAcceptanceId(activeAcc.acceptanceId);
-          setActivePdfUrl(activeAcc.pdfUrl || '');
         }
       }
 
@@ -184,13 +182,6 @@ export const PhaseAcceptance: React.FC = () => {
   };
 
   const handleDownloadPDF = async () => {
-    const currentPdfUrl = isViewingHistory ? historicalAcceptance?.pdfUrl : activePdfUrl;
-
-    if (currentPdfUrl && (currentPdfUrl.startsWith('http://') || currentPdfUrl.startsWith('https://'))) {
-      window.open(currentPdfUrl, '_blank');
-      return;
-    }
-
     const element = document.getElementById('printable-acceptance-doc');
     if (!element) return;
 
@@ -200,7 +191,7 @@ export const PhaseAcceptance: React.FC = () => {
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      pagebreak: { mode: ['css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(element).save();
