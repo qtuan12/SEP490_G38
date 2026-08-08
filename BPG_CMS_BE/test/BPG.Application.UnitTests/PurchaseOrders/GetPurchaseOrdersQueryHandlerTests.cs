@@ -202,13 +202,15 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID10_Handle_PurchaseOrderWithoutSupplier_ShouldReturnPlaceholderSupplierName()
+        public async Task UTCID10_Handle_PurchaseOrderWithoutSupplier_ShouldReturnNullSupplierName()
         {
             SetupPurchaseOrders(PurchaseOrder(POId, "PO-20260310-0001", PurchaseOrderStatus.Sent, supplierName: null));
 
             var result = await _handler.Handle(Query(projectId: ProjectId), CancellationToken.None);
 
-            result.Items.Should().ContainSingle().Which.SupplierName.Should().Be("N/A");
+            // Đơn tự sinh từ phiếu mua khẩn cấp không gắn NCC. Trả null thay vì chuỗi
+            // "N/A" để FE phân biệt được và hiển thị nhãn riêng.
+            result.Items.Should().ContainSingle().Which.SupplierName.Should().BeNull();
         }
 
         private static GetPurchaseOrdersQuery Query(long? projectId = ProjectId)
