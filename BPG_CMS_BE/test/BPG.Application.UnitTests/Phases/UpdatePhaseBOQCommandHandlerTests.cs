@@ -124,15 +124,16 @@ namespace BPG.Application.UnitTests.Phases
         }
 
         [Fact]
-        public async Task UTCID03_Handle_PhaseFrozen_ShouldThrowBusinessException()
+        public async Task UTCID03_Handle_ProjectNotDraft_ShouldThrowBusinessException()
         {
-            var phase = new Phase { PhaseId = 1, ProjectId = 1, Status = "Approved" };
+            var project = new Project { ProjectId = 1, Status = "Active" };
+            var phase = new Phase { PhaseId = 1, ProjectId = 1, Project = project };
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMockDbSet().Object);
             
             var command = Command();
             
             var ex = await Assert.ThrowsAsync<BusinessException>(() => _handler.Handle(command, CancellationToken.None));
-            Assert.Equal("ERR_PHASE_FROZEN", ex.ErrorCode);
+            Assert.Equal("ERR_BOQ_NOT_DRAFT", ex.ErrorCode);
         }
 
         [Fact]

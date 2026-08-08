@@ -35,6 +35,11 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 throw new NotFoundException(nameof(Project), request.ProjectId);
             }
 
+            if (project.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án đang tạm dừng, đã đóng hoặc chưa bắt đầu, không thể thực hiện thao tác này.");
+            }
+
             var userId = _currentUserService.GetRequiredUserId();
             var isAdmin = _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin);
             var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
@@ -52,6 +57,11 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 throw new BusinessException(ErrorCodes.InvalidTransition, "Giai đoạn không thuộc dự án này.");
             }
 
+            if (request.Items.Select(x => x.MaterialId).Distinct().Count() != request.Items.Count)
+            {
+                throw new BusinessException("ERR_DUPLICATE_MATERIAL", "Danh sách vật tư không được chứa vật tư trùng lặp.");
+            }
+
             var adjustment = new InventoryAdjustment
             {
                 ProjectId = request.ProjectId,
@@ -59,7 +69,8 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 AdjustmentType = InventoryAdjustmentType.Increase,
                 Reason = request.Reason,
                 Description = request.Description,
-                Status = InventoryAdjustmentStatus.Pending // Require approval by TPKT
+                Status = InventoryAdjustmentStatus.Pending, // Require approval by TPKT
+                CreatedBy = userId
             };
 
             foreach (var item in request.Items)

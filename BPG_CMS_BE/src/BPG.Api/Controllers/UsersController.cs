@@ -14,7 +14,7 @@ namespace BPG.Api.Controllers;
 public class UsersController : BaseApiController
 {
     [HttpGet]
-    [Authorize(Roles = RolePolicies.AdminOrTechnicalManager)]
+    [Authorize(Roles = RolePolicies.UserDirectoryViewers)]
     public async Task<IActionResult> GetUsers([FromQuery] GetUsersQuery query)
     {
         var result = await Mediator.Send(query);

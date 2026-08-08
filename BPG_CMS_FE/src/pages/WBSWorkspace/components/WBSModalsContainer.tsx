@@ -41,7 +41,7 @@ export const WBSModalsContainer = () => {
   } = useWBS();
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
-  const selectedTaskPhase = selectedTask ? phases.find(p => p.id === selectedTask.phaseId) || null : null;
+  const selectedTaskPhase = selectedTask ? phases.find(p => String(p.id).replace('ph-', '') === String(selectedTask.phaseId).replace('ph-', '')) || null : null;
   const selectedTaskHasChildren = !!selectedTask && tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
   const canOpenDailyLogForm = !!selectedTask && !!user && !selectedTaskHasChildren && canCreateDailyLog(selectedTask, user, isPL);
 
@@ -62,8 +62,8 @@ export const WBSModalsContainer = () => {
           isTPKT={isTPKT}
           isPL={isPL}
           onCreateMatReqOpen={(type) => { setIsDetailOpen(false); setCreateMatReqType(type); setIsCreateMatReqOpen(true); }}
-          onObsolete={() => { 
-            setIsDetailOpen(false); 
+          onObsolete={() => {
+            setIsDetailOpen(false);
             if (selectedTask.progress > 0) {
               setIsObsoleteOpen(true);
             } else {
@@ -79,7 +79,7 @@ export const WBSModalsContainer = () => {
         />
       )}
 
-      {isReportIncidentOpen && selectedTask && selectedTaskPhase && project && (
+      {isReportIncidentOpen && selectedTask && project && (
         <ReportIncidentModal
           isOpen={isReportIncidentOpen}
           onClose={() => setIsReportIncidentOpen(false)}
@@ -95,7 +95,7 @@ export const WBSModalsContainer = () => {
           onError={handleError}
         />
       )}
-    
+
       {isObsoleteOpen && selectedTask && (
         <ObsoleteTaskModal
           isOpen={isObsoleteOpen}
@@ -107,7 +107,7 @@ export const WBSModalsContainer = () => {
           }}
         />
       )}
-    
+
       {isAssignOpen && selectedTask && (
         <AssignEngineerModal isOpen={isAssignOpen} onClose={() => setIsAssignOpen(false)} taskId={selectedTask.id} taskName={selectedTask.name} projectId={projectId} onSuccess={handleSuccess} onError={handleError} />
       )}
@@ -208,6 +208,9 @@ export const WBSModalsContainer = () => {
             // Mở rộng sau: fetch lại data
           }}
           onError={handleError}
+          allMaterialRequests={materialRequests}
+          phases={phases}
+          user={user}
         />
       )}
       {/* Create Phase Material Request Modal */}

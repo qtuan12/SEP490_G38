@@ -16,7 +16,7 @@ interface Props {
 }
 
 export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, onError, adjustmentId, adjustmentData }) => {
-  const { canApprove, canManageAccounting } = useProjectAccess(adjustmentData?.projectId);
+  const { canApprove, isTechnicalManager, isPaused } = useProjectAccess(adjustmentData?.projectId);
   const [loading, setLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [mode, setMode] = useState<'view' | 'reject' | 'confirmApprove'>('view');
@@ -53,12 +53,14 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
     }
   }, [isOpen, adjustmentData]);
 
-  const canReview = adjustmentData?.adjustmentType === 'Increase' ? canManageAccounting : canApprove;
+  const isIncrease = adjustmentData?.adjustmentType?.toLowerCase() === 'increase';
+  const canReview = (isIncrease ? isTechnicalManager : canApprove) && !isPaused;
   const isPending = adjustmentData?.status === 'Pending';
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: string, type?: string) => {
+    const isInc = type?.toLowerCase() === 'increase';
     switch (status) {
-      case 'Pending': return 'Chờ duyệt';
+      case 'Pending': return isInc ? 'Chờ phê duyệt' : 'Chờ Giám đốc duyệt';
       case 'Approved': return 'Đã duyệt';
       case 'Rejected': return 'Đã từ chối';
       default: return status;
@@ -178,13 +180,13 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Loại điều chỉnh</span>
-              <strong className={adjustmentData.adjustmentType === 'Increase' ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]'}>
-                {adjustmentData.adjustmentType === 'Increase' ? 'Tăng tồn kho' : 'Giảm tồn kho'}
+              <strong className={isIncrease ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]'}>
+                {isIncrease ? 'Tăng tồn kho' : 'Giảm tồn kho'}
               </strong>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Trạng thái</span>
-              <strong className={getStatusClass(adjustmentData.status)}>{getStatusLabel(adjustmentData.status)}</strong>
+              <strong className={getStatusClass(adjustmentData.status)}>{getStatusLabel(adjustmentData.status, adjustmentData.adjustmentType)}</strong>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Dự án</span>
@@ -285,13 +287,13 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Mã VT</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Tên vật tư</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                    {adjustmentData.adjustmentType === 'Increase' ? 'Tồn kho trước tăng' : 'Tồn kho trước giảm'}
+                    {isIncrease ? 'Tồn kho trước tăng' : 'Tồn kho trước giảm'}
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                    {adjustmentData.adjustmentType === 'Increase' ? 'S.lượng tăng' : 'S.lượng giảm'}
+                    {isIncrease ? 'S.lượng tăng' : 'S.lượng giảm'}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                    {adjustmentData.adjustmentType === 'Increase' ? 'Tồn kho sau tăng' : 'Tồn kho sau giảm'}
+                    {isIncrease ? 'Tồn kho sau tăng' : 'Tồn kho sau giảm'}
                   </th>
                 </tr>
               </thead>
@@ -302,15 +304,15 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
 
                   let stockBeforeStr = '-';
                   let stockAfterStr = '-';
-                  let changeSign = adjustmentData.adjustmentType === 'Increase' ? '+' : '-';
-                  let changeColor = adjustmentData.adjustmentType === 'Increase' ? 'text-[hsl(var(--success))]' : 'text-red-600';
+                  let changeSign = isIncrease ? '+' : '-';
+                  let changeColor = isIncrease ? 'text-[hsl(var(--success))]' : 'text-red-600';
 
                   if (hasInv) {
                     let stockBeforeVal = invItem.quantity;
                     let stockAfterVal = invItem.quantity;
 
                     if (adjustmentData.status === 'Approved') {
-                      if (adjustmentData.adjustmentType === 'Increase') {
+                      if (isIncrease) {
                         stockBeforeVal = invItem.quantity - it.quantity;
                         stockAfterVal = invItem.quantity;
                       } else {
@@ -318,7 +320,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
                         stockAfterVal = invItem.quantity;
                       }
                     } else {
-                      if (adjustmentData.adjustmentType === 'Increase') {
+                      if (isIncrease) {
                         stockBeforeVal = invItem.quantity;
                         stockAfterVal = invItem.quantity + it.quantity;
                       } else {

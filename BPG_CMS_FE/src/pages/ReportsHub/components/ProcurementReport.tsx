@@ -4,6 +4,7 @@ import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ProcurementReportDto } from '../../../services/reportService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatDateOnly, formatPlainDate } from '../../../utils/dateHelpers';
+import { getPOSupplierDisplayName } from '../../../utils/purchaseOrderHelpers';
 
 interface Props {
   projectId: string | null;
@@ -257,7 +258,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                   return (
                     <tr key={po.pOId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-4 py-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">{po.pONumber}</td>
-                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{po.supplierName || '—'}</td>
+                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{getPOSupplierDisplayName(po.supplierName, po.pONumber) || '—'}</td>
                       <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{po.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.orderDate)}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.expectedDeliveryDate)}</td>

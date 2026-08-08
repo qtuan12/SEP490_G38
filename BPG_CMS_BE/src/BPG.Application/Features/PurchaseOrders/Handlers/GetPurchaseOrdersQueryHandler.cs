@@ -111,7 +111,9 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 Status = po.Status,
                 TotalAmount = po.TotalAmount,
                 OrderDate = DateOnly.FromDateTime(po.OrderDate),
-                SupplierName = po.Supplier?.SupplierName ?? "N/A",
+                // Để null khi đơn không có NCC (đơn tự sinh từ phiếu mua khẩn cấp) - FE tự
+                // quyết định nhãn hiển thị. Trả "N/A" ở đây thì FE không phân biệt được.
+                SupplierName = po.Supplier?.SupplierName,
                 Items = po.Items.Select(i =>
                 {
                     receivedQtyMap.TryGetValue((po.POId, i.MaterialId), out var totalReceived);

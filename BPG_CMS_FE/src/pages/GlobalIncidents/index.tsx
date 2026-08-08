@@ -220,7 +220,7 @@ export const GlobalIncidents: React.FC = () => {
 
   const handleSuccess = (msg?: string) => {
     if (msg) {
-      console.log(msg);
+      toast.success(msg);
     }
     loadData();
   };
@@ -262,7 +262,7 @@ export const GlobalIncidents: React.FC = () => {
         return <Badge variant="danger" className="normal-case">Yêu cầu bổ sung</Badge>;
       case 'WaitingReview':
       case 'Assessed':
-        return <Badge variant="info" className="normal-case">Chờ TPKT duyệt</Badge>;
+        return <Badge variant="info" className="normal-case">Chờ phê duyệt</Badge>;
       case 'WaitingStopApproval':
         return <Badge variant="danger" className="normal-case bg-[hsl(0_100%_96%)] text-[hsl(0_92%_50%)]">Chờ duyệt dừng thi công</Badge>;
       case 'WaitingRecoveryPlan':
@@ -272,7 +272,7 @@ export const GlobalIncidents: React.FC = () => {
       case 'WaitingAccountant':
         return <Badge variant="warning" className="normal-case">Chờ Kế toán xác minh</Badge>;
       case 'WaitingDirector':
-        return <Badge variant="warning" className="normal-case">Chờ Giám đốc phê duyệt</Badge>;
+        return <Badge variant="warning" className="normal-case">Chờ Giám đốc duyệt</Badge>;
       case 'Approved':
         if (incidentType === 'InventoryLoss' || incidentType === 'InventoryDamage') {
           return <Badge variant="success" className="normal-case bg-[hsl(var(--success-glow))] text-[hsl(var(--success))]">Chờ GĐ duyệt kho</Badge>;

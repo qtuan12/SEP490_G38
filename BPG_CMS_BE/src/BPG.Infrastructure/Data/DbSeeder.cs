@@ -213,6 +213,7 @@ public static class DbSeeder
                 new SystemConfig { ConfigKey = "NguongTonKhoThap", ConfigValue = "10", DataType = "number", DisplayName = "Ngưỡng tồn kho thấp", Description = "Số lượng tồn kho tối thiểu.", Unit = "đơn vị", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "HanHuyPhieuNgay", ConfigValue = "7", DataType = "number", DisplayName = "Hạn hủy phiếu nhập kho", Description = "Số ngày tối đa kể từ khi tạo phiếu nhập kho mà người dùng có thể hủy phiếu.", Unit = "ngày", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "DailyLogEditWindowHours", ConfigValue = "24", DataType = "number", DisplayName = "Giờ được sửa nhật ký thi công", Description = "Số giờ kể từ lúc tạo mà kỹ sư còn được phép chỉnh sửa nhật ký thi công.", Unit = "giờ", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "DirectPurchasePhaseMaxAmount", ConfigValue = "20000000", DataType = "number", DisplayName = "Hạn mức mua khẩn cấp một giai đoạn", Description = "Tổng giá trị mua khẩn cấp cộng dồn tối đa của một giai đoạn, tính cả phiếu bị từ chối duyệt chi. Đặt 0 để bỏ giới hạn.", Unit = "đ", CreatedAt = DateTime.UtcNow },
                 // Tham số kiểu phần trăm — backend chặn giá trị vượt quá 100 cho kiểu này.
                 new SystemConfig { ConfigKey = "ExpectedDelayPercent", ConfigValue = "10", DataType = "percentage", DisplayName = "Ngưỡng cảnh báo trễ tiến độ", Description = "Phần trăm trễ tiến độ tối đa trước khi hệ thống cảnh báo.", Unit = "%", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "CompanyName", ConfigValue = "BPG", DataType = "string", DisplayName = "Tên công ty", Description = "Tên pháp lý lấy từ nguồn mã số thuế công khai.", CreatedAt = DateTime.UtcNow },
@@ -1299,7 +1300,7 @@ public static class DbSeeder
             RequestId            = mr2.RequestId,
             ProjectId            = project.ProjectId,
             SupplierId           = suppliers.Skip(1).FirstOrDefault()?.SupplierId ?? suppliers.First().SupplierId,
-            PONumber             = $"PO-WAIT-P{project.ProjectId:D3}",
+            PONumber             = $"PO-WAIT-P{project.ProjectId:D3}-{phase.PhaseId:D3}",
             OrderDate            = phaseStart.AddDays(25),
             ExpectedDeliveryDate = DateOnly.FromDateTime(phaseStart.AddDays(40)),
             DeliveryAddress      = project.Address,
@@ -1347,7 +1348,7 @@ public static class DbSeeder
             RequestId = mr2.RequestId,
             ProjectId = project.ProjectId,
             SupplierId = suppliers.Skip(3).FirstOrDefault()?.SupplierId ?? suppliers.First().SupplierId,
-            PONumber = $"PO-SPLIT-P{project.ProjectId:D3}",
+            PONumber = $"PO-SPLIT-P{project.ProjectId:D3}-{phase.PhaseId:D3}",
             OrderDate = phaseStart.AddDays(26),
             ExpectedDeliveryDate = DateOnly.FromDateTime(phaseStart.AddDays(42)),
             Status = PurchaseOrderStatus.Sent,
@@ -1403,7 +1404,7 @@ public static class DbSeeder
             RequestId            = mr3.RequestId,
             ProjectId            = project.ProjectId,
             SupplierId           = suppliers.Skip(2).FirstOrDefault()?.SupplierId ?? suppliers.First().SupplierId,
-            PONumber             = $"PO-PARTIAL-P{project.ProjectId:D3}",
+            PONumber             = $"PO-PARTIAL-P{project.ProjectId:D3}-{phase.PhaseId:D3}",
             OrderDate            = phaseStart.AddDays(12),
             ExpectedDeliveryDate = DateOnly.FromDateTime(phaseStart.AddDays(30)),
             DeliveryAddress      = project.Address,
@@ -2134,11 +2135,20 @@ public static class DbSeeder
         List<MaterialCatalog> catalogs)
     {
         const string marker = "SEED_TEST_INVENTORY_INCIDENT";
-        if (await context.InventoryAdjustments.AnyAsync(a => a.Reason.Contains(marker)) ||
-            await context.Incidents.AnyAsync(i => i.Description.Contains(marker)))
+        var oldAdjustments = await context.InventoryAdjustments.Where(a => a.Reason.Contains(marker)).ToListAsync();
+        if (oldAdjustments.Any())
         {
-            return;
+            var oldAdjIds = oldAdjustments.Select(a => a.AdjustmentId).ToList();
+            var oldItems = await context.AdjustmentItems.Where(i => oldAdjIds.Contains(i.AdjustmentId)).ToListAsync();
+            context.AdjustmentItems.RemoveRange(oldItems);
+            context.InventoryAdjustments.RemoveRange(oldAdjustments);
         }
+        var oldIncidents = await context.Incidents.Where(i => i.Description.Contains(marker)).ToListAsync();
+        if (oldIncidents.Any())
+        {
+            context.Incidents.RemoveRange(oldIncidents);
+        }
+        await context.SaveChangesAsync();
 
         if (!users.TryGetValue("tpkt@bpg.com", out var tpkt) ||
             !users.TryGetValue("ketoan@bpg.com", out var ketoan) ||

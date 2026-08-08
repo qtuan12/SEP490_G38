@@ -29,6 +29,12 @@ public static class RolePolicies
         UserRole.TechnicalManager + "," +
         UserRole.SiteEngineer + "," +
         UserRole.Accountant;
+    /// <summary>
+    /// ProjectViewers cần danh sách người dùng để chọn thành viên/người phụ trách; Admin cần vì
+    /// đây là màn quản trị tài khoản. Admin KHÔNG nằm trong ProjectViewers (không tham gia dự án)
+    /// nên phải cộng thêm ở đây, nếu không Admin sửa/xóa được tài khoản mà không xem được danh sách.
+    /// </summary>
+    public const string UserDirectoryViewers = UserRole.Admin + "," + ProjectViewers;
     public const string SupplierViewers = ProjectViewers;
     public const string SupplierManagers = UserRole.TechnicalManager + "," + UserRole.Accountant;
     public const string Procurement =
@@ -39,7 +45,8 @@ public static class RolePolicies
         UserRole.Admin + "," +
         UserRole.Director + "," +
         UserRole.TechnicalManager + "," +
-        UserRole.Accountant;
+        UserRole.Accountant + "," +
+        UserRole.SiteEngineer;
     public const string MasterData = UserRole.TechnicalManager + "," + UserRole.Accountant;
 }
 

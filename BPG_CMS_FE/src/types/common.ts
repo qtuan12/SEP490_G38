@@ -71,6 +71,7 @@ export interface WBSPhase {
   description?: string;
   sortOrder: number; // display order within project
   status: 'active' | 'frozen'; // frozen after acceptance
+  rawStatus?: string;
   acceptanceComment?: string;
   acceptanceDate?: string;
   revocationComment?: string;
@@ -134,6 +135,8 @@ export interface MaterialRequestItem {
   quantity: number;
   unit: string;
   conversionRate?: number;
+  isOverBOQ?: boolean;
+  explanation?: string;
 }
 
 export interface MaterialRequest {

@@ -73,7 +73,7 @@ const BRANCH_LABELS = {
   inventory: {
     icon: null as any,
     title: 'Nhánh 2 — Sự cố Vật tư Kho',
-    subtitle: 'Mất mát, hư hỏng khi chưa xuất dùng (do PL báo cáo kèm biên bản)',
+    subtitle: 'Mất mát, hư hỏng khi chưa xuất dùng',
     color: 'hsl(210, 70%, 45%)',
     bg: 'hsl(210, 100%, 97%)',
     border: 'hsl(210, 70%, 75%)',
@@ -502,7 +502,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
             )}
             {mutation.isPending
               ? 'Đang lưu...'
-              : '🏗 Lưu & Trình TPKT thẩm định'}
+              : 'Gửi báo cáo'}
           </button>
         </div>
       </form>

@@ -35,6 +35,14 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             if (adjustment == null) throw new NotFoundException(nameof(InventoryAdjustment), request.AdjustmentId);
 
+            var project = await _unitOfWork.Repository<Project>().GetByIdAsync(adjustment.ProjectId);
+            if (project == null) throw new NotFoundException(nameof(Project), adjustment.ProjectId);
+
+            if (project.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án đang tạm dừng, đã đóng hoặc chưa bắt đầu, không thể thực hiện thao tác này.");
+            }
+
             if (adjustment.Status != InventoryAdjustmentStatus.Pending)
                 throw new BusinessException("ERR_INVALID_STATUS", "Phiếu không ở trạng thái chờ duyệt");
 
@@ -42,8 +50,8 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             if (isIncrease)
             {
-                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Accountant))
-                    throw new ForbiddenException("Chỉ Kế toán mới được duyệt phiếu tăng tồn.");
+                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+                    throw new ForbiddenException("Chỉ Trưởng phòng kỹ thuật mới được duyệt phiếu tăng tồn.");
             }
             else
             {
@@ -63,7 +71,11 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 if (!isIncrease)
                 {
                     Incident? rejIncident = null;
-                    if (!string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
+                    if (adjustment.IncidentId.HasValue && adjustment.IncidentId.Value > 0)
+                    {
+                        rejIncident = await _unitOfWork.Repository<Incident>().GetByIdAsync(adjustment.IncidentId.Value);
+                    }
+                    if (rejIncident == null && !string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
                     {
                         var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
                         if (match.Success)
@@ -110,7 +122,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 {
                     var notifTitle = isIncrease ? "Phiếu điều chỉnh tăng tồn bị từ chối" : "Phiếu điều chỉnh giảm tồn bị từ chối";
                     var notifBody = isIncrease
-                        ? $"Phiếu điều chỉnh tăng tồn #{adjustment.AdjustmentId} đã bị Kế toán từ chối. Lý do: {request.RejectedReason}"
+                        ? $"Phiếu điều chỉnh tăng tồn #{adjustment.AdjustmentId} đã bị Trưởng phòng kỹ thuật từ chối. Lý do: {request.RejectedReason}"
                         : $"Phiếu điều chỉnh giảm tồn #{adjustment.AdjustmentId} đã bị Giám đốc từ chối. Lý do: {request.RejectedReason}";
 
                     await _notificationService.SendNotificationAsync(
@@ -149,7 +161,11 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             Incident? appIncident = null;
             if (!isIncrease)
             {
-                if (!string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
+                if (adjustment.IncidentId.HasValue && adjustment.IncidentId.Value > 0)
+                {
+                    appIncident = await _unitOfWork.Repository<Incident>().GetByIdAsync(adjustment.IncidentId.Value);
+                }
+                if (appIncident == null && !string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
                 {
                     var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
                     if (match.Success)
@@ -265,7 +281,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             {
                 var notifTitle = isIncrease ? "Phiếu điều chỉnh tăng tồn được phê duyệt" : "Phiếu điều chỉnh giảm tồn được phê duyệt";
                 var notifBody = isIncrease
-                    ? $"Phiếu điều chỉnh tăng tồn #{adjustment.AdjustmentId} đã được Kế toán phê duyệt. Tồn kho đã được cập nhật."
+                    ? $"Phiếu điều chỉnh tăng tồn #{adjustment.AdjustmentId} đã được Trưởng phòng kỹ thuật phê duyệt. Tồn kho đã được cập nhật."
                     : $"Phiếu điều chỉnh giảm tồn #{adjustment.AdjustmentId} đã được Giám đốc phê duyệt. Tồn kho đã được cập nhật.";
 
                 await _notificationService.SendNotificationAsync(

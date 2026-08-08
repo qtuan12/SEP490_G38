@@ -46,7 +46,7 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {
             var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
-                member => member.ProjectId == task.Phase.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                member => member.ProjectId == task.Phase!.ProjectId && member.UserId == currentUserId && member.IsLeader,
                 ct);
             if (!isProjectLeader)
                 throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được phép khôi phục công việc.");
@@ -57,7 +57,7 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
 
         if (!string.IsNullOrEmpty(task.ObsoleteReason) && (task.ObsoleteReason.Contains("Sự cố khẩn cấp") || task.ObsoleteReason.Contains("Sự cố")))
         {
-            throw new BusinessException("ERR_TASK_CANNOT_BE_RESTORED", "Công việc này đã bị hủy do sự cố khẩn cấp (theo phương án được Giám đốc phê duyệt) và không thể khôi phục.");
+            throw new BusinessException("ERR_TASK_CANNOT_BE_RESTORED", "Công việc này đã bị hủy/thay thế do xử lý sự cố thi công và không thể khôi phục.");
         }
 
         var hasObsoletePredecessor = await _unitOfWork.Repository<TaskDependency>()

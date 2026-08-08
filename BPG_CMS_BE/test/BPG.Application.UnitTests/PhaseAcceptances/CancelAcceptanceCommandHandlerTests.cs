@@ -63,7 +63,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         public async Task UTCID01_Handle_ValidRequest_ShouldCancelAcceptanceSuccessfully()
         {
             // Arrange
-            var phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.Approved };
+            var phase = new Phase { PhaseId = PhaseId, Status = PhaseStatus.Approved, Project = new Project { Status = ProjectStatus.InProgress } };
             var acceptance = new PhaseAcceptance
             {
                 AcceptanceId = AcceptanceId,
@@ -113,7 +113,8 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
             var acceptance = new PhaseAcceptance
             {
                 AcceptanceId = AcceptanceId,
-                IsCancelled = true
+                IsCancelled = true,
+                Phase = new Phase { Project = new Project { Status = ProjectStatus.InProgress } }
             };
             _mockAcceptanceRepo.Setup(r => r.Query()).Returns(new List<PhaseAcceptance> { acceptance }.AsQueryable().BuildMock());
             var command = new CancelAcceptanceCommand(AcceptanceId, "Lý do hủy");
@@ -134,7 +135,8 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
             {
                 AcceptanceId = AcceptanceId,
                 AcceptanceDate = DateTime.Now.AddDays(-8), // 8 days ago (> 7 days)
-                IsCancelled = false
+                IsCancelled = false,
+                Phase = new Phase { Project = new Project { Status = ProjectStatus.InProgress } }
             };
             _mockAcceptanceRepo.Setup(r => r.Query()).Returns(new List<PhaseAcceptance> { acceptance }.AsQueryable().BuildMock());
             var command = new CancelAcceptanceCommand(AcceptanceId, "Hủy quá hạn");
@@ -145,6 +147,28 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
             // Assert
             await act.Should().ThrowAsync<BusinessException>()
                 .WithMessage("Chỉ được phép hủy nghiệm thu trong vòng 7 ngày kể từ lúc lập biên bản.");
+        }
+
+        [Fact]
+        public async Task UTCID05_Handle_ProjectNotActive_ShouldThrowBusinessException()
+        {
+            // Arrange
+            var acceptance = new PhaseAcceptance
+            {
+                AcceptanceId = AcceptanceId,
+                AcceptanceDate = DateTime.Now.AddDays(-2),
+                IsCancelled = false,
+                Phase = new Phase { Project = new Project { Status = ProjectStatus.Paused } } // project is paused
+            };
+            _mockAcceptanceRepo.Setup(r => r.Query()).Returns(new List<PhaseAcceptance> { acceptance }.AsQueryable().BuildMock());
+            var command = new CancelAcceptanceCommand(AcceptanceId, "Hủy");
+
+            // Act
+            Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+            // Assert
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
     }
 }

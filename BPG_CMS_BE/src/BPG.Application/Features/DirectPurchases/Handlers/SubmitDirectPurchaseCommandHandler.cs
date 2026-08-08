@@ -106,6 +106,41 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             if (itemFailures.Count > 0)
                 throw new ValidationException(itemFailures);
 
+            // ---------- Hạn mức tiền mua khẩn cấp cộng dồn theo giai đoạn ----------
+            // Tính lại từ các dòng thay vì tin vào dp.TotalAmount: cột đó chỉ được ghi lại khi
+            // soạn/sửa nháp, còn MaterializeAsync thì cập nhật sau bước này.
+            var totalAmount = dp.Items.Sum(i => i.Quantity * i.UnitPrice);
+
+            var phaseMaxConfig = await _uow.Repository<SystemConfig>().Query()
+                .FirstOrDefaultAsync(x => x.ConfigKey == SystemConfigKeys.DirectPurchasePhaseMaxAmount, ct);
+
+            // 0, giá trị không đọc được, hoặc thiếu hẳn row = không giới hạn. Cấu hình hỏng không
+            // được phép khóa cứng luồng gửi phiếu.
+            var phaseMaxAmount = decimal.TryParse(phaseMaxConfig?.ConfigValue,
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsedPhaseMax) && parsedPhaseMax > 0
+                ? parsedPhaseMax
+                : 0m;
+
+            if (phaseMaxAmount > 0)
+            {
+                // Cộng dồn mọi phiếu đã gửi của giai đoạn, KỂ CẢ phiếu bị Giám đốc từ chối duyệt chi:
+                // phiếu từ chối vẫn đã nhập kho và vẫn tiêu thụ định mức BOQ, nên cũng phải tiêu thụ
+                // hạn mức tiền. Phiếu nháp chưa tính vì chưa phát sinh gì.
+                var spentInPhase = await _uow.Repository<DirectPurchaseRequest>().Query()
+                    .Where(r => r.PhaseId == dp.PhaseId &&
+                                r.DirectPurchaseId != dp.DirectPurchaseId &&
+                                r.Status != DirectPurchaseStatus.Draft &&
+                                !r.IsDeleted)
+                    .SumAsync(r => r.TotalAmount, ct);
+
+                if (spentInPhase + totalAmount > phaseMaxAmount)
+                    throw new BusinessException(ErrorCodes.DpOverPhaseMaxAmount,
+                        $"Giai đoạn '{dp.Phase.Name}' chỉ được mua khẩn cấp tối đa {phaseMaxAmount:N0}đ. " +
+                        $"Đã dùng {spentInPhase:N0}đ, phiếu này {totalAmount:N0}đ, tổng {spentInPhase + totalAmount:N0}đ — vượt {spentInPhase + totalAmount - phaseMaxAmount:N0}đ. " +
+                        "Vui lòng bớt vật tư khỏi phiếu, lập Yêu cầu vật tư theo quy trình thường, hoặc liên hệ Kế toán/Quản trị viên.");
+            }
+
             var project = await _uow.Repository<Project>().Query()
                 .FirstOrDefaultAsync(p => p.ProjectId == dp.ProjectId, ct)
                 ?? throw new NotFoundException("Không tìm thấy dự án của phiếu mua trực tiếp.");
@@ -200,7 +235,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             }
 
             await _realtimeSender.SendToGroupAsync(
-                $"Project_{dp.ProjectId}", "DirectPurchaseUpdated",
+                $"Project_{dp.ProjectId}", HubMethodNames.DirectPurchaseUpdated,
                 new { DirectPurchaseId = dp.DirectPurchaseId }, ct);
 
             var title = anyOverBOQ

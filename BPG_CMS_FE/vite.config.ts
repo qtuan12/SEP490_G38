@@ -9,13 +9,16 @@ export default defineConfig({
   server: {
     // Chỉ có hiệu lực khi biến môi trường VITE_DEV_TUNNEL_HOST được set (dùng bởi
     // test-mobile-pwa.ps1 khi test qua tunnel HTTPS) — mặc định không ảnh hưởng gì.
-    // Cho phép cả dải ".trycloudflare.com" (không khớp đúng 1 subdomain cụ thể) vì
-    // cloudflared quick tunnel sinh domain ngẫu nhiên mỗi lần chạy — khớp cứng 1 domain
-    // rất dễ lệch (dùng nhầm link cũ, tunnel tự nối lại với domain khác...).
     allowedHosts: process.env.VITE_DEV_TUNNEL_HOST ? ['.trycloudflare.com'] : undefined,
+    hmr: process.env.VITE_FORCE_HTTPS
+      ? { protocol: 'wss', host: 'localhost' }
+      : { protocol: 'ws', host: 'localhost' },
   },
   plugins: [
-    basicSsl(),
+    // Mặc định dev chạy HTTP: localhost vốn đã là secure context nên service worker/PWA vẫn
+    // hoạt động, còn test-mobile-pwa.ps1 thì lấy HTTPS từ cloudflared (tunnel trỏ vào
+    // http://localhost:5173). Bật chứng chỉ tự ký chỉ khi thật sự cần: VITE_FORCE_HTTPS=1.
+    ...(process.env.VITE_FORCE_HTTPS ? [basicSsl()] : []),
     tailwindcss(),
     react(),
     VitePWA({

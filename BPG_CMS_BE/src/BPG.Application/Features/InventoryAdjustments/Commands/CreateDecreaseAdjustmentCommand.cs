@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Domain.Constants;
 using FluentValidation;
 using MediatR;
@@ -10,6 +10,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
     {
         public long ProjectId { get; set; }
         public long PhaseId { get; set; } // Decrease requires a Phase
+        public long? IncidentId { get; set; }
         public string Reason { get; set; } = string.Empty;
         public string? Description { get; set; }
         public List<AdjustmentItemRequest> Items { get; set; } = new List<AdjustmentItemRequest>();

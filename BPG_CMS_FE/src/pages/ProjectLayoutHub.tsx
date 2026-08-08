@@ -144,6 +144,9 @@ export const ProjectLayoutHub: React.FC = () => {
     enabled: !!projectId
   });
   const hasApprovedEmergencyIncident = incidents?.some(i => i.isEmergency && i.status === 'Approved') ?? false;
+  const hasUnapprovedEmergencyIncident = incidents?.some(
+    i => i.isEmergency && (i.status === 'WaitingStopApproval' || i.status === 'WaitingRecoveryPlan' || i.status === 'WaitingDirectorApproval')
+  ) ?? false;
 
   const { hasAnyRole } = useAuth();
   const { canViewProject, isLoading: isAccessLoading, canManageExecution, canManageTechnical, canManageAccounting, canViewReports, canApprove } = useProjectAccess(projectId);
@@ -415,7 +418,7 @@ export const ProjectLayoutHub: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>{project.name}</h1>
               {project.status === 'draft' && <span className="badge" style={{ backgroundColor: 'hsl(var(--text-muted))', color: 'white' }}>Bản nháp </span>}
-              {project.status === 'inprogress' && <span className="badge badge-primary">Đang triển khai</span>}
+              {project.status === 'inprogress' && <span className="badge badge-success">Đang chạy</span>}
               {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng </span>}
               {project.status === 'done' && <span className="badge badge-success">Hoàn thành </span>}
               {project.pauseReason && (
@@ -473,6 +476,11 @@ export const ProjectLayoutHub: React.FC = () => {
                       {pauseTime && <span>🕒 Thời gian: {pauseTime}</span>}
                       <span>👤 Thực hiện bởi: <strong>{pauseUser}</strong></span>
                     </div>
+                    {hasUnapprovedEmergencyIncident && (
+                      <div style={{ marginTop: '6px', fontSize: '0.82rem', color: 'hsl(346 84% 35%)', fontWeight: 600 }}>
+                        🔒 Đang chờ Giám đốc phê duyệt phương án khắc phục sự cố khẩn cấp.
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -530,7 +538,7 @@ export const ProjectLayoutHub: React.FC = () => {
                     </button>
                   </>
                 )}
-                {project.status === 'paused' && (
+                {project.status === 'paused' && !hasUnapprovedEmergencyIncident && (
                   <button onClick={() => handleStatusChange('inprogress')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Play size={16} /> Tiếp tục Dự án
                   </button>
@@ -885,7 +893,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </div>
       )}
 
-      {project.status === 'paused' && (
+      {(project.status || '').toLowerCase() === 'paused' && (
         <style>{`
           .paused-project-readonly-container form:not(.search-form):not(.filter-form) {
             pointer-events: none !important;
@@ -918,7 +926,7 @@ export const ProjectLayoutHub: React.FC = () => {
       )}
 
       <div
-        className={`animate-fade-in ${project.status === 'paused' && activeTab !== 'incidents' && !(activeTab === 'wbs' && isTPKT && hasApprovedEmergencyIncident) ? 'paused-project-readonly-container' : ''}`}
+        className={`animate-fade-in ${(project.status || '').toLowerCase() === 'paused' && activeTab !== 'incidents' && !(activeTab === 'wbs' && isTPKT && hasApprovedEmergencyIncident) ? 'paused-project-readonly-container' : ''}`}
         style={{ marginTop: '10px' }}
       >
         {activeTab === 'members' && <ProjectMembers projectId={project.id} />}

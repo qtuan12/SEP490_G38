@@ -10,6 +10,7 @@ namespace BPG.Application.DTOs.Inventory
         public string ProjectName { get; set; } = string.Empty;
         public long PhaseId { get; set; }
         public string PhaseName { get; set; } = string.Empty;
+        public long? IncidentId { get; set; }
         public string AdjustmentType { get; set; } = string.Empty;
         public string Reason { get; set; } = string.Empty;
         public string? Description { get; set; }

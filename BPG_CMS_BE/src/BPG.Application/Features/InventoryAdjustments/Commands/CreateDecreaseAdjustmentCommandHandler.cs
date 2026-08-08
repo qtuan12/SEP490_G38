@@ -32,19 +32,45 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             var project = await _unitOfWork.Repository<Project>().GetByIdAsync(request.ProjectId);
             if (project == null) throw new NotFoundException(nameof(Project), request.ProjectId);
 
+            if (project.Status != ProjectStatus.InProgress)
+            {
+                throw new BusinessException("ERR_PROJECT_NOT_ACTIVE", "Dự án đang tạm dừng, đã đóng hoặc chưa bắt đầu, không thể thực hiện thao tác này.");
+            }
+
             var phase = await _unitOfWork.Repository<Phase>().GetByIdAsync(request.PhaseId);
             if (phase == null) throw new NotFoundException(nameof(Phase), request.PhaseId);
             if (phase.ProjectId != request.ProjectId) throw new BusinessException("ERR_INVALID_PHASE", "Giai đoạn không thuộc dự án này");
+
+            if (request.Items.Select(x => x.MaterialId).Distinct().Count() != request.Items.Count)
+            {
+                throw new BusinessException("ERR_DUPLICATE_MATERIAL", "Danh sách vật tư không được chứa vật tư trùng lặp.");
+            }
 
             var adjustment = new InventoryAdjustment
             {
                 ProjectId = request.ProjectId,
                 PhaseId = request.PhaseId,
+                IncidentId = request.IncidentId,
                 AdjustmentType = InventoryAdjustmentType.Decrease,
                 Reason = request.Reason,
                 Description = request.Description,
-                Status = InventoryAdjustmentStatus.Pending // Accountant creates, must be approved by Director
+                Status = InventoryAdjustmentStatus.Pending, // Accountant creates, must be approved by Director
+                CreatedBy = _currentUserService.UserId
             };
+
+            if (request.IncidentId.HasValue && request.IncidentId.Value > 0)
+            {
+                var incident = await _unitOfWork.Repository<Incident>().GetByIdAsync(request.IncidentId.Value);
+                if (incident != null && (incident.Status == "WaitingAccountant" || incident.Status == "Reported"))
+                {
+                    incident.Status = "WaitingDirector";
+                    if (!string.IsNullOrWhiteSpace(request.Description))
+                    {
+                        incident.HandlingInstruction = request.Description;
+                    }
+                    _unitOfWork.Repository<Incident>().Update(incident);
+                }
+            }
 
             foreach (var item in request.Items)
             {

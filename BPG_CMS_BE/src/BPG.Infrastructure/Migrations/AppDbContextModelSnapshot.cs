@@ -658,6 +658,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long?>("IncidentId")
+                        .HasColumnType("bigint");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -687,6 +690,8 @@ namespace BPG.Infrastructure.Migrations
                     b.HasKey("AdjustmentId");
 
                     b.HasIndex("ApprovedBy");
+
+                    b.HasIndex("IncidentId");
 
                     b.HasIndex("PhaseId");
 
@@ -2633,6 +2638,10 @@ namespace BPG.Infrastructure.Migrations
                         .HasForeignKey("ApprovedBy")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("BPG.Domain.Entities.Incident", "Incident")
+                        .WithMany()
+                        .HasForeignKey("IncidentId");
+
                     b.HasOne("BPG.Domain.Entities.Phase", "Phase")
                         .WithMany()
                         .HasForeignKey("PhaseId")
@@ -2646,6 +2655,8 @@ namespace BPG.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Approver");
+
+                    b.Navigation("Incident");
 
                     b.Navigation("Phase");
 

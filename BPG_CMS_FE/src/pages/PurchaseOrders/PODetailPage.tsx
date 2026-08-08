@@ -10,6 +10,7 @@ import {
   CheckCircle2, Clock,
 } from 'lucide-react';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { getPOSupplierDisplayName } from '../../utils/purchaseOrderHelpers';
 import toast from 'react-hot-toast';
 
 const fmt = (v: number) =>
@@ -337,11 +338,32 @@ export const PODetailPage: React.FC = () => {
         <InfoItem icon={<CalendarDays size={14} />} label="Ngày đơn hàng" value={fmtDate(po.orderDate)} />
         <InfoItem icon={<CalendarDays size={14} />} label="Hạn giao hàng" value={po.expectedDeliveryDate ? fmtDate(po.expectedDeliveryDate) : undefined} />
         <InfoItem icon={<Building2 size={14} />} label="Dự án" value={po.projectName || undefined} />
-        <InfoItem icon={<Building2 size={14} />} label="Nhà cung cấp" value={po.supplierName || undefined} />
+        <InfoItem icon={<Building2 size={14} />} label="Nhà cung cấp" value={getPOSupplierDisplayName(po.supplierName, po.poNumber) || undefined} />
         {po.supplierContactInfo && (
           <InfoItem icon={<FileText size={14} />} label="Liên hệ nhà cung cấp" value={po.supplierContactInfo} />
         )}
         <InfoItem icon={<MapPin size={14} />} label="Địa điểm giao hàng" value={po.deliveryAddress || undefined} />
+        {po.linkedRequests.length > 0 && (
+          <div style={infoRow}>
+            <span style={infoLabel}>Yêu cầu vật tư</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: 'hsl(var(--text-muted))', flexShrink: 0, display: 'inline-flex' }}><Link2 size={14} /></span>
+              {po.linkedRequests.map((req) => (
+                <Link
+                  key={req.requestId}
+                  // Kèm fromPO để đóng modal chi tiết YCVT thì quay lại đúng đơn hàng này,
+                  // thay vì bỏ người dùng lại ở tab yêu cầu vật tư của dự án.
+                  to={`/projects/${req.projectId}?tab=materialrequests&phaseId=${req.phaseId}&requestId=${req.requestId}&fromPO=${po.poId}`}
+                  style={{ ...infoValue, color: 'hsl(var(--primary))', fontWeight: 700, textDecoration: 'none' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; }}
+                >
+                  YCVT-{req.requestId}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
         {po.notes && (
           <div style={{ ...infoRow, gridColumn: '1 / -1' }}>
             <span style={infoLabel}>Ghi chú</span>
@@ -349,41 +371,6 @@ export const PODetailPage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Linked requests */}
-      {po.linkedRequests.length > 0 && (
-        <div className="glass-panel p-6">
-          <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Link2 size={16} style={{ color: 'hsl(var(--primary))' }} />
-            Yêu cầu vật tư liên kết
-          </h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {po.linkedRequests.map((req) => (
-              <Link
-                key={req.requestId}
-                // Kèm fromPO để đóng modal chi tiết YCVT thì quay lại đúng đơn hàng này,
-                // thay vì bỏ người dùng lại ở tab yêu cầu vật tư của dự án.
-                to={`/projects/${req.projectId}?tab=materialrequests&phaseId=${req.phaseId}&requestId=${req.requestId}&fromPO=${po.poId}`}
-                style={{
-                  padding: '6px 12px', borderRadius: 6, fontSize: 13,
-                  border: '1px solid hsl(var(--border))',
-                  background: 'hsl(var(--primary-glow))',
-                  color: 'hsl(var(--text-primary))',
-                  textDecoration: 'none',
-                  display: 'inline-flex', alignItems: 'center',
-                  transition: 'border-color 0.15s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'hsl(var(--primary))'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'hsl(var(--border))'; }}
-              >
-                <span style={{ fontWeight: 700, color: 'hsl(var(--primary))' }}>YCVT-{req.requestId}</span>
-                {req.phaseName && <span style={{ color: 'hsl(var(--text-muted))', marginLeft: 6 }}>— {req.phaseName}</span>}
-                {req.reason && <span style={{ color: 'hsl(var(--text-secondary))', marginLeft: 6 }}>{req.reason}</span>}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Items table */}
       <div className="glass-panel p-6">

@@ -6,6 +6,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
 using Moq;
+using BPG.Domain.Constants;
 using ErrorCodes = BPG.Domain.Constants.ErrorCodes;
 
 namespace BPG.Application.UnitTests.InventoryAdjustments
@@ -59,6 +60,18 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             var exception = await act.Should().ThrowAsync<NotFoundException>();
             exception.Which.ErrorCode.Should().Be("BIZ_001");
             exception.Which.Message.Should().Be("Project với ID [1] không tồn tại.");
+        }
+
+        [Fact]
+        public async Task UTCID01B_Handle_ProjectInactive_ShouldThrowBusinessException()
+        {
+            SetupProject(Project(status: ProjectStatus.Completed));
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+            exception.Which.Message.Should().Be("Dự án đang tạm dừng, đã đóng hoặc chưa bắt đầu, không thể thực hiện thao tác này.");
         }
 
         [Fact]
@@ -135,8 +148,8 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
                 Items = new List<AdjustmentItemRequest> { new() { MaterialId = MaterialId, Quantity = quantity } }
             };
 
-        private static Project Project()
-            => new() { ProjectId = ProjectId, Name = "Project Alpha" };
+        private static Project Project(string status = ProjectStatus.InProgress)
+            => new() { ProjectId = ProjectId, Name = "Project Alpha", Status = status };
 
         private static Phase Phase()
             => new() { PhaseId = PhaseId, ProjectId = ProjectId };

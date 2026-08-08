@@ -28,7 +28,7 @@ interface AdjustmentListProps {
 }
 
 export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => {
-  const { isProjectLeader, canManageAccounting, canApprove } = useProjectAccess(projectId > 0 ? projectId : null);
+  const { isProjectLeader, canManageAccounting, canApprove, isTechnicalManager, isPaused } = useProjectAccess(projectId > 0 ? projectId : null);
 
   const [data, setData] = useState<InventoryAdjustmentDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,7 +131,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     setIsDecreaseOpen(false);
     setReviewId(null);
     if (msg) {
-      console.log(msg);
+      toast.success(msg);
     }
     scheduleRealtimeRefresh();
   };
@@ -140,9 +140,16 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
     toast.error(msg);
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, adjustmentType?: string) => {
+    const isIncrease = adjustmentType?.toLowerCase() === 'increase';
     switch (status) {
-      case 'Pending': return <Badge variant="warning"><Clock size={12} className="mr-1" /> Chờ duyệt</Badge>;
+      case 'Pending':
+        return (
+          <Badge variant="warning">
+            <Clock size={12} className="mr-1" />
+            {isIncrease ? 'Chờ phê duyệt' : 'Chờ Giám đốc duyệt'}
+          </Badge>
+        );
       case 'Approved': return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> Đã duyệt</Badge>;
       case 'Rejected': return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Từ chối</Badge>;
       default: return <Badge variant="default">{status}</Badge>;
@@ -150,8 +157,10 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   };
 
   const getTypeBadge = (type: string) => {
-    if (type === 'Increase') return <span className="text-[hsl(var(--success))] font-medium flex items-center gap-1"><Plus size={14} /> Tăng</span>;
-    if (type === 'Decrease') return <span className="text-[hsl(var(--danger))] font-medium flex items-center gap-1"><Minus size={14} /> Giảm</span>;
+    const isIncrease = type?.toLowerCase() === 'increase';
+    const isDecrease = type?.toLowerCase() === 'decrease';
+    if (isIncrease) return <span className="text-[hsl(var(--success))] font-medium">Tăng</span>;
+    if (isDecrease) return <span className="text-[hsl(var(--danger))] font-medium">Giảm</span>;
     return <span>{type}</span>;
   };
 
@@ -234,22 +243,26 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
                 </td>
               </tr>
             ) : (
-              data.map(item => (
-                <tr key={item.adjustmentId} className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors">
-                  <td className="px-4 py-3 font-medium">ADJ-{item.adjustmentId.toString().padStart(5, '0')}</td>
-                  {projectId === 0 && <td className="px-4 py-3 text-[hsl(var(--primary))] font-semibold truncate max-w-[150px]" title={item.projectName}>{item.projectName || `Dự án #${item.projectId}`}</td>}
-                  <td className="px-4 py-3">{getTypeBadge(item.adjustmentType)}</td>
-                  <td className="px-4 py-3 max-w-xs truncate" title={item.reason}>{item.reason}</td>
-                  <td className="px-4 py-3">{getStatusBadge(item.status)}</td>
-                  <td className="px-4 py-3">{formatDateVN(item.createdAt)}</td>
-                  <td className="px-4 py-3">{item.approverName || '-'}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Button variant="ghost" size="sm" onClick={() => setReviewId(item.adjustmentId)}>
-                      {item.status === 'Pending' && canApprove ? 'Chi tiết' : 'Xem chi tiết'}
-                    </Button>
-                  </td>
-                </tr>
-              ))
+              data.map(item => {
+                const isIncreaseItem = item.adjustmentType?.toLowerCase() === 'increase';
+                const canUserReview = (isIncreaseItem ? isTechnicalManager : canApprove) && !isPaused;
+                return (
+                  <tr key={item.adjustmentId} className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors">
+                    <td className="px-4 py-3 font-medium">ADJ-{item.adjustmentId.toString().padStart(5, '0')}</td>
+                    {projectId === 0 && <td className="px-4 py-3 text-[hsl(var(--primary))] font-semibold truncate max-w-[150px]" title={item.projectName}>{item.projectName || `Dự án #${item.projectId}`}</td>}
+                    <td className="px-4 py-3">{getTypeBadge(item.adjustmentType)}</td>
+                    <td className="px-4 py-3 max-w-xs truncate" title={item.reason}>{item.reason}</td>
+                    <td className="px-4 py-3">{getStatusBadge(item.status, item.adjustmentType)}</td>
+                    <td className="px-4 py-3">{formatDateVN(item.createdAt)}</td>
+                    <td className="px-4 py-3">{item.approverName || '-'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => setReviewId(item.adjustmentId)}>
+                        {item.status === 'Pending' && canUserReview ? 'Duyệt' : 'Xem chi tiết'}
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

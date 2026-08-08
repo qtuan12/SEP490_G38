@@ -3,6 +3,7 @@ using BPG.Application.Features.Auth.Commands;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,8 +28,11 @@ public class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswordComman
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower() && !u.IsDeleted, ct);
 
-        // Không tiết lộ email có tồn tại hay không
-        if (user == null) return;
+        // Báo thẳng email không tồn tại thay vì im lặng: người dùng gõ nhầm email sẽ đứng chờ mã
+        // OTP không bao giờ tới mà không hiểu vì sao. Đổi lại, ai cũng dò được email nào là tài
+        // khoản của hệ thống — chấp nhận vì đây là hệ nội bộ, không cho tự đăng ký.
+        if (user == null)
+            throw new NotFoundException("Email không tồn tại trong hệ thống.");
 
         // Thu hồi các OTP cũ chưa dùng
         var oldTokens = await _uow.Repository<OtpToken>().Query()

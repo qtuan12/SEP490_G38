@@ -49,6 +49,7 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
 
         var incident = await _unitOfWork.Repository<Incident>()
             .Query()
+            .Include(i => i.Project)
             .FirstOrDefaultAsync(i => i.IncidentId == request.IncidentId, cancellationToken);
 
         if (incident == null)
@@ -60,6 +61,32 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
         incident.Status = "Rejected";
         incident.ReviewedBy = currentUserId;
         incident.HandlingInstruction = request.Reason; // Lưu lý do vào HandlingInstruction
+
+        if (incident.IsEmergency && incident.Project != null && incident.Project.Status == ProjectStatus.Paused)
+        {
+            var otherEmergencyIncidents = await _unitOfWork.Repository<Incident>()
+                .Query()
+                .AnyAsync(i => i.ProjectId == incident.ProjectId 
+                    && i.IncidentId != incident.IncidentId
+                    && i.IsEmergency 
+                    && (i.Status == "WaitingStopApproval" || i.Status == "WaitingRecoveryPlan" || i.Status == "WaitingDirectorApproval"), cancellationToken);
+
+            if (!otherEmergencyIncidents)
+            {
+                var currentUser = await _unitOfWork.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+                var currentUserName = currentUser?.FullName ?? "Hệ thống";
+
+                incident.Project.Status = ProjectStatus.InProgress;
+                incident.Project.PauseReason = AppendStatusHistory(
+                    incident.Project.PauseReason,
+                    "resume",
+                    "Khôi phục dự án do Báo cáo sự cố khẩn cấp bị từ chối.",
+                    DateTime.UtcNow,
+                    currentUserName);
+                incident.Project.PausedAt = null;
+                _unitOfWork.Repository<Project>().Update(incident.Project);
+            }
+        }
 
         var isInventoryIncident = incident.IncidentType == "InventoryLoss" || incident.IncidentType == "InventoryDamage";
         if (isInventoryIncident)
@@ -113,5 +140,40 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
             cancellationToken);
 
         return ApiResponse<IncidentDto>.SuccessResult(dto, "Đã bác bỏ sự cố.");
+    }
+
+    private string AppendStatusHistory(string? currentReason, string type, string? reason, DateTime timestamp, string userName)
+    {
+        var item = new
+        {
+            type = type,
+            reason = reason ?? string.Empty,
+            timestamp = timestamp.ToString("o"),
+            userName = userName
+        };
+
+        var newItemJson = System.Text.Json.JsonSerializer.Serialize(item);
+
+        if (string.IsNullOrWhiteSpace(currentReason))
+        {
+            return $"[{newItemJson}]";
+        }
+
+        try
+        {
+            var list = System.Text.Json.JsonSerializer.Deserialize<List<System.Text.Json.Nodes.JsonNode>>(currentReason);
+            if (list != null)
+            {
+                var node = System.Text.Json.Nodes.JsonNode.Parse(newItemJson);
+                if (node != null) list.Add(node);
+                return System.Text.Json.JsonSerializer.Serialize(list);
+            }
+        }
+        catch
+        {
+            // fallback
+        }
+
+        return $"[{newItemJson}]";
     }
 }

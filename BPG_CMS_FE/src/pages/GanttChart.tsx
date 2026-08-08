@@ -272,8 +272,9 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
     gantt.templates.rightside_text = function (_start: any, _end: any, task: any) {
       if (task.type === gantt.config.types.project) return "";
       if (task.rawTask?.status === 'obsolete' || task.status === 'obsolete' || task.custom_class?.includes('obsolete')) {
-        const reason = task.rawTask?.obsoleteReason ? `: ${task.rawTask.obsoleteReason}` : '';
-        return `<span style="color: #ef4444; font-size: 11px; font-weight: 700; margin-left: 8px;">⛔ Đã dừng${reason}</span>`;
+        const isIncident = task.rawTask?.obsoleteReason?.includes('Sự cố');
+        const labelText = isIncident ? '⛔ Đã dừng do sự cố' : '⛔ Đã dừng';
+        return `<span style="color: #ef4444; font-size: 11px; font-weight: 700; margin-left: 8px;">${labelText}</span>`;
       }
       return task.assignedName ? `<span style="color: #64748b; font-size: 11px; margin-left: 8px;">👤 ${task.assignedName}</span>` : "";
     };

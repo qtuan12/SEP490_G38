@@ -34,7 +34,12 @@ export const RoleGroup = {
     Role.Accountant,
     Role.Director,
   ],
-  Reports: [Role.TechnicalManager, Role.Accountant, Role.Director],
+  Reports: [
+    Role.TechnicalManager,
+    Role.SiteEngineer,
+    Role.Accountant,
+    Role.Director,
+  ],
   MasterData: [Role.TechnicalManager, Role.Accountant],
   Execution: [Role.TechnicalManager, Role.SiteEngineer],
   Technical: [Role.TechnicalManager],
@@ -49,6 +54,8 @@ export const normalizeRole = (role: string): UserRole =>
 export const hasAnyRole = (
   roles: readonly string[] | undefined,
   allowedRoles: readonly string[],
-): boolean => roles?.some(
-  (role) => allowedRoles.includes(role.toLowerCase()),
-) ?? false;
+): boolean => {
+  if (!roles || roles.length === 0) return false;
+  const normalizedAllowed = allowedRoles.map((a) => a.toLowerCase());
+  return roles.some((role) => normalizedAllowed.includes(role.toLowerCase()));
+};

@@ -37,11 +37,11 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const isTechManagerOrAdmin = hasAnyRole(RoleGroup.Technical) || hasAnyRole(RoleGroup.AdminOnly);
   const isCurrentProjectLeader = members.some(m => m.userId === user?.id && m.isLeader);
 
-  const isProjectCompleted = ['completed', 'closed', 'done'].includes((projectStatus || '').toLowerCase());
+  const isProjectCompleted = ['completed', 'closed', 'done', 'paused'].includes((projectStatus || '').toLowerCase());
 
-  // TPKT/Admin hoặc Trưởng dự án (Project Leader) của dự án chưa hoàn thành đều có quyền thêm/xóa thành viên kỹ sư.
+  // TPKT/Admin hoặc Trưởng dự án (Project Leader) của dự án chưa hoàn thành/chưa tạm dừng đều có quyền thêm/xóa thành viên kỹ sư.
   const canManageMembers = (isTechManagerOrAdmin || isCurrentProjectLeader) && !isProjectCompleted;
-  // Chỉ TPKT/Admin mới được chỉ định hoặc thay đổi Trưởng nhóm trong dự án chưa hoàn thành
+  // Chỉ TPKT/Admin mới được chỉ định hoặc thay đổi Trưởng nhóm trong dự án chưa hoàn thành/chưa tạm dừng
   const canToggleLeader = isTechManagerOrAdmin && !isProjectCompleted;
   const hasLeader = members.some(m => m.isLeader);
 
