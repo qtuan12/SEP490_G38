@@ -6,6 +6,8 @@ import { getSurplusMaxActionQuantity } from '../../../utils/surplusHelpers';
 import { surplusService } from '../../../services/surplusService';
 import type { ProjectReceivedSupplier, SurplusRequestItem } from '../../../types/surplus';
 
+import toast from 'react-hot-toast';
+
 interface CreateReturnModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -69,6 +71,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
       files.forEach(f => formData.append('Attachments', f));
 
       await surplusService.createReturn(item.surplusRequestItemId, formData);
+      toast.success('Tạo phiếu trả vật tư cho nhà cung cấp thành công!');
       onSuccess();
       onClose();
     } catch (err: any) {

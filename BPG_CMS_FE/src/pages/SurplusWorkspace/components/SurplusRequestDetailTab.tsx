@@ -9,6 +9,7 @@ import {
   getGeneralActionStatusName,
 } from '../../../utils/surplusHelpers';
 import { SurplusActionInlineDetail } from './SurplusActionInlineDetail';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 interface SurplusRequestDetailTabProps {
   surplusRequestId: number;
@@ -36,6 +37,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
   refreshKey,
 }) => {
   const [detail, setDetail] = useState<SurplusRequestDetail | null>(null);
+  const { isProjectActive } = useProjectAccess(detail?.projectId);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
@@ -144,7 +146,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
           const itemBadge = getSurplusItemStatusDetails(item.status);
           const remaining = item.quantity - item.processedQuantity;
           const isExpanded = expandedItemId === item.surplusRequestItemId;
-          const canAct = isProcessing && item.status !== 'Completed' && item.status !== 'Cancelled';
+          const canAct = isProjectActive && isProcessing && item.status !== 'Completed' && item.status !== 'Cancelled';
 
           return (
             <div key={item.surplusRequestItemId} className="border border-slate-200 rounded-xl overflow-hidden">

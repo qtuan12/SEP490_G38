@@ -168,7 +168,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 {
                     string unitName = inv.Material.BaseUnit?.UnitName ?? "đơn vị";
                     throw new BusinessException("ERR_INSUFFICIENT_STOCK", 
-                        $"Không đủ tồn kho khả dụng cho vật tư [{inv.Material.Name}]. Yêu cầu xuất: {requiredBaseQty} {unitName}, tồn khả dụng còn lại: {availableQty} {unitName}.");
+                        $"Không đủ tồn kho khả dụng cho vật tư [{inv.Material.Name}]. Yêu cầu xuất: {requiredBaseQty.ToString("G29")} {unitName}, tồn khả dụng còn lại: {availableQty.ToString("G29")} {unitName}.");
                 }
             }
 
