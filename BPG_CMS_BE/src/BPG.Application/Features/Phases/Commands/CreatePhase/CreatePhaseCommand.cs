@@ -54,8 +54,8 @@ public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, Api
         if (project == null)
             throw new NotFoundException("Project", request.ProjectId);
 
-        if (project.Status != ProjectStatus.InProgress)
-            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+        if (project.Status != ProjectStatus.InProgress && project.Status != ProjectStatus.Draft)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
 
         if (request.StartDate.HasValue && request.StartDate.Value < project.PlannedStart)
         {
