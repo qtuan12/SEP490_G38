@@ -111,7 +111,7 @@ namespace BPG.Application.UnitTests.MaterialIssuances
 
             var exception = await act.Should().ThrowAsync<NotFoundException>();
             exception.Which.ErrorCode.Should().Be("BIZ_001");
-            exception.Which.Message.Should().Be("ProjectTask với ID [100] không tồn tại.");
+            exception.Which.Message.Should().Be("Công việc với ID [100] không tồn tại.");
         }
 
         [Fact]

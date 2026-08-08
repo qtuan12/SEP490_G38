@@ -3,6 +3,8 @@ import { Modal, Button, FormItem } from '../../../components/ui';
 import { inventoryAdjustmentService } from '../../../services/inventoryAdjustmentService';
 import { masterDataService } from '../../../services/masterDataService';
 import { projectService } from '../../../services/projectService';
+import { directPurchaseService } from '../../../services/directPurchaseService';
+import type { PhaseBOQItemDto } from '../../../services/directPurchaseService';
 import type { MaterialCatalog } from '../../../types/masterData';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
@@ -22,6 +24,8 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
   const [phaseId, setPhaseId] = useState<number | ''>('');
+  const [boqMaterials, setBoqMaterials] = useState<PhaseBOQItemDto[]>([]);
+  const [loadingBOQ, setLoadingBOQ] = useState(false);
   const [items, setItems] = useState<{ materialId: number; quantity: number }[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -36,14 +40,42 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       setReason('');
       setDescription('');
       setPhaseId('');
+      setBoqMaterials([]);
       setItems([]);
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!phaseId) {
+      setBoqMaterials([]);
+      setSelectedMaterialId('');
+      return;
+    }
+    setLoadingBOQ(true);
+    setSelectedMaterialId('');
+    directPurchaseService
+      .getPhaseBOQ(projectId, Number(phaseId))
+      .then(res => {
+        setBoqMaterials(res || []);
+      })
+      .catch(err => {
+        console.error('Lỗi khi tải BOQ theo giai đoạn:', err);
+        setBoqMaterials([]);
+      })
+      .finally(() => setLoadingBOQ(false));
+  }, [phaseId, projectId]);
+
   const loadPhases = async () => {
     try {
       const phaseData = await projectService.getPhases(projectId.toString());
-      setPhases(phaseData || []);
+      const activePhases = (phaseData || []).filter((ph: any) => {
+        const s = (ph.status || '').toLowerCase();
+        const rawS = (ph.rawStatus || '').toLowerCase();
+        const progress = ph.progress ?? ph.progressPercent ?? 0;
+        const isFinished = s === 'frozen' || s === 'completed' || s === 'approved' || rawS === 'completed' || rawS === 'approved' || progress >= 100;
+        return !isFinished;
+      });
+      setPhases(activePhases);
     } catch (err) {
       console.error('Failed to load phases:', err);
     }
@@ -75,9 +107,12 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       return;
     }
 
-    const selectedMaterial = materials.find(x => x.materialId === Number(selectedMaterialId));
-    if (selectedMaterial && isDiscreteUnit(selectedMaterial.baseUnitName) && Number(selectedQuantity) % 1 !== 0) {
-      setLocalError(`Đơn vị '${selectedMaterial.baseUnitName}' yêu cầu số lượng phải là số nguyên.`);
+    const selectedBoqMaterial = boqMaterials.find(x => x.materialId === Number(selectedMaterialId));
+    const selectedCatalog = materials.find(x => x.materialId === Number(selectedMaterialId));
+    const unitName = selectedBoqMaterial?.unitName || selectedCatalog?.baseUnitName || '';
+
+    if (unitName && isDiscreteUnit(unitName) && Number(selectedQuantity) % 1 !== 0) {
+      setLocalError(`Đơn vị '${unitName}' yêu cầu số lượng phải là số nguyên.`);
       return;
     }
 
@@ -168,19 +203,32 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         </FormItem>
 
         <div className="border border-gray-800 rounded-2xl p-5 bg-white flex flex-col gap-3">
-          <h4 className="font-semibold text-sm">Thêm vật tư</h4>
+          <h4 className="font-semibold text-sm">Thêm vật tư (Theo BOQ giai đoạn)</h4>
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <FormItem label="Vật tư">
                 <select
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed"
                   value={selectedMaterialId}
                   onChange={e => setSelectedMaterialId(Number(e.target.value))}
+                  disabled={!phaseId || loadingBOQ}
                 >
-                  <option value="">-- Chọn vật tư --</option>
-                  {materials.map(m => (
-                    <option key={m.materialId} value={m.materialId}>{m.code} - {m.name} ({m.baseUnitName})</option>
-                  ))}
+                  {!phaseId ? (
+                    <option value="">-- Vui lòng chọn giai đoạn trước --</option>
+                  ) : loadingBOQ ? (
+                    <option value="">Đang tải vật tư theo BOQ giai đoạn...</option>
+                  ) : boqMaterials.length === 0 ? (
+                    <option value="">Không có vật tư trong BOQ giai đoạn này</option>
+                  ) : (
+                    <>
+                      <option value="">-- Chọn vật tư theo BOQ --</option>
+                      {boqMaterials.map(m => (
+                        <option key={m.materialId} value={m.materialId}>
+                          {m.materialCode} - {m.materialName} ({m.unitName})
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
               </FormItem>
             </div>
@@ -189,8 +237,10 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                 <input
                   type="number"
                   step={(() => {
-                    const sel = materials.find(m => m.materialId === Number(selectedMaterialId));
-                    return sel && isDiscreteUnit(sel.baseUnitName) ? "1" : "any";
+                    const selBoq = boqMaterials.find(m => m.materialId === Number(selectedMaterialId));
+                    const selCat = materials.find(m => m.materialId === Number(selectedMaterialId));
+                    const unitName = selBoq?.unitName || selCat?.baseUnitName || '';
+                    return unitName && isDiscreteUnit(unitName) ? "1" : "any";
                   })()}
                   className="w-full px-3 py-2 border rounded-lg"
                   value={selectedQuantity}
@@ -198,7 +248,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                 />
               </FormItem>
             </div>
-            <Button type="button" variant="secondary" onClick={handleAddItem}>Thêm</Button>
+            <Button type="button" variant="secondary" onClick={handleAddItem} disabled={!selectedMaterialId}>Thêm</Button>
           </div>
 
           {items.length > 0 && (
@@ -213,16 +263,19 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                 </thead>
                 <tbody className="divide-y divide-gray-800">
                   {items.map(it => {
-                    const m = materials.find(x => x.materialId === it.materialId);
+                    const bm = boqMaterials.find(x => x.materialId === it.materialId);
+                    const cm = materials.find(x => x.materialId === it.materialId);
+                    const code = bm?.materialCode || cm?.code || '';
+                    const name = bm?.materialName || cm?.name || '';
                     return (
                       <tr key={it.materialId}>
-                        <td className="px-4 py-3 text-gray-900">{m?.code} - {m?.name}</td>
+                        <td className="px-4 py-3 text-gray-900">{code ? `${code} - ${name}` : `Vật tư #${it.materialId}`}</td>
                         <td className="px-4 py-3 text-right font-semibold text-gray-900">{it.quantity}</td>
                         <td className="px-4 py-3 text-center">
                           <button type="button" className="text-red-500 hover:underline" onClick={() => handleRemoveItem(it.materialId)}>Xóa</button>
                         </td>
                       </tr>
-                    )
+                    );
                   })}
                 </tbody>
               </table>

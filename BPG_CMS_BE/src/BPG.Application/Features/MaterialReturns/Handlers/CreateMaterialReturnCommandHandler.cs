@@ -129,7 +129,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                 if (returnBaseQty > remainingReturnableQty)
                 {
                     throw new BusinessException("ERR_RETURN_EXCEEDS_ISSUED",
-                        $"Số lượng hoàn trả ({returnBaseQty:N3}) vượt quá giới hạn còn lại có thể trả ({remainingReturnableQty:N3}) cho vật tư ID {item.MaterialId} (Tổng xuất: {issuedQty:N3}, Đã trả trước đó: {alreadyReturnedQty:N3}) trong phiếu xuất #{issuance.IssuanceNo}.");
+                        $"Số lượng hoàn trả ({returnBaseQty.ToString("G29")}) vượt quá giới hạn còn lại có thể trả ({remainingReturnableQty.ToString("G29")}) cho vật tư ID {item.MaterialId} (Tổng xuất: {issuedQty.ToString("G29")}, Đã trả trước đó: {alreadyReturnedQty.ToString("G29")}) trong phiếu xuất #{issuance.IssuanceNo}.");
                 }
             }
 

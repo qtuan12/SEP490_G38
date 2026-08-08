@@ -40,11 +40,11 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
   projectName,
 }) => {
   const { connection } = useNotification();
-  const { isProjectLeader, isTechnicalManager, canManageAccounting } = useProjectAccess(projectId);
+  const { isProjectLeader, isTechnicalManager, canManageAccounting, isProjectActive } = useProjectAccess(projectId);
   const isLeader = isProjectLeader;
   const isAccountant = canManageAccounting;
   const isTPKT = isTechnicalManager;
-  const canCreateSurplusRequest = isLeader;
+  const canCreateSurplusRequest = isLeader && isProjectActive;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSurplusRequestId = searchParams.get('surplusRequestId');
@@ -179,18 +179,16 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
           <div className="flex bg-slate-100 p-1 rounded-lg">
             <button
               onClick={() => setActiveTab('outbound')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                activeTab === 'outbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'outbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
             >
               Danh sách đề xuất
             </button>
             {isLeader && (
               <button
                 onClick={() => setActiveTab('inbound')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === 'inbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'inbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
               >
                 Vật tư chuyển đến
               </button>

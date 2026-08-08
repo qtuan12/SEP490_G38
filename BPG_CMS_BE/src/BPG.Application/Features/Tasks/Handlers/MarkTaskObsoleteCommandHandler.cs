@@ -46,7 +46,7 @@ public class MarkTaskObsoleteCommandHandler : IRequestHandler<MarkTaskObsoleteCo
         bool isTechnicalManager = _currentUserService.IsInRole("TechnicalManager");
         bool isProjectLeader = await _unitOfWork.Repository<ProjectMember>()
             .Query()
-            .AnyAsync(m => m.ProjectId == task.Phase.ProjectId
+            .AnyAsync(m => m.ProjectId == task.Phase!.ProjectId
                 && m.UserId == currentUserId
                 && m.IsLeader, ct);
 

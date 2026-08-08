@@ -71,6 +71,7 @@ export interface WBSPhase {
   description?: string;
   sortOrder: number; // display order within project
   status: 'active' | 'frozen'; // frozen after acceptance
+  rawStatus?: string;
   acceptanceComment?: string;
   acceptanceDate?: string;
   revocationComment?: string;

@@ -27,7 +27,7 @@ export const DispatchTransferModal: React.FC<DispatchTransferModalProps> = ({
       const formData = new FormData();
       files.forEach(f => formData.append('Attachments', f));
       const result = await surplusService.dispatchTransfer(surplusTransferId, formData);
-      console.log(result.message || 'Đã xác nhận gửi vật tư điều chuyển.');
+      toast.success(result.message || 'Xác nhận gửi vật tư điều chuyển thành công!');
       onSuccess();
       onClose();
     } catch (err: any) {

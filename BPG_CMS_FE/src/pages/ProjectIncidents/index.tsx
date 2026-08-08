@@ -142,9 +142,9 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
         if (p) inc.phaseName = p.name;
       });
 
-      setIncidents(incList.filter(inc => 
-        inc.incidentType === 'Construction' || 
-        inc.incidentType === 'InventoryLoss' || 
+      setIncidents(incList.filter(inc =>
+        inc.incidentType === 'Construction' ||
+        inc.incidentType === 'InventoryLoss' ||
         inc.incidentType === 'InventoryDamage'
       ));
       setTasks(taskList.filter(t => t.status !== 'obsolete'));
@@ -226,9 +226,9 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
       case 'WaitingAccountant':
         return <Badge variant="warning" className="normal-case">Chờ Kế toán xác minh</Badge>;
       case 'WaitingDirector':
-        return <Badge variant="warning" className="normal-case">Chờ Giám đốc phê duyệt</Badge>;
+        return <Badge variant="warning" className="normal-case">Chờ Giám đốc duyệt</Badge>;
       case 'WaitingReview':
-        return <Badge variant="info" className="normal-case">Chờ TPKT duyệt</Badge>;
+        return <Badge variant="info" className="normal-case">Chờ phê duyệt</Badge>;
       case 'WaitingStopApproval':
         return <Badge variant="danger" className="normal-case bg-[hsl(0_100%_96%)] text-[hsl(0_92%_50%)]">Chờ duyệt dừng thi công</Badge>;
       case 'WaitingRecoveryPlan':
@@ -237,7 +237,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
         return <Badge variant="success" className="normal-case bg-[hsl(142_100%_97%)] text-[hsl(142_71%_40%)]">Chờ Giám đốc duyệt</Badge>;
       case 'Approved':
         if (incidentType === 'InventoryLoss' || incidentType === 'InventoryDamage') {
-          return <Badge variant="success" className="normal-case bg-[hsl(var(--success-glow))] text-[hsl(var(--success))]">Đang trình GĐ duyệt kho</Badge>;
+          return <Badge variant="success" className="normal-case bg-[hsl(var(--success-glow))] text-[hsl(var(--success))]">Đã phê duyệt</Badge>;
         }
         return <Badge variant="success" className="normal-case">Đã phê duyệt</Badge>;
       case 'Rejected':
@@ -273,13 +273,13 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
 
     if (inc.createdAt) {
       const incDate = new Date(inc.createdAt);
-      
+
       if (filterStartDate) {
         const start = new Date(filterStartDate);
         start.setHours(0, 0, 0, 0);
         if (incDate < start) return false;
       }
-      
+
       if (filterEndDate) {
         const end = new Date(filterEndDate);
         end.setHours(23, 59, 59, 999);
@@ -494,10 +494,10 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
                           </td>
                           <td>
                             <strong className="text-[0.88rem]">
-                              {inc.isEmergency 
-                                ? '🛑 Toàn bộ dự án (Yêu cầu dừng)' 
-                                : (inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage') 
-                                  ? (inc.phaseName || 'Giai đoạn') 
+                              {inc.isEmergency
+                                ? '🛑 Toàn bộ dự án (Yêu cầu dừng)'
+                                : (inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage')
+                                  ? (inc.phaseName || 'Giai đoạn')
                                   : (inc.taskName || 'Không xác định')}
                             </strong>
                           </td>
