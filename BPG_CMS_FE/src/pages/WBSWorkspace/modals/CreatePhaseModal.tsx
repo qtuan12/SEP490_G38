@@ -10,7 +10,7 @@ import { Modal } from '../../../../src/components/ui/Modal';
 import type { Project, WBSPhase } from '../../../types/common';
 
 const createPhaseSchema = z.object({
-  name: z.string().min(1, 'Vui lòng nhập tên Phase.'),
+  name: z.string().min(1, 'Vui lòng nhập tên Giai đoạn.'),
   description: z.string().optional(),
   startDate: z.string().min(1, 'Vui lòng chọn ngày bắt đầu.'),
   endDate: z.string().min(1, 'Vui lòng chọn ngày kết thúc.')

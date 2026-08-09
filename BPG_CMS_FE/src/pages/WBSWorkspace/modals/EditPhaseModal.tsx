@@ -10,7 +10,7 @@ import type { WBSPhase, Project } from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 
 const editPhaseSchema = z.object({
-  name: z.string().min(1, 'Vui lòng nhập tên Phase.'),
+  name: z.string().min(1, 'Vui lòng nhập tên Giai đoạn.'),
   description: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional()
@@ -79,13 +79,13 @@ export const EditPhaseModal: React.FC<EditPhaseModalProps> = ({
       });
     },
     onSuccess: (_, variables) => {
-      const msg = `Đã cập nhật Phase: ${variables.name.trim()}`;
+      const msg = `Đã cập nhật Giai đoạn: ${variables.name.trim()}`;
       console.log(msg);
       onSuccess(msg);
       onClose();
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Lỗi khi cập nhật Phase.');
+      toast.error(error.message || 'Lỗi khi cập nhật Giai đoạn.');
     }
   });
 
