@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Loader2, Calendar, CalendarDays, Clock } from 'lucide-react';
+import { Loader2, CalendarDays, Clock } from 'lucide-react';
 import { wbsService } from '../../../../src/services/wbsService';
 import type { ProjectMember, WBSTask, WBSPhase, Project } from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
@@ -83,7 +83,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   members,
   tasks,
   phase,
-  project,
   onSuccess
 }) => {
   const [selectedPredecessorIds, setSelectedPredecessorIds] = useState<string[]>([]);
