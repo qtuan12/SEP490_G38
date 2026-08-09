@@ -4,7 +4,7 @@ import { RoleGroup } from '../../../auth/roles';
 import { useAuth } from '../../../context/AuthContext';
 import type { WBSTask } from '../../../types/common';
 import { TableLoader } from '../../../components/ui';
-import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History } from 'lucide-react';
+import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History, PauseCircle } from 'lucide-react';
 
 
 const getInitials = (name: string) => {
@@ -23,7 +23,7 @@ const getAvatarColor = (userId: string) => {
 export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => { };
   const {
-    phases, tasks, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, project,
+    phases, tasks, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, project, filterAssignee,
     expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -253,6 +253,25 @@ export const WBSTree = () => {
 
                           {showMenu && (
                             <div onClick={e => e.stopPropagation()} className="absolute top-[24px] z-[200] bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-md shadow-lg min-w-[160px] overflow-hidden left-0 sm:left-auto sm:right-0 py-1">
+                              {!isFrozen && canEdit && (
+                                <div
+                                  style={menuItemStyle}
+                                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                  onClick={() => { 
+                                    setPhaseMenuId(null);
+                                    setExpandedPhases(prev => ({ ...prev, [ph.id]: true })); 
+                                    setSelectedPhaseForTask(ph.id); 
+                                    setParentTaskForNew(undefined); 
+                                    setParentDeadlineForNew(ph.deadline); 
+                                    setIsCreateTaskOpen(true); 
+                                  }}
+                                >
+                                  <FilePlus2 size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                  <span>Thêm công việc</span>
+                                </div>
+                              )}
+
                               {!isFrozen && phaseProgress === 0 && canEdit && isTPKT && (
                                 <div
                                   style={menuItemStyle}
@@ -413,7 +432,7 @@ export const WBSTree = () => {
                               cursor: 'pointer',
                               fontSize: '0.85rem',
                               transition: 'all var(--transition-fast)',
-                              opacity: t.status === 'obsolete' ? 0.6 : 1,
+                              opacity: t.status === 'obsolete' ? 0.6 : (filterAssignee && (!t.assignedTo || !t.assignedTo.split(',').includes(filterAssignee)) ? 0.4 : 1),
                               position: 'relative',
                               marginLeft: t.parentTaskId ? '28px' : '0px',
                             }}
@@ -647,7 +666,7 @@ export const WBSTree = () => {
                                           }
                                         }}
                                       >
-                                        <Trash2 size={12} /><span>{t.progress > 0 ? 'Tạm dừng công việc' : 'Xóa Công việc'}</span>
+                                        {t.progress > 0 ? <PauseCircle size={12} /> : <Trash2 size={12} />}<span>{t.progress > 0 ? 'Tạm dừng công việc' : 'Xóa Công việc'}</span>
                                       </div>
                                     )}
                                   </div>

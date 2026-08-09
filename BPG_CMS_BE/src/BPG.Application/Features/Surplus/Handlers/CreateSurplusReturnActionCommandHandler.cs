@@ -142,7 +142,7 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
 
         // Notifications
         var notiTitle = "Thông báo trả vật tư thừa cho NCC";
-        var notiContent = $"Vật tư thừa từ dự án [{item.SurplusRequest.Project.Name}] đã được trả lại NCC (Mã phiếu: {returnRecord.SurplusReturnSupplierId}).";
+        var notiContent = $"Vật tư thừa từ dự án {item.SurplusRequest.Project.Name} đã được trả lại NCC.";
 
         // 1. Notify Accountant
         await _notificationService.SendNotificationToRoleAsync(

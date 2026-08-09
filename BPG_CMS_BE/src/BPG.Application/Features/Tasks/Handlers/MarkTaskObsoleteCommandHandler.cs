@@ -137,7 +137,12 @@ public class MarkTaskObsoleteCommandHandler : IRequestHandler<MarkTaskObsoleteCo
         await CascadeObsoleteDependentTasksAsync(task.TaskId, request.ObsoleteReason, userName, ct);
         await CascadeObsoleteChildTasksAsync(task.TaskId, request.ObsoleteReason, userName, ct);
 
-        return ApiResponse.SuccessResult("Đánh dấu task lỗi thời thành công.");
+        if (task.Phase != null)
+        {
+            await _realtimeSender.SendToGroupAsync($"Project_{task.Phase.ProjectId}", "WbsTreeUpdated", new { TaskId = task.TaskId }, ct);
+        }
+
+        return ApiResponse.SuccessResult("Tạm dừng công việc thành công.");
     }
 
     private async Task CascadeObsoleteDependentTasksAsync(long predecessorTaskId, string obsoleteReason, string userName, CancellationToken ct)

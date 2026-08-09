@@ -65,32 +65,45 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const allPhases = wbsData?.phases || [];
   const allTasks = wbsData?.tasks || [];
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterAssignee, setFilterAssignee] = useState('');
 
   let phases = allPhases;
   let tasks = allTasks;
 
-  if (searchTerm.trim()) {
+  if (searchTerm.trim() || filterAssignee) {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const matchingPhaseIds = new Set<string>();
     const matchingTaskIds = new Set<string>();
 
     allPhases.forEach(p => {
-      if (p.name.toLowerCase().includes(normalizedSearch)) matchingPhaseIds.add(p.id);
+      if (!filterAssignee && p.name.toLowerCase().includes(normalizedSearch)) matchingPhaseIds.add(p.id);
     });
+    
     allTasks.forEach(t => {
-      if (t.name.toLowerCase().includes(normalizedSearch)) matchingTaskIds.add(t.id);
+      const matchesSearch = !normalizedSearch || t.name.toLowerCase().includes(normalizedSearch);
+      const matchesAssignee = !filterAssignee || (t.assignedTo && t.assignedTo.toString() === filterAssignee.toString());
+      if (matchesSearch && matchesAssignee) matchingTaskIds.add(t.id);
     });
 
-    allTasks.forEach(t => {
-      if (matchingTaskIds.has(t.id)) {
-        if (t.parentTaskId) matchingTaskIds.add(t.parentTaskId);
-        matchingPhaseIds.add(t.phaseId);
-      }
-    });
+    let addedNew = true;
+    while(addedNew) {
+       addedNew = false;
+       allTasks.forEach(t => {
+         if (matchingTaskIds.has(t.id)) {
+           if (t.parentTaskId && !matchingTaskIds.has(t.parentTaskId)) {
+              matchingTaskIds.add(t.parentTaskId);
+              addedNew = true;
+           }
+           if (!matchingPhaseIds.has(t.phaseId)) {
+              matchingPhaseIds.add(t.phaseId);
+           }
+         }
+       });
+    }
 
     allPhases.forEach(p => {
       if (matchingPhaseIds.has(p.id)) {
-         if (p.name.toLowerCase().includes(normalizedSearch)) {
+         if (!filterAssignee && p.name.toLowerCase().includes(normalizedSearch)) {
             allTasks.filter(t => t.phaseId === p.id).forEach(t => matchingTaskIds.add(t.id));
          }
       }
@@ -376,7 +389,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const contextValue = {
-    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests,
+    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, filterAssignee,
     expandedPhases, togglePhase, setExpandedPhases,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -442,6 +455,20 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 pr-4 py-1.5 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-[220px]"
               />
+            </div>
+            <div className="relative shrink-0 w-full sm:w-auto">
+              <select
+                value={filterAssignee}
+                onChange={(e) => setFilterAssignee(e.target.value)}
+                className="px-3 py-1.5 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-auto min-w-[180px]"
+              >
+                <option value="">Tất cả người phụ trách</option>
+                {members.map(member => (
+                  <option key={member.userId} value={member.userId}>
+                    {member.userName}
+                  </option>
+                ))}
+              </select>
             </div>
             <button
               onClick={() => navigate(`/projects/${projectId}/drawing`)}

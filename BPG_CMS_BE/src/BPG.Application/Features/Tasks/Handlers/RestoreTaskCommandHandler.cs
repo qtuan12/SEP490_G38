@@ -53,7 +53,7 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
         }
 
         if (task.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
-            return ApiResponse.SuccessResult("Task không ở trạng thái Obsolete để khôi phục.");
+            return ApiResponse.SuccessResult("Công việc không ở trạng thái tạm dừng để khôi phục.");
 
         if (!string.IsNullOrEmpty(task.ObsoleteReason) && (task.ObsoleteReason.Contains("Sự cố khẩn cấp") || task.ObsoleteReason.Contains("Sự cố")))
         {
@@ -96,6 +96,10 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
         _unitOfWork.Repository<ProjectTask>().Update(task);
         await _unitOfWork.SaveChangesAsync(ct);
 
+        // Cascade restore downstream dependent tasks and child tasks
+        await CascadeRestoreDependentTasksAsync(task.TaskId, userName, ct);
+        await CascadeRestoreChildTasksAsync(task.TaskId, userName, ct);
+
         // Cuộn tiến độ
         if (task.ParentTaskId.HasValue)
         {
@@ -121,6 +125,76 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
             await _realtimeSender.SendToGroupAsync($"Project_{task.Phase.ProjectId}", "WbsTreeUpdated", new { TaskId = task.TaskId }, ct);
         }
 
-        return ApiResponse.SuccessResult("Khôi phục task thành công.");
+        return ApiResponse.SuccessResult("Khôi phục công việc thành công.");
+    }
+
+    private async Task CascadeRestoreDependentTasksAsync(long predecessorTaskId, string userName, CancellationToken ct)
+    {
+        var dependentTasks = await _unitOfWork.Repository<TaskDependency>()
+            .Query()
+            .Include(d => d.Task)
+            .ThenInclude(t => t.Assignees)
+            .Where(d => d.PredecessorTaskId == predecessorTaskId && d.Task.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
+            .Select(d => d.Task)
+            .ToListAsync(ct);
+
+        foreach (var dependentTask in dependentTasks)
+        {
+            if (dependentTask != null && !string.IsNullOrEmpty(dependentTask.ObsoleteReason) && dependentTask.ObsoleteReason.StartsWith("Tự động tạm dừng do công việc phụ thuộc bị dừng"))
+            {
+                RestoreSingleTask(dependentTask, userName);
+                _unitOfWork.Repository<ProjectTask>().Update(dependentTask);
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                await CascadeRestoreDependentTasksAsync(dependentTask.TaskId, userName, ct);
+                await CascadeRestoreChildTasksAsync(dependentTask.TaskId, userName, ct);
+            }
+        }
+    }
+
+    private async Task CascadeRestoreChildTasksAsync(long parentTaskId, string userName, CancellationToken ct)
+    {
+        var childTasks = await _unitOfWork.Repository<ProjectTask>()
+            .Query()
+            .Include(t => t.Assignees)
+            .Where(t => t.ParentTaskId == parentTaskId && t.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
+            .ToListAsync(ct);
+
+        foreach (var childTask in childTasks)
+        {
+            if (childTask != null && !string.IsNullOrEmpty(childTask.ObsoleteReason) && childTask.ObsoleteReason.StartsWith("Tự động tạm dừng do công việc cha bị dừng"))
+            {
+                RestoreSingleTask(childTask, userName);
+                _unitOfWork.Repository<ProjectTask>().Update(childTask);
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                await CascadeRestoreDependentTasksAsync(childTask.TaskId, userName, ct);
+                await CascadeRestoreChildTasksAsync(childTask.TaskId, userName, ct);
+            }
+        }
+    }
+
+    private void RestoreSingleTask(ProjectTask task, string userName)
+    {
+        var oldProgress = task.ProgressPercent;
+        if (oldProgress == 100)
+            task.Status = BPG.Domain.Constants.TaskStatus.Completed;
+        else if (oldProgress > 0)
+            task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
+        else
+            task.Status = task.Assignees.Any() ? BPG.Domain.Constants.TaskStatus.Assigned : BPG.Domain.Constants.TaskStatus.New;
+
+        task.ObsoleteReason = null;
+
+        task.ProgressLogs.Add(new TaskProgressLog
+        {
+            OldProgress = oldProgress,
+            NewProgress = oldProgress,
+            UpdateReason = $"Công việc được khôi phục, người khôi phục: hệ thống tự động (do task cha/phụ thuộc được khôi phục).",
+            UpdatedAt = DateTime.UtcNow
+        });
+        
+        // Note: For cascaded restores, we might optionally send notifications.
+        // For simplicity and avoiding spam, we just silently restore them. The realtime update will reflect it.
     }
 }

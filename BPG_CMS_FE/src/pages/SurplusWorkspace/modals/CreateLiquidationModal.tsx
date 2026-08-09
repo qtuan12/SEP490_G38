@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Modal, Button, FormItem, Input } from '../../../components/ui';
 import { AlertCircle } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
@@ -52,6 +53,7 @@ export const CreateLiquidationModal: React.FC<CreateLiquidationModalProps> = ({
       files.forEach(f => formData.append('Attachments', f));
 
       await surplusService.createLiquidation(item.surplusRequestItemId, formData);
+      toast.success('Thanh lý vật tư thành công!');
       onSuccess();
       handleClose();
     } catch (err: any) {

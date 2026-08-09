@@ -69,7 +69,7 @@ public class AssignTaskCommandHandler : IRequestHandler<AssignTaskCommand, ApiRe
             {
                 throw new BusinessException(
                     "ERR_TASK_ASSIGNEE_NOT_PROJECT_MEMBER",
-                    $"Không thể phân công công việc vì người dùng có ID [{string.Join(", ", invalidAssigneeIds)}] không thuộc dự án.");
+                    $"Không thể phân công công việc vì người dùng có ID {string.Join(", ", invalidAssigneeIds)} không thuộc dự án.");
             }
         }
 
