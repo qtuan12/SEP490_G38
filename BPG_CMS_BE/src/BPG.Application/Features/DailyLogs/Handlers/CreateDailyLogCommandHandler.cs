@@ -92,7 +92,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             {
                 if (tempTask.IsLocked)
                 {
-                    throw new BusinessException("ERR_TASK_LOCKED", $"Không thể cập nhật tiến độ vì công việc hoặc cấp cha {tempTask.Name} đã được nghiệm thu và khóa.");
+                    throw new BusinessException("ERR_TASK_LOCKED", $"Không thể cập nhật tiến độ vì công việc hoặc cấp cha [{tempTask.Name}] đã được nghiệm thu và khóa.");
                 }
                 if (tempTask.ParentTaskId.HasValue)
                 {

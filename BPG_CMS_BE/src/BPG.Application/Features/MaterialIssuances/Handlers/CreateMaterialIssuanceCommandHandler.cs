@@ -154,7 +154,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 if (inv.Material.BaseUnit != null && inv.Material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
                 {
                     throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
-                        $"Đơn vị tính '{inv.Material.BaseUnit.UnitName}' của vật tư {inv.Material.Name} yêu cầu số lượng xuất phải là số nguyên.");
+                        $"Đơn vị tính '{inv.Material.BaseUnit.UnitName}' của vật tư [{inv.Material.Name}] yêu cầu số lượng xuất phải là số nguyên.");
                 }
 
                 // Chuyển đổi số lượng xuất ra đơn vị cơ bản
@@ -168,7 +168,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 {
                     string unitName = inv.Material.BaseUnit?.UnitName ?? "đơn vị";
                     throw new BusinessException("ERR_INSUFFICIENT_STOCK", 
-                        $"Không đủ tồn kho khả dụng cho vật tư {inv.Material.Name}. Yêu cầu xuất: {requiredBaseQty.ToString("G29")} {unitName}, tồn khả dụng còn lại: {availableQty.ToString("G29")} {unitName}.");
+                        $"Không đủ tồn kho khả dụng cho vật tư [{inv.Material.Name}]. Yêu cầu xuất: {requiredBaseQty.ToString("G29")} {unitName}, tồn khả dụng còn lại: {availableQty.ToString("G29")} {unitName}.");
                 }
             }
 

@@ -94,12 +94,12 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
                 if (item.Quantity <= 0)
                     itemFailures.Add(new ValidationFailure(
-                        $"Items{index}.Quantity", "Số lượng phải lớn hơn 0.")
+                        $"Items[{index}].Quantity", "Số lượng phải lớn hơn 0.")
                     { ErrorCode = ErrorCodes.DpInvalidQuantity });
 
                 if (item.UnitPrice <= 0)
                     itemFailures.Add(new ValidationFailure(
-                        $"Items{index}.UnitPrice", "Đơn giá phải lớn hơn 0.")
+                        $"Items[{index}].UnitPrice", "Đơn giá phải lớn hơn 0.")
                     { ErrorCode = ErrorCodes.DpInvalidUnitPrice });
             }
 

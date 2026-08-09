@@ -139,7 +139,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
             {
                 // Sinh mã phiếu trả hàng, ví dụ: MR-20240624-A3F8B2
                 var vnNow = VietnamTime.Now;
-                var returnNo = $"MR-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
+                var returnNo = $"PTra-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
                 var materialReturn = new MaterialReturn
                 {

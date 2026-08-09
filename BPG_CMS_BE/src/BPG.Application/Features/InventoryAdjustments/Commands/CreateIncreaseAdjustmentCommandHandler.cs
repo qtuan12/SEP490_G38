@@ -83,7 +83,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 if (material.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
                 {
                     throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
-                        $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư {material.Name} yêu cầu số lượng phải là số nguyên.");
+                        $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng phải là số nguyên.");
                 }
 
                 adjustment.Items.Add(new AdjustmentItem
