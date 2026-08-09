@@ -86,6 +86,22 @@ export const AcceptanceDocument: React.FC<AcceptanceDocumentProps> = ({
 
       <style>
         {`
+          #printable-acceptance-doc p,
+          #printable-acceptance-doc li,
+          #printable-acceptance-doc tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          #printable-acceptance-doc h1,
+          #printable-acceptance-doc h2,
+          #printable-acceptance-doc h3,
+          #printable-acceptance-doc h4,
+          #printable-acceptance-doc h5 {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
           @media print {
             body * {
               visibility: hidden;

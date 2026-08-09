@@ -205,7 +205,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_RETURN_EXCEEDS_ISSUED");
-            exception.Which.Message.Should().Be("Số lượng hoàn trả (15.000) vượt quá giới hạn còn lại có thể trả (10.000) cho vật tư ID 50 (Tổng xuất: 10.000, Đã trả trước đó: 0.000) trong phiếu xuất #PXK-500.");
+            exception.Which.Message.Should().Be("Số lượng hoàn trả (15) vượt quá giới hạn còn lại có thể trả (10) cho vật tư ID 50 (Tổng xuất: 10, Đã trả trước đó: 0) trong phiếu xuất #PXK-500.");
         }
 
         [Fact]
@@ -219,7 +219,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_RETURN_EXCEEDS_ISSUED");
-            exception.Which.Message.Should().Be("Số lượng hoàn trả (5.000) vượt quá giới hạn còn lại có thể trả (4.000) cho vật tư ID 50 (Tổng xuất: 10.000, Đã trả trước đó: 6.000) trong phiếu xuất #PXK-500.");
+            exception.Which.Message.Should().Be("Số lượng hoàn trả (5) vượt quá giới hạn còn lại có thể trả (4) cho vật tư ID 50 (Tổng xuất: 10, Đã trả trước đó: 6) trong phiếu xuất #PXK-500.");
         }
 
         private static CreateMaterialReturnCommand Command(

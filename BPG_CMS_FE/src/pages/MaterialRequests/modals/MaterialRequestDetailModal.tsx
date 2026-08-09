@@ -139,7 +139,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
       case 'approved':
         return <Badge variant="success">Đã phê duyệt</Badge>;
       case 'rejected':
-        return <Badge variant="danger">Bị từ chối</Badge>;
+        return <Badge variant="danger">Từ chối</Badge>;
       case 'cancelled':
         return <Badge variant="default">Đã hủy</Badge>;
       default:

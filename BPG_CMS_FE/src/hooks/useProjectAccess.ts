@@ -10,13 +10,24 @@ export const useProjectAccess = (
   projectId: string | number | null | undefined,
 ) => {
   const { hasAnyRole } = useAuth();
-  const normalizedProjectId = projectId == null ? '' : String(projectId);
+  const normalizedProjectId = projectId == null ? '' : String(projectId).replace(/^p-/, '');
   const query = useQuery({
     queryKey: projectAccessQueryKey(normalizedProjectId),
     queryFn: () => projectService.getMyAccess(normalizedProjectId),
     enabled: normalizedProjectId.length > 0,
     staleTime: 30_000,
   });
+
+  const projectQuery = useQuery({
+    queryKey: ['projectAccessDetail', normalizedProjectId],
+    queryFn: () => projectService.getProjectById(normalizedProjectId),
+    enabled: normalizedProjectId.length > 0,
+    staleTime: 10_000,
+  });
+
+  const projectStatus = (projectQuery.data?.status || '').toLowerCase();
+  const isProjectActive = projectStatus === 'inprogress';
+  const isPaused = projectStatus === 'paused';
 
   const isGlobalAuthority = hasAnyRole([
     Role.Admin,
@@ -32,19 +43,21 @@ export const useProjectAccess = (
   return {
     ...query,
     access: query.data,
+    project: projectQuery.data,
+    projectStatus,
+    isProjectActive,
+    isPaused,
     isGlobalAuthority,
     isProjectMember,
     isProjectLeader,
     isTechnicalManager:
       hasAnyRole(RoleGroup.Technical) || hasAnyRole(RoleGroup.AdminOnly),
     canViewProject,
-    canManageExecution:
-      hasAnyRole(RoleGroup.Execution) || isProjectLeader,
-    canManageTechnical:
-      hasAnyRole(RoleGroup.Technical) || isProjectLeader,
-    canManageAccounting: hasAnyRole(RoleGroup.Accounting),
-    canManageInventory: hasAnyRole(RoleGroup.Inventory),
-    canApprove: hasAnyRole(RoleGroup.Approval),
+    canManageExecution: isProjectActive && (hasAnyRole(RoleGroup.Execution) || isProjectLeader),
+    canManageTechnical: isProjectActive && (hasAnyRole(RoleGroup.Technical) || isProjectLeader),
+    canManageAccounting: isProjectActive && hasAnyRole(RoleGroup.Accounting),
+    canManageInventory: isProjectActive && hasAnyRole(RoleGroup.Inventory),
+    canApprove: isProjectActive && hasAnyRole(RoleGroup.Approval),
     canViewReports: hasAnyRole(RoleGroup.Reports) || isProjectMember,
   };
 };

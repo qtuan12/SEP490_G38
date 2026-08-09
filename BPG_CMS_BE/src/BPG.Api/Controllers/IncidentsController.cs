@@ -40,7 +40,7 @@ public class IncidentsController : BaseApiController
 
     [HttpPut("{id}/confirm")]
     [EnableRateLimiting(RateLimitPolicies.Mutation)]
-    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
+    [Authorize(Roles = RolePolicies.DirectorTechnicalManagerAccountant)]
     public async Task<IActionResult> ConfirmIncident(long id, [FromBody] ConfirmIncidentCommand command, CancellationToken ct)
     {
         if (id != command.IncidentId)
@@ -54,7 +54,7 @@ public class IncidentsController : BaseApiController
 
     [HttpPut("{id}/reject")]
     [EnableRateLimiting(RateLimitPolicies.Mutation)]
-    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
+    [Authorize(Roles = RolePolicies.DirectorTechnicalManagerAccountant)]
     public async Task<IActionResult> RejectIncident(long id, [FromBody] BPG.Application.Features.Incidents.Commands.RejectIncident.RejectIncidentCommand command, CancellationToken ct)
     {
         if (id != command.IncidentId)

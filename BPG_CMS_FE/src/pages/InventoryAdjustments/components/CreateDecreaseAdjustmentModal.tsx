@@ -3,6 +3,7 @@ import { Modal, Button, FormItem } from '../../../components/ui';
 import { inventoryAdjustmentService } from '../../../services/inventoryAdjustmentService';
 import { inventoryService } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
+import { masterDataService } from '../../../services/masterDataService';
 import type { CurrentInventory } from '../../../types/inventory';
 import type { IncidentReport } from '../../../types/common';
 import { incidentService } from '../../../services/incidentService';
@@ -20,13 +21,16 @@ interface Props {
 export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId, incident }) => {
   const [loading, setLoading] = useState(false);
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
+  const [masterMaterials, setMasterMaterials] = useState<any[]>([]);
   const [phases, setPhases] = useState<any[]>([]);
 
-  const [reason, setReason] = useState('Incident');
+  const [reason, setReason] = useState('Cân bằng tồn kho sau kiểm kê định kỳ');
+  const [presetReason, setPresetReason] = useState<string>('Cân bằng tồn kho sau kiểm kê định kỳ');
+  const [customReason, setCustomReason] = useState<string>('');
   const [description, setDescription] = useState('');
   const [phaseId, setPhaseId] = useState<number | ''>(incident ? (incident as any).phaseId || '' : '');
   const [createdAdjustmentId, setCreatedAdjustmentId] = useState<number | null>(null);
-  const [items, setItems] = useState<{ materialId: number; quantity: number }[]>([]);
+  const [items, setItems] = useState<{ materialId: number; quantity: number; fallbackCode?: string; fallbackName?: string; fallbackUnit?: string }[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('');
@@ -38,10 +42,14 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       loadData();
       if (incident) {
         setReason('Xử lý sự cố');
+        setPresetReason('Xử lý sự cố');
+        setCustomReason('');
         setDescription('');
         setPhaseId(incident.phaseId ? Number(incident.phaseId) : '');
       } else {
-        setReason('');
+        setReason('Cân bằng tồn kho sau kiểm kê định kỳ');
+        setPresetReason('Cân bằng tồn kho sau kiểm kê định kỳ');
+        setCustomReason('');
         setDescription('');
         setPhaseId('');
         setItems([]);
@@ -76,30 +84,64 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   const loadData = async () => {
     try {
-      const [invData, phaseData] = await Promise.all([
-        inventoryService.getCurrentInventory(projectId),
-        projectService.getPhases(projectId.toString())
+      const [invData, phaseData, matCatalogRes] = await Promise.all([
+        inventoryService.getCurrentInventory(projectId).catch(() => []),
+        projectService.getPhases(projectId.toString()).catch(() => []),
+        masterDataService.getMaterials({ pageSize: 1000 }).catch(() => ({ items: [] }))
       ]);
-      setInventoryList(invData);
-      setPhases(phaseData || []);
 
-      // Auto-populate items from incident.damageDescription if available
-      if (incident && incident.damageDescription && invData) {
-        const lines = incident.damageDescription.split('\n');
-        const newItems: { materialId: number; quantity: number }[] = [];
+      const catItems = matCatalogRes?.items || [];
+      setInventoryList(invData || []);
+      setMasterMaterials(catItems);
+
+      const activePhases = (phaseData || []).filter((ph: any) => {
+        const s = (ph.status || '').toLowerCase();
+        const rawS = (ph.rawStatus || '').toLowerCase();
+        const progress = ph.progress ?? ph.progressPercent ?? 0;
+        const isFinished = s === 'frozen' || s === 'completed' || s === 'approved' || rawS === 'completed' || rawS === 'approved' || progress >= 100;
+        return !isFinished;
+      });
+      setPhases(activePhases);
+
+      // Auto-populate items from incident description/damageDescription
+      const textToParse = [incident?.damageDescription, incident?.description].filter(Boolean).join('\n');
+      if (incident && textToParse) {
+        const lines = textToParse.split('\n');
+        const newItems: { materialId: number; quantity: number; fallbackCode?: string; fallbackName?: string; fallbackUnit?: string }[] = [];
         for (const line of lines) {
-          if (line.trim().startsWith('|') && !line.includes('Mã vật tư') && !line.includes('---')) {
+          if (line.trim().startsWith('|') && !line.includes('Mã vật tư') && !line.includes('Mã VT') && !line.includes('---')) {
             const parts = line.split('|').map(p => p.trim());
             if (parts.length >= 5) {
               const materialCode = parts[1];
+              const materialName = parts[2];
+              const unitName = parts[3];
               const qtyStr = parts[4].replace(/\*/g, ''); // remove **
               const qty = parseFloat(qtyStr);
 
-              if (materialCode && !isNaN(qty) && qty > 0) {
-                const invItem = invData.find((x: CurrentInventory) => x.materialCode === materialCode);
-                if (invItem) {
-                  if (!newItems.some(x => x.materialId === invItem.materialId)) {
-                    newItems.push({ materialId: invItem.materialId, quantity: qty });
+              if ((materialCode || materialName) && !isNaN(qty) && qty > 0) {
+                // Try to find materialId in inventory
+                const invItem = (invData || []).find((x: CurrentInventory) =>
+                  (materialCode && x.materialCode.toLowerCase() === materialCode.toLowerCase()) ||
+                  (materialName && x.materialName.toLowerCase() === materialName.toLowerCase())
+                );
+
+                // Try to find in master catalog
+                const catItem = catItems.find((x: any) =>
+                  (materialCode && (x.code || x.materialCode)?.toLowerCase() === materialCode.toLowerCase()) ||
+                  (materialName && x.name?.toLowerCase() === materialName.toLowerCase())
+                );
+
+                const foundMatId = invItem?.materialId || catItem?.materialId || (catItem as any)?.id;
+
+                if (foundMatId) {
+                  if (!newItems.some(x => x.materialId === foundMatId)) {
+                    newItems.push({
+                      materialId: foundMatId,
+                      quantity: qty,
+                      fallbackCode: invItem?.materialCode || catItem?.code || (catItem as any)?.materialCode || materialCode,
+                      fallbackName: invItem?.materialName || catItem?.name || materialName,
+                      fallbackUnit: invItem?.unitName || catItem?.baseUnitName || unitName
+                    });
                   }
                 }
               }
@@ -108,8 +150,6 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         }
 
         if (newItems.length > 0) {
-          // If items is empty, populate it automatically. We check items.length to not override user choices if they re-open?
-          // Actually, we should just set it since this runs on load.
           setItems(newItems);
         }
       }
@@ -179,8 +219,9 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         originalIncidentDesc += '\n\n**Hình ảnh đính kèm:**\n' + incident.images.map((url, i) => `![Ảnh ${i + 1}](${url})`).join('\n');
       }
 
+      const actualIncidentId = incident ? (incident.id || (incident as any).incidentId) : null;
       const finalDesc = incident
-        ? `${description}\n\n--- Thông tin sự cố gốc ---\n${originalIncidentDesc}\n\n[System] Liên kết sự cố #${incident.id}`
+        ? `${description}\n\n--- Thông tin sự cố gốc ---\n${originalIncidentDesc}\n\n[System] Liên kết sự cố #${actualIncidentId}`
         : description;
 
       let newAdjustmentId = createdAdjustmentId;
@@ -190,18 +231,26 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
           reason,
           description: finalDesc,
           phaseId: Number(phaseId),
+          incidentId: actualIncidentId ? Number(actualIncidentId) : undefined,
           items
         });
-        newAdjustmentId = (result as any).data || (result as any).id || 1; // store in case confirmIncident fails
+        newAdjustmentId = (result as any).data || (result as any).id || 1;
         setCreatedAdjustmentId(newAdjustmentId);
       }
 
-      if (incident) {
-        await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
-          incidentId: Number(incident.id || (incident as any).incidentId),
-          createReworkTask: false,
-          handlingInstruction: description || 'Kế toán đã xác minh.'
-        });
+      // Nếu có incident, gọi confirmIncident để chuyển trạng thái từ WaitingAccountant → WaitingDirector
+      // Chỉ gọi một lần duy nhất, KHÔNG gọi lại nếu đã tạo phiếu trước đó
+      if (incident && !createdAdjustmentId) {
+        try {
+          await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
+            incidentId: Number(incident.id || (incident as any).incidentId),
+            createReworkTask: false,
+            handlingInstruction: description || 'Kế toán đã xác minh.'
+          });
+        } catch (confirmErr: any) {
+          // Bỏ qua lỗi confirm nếu trạng thái đã chuyển (có thể do race condition)
+          console.warn('[CreateDecreaseAdjustmentModal] confirmIncident error (ignored):', confirmErr?.message);
+        }
       }
 
       onSuccess(createdAdjustmentId ? 'Xác minh thành công' : 'Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt');
@@ -222,13 +271,49 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         )}
 
         <FormItem label="Lý do điều chỉnh (*)">
-          <input
-            type="text"
-            className="w-full px-3 py-2 border rounded-lg"
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-            placeholder="VD: Hư hỏng vật tư do thời tiết..."
-          />
+          {incident ? (
+            <input
+              type="text"
+              className="w-full px-3 py-2 border rounded-lg bg-gray-100 cursor-not-allowed font-medium text-gray-700"
+              value={reason}
+              disabled
+            />
+          ) : (
+            <div className="flex flex-col gap-2">
+              <select
+                className="w-full px-3 py-2 border rounded-lg bg-white font-medium text-gray-800"
+                value={presetReason}
+                onChange={e => {
+                  const val = e.target.value;
+                  setPresetReason(val);
+                  if (val !== 'Khác (Nhập lý do chi tiết)') {
+                    setReason(val);
+                  } else {
+                    setReason(customReason);
+                  }
+                }}
+              >
+                <option value="Cân bằng tồn kho sau kiểm kê định kỳ">Cân bằng tồn kho sau kiểm kê định kỳ</option>
+                <option value="Hao hụt vật tư trong định mức cho phép">Hao hụt vật tư trong định mức cho phép</option>
+                <option value="Xuất hủy vật tư hết hạn / hư hỏng lưu kho">Xuất hủy vật tư hết hạn / hư hỏng lưu kho</option>
+                <option value="Khác (Nhập lý do chi tiết)">Khác (Nhập lý do chi tiết)</option>
+              </select>
+
+              {presetReason === 'Khác (Nhập lý do chi tiết)' && (
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border rounded-lg animate-fade-in"
+                  value={customReason}
+                  onChange={e => {
+                    setCustomReason(e.target.value);
+                    setReason(e.target.value);
+                  }}
+                  placeholder="Nhập lý do chi tiết cụ thể..."
+                  autoFocus
+                />
+              )}
+            </div>
+          )}
         </FormItem>
 
         <FormItem label="Giai đoạn liên quan (*)">
@@ -380,15 +465,20 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
               <tbody className="divide-y divide-gray-800">
                 {items.map(item => {
                   const invItem = inventoryList.find(x => x.materialId === item.materialId);
+                  const catItem = masterMaterials.find(x => x.id === item.materialId);
                   const currentQty = invItem?.quantity ?? 0;
                   const remainingQty = Math.max(0, currentQty - item.quantity);
+                  const matCode = invItem?.materialCode || catItem?.materialCode || item.fallbackCode || '-';
+                  const matName = invItem?.materialName || catItem?.name || item.fallbackName || '-';
+                  const uName = invItem?.unitName || catItem?.baseUnitName || item.fallbackUnit || '';
+
                   return (
                     <tr key={item.materialId}>
-                      <td className="px-4 py-3 text-gray-500">{invItem?.materialCode}</td>
-                      <td className="px-4 py-3 text-gray-900">{invItem?.materialName}</td>
-                      <td className="px-4 py-3 text-center text-gray-700">{currentQty} {invItem?.unitName}</td>
-                      <td className="px-4 py-3 text-center font-semibold text-red-600">-{item.quantity} {invItem?.unitName}</td>
-                      <td className="px-4 py-3 text-center font-bold text-gray-900">{remainingQty} {invItem?.unitName}</td>
+                      <td className="px-4 py-3 text-gray-500">{matCode}</td>
+                      <td className="px-4 py-3 text-gray-900">{matName}</td>
+                      <td className="px-4 py-3 text-center text-gray-700">{currentQty} {uName}</td>
+                      <td className="px-4 py-3 text-center font-semibold text-red-600">-{item.quantity} {uName}</td>
+                      <td className="px-4 py-3 text-center font-bold text-gray-900">{remainingQty} {uName}</td>
                       {!incident && (
                         <td className="px-4 py-3 text-center">
                           <button type="button" className="text-red-500 hover:text-red-700" onClick={() => handleRemoveItem(item.materialId)}>

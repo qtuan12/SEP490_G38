@@ -17,6 +17,7 @@ import {
 import toast from 'react-hot-toast';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../../../constants/realtimeEntities';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 const MATERIAL_ISSUANCE_REALTIME_ENTITIES = RealtimeEntities.inventory.filter(
   entity => [
@@ -52,11 +53,14 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
   isOpen,
   onClose,
   issuanceId,
+  projectId,
   canReturnMaterial = false,
   onSuccess
 }) => {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<MaterialIssuanceDetail | null>(null);
+  const { isProjectActive, canManageInventory } = useProjectAccess(projectId);
+  const allowReturn = (canReturnMaterial || canManageInventory) && isProjectActive;
   const [error, setError] = useState<string | null>(null);
 
   // Return history
@@ -105,7 +109,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         inventoryService.getMaterialIssuanceDetail(issuanceId),
         inventoryService.getMaterialReturns({ issuanceId, pageSize: 100 })
       ]);
-      
+
       setDetail(issuanceData);
       const prevReturns = returnsData.items ?? [];
       setReturns(prevReturns);
@@ -244,8 +248,8 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         }))
       });
 
-      console.log(result.message || 'Đã tạo phiếu hoàn trả vật tư. Tồn kho đã được cập nhật.');
-      
+      toast.success(result.message || 'Tạo phiếu hoàn trả vật tư thành công! Tồn kho đã được cập nhật.');
+
       // Reload history and state
       await fetchDetailAndHistory();
       if (onSuccess) onSuccess();
@@ -286,14 +290,14 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
               Quay lại chi tiết
             </Button>
           ) : (
-            canReturnMaterial ? (
+            allowReturn ? (
               <Button
                 variant="outline"
                 onClick={() => setIsReturning(true)}
                 disabled={loading || !detail || !isAnyItemReturnable}
                 className={`flex items-center gap-1.5 transition-all duration-200
-                  ${isAnyItemReturnable 
-                    ? 'border-amber-500 text-amber-600 hover:bg-amber-50' 
+                  ${isAnyItemReturnable
+                    ? 'border-amber-500 text-amber-600 hover:bg-amber-50'
                     : 'border-slate-200 text-slate-400 cursor-not-allowed'}`}
               >
                 <RotateCcw size={15} />
@@ -335,7 +339,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         </div>
       ) : detail ? (
         <div className={`grid grid-cols-1 ${isReturning ? 'lg:grid-cols-2 gap-6 divide-y lg:divide-y-0 lg:divide-x divide-slate-200' : 'gap-5'} text-left text-sm text-slate-800 transition-all duration-300`}>
-          
+
           {/* ── COLUMN 1: ISSUANCE DETAIL & RETURN HISTORY ── */}
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b border-slate-200 pb-2">
@@ -491,73 +495,73 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
               </div>
 
               <div className="space-y-4">
-                  {/* Lý do hoàn trả */}
-                  <FormItem label="Lý do hoàn trả" required error={reasonError ?? undefined}>
-                    <textarea
-                      rows={2}
-                      placeholder='Ví dụ: "Công nhân thi công thừa, mang trả lại kho"'
-                      value={reason}
-                      onChange={e => { setReason(e.target.value); setReasonError(null); }}
-                      disabled={submittingReturn}
-                      className="block w-full rounded-md shadow-sm sm:text-sm pl-3 pr-3 py-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                    />
-                  </FormItem>
+                {/* Lý do hoàn trả */}
+                <FormItem label="Lý do hoàn trả" required error={reasonError ?? undefined}>
+                  <textarea
+                    rows={2}
+                    placeholder='Ví dụ: "Công nhân thi công thừa, mang trả lại kho"'
+                    value={reason}
+                    onChange={e => { setReason(e.target.value); setReasonError(null); }}
+                    disabled={submittingReturn}
+                    className="block w-full rounded-md shadow-sm sm:text-sm pl-3 pr-3 py-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  />
+                </FormItem>
 
-                  {/* List of items to return */}
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500 font-semibold uppercase">Số lượng hoàn trả thực tế</label>
-                    <div className="rounded-xl border border-slate-200 divide-y divide-slate-200 bg-slate-50 overflow-hidden">
-                      {returnItems.map((item, idx) => {
-                        const isDisable = item.maxReturnableQty <= 0;
-                        if (isDisable) return null; // Only show items that are returnable to keep it basic and easy to use
-                        
-                        return (
-                          <div
-                            key={item.materialId}
-                            className={`p-3 grid grid-cols-[1.5fr_1fr_1.2fr] items-center gap-2.5 text-xs bg-white`}
-                          >
-                            {/* Vật tư & Mã */}
-                            <div>
-                              <p className="font-semibold text-slate-800">{item.materialName}</p>
-                              <span className="text-[10px] text-slate-400 font-mono">{item.materialCode}</span>
-                            </div>
+                {/* List of items to return */}
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-500 font-semibold uppercase">Số lượng hoàn trả thực tế</label>
+                  <div className="rounded-xl border border-slate-200 divide-y divide-slate-200 bg-slate-50 overflow-hidden">
+                    {returnItems.map((item, idx) => {
+                      const isDisable = item.maxReturnableQty <= 0;
+                      if (isDisable) return null; // Only show items that are returnable to keep it basic and easy to use
 
-                            {/* Khả dụng còn lại */}
-                            <div className="text-slate-500">
-                              Tối đa: <span className="font-semibold text-slate-700">{formatQuantity(item.maxReturnableQty)}</span> {item.unitName}
-                            </div>
-
-                            {/* Input số lượng trả */}
-                            <div>
-                              <Input
-                                type="number"
-                                step="any"
-                                disabled={submittingReturn}
-                                placeholder="Nhập..."
-                                value={item.quantity}
-                                onChange={e => handleQtyChange(idx, e.target.value, item.maxReturnableQty)}
-                                error={!!item.error}
-                                className="text-right"
-                              />
-                              {item.error && (
-                                <p className="text-red-600 text-[10px] mt-1 text-right">
-                                  {item.error}
-                                </p>
-                              )}
-                            </div>
+                      return (
+                        <div
+                          key={item.materialId}
+                          className={`p-3 grid grid-cols-[1.5fr_1fr_1.2fr] items-center gap-2.5 text-xs bg-white`}
+                        >
+                          {/* Vật tư & Mã */}
+                          <div>
+                            <p className="font-semibold text-slate-800">{item.materialName}</p>
+                            <span className="text-[10px] text-slate-400 font-mono">{item.materialCode}</span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
 
-                  {/* Return form errors */}
-                  {returnError && (
-                    <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs flex items-center gap-1.5">
-                      <AlertCircle size={14} className="shrink-0" />
-                      <span>{returnError}</span>
-                    </div>
-                  )}
+                          {/* Khả dụng còn lại */}
+                          <div className="text-slate-500">
+                            Tối đa: <span className="font-semibold text-slate-700">{formatQuantity(item.maxReturnableQty)}</span> {item.unitName}
+                          </div>
+
+                          {/* Input số lượng trả */}
+                          <div>
+                            <Input
+                              type="number"
+                              step="any"
+                              disabled={submittingReturn}
+                              placeholder="Nhập..."
+                              value={item.quantity}
+                              onChange={e => handleQtyChange(idx, e.target.value, item.maxReturnableQty)}
+                              error={!!item.error}
+                              className="text-right"
+                            />
+                            {item.error && (
+                              <p className="text-red-600 text-[10px] mt-1 text-right">
+                                {item.error}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Return form errors */}
+                {returnError && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs flex items-center gap-1.5">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{returnError}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

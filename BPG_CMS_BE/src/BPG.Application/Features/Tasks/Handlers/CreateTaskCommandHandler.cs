@@ -44,8 +44,8 @@ public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, ApiRe
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
 
-        if (phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
-            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+        if (phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress && phase.Project.Status != BPG.Domain.Constants.ProjectStatus.Draft)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
 
         if (phase.StartDate.HasValue && request.StartDate < phase.StartDate.Value)
         {

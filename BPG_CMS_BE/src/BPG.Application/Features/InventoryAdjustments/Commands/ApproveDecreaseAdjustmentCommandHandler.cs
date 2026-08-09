@@ -71,7 +71,11 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 if (!isIncrease)
                 {
                     Incident? rejIncident = null;
-                    if (!string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
+                    if (adjustment.IncidentId.HasValue && adjustment.IncidentId.Value > 0)
+                    {
+                        rejIncident = await _unitOfWork.Repository<Incident>().GetByIdAsync(adjustment.IncidentId.Value);
+                    }
+                    if (rejIncident == null && !string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
                     {
                         var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
                         if (match.Success)
@@ -157,7 +161,11 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             Incident? appIncident = null;
             if (!isIncrease)
             {
-                if (!string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
+                if (adjustment.IncidentId.HasValue && adjustment.IncidentId.Value > 0)
+                {
+                    appIncident = await _unitOfWork.Repository<Incident>().GetByIdAsync(adjustment.IncidentId.Value);
+                }
+                if (appIncident == null && !string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
                 {
                     var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
                     if (match.Success)
