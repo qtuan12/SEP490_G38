@@ -156,7 +156,7 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
 
         if (string.IsNullOrWhiteSpace(currentReason))
         {
-            return $"[{newItemJson}]";
+            return $"{newItemJson}";
         }
 
         try
@@ -174,6 +174,6 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
             // fallback
         }
 
-        return $"[{newItemJson}]";
+        return $"{newItemJson}";
     }
 }

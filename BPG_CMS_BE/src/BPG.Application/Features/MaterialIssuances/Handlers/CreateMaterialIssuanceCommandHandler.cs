@@ -129,7 +129,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 {
                     var predecessorNames = string.Join(", ", blockedPredecessors.Select(p => $"'{p.Predecessor?.Name ?? "ID " + p.PredecessorTaskId}'"));
                     throw new BusinessException("ERR_TASK_DEPENDENCY_INCOMPLETE", 
-                        $"Công việc [{task.Name}] chưa được phép tiến hành do các công việc tiền nhiệm ({predecessorNames}) chưa hoàn thành 100%. Vui lòng hoàn thành các công việc tiền nhiệm trước khi xuất dùng vật tư.");
+                        $"Công việc {task.Name} chưa được phép tiến hành do các công việc tiền nhiệm ({predecessorNames}) chưa hoàn thành 100%. Vui lòng hoàn thành các công việc tiền nhiệm trước khi xuất dùng vật tư.");
                 }
             }
 
@@ -176,10 +176,9 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
             await _uow.BeginTransactionAsync(cancellationToken);
             try
             {
-                // Sinh mã phiếu xuất kho chuẩn nghiệp vụ, ví dụ: PXK-20240624-A3F8B2
-                // Dùng giờ Việt Nam để ngày trên mã khớp ngày thực tế trên UI
+                // Sinh mã phiếu xuất kho chuẩn nghiệp vụ, ví dụ: PXu-20240630-A3F8B2
                 var vnNow = VietnamTime.Now;
-                var issuanceNo = $"PXK-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
+                var issuanceNo = $"PXu-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
 
                 var issuance = new MaterialIssuance
                 {
