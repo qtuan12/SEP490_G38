@@ -1,40 +1,13 @@
-using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
+using BPG.Application.Features.Phases.Commands;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
-using FluentValidation;
+using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System.Threading;
-using System.Threading.Tasks;
-using BPG.Domain.Constants;
 
-namespace BPG.Application.Features.Phases.Commands.CreatePhase;
-
-public record CreatePhaseCommand(
-    long ProjectId,
-    string Name,
-    string? Description,
-    int OrderIndex,
-    DateOnly? StartDate,
-    DateOnly? EndDate
-) : IRequest<ApiResponse<long>>
-{
-}
-
-public class CreatePhaseCommandValidator : AbstractValidator<CreatePhaseCommand>
-{
-    public CreatePhaseCommandValidator()
-    {
-        RuleFor(x => x.ProjectId).GreaterThan(0);
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.OrderIndex).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.EndDate)
-            .GreaterThanOrEqualTo(x => x.StartDate)
-            .When(x => x.StartDate.HasValue && x.EndDate.HasValue)
-            .WithMessage("Ngày kết thúc không được nhỏ hơn ngày bắt đầu.");
-    }
-}
+namespace BPG.Application.Features.Phases.Handlers;
 
 public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, ApiResponse<long>>
 {
@@ -61,7 +34,7 @@ public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, Api
         {
             throw new BusinessException("ERR_PHASE_DATE_INVALID", $"Ngày bắt đầu của giai đoạn ({request.StartDate.Value:dd/MM/yyyy}) không được trước ngày bắt đầu của dự án ({project.PlannedStart:dd/MM/yyyy}).");
         }
-        
+
         if (request.EndDate.HasValue && request.EndDate.Value > project.PlannedEnd)
         {
             throw new BusinessException("ERR_PHASE_DATE_INVALID", $"Ngày kết thúc của giai đoạn ({request.EndDate.Value:dd/MM/yyyy}) không được sau ngày kết thúc của dự án ({project.PlannedEnd:dd/MM/yyyy}).");
@@ -75,7 +48,7 @@ public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, Api
             OrderIndex = request.OrderIndex,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
-            Status = BPG.Domain.Constants.PhaseStatus.Draft
+            Status = PhaseStatus.Draft
         };
 
         await _unitOfWork.Repository<Phase>().AddAsync(phase);
@@ -84,4 +57,3 @@ public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, Api
         return ApiResponse<long>.SuccessResult(phase.PhaseId, "Tạo phase thành công.");
     }
 }
-

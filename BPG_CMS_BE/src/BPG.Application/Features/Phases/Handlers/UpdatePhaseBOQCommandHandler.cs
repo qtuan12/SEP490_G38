@@ -1,5 +1,6 @@
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.Features.Phases.Commands;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -12,7 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System;
 
-namespace BPG.Application.Features.Phases.Commands.UpdatePhaseBOQ;
+namespace BPG.Application.Features.Phases.Handlers;
 
 public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQCommand, bool>
 {
