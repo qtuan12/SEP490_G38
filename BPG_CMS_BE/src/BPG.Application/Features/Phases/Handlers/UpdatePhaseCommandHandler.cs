@@ -1,41 +1,13 @@
-using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
+using BPG.Application.Features.Phases.Commands;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
-using FluentValidation;
+using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System.Threading;
-using System.Threading.Tasks;
-using BPG.Domain.Constants;
 
-namespace BPG.Application.Features.Phases.Commands.UpdatePhase;
-
-public record UpdatePhaseCommand(
-    long PhaseId,
-    string Name,
-    string? Description,
-    int OrderIndex,
-    DateOnly? StartDate,
-    DateOnly? EndDate,
-    int Status
-) : IRequest<ApiResponse>
-{
-}
-
-public class UpdatePhaseCommandValidator : AbstractValidator<UpdatePhaseCommand>
-{
-    public UpdatePhaseCommandValidator()
-    {
-        RuleFor(x => x.PhaseId).GreaterThan(0);
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.OrderIndex).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.EndDate)
-            .GreaterThanOrEqualTo(x => x.StartDate)
-            .When(x => x.StartDate.HasValue && x.EndDate.HasValue)
-            .WithMessage("Ngày kết thúc không được nhỏ hơn ngày bắt đầu.");
-    }
-}
+namespace BPG.Application.Features.Phases.Handlers;
 
 public class UpdatePhaseCommandHandler : IRequestHandler<UpdatePhaseCommand, ApiResponse>
 {
@@ -78,4 +50,3 @@ public class UpdatePhaseCommandHandler : IRequestHandler<UpdatePhaseCommand, Api
         return ApiResponse.SuccessResult("Cập nhật phase thành công.");
     }
 }
-

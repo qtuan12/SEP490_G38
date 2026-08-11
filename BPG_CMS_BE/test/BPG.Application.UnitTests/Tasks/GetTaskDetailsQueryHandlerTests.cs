@@ -1,3 +1,4 @@
+using BPG.Application.Features.Tasks.Handlers;
 using BPG.Application.Features.Tasks.Queries.GetTaskDetails;
 using BPG.Application.IRepositories;
 using BPG.Domain.Entities;
