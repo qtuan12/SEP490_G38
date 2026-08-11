@@ -92,6 +92,7 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
         if (isInventoryIncident)
         {
             var adjustment = await _unitOfWork.Repository<InventoryAdjustment>().Query()
+                .Include(a => a.Items)
                 .Where(a => a.ProjectId == incident.ProjectId && a.PhaseId == incident.PhaseId && a.Status == InventoryAdjustmentStatus.Pending)
                 .OrderBy(a => a.AdjustmentId)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -103,6 +104,20 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
                 adjustment.ApprovedBy = currentUserId;
                 adjustment.ApprovedAt = System.DateTime.UtcNow;
                 _unitOfWork.Repository<InventoryAdjustment>().Update(adjustment);
+
+                foreach (var item in adjustment.Items)
+                {
+                    var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
+                        .FirstOrDefaultAsync(
+                            inventory => inventory.ProjectId == adjustment.ProjectId && inventory.MaterialId == item.MaterialId,
+                            cancellationToken);
+                    if (currentInventory != null)
+                    {
+                        currentInventory.ReservedQuantity = System.Math.Max(0, currentInventory.ReservedQuantity - item.Quantity);
+                        currentInventory.LastUpdated = System.DateTime.UtcNow;
+                        _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
+                    }
+                }
             }
         }
 

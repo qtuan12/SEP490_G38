@@ -534,6 +534,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                             }
 
                             currentInventory.Quantity -= item.Quantity;
+                            currentInventory.ReservedQuantity = System.Math.Max(0, currentInventory.ReservedQuantity - item.Quantity);
                             currentInventory.LastUpdated = System.DateTime.UtcNow;
                             _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
 
