@@ -495,7 +495,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       </div>
                       {selectedTask.status !== 'obsolete' && (
                         <button onClick={() => navigate(`/projects/${project?.id}/phases/${selectedTask.phaseId}/acceptance`)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'fit-content', marginTop: '4px', borderColor: 'hsl(var(--success))', color: 'hsl(var(--success))', backgroundColor: 'transparent' }}>
-                          Xem chi tiết & Hủy nghiệm thu
+                          {isTPKT ? 'Xem chi tiết và hủy nghiệm thu' : 'Xem biên bản nghiệm thu'}
                         </button>
                       )}
                     </div>

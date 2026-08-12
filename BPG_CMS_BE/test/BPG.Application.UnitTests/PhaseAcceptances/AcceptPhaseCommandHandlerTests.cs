@@ -236,5 +236,52 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
+
+        [Fact]
+        public async Task UTCID07_Handle_CompletedActiveTaskAndIncompleteObsoleteTask_ShouldAcceptPhaseSuccessfully()
+        {
+            // Arrange
+            var phase = new Phase
+            {
+                PhaseId = PhaseId,
+                ProjectId = ProjectId,
+                Name = "Giai đoạn 1",
+                Status = PhaseStatus.InProgress,
+                Project = new Project { ProjectId = ProjectId, Name = "Dự án A", Status = ProjectStatus.InProgress }
+            };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
+
+            var tasks = new List<ProjectTask>
+            {
+                new()
+                {
+                    PhaseId = PhaseId,
+                    Name = "Công việc còn hiệu lực",
+                    ProgressPercent = 100,
+                    Status = TaskStatus.Completed,
+                    Assignees = new List<TaskAssignee>()
+                },
+                new()
+                {
+                    PhaseId = PhaseId,
+                    Name = "Công việc đã tạm dừng",
+                    ProgressPercent = 20,
+                    Status = TaskStatus.Obsolete,
+                    Assignees = new List<TaskAssignee>()
+                }
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(tasks.AsQueryable().BuildMock());
+            _mockUserRepo.Setup(r => r.GetByIdAsync(CurrentUserId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new User { UserId = CurrentUserId, FullName = "Nguyễn Văn A" });
+
+            // Act
+            var result = await _handler.Handle(
+                new AcceptPhaseCommand(PhaseId, "Nghiệm thu các công việc còn hiệu lực"),
+                CancellationToken.None);
+
+            // Assert
+            result.Should().Be(50);
+        }
+
     }
 }
