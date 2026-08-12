@@ -51,6 +51,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.ExecuteSqlAsync(It.IsAny<FormattableString>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -83,6 +84,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             result.Success.Should().BeTrue();
             result.Data.Should().Be(GeneratedReceiptId);
+            _mockUow.Verify(u => u.ExecuteSqlAsync(It.IsAny<FormattableString>(), It.IsAny<CancellationToken>()), Times.Once);
             result.Message.Should().Be("Tạo phiếu nhập kho thành công.");
         }
 
@@ -300,7 +302,8 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                     MaterialId = materialId,
                     Name = name,
                     BaseUnit = new Unit { UnitId = UnitId, UnitName = "Bag", IsDiscrete = isDiscrete }
-                }
+                },
+                Unit = new Unit { UnitId = UnitId, UnitName = "Bag", IsDiscrete = isDiscrete }
             };
 
         private void SetupTechnicalManager()

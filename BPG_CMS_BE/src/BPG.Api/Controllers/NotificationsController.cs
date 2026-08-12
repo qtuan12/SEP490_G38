@@ -31,6 +31,13 @@ namespace BPG.Api.Controllers
             return ApiPagedOk(result, "Lấy danh sách thông báo thành công");
         }
 
+        [HttpGet("unread-count")]
+        public async Task<IActionResult> GetUnreadCount()
+        {
+            var result = await Mediator.Send(new GetUnreadNotificationCountQuery());
+            return ApiOk(result, "Lấy số thông báo chưa đọc thành công");
+        }
+
         /// <summary>
         /// Đánh dấu một hoặc tất cả thông báo của người dùng hiện tại là đã đọc.
         /// </summary>

@@ -65,8 +65,17 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 query = query.Where(po => po.Status == request.Status);
 
             if (!string.IsNullOrEmpty(request.Search))
-                query = query.Where(po => po.PONumber.Contains(request.Search) ||
-                    (po.Supplier != null && po.Supplier.SupplierName.Contains(request.Search)));
+            {
+                var matchingSupplierIds = await _uow.Repository<Supplier>().Query()
+                    .IgnoreQueryFilters()
+                    .AsNoTracking()
+                    .Where(supplier => supplier.SupplierName.Contains(request.Search))
+                    .Select(supplier => supplier.SupplierId)
+                    .ToListAsync(cancellationToken);
+
+                query = query.Where(po => po.PONumber.Contains(request.Search)
+                    || (po.SupplierId.HasValue && matchingSupplierIds.Contains(po.SupplierId.Value)));
+            }
 
             if (request.OrderDateFrom.HasValue)
             {
@@ -89,6 +98,18 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .ToListAsync(cancellationToken);
 
             var poIds = pos.Select(po => po.POId).ToList();
+            var supplierIds = pos
+                .Where(po => po.SupplierId.HasValue)
+                .Select(po => po.SupplierId!.Value)
+                .Distinct()
+                .ToList();
+            var supplierNames = supplierIds.Count == 0
+                ? new Dictionary<long, string>()
+                : await _uow.Repository<Supplier>().Query()
+                    .IgnoreQueryFilters()
+                    .AsNoTracking()
+                    .Where(supplier => supplierIds.Contains(supplier.SupplierId))
+                    .ToDictionaryAsync(supplier => supplier.SupplierId, supplier => supplier.SupplierName, cancellationToken);
             var receivedQtyMap = new Dictionary<(long POId, long MaterialId), decimal>();
 
             if (poIds.Count != 0)
@@ -113,7 +134,10 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 OrderDate = DateOnly.FromDateTime(po.OrderDate),
                 // Để null khi đơn không có NCC (đơn tự sinh từ phiếu mua khẩn cấp) - FE tự
                 // quyết định nhãn hiển thị. Trả "N/A" ở đây thì FE không phân biệt được.
-                SupplierName = po.Supplier?.SupplierName,
+                SupplierName = po.SupplierId.HasValue
+                    && supplierNames.TryGetValue(po.SupplierId.Value, out var supplierName)
+                        ? supplierName
+                        : null,
                 Items = po.Items.Select(i =>
                 {
                     receivedQtyMap.TryGetValue((po.POId, i.MaterialId), out var totalReceived);

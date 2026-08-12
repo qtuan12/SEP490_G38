@@ -143,6 +143,26 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
 
             var inventoryMap = inventoryList.ToDictionary(ci => ci.MaterialId);
 
+            var alternativeUnitIds = request.Items
+                .Where(item => inventoryMap.TryGetValue(item.MaterialId, out var inventory)
+                    && item.UnitId != inventory.Material.BaseUnitId)
+                .Select(item => item.UnitId)
+                .Distinct()
+                .ToList();
+
+            var conversionMap = alternativeUnitIds.Count == 0
+                ? new Dictionary<(long MaterialId, int UnitId), MaterialConversion>()
+                : await _uow.Repository<MaterialConversion>().Query()
+                    .AsNoTracking()
+                    .Include(conversion => conversion.AlternativeUnit)
+                    .Where(conversion => materialIds.Contains(conversion.MaterialId)
+                        && alternativeUnitIds.Contains(conversion.AlternativeUnitId))
+                    .ToDictionaryAsync(
+                        conversion => (conversion.MaterialId, conversion.AlternativeUnitId),
+                        cancellationToken);
+
+            var resolvedItems = new Dictionary<long, (int UnitId, decimal ConversionRate, BPG.Domain.Entities.Unit Unit)>();
+
             foreach (var item in request.Items)
             {
                 if (!inventoryMap.TryGetValue(item.MaterialId, out var inv))
@@ -151,15 +171,35 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                         $"Vật tư ID {item.MaterialId} không tồn tại trong kho của dự án.");
                 }
 
-                if (inv.Material.BaseUnit != null && inv.Material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                BPG.Domain.Entities.Unit selectedUnit;
+                decimal conversionRate;
+                if (item.UnitId == inv.Material.BaseUnitId)
+                {
+                    selectedUnit = inv.Material.BaseUnit
+                        ?? throw new BusinessException("ERR_INVALID_UNIT", $"Material [{inv.Material.Name}] does not have a base unit configured.");
+                    conversionRate = 1m;
+                }
+                else if (conversionMap.TryGetValue((item.MaterialId, item.UnitId), out var conversion)
+                    && conversion.ConversionRate > 0)
+                {
+                    selectedUnit = conversion.AlternativeUnit;
+                    conversionRate = conversion.ConversionRate;
+                }
+                else
+                {
+                    throw new BusinessException("ERR_INVALID_UNIT",
+                        $"Unit ID {item.UnitId} is not valid for material [{inv.Material.Name}].");
+                }
+
+                if (selectedUnit.IsDiscrete && item.Quantity % 1 != 0)
                 {
                     throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
-                        $"Đơn vị tính '{inv.Material.BaseUnit.UnitName}' của vật tư [{inv.Material.Name}] yêu cầu số lượng xuất phải là số nguyên.");
+                        $"Đơn vị tính '{selectedUnit.UnitName}' của vật tư [{inv.Material.Name}] yêu cầu số lượng xuất phải là số nguyên.");
                 }
 
                 // Chuyển đổi số lượng xuất ra đơn vị cơ bản
-                decimal conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1;
                 decimal requiredBaseQty = item.Quantity / conversionRate;
+                resolvedItems[item.MaterialId] = (item.UnitId, conversionRate, selectedUnit);
 
                 // Tồn kho khả dụng = Số lượng tồn - Số lượng đóng băng
                 decimal availableQty = inv.Quantity - inv.ReservedQuantity;
@@ -196,15 +236,15 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
 
                 foreach (var item in request.Items)
                 {
-                    var inv = inventoryMap[item.MaterialId];
-                    decimal conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1;
+                    var resolvedItem = resolvedItems[item.MaterialId];
+                    decimal conversionRate = resolvedItem.ConversionRate;
                     decimal baseQty = item.Quantity / conversionRate;
 
                     var issuanceItem = new MaterialIssuanceItem
                     {
                         MaterialIssuanceId = issuance.MaterialIssuanceId,
                         MaterialId = item.MaterialId,
-                        UnitId = item.UnitId,
+                        UnitId = resolvedItem.UnitId,
                         Quantity = item.Quantity,
                         ConversionRate = conversionRate
                     };

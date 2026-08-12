@@ -64,16 +64,48 @@ namespace BPG.Application.Features.Inventory.Handlers
                 .Select(g => new { g.Key.MaterialId, g.Key.PhaseId, TotalUsed = g.Sum(x => x.BaseQty) })
                 .ToListAsync(cancellationToken);
 
-            // Fetch last supplier name per material
-            var lastSuppliers = await _uow.Repository<PurchaseOrderItem>().Query()
-                .Where(poi => poi.PurchaseOrder!.Request!.Phase!.ProjectId == request.ProjectId && poi.PurchaseOrder!.SupplierId != null)
-                .OrderByDescending(poi => poi.PurchaseOrder!.OrderDate)
-                .Select(poi => new { poi.MaterialId, poi.PurchaseOrder!.Supplier!.SupplierName })
+            // The latest supplier comes from actual approved receipts, not merely ordered or cancelled POs.
+            var latestReceiptSources = await _uow.Repository<GoodsReceiptItem>().Query()
+                .AsNoTracking()
+                .Where(item => item.Receipt.PurchaseOrder.ProjectId == request.ProjectId
+                    && item.Receipt.Status == GoodsReceiptStatus.Approved)
+                .OrderByDescending(item => item.Receipt.CreatedAt)
+                .Select(item => new
+                {
+                    item.MaterialId,
+                    item.Receipt.PurchaseOrder.SupplierId,
+                    IsDirectPurchase = item.Receipt.PurchaseOrder.PONumber.StartsWith("DP-PO-")
+                })
                 .ToListAsync(cancellationToken);
 
-            var supplierMap = lastSuppliers
-                .GroupBy(x => x.MaterialId)
-                .ToDictionary(g => g.Key, g => g.First().SupplierName);
+            var supplierIds = latestReceiptSources
+                .Where(source => source.SupplierId.HasValue)
+                .Select(source => source.SupplierId!.Value)
+                .Distinct()
+                .ToList();
+            var supplierNames = supplierIds.Count == 0
+                ? new Dictionary<long, string>()
+                : await _uow.Repository<Supplier>().Query()
+                    .IgnoreQueryFilters()
+                    .AsNoTracking()
+                    .Where(supplier => supplierIds.Contains(supplier.SupplierId))
+                    .ToDictionaryAsync(supplier => supplier.SupplierId, supplier => supplier.SupplierName, cancellationToken);
+
+            var supplierMap = latestReceiptSources
+                .GroupBy(source => source.MaterialId)
+                .ToDictionary(
+                    group => group.Key,
+                    group =>
+                    {
+                        var source = group.First();
+                        if (source.SupplierId.HasValue
+                            && supplierNames.TryGetValue(source.SupplierId.Value, out var supplierName))
+                        {
+                            return supplierName;
+                        }
+
+                        return source.IsDirectPurchase ? "Mua trực tiếp" : "Chưa xác định";
+                    });
 
             var inventoryDb = await _uow.Repository<CurrentInventory>().Query()
                 .Include(ci => ci.Material)
