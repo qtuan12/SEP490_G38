@@ -40,6 +40,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [hasEmergencyUnread, setHasEmergencyUnread] = useState(false);
 
   const connectionRef = useRef<HubConnection | null>(null);
+  const notificationIdsRef = useRef<Set<number>>(new Set());
   const pendingChangedEntitiesRef = useRef(new Set<string>());
   const pendingChangedAtRef = useRef<string | undefined>(undefined);
   const pendingRefreshAllRef = useRef(false);
@@ -109,6 +110,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // ... code cũ giữ nguyên (fetchNotifications, markAsRead, markAllAsRead)...
 
 
+  const refreshUnreadCount = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      setUnreadCount(await notificationService.getUnreadCount());
+    } catch (error) {
+      console.error('Lỗi khi lấy số thông báo chưa đọc:', error);
+    }
+  }, [isAuthenticated]);
+
   // Lấy danh sách thông báo
   const fetchNotifications = useCallback(async (page: number = 1, size: number = 10) => {
     if (!isAuthenticated) return;
@@ -116,9 +126,20 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       const result = await notificationService.getNotifications(page, size);
 
-      setNotifications(result.items);
+      setNotifications(previous => {
+        const byId = new Map(result.items.map(notification => [notification.notificationId, notification]));
+        previous.forEach(notification => {
+          if (!byId.has(notification.notificationId)) {
+            byId.set(notification.notificationId, notification);
+          }
+        });
+        const merged = Array.from(byId.values())
+          .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+        notificationIdsRef.current = new Set(merged.map(notification => notification.notificationId));
+        return merged;
+      });
       setTotalCount(result.totalCount);
-      setUnreadCount(result.items.filter(n => !n.isRead).length);
+      await refreshUnreadCount();
       // Kiểm tra nếu có thông báo khẩn cấp chưa đọc
       setHasEmergencyUnread(result.items.some(n => !n.isRead && n.notificationType === 'EmergencyStop'));
     } catch (error) {
@@ -126,7 +147,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, refreshUnreadCount]);
 
   // Đánh dấu 1 thông báo là đã đọc
   const markAsRead = async (notificationId: number, showToast: boolean = true) => {
@@ -138,7 +159,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setHasEmergencyUnread(updated.some(n => !n.isRead && n.notificationType === 'EmergencyStop'));
         return updated;
       });
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      await refreshUnreadCount();
       if (showToast) {
         toast.success('Đã đánh dấu thông báo là đã đọc.');
       }
@@ -170,6 +191,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       fetchNotifications(1, 20);
     } else {
       setNotifications([]);
+      notificationIdsRef.current.clear();
       setUnreadCount(0);
       setHasEmergencyUnread(false);
     }
@@ -201,8 +223,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     connection.on('ReceiveNotification', (noti: Notification) => {
       console.log('Nhận thông báo realtime:', noti);
+      if (notificationIdsRef.current.has(noti.notificationId)) return;
+
+      notificationIdsRef.current.add(noti.notificationId);
       setNotifications(prev => [noti, ...prev]);
-      setUnreadCount(prev => prev + 1);
+      setTotalCount(prev => prev + 1);
+      void refreshUnreadCount();
 
       if (noti.notificationType === 'EmergencyStop') {
         // Cập nhật trạng thái khẩn cấp — chuông đỏ nhấp nháy trên header
@@ -277,7 +303,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           }
         });
     };
-  }, [isAuthenticated, token, fetchNotifications, scheduleDataRefresh]);
+  }, [isAuthenticated, token, fetchNotifications, refreshUnreadCount, scheduleDataRefresh]);
 
   return (
     <NotificationContext.Provider

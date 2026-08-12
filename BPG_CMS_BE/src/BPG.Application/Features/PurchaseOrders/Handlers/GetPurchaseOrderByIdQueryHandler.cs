@@ -60,6 +60,13 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .GroupBy(x => x.MaterialId)
                 .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
 
+            var historicalSupplier = po.SupplierId.HasValue
+                ? await _uow.Repository<Supplier>().Query()
+                    .IgnoreQueryFilters()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(supplier => supplier.SupplierId == po.SupplierId.Value, cancellationToken)
+                : null;
+
             var dto = new PurchaseOrderDetailDto
             {
                 POId = po.POId,
@@ -77,8 +84,8 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 ApprovalNote = po.ApprovalNote,
                 RejectedReason = po.RejectedReason,
                 SupplierId = po.SupplierId,
-                SupplierName = po.Supplier?.SupplierName ?? string.Empty,
-                SupplierContactInfo = po.Supplier?.ContactInfo,
+                SupplierName = historicalSupplier?.SupplierName ?? string.Empty,
+                SupplierContactInfo = historicalSupplier?.ContactInfo,
                 ProjectId = po.ProjectId,
                 ProjectName = po.Project?.Name ?? string.Empty,
                 Items = po.Items.Select(i =>

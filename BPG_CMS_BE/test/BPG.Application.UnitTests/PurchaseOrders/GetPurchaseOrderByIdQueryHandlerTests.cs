@@ -29,6 +29,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         private readonly Mock<IUnitOfWork> _mockUow;
         private readonly Mock<IGenericRepository<PurchaseOrder>> _mockPoRepo;
         private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockReceiptItemRepo;
+        private readonly Mock<IGenericRepository<Supplier>> _mockSupplierRepo;
         private readonly Mock<IProjectAccessService> _mockProjectAccessService;
         private readonly GetPurchaseOrderByIdQueryHandler _handler;
 
@@ -37,10 +38,12 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             _mockUow = new Mock<IUnitOfWork>();
             _mockPoRepo = new Mock<IGenericRepository<PurchaseOrder>>();
             _mockReceiptItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
+            _mockSupplierRepo = new Mock<IGenericRepository<Supplier>>();
             _mockProjectAccessService = new Mock<IProjectAccessService>();
 
             _mockUow.Setup(u => u.Repository<PurchaseOrder>()).Returns(_mockPoRepo.Object);
             _mockUow.Setup(u => u.Repository<GoodsReceiptItem>()).Returns(_mockReceiptItemRepo.Object);
+            _mockUow.Setup(u => u.Repository<Supplier>()).Returns(_mockSupplierRepo.Object);
 
             SetupAccessibleProjects(ProjectId);
             SetupPurchaseOrders(FullPurchaseOrder());
@@ -207,7 +210,14 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             };
 
         private void SetupPurchaseOrders(params PurchaseOrder[] purchaseOrders)
-            => _mockPoRepo.Setup(r => r.Query()).Returns(purchaseOrders.AsQueryable().BuildMock());
+        {
+            _mockPoRepo.Setup(r => r.Query()).Returns(purchaseOrders.AsQueryable().BuildMock());
+            var suppliers = purchaseOrders
+                .Where(po => po.Supplier != null)
+                .Select(po => po.Supplier!)
+                .ToList();
+            _mockSupplierRepo.Setup(r => r.Query()).Returns(suppliers.AsQueryable().BuildMock());
+        }
 
         private void SetupApprovedReceiptItems(params GoodsReceiptItem[] items)
             => _mockReceiptItemRepo.Setup(r => r.Query()).Returns(items.AsQueryable().BuildMock());

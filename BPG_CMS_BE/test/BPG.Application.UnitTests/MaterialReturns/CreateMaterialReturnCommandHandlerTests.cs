@@ -48,6 +48,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
             _mockUow.Setup(u => u.Repository<MaterialReturn>()).Returns(_mockReturnRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialReturnItem>()).Returns(_mockReturnItemRepo.Object);
             _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.ExecuteSqlAsync(It.IsAny<FormattableString>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -80,6 +81,23 @@ namespace BPG.Application.UnitTests.MaterialReturns
             result.Data.Should().Be(GeneratedReturnId);
             result.Message.Should().StartWith("Tạo phiếu hoàn trả PTra-");
             result.Message.Should().EndWith("thành công. Tồn kho đã được cập nhật.");
+            _mockUow.Verify(u => u.ExecuteSqlAsync(It.IsAny<FormattableString>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Handle_ClientConversionRateIsSpoofed_ShouldUseOriginalIssuanceRate()
+        {
+            SetupTechnicalManager();
+            SetupIssuances(Issuance(IssuanceItem(CementId, 10, conversionRate: 2)));
+            List<MaterialReturnItem>? savedItems = null;
+            _mockReturnItemRepo
+                .Setup(repo => repo.AddRangeAsync(It.IsAny<IEnumerable<MaterialReturnItem>>(), It.IsAny<CancellationToken>()))
+                .Callback<IEnumerable<MaterialReturnItem>, CancellationToken>((items, _) => savedItems = items.ToList())
+                .Returns(Task.CompletedTask);
+
+            await _handler.Handle(Command(items: new[] { Item(CementId, 4, conversionRate: 999) }), CancellationToken.None);
+
+            savedItems.Should().ContainSingle().Which.ConversionRate.Should().Be(2);
         }
 
         [Fact]
