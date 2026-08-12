@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   CornerDownRight,
-  Link2,
   PauseCircle,
   XCircle,
 } from 'lucide-react';
@@ -51,24 +50,14 @@ export const AcceptanceTasksChecklist: React.FC<AcceptanceTasksChecklistProps> =
   tasks,
   allCompleted,
 }) => {
-  const taskById = useMemo(
-    () => new Map(tasks.map((task) => [task.id, task])),
-    [tasks],
-  );
   const taskTree = useMemo(() => buildTaskTree(tasks), [tasks]);
   const activeTasks = getActivePhaseTasks(tasks);
   const completedCount = activeTasks.filter((task) => task.progress === 100).length;
-  const incompleteCount = activeTasks.length - completedCount;
-  const obsoleteCount = tasks.length - activeTasks.length;
 
   const renderTask = (node: TaskTreeNode, depth = 0): React.ReactNode => {
     const { task, children } = node;
     const isObsolete = task.status === 'obsolete';
     const isCompleted = task.progress === 100;
-    const predecessors = (task.predecessorTaskIds ?? []).map((id) => ({
-      id: String(id),
-      task: taskById.get(String(id)),
-    }));
 
     return (
       <React.Fragment key={task.id}>
