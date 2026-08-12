@@ -8,7 +8,6 @@ import { useAuth } from '../context/AuthContext';
 import { RoleGroup } from '../auth/roles';
 import { Modal } from '../components/ui/Modal';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
-import { LazyImage } from '../utils/imageOptimizer';
 import {
   ArrowLeft,
   FileText,
@@ -441,7 +440,7 @@ export const ProjectDrawing: React.FC = () => {
                     <FileText className={isSelected ? 'text-blue-600' : 'text-gray-400'} size={24} />
                   ) : (
                     <div className="w-10 h-10 rounded border overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
-                      <LazyImage src={url} alt="thumbnail" widthOption={150} className="w-full h-full object-cover" />
+                      <img src={url} alt="thumbnail" className="w-full h-full object-cover" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">

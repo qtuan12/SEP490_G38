@@ -9,7 +9,6 @@ import { projectService } from '../../../services/projectService';
 import type { Project } from '../../../types/common';
 import { UploadCloud, FileText, X, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { LazyImage } from '../../../utils/imageOptimizer';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
 
@@ -299,10 +298,9 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
                     
                     <div className={`relative w-16 h-16 rounded overflow-hidden shadow-sm border ${preview.status === 'error' ? 'border-red-500' : preview.status === 'success' ? 'border-green-500' : 'border-gray-200'}`}>
                       {preview.url && (preview.url.startsWith('blob:') || !preview.url.endsWith('.pdf')) ? (
-                        <LazyImage 
+                        <img 
                           src={preview.url} 
                           alt={preview.name} 
-                          widthOption={200}
                           className="w-full h-full object-cover" 
                         />
                       ) : (

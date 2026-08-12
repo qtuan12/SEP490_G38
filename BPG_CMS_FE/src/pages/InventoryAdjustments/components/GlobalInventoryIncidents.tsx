@@ -250,7 +250,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           <div>
             <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">CHỜ XỬ LÝ</span>
             <strong className="text-[1.4rem] font-bold">
-              {visibleIncidents.filter(i => !['Approved', 'Confirmed', 'Closed', 'Rejected'].includes(i.status)).length}
+              {visibleIncidents.filter(i => !['Approved', 'Confirmed', 'Closed'].includes(i.status)).length}
             </strong>
           </div>
         </div>

@@ -5,7 +5,6 @@ import { incidentService } from '../../../services/incidentService';
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
-import { LazyImage } from '../../../utils/imageOptimizer';
 
 interface Props {
   isOpen: boolean;
@@ -269,7 +268,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
                   <div className="grid grid-cols-2 gap-2 mt-1">
                     {allImages.map((img, idx) => (
                       <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="block aspect-square rounded-lg overflow-hidden border border-gray-300 hover:border-blue-500 transition-all">
-                        <LazyImage src={img} alt={`Ảnh đính kèm ${idx + 1}`} widthOption={400} className="w-full h-full object-cover" />
+                        <img src={img} alt={`Ảnh đính kèm ${idx + 1}`} className="w-full h-full object-cover" />
                       </a>
                     ))}
                   </div>

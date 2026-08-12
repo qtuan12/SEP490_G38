@@ -8,7 +8,6 @@ import { incidentService } from '../../../services/incidentService';
 import { projectService } from '../../../services/projectService';
 import { UploadCloud, X, HardHat, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { LazyImage } from '../../../utils/imageOptimizer';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
 
@@ -172,8 +171,8 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
       return;
     }
-    if (uploadedFiles.some(f => f.status === 'error')) {
-      toast.error('Có hình ảnh tải lên bị lỗi. Vui lòng xóa ảnh lỗi và thử lại.');
+    if (uploadedFiles.some(f => f.status === 'error') || uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
+      toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
       return;
     }
     mutation.mutate(data);
@@ -382,7 +381,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
                     {uploadedFiles.map((file) => (
                       <div key={file.id} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: file.status === 'error' ? '1px solid #dc2626' : file.status === 'success' ? '1px solid #16a34a' : '1px solid hsl(var(--border))' }}>
-                        <LazyImage src={file.url} alt={file.name} widthOption={200} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={file.url} alt={file.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
                         {file.status === 'uploading' && (
                           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -12,8 +12,7 @@ import { LoadingSpinner } from '../../components/ui';
 import {
   AlertTriangle,
   CheckCircle,
-  Clock,
-  XCircle
+  Clock
 } from 'lucide-react';
 import { Badge, Button } from '../../components/ui';
 import { useNotification } from '../../context/NotificationContext';
@@ -54,7 +53,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const ITEMS_PER_PAGE = 10;
 
   // Filter states
-  const [filterType, setFilterType] = useState<'all' | 'construction' | 'emergency' | 'inventory'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'construction' | 'inventory'>('all');
   const [filterStartDate, setFilterStartDate] = useState<string>('');
   const [filterEndDate, setFilterEndDate] = useState<string>('');
 
@@ -265,10 +264,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
       return false;
     }
 
-    if (filterType === 'construction' && (inc.incidentType !== 'Construction' || inc.isEmergency)) {
-      return false;
-    }
-    if (filterType === 'emergency' && !inc.isEmergency) {
+    if (filterType === 'construction' && inc.incidentType !== 'Construction') {
       return false;
     }
     if (filterType === 'inventory' && inc.incidentType !== 'InventoryLoss' && inc.incidentType !== 'InventoryDamage') {
@@ -331,7 +327,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
           <div>
             <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">CHỜ XỬ LÝ / PHẢN HỒI</span>
             <strong className="text-[1.4rem] font-bold">
-              {incidents.filter(i => !['Approved', 'Confirmed', 'Resolved', 'Closed', 'Rejected'].includes(i.status)).length}
+              {incidents.filter(i => !['Approved', 'Closed'].includes(i.status)).length}
             </strong>
           </div>
         </div>
@@ -341,21 +337,9 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
             <CheckCircle size={20} />
           </div>
           <div>
-            <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">ĐÃ PHÊ DUYỆT / XỬ LÝ</span>
+            <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">ĐÃ KHẮC PHỤC (REWORKED)</span>
             <strong className="text-[1.4rem] font-bold">
-              {incidents.filter(i => ['Approved', 'Confirmed', 'Resolved', 'Closed'].includes(i.status)).length}
-            </strong>
-          </div>
-        </div>
-
-        <div className="card p-4 flex items-center gap-3">
-          <div className="p-2.5 rounded-full bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))] shrink-0">
-            <XCircle size={20} />
-          </div>
-          <div>
-            <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">ĐÃ TỪ CHỐI</span>
-            <strong className="text-[1.4rem] font-bold">
-              {incidents.filter(i => i.status === 'Rejected').length}
+              {incidents.filter(i => ['Approved', 'Closed'].includes(i.status)).length}
             </strong>
           </div>
         </div>
@@ -411,7 +395,6 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
                 >
                   <option value="all">Tất cả sự cố</option>
                   <option value="construction">🏗 Sự cố thi công</option>
-                  <option value="emergency">🛑 Sự cố khẩn cấp</option>
                   <option value="inventory">📦 Sự cố vật tư kho</option>
                 </select>
               </div>
@@ -503,9 +486,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
                         <tr key={inc.id} className="cursor-pointer hover:bg-[hsl(var(--bg-main)/0.5)] transition-colors" onClick={() => { setSelectedIncident(inc); setIsDetailOpen(true); }}>
                           <td className="whitespace-nowrap text-sm">{inc.date}</td>
                           <td>
-                            {inc.isEmergency ? (
-                              <Badge variant="danger" className="normal-case bg-[hsl(0_100%_97%)] text-[hsl(0_90%_45%)] border-[hsl(0_80%_80%)]">🛑 Khẩn cấp</Badge>
-                            ) : inc.incidentType === 'Construction' ? (
+                            {inc.incidentType === 'Construction' ? (
                               <Badge variant="warning" className="normal-case bg-[hsl(28_100%_97%)] text-[hsl(28_90%_45%)] border-[hsl(28_80%_80%)]">🏗 Thi công</Badge>
                             ) : (
                               <Badge variant="info" className="normal-case bg-[hsl(210_100%_97%)] text-[hsl(210_70%_40%)] border-[hsl(210_70%_80%)]">📦 Vật tư kho</Badge>

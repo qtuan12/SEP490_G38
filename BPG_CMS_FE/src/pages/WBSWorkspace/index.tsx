@@ -15,7 +15,6 @@ import { ConfirmDialog, FullScreenLoading } from '../../components/ui';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
 import toast from 'react-hot-toast';
-import { isPhaseReadyForAcceptance as checkPhaseAcceptanceReadiness } from '../../utils/phaseAcceptance';
 
 
 interface WBSWorkspaceProps {
@@ -275,7 +274,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const isTPKTOrPL = isTPKT || isPL;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
-    return checkPhaseAcceptanceReadiness(tasks.filter(t => t.phaseId === phaseId));
+    const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
+    if (phaseTasks.length === 0) return false;
+    return phaseTasks.every(t => t.progress === 100);
   };
 
   const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');

@@ -4,13 +4,10 @@ import { inventoryAdjustmentService } from '../../../services/inventoryAdjustmen
 import { inventoryService } from '../../../services/inventoryService';
 import { projectService } from '../../../services/projectService';
 import { masterDataService } from '../../../services/masterDataService';
-import { directPurchaseService } from '../../../services/directPurchaseService';
 import type { CurrentInventory } from '../../../types/inventory';
 import type { IncidentReport } from '../../../types/common';
 import { incidentService } from '../../../services/incidentService';
-import { Search, X } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
-import { LazyImage } from '../../../utils/imageOptimizer';
 
 interface Props {
   isOpen: boolean;
@@ -38,17 +35,6 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('');
   const [selectedQuantity, setSelectedQuantity] = useState<number | ''>('');
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const [phaseMaterials, setPhaseMaterials] = useState<{
-    materialId: number;
-    materialCode: string;
-    materialName: string;
-    unitName: string;
-    stockQuantity: number;
-  }[]>([]);
-  const [loadingPhaseMaterials, setLoadingPhaseMaterials] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -70,37 +56,6 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       }
     }
   }, [isOpen, incident]);
-
-  useEffect(() => {
-    if (phaseId && projectId) {
-      setLoadingPhaseMaterials(true);
-      directPurchaseService.getPhaseBOQ(projectId, Number(phaseId))
-        .then(boqItems => {
-          const invMap = new Map<number, number>();
-          (inventoryList || []).forEach(inv => {
-            const qty = inv.quantity ?? inv.availableQuantity ?? 0;
-            invMap.set(inv.materialId, qty);
-          });
-
-          const mapped = (boqItems || []).map(boq => ({
-            materialId: boq.materialId,
-            materialCode: boq.materialCode,
-            materialName: boq.materialName,
-            unitName: boq.unitName,
-            stockQuantity: invMap.get(boq.materialId) || 0
-          }));
-
-          setPhaseMaterials(mapped);
-        })
-        .catch(err => {
-          console.error('[CreateDecreaseAdjustmentModal] Fetch phase BOQ error:', err);
-          setPhaseMaterials([]);
-        })
-        .finally(() => setLoadingPhaseMaterials(false));
-    } else {
-      setPhaseMaterials([]);
-    }
-  }, [phaseId, projectId, inventoryList]);
 
   // Extract info from incident description for beautiful display
   let parsedDesc = incident?.description || '';
@@ -204,11 +159,6 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   };
 
   const handleAddItem = () => {
-    if (!phaseId) {
-      setLocalError('Vui lòng chọn giai đoạn liên quan trước.');
-      return;
-    }
-
     if (!selectedMaterialId) {
       setLocalError('Vui lòng chọn vật tư.');
       return;
@@ -221,39 +171,23 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
     // Check if already exists
     if (items.some(x => x.materialId === Number(selectedMaterialId))) {
-      setLocalError('Vật tư này đã được thêm vào danh sách.');
+      setLocalError('Vật tư này đã được chọn.');
       return;
     }
 
-    const currentMat = phaseMaterials.find(x => x.materialId === Number(selectedMaterialId));
-    const stockQty = currentMat ? currentMat.stockQuantity : (inventoryList.find(x => x.materialId === Number(selectedMaterialId))?.quantity ?? 0);
-
-    if (stockQty <= 0) {
-      setLocalError(`Vật tư "${currentMat?.materialName || 'này'}" không có trong kho (Tồn kho: 0), không thể giảm tồn.`);
+    const currentInv = inventoryList.find(x => x.materialId === Number(selectedMaterialId));
+    if (!currentInv || currentInv.quantity < Number(selectedQuantity)) {
+      setLocalError('Số lượng giảm không được vượt quá số lượng tồn kho hiện tại.');
       return;
     }
 
-    if (Number(selectedQuantity) > stockQty) {
-      setLocalError(`Số lượng giảm (${selectedQuantity}) vượt quá số lượng tồn kho hiện tại (${stockQty}).`);
-      return;
-    }
-
-    if (currentMat && isDiscreteUnit(currentMat.unitName) && Number(selectedQuantity) % 1 !== 0) {
-      setLocalError(`Đơn vị '${currentMat.unitName}' yêu cầu số lượng phải là số nguyên.`);
+    if (currentInv && isDiscreteUnit(currentInv.unitName) && Number(selectedQuantity) % 1 !== 0) {
+      setLocalError(`Đơn vị '${currentInv.unitName}' yêu cầu số lượng phải là số nguyên.`);
       return;
     }
 
     setLocalError(null);
-    setItems([
-      ...items,
-      {
-        materialId: Number(selectedMaterialId),
-        quantity: Number(selectedQuantity),
-        fallbackCode: currentMat?.materialCode,
-        fallbackName: currentMat?.materialName,
-        fallbackUnit: currentMat?.unitName
-      }
-    ]);
+    setItems([...items, { materialId: Number(selectedMaterialId), quantity: Number(selectedQuantity) }]);
     setSelectedMaterialId('');
     setSelectedQuantity('');
   };
@@ -386,15 +320,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
           <select
             className={`w-full px-3 py-2 border rounded-lg ${incident ? 'bg-gray-100 cursor-not-allowed text-gray-600 font-medium appearance-none' : ''}`}
             value={phaseId}
-            onChange={e => {
-              const newPhaseId = e.target.value ? Number(e.target.value) : '';
-              setPhaseId(newPhaseId);
-              setSelectedMaterialId('');
-              setSelectedQuantity('');
-              setSearchKeyword('');
-              setIsDropdownOpen(false);
-              setItems([]);
-            }}
+            onChange={e => setPhaseId(Number(e.target.value))}
             disabled={!!incident}
           >
             <option value="">-- Chọn giai đoạn --</option>
@@ -469,7 +395,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                   <div className="grid grid-cols-2 gap-2 mt-1">
                     {incident.images.map((img, idx) => (
                       <a key={idx} href={img} target="_blank" rel="noopener noreferrer" className="block aspect-square rounded-lg overflow-hidden border border-gray-300 hover:border-blue-500 transition-all">
-                        <LazyImage src={img} alt={`Ảnh đính kèm ${idx + 1}`} widthOption={400} className="w-full h-full object-cover" />
+                        <img src={img} alt={`Ảnh đính kèm ${idx + 1}`} className="w-full h-full object-cover" />
                       </a>
                     ))}
                   </div>
@@ -481,182 +407,46 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
         <div className="border border-gray-800 rounded-2xl p-5 bg-white flex flex-col gap-3">
           <h4 className="font-semibold text-sm">
-            Danh sách vật tư giảm tồn {incident ? '(Được trích xuất từ sự cố)' : ''}
+            Danh sách vật tư giảm tồn {incident ? '(Được trích xuất từ sự cố)' : '(Chỉ những vật tư đang có tồn kho)'}
           </h4>
           {!incident && (
-            <div className="flex flex-col gap-3 p-3.5 bg-slate-50 border border-gray-200 rounded-xl">
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_130px_90px] gap-3 items-end">
-                {/* Search Input */}
-                <div>
-                  <FormItem label="Tìm kiếm vật tư cần giảm">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-                      <input
-                        type="text"
-                        placeholder={
-                          !phaseId
-                            ? "-- Vui lòng chọn Giai đoạn trước --"
-                            : loadingPhaseMaterials
-                              ? "Đang tải danh sách vật tư..."
-                              : "Tìm theo mã hoặc tên vật tư..."
-                        }
-                        className="w-full pl-9 pr-8 py-2 border rounded-lg text-sm bg-white disabled:bg-gray-100 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                        value={searchKeyword}
-                        onChange={e => {
-                          setSearchKeyword(e.target.value);
-                          setSelectedMaterialId('');
-                          setIsDropdownOpen(true);
-                        }}
-                        onFocus={() => {
-                          if (phaseId && !loadingPhaseMaterials) setIsDropdownOpen(true);
-                        }}
-                        disabled={!phaseId || loadingPhaseMaterials}
-                      />
-                      {searchKeyword && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSearchKeyword('');
-                            setSelectedMaterialId('');
-                          }}
-                          className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 p-0.5"
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </FormItem>
-                </div>
-
-                {/* Quantity Input */}
-                <div>
-                  <FormItem label="Số lượng giảm">
-                    <input
-                      type="number"
-                      placeholder="0"
-                      step={(() => {
-                        const sel = phaseMaterials.find(x => x.materialId === Number(selectedMaterialId));
-                        return sel && isDiscreteUnit(sel.unitName) ? "1" : "any";
-                      })()}
-                      className="w-full px-3 py-2 border rounded-lg disabled:bg-gray-100 disabled:cursor-not-allowed text-sm bg-white"
-                      value={selectedQuantity}
-                      onChange={e => setSelectedQuantity(e.target.value === '' ? '' : Number(e.target.value))}
-                      disabled={!phaseId || !selectedMaterialId}
-                    />
-                  </FormItem>
-                </div>
-
-                {/* Add Button */}
-                <Button
-                  type="button"
-                  onClick={handleAddItem}
-                  disabled={!phaseId || !selectedMaterialId || !selectedQuantity}
-                  className="h-[38px] px-4 font-medium"
-                >
-                  Thêm
-                </Button>
-              </div>
-
-              {/* Selected Banner */}
-              {selectedMaterialId && (
-                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-2 px-3 text-xs animate-fade-in">
-                  <div className="flex items-center gap-2 text-blue-900 font-medium">
-                    <span className="font-semibold text-blue-700">Đã chọn:</span>
-                    <span>{searchKeyword}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-blue-600 hover:text-blue-800 font-semibold hover:underline text-[11px]"
-                    onClick={() => {
-                      setSelectedMaterialId('');
-                      setSearchKeyword('');
-                      setIsDropdownOpen(true);
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <FormItem label="Vật tư">
+                  <select
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={selectedMaterialId}
+                    onChange={e => {
+                      setSelectedMaterialId(Number(e.target.value));
+                      setSelectedQuantity('');
                     }}
                   >
-                    Đổi vật tư khác
-                  </button>
-                </div>
-              )}
-
-              {/* Inline Material Choice List Box (Fits smoothly within modal scroll container, no clipping) */}
-              {isDropdownOpen && phaseId && !loadingPhaseMaterials && !selectedMaterialId && (
-                <div className="flex flex-col gap-1 mt-1 animate-fade-in">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                      {searchKeyword.trim() ? "Kết quả tìm kiếm:" : "Vật tư thuộc giai đoạn (Nhấn để chọn):"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="text-[11px] text-gray-400 hover:text-gray-600 font-medium"
-                    >
-                      Đóng danh sách ✖
-                    </button>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto bg-white border border-gray-300 rounded-xl divide-y divide-gray-100 shadow-sm">
-                    {phaseMaterials.filter(m =>
-                      !searchKeyword.trim() ||
-                      m.materialCode.toLowerCase().includes(searchKeyword.toLowerCase().trim()) ||
-                      m.materialName.toLowerCase().includes(searchKeyword.toLowerCase().trim())
-                    ).length === 0 ? (
-                      <div className="p-3 text-center text-xs text-gray-500">
-                        {phaseMaterials.length === 0
-                          ? "Giai đoạn này không có vật tư trong BOQ"
-                          : "Không tìm thấy vật tư phù hợp với từ khóa"}
-                      </div>
-                    ) : (
-                      phaseMaterials
-                        .filter(m =>
-                          !searchKeyword.trim() ||
-                          m.materialCode.toLowerCase().includes(searchKeyword.toLowerCase().trim()) ||
-                          m.materialName.toLowerCase().includes(searchKeyword.toLowerCase().trim())
-                        )
-                        .map(mat => {
-                          const isAlreadyAdded = items.some(x => x.materialId === mat.materialId);
-                          return (
-                            <div
-                              key={mat.materialId}
-                              className={`p-2 px-3 flex items-center justify-between cursor-pointer transition-colors ${isAlreadyAdded
-                                  ? 'bg-gray-50 opacity-60'
-                                  : 'hover:bg-blue-50/80 text-gray-800'
-                                }`}
-                              onClick={() => {
-                                setSelectedMaterialId(mat.materialId);
-                                setSearchKeyword(`[${mat.materialCode}] ${mat.materialName}`);
-                                setIsDropdownOpen(false);
-                              }}
-                            >
-                              <div className="flex items-center gap-2 min-w-0 pr-2">
-                                <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-mono text-[11px] font-semibold shrink-0">
-                                  {mat.materialCode}
-                                </span>
-                                <span className="text-xs font-medium text-gray-900 truncate">{mat.materialName}</span>
-                                <span className="text-[11px] text-gray-400 shrink-0">({mat.unitName})</span>
-                              </div>
-
-                              <div className="flex items-center gap-2 shrink-0">
-                                {mat.stockQuantity > 0 ? (
-                                  <span className="text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
-                                    Tồn: {mat.stockQuantity} {mat.unitName}
-                                  </span>
-                                ) : (
-                                  <span className="text-[11px] font-medium bg-gray-100 text-gray-500 border border-gray-200 px-2 py-0.5 rounded-full">
-                                    Tồn: 0 {mat.unitName}
-                                  </span>
-                                )}
-                                {isAlreadyAdded ? (
-                                  <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-medium">Đã thêm</span>
-                                ) : (
-                                  <span className="text-xs text-blue-600 font-semibold hover:underline">Chọn</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })
-                    )}
-                  </div>
-                </div>
-              )}
+                    <option value="">-- Chọn vật tư --</option>
+                    {inventoryList.map(inv => (
+                      <option key={inv.materialId} value={inv.materialId}>
+                        [{inv.materialCode}] {inv.materialName} (Tồn: {inv.quantity} {inv.unitName})
+                      </option>
+                    ))}
+                  </select>
+                </FormItem>
+              </div>
+              <div className="w-32">
+                <FormItem label="Số lượng giảm">
+                  <input
+                    type="number"
+                    step={(() => {
+                      const sel = inventoryList.find(x => x.materialId === Number(selectedMaterialId));
+                      return sel && isDiscreteUnit(sel.unitName) ? "1" : "any";
+                    })()}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={selectedQuantity}
+                    onChange={e => setSelectedQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </FormItem>
+              </div>
+              <Button type="button" onClick={handleAddItem} disabled={!selectedMaterialId || !selectedQuantity} className="h-[42px]">
+                Thêm
+              </Button>
             </div>
           )}
 
@@ -674,14 +464,13 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {items.map(item => {
-                  const phaseMat = phaseMaterials.find(x => x.materialId === item.materialId);
                   const invItem = inventoryList.find(x => x.materialId === item.materialId);
                   const catItem = masterMaterials.find(x => x.id === item.materialId);
-                  const currentQty = phaseMat ? phaseMat.stockQuantity : (invItem?.quantity ?? 0);
+                  const currentQty = invItem?.quantity ?? 0;
                   const remainingQty = Math.max(0, currentQty - item.quantity);
-                  const matCode = phaseMat?.materialCode || invItem?.materialCode || catItem?.materialCode || item.fallbackCode || '-';
-                  const matName = phaseMat?.materialName || invItem?.materialName || catItem?.name || item.fallbackName || '-';
-                  const uName = phaseMat?.unitName || invItem?.unitName || catItem?.baseUnitName || item.fallbackUnit || '';
+                  const matCode = invItem?.materialCode || catItem?.materialCode || item.fallbackCode || '-';
+                  const matName = invItem?.materialName || catItem?.name || item.fallbackName || '-';
+                  const uName = invItem?.unitName || catItem?.baseUnitName || item.fallbackUnit || '';
 
                   return (
                     <tr key={item.materialId}>

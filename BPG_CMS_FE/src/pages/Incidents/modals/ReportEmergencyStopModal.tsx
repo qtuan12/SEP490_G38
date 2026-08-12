@@ -3,10 +3,9 @@ import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { Button, FormItem } from '../../../components/ui';
 import { incidentService } from '../../../services/incidentService';
-import { UploadCloud, X, Loader2, AlertCircle } from 'lucide-react';
+import { projectService } from '../../../services/projectService';
+import { UploadCloud, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { compressAndUploadFile, type UploadedFileState } from '../../../utils/uploadHelper';
-import { LazyImage } from '../../../utils/imageOptimizer';
 
 
 interface ReportEmergencyStopModalProps {
@@ -57,7 +56,8 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
   const [nguyenNhanBanDau, setNguyenNhanBanDau] = useState('');
   const [bienPhapKhanCap, setBienPhapKhanCap] = useState('');
 
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
 
   const mutation = useMutation({
@@ -80,16 +80,12 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
         imageUrls: []
       };
 
-      if (uploadedFiles.some(f => f.status === 'uploading')) {
-        toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
-        throw new Error('Hình ảnh đang tải lên.');
+      if (selectedFiles.length > 0) {
+        const uploadedUrls = await projectService.uploadFiles(selectedFiles, 'incidents');
+        if (uploadedUrls && uploadedUrls.length > 0) {
+          finalDescJson.imageUrls = uploadedUrls;
+        }
       }
-      if (uploadedFiles.some(f => f.status === 'error')) {
-        toast.error('Có hình ảnh tải lên bị lỗi. Vui lòng xóa ảnh lỗi và thử lại.');
-        throw new Error('Có ảnh tải lên bị lỗi.');
-      }
-
-      finalDescJson.imageUrls = uploadedFiles.map(f => f.url!).filter(Boolean);
 
       await incidentService.createAndAssessIncident({
         projectId: Number(projectId),
@@ -114,7 +110,8 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
       setThietHaiTienDo('Tạm dừng thi công toàn dự án');
       setNguyenNhanBanDau('');
       setBienPhapKhanCap('');
-      setUploadedFiles([]);
+      setSelectedFiles([]);
+      setPreviews([]);
       onClose();
     },
     onError: (err: any) => {
@@ -144,43 +141,28 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
   };
 
   const addImages = (files: File[]) => {
-    const remaining = 5 - uploadedFiles.length;
+    const remaining = 5 - selectedFiles.length;
     if (remaining <= 0) {
       toast.error('Đã đạt giới hạn tối đa 5 ảnh.');
       return;
     }
+    const MAX = 10 * 1024 * 1024;
+    if (files.some(f => f.size > MAX)) {
+      toast.error('Hình ảnh không được vượt quá 10MB.');
+      return;
+    }
     const valid = files.filter(f => f.type.startsWith('image/')).slice(0, remaining);
     if (!valid.length) return;
-
-    valid.forEach(file => {
-      const tempId = Math.random().toString(36).substring(2, 9);
-      const previewUrl = URL.createObjectURL(file);
-
-      setUploadedFiles(prev => [
-        ...prev,
-        { id: tempId, name: file.name, url: previewUrl, status: 'uploading', file }
-      ]);
-
-      compressAndUploadFile(
-        file,
-        'incidents',
-        (uploadedUrl) => {
-          setUploadedFiles(prev =>
-            prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
-          );
-        },
-        () => {
-          toast.error(`Không thể tải ảnh ${file.name} lên.`);
-          setUploadedFiles(prev =>
-            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
-          );
-        }
-      );
-    });
+    setSelectedFiles(prev => [...prev, ...valid]);
+    setPreviews(prev => [...prev, ...valid.map(f => URL.createObjectURL(f))]);
   };
 
-  const removeImage = (id: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== id));
+  const removeImage = (idx: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
+    setPreviews(prev => {
+      URL.revokeObjectURL(prev[idx]);
+      return prev.filter((_, i) => i !== idx);
+    });
   };
 
   const handleSubmit = () => {
@@ -418,50 +400,16 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
               />
             </div>
 
-            {uploadedFiles.length > 0 && (
+            {previews.length > 0 && (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
-                {uploadedFiles.map((fileState) => (
-                  <div key={fileState.id} style={{
-                    position: 'relative',
-                    width: '80px',
-                    height: '80px',
-                    borderRadius: '6px',
-                    overflow: 'hidden',
-                    border: fileState.status === 'error' ? '2px solid red' : '1px solid hsl(var(--border))'
-                  }}>
-                    <LazyImage src={fileState.url} alt={fileState.name} widthOption={200} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    
-                    {fileState.status === 'uploading' && (
-                      <div style={{
-                        position: 'absolute',
-                        inset: 0,
-                        backgroundColor: 'rgba(0,0,0,0.5)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <Loader2 size={20} className="animate-spin text-white" />
-                      </div>
-                    )}
-
-                    {fileState.status === 'error' && (
-                      <div style={{
-                        position: 'absolute',
-                        inset: 0,
-                        backgroundColor: 'rgba(239,68,68,0.4)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <AlertCircle size={20} className="text-white" />
-                      </div>
-                    )}
-
+                {previews.map((src, idx) => (
+                  <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid hsl(var(--border))' }}>
+                    <img src={src} alt="Xem trước" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeImage(fileState.id);
+                        removeImage(idx);
                       }}
                       style={{
                         position: 'absolute',
@@ -474,7 +422,6 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        zIndex: 10
                       }}
                     >
                       <X size={10} />

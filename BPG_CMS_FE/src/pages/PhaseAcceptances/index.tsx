@@ -60,7 +60,8 @@ export const PhaseAcceptances: React.FC = () => {
     })
   });
 
-  const { canManageAcceptance } = useProjectAccess(searchProjectId || null);
+  const { canManageTechnical } = useProjectAccess(searchProjectId || null);
+  const canManageAcceptance = canManageTechnical;
 
   const hasActiveAcceptance = data?.items?.some((item: any) => !item.isCancelled);
   const canCreate =
@@ -130,7 +131,7 @@ export const PhaseAcceptances: React.FC = () => {
       )}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-[hsl(var(--text-primary))]">Danh sách biên bản nghiệm thu giai đoạn</h1>
+          <h1 className="text-2xl font-bold text-[hsl(var(--text-primary))]">Danh sách Nghiệm thu Giai đoạn</h1>
           <p className="text-[hsl(var(--text-secondary))] mt-1">Quản lý các biên bản nghiệm thu đã lập</p>
         </div>
         {canManageAcceptance && (

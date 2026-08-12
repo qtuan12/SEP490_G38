@@ -52,7 +52,7 @@ public class GetPhaseAcceptancesQueryHandler : IRequestHandler<GetPhaseAcceptanc
 
         if (!request.ProjectId.HasValue)
         {
-            if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Director, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.SiteEngineer, BPG.Domain.Constants.UserRole.Accountant))
+            if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Director, BPG.Domain.Constants.UserRole.TechnicalManager, BPG.Domain.Constants.UserRole.Accountant))
                 throw new BPG.Domain.Exceptions.ForbiddenException(
                     "Bạn không có quyền xem nghiệm thu toàn hệ thống.");
 

@@ -191,16 +191,7 @@ export const WBSTree = () => {
                     {/* Badge */}
                     {isFrozen ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                        <span
-                          className="badge badge-success"
-                          style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`);
-                          }}
-                        >
-                          Đã nghiệm thu
-                        </span>
+                        <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>Đã nghiệm thu</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--success))', minWidth: '28px', textAlign: 'right' }}>100%</span>
                           <div style={{ width: '50px', height: '6px', backgroundColor: 'hsl(var(--border))', borderRadius: '3px', overflow: 'hidden' }}>
@@ -211,7 +202,7 @@ export const WBSTree = () => {
                     ) : readyForAcceptance ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                         <span className="badge badge-warning animate-fade-in" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
-                          onClick={(e) => { e.stopPropagation(); navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>
+                          onClick={(e) => { e.stopPropagation(); if (isTPKTOrPL) navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>
                           <FileSignature size={9} /><span>Chờ nghiệm thu</span>
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -365,7 +356,7 @@ export const WBSTree = () => {
                                     onClick={() => { setPhaseMenuId(null); navigate(`/phase-acceptances?projectId=${projectId}&phaseId=${ph.id}`); }}
                                   >
                                     <CheckCircle size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                    <span>Danh sách nghiệm thu</span>
+                                    <span>Danh sách Nghiệm thu</span>
                                   </div>
                                 </>
                               )}

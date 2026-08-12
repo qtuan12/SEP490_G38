@@ -41,7 +41,7 @@ export const wbsService = {
         name: phaseDto.name,
         description: phaseDto.description || undefined,
         sortOrder: phaseDto.orderIndex,
-        status: phaseDto.status?.toLowerCase() === 'approved' ? 'frozen' : 'active',
+        status: (phaseDto.status?.toLowerCase() === 'approved' || phaseDto.status?.toLowerCase() === 'completed' || phaseDto.progressPercent === 100) ? 'frozen' : 'active',
         rawStatus: phaseDto.status,
         startDate: phaseDto.startDate || undefined,
         deadline: phaseDto.endDate || undefined,
