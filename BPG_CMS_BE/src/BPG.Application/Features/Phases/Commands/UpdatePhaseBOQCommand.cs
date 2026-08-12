@@ -2,7 +2,7 @@
 using MediatR;
 using System.Collections.Generic;
 
-namespace BPG.Application.Features.Phases.Commands.UpdatePhaseBOQ;
+namespace BPG.Application.Features.Phases.Commands;
 
 public record UpdatePhaseBOQCommand(
     long ProjectId,

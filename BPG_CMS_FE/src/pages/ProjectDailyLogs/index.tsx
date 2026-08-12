@@ -78,7 +78,11 @@ export const ProjectDailyLogs: React.FC = () => {
       )}
 
       {/* Feed chiếm toàn bộ chiều rộng — không cần layout grid nữa */}
-      <DailyLogFeed projectId={projectId} taskId={taskId} />
+      <DailyLogFeed
+        projectId={projectId}
+        taskId={taskId}
+        onOpenProgressHistory={taskId ? () => setIsHistoryOpen(true) : undefined}
+      />
 
       {/* Drawer lịch sử tiến độ — slide từ phải, bottom sheet trên mobile */}
       {taskId && (

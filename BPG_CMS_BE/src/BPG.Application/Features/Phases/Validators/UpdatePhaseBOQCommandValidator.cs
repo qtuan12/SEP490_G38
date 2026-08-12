@@ -1,7 +1,8 @@
 using FluentValidation;
+using BPG.Application.Features.Phases.Commands;
 using System.Linq;
 
-namespace BPG.Application.Features.Phases.Commands.UpdatePhaseBOQ;
+namespace BPG.Application.Features.Phases.Validators;
 
 public class UpdatePhaseBOQCommandValidator : AbstractValidator<UpdatePhaseBOQCommand>
 {
