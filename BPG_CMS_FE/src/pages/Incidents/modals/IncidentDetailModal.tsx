@@ -11,6 +11,7 @@ import { ArrowRight, ArrowLeft, AlertCircle, CheckCircle, HardHat, Package, MapP
 import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { LazyImage } from '../../../utils/imageOptimizer';
 interface IncidentDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -1013,8 +1014,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: 'hsl(var(--bg-muted))', borderRadius: '10px', border: '1px solid hsl(var(--border))' }}>
           {[
             { n: 1, label: 'PL Báo cáo', done: true },
-            { n: 2, label: isInventoryIncident ? 'Kế toán Xác minh' : 'TPKT Thẩm định', done: !!incident.damageDescription },
-            { n: 3, label: isInventoryIncident ? 'Chuyển sang Giám đốc' : 'Hoàn tất', done: incident.status === 'Approved' },
+            { n: 2, label: isInventoryIncident ? 'Kế toán Xác minh' : 'TPKT Thẩm định', done: isInventoryIncident ? !['Reported', 'WaitingAccountant'].includes(incident.status) : !['Reported', 'WaitingReview'].includes(incident.status) },
+            { n: 3, label: isInventoryIncident ? 'Chuyển sang Giám đốc' : 'Hoàn tất', done: ['Approved', 'Rejected', 'Closed', 'Resolved'].includes(incident.status) },
           ].map((step, idx) => (
             <React.Fragment key={step.n}>
               {idx > 0 && <ArrowRight size={13} style={{ color: 'hsl(var(--text-muted))', flexShrink: 0 }} />}
@@ -1260,24 +1261,17 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               }}>
                 {displayImages.map((img: string, idx: number) => (
                   <a key={idx} href={img} target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: '100%' }}>
-                    <img src={img} alt={`Ảnh ${idx + 1}`}
+                    <LazyImage
+                      src={img}
+                      alt={`Ảnh ${idx + 1}`}
+                      widthOption={600}
+                      className="w-full rounded-lg border border-[hsl(var(--border))] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                       style={{
                         width: '100%',
                         height: displayImages.length === 1 ? 'auto' : displayImages.length === 2 ? '240px' : '160px',
                         maxHeight: displayImages.length === 1 ? '400px' : 'none',
                         objectFit: displayImages.length === 1 ? 'contain' : 'cover',
-                        borderRadius: '8px',
-                        border: '1px solid hsl(var(--border))',
-                        transition: 'all 0.2s ease',
                         backgroundColor: 'hsl(var(--bg-main))'
-                      }}
-                      onMouseOver={e => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-                      }}
-                      onMouseOut={e => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = 'none';
                       }}
                     />
                   </a>
@@ -1895,7 +1889,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       )}
 
 
-      {isInventoryIncident && (incident.status === 'WaitingAccountant' || (incident.status as string) === 'Pending') && isAccountant && (
+      {isInventoryIncident && incident.status === 'WaitingAccountant' && isAccountant && (
         isRejecting ? (
           <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>

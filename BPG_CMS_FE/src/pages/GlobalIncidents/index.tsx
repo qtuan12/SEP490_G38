@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
+  XCircle,
   Loader2
 } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui';
@@ -34,7 +35,7 @@ export const GlobalIncidents: React.FC = () => {
   );
   const [loading, setLoading] = useState(true);
   const { connection } = useNotification();
-  const [activeTab, setActiveTab] = useState<'construction' | 'inventory'>(
+  const [activeTab, setActiveTab] = useState<'construction' | 'emergency' | 'inventory'>(
     'construction'
   );
 
@@ -80,10 +81,13 @@ export const GlobalIncidents: React.FC = () => {
 
   const visibleIncidents = incidents.filter(inc => {
     const matchesProject = !selectedProjectId || inc.projectId === selectedProjectId;
+    if (activeTab === 'emergency') {
+      return matchesProject && inc.isEmergency;
+    }
     if (activeTab === 'inventory') {
       return matchesProject && (inc.incidentType === 'InventoryLoss' || inc.incidentType === 'InventoryDamage');
     }
-    return matchesProject && (inc.incidentType !== 'InventoryLoss' && inc.incidentType !== 'InventoryDamage');
+    return matchesProject && (inc.incidentType === 'Construction' && !inc.isEmergency);
   });
 
   const totalPages = Math.ceil(visibleIncidents.length / ITEMS_PER_PAGE);
@@ -340,18 +344,24 @@ export const GlobalIncidents: React.FC = () => {
         )}
       </div>
 
-      <div className="flex gap-2 border-b border-[hsl(var(--border))] mb-4">
+      <div className="flex gap-2 border-b border-[hsl(var(--border))] mb-4 overflow-x-auto">
         <button
-          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
+          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'construction' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
           onClick={() => setActiveTab('construction')}
         >
-          Sự cố Thi công
+          🏗 Sự cố Thi công
         </button>
         <button
-          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
+          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'emergency' ? 'border-[hsl(0_90%_45%)] text-[hsl(0_90%_45%)]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
+          onClick={() => setActiveTab('emergency')}
+        >
+          🛑 Sự cố Khẩn cấp
+        </button>
+        <button
+          className={`px-4 py-2 text-[0.95rem] font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'inventory' ? 'border-[hsl(var(--primary))] text-[hsl(var(--primary))]' : 'border-transparent text-[hsl(var(--text-secondary))] hover:text-[hsl(var(--text-primary))]'}`}
           onClick={() => setActiveTab('inventory')}
         >
-          Sự cố Kho vật tư
+          📦 Sự cố Kho vật tư
         </button>
       </div>
 
@@ -373,7 +383,7 @@ export const GlobalIncidents: React.FC = () => {
           <div>
             <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">CHỜ XỬ LÝ</span>
             <strong className="text-[1.4rem] font-bold">
-              {visibleIncidents.filter(i => !['Approved', 'Confirmed', 'Closed'].includes(i.status)).length}
+              {visibleIncidents.filter(i => !['Approved', 'Confirmed', 'Resolved', 'Closed', 'Rejected'].includes(i.status)).length}
             </strong>
           </div>
         </div>
@@ -383,9 +393,21 @@ export const GlobalIncidents: React.FC = () => {
             <CheckCircle size={20} />
           </div>
           <div>
-            <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">ĐÃ KHẮC PHỤC</span>
+            <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">ĐÃ XỬ LÝ / PHÊ DUYỆT</span>
             <strong className="text-[1.4rem] font-bold">
-              {visibleIncidents.filter(i => ['Approved', 'Confirmed', 'Closed'].includes(i.status)).length}
+              {visibleIncidents.filter(i => ['Approved', 'Confirmed', 'Resolved', 'Closed'].includes(i.status)).length}
+            </strong>
+          </div>
+        </div>
+
+        <div className="card p-4 flex items-center gap-3 border-l-4 border-[hsl(var(--danger))]">
+          <div className="p-2.5 rounded-full bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))] shrink-0">
+            <XCircle size={20} />
+          </div>
+          <div>
+            <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">ĐÃ TỪ CHỐI</span>
+            <strong className="text-[1.4rem] font-bold">
+              {visibleIncidents.filter(i => i.status === 'Rejected').length}
             </strong>
           </div>
         </div>
@@ -410,6 +432,7 @@ export const GlobalIncidents: React.FC = () => {
                   <tr>
                     <th>Ngày báo cáo</th>
                     <th>Dự án</th>
+                    <th>Phân loại</th>
                     <th>Công việc / Giai đoạn</th>
                     <th>Người báo cáo</th>
                     <th>Trạng thái</th>
@@ -424,6 +447,15 @@ export const GlobalIncidents: React.FC = () => {
                       <td className="whitespace-nowrap text-sm">{inc.date}</td>
                       <td>
                         <strong className="text-[0.88rem] text-[hsl(var(--primary))]">{inc.projectName || `Dự án #${inc.projectId}`}</strong>
+                      </td>
+                      <td>
+                        {inc.isEmergency ? (
+                          <Badge variant="danger" className="normal-case bg-[hsl(0_100%_97%)] text-[hsl(0_90%_45%)] border-[hsl(0_80%_80%)]">🛑 Khẩn cấp</Badge>
+                        ) : inc.incidentType === 'Construction' ? (
+                          <Badge variant="warning" className="normal-case bg-[hsl(28_100%_97%)] text-[hsl(28_90%_45%)] border-[hsl(28_80%_80%)]">🏗 Thi công</Badge>
+                        ) : (
+                          <Badge variant="info" className="normal-case bg-[hsl(210_100%_97%)] text-[hsl(210_70%_40%)] border-[hsl(210_70%_80%)]">📦 Vật tư kho</Badge>
+                        )}
                       </td>
                       <td>
                         <strong className="text-[0.88rem]">

@@ -400,7 +400,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <FileText size={15} />
                 <span>Xem Nhật ký thi công</span>
               </button>
-              {isPL ? (
+              {isPL && !isParentTask && (
                 <button 
                   onClick={() => onReportIncidentOpen()} 
                   className="btn btn-outline" 
@@ -409,7 +409,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   <AlertCircle size={15} />
                   <span>Báo cáo Sự cố</span>
                 </button>
-              ) : (
+              )}
+              {(!isPL || isParentTask) && (
                 <button 
                   onClick={() => { onClose(); navigate(`/projects/${project?.id}?tab=incidents&taskId=${selectedTask.id}`); }} 
                   className="btn btn-outline" 
