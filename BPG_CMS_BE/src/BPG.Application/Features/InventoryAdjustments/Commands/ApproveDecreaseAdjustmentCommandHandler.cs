@@ -89,7 +89,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     {
                         rejIncident = await _unitOfWork.Repository<Incident>().GetByIdAsync(adjustment.IncidentId.Value);
                     }
-                    if (rejIncident == null && !string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
+                    if (rejIncident == null && !string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("System Liên kết sự cố #"))
                     {
                         var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
                         if (match.Success)
@@ -179,7 +179,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 {
                     appIncident = await _unitOfWork.Repository<Incident>().GetByIdAsync(adjustment.IncidentId.Value);
                 }
-                if (appIncident == null && !string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("[System] Liên kết sự cố #"))
+                if (appIncident == null && !string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("System Liên kết sự cố #"))
                 {
                     var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
                     if (match.Success)

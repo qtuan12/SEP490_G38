@@ -50,6 +50,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             // 1. Kiểm tra Task có tồn tại hay không
             var task = await _uow.Repository<ProjectTask>().Query()
                 .Include(t => t.SubTasks)
+                .Include(t => t.Assignees)
                 .Include(t => t.Phase)
                     .ThenInclude(p => p.Project)
                 .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, cancellationToken);
@@ -231,6 +232,12 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 {
                     task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
                 }
+                else
+                {
+                    task.Status = task.Assignees.Any()
+                        ? BPG.Domain.Constants.TaskStatus.Assigned
+                        : BPG.Domain.Constants.TaskStatus.New;
+                }
 
                 _uow.Repository<ProjectTask>().Update(task);
 
@@ -314,7 +321,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 await _notificationService.SendNotificationAsync(
                     leaderId,
                     "Cập nhật nhật ký tiến độ",
-                    $"Thành viên [{creatorName}] đã cập nhật nhật ký cho công việc [{task.Name}] với tiến độ mới là {newProgress}%.",
+                    $"Thành viên {creatorName} đã cập nhật nhật ký cho công việc {task.Name} với tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
                     $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                     task.TaskId,
@@ -337,7 +344,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 await _notificationService.SendNotificationAsync(
                     assigneeId,
                     "?ồng nghiệp cập nhật tiến độ",
-                    $"Thành viên [{creatorName}] cùng thực hiện công việc [{task.Name}] đã cập nhật nhật ký tiến độ mới là {newProgress}%.",
+                    $"Thành viên {creatorName} cùng thực hiện công việc {task.Name} đã cập nhật nhật ký tiến độ mới là {newProgress}%.",
                     NotificationType.Progress,
                     $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                     task.TaskId,
@@ -349,7 +356,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.TechnicalManager,
                 "Cập nhật nhật ký tiến độ",
-                $"Nhật ký tiến độ mới cho công việc [{task.Name}] tại dự án [{project.Name}] vừa được cập nhật ({newProgress}%).",
+                $"Nhật ký tiến độ mới cho công việc {task.Name} tại dự án {project.Name} vừa được cập nhật ({newProgress}%).",
                 NotificationType.Progress,
                 $"/projects/{project.ProjectId}/tasks/{task.TaskId}/logs",
                 task.TaskId,

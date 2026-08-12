@@ -1,11 +1,12 @@
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,103 +35,153 @@ namespace BPG.Infrastructure.Services
         {
             _logger.LogInformation(
                 "Bắt đầu cập nhật tồn kho: Dự án {ProjectId} | Vật tư {MaterialId} | Lượng thay đổi {QuantityChange} | Loại giao dịch {TransactionType} | Tham chiếu {ReferenceType} #{ReferenceId}",
-                projectId, materialId, quantityChange, transactionType, referenceType, referenceId
-            );
+                projectId,
+                materialId,
+                quantityChange,
+                transactionType,
+                referenceType,
+                referenceId);
 
-            int maxRetries = 3;
-            int delayMs = 100;
-
-            for (int i = 0; i < maxRetries; i++)
+            try
             {
-                try
+                var inventory = await _uow.Repository<CurrentInventory>()
+                    .Query()
+                    .FirstOrDefaultAsync(
+                        x => x.ProjectId == projectId && x.MaterialId == materialId,
+                        cancellationToken);
+
+                if (inventory == null)
                 {
-                    // 1. Tìm hoặc tạo bản ghi CurrentInventory cho dự án + vật tư này
-                    var inv = await _uow.Repository<CurrentInventory>().Query()
-                        .FirstOrDefaultAsync(ci => ci.ProjectId == projectId && ci.MaterialId == materialId, cancellationToken);
+                    var material = await _uow.Repository<MaterialCatalog>()
+                        .Query()
+                        .FirstOrDefaultAsync(x => x.MaterialId == materialId, cancellationToken);
 
-                    if (inv == null)
+                    if (material == null)
                     {
-                        // Nếu chưa tồn tại bản ghi tồn kho, ta bắt buộc phải lấy thông tin base unit của vật tư
-                        var material = await _uow.Repository<MaterialCatalog>().Query()
-                            .FirstOrDefaultAsync(m => m.MaterialId == materialId, cancellationToken);
-
-                        if (material == null)
-                        {
-                            _logger.LogWarning("Không tìm thấy thông tin vật tư {MaterialId} để khởi tạo tồn kho.", materialId);
-                            throw new NotFoundException(nameof(MaterialCatalog), materialId);
-                        }
-
-                        inv = new CurrentInventory
-                        {
-                            ProjectId = projectId,
-                            MaterialId = materialId,
-                            UnitId = material.BaseUnitId,
-                            Quantity = quantityChange,
-                            ReservedQuantity = 0,
-                            LastUpdated = DateTime.UtcNow
-                        };
-
-                        await _uow.Repository<CurrentInventory>().AddAsync(inv, cancellationToken);
-                        _logger.LogInformation("Khởi tạo bản ghi tồn kho mới cho Vật tư {MaterialId} tại Dự án {ProjectId} với số lượng {Quantity}.", materialId, projectId, quantityChange);
-                    }
-                    else
-                    {
-                        inv.Quantity += quantityChange;
-                        inv.LastUpdated = DateTime.UtcNow;
-                        _uow.Repository<CurrentInventory>().Update(inv);
-                        _logger.LogInformation("Cập nhật số lượng tồn kho cho Vật tư {MaterialId} tại Dự án {ProjectId}: Thay đổi {QuantityChange} -> Lượng mới {NewQuantity}.", materialId, projectId, quantityChange, inv.Quantity);
+                        _logger.LogWarning(
+                            "Không tìm thấy thông tin vật tư {MaterialId} để khởi tạo tồn kho.",
+                            materialId);
+                        throw new NotFoundException(nameof(MaterialCatalog), materialId);
                     }
 
-                    // Lưu thay đổi tạm thời trước khi tạo dòng thẻ kho
-                    await _uow.SaveChangesAsync(cancellationToken);
+                    EnsureSufficientStock(materialId, currentQuantity: 0, quantityChange);
 
-                    // 2. Ghi nhận Nhật ký Thẻ kho (InventoryTransaction)
-                    var transaction = new InventoryTransaction
+                    inventory = new CurrentInventory
                     {
                         ProjectId = projectId,
                         MaterialId = materialId,
-                        TransactionType = transactionType,
-                        ReferenceId = referenceId,
-                        ReferenceType = referenceType,
-                        QuantityChange = quantityChange,
-                        BalanceAfter = inv.Quantity,
-                        CreatedBy = userId,
-                        CreatedAt = DateTime.UtcNow
+                        UnitId = material.BaseUnitId,
+                        Quantity = quantityChange,
+                        ReservedQuantity = 0,
+                        LastUpdated = DateTime.UtcNow
                     };
 
-                    await _uow.Repository<InventoryTransaction>().AddAsync(transaction, cancellationToken);
-                    await _uow.SaveChangesAsync(cancellationToken);
+                    await _uow.Repository<CurrentInventory>().AddAsync(inventory, cancellationToken);
+                    _logger.LogInformation(
+                        "Khởi tạo bản ghi tồn kho mới cho Vật tư {MaterialId} tại Dự án {ProjectId} với số lượng {Quantity}.",
+                        materialId,
+                        projectId,
+                        quantityChange);
+                }
+                else
+                {
+                    EnsureSufficientStock(materialId, inventory.Quantity, quantityChange);
+
+                    inventory.Quantity += quantityChange;
+                    inventory.LastUpdated = DateTime.UtcNow;
+                    _uow.Repository<CurrentInventory>().Update(inventory);
 
                     _logger.LogInformation(
-                        "Ghi nhận thẻ kho thành công: Giao dịch #{TransactionId} | Dự án {ProjectId} | Vật tư {MaterialId} | Tham chiếu {ReferenceType} #{ReferenceId}",
-                        transaction.TransactionId, projectId, materialId, referenceType, referenceId
-                    );
-
-                    return inv;
+                        "Cập nhật số lượng tồn kho cho Vật tư {MaterialId} tại Dự án {ProjectId}: Thay đổi {QuantityChange} -> Lượng mới {NewQuantity}.",
+                        materialId,
+                        projectId,
+                        quantityChange,
+                        inventory.Quantity);
                 }
-                catch (DbUpdateConcurrencyException ex)
+
+                var transaction = new InventoryTransaction
                 {
-                    if (i == maxRetries - 1)
-                    {
-                        _logger.LogError(ex, "Thất bại hoàn toàn khi cập nhật tồn kho do xung đột đồng thời kéo dài sau {MaxRetries} lần thử cho Vật tư {MaterialId} tại Dự án {ProjectId}.", maxRetries, materialId, projectId);
-                        throw;
-                    }
+                    ProjectId = projectId,
+                    MaterialId = materialId,
+                    TransactionType = transactionType,
+                    ReferenceId = referenceId,
+                    ReferenceType = referenceType,
+                    QuantityChange = quantityChange,
+                    BalanceAfter = inventory.Quantity,
+                    CreatedBy = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
 
-                    _logger.LogWarning(ex, "Phát hiện xung đột đồng thời khi cập nhật tồn kho vật tư {MaterialId} tại dự án {ProjectId}. Đang thử tải lại dữ liệu và lưu lại (Lần thử {RetryCount}).", materialId, projectId, i + 1);
+                await _uow.Repository<InventoryTransaction>().AddAsync(transaction, cancellationToken);
 
-                    // Tìm entry bị lỗi và tải lại dữ liệu mới nhất từ database
-                    var entry = ex.Entries.FirstOrDefault(e => e.Entity is CurrentInventory);
-                    if (entry != null)
-                    {
-                        await entry.ReloadAsync(cancellationToken);
-                    }
+                // Current inventory and its ledger entry must succeed or fail together.
+                await _uow.SaveChangesAsync(cancellationToken);
 
-                    // Chờ một thời gian ngắn trước khi thử lại để tránh xung đột tức thời
-                    await Task.Delay(delayMs, cancellationToken);
-                }
+                _logger.LogInformation(
+                    "Ghi nhận thẻ kho thành công: Giao dịch #{TransactionId} | Dự án {ProjectId} | Vật tư {MaterialId} | Tham chiếu {ReferenceType} #{ReferenceId}",
+                    transaction.TransactionId,
+                    projectId,
+                    materialId,
+                    referenceType,
+                    referenceId);
+
+                return inventory;
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Phát hiện xung đột đồng thời khi cập nhật tồn kho Vật tư {MaterialId} tại Dự án {ProjectId}.",
+                    materialId,
+                    projectId);
+                throw;
+            }
+            catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Hai yêu cầu cùng khởi tạo tồn kho Vật tư {MaterialId} tại Dự án {ProjectId}.",
+                    materialId,
+                    projectId);
+
+                throw new DbUpdateConcurrencyException(
+                    "Tồn kho vừa được khởi tạo bởi một phiên làm việc khác. Vui lòng tải lại dữ liệu và thực hiện lại.",
+                    ex);
+            }
+        }
+
+        private static void EnsureSufficientStock(
+            long materialId,
+            decimal currentQuantity,
+            decimal quantityChange)
+        {
+            if (currentQuantity + quantityChange >= 0)
+            {
+                return;
             }
 
-            throw new BusinessException("CONCURRENCY_ERROR", "Không thể cập nhật tồn kho do xung đột đồng thời kéo dài.");
+            throw new BusinessException(
+                ErrorCodes.InsufficientStock,
+                $"Không đủ tồn kho cho vật tư ID {materialId}. "
+                + $"Tồn kho hiện tại: {currentQuantity}, yêu cầu giảm: {-quantityChange}.");
+        }
+
+        private static bool IsUniqueConstraintViolation(DbUpdateException exception)
+        {
+            Exception? current = exception;
+
+            while (current != null)
+            {
+                if (current is SqlException sqlException
+                    && (sqlException.Number == 2601 || sqlException.Number == 2627))
+                {
+                    return true;
+                }
+
+                current = current.InnerException;
+            }
+
+            return false;
         }
     }
 }

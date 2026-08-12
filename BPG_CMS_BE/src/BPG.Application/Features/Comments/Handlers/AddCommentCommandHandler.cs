@@ -86,7 +86,7 @@ namespace BPG.Application.Features.Comments.Handlers
                 await _notificationService.SendNotificationAsync(
                     dailyLog.CreatedBy,
                     "Bình luận mới dưới nhật ký",
-                    $"[{author?.FullName ?? "Ai đó"}] đã bình luận dưới nhật ký thi công của bạn cho công việc [{dailyLog.Task.Name}].",
+                    $"{author?.FullName ?? "Ai đó"} đã bình luận dưới nhật ký thi công của bạn cho công việc {dailyLog.Task.Name}.",
                     NotificationType.Progress,
                     $"/projects/{dailyLog.Task.Phase.ProjectId}/tasks/{dailyLog.TaskId}/logs?logId={dailyLog.LogId}",
                     dailyLog.LogId,
@@ -106,7 +106,7 @@ namespace BPG.Application.Features.Comments.Handlers
                 await _notificationService.SendNotificationAsync(
                     commenterId,
                     "Hoạt động bình luận mới",
-                    $"[{author?.FullName ?? "Ai đó"}] cũng đã bình luận về nhật ký thi công cho công việc [{dailyLog.Task.Name}] mà bạn quan tâm.",
+                    $"{author?.FullName ?? "Ai đó"} cũng đã bình luận về nhật ký thi công cho công việc {dailyLog.Task.Name} mà bạn quan tâm.",
                     NotificationType.Progress,
                     $"/projects/{dailyLog.Task.Phase.ProjectId}/tasks/{dailyLog.TaskId}/logs?logId={dailyLog.LogId}",
                     dailyLog.LogId,

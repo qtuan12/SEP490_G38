@@ -140,7 +140,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 if (material?.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
                 {
                     throw new BusinessException(ErrorCodes.InvalidUnitQuantity,
-                        $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng đặt hàng phải là số nguyên.");
+                        $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư {material.Name} yêu cầu số lượng đặt hàng phải là số nguyên.");
                 }
             }
 

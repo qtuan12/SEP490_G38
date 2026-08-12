@@ -55,6 +55,7 @@ export const useProjectAccess = (
     canViewProject,
     canManageExecution: isProjectActive && (hasAnyRole(RoleGroup.Execution) || isProjectLeader),
     canManageTechnical: isProjectActive && (hasAnyRole(RoleGroup.Technical) || isProjectLeader),
+    canManageAcceptance: isProjectActive && hasAnyRole(RoleGroup.Technical),
     canManageAccounting: isProjectActive && hasAnyRole(RoleGroup.Accounting),
     canManageInventory: isProjectActive && hasAnyRole(RoleGroup.Inventory),
     canApprove: isProjectActive && hasAnyRole(RoleGroup.Approval),

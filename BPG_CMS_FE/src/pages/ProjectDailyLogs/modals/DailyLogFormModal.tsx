@@ -34,6 +34,7 @@ interface DailyLogFormProps {
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
   hideHeader?: boolean;
+  suppressSuccessToast?: boolean;
 }
 
 export const DailyLogForm: React.FC<DailyLogFormProps> = ({
@@ -47,7 +48,8 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   isPL = false,
   canManageTechnical = false,
   onSuccess,
-  hideHeader = false
+  hideHeader = false,
+  suppressSuccessToast = false
 }) => {
   const queryClient = useQueryClient();
   const isEditMode = !!editLog;
@@ -282,7 +284,9 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       const msg = isEditMode
         ? 'Đã cập nhật nhật ký thi công.'
         : `Đã tạo nhật ký thi công cho công việc "${resLog.taskName}".`;
-      toast.success(msg);
+      if (!suppressSuccessToast) {
+        toast.success(msg);
+      }
       onSuccess(msg);
       
       const pId = task?.projectId || editLog?.projectId || (currentTask?.projectId);

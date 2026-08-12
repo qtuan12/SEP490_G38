@@ -232,7 +232,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
 
           {/* Progress changes */}
           <div className="text-right shrink-0">
-            <span className="text-[0.7rem] text-[hsl(var(--text-muted))] font-medium">Thay đổi tiến độ</span>
+            <span className="text-[0.7rem] text-[hsl(var(--text-muted))] font-medium">Tiến độ được báo cáo tại thời điểm này</span>
             <div className={`font-extrabold text-base flex items-center justify-end gap-1 ${isIncident ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
               <span>{log.progressFrom}%</span>
               <span>&rarr;</span>
@@ -290,7 +290,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                 const isManager = comm.role === 'technicalmanager' || comm.role === 'director';
                 let commentClass = isManager ? "comment-highlight-manager" : "";
                 const userRole = (user?.role || '').toLowerCase();
-                const canEditComment = String(comm.userId) === String(user?.id) || userRole === 'admin' || userRole === 'technicalmanager';
+                const canEditComment = String(comm.userId) === String(user?.id) || userRole === 'admin';
 
                 return (
                   <div
@@ -382,7 +382,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
           )}
 
           {/* Comment Form */}
-          {user && (members.some(m => m.userId === user?.id) || canManageExecution) && (
+          {user && (
             <form onSubmit={handleCommentSubmit} className="flex gap-2 items-start w-full min-w-0">
               <div className="flex-1 min-w-0 flex flex-col gap-1">
                 <textarea

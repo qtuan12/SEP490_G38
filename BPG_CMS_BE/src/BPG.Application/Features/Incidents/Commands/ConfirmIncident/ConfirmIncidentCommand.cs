@@ -644,7 +644,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
     private string AppendStatusHistory(string? currentReason, string type, string? reason, DateTime timestamp, string userName)
     {
         List<StatusHistoryItem> historyList;
-        if (!string.IsNullOrEmpty(currentReason) && currentReason.Trim().StartsWith("["))
+        if (!string.IsNullOrEmpty(currentReason) && currentReason.Trim().StartsWith(""))
         {
             try
             {
