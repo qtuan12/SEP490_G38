@@ -50,6 +50,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             // 1. Kiểm tra Task có tồn tại hay không
             var task = await _uow.Repository<ProjectTask>().Query()
                 .Include(t => t.SubTasks)
+                .Include(t => t.Assignees)
                 .Include(t => t.Phase)
                     .ThenInclude(p => p.Project)
                 .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, cancellationToken);
@@ -230,6 +231,12 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 else if (task.ProgressPercent > 0)
                 {
                     task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
+                }
+                else
+                {
+                    task.Status = task.Assignees.Any()
+                        ? BPG.Domain.Constants.TaskStatus.Assigned
+                        : BPG.Domain.Constants.TaskStatus.New;
                 }
 
                 _uow.Repository<ProjectTask>().Update(task);

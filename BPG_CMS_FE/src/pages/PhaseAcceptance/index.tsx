@@ -19,11 +19,12 @@ import { toast } from 'react-hot-toast';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../../constants/realtimeEntities';
+import { isPhaseReadyForAcceptance } from '../../utils/phaseAcceptance';
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
-  const { canManageTechnical } = useProjectAccess(projectId);
+  const { canManageAcceptance } = useProjectAccess(projectId);
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
@@ -50,8 +51,6 @@ export const PhaseAcceptance: React.FC = () => {
   const [activeAcceptanceId, setActiveAcceptanceId] = useState<number | null>(null);
 
   const canRevoke = isViewingHistory ? !historicalAcceptance?.isCancelled : isSubmitted;
-
-  const isTPKT = canManageTechnical;
 
   const loadData = React.useCallback(async (silent = false) => {
     if (!projectId || !phaseId) return;
@@ -216,7 +215,7 @@ export const PhaseAcceptance: React.FC = () => {
     );
   }
 
-  const allCompleted = tasks.length > 0 && tasks.every(t => t.progress === 100);
+  const allCompleted = isPhaseReadyForAcceptance(tasks);
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto animate-fade-in">
@@ -228,9 +227,9 @@ export const PhaseAcceptance: React.FC = () => {
           className="inline-flex items-center gap-1.5 bg-transparent border-none text-[hsl(var(--text-secondary))] cursor-pointer text-[0.9rem] font-medium w-fit hover:text-[hsl(var(--primary))] transition-colors p-0"
         >
           <ArrowLeft size={16} />
-          <span>{historyId ? 'Quay lại Danh sách Nghiệm thu' : 'Quay lại Không gian dự án'}</span>
+          <span>{historyId ? 'Quay lại danh sách biên bản nghiệm thu' : 'Quay lại không gian dự án'}</span>
         </button>
-        <h1 className="text-[1.75rem] font-extrabold m-0">Nghiệm thu Giai đoạn</h1>
+        <h1 className="text-[1.75rem] font-extrabold m-0">Nghiệm thu giai đoạn</h1>
         <p className="text-[0.875rem] text-[hsl(var(--text-secondary))] m-0">
           Dự án: <strong className="font-semibold">{project.name}</strong> &rarr; Giai đoạn: <strong className="font-semibold">{phase.name}</strong>
         </p>
@@ -246,7 +245,7 @@ export const PhaseAcceptance: React.FC = () => {
       <AcceptanceTasksChecklist tasks={tasks} allCompleted={allCompleted} />
 
       {/* Evaluation Form or History Detail */}
-      {(isTPKT || isViewingHistory || isSubmitted) ? (
+      {(canManageAcceptance || isViewingHistory || isSubmitted) ? (
         <div className="card flex flex-col gap-5 bg-[hsl(var(--bg-card))]">
 
           {isViewingHistory && historicalAcceptance && (
@@ -294,10 +293,10 @@ export const PhaseAcceptance: React.FC = () => {
                   className="flex items-center gap-2 border-[hsl(var(--primary))] text-[hsl(var(--primary-hover))] bg-transparent hover:bg-[hsl(var(--primary-glow))]"
                 >
                   <Download size={16} />
-                  <span>Tải File Báo Cáo Nghiệm Thu</span>
+                  <span>Tải biên bản nghiệm thu</span>
                 </Button>
 
-                {canRevoke && !isRevoking && isTPKT ? (
+                {canRevoke && !isRevoking && canManageAcceptance ? (
                   <Button
                     type="button"
                     onClick={() => { setIsRevoking(true); setRevokeError(null); }}
@@ -310,7 +309,7 @@ export const PhaseAcceptance: React.FC = () => {
                     <AlertTriangle size={15} />
                     Yêu cầu Hủy Nghiệm Thu
                   </Button>
-                ) : canRevoke && isRevoking && isTPKT ? (
+                ) : canRevoke && isRevoking && canManageAcceptance ? (
                   <div className="w-full mt-3 p-4 bg-[hsl(var(--danger-glow))] border border-[hsl(var(--danger)/0.3)] rounded-sm text-left">
                     <label htmlFor="revoke-reason" className="text-[hsl(var(--danger))] font-semibold block mb-2">
                       Lý do hủy nghiệm thu (Tối thiểu 20 ký tự) <span className="text-[hsl(var(--danger))]">*</span>
@@ -367,7 +366,7 @@ export const PhaseAcceptance: React.FC = () => {
         </div>
       ) : (
         <div className="card text-center text-[hsl(var(--text-muted))] bg-[hsl(var(--bg-card))]">
-          Bạn cần đăng nhập với vai trò <strong className="font-semibold text-[hsl(var(--text-primary))]">Trưởng phòng Kỹ Thuật (TPKT)</strong> để tiến hành nghiệm thu giai đoạn này.
+          Bạn cần đăng nhập với vai trò <strong className="font-semibold text-[hsl(var(--text-primary))]">Trưởng phòng Kỹ Thuật</strong> để tiến hành nghiệm thu giai đoạn này.
         </div>
       )}
 

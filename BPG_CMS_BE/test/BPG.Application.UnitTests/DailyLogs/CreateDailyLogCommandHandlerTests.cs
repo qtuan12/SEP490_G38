@@ -288,6 +288,21 @@ namespace BPG.Application.UnitTests.DailyLogs
             result.Description.Should().Be("Leader progress update");
         }
 
+        [Fact]
+        public async Task UTCID14_Handle_TechnicalManagerDecreasesCompletedAssignedTaskToZero_ShouldSetStatusToAssigned()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupCreator("TM User");
+            var task = LeafTask(progress: 100);
+            task.Status = DomainTaskStatus.Completed;
+            task.Assignees.Add(new TaskAssignee { TaskId = TaskId, UserId = CurrentUserId });
+            SetupTasks(task);
+
+            await _handler.Handle(Command(progress: 0, description: "Reset after technical review"), CancellationToken.None);
+
+            task.Status.Should().Be(DomainTaskStatus.Assigned);
+        }
+
         private static CreateDailyLogCommand Command(
             long taskId = TaskId,
             byte progress = 50,

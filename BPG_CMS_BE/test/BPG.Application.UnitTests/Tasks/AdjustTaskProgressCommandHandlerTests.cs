@@ -115,6 +115,31 @@ public class AdjustTaskProgressCommandHandlerTests
         result.Success.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task UTCID07_Handle_AdjustCompletedTaskToZeroWithoutAssignee_ShouldSetStatusToNew()
+    {
+        var task = ValidTask(BPG.Domain.Constants.TaskStatus.Completed);
+        task.ProgressPercent = 100;
+        SetupTasks(task);
+
+        await _handler.Handle(Command(0), CancellationToken.None);
+
+        task.Status.Should().Be(BPG.Domain.Constants.TaskStatus.New);
+    }
+
+    [Fact]
+    public async Task UTCID08_Handle_AdjustCompletedTaskToZeroWithAssignee_ShouldSetStatusToAssigned()
+    {
+        var task = ValidTask(BPG.Domain.Constants.TaskStatus.Completed);
+        task.ProgressPercent = 100;
+        task.Assignees.Add(new TaskAssignee { TaskId = TaskId, UserId = 2 });
+        SetupTasks(task);
+
+        await _handler.Handle(Command(0), CancellationToken.None);
+
+        task.Status.Should().Be(BPG.Domain.Constants.TaskStatus.Assigned);
+    }
+
     private static AdjustTaskProgressCommand Command(byte progress) => new(TaskId, progress, "Technical correction");
 
     private static ProjectTask ValidTask(string status = BPG.Domain.Constants.TaskStatus.InProgress) => new()
