@@ -33,6 +33,12 @@ export const notificationService = {
     );
   },
 
+  async getUnreadCount(): Promise<number> {
+    return unwrap(
+      await apiClient.get<ApiResponse<number>>('/notifications/unread-count')
+    );
+  },
+
   async markAsRead(notificationId?: number, markAll: boolean = false): Promise<ApiResult<boolean>> {
     return unwrapWithMessage(
       await apiClient.post<ApiResponse<boolean>>('/notifications/mark-read', {

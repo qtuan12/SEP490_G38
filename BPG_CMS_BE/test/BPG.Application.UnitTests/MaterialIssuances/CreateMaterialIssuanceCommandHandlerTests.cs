@@ -90,6 +90,23 @@ namespace BPG.Application.UnitTests.MaterialIssuances
         }
 
         [Fact]
+        public async Task Handle_ClientConversionRateIsSpoofedForBaseUnit_ShouldStoreRateOne()
+        {
+            SetupTechnicalManager();
+            SetupTasks(ProjectTask());
+            SetupInventories(Inventory(CementId, "Cement", quantity: 20));
+            List<MaterialIssuanceItem>? savedItems = null;
+            _mockIssuanceItemRepo
+                .Setup(repo => repo.AddRangeAsync(It.IsAny<IEnumerable<MaterialIssuanceItem>>(), It.IsAny<CancellationToken>()))
+                .Callback<IEnumerable<MaterialIssuanceItem>, CancellationToken>((items, _) => savedItems = items.ToList())
+                .Returns(Task.CompletedTask);
+
+            await _handler.Handle(Command(items: new[] { Item(CementId, 5, conversionRate: 999) }), CancellationToken.None);
+
+            savedItems.Should().ContainSingle().Which.ConversionRate.Should().Be(1);
+        }
+
+        [Fact]
         public async Task UTCID02_Handle_EmptyItems_ShouldThrowBusinessException()
         {
             SetupTechnicalManager();
@@ -264,7 +281,8 @@ namespace BPG.Application.UnitTests.MaterialIssuances
                 {
                     MaterialId = materialId,
                     Name = materialName,
-                    BaseUnit = new Unit { UnitName = unitName, IsDiscrete = isDiscrete }
+                    BaseUnitId = UnitId,
+                    BaseUnit = new Unit { UnitId = UnitId, UnitName = unitName, IsDiscrete = isDiscrete }
                 }
             };
 

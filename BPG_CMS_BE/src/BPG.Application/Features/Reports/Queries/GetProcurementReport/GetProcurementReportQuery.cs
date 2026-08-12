@@ -101,6 +101,19 @@ public class GetProcurementReportQueryHandler
             .OrderByDescending(d => d.PurchaseDate)
             .ToListAsync(cancellationToken);
 
+        var supplierIds = pos
+            .Where(po => po.SupplierId.HasValue)
+            .Select(po => po.SupplierId!.Value)
+            .Distinct()
+            .ToList();
+        var supplierNames = supplierIds.Count == 0
+            ? new Dictionary<long, string>()
+            : await _unitOfWork.Repository<Supplier>().Query()
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(supplier => supplierIds.Contains(supplier.SupplierId))
+                .ToDictionaryAsync(supplier => supplier.SupplierId, supplier => supplier.SupplierName, cancellationToken);
+
         decimal totalPoCost = pos.Sum(p => p.TotalAmount > 0
             ? p.TotalAmount
             : p.Items.Sum(i => i.Quantity * i.UnitPrice));
@@ -114,7 +127,10 @@ public class GetProcurementReportQueryHandler
             POId = p.POId,
             PONumber = p.PONumber,
             Status = p.Status,
-            SupplierName = p.Supplier?.SupplierName,
+            SupplierName = p.SupplierId.HasValue
+                && supplierNames.TryGetValue(p.SupplierId.Value, out var supplierName)
+                    ? supplierName
+                    : null,
             TotalAmount = p.TotalAmount > 0 ? p.TotalAmount : p.Items.Sum(i => i.Quantity * i.UnitPrice),
             OrderDate = p.OrderDate,
             ExpectedDeliveryDate = p.ExpectedDeliveryDate
