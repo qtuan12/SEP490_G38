@@ -39,7 +39,7 @@ public class PhaseAcceptancesController : BaseApiController
     /// </summary>
     [HttpPost]
     [EnableRateLimiting(RateLimitPolicies.Mutation)]
-    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
     public async Task<IActionResult> AcceptPhase([FromBody] BPG.Application.Features.PhaseAcceptances.Commands.AcceptPhase.AcceptPhaseCommand command, CancellationToken ct)
     {
         var acceptanceId = await Mediator.Send(command, ct);

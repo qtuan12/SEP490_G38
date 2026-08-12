@@ -45,4 +45,15 @@ public class GetPhaseAcceptancesQueryHandlerTests
         Func<Task> act = () => _handler.Handle(new GetPhaseAcceptancesQuery(), CancellationToken.None);
         await act.Should().ThrowAsync<ForbiddenException>();
     }
+
+    [Fact]
+    public async Task UTCID03_Handle_GlobalQueryBySiteEngineer_ShouldReturnAccessibleProjects()
+    {
+        _currentUser.SetupUser(1, BPG.Domain.Constants.UserRole.SiteEngineer);
+
+        var result = await _handler.Handle(new GetPhaseAcceptancesQuery(), CancellationToken.None);
+
+        result.Items.Should().BeEmpty();
+        _access.Verify(x => x.GetAccessibleProjectIdsAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

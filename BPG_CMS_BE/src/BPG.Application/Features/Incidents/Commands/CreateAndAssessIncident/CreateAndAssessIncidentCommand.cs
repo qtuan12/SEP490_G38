@@ -102,6 +102,14 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                 throw new NotFoundException(nameof(ProjectTask), request.TaskId.Value);
             }
 
+            var hasChildren = await _unitOfWork.Repository<ProjectTask>().AnyAsync(
+                t => t.ParentTaskId == request.TaskId.Value && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete,
+                cancellationToken);
+            if (hasChildren)
+            {
+                throw new BusinessException("ERR_PARENT_TASK_INCIDENT", "Không thể báo cáo sự cố cho công việc cha (công việc có công việc con). Vui lòng chọn công việc con trực tiếp để báo cáo.");
+            }
+
             if (!phaseId.HasValue)
             {
                 phaseId = task.PhaseId;
