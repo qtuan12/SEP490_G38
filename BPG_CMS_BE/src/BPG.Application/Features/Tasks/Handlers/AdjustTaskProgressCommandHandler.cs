@@ -97,6 +97,10 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
             task.Status = BPG.Domain.Constants.TaskStatus.Completed;
         else if (request.NewProgress > 0 && request.NewProgress < 100)
             task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
+        else
+            task.Status = task.Assignees.Any()
+                ? BPG.Domain.Constants.TaskStatus.Assigned
+                : BPG.Domain.Constants.TaskStatus.New;
 
         task.ProgressLogs.Add(new TaskProgressLog
         {

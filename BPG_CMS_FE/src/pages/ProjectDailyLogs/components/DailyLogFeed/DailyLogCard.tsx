@@ -232,7 +232,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
 
           {/* Progress changes */}
           <div className="text-right shrink-0">
-            <span className="text-[0.7rem] text-[hsl(var(--text-muted))] font-medium">Thay đổi tiến độ</span>
+            <span className="text-[0.7rem] text-[hsl(var(--text-muted))] font-medium">Tiến độ được báo cáo tại thời điểm này</span>
             <div className={`font-extrabold text-base flex items-center justify-end gap-1 ${isIncident ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
               <span>{log.progressFrom}%</span>
               <span>&rarr;</span>
