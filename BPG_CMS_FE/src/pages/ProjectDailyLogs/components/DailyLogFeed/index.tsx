@@ -3,8 +3,8 @@ import { useAuth } from '../../../../context/AuthContext';
 import { useNotification } from '../../../../context/NotificationContext';
 import { projectService } from '../../../../services/projectService';
 import { USE_MOCK_API } from '../../../../services/api';
-import type { DailyLog, WBSTask, DailyLogComment, WBSPhase } from '../../../../types/common';
-import { Clock, Plus, ChevronDown, MessageSquare } from 'lucide-react';
+import type { DailyLog, WBSTask, DailyLogComment, WBSPhase, TaskProgressLog } from '../../../../types/common';
+import { Clock, Plus, ChevronDown, MessageSquare, AlertTriangle, History } from 'lucide-react';
 
 import { Modal, Button, LoadingSpinner } from '../../../../components/ui';
 import { DailyLogFormModal } from '../../modals/DailyLogFormModal';
@@ -51,9 +51,10 @@ const formatYYYYMMDDtoDDMMYYYY = (dateStr: string): string => {
 interface DailyLogFeedProps {
   projectId: string;
   taskId?: string;
+  onOpenProgressHistory?: () => void;
 }
 
-export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId }) => {
+export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId, onOpenProgressHistory }) => {
   const { user, hasAnyRole } = useAuth();
   const { canManageExecution, isProjectLeader } = useProjectAccess(projectId);
   const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
@@ -62,6 +63,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [members, setMembers] = useState<any[]>([]);
+  const [progressHistory, setProgressHistory] = useState<TaskProgressLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
@@ -92,6 +94,25 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
     return tasks.some(t => t.parentTaskId === currentTask.id && t.status !== 'obsolete');
   }, [currentTask, tasks]);
 
+  const latestTaskDailyLog = React.useMemo(() => {
+    if (!taskId || currentTaskHasSubtasks) return null;
+    const normalizedTaskId = String(taskId).replace(/^t-/, '');
+    return logs.find(log => String(log.taskId).replace(/^t-/, '') === normalizedTaskId) ?? null;
+  }, [logs, taskId, currentTaskHasSubtasks]);
+
+  const postLogDirectAdjustment = React.useMemo(() => {
+    if (!currentTask || !latestTaskDailyLog || progressHistory.length === 0) return null;
+    const latestChange = progressHistory[0];
+    if (
+      latestChange.source !== 'Direct'
+      || latestChange.newProgress !== currentTask.progress
+      || latestTaskDailyLog.progressTo === currentTask.progress
+    ) {
+      return null;
+    }
+    return latestChange;
+  }, [currentTask, latestTaskDailyLog, progressHistory]);
+
   const descendantTasks = React.useMemo(() => {
     if (!taskId || !currentTask || !currentTaskHasSubtasks) return [];
     const list: WBSTask[] = [];
@@ -113,11 +134,14 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
   const loadData = async () => {
     setLoading(true);
     try {
-      const [logsResult, tasksData, phasesData, membersData] = await Promise.all([
+      const [logsResult, tasksData, phasesData, membersData, progressHistoryData] = await Promise.all([
         projectService.getDailyLogsPage(projectId, 1, PAGE_SIZE, taskId, targetLogId || undefined),
         projectService.getTasks(projectId),
         projectService.getPhases(projectId),
-        projectService.getMembers(projectId)
+        projectService.getMembers(projectId),
+        taskId
+          ? projectService.getTaskProgressHistory(taskId)
+          : Promise.resolve([] as TaskProgressLog[])
       ]);
       setLogs(logsResult.items);
       setHasNextPage(logsResult.items.length > 0 && logsResult.hasNextPage);
@@ -125,6 +149,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
       setTasks(tasksData.filter(t => t.status !== 'obsolete'));
       setPhases(phasesData);
       setMembers(membersData || []);
+      setProgressHistory(progressHistoryData);
     } catch (err: any) {
       console.error('Error loading daily logs data:', err);
     } finally {
@@ -150,7 +175,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
 
   useEffect(() => {
     loadData();
-  }, [projectId]);
+  }, [projectId, taskId, targetLogId]);
 
   // Real-time synchronization using SignalR group for project
   useEffect(() => {
@@ -489,6 +514,39 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId })
           </Button>
         )}
       </div>
+
+      {taskId && currentTask && !currentTaskHasSubtasks && (
+        <div className={`flex items-start justify-between gap-3 px-4 py-3 rounded-md border ${postLogDirectAdjustment
+          ? 'border-[hsl(var(--warning)/0.45)] bg-[hsl(var(--warning-glow))]'
+          : 'border-[hsl(var(--border))] bg-[hsl(var(--bg-card))]'}`}>
+          <div className="flex items-start gap-2.5 min-w-0">
+            {postLogDirectAdjustment
+              ? <AlertTriangle size={18} className="mt-0.5 shrink-0 text-[hsl(var(--warning))]" />
+              : <History size={18} className="mt-0.5 shrink-0 text-[hsl(var(--primary))]" />}
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-[hsl(var(--text-primary))]">
+                Tiến độ hiện tại: {currentTask.progress}%
+              </div>
+              <p className="mt-0.5 text-xs leading-relaxed text-[hsl(var(--text-secondary))]">
+                {postLogDirectAdjustment
+                  ? `Sau nhật ký gần nhất (${latestTaskDailyLog?.progressTo}%), Technical Manager đã điều chỉnh trực tiếp tiến độ thành ${currentTask.progress}%. Nhật ký gốc vẫn được giữ nguyên để bảo toàn dấu vết báo cáo.`
+                  : 'Các tỷ lệ trên từng nhật ký là tiến độ được báo cáo tại thời điểm lập, có thể khác tiến độ hiện tại của công việc.'}
+              </p>
+            </div>
+          </div>
+          {onOpenProgressHistory && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenProgressHistory}
+              className="shrink-0 flex items-center gap-1.5"
+            >
+              <History size={14} />
+              <span>Xem lịch sử</span>
+            </Button>
+          )}
+        </div>
+      )}
 
       <DailyLogFilters
         taskId={taskId}
