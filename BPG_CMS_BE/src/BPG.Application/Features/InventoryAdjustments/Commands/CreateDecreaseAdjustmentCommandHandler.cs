@@ -61,7 +61,28 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             if (request.IncidentId.HasValue && request.IncidentId.Value > 0)
             {
                 var incident = await _unitOfWork.Repository<Incident>().GetByIdAsync(request.IncidentId.Value);
-                if (incident != null && (incident.Status == "WaitingAccountant" || incident.Status == "Reported"))
+                if (incident == null)
+                {
+                    throw new NotFoundException(nameof(Incident), request.IncidentId.Value);
+                }
+
+                if (incident.ProjectId != request.ProjectId)
+                {
+                    throw new BusinessException("ERR_INVALID_INCIDENT", "Sự cố được chọn không thuộc về dự án này.");
+                }
+
+                if (incident.PhaseId.HasValue && incident.PhaseId.Value != request.PhaseId)
+                {
+                    throw new BusinessException("ERR_INVALID_INCIDENT", "Sự cố được chọn không thuộc giai đoạn này.");
+                }
+
+                var isInventoryIncident = incident.IncidentType == "InventoryLoss" || incident.IncidentType == "InventoryDamage";
+                if (!isInventoryIncident)
+                {
+                    throw new BusinessException("ERR_INVALID_INCIDENT", "Chỉ được liên kết phiếu giảm tồn kho với sự cố vật tư kho.");
+                }
+
+                if (incident.Status == "WaitingAccountant" || incident.Status == "Reported")
                 {
                     incident.Status = "WaitingDirector";
                     if (!string.IsNullOrWhiteSpace(request.Description))

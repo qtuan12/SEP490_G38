@@ -79,10 +79,11 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'Approved':
-      case 'Completed': return 'Đã nghiệm thu';
+      case 'Approved': return 'Đã nghiệm thu';
+      case 'Completed': return 'Hoàn thành (Chờ nghiệm thu)';
       case 'InProgress': return 'Đang thi công';
       case 'Draft': return 'Chưa bắt đầu';
+      case 'Obsolete': return 'Đã hủy (Khóa)';
       default: return status;
     }
   };

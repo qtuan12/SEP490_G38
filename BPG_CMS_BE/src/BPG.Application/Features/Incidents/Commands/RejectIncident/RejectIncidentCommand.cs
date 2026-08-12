@@ -93,8 +93,9 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
         {
             var adjustment = await _unitOfWork.Repository<InventoryAdjustment>().Query()
                 .Include(a => a.Items)
-                .Where(a => a.ProjectId == incident.ProjectId && a.PhaseId == incident.PhaseId && a.Status == InventoryAdjustmentStatus.Pending)
-                .OrderBy(a => a.AdjustmentId)
+                .Where(a => a.IncidentId == incident.IncidentId 
+                    && a.AdjustmentType == InventoryAdjustmentType.Decrease 
+                    && a.Status == InventoryAdjustmentStatus.Pending)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (adjustment != null)

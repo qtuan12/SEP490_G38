@@ -267,12 +267,15 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         {
                             PhaseId = incident.Task.PhaseId,
                             ParentTaskId = incident.Task.ParentTaskId,
+                            IncidentId = incident.IncidentId,
                             Name = request.ReworkTaskName!,
-                            Description = string.Empty,
+                            Description = FormatReworkTaskDescription(incident.Description),
                             StartDate = DateOnly.FromDateTime(request.ReworkTaskStartDate!.Value),
                             EndDate = DateOnly.FromDateTime(request.ReworkTaskEndDate!.Value),
                             Status = "New",
-                            ProgressPercent = 0
+                            ProgressPercent = 0,
+                            CreatedBy = currentUserId,
+                            CreatedAt = DateTime.UtcNow
                         };
                         await _unitOfWork.Repository<ProjectTask>().AddAsync(reworkTask);
                         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -305,6 +308,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                             UpdateReason = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason)
                                 ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}"
                                 : $"Giảm tiến độ do sự cố: {incident.Description}",
+                            CreatedBy = currentUserId,
+                            CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow
                         };
                         await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
@@ -384,12 +389,15 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 {
                     PhaseId = incident.Task.PhaseId,
                     ParentTaskId = incident.Task.ParentTaskId,
+                    IncidentId = incident.IncidentId,
                     Name = request.ReworkTaskName!,
-                    Description = string.Empty,
+                    Description = FormatReworkTaskDescription(incident.Description),
                     StartDate = DateOnly.FromDateTime(request.ReworkTaskStartDate!.Value),
                     EndDate = DateOnly.FromDateTime(request.ReworkTaskEndDate!.Value),
                     Status = "New",
-                    ProgressPercent = 0
+                    ProgressPercent = 0,
+                    CreatedBy = currentUserId,
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 await _unitOfWork.Repository<ProjectTask>().AddAsync(reworkTask);
@@ -426,6 +434,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         UpdateReason = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason) 
                             ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}" 
                             : $"Giảm tiến độ do sự cố: {incident.Description}",
+                        CreatedBy = currentUserId,
+                        CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
                     await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
@@ -507,11 +517,12 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         incident.HandlingInstruction = request.HandlingInstruction;
                     }
 
-                    // Tìm phiếu giảm tồn kho liên kết đang chờ duyệt
+                    // Tìm phiếu giảm tồn kho liên kết trực tiếp với sự cố này đang chờ duyệt
                     var adjustment = await _unitOfWork.Repository<InventoryAdjustment>().Query()
                         .Include(a => a.Items)
-                        .Where(a => a.ProjectId == incident.ProjectId && a.PhaseId == incident.PhaseId && a.Status == InventoryAdjustmentStatus.Pending)
-                        .OrderBy(a => a.AdjustmentId)
+                        .Where(a => a.IncidentId == incident.IncidentId 
+                            && a.AdjustmentType == InventoryAdjustmentType.Decrease 
+                            && a.Status == InventoryAdjustmentStatus.Pending)
                         .FirstOrDefaultAsync(cancellationToken);
 
                     if (adjustment != null)
@@ -554,6 +565,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         }
                     }
 
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+
                     await _notificationService.SendNotificationAsync(
                         incident.ReportedBy,
                         "Báo cáo sự cố đã được phê duyệt",
@@ -569,12 +582,17 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             }
             else
             {
+                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager))
+                    throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt sự cố thi công.");
+
                 incident.Status = "Approved";
                 incident.ReviewedBy = currentUserId; 
                 if (!string.IsNullOrWhiteSpace(request.HandlingInstruction))
                 {
                     incident.HandlingInstruction = request.HandlingInstruction;
                 }
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 await _notificationService.SendNotificationAsync(
                     incident.ReportedBy,
@@ -585,8 +603,6 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 );
             }
         }
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Map and return
         var updatedIncident = await _unitOfWork.Repository<Incident>()
@@ -663,6 +679,30 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
         });
 
         return System.Text.Json.JsonSerializer.Serialize(historyList);
+    }
+
+    private static string FormatReworkTaskDescription(string? incidentDescription)
+    {
+        if (string.IsNullOrWhiteSpace(incidentDescription))
+        {
+            return "Công việc làm lại do sự cố";
+        }
+
+        var cleanDesc = incidentDescription;
+        var idx = cleanDesc.IndexOf("**Ngày/Giờ xảy ra:**", StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0)
+        {
+            cleanDesc = cleanDesc.Substring(0, idx).Trim();
+        }
+
+        cleanDesc = cleanDesc.Replace("[INC-AUDIT]", "").Replace("SEED_TEST_INVENTORY_INCIDENT", "").Trim(' ', '-', ':', '\r', '\n');
+
+        if (string.IsNullOrWhiteSpace(cleanDesc))
+        {
+            return "Công việc làm lại do sự cố";
+        }
+
+        return $"Công việc làm lại do sự cố: {cleanDesc}";
     }
 
     private class StatusHistoryItem
