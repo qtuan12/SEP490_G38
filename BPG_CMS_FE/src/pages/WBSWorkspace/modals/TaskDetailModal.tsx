@@ -538,7 +538,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <ObsoleteTaskForm task={selectedTask} onSuccess={handleFormSuccess} onCancel={() => setActiveForm(null)} />
             )}
             {activeForm === 'log' && canReportDailyLog && (
-              <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} isPL={isPL} canManageTechnical={isTPKT} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
+              <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} isPL={isPL} canManageTechnical={isTPKT} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} suppressSuccessToast />
             )}
           </div>
         )}
