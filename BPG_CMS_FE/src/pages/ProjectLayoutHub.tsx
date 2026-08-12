@@ -627,28 +627,6 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => handleTabChange('logs')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 18px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'logs' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
-            color: activeTab === 'logs' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-            fontWeight: activeTab === 'logs' ? 600 : 500,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'all var(--transition-fast)'
-          }}
-        >
-          <Clock size={18} />
-          <span>Nhật ký thi công</span>
-        </button>
-
-        <button
           onClick={() => handleTabChange('members')}
           style={{
             display: 'flex',
@@ -693,6 +671,28 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
+          onClick={() => handleTabChange('purchaseorders')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'purchaseorders' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'purchaseorders' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'purchaseorders' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <ShoppingCart size={18} />
+          <span>Đơn hàng</span>
+        </button>
+
+        <button
           onClick={() => handleTabChange('inventory')}
           style={{
             display: 'flex',
@@ -715,7 +715,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => handleTabChange('inventoryadjustments')}
+          onClick={() => handleTabChange('logs')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -723,17 +723,17 @@ export const ProjectLayoutHub: React.FC = () => {
             padding: '12px 18px',
             background: 'none',
             border: 'none',
-            borderBottom: activeTab === 'inventoryadjustments' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
-            color: activeTab === 'inventoryadjustments' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-            fontWeight: activeTab === 'inventoryadjustments' ? 600 : 500,
+            borderBottom: activeTab === 'logs' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'logs' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'logs' ? 600 : 500,
             fontSize: '0.95rem',
             cursor: 'pointer',
             whiteSpace: 'nowrap',
             transition: 'all var(--transition-fast)'
           }}
         >
-          <FileSignature size={18} />
-          <span>Kiểm kê vật tư</span>
+          <Clock size={18} />
+          <span>Nhật ký thi công</span>
         </button>
 
         <button
@@ -759,7 +759,7 @@ export const ProjectLayoutHub: React.FC = () => {
         </button>
 
         <button
-          onClick={() => handleTabChange('surplus')}
+          onClick={() => handleTabChange('inventoryadjustments')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -767,61 +767,17 @@ export const ProjectLayoutHub: React.FC = () => {
             padding: '12px 18px',
             background: 'none',
             border: 'none',
-            borderBottom: activeTab === 'surplus' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
-            color: activeTab === 'surplus' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-            fontWeight: activeTab === 'surplus' ? 600 : 500,
+            borderBottom: activeTab === 'inventoryadjustments' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'inventoryadjustments' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'inventoryadjustments' ? 600 : 500,
             fontSize: '0.95rem',
             cursor: 'pointer',
             whiteSpace: 'nowrap',
             transition: 'all var(--transition-fast)'
           }}
         >
-          <PackageMinus size={18} />
-          <span>Xử lý Vật tư thừa</span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('purchaseorders')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 18px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'purchaseorders' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
-            color: activeTab === 'purchaseorders' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-            fontWeight: activeTab === 'purchaseorders' ? 600 : 500,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'all var(--transition-fast)'
-          }}
-        >
-          <ShoppingCart size={18} />
-          <span>Đơn hàng</span>
-        </button>
-
-        <button
-          onClick={() => handleTabChange('suppliers')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 18px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'suppliers' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
-            color: activeTab === 'suppliers' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-            fontWeight: activeTab === 'suppliers' ? 600 : 500,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'all var(--transition-fast)'
-          }}
-        >
-          <Truck size={18} />
-          <span>{'NCC \u0111\u00e3 giao d\u1ecbch'}</span>
+          <FileSignature size={18} />
+          <span>Kiểm kê vật tư</span>
         </button>
 
         {canManageDirectPurchase && (
@@ -847,6 +803,50 @@ export const ProjectLayoutHub: React.FC = () => {
             <span>Mua khẩn cấp</span>
           </button>
         )}
+
+        <button
+          onClick={() => handleTabChange('surplus')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'surplus' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'surplus' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'surplus' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <PackageMinus size={18} />
+          <span>Xử lý Vật tư thừa</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('suppliers')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 18px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'suppliers' ? '2px solid hsl(var(--primary))' : '2px solid transparent',
+            color: activeTab === 'suppliers' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+            fontWeight: activeTab === 'suppliers' ? 600 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all var(--transition-fast)'
+          }}
+        >
+          <Truck size={18} />
+          <span>{'NCC đã giao dịch'}</span>
+        </button>
 
       </div>
 

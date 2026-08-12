@@ -94,7 +94,7 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
 
         // Notifications (loại trừ người tạo - userId)
         var notiTitle = "Chờ duyệt chuyển kho vật tư thừa";
-        var notiContent = $"Đề xuất chuyển kho [{transfer.SurplusTransferId}] từ dự án [{fromProjectName}] sang [{toProject.Name}] đang chờ phê duyệt.";
+        var notiContent = $"Đề xuất chuyển kho {transfer.SurplusTransferId} từ dự án {fromProjectName} sang {toProject.Name} đang chờ phê duyệt.";
 
         // 1. Thông báo đến Trưởng phòng kỹ thuật (trừ người tạo)
         await _notificationService.SendNotificationToRoleAsync(
@@ -199,12 +199,12 @@ public class ReviewSurplusTransferCommandHandler : IRequestHandler<ReviewSurplus
         // Thông báo kết quả phê duyệt
         var reviewTitle = "Kết quả duyệt chuyển kho";
         var reviewMsg = request.IsApproved
-            ? $"Đề xuất chuyển kho [{transfer.SurplusTransferId}] đã được TPKT phê duyệt. Hãy tiến hành vận chuyển."
-            : $"Đề xuất chuyển kho [{transfer.SurplusTransferId}] đã bị từ chối bởi TPKT.";
+            ? $"Đề xuất chuyển kho {transfer.SurplusTransferId} đã được TPKT phê duyệt. Hãy tiến hành vận chuyển."
+            : $"Đề xuất chuyển kho {transfer.SurplusTransferId} đã bị từ chối bởi TPKT.";
 
         var accountantReviewMsg = request.IsApproved
-            ? $"Trưởng phòng kỹ thuật đã phê duyệt yêu cầu chuyển vật tư của dự án [{transfer.FromProject.Name}]."
-            : $"Trưởng phòng kỹ thuật đã từ chối yêu cầu chuyển vật tư của dự án [{transfer.FromProject.Name}].";
+            ? $"Trưởng phòng kỹ thuật đã phê duyệt yêu cầu chuyển vật tư của dự án {transfer.FromProject.Name}."
+            : $"Trưởng phòng kỹ thuật đã từ chối yêu cầu chuyển vật tư của dự án {transfer.FromProject.Name}.";
 
         // 1. Thông báo đến Leader dự án nguồn (trừ người phê duyệt)
         var senderLeader = await _uow.Repository<ProjectMember>().Query()

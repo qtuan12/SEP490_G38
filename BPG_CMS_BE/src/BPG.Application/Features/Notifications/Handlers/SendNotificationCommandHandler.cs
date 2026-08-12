@@ -95,23 +95,17 @@ namespace BPG.Application.Features.Notifications.Handlers
                 _logger.LogInformation("Đã lưu {NotificationCount} thông báo vào database.", notifications.Count);
 
                 // 3. Gửi thông báo realtime qua SignalR
-                if (request.SendToAll && !request.ExcludeUserId.HasValue)
+                // Mỗi người nhận có một NotificationId riêng trong database. Luôn gửi DTO
+                // theo user để client không nhận ID thuộc bản ghi của người dùng khác.
+                foreach (var noti in notifications)
                 {
-                    // Gửi một gói tin broadcast duy nhất cho tất cả clients đang kết nối để tối ưu hiệu năng
-                    var sampleDto = _mapper.Map<NotificationDto>(notifications.First());
-                    await _realtimeSender.SendNotificationToAllAsync(sampleDto, cancellationToken);
-                    _logger.LogInformation("Đã gửi thông báo broadcast thành công cho tất cả clients.");
+                    var dto = _mapper.Map<NotificationDto>(noti);
+                    await _realtimeSender.SendNotificationToUserAsync(
+                        noti.UserId.ToString(),
+                        dto,
+                        cancellationToken);
                 }
-                else
-                {
-                    // Gửi realtime riêng cho từng user được nhắm tới
-                    foreach (var noti in notifications)
-                    {
-                        var dto = _mapper.Map<NotificationDto>(noti);
-                        await _realtimeSender.SendNotificationToUserAsync(noti.UserId.ToString(), dto, cancellationToken);
-                    }
-                    _logger.LogInformation("Đã gửi thông báo realtime thành công tới từng người dùng nhắm chọn.");
-                }
+                _logger.LogInformation("Đã gửi thông báo realtime thành công tới từng người dùng nhận.");
             }
             catch (System.Exception ex)
             {

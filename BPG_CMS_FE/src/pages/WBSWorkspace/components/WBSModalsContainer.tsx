@@ -170,6 +170,8 @@ export const WBSModalsContainer = () => {
           phase={selectedPhaseForEdit}
           onSuccess={handleSuccess}
           onError={handleError}
+          project={project}
+          phases={phases}
         />
       )}
 
@@ -262,6 +264,8 @@ export const WBSModalsContainer = () => {
           tasks={tasks}
           onSuccess={handleSuccess}
           onError={handleError}
+          project={project}
+          phase={phases.find(p => p.id === selectedTaskForEdit.phaseId) || null}
         />
       )}
 

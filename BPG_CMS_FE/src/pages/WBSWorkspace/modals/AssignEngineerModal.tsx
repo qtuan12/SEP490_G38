@@ -77,8 +77,8 @@ export const AssignEngineerForm: React.FC<AssignEngineerFormProps> = ({
       const selectedMembers = members.filter(m => selectedUserIds.includes(m.userId));
       const assignedNameVal = selectedMembers.map(m => m.userName).join(', ');
       
-      const msg = `Đã phân công công việc "${taskName}" cho các kỹ sư: ${assignedNameVal}`;
-      console.log(msg);
+      const msg = 'Đã phân công thành công';
+      console.log(`Đã phân công công việc "${taskName}" cho các kỹ sư: ${assignedNameVal}`);
       onSuccess(msg);
       
       // Invalidate tasks query to refresh data
