@@ -993,7 +993,7 @@ export const projectService = {
         userName: c.authorName,
         role: c.authorRole,
         content: c.content,
-        date: c.createdAt ? formatToLocalTime(c.createdAt) : ''
+        date: c.createdAt || ''
       });
 
       const items = (res.data?.items || []).map((l: any) => ({
@@ -1086,7 +1086,7 @@ export const projectService = {
         userName: c.authorName,
         role: c.authorRole,
         content: c.content,
-        date: c.createdAt ? formatToLocalTime(c.createdAt) : ''
+        date: c.createdAt || ''
       });
 
       // Synchronize task progress in localStorage WBS so frontend stays in sync
@@ -1222,7 +1222,7 @@ export const projectService = {
         userName: c.authorName,
         role: c.authorRole,
         content: c.content,
-        date: c.createdAt ? formatToLocalTime(c.createdAt) : ''
+        date: c.createdAt || ''
       });
 
       return {
@@ -1268,7 +1268,7 @@ export const projectService = {
         userName: c.authorName,
         role: c.authorRole,
         content: c.content,
-        date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+        date: c.createdAt || ''
       };
     }
 
@@ -1282,7 +1282,7 @@ export const projectService = {
       userName: user.name,
       role: user.role,
       content,
-      date: new Date().toLocaleString('sv-SE').slice(0, 16).replace('T', ' ')
+      date: new Date().toISOString()
     };
 
     logs[logIdx].comments.push(newComment);
@@ -1303,7 +1303,7 @@ export const projectService = {
         userName: c.authorName,
         role: c.authorRole,
         content: c.content,
-        date: c.createdAt ? c.createdAt.slice(0, 16).replace('T', ' ') : ''
+        date: c.createdAt || ''
       };
     }
 
