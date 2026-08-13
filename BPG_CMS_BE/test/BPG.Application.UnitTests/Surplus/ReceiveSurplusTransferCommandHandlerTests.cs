@@ -40,6 +40,7 @@ public class ReceiveSurplusTransferCommandHandlerTests
         _handler = new ReceiveSurplusTransferCommandHandler(
             _uow.Object,
             ServiceStubFactory.CurrentUserService(),
+            ServiceStubFactory.ProjectAccessService(),
             ServiceStubFactory.InventoryService(),
             ServiceStubFactory.NotificationService(),
             _fileStorage.Object);

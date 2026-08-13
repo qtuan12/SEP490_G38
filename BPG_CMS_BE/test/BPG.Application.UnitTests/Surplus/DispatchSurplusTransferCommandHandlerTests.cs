@@ -32,7 +32,7 @@ public class DispatchSurplusTransferCommandHandlerTests
         _fileStorage.Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("evidence.jpg");
         SetupTransfers(Transfer());
         _memberRepo.Setup(x => x.Query()).Returns(Array.Empty<ProjectMember>().AsQueryable().BuildMock());
-        _handler = new DispatchSurplusTransferCommandHandler(_uow.Object, ServiceStubFactory.CurrentUserService(), ServiceStubFactory.NotificationService(), _fileStorage.Object);
+        _handler = new DispatchSurplusTransferCommandHandler(_uow.Object, ServiceStubFactory.CurrentUserService(), ServiceStubFactory.ProjectAccessService(), ServiceStubFactory.NotificationService(), _fileStorage.Object);
     }
 
     [Fact]

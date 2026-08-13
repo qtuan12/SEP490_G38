@@ -40,7 +40,7 @@ public class CreateSurplusTransferActionCommandHandlerTests
         SetupTransfers();
         SetupInventory(new CurrentInventory { ProjectId = 3, MaterialId = 5, Quantity = 20 });
         _memberRepo.Setup(x => x.Query()).Returns(Array.Empty<ProjectMember>().AsQueryable().BuildMock());
-        _handler = new CreateSurplusTransferActionCommandHandler(_uow.Object, ServiceStubFactory.CurrentUserService(), ServiceStubFactory.NotificationService());
+        _handler = new CreateSurplusTransferActionCommandHandler(_uow.Object, ServiceStubFactory.CurrentUserService(), ServiceStubFactory.ProjectAccessService(), ServiceStubFactory.NotificationService());
     }
 
     [Fact]
