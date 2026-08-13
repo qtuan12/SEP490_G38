@@ -1685,13 +1685,19 @@ export const projectService = {
       isOverBOQ: item.boqCheckStatus === 'OverBOQ',
       type: 'normal',
       createdBy: item.createdBy,
+      checkedByName: item.checkedByName || undefined,
+      approvedByName: item.approvedByName || undefined,
+      accountantNote: item.accountantNote || undefined,
+      approvalNote: item.approvalNote || undefined,
       rejectionReason: item.accountantNote || item.approvalNote || '',
       status: this.mapBackendStatusToFrontend(item.status),
       items: (item.items || []).map((it: any) => ({
         name: it.materialName,
         quantity: it.quantity,
         unit: it.unitName,
-        conversionRate: it.conversionRate
+        conversionRate: it.conversionRate,
+        isOverBOQ: it.isOverBOQ,
+        explanation: it.explanation
       }))
     };
   },
@@ -1711,7 +1717,7 @@ export const projectService = {
   async getMaterialRequests(projectId: string): Promise<MaterialRequest[]> {
     if (!USE_MOCK_API) {
       const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
-      const res = await apiClient.get<ApiResponse<any>>(`/projects/${parsedProjectId}/material-requests`);
+      const res = await apiClient.get<ApiResponse<any>>(`/projects/${parsedProjectId}/material-requests?pageSize=100`);
       if (!res.success) throw new Error(res.message || 'Không thể tải danh sách yêu cầu.');
       return (res.data?.items || []).map((item: any) => this.mapRequestDtoToCommon(item));
     }
