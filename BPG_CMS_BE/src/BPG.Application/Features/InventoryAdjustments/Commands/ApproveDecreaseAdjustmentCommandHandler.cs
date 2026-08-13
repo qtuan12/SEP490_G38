@@ -70,6 +70,20 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
                 if (!isIncrease)
                 {
+                    foreach (var item in adjustment.Items)
+                    {
+                        var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
+                            .FirstOrDefaultAsync(
+                                inventory => inventory.ProjectId == adjustment.ProjectId && inventory.MaterialId == item.MaterialId,
+                                cancellationToken);
+                        if (currentInventory != null)
+                        {
+                            currentInventory.ReservedQuantity = System.Math.Max(0, currentInventory.ReservedQuantity - item.Quantity);
+                            currentInventory.LastUpdated = System.DateTime.UtcNow;
+                            _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
+                        }
+                    }
+
                     Incident? rejIncident = null;
                     if (adjustment.IncidentId.HasValue && adjustment.IncidentId.Value > 0)
                     {

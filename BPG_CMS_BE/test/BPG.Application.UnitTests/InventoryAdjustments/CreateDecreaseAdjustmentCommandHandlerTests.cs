@@ -22,6 +22,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         private readonly Mock<IGenericRepository<Project>> _mockProjectRepo;
         private readonly Mock<IGenericRepository<Phase>> _mockPhaseRepo;
         private readonly Mock<IGenericRepository<MaterialCatalog>> _mockMaterialRepo;
+        private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
         private readonly Mock<IGenericRepository<InventoryAdjustment>> _mockAdjustmentRepo;
         private readonly CreateDecreaseAdjustmentCommandHandler _handler;
 
@@ -31,14 +32,17 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             _mockProjectRepo = new Mock<IGenericRepository<Project>>();
             _mockPhaseRepo = new Mock<IGenericRepository<Phase>>();
             _mockMaterialRepo = new Mock<IGenericRepository<MaterialCatalog>>();
+            _mockInventoryRepo = new Mock<IGenericRepository<CurrentInventory>>();
             _mockAdjustmentRepo = new Mock<IGenericRepository<InventoryAdjustment>>();
 
             _mockUow.Setup(uow => uow.Repository<Project>()).Returns(_mockProjectRepo.Object);
             _mockUow.Setup(uow => uow.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
             _mockUow.Setup(uow => uow.Repository<MaterialCatalog>()).Returns(_mockMaterialRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
             _mockUow.Setup(uow => uow.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
 
             _mockMaterialRepo.SetupMockData(new List<MaterialCatalog>());
+            _mockInventoryRepo.SetupMockData(new List<CurrentInventory>());
             _mockAdjustmentRepo.Setup(repository => repository.AddAsync(It.IsAny<InventoryAdjustment>(), It.IsAny<CancellationToken>()))
                 .Callback<InventoryAdjustment, CancellationToken>((adjustment, _) => adjustment.AdjustmentId = GeneratedAdjustmentId)
                 .Returns(Task.CompletedTask);
@@ -131,11 +135,39 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         {
             SetupValidPreconditions();
             SetupMaterials(Material(isDiscrete: false));
+            SetupInventories(Inventory(quantity: 30));
 
             var result = await _handler.Handle(Command(quantity: 15.5m), CancellationToken.None);
 
             result.Success.Should().BeTrue();
             result.Data.Should().Be(GeneratedAdjustmentId);
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_QuantityExceedsAvailableStock_ShouldThrowInsufficientStockException()
+        {
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: false));
+            SetupInventories(Inventory(quantity: 30, reservedQuantity: 10));
+
+            var act = async () => await _handler.Handle(Command(quantity: 21), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<InsufficientStockException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.InsufficientStock);
+        }
+
+        [Fact]
+        public async Task UTCID08_Handle_SecondDecreaseExceedsStockAfterFirstHold_ShouldThrowInsufficientStockException()
+        {
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: false));
+            SetupInventories(Inventory(quantity: 30));
+
+            await _handler.Handle(Command(quantity: 10), CancellationToken.None);
+            var act = async () => await _handler.Handle(Command(quantity: 21), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<InsufficientStockException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.InsufficientStock);
         }
 
         private static CreateDecreaseAdjustmentCommand Command(decimal quantity = 2)
@@ -163,6 +195,15 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
                 BaseUnit = new Unit { UnitId = 3, UnitName = "m3", IsDiscrete = isDiscrete }
             };
 
+        private static CurrentInventory Inventory(decimal quantity, decimal reservedQuantity = 0)
+            => new()
+            {
+                ProjectId = ProjectId,
+                MaterialId = MaterialId,
+                Quantity = quantity,
+                ReservedQuantity = reservedQuantity
+            };
+
         private void SetupValidPreconditions()
         {
             SetupProject(Project());
@@ -184,6 +225,11 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         private void SetupMaterials(params MaterialCatalog[] materials)
         {
             _mockMaterialRepo.SetupMockData(materials.ToList());
+        }
+
+        private void SetupInventories(params CurrentInventory[] inventories)
+        {
+            _mockInventoryRepo.SetupMockData(inventories.ToList());
         }
     }
 }

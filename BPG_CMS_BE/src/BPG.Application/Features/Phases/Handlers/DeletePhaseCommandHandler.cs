@@ -1,18 +1,13 @@
-using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
+using BPG.Application.Features.Phases.Commands;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
+using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System.Threading;
-using System.Threading.Tasks;
-using BPG.Domain.Constants;
 
-namespace BPG.Application.Features.Phases.Commands.DeletePhase;
-
-public record DeletePhaseCommand(long PhaseId) : IRequest<ApiResponse>
-{
-}
+namespace BPG.Application.Features.Phases.Handlers;
 
 public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, ApiResponse>
 {
@@ -37,7 +32,7 @@ public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, Api
         if (phase.Project.Status != ProjectStatus.InProgress && phase.Project.Status != ProjectStatus.Draft)
             throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
 
-        if (phase.Status == BPG.Domain.Constants.PhaseStatus.Approved)
+        if (phase.Status == PhaseStatus.Approved)
         {
             throw new BusinessException("ERR_PHASE_APPROVED", "Không thể xóa phase đã nghiệm thu.");
         }
@@ -59,4 +54,3 @@ public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, Api
         return ApiResponse.SuccessResult("Xóa phase thành công.");
     }
 }
-
