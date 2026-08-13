@@ -92,7 +92,20 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         }
 
         [Fact]
-        public async Task UTCID02_Handle_AcceptanceNotFound_ShouldThrowNotFoundException()
+        public async Task UTCID02_Handle_Director_ShouldThrowForbiddenException()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.Director);
+
+            Func<Task> act = () => _handler.Handle(
+                new CancelAcceptanceCommand(AcceptanceId, "Hủy biên bản nghiệm thu"),
+                CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
+        }
+
+        [Fact]
+        public async Task UTCID03_Handle_AcceptanceNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
             _mockAcceptanceRepo.Setup(r => r.Query()).Returns(new List<PhaseAcceptance>().AsQueryable().BuildMock());
@@ -107,7 +120,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         }
 
         [Fact]
-        public async Task UTCID03_Handle_AcceptanceAlreadyCancelled_ShouldThrowBusinessException()
+        public async Task UTCID04_Handle_AcceptanceAlreadyCancelled_ShouldThrowBusinessException()
         {
             // Arrange
             var acceptance = new PhaseAcceptance
@@ -128,7 +141,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         }
 
         [Fact]
-        public async Task UTCID04_Handle_AcceptanceOverSevenDaysLimit_ShouldThrowBusinessException()
+        public async Task UTCID05_Handle_AcceptanceOverSevenDaysLimit_ShouldThrowBusinessException()
         {
             // Arrange
             var acceptance = new PhaseAcceptance
@@ -150,7 +163,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         }
 
         [Fact]
-        public async Task UTCID05_Handle_ProjectNotActive_ShouldThrowBusinessException()
+        public async Task UTCID06_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
             var acceptance = new PhaseAcceptance

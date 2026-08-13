@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, FormItem, Input, Select } from '../../../components/ui';
 import { AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
 import { getSurplusMaxActionQuantity } from '../../../utils/surplusHelpers';
 import { surplusService } from '../../../services/surplusService';
@@ -62,6 +63,7 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
         toProjectId: Number(toProjectId),
         transferQuantity: qty,
       });
+      toast.success('Đã tạo phiếu điều chuyển vật tư thừa.');
       onSuccess();
       onClose();
     } catch (err: any) {

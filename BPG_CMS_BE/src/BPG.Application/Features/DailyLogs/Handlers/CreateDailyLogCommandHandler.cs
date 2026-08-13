@@ -47,6 +47,14 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         {
             var currentUserId = _currentUserService.GetRequiredUserId();
 
+            if (_currentUserService.IsInAnyRole(
+                    BPG.Domain.Constants.UserRole.Admin,
+                    BPG.Domain.Constants.UserRole.TechnicalManager)
+                || !_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.SiteEngineer))
+            {
+                throw new ForbiddenException("Chỉ Kỹ sư công trường mới được phép tạo nhật ký thi công.");
+            }
+
             // 1. Kiểm tra Task có tồn tại hay không
             var task = await _uow.Repository<ProjectTask>().Query()
                 .Include(t => t.SubTasks)
@@ -62,23 +70,25 @@ namespace BPG.Application.Features.DailyLogs.Handlers
 
             var project = task.Phase.Project;
 
-            var isManager = _currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager);
-            if (!isManager)
-            {
-                var isProjectLeader = await _uow.Repository<ProjectMember>().Query()
-                    .AnyAsync(
-                        m => m.ProjectId == project.ProjectId
-                            && m.UserId == currentUserId
-                            && m.IsLeader,
-                        cancellationToken);
+            var projectMember = await _uow.Repository<ProjectMember>().Query()
+                .FirstOrDefaultAsync(
+                    m => m.ProjectId == project.ProjectId
+                        && m.UserId == currentUserId
+                        && !m.IsDeleted,
+                    cancellationToken);
 
-                var isAssignee = await _uow.Repository<TaskAssignee>().Query()
+            if (projectMember == null)
+            {
+                throw new ForbiddenException("Chỉ thành viên hiện tại của dự án mới được phép tạo nhật ký thi công.");
+            }
+
+            var canCreateDailyLog = projectMember.IsLeader
+                || await _uow.Repository<TaskAssignee>().Query()
                     .AnyAsync(ta => ta.TaskId == task.TaskId && ta.UserId == currentUserId, cancellationToken);
 
-                if (!isProjectLeader && !isAssignee)
-                {
-                    throw new ForbiddenException("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
-                }
+            if (!canCreateDailyLog)
+            {
+                throw new ForbiddenException("Chỉ Trưởng dự án hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
             }
 
             // 3. Kiểm tra trạng thái dự án
@@ -153,21 +163,12 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 }
             }
 
-            // 5. Kiểm tra lùi tiến độ (chỉ Admin/TM được phép lùi tiến độ)
+            // 5. Nhật ký thi công không được dùng để giảm tiến độ
             byte oldProgress = task.ProgressPercent;
             if (request.NewProgressPercent < oldProgress)
             {
-                if (!isManager)
-                {
-                    throw new BusinessException("ERR_DECREASE_PROGRESS_FORBIDDEN", 
-                        "Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
-                }
-
-                if (string.IsNullOrWhiteSpace(request.Description))
-                {
-                    throw new BusinessException("ERR_DECREASE_PROGRESS_REASON_REQUIRED", 
-                        "Vui lòng nhập lý do giảm tiến độ công việc.");
-                }
+                throw new BusinessException("ERR_DECREASE_PROGRESS_FORBIDDEN",
+                    "Không thể giảm tiến độ qua nhật ký thi công. Vui lòng sử dụng chức năng điều chỉnh tiến độ được cấp quyền.");
             }
 
             // Bắt đầu một transaction để đảm bảo lưu dữ liệu nhất quán

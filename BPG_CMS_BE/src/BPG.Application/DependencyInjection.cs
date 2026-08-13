@@ -27,6 +27,7 @@ namespace BPG.Application
 
             services.AddAutoMapper(typeof(DependencyInjection).Assembly);
             services.AddScoped<BPG.Application.IServices.IProjectAccessService, ProjectAccessService>();
+            services.AddScoped<BPG.Application.Features.Wbs.Services.WbsCloneFactory>();
             services.AddScoped<
                 BPG.Application.IServices.IDirectPurchaseFulfillmentService,
                 BPG.Application.Features.DirectPurchases.Services.DirectPurchaseFulfillmentService>();

@@ -328,9 +328,9 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         await _unitOfWork.Repository<DailyLog>().AddAsync(dailyLog);
 
                         incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
-                        if (incident.Task.ProgressPercent < 100 && incident.Task.Status == "Done")
+                        if (incident.Task.ProgressPercent < 100 && incident.Task.Status == BPG.Domain.Constants.TaskStatus.Completed)
                         {
-                            incident.Task.Status = "InProgress";
+                            incident.Task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
                         }
                     }
 
@@ -455,9 +455,9 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     await _unitOfWork.Repository<DailyLog>().AddAsync(dailyLog);
 
                     incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
-                    if (incident.Task.ProgressPercent < 100 && incident.Task.Status == "Done")
+                    if (incident.Task.ProgressPercent < 100 && incident.Task.Status == BPG.Domain.Constants.TaskStatus.Completed)
                     {
-                        incident.Task.Status = "InProgress";
+                        incident.Task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
                     }
                 }
             }

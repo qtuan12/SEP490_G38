@@ -26,6 +26,9 @@ public class AdjustTaskProgressCommandHandlerTests
     {
         _uow.Setup(x => x.Repository<ProjectTask>()).Returns(_taskRepo.Object);
         _uow.Setup(x => x.Repository<TaskDependency>()).Returns(_dependencyRepo.Object);
+        _uow.Setup(x => x.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _uow.Setup(x => x.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _uow.Setup(x => x.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _uow.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _currentUser.SetupUser(1, BPG.Domain.Constants.UserRole.TechnicalManager);
         SetupTasks(ValidTask());

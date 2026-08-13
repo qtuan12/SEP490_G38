@@ -61,7 +61,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
-  const { isTechnicalManager, isProjectLeader } = useProjectAccess(projectId);
+  const { isTechnicalManager, isProjectLeader, isProjectMember } = useProjectAccess(projectId);
 
   const [isTaskDetailOpen, setIsTaskDetailOpen] = useState(false);
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<WBSTask | null>(null);
@@ -477,6 +477,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
           isTPKTOrPL={isTechnicalManager || isProjectLeader}
           isTPKT={isTechnicalManager}
           isPL={isProjectLeader}
+          isProjectMember={isProjectMember}
           onCreateMatReqOpen={() => {}}
           onObsolete={async () => {
             if (selectedTaskForDetail.progress === 0) {

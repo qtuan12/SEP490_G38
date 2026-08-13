@@ -7,6 +7,7 @@ using BPG.Domain.Constants;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.RateLimiting;
@@ -44,9 +45,11 @@ namespace BPG.Api.Controllers
         [HttpPost]
         [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = UserRole.SiteEngineer)]
-        public async Task<IActionResult> CreateDailyLog([FromBody] CreateDailyLogCommand command)
+        public async Task<IActionResult> CreateDailyLog(
+            [FromBody] CreateDailyLogCommand command,
+            CancellationToken cancellationToken)
         {
-            var result = await Mediator.Send(command);
+            var result = await Mediator.Send(command, cancellationToken);
             return ApiOk(result, "Tạo nhật ký thi công thành công.");
         }
 
