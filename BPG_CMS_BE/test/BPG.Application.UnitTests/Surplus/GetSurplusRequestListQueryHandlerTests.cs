@@ -21,14 +21,9 @@ public class GetSurplusRequestListQueryHandlerTests
     public GetSurplusRequestListQueryHandlerTests()
     {
         _uow.Setup(x => x.Repository<SurplusRequest>()).Returns(_requestRepo.Object);
-        SetupRequests(new SurplusRequest
-        {
-            SurplusRequestId = 1,
-            ProjectId = 3,
-            Project = new Project { ProjectId = 3, Name = "Project" },
-            Status = SurplusRequestStatus.Processing,
-            Items = new List<SurplusRequestItem>()
-        });
+        SetupRequests(
+            Request(1, 3, "Accessible Project", "Project completion surplus"),
+            Request(2, 7, "Hidden Project", "Hidden request"));
         _access.Setup(x => x.GetAccessibleProjectIdsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new HashSet<long> { 3 });
         _handler = new GetSurplusRequestListQueryHandler(_uow.Object, _access.Object);
     }
@@ -37,7 +32,11 @@ public class GetSurplusRequestListQueryHandlerTests
     public async Task UTCID01_Handle_AccessibleProject_ShouldReturnPagedList()
     {
         var result = await _handler.Handle(new GetSurplusRequestListQuery { ProjectId = 3 }, CancellationToken.None);
+
         result.Items.Should().ContainSingle(x => x.ProjectId == 3);
+        result.TotalCount.Should().Be(1);
+        result.PageNumber.Should().Be(1);
+        result.PageSize.Should().Be(20);
     }
 
     [Fact]
@@ -53,6 +52,42 @@ public class GetSurplusRequestListQueryHandlerTests
         var result = await _handler.Handle(new GetSurplusRequestListQuery { ProjectId = 3, Status = SurplusRequestStatus.Processed }, CancellationToken.None);
         result.Items.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task UTCID04_Handle_NoProjectFilter_ShouldReturnOnlyAccessibleProjects()
+    {
+        var result = await _handler.Handle(new GetSurplusRequestListQuery(), CancellationToken.None);
+
+        result.Items.Should().ContainSingle(x => x.ProjectId == 3);
+        result.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task UTCID05_Handle_SearchMatchesReason_ShouldReturnMatchingRequest()
+    {
+        var result = await _handler.Handle(new GetSurplusRequestListQuery
+        {
+            ProjectId = 3,
+            Search = "  COMPLETION  "
+        }, CancellationToken.None);
+
+        result.Items.Should().ContainSingle(x => x.SurplusRequestId == 1);
+    }
+
+    private static SurplusRequest Request(
+        long id,
+        long projectId,
+        string projectName,
+        string reason) => new()
+    {
+        SurplusRequestId = id,
+        ProjectId = projectId,
+        Project = new Project { ProjectId = projectId, Name = projectName },
+        Reason = reason,
+        Status = SurplusRequestStatus.Processing,
+        CreatedAt = new DateTime(2026, 8, 1, 7, 0, 0, DateTimeKind.Utc),
+        Items = new List<SurplusRequestItem>()
+    };
 
     private void SetupRequests(params SurplusRequest[] items) => _requestRepo.Setup(x => x.Query()).Returns(items.AsQueryable().BuildMock());
 }

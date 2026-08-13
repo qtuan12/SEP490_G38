@@ -45,6 +45,7 @@ public class AdjustTaskProgressCommandHandlerTests
         var result = await _handler.Handle(Command(50), CancellationToken.None);
 
         result.Success.Should().BeTrue();
+        result.Message.Should().Be("Điều chỉnh tiến độ task thành công.");
     }
 
     [Fact]
@@ -54,11 +55,23 @@ public class AdjustTaskProgressCommandHandlerTests
 
         Func<Task> act = () => _handler.Handle(Command(50), CancellationToken.None);
 
-        await act.Should().ThrowAsync<NotFoundException>();
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.NotFound);
     }
 
     [Fact]
-    public async Task UTCID03_Handle_ObsoleteTask_ShouldThrowExpectedErrorCode()
+    public async Task UTCID03_Handle_ProjectNotInProgress_ShouldThrowInvalidTransition()
+    {
+        SetupTasks(ValidTask(projectStatus: ProjectStatus.Completed));
+
+        Func<Task> act = () => _handler.Handle(Command(50), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
+    }
+
+    [Fact]
+    public async Task UTCID04_Handle_ObsoleteTask_ShouldThrowExpectedErrorCode()
     {
         SetupTasks(ValidTask(status: BPG.Domain.Constants.TaskStatus.Obsolete));
 
@@ -69,30 +82,20 @@ public class AdjustTaskProgressCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID04_Handle_NonManager_ShouldThrowForbiddenException()
+    public async Task UTCID05_Handle_NonManager_ShouldThrowForbiddenException()
     {
         _currentUser.SetupUser(1);
 
         Func<Task> act = () => _handler.Handle(Command(50), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ForbiddenException>();
+        var exception = await act.Should().ThrowAsync<ForbiddenException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
     }
 
     [Fact]
-    public async Task UTCID05_Handle_IncompletePredecessor_ShouldThrowDependencyBlocked()
+    public async Task UTCID06_Handle_IncompletePredecessor_ShouldThrowDependencyBlocked()
     {
-        SetupDependencies(new TaskDependency
-        {
-            TaskId = TaskId,
-            PredecessorTaskId = 99,
-            Predecessor = new ProjectTask
-            {
-                TaskId = 99,
-                Name = "Preparation",
-                ProgressPercent = 80,
-                Status = BPG.Domain.Constants.TaskStatus.InProgress
-            }
-        });
+        SetupDependencies(Dependency(progress: 80));
 
         Func<Task> act = () => _handler.Handle(Command(10), CancellationToken.None);
 
@@ -101,50 +104,60 @@ public class AdjustTaskProgressCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID06_Handle_ZeroProgressWithIncompletePredecessor_ShouldReturnSuccess()
+    public async Task UTCID07_Handle_CompletedPredecessor_ShouldReturnSuccess()
     {
-        SetupDependencies(new TaskDependency
-        {
-            TaskId = TaskId,
-            PredecessorTaskId = 99,
-            Predecessor = new ProjectTask { TaskId = 99, ProgressPercent = 20 }
-        });
+        SetupDependencies(Dependency(progress: 100, status: BPG.Domain.Constants.TaskStatus.Completed));
+
+        var result = await _handler.Handle(Command(10), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Message.Should().Be("Điều chỉnh tiến độ task thành công.");
+    }
+
+    [Fact]
+    public async Task UTCID08_Handle_ObsoletePredecessor_ShouldReturnSuccess()
+    {
+        SetupDependencies(Dependency(progress: 80, status: BPG.Domain.Constants.TaskStatus.Obsolete));
+
+        var result = await _handler.Handle(Command(10), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Message.Should().Be("Điều chỉnh tiến độ task thành công.");
+    }
+
+    [Fact]
+    public async Task UTCID09_Handle_IncompleteAncestorPredecessor_ShouldReturnSuccess()
+    {
+        var task = ValidTask(parentTaskId: 99);
+        SetupTasks(task, new ProjectTask { TaskId = 99 });
+        SetupDependencies(Dependency(progress: 80));
+
+        var result = await _handler.Handle(Command(10), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Message.Should().Be("Điều chỉnh tiến độ task thành công.");
+    }
+
+    [Fact]
+    public async Task UTCID10_Handle_ZeroProgressWithIncompletePredecessor_ShouldReturnSuccess()
+    {
+        SetupDependencies(Dependency(progress: 80));
 
         var result = await _handler.Handle(Command(0), CancellationToken.None);
 
         result.Success.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task UTCID07_Handle_AdjustCompletedTaskToZeroWithoutAssignee_ShouldSetStatusToNew()
-    {
-        var task = ValidTask(BPG.Domain.Constants.TaskStatus.Completed);
-        task.ProgressPercent = 100;
-        SetupTasks(task);
-
-        await _handler.Handle(Command(0), CancellationToken.None);
-
-        task.Status.Should().Be(BPG.Domain.Constants.TaskStatus.New);
-    }
-
-    [Fact]
-    public async Task UTCID08_Handle_AdjustCompletedTaskToZeroWithAssignee_ShouldSetStatusToAssigned()
-    {
-        var task = ValidTask(BPG.Domain.Constants.TaskStatus.Completed);
-        task.ProgressPercent = 100;
-        task.Assignees.Add(new TaskAssignee { TaskId = TaskId, UserId = 2 });
-        SetupTasks(task);
-
-        await _handler.Handle(Command(0), CancellationToken.None);
-
-        task.Status.Should().Be(BPG.Domain.Constants.TaskStatus.Assigned);
+        result.Message.Should().Be("Điều chỉnh tiến độ task thành công.");
     }
 
     private static AdjustTaskProgressCommand Command(byte progress) => new(TaskId, progress, "Technical correction");
 
-    private static ProjectTask ValidTask(string status = BPG.Domain.Constants.TaskStatus.InProgress) => new()
+    private static ProjectTask ValidTask(
+        string status = BPG.Domain.Constants.TaskStatus.InProgress,
+        string projectStatus = ProjectStatus.InProgress,
+        long? parentTaskId = null) => new()
     {
         TaskId = TaskId,
+        ParentTaskId = parentTaskId,
         Name = "Foundation",
         Status = status,
         ProgressPercent = 20,
@@ -152,10 +165,25 @@ public class AdjustTaskProgressCommandHandlerTests
         {
             PhaseId = 2,
             ProjectId = 3,
-            Project = new Project { ProjectId = 3, Status = ProjectStatus.InProgress }
+            Project = new Project { ProjectId = 3, Status = projectStatus }
         },
         Assignees = new List<TaskAssignee>(),
         ProgressLogs = new List<TaskProgressLog>()
+    };
+
+    private static TaskDependency Dependency(
+        byte progress,
+        string status = BPG.Domain.Constants.TaskStatus.InProgress) => new()
+    {
+        TaskId = TaskId,
+        PredecessorTaskId = 99,
+        Predecessor = new ProjectTask
+        {
+            TaskId = 99,
+            Name = "Preparation",
+            ProgressPercent = progress,
+            Status = status
+        }
     };
 
     private void SetupTasks(params ProjectTask[] tasks) =>

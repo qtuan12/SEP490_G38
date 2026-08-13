@@ -25,7 +25,9 @@ public class GetProjectReceivedSuppliersQueryHandlerTests
     public async Task UTCID01_Handle_AccessibleProject_ShouldReturnSuppliers()
     {
         var result = await _handler.Handle(new GetProjectReceivedSuppliersQuery(1), CancellationToken.None);
-        result.Data.Should().ContainSingle(x => x.SupplierId == 2);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Equal(new SurplusMaterialSupplier(2, "Supplier"));
     }
 
     [Fact]

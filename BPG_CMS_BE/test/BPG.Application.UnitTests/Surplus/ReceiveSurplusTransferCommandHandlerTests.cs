@@ -50,6 +50,7 @@ public class ReceiveSurplusTransferCommandHandlerTests
     {
         var result = await _handler.Handle(new ReceiveSurplusTransferCommand(1, new List<IFormFile> { File() }), CancellationToken.None);
         result.Success.Should().BeTrue();
+        result.Message.Should().Be(ResponseMessages.UpdateSuccess);
     }
 
     [Fact]
@@ -66,6 +67,33 @@ public class ReceiveSurplusTransferCommandHandlerTests
         SetupTransfers(Transfer(SurplusTransferStatus.Approved));
         Func<Task> act = () => _handler.Handle(new ReceiveSurplusTransferCommand(1, new List<IFormFile> { File() }), CancellationToken.None);
         await act.Should().ThrowAsync<InvalidStatusTransitionException>();
+    }
+
+    [Fact]
+    public async Task UTCID04_Handle_TransferNotFound_ShouldThrowNotFoundException()
+    {
+        SetupTransfers();
+
+        Func<Task> act = () => _handler.Handle(
+            new ReceiveSurplusTransferCommand(1, new List<IFormFile> { File() }),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Fact]
+    public async Task UTCID05_Handle_ProjectInactive_ShouldThrowInvalidTransition()
+    {
+        var transfer = Transfer();
+        transfer.ToProject.Status = ProjectStatus.Completed;
+        SetupTransfers(transfer);
+
+        Func<Task> act = () => _handler.Handle(
+            new ReceiveSurplusTransferCommand(1, new List<IFormFile> { File() }),
+            CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
     }
 
     private static SurplusTransfer Transfer(string status = SurplusTransferStatus.Dispatched)
