@@ -44,6 +44,11 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
 
     public async Task<bool> Handle(CancelAcceptanceCommand request, CancellationToken ct)
     {
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+        {
+            throw new ForbiddenException("Chỉ Trưởng phòng kỹ thuật mới được phép hủy nghiệm thu giai đoạn.");
+        }
+
         var acceptanceRepo = _unitOfWork.Repository<PhaseAcceptance>();
         var phaseRepo = _unitOfWork.Repository<Phase>();
 

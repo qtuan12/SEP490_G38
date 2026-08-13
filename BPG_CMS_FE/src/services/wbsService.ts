@@ -113,6 +113,10 @@ export const wbsService = {
   deletePhase: async (projectId: number, phaseId: number): Promise<void> => {
     await apiClient.delete(`/projects/${projectId}/phases/${phaseId}`);
   },
+  clonePhase: async (projectId: number, phaseId: number): Promise<number> => {
+    const res = await apiClient.post<ApiResponse<number>>(`/projects/${projectId}/phases/${phaseId}/clone`);
+    return res.data;
+  },
 
   // Tasks
   getTaskDetails: async (taskId: number): Promise<TaskDetails> => {
@@ -132,6 +136,10 @@ export const wbsService = {
   },
   deleteTask: async (taskId: number): Promise<void> => {
     await apiClient.delete(`/tasks/${taskId}`);
+  },
+  cloneTask: async (taskId: number): Promise<number> => {
+    const res = await apiClient.post<ApiResponse<number>>(`/tasks/${taskId}/clone`);
+    return res.data;
   },
   assignTask: async (taskId: number, data: { taskId: number, assigneeIds: number[] }): Promise<void> => {
     await apiClient.put(`/tasks/${taskId}/assignees`, data);

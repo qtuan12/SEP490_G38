@@ -76,7 +76,7 @@ namespace BPG.Application.UnitTests.DailyLogs
             SetupTaskAssignees();
             SetupDependencies();
             SetupSystemConfig();
-            SetupCreator("Admin User");
+            SetupCreator("Site Engineer");
             SetupDailyLogIdGeneration();
             SetupMapper();
 
@@ -90,9 +90,9 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID01_Handle_TechnicalManagerWithValidLeafTask_ShouldReturnDailyLogDto()
+        public async Task UTCID01_Handle_AssignedSiteEngineerWithValidLeafTask_ShouldReturnDailyLogDto()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupAssignedSiteEngineer();
             var task = LeafTask(name: "Concrete Slab", progress: 20);
             SetupTasks(task);
 
@@ -108,7 +108,7 @@ namespace BPG.Application.UnitTests.DailyLogs
                 LogId = GeneratedLogId,
                 TaskId = TaskId,
                 TaskName = "Concrete Slab",
-                CreatorName = "Admin User",
+                CreatorName = "Site Engineer",
                 OldProgressPercent = 20,
                 NewProgressPercent = 50,
                 Description = "Poured half slab",
@@ -121,7 +121,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         [Fact]
         public async Task UTCID02_Handle_ProgressPercent100_ShouldReturnDailyLogDto()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupAssignedSiteEngineer();
             var task = LeafTask(progress: 50);
             SetupTasks(task);
 
@@ -134,7 +134,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         [Fact]
         public async Task UTCID03_Handle_TaskNotFound_ShouldThrowNotFoundException()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupAssignedSiteEngineer();
             SetupTasks();
 
             var act = async () => await _handler.Handle(Command(taskId: 999, progress: 50), CancellationToken.None);
@@ -147,7 +147,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         [Fact]
         public async Task UTCID04_Handle_ProjectNotInProgress_ShouldThrowBusinessException()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupAssignedSiteEngineer();
             SetupTasks(LeafTask(projectStatus: ProjectStatus.Completed));
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
@@ -160,7 +160,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         [Fact]
         public async Task UTCID05_Handle_LockedAncestorTask_ShouldThrowBusinessException()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupAssignedSiteEngineer();
             var parentTask = LeafTask(taskId: ParentTaskId, name: "Structure Parent", isLocked: true);
             var childTask = LeafTask(parentTaskId: ParentTaskId, name: "Slab");
             SetupTasks(parentTask, childTask);
@@ -175,7 +175,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         [Fact]
         public async Task UTCID06_Handle_TaskHasActiveSubtasks_ShouldThrowBusinessException()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupAssignedSiteEngineer();
             SetupTasks(ParentTaskWithChild());
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
@@ -188,7 +188,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         [Fact]
         public async Task UTCID07_Handle_AnyPredecessorIncomplete_ShouldThrowBusinessException()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupAssignedSiteEngineer();
             SetupTasks(LeafTask(progress: 0));
             SetupDependencies(
                 Dependency(91, "Completed Foundation", 100, DomainTaskStatus.Completed),
@@ -204,7 +204,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         [Fact]
         public async Task UTCID08_Handle_DecreaseProgressByProjectLeader_ShouldThrowBusinessException()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer, hasRole: false);
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
             SetupTasks(LeafTask(progress: 50));
             SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
 
@@ -212,59 +212,63 @@ namespace BPG.Application.UnitTests.DailyLogs
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_DECREASE_PROGRESS_FORBIDDEN");
-            exception.Which.Message.Should().Be("Chỉ Quản trị viên hoặc Trưởng phòng kỹ thuật mới có quyền giảm tiến độ công việc.");
+            exception.Which.Message.Should().Be("Không thể giảm tiến độ qua nhật ký thi công. Vui lòng sử dụng chức năng điều chỉnh tiến độ được cấp quyền.");
+        }
+
+        [Theory]
+        [InlineData(RoleConstants.Admin)]
+        [InlineData(RoleConstants.TechnicalManager)]
+        public async Task UTCID09_Handle_ManagerWhoAlsoHasSiteEngineerRole_ShouldThrowForbiddenBeforeTaskLookup(string role)
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, role, RoleConstants.SiteEngineer);
+            SetupTasks();
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
         }
 
         [Fact]
-        public async Task UTCID09_Handle_DecreaseProgressByTechnicalManagerWithoutReason_ShouldThrowBusinessException()
+        public async Task UTCID10_Handle_UnassignedSiteEngineerWhoIsNotProjectLeader_ShouldThrowForbiddenException()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
-            SetupTasks(LeafTask(progress: 50));
-
-            var act = async () => await _handler.Handle(Command(progress: 30, description: string.Empty), CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be("ERR_DECREASE_PROGRESS_REASON_REQUIRED");
-            exception.Which.Message.Should().Be("Vui lòng nhập lý do giảm tiến độ công việc.");
-        }
-
-        [Fact]
-        public async Task UTCID10_Handle_DecreaseChildProgressByTechnicalManager_ShouldReturnDailyLogDto()
-        {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
-            SetupCreator("TM User");
-            var parentTask = LeafTask(taskId: ParentTaskId, progress: 80);
-            var childTask = LeafTask(parentTaskId: ParentTaskId, progress: 80);
-            parentTask.SubTasks.Add(childTask);
-            SetupTasks(parentTask, childTask);
-
-            var result = await _handler.Handle(Command(progress: 50, description: "Decreasing child task progress"), CancellationToken.None);
-
-            result.CreatorName.Should().Be("TM User");
-            result.OldProgressPercent.Should().Be(80);
-            result.NewProgressPercent.Should().Be(50);
-        }
-
-        [Fact]
-        public async Task UTCID11_Handle_UserWithoutPermission_ShouldThrowForbiddenException()
-        {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer, hasRole: false);
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
             SetupTasks(LeafTask());
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId });
 
             var act = async () => await _handler.Handle(Command(progress: 50), CancellationToken.None);
 
             var exception = await act.Should().ThrowAsync<ForbiddenException>();
             exception.Which.ErrorCode.Should().Be("AUTH_002");
-            exception.Which.Message.Should().Be("Chỉ Trưởng dự án (Leader), Ban quản lý hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
+            exception.Which.Message.Should().Be("Chỉ Trưởng dự án hoặc Kỹ sư được gán vào công việc mới được phép tạo nhật ký thi công.");
         }
 
         [Fact]
-        public async Task UTCID12_Handle_AssignedEngineerReportsZeroProgress_ShouldReturnDailyLogDto()
+        public async Task UTCID11_Handle_HistoricalAssigneeWithoutActiveProjectMembership_ShouldThrowForbiddenException()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer, hasRole: false);
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
+            SetupTasks(LeafTask());
+            SetupProjectMembers(new ProjectMember
+            {
+                ProjectId = ProjectId,
+                UserId = CurrentUserId,
+                IsDeleted = true
+            });
+            SetupTaskAssignees(new TaskAssignee { TaskId = TaskId, UserId = CurrentUserId });
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
+            exception.Which.Message.Should().Be("Chỉ thành viên hiện tại của dự án mới được phép tạo nhật ký thi công.");
+        }
+
+        [Fact]
+        public async Task UTCID12_Handle_AssignedActiveProjectMemberReportsZeroProgress_ShouldReturnDailyLogDto()
+        {
+            SetupAssignedSiteEngineer();
             var task = LeafTask(progress: 0);
             SetupTasks(task);
-            SetupTaskAssignees(new TaskAssignee { TaskId = TaskId, UserId = CurrentUserId });
             SetupDependencies(Dependency(99, "Unfinished Prep Work", 50, DomainTaskStatus.InProgress));
 
             var result = await _handler.Handle(Command(progress: 0, description: "Site inspection, no progress yet"), CancellationToken.None);
@@ -276,7 +280,7 @@ namespace BPG.Application.UnitTests.DailyLogs
         [Fact]
         public async Task UTCID13_Handle_ProjectLeaderIncreasesProgress_ShouldReturnDailyLogDto()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer, hasRole: false);
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
             SetupTasks(LeafTask(name: "Leader Task", progress: 10));
             SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
 
@@ -289,18 +293,21 @@ namespace BPG.Application.UnitTests.DailyLogs
         }
 
         [Fact]
-        public async Task UTCID14_Handle_TechnicalManagerDecreasesCompletedAssignedTaskToZero_ShouldSetStatusToAssigned()
+        public async Task UTCID14_Handle_ProjectLeaderFromAnotherProject_ShouldThrowForbiddenException()
         {
-            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
-            SetupCreator("TM User");
-            var task = LeafTask(progress: 100);
-            task.Status = DomainTaskStatus.Completed;
-            task.Assignees.Add(new TaskAssignee { TaskId = TaskId, UserId = CurrentUserId });
-            SetupTasks(task);
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
+            SetupTasks(LeafTask());
+            SetupProjectMembers(new ProjectMember
+            {
+                ProjectId = ProjectId + 1,
+                UserId = CurrentUserId,
+                IsLeader = true
+            });
 
-            await _handler.Handle(Command(progress: 0, description: "Reset after technical review"), CancellationToken.None);
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
 
-            task.Status.Should().Be(DomainTaskStatus.Assigned);
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
         }
 
         private static CreateDailyLogCommand Command(
@@ -358,6 +365,13 @@ namespace BPG.Application.UnitTests.DailyLogs
         private void SetupTasks(params ProjectTask[] tasks)
         {
             _mockTaskRepo.Setup(r => r.Query()).Returns(tasks.AsQueryable().BuildMock());
+        }
+
+        private void SetupAssignedSiteEngineer()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.SiteEngineer);
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId });
+            SetupTaskAssignees(new TaskAssignee { TaskId = TaskId, UserId = CurrentUserId });
         }
 
         private void SetupProjectMembers(params ProjectMember[] members)

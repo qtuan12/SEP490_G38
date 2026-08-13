@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Button, LoadingSpinner, Modal } from '../../../components/ui';
 import { ArrowLeft, RotateCcw, ArrowRightLeft, Flame, ChevronDown, ChevronUp, CircleSlash2 } from 'lucide-react';
 import { surplusService } from '../../../services/surplusService';
@@ -89,6 +90,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
     setClosingItemId(closeItem.surplusRequestItemId);
     try {
       await surplusService.closeItem(closeItem.surplusRequestItemId, reason);
+      toast.success('Đã đóng phần vật tư còn lại.');
       setCloseItem(null);
       setCloseReason('');
       await loadDetail();

@@ -61,6 +61,7 @@ public class CreateSurplusRequestCommandHandlerTests
 
         result.Success.Should().BeTrue();
         result.Data.Should().Be(GeneratedRequestId);
+        result.Message.Should().Be(ResponseMessages.CreateSuccess);
     }
 
     [Fact]

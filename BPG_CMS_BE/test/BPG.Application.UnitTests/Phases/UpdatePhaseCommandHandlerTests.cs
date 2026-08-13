@@ -25,10 +25,14 @@ public class UpdatePhaseCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID01_Handle_ValidRequest_ShouldReturnSuccess()
+    public async Task UTCID01_Handle_TaskProgressAtZero_ShouldReturnSuccess()
     {
+        SetupPhases(Phase(tasks: [new ProjectTask { TaskId = 10, ProgressPercent = 0 }]));
+
         var result = await _handler.Handle(Command(), CancellationToken.None);
+
         result.Success.Should().BeTrue();
+        result.Message.Should().Be("Cập nhật phase thành công.");
     }
 
     [Fact]
@@ -36,26 +40,49 @@ public class UpdatePhaseCommandHandlerTests
     {
         SetupPhases();
         Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
-        await act.Should().ThrowAsync<NotFoundException>();
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.NotFound);
     }
 
     [Fact]
-    public async Task UTCID03_Handle_PhaseHasTaskInProgress_ShouldThrowExpectedErrorCode()
+    public async Task UTCID03_Handle_ProjectInInvalidStatus_ShouldThrowInvalidTransition()
     {
-        SetupPhases(Phase(new ProjectTask { TaskId = 10, ProgressPercent = 1 }));
+        SetupPhases(Phase(projectStatus: ProjectStatus.Completed));
+
         Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
+    }
+
+    [Fact]
+    public async Task UTCID04_Handle_TaskProgressAtOne_ShouldThrowExpectedErrorCode()
+    {
+        SetupPhases(Phase(tasks: [new ProjectTask { TaskId = 10, ProgressPercent = 1 }]));
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
         var exception = await act.Should().ThrowAsync<BusinessException>();
         exception.Which.ErrorCode.Should().Be("ERR_PHASE_HAS_IN_PROGRESS_TASKS");
     }
 
-    private static UpdatePhaseCommand Command() => new(1, "Updated", null, 1, null, null, 0);
+    private static UpdatePhaseCommand Command() => new(
+        1,
+        "Updated foundation",
+        "Updated phase scope",
+        2,
+        new DateOnly(2026, 1, 1),
+        new DateOnly(2026, 6, 30),
+        0);
 
-    private static Phase Phase(params ProjectTask[] tasks) => new()
+    private static Phase Phase(
+        ProjectTask[]? tasks = null,
+        string projectStatus = ProjectStatus.InProgress) => new()
     {
         PhaseId = 1,
         ProjectId = 2,
-        Project = new Project { ProjectId = 2, Status = ProjectStatus.InProgress },
-        Tasks = tasks.ToList()
+        Project = new Project { ProjectId = 2, Status = projectStatus },
+        Tasks = tasks?.ToList() ?? new List<ProjectTask>()
     };
 
     private void SetupPhases(params Phase[] phases) =>

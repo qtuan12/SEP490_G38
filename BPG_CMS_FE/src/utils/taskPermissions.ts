@@ -1,4 +1,8 @@
 import type { WBSTask } from '../types/common';
+import type { UserProfile } from '../services/authService';
+import { Role } from '../auth/roles';
+
+type DailyLogUser = Pick<UserProfile, 'id' | 'role' | 'roles'>;
 
 /**
  * "Trưởng dự án" không phải role toàn cục (đã bỏ role `projectleader`) — một Site Engineer
@@ -20,9 +24,6 @@ export const isProjectWideView = (
 const isAssignedTo = (task: WBSTask, userId?: string | number): boolean =>
   !!userId && (task.assignedTo?.split(',').map(s => s.trim()).includes(String(userId)) ?? false);
 
-const hasAssignee = (task: WBSTask): boolean =>
-  task.assignedTo?.split(',').some(id => id.trim().length > 0) ?? false;
-
 /**
  * Danh sách task hiển thị theo view của user:
  * - Không phải project-wide (Site Engineer thường): chỉ lấy task được gán cho mình.
@@ -39,25 +40,24 @@ export const getVisibleTasksForUser = (
   return [...tasks].sort((a, b) => Number(isAssignedTo(b, user.id)) - Number(isAssignedTo(a, user.id)));
 };
 
-/** Backend chỉ cho Admin / Trưởng dự án (leader) / Kỹ sư được gán vào đúng task đó tạo nhật ký. Technical Manager không được tạo nhật ký. */
+export const hasSiteEngineerRole = (user: DailyLogUser | null | undefined): boolean => {
+  if (!user) return false;
+  const roles = [user.role, ...(user.roles ?? [])].map(role => role.toLowerCase());
+  if (roles.includes(Role.Admin) || roles.includes(Role.TechnicalManager)) return false;
+  return roles.includes(Role.SiteEngineer);
+};
+
+/** Chỉ thành viên Site Engineer được gán vào task hoặc là Project Leader được tạo nhật ký. */
 export const canCreateDailyLog = (
   task: WBSTask | null | undefined,
-  user: any,
-  isProjectLeader: boolean
+  user: DailyLogUser | null | undefined,
+  isProjectLeader: boolean,
+  isProjectMember: boolean,
 ): boolean => {
   if (!task || task.status === 'obsolete') return false;
-  if (!hasAssignee(task)) return false;
   if (!user) return false;
 
-  const rawRoles: string[] = [];
-  if (user.role) rawRoles.push(String(user.role));
-  if (Array.isArray(user.roles)) user.roles.forEach((r: any) => rawRoles.push(String(r)));
-
-  const roles = rawRoles.map(r => r.toLowerCase());
-  const isTechnicalManager = roles.some(r => r === 'technicalmanager' || r === 'technical_manager' || r === 'tpkt');
-
-  if (isTechnicalManager) return false;
-  if (roles.includes('admin')) return true;
+  if (!hasSiteEngineerRole(user) || !isProjectMember) return false;
   if (isProjectLeader) return true;
-  return roles.includes('siteengineer') && isAssignedTo(task, user.id);
+  return isAssignedTo(task, user.id);
 };

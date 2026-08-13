@@ -4,7 +4,7 @@ import { RoleGroup } from '../../../auth/roles';
 import { useAuth } from '../../../context/AuthContext';
 import type { WBSTask } from '../../../types/common';
 import { TableLoader } from '../../../components/ui';
-import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History, PauseCircle } from 'lucide-react';
+import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History, PauseCircle, Copy } from 'lucide-react';
 
 
 const getInitials = (name: string) => {
@@ -24,7 +24,7 @@ export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => { };
   const {
     phases, tasks, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, project, filterAssignee,
-    expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
+    expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
     setIsCreatePhaseOpen, setSelectedPhaseForEdit, setIsEditPhaseOpen,
@@ -34,12 +34,14 @@ export const WBSTree = () => {
     setSelectedTaskId, setIsDetailOpen, setIsObsoleteOpen,
     setIsReportInventoryIncidentOpen, setSelectedPhaseForInventoryIncident,
     setIsReportIncidentOpen,
-    isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase, projectId
+    isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase,
+    handleCloneTask, handleClonePhase, projectId
   } = useWBS();
 
   const navigate = useNavigate();
   const { hasAnyRole } = useAuth();
-  const canCreatePhase = canEdit && hasAnyRole(RoleGroup.Technical);
+  const isProjectEditable = project?.status === 'draft' || project?.status === 'inprogress';
+  const canCreatePhase = isProjectEditable && hasAnyRole(RoleGroup.Technical);
 
   const menuItemStyle = {
     padding: '8px 12px',
@@ -106,7 +108,6 @@ export const WBSTree = () => {
 
                   {/* Phase row */}
                   <div
-                    onClick={() => togglePhase(ph.id)}
                     onMouseEnter={() => setHoveredPhaseId(ph.id)}
                     onMouseLeave={() => setHoveredPhaseId(null)}
                     style={{
@@ -118,7 +119,6 @@ export const WBSTree = () => {
                       fontWeight: 600, fontSize: '0.9rem',
                       transition: 'all 0.13s ease',
                       position: 'relative',
-                      cursor: 'pointer',
                     }}
                   >
                     {/* Order number + ▲▼ buttons */}
@@ -150,7 +150,13 @@ export const WBSTree = () => {
                     </div>
 
                     {/* Collapse toggle */}
-                    <button onClick={(e) => { e.stopPropagation(); togglePhase(ph.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'hsl(var(--text-secondary))', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      aria-label={`${isExpanded ? 'Thu gọn' : 'Mở rộng'} ${ph.name}`}
+                      aria-expanded={!!isExpanded}
+                      onClick={() => togglePhase(ph.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--text-secondary))', flexShrink: 0 }}
+                    >
                       {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                     </button>
 
@@ -242,11 +248,23 @@ export const WBSTree = () => {
                         {/* + Task */}
                         {!isFrozen && canEdit && (
                           <button
-                            onClick={e => { e.stopPropagation(); setExpandedPhases(prev => ({ ...prev, [ph.id]: true })); setSelectedPhaseForTask(ph.id); setParentTaskForNew(undefined); setParentDeadlineForNew(ph.deadline); setIsCreateTaskOpen(true); }}
+                            onClick={e => { e.stopPropagation(); setSelectedPhaseForTask(ph.id); setParentTaskForNew(undefined); setParentDeadlineForNew(ph.deadline); setIsCreateTaskOpen(true); }}
                             title="Thêm công việc"
                             style={{ background: 'hsl(var(--primary))', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', padding: 0 }}
                           >
                             <FilePlus2 size={11} />
+                          </button>
+                        )}
+
+                        {canCreatePhase && (
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); setPhaseMenuId(null); handleClonePhase(ph.id, ph.name); }}
+                            title="Nhân bản Giai đoạn"
+                            aria-label={`Nhân bản Giai đoạn ${ph.name}`}
+                            style={{ background: 'transparent', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'hsl(var(--text-muted))', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', padding: 0 }}
+                          >
+                            <Copy size={11} />
                           </button>
                         )}
 
@@ -269,7 +287,6 @@ export const WBSTree = () => {
                                   onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
                                   onClick={() => { 
                                     setPhaseMenuId(null);
-                                    setExpandedPhases(prev => ({ ...prev, [ph.id]: true })); 
                                     setSelectedPhaseForTask(ph.id); 
                                     setParentTaskForNew(undefined); 
                                     setParentDeadlineForNew(ph.deadline); 
@@ -420,9 +437,7 @@ export const WBSTree = () => {
                       {phaseTasks.map((t, taskIndex) => {
                         const isSelected = selectedTaskId === t.id;
                         const isHoveredTask = hoveredTaskId === t.id;
-
                         const showTaskMenu = taskMenuId === t.id;
-                        // Task is locked for rename/delete once it has been worked on
                         const isWorkedOn = t.progress > 0 || t.history.length > 0;
                         const isFirstTask = taskIndex === 0;
                         const isLastTask = taskIndex === phaseTasks.length - 1;
@@ -569,9 +584,23 @@ export const WBSTree = () => {
                               {t.progress}%
                             </span>
 
-                            {/* Task context menu */}
-                            {!isFrozen && t.status !== 'obsolete' && (
-                              <div style={{ position: 'relative', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                            {/* Task actions */}
+                            {!isFrozen && (
+                              <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                                {isProjectEditable && isTPKTOrPL && (
+                                  <button
+                                    type="button"
+                                    onClick={e => { e.stopPropagation(); setTaskMenuId(null); handleCloneTask(t.id, t.name); }}
+                                    title="Nhân bản Công việc"
+                                    aria-label={`Nhân bản Công việc ${t.name}`}
+                                    style={{ background: 'transparent', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'hsl(var(--text-muted))', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', padding: 0 }}
+                                  >
+                                    <Copy size={10} />
+                                  </button>
+                                )}
+
+                                {t.status !== 'obsolete' && (
+                                  <div style={{ position: 'relative', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                                 <button
                                   onClick={e => { e.stopPropagation(); setTaskMenuId(showTaskMenu ? null : t.id); setPhaseMenuId(null); }}
                                   title="Tùy chọn"
@@ -678,6 +707,8 @@ export const WBSTree = () => {
                                         {t.progress > 0 ? <PauseCircle size={12} /> : <Trash2 size={12} />}<span>{t.progress > 0 ? 'Tạm dừng công việc' : 'Xóa Công việc'}</span>
                                       </div>
                                     )}
+                                  </div>
+                                )}
                                   </div>
                                 )}
                               </div>

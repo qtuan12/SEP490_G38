@@ -46,44 +46,69 @@ public class MarkTaskObsoleteCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID01_Handle_ValidTask_ShouldReturnSuccess()
+    public async Task UTCID01_Handle_ValidTaskByTechnicalManager_ShouldReturnSuccess()
     {
         var result = await _handler.Handle(Command(), CancellationToken.None);
+
         result.Success.Should().BeTrue();
+        result.Message.Should().Be("Tạm dừng công việc thành công.");
     }
 
     [Fact]
-    public async Task UTCID02_Handle_TaskNotFound_ShouldThrowNotFoundException()
+    public async Task UTCID02_Handle_ValidTaskByProjectLeader_ShouldReturnSuccess()
+    {
+        _currentUser.SetupUser(1);
+        SetupMembers(new ProjectMember { ProjectId = 3, UserId = 1, IsLeader = true });
+
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Message.Should().Be("Tạm dừng công việc thành công.");
+    }
+
+    [Fact]
+    public async Task UTCID03_Handle_TaskNotFound_ShouldThrowNotFoundException()
     {
         SetupTasks();
+
         Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
-        await act.Should().ThrowAsync<NotFoundException>();
+
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.NotFound);
     }
 
     [Fact]
-    public async Task UTCID03_Handle_InactiveProject_ShouldThrowInvalidTransition()
+    public async Task UTCID04_Handle_InactiveProject_ShouldThrowInvalidTransition()
     {
         SetupTasks(TaskEntity(projectStatus: ProjectStatus.Paused));
+
         Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
         var exception = await act.Should().ThrowAsync<BusinessException>();
         exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
     }
 
     [Fact]
-    public async Task UTCID04_Handle_UserWithoutPermission_ShouldThrowForbiddenException()
+    public async Task UTCID05_Handle_UserWithoutPermission_ShouldThrowForbiddenException()
     {
         _currentUser.SetupUser(1);
         SetupMembers();
+
         Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
-        await act.Should().ThrowAsync<ForbiddenException>();
+
+        var exception = await act.Should().ThrowAsync<ForbiddenException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
     }
 
     [Fact]
-    public async Task UTCID05_Handle_AlreadyObsolete_ShouldReturnIdempotentSuccess()
+    public async Task UTCID06_Handle_AlreadyObsolete_ShouldReturnIdempotentSuccess()
     {
         SetupTasks(TaskEntity(BPG.Domain.Constants.TaskStatus.Obsolete));
+
         var result = await _handler.Handle(Command(), CancellationToken.None);
+
         result.Success.Should().BeTrue();
+        result.Message.Should().Be("Task đã ở trạng thái Obsolete.");
     }
 
     private static MarkTaskObsoleteCommand Command() => new(TaskId, "No longer part of the plan");

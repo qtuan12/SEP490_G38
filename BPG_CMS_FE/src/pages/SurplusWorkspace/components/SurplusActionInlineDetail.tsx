@@ -103,7 +103,7 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
       if (action === 'review-approve') result = await surplusService.reviewTransfer(transferId, true);
       else if (action === 'review-reject') result = await surplusService.reviewTransfer(transferId, false);
 
-      console.log(result?.message || (action === 'review-approve' ? 'Đã duyệt phiếu điều chuyển vật tư.' : 'Đã từ chối phiếu điều chuyển vật tư.'));
+      toast.success(result?.message || (action === 'review-approve' ? 'Đã duyệt phiếu điều chuyển vật tư.' : 'Đã từ chối phiếu điều chuyển vật tư.'));
       scheduleRealtimeRefresh();
       onRefresh();
     } catch (err: any) {

@@ -29,7 +29,8 @@ interface DailyLogFormProps {
   editLog?: DailyLog;
   engineerId: string;
   engineerName: string;
-  isPL?: boolean;
+  canCreate: boolean;
+  isSiteEngineer: boolean;
   canManageTechnical?: boolean;
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
@@ -45,7 +46,8 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   editLog,
   engineerId,
   engineerName,
-  isPL = false,
+  canCreate,
+  isSiteEngineer,
   canManageTechnical = false,
   onSuccess,
   hideHeader = false,
@@ -78,11 +80,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const minProgress = currentTask ? currentTask.progress : 0;
   const sliderMin = canManageTechnical ? 0 : minProgress;
   const isProgressDisabled = !currentTask || (!canManageTechnical && currentTask.progress === 100);
-  const hasTaskAssignee = currentTask?.assignedTo?.split(',').some(id => id.trim().length > 0) ?? false;
-  const isAssignedEngineer = !!currentTask
-    && !!engineerId
-    && (currentTask.assignedTo?.split(',').map(id => id.trim()).includes(String(engineerId)) ?? false);
-  const canCreateForCurrentTask = isEditMode || (hasTaskAssignee && (isPL || canManageTechnical || isAssignedEngineer));
+  const canCreateForCurrentTask = isEditMode || (!!currentTask && isSiteEngineer && canCreate);
 
   const schema = React.useMemo(() => {
     return z.object({
@@ -648,16 +646,15 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 interface DailyLogFormModalProps extends Omit<DailyLogFormProps, 'onCancel'> {
   isOpen: boolean;
   onClose: () => void;
-  isPL?: boolean;
 }
 
 export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
-  isOpen, onClose, isPL, ...rest
+  isOpen, onClose, ...rest
 }) => {
-  if (!isOpen) return null;
+  if (!isOpen || (!rest.editLog && (!rest.isSiteEngineer || !rest.canCreate))) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={rest.editLog ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"} mobileFullScreen>
-      <DailyLogForm {...rest} isPL={isPL} onCancel={onClose} hideHeader={true} />
+      <DailyLogForm {...rest} onCancel={onClose} hideHeader={true} />
     </Modal>
   );
 };
