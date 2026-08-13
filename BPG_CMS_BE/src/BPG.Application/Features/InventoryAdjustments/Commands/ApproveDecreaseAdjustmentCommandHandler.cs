@@ -30,7 +30,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
         public async Task<ApiResponse<bool>> Handle(ApproveDecreaseAdjustmentCommand request, CancellationToken cancellationToken)
         {
             var adjustment = await _unitOfWork.Repository<InventoryAdjustment>().Query()
-                .Include(a => a.Items)
+                .Include(a => a.Items).ThenInclude(i => i.Material)
                 .FirstOrDefaultAsync(a => a.AdjustmentId == request.AdjustmentId, cancellationToken);
 
             if (adjustment == null) throw new NotFoundException(nameof(InventoryAdjustment), request.AdjustmentId);
@@ -201,6 +201,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             foreach (var item in adjustment.Items)
             {
+                var baseQuantity = item.Quantity / (item.ConversionRate == 0 ? 1m : item.ConversionRate);
                 var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
                     .FirstOrDefaultAsync(x => x.ProjectId == adjustment.ProjectId && x.MaterialId == item.MaterialId, cancellationToken);
 
@@ -212,15 +213,15 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                         {
                             ProjectId = adjustment.ProjectId,
                             MaterialId = item.MaterialId,
-                            UnitId = item.UnitId,
-                            Quantity = item.Quantity,
+                            UnitId = item.Material.BaseUnitId,
+                            Quantity = baseQuantity,
                             LastUpdated = System.DateTime.UtcNow
                         };
                         await _unitOfWork.Repository<CurrentInventory>().AddAsync(currentInventory);
                     }
                     else
                     {
-                        currentInventory.Quantity += item.Quantity;
+                        currentInventory.Quantity += baseQuantity;
                         currentInventory.LastUpdated = System.DateTime.UtcNow;
                         _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
                     }
@@ -230,7 +231,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                         ProjectId = adjustment.ProjectId,
                         MaterialId = item.MaterialId,
                         TransactionType = InventoryTransactionType.Adjustment,
-                        QuantityChange = item.Quantity, // Dương cho tăng
+                        QuantityChange = baseQuantity, // Dương cho tăng, luôn theo đơn vị cơ bản
                         BalanceAfter = currentInventory.Quantity,
                         ReferenceId = adjustment.AdjustmentId,
                         ReferenceType = EntityType.InventoryAdjustment,
@@ -241,13 +242,12 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 }
                 else
                 {
-                    if (currentInventory == null || currentInventory.Quantity < item.Quantity)
+                    if (currentInventory == null || currentInventory.Quantity < baseQuantity)
                     {
                         throw new BusinessException("ERR_INSUFFICIENT_STOCK", $"Không đủ tồn kho cho vật tư ID {item.MaterialId}");
                     }
 
-                    currentInventory.Quantity -= item.Quantity;
-                    currentInventory.ReservedQuantity = System.Math.Max(0, currentInventory.ReservedQuantity - item.Quantity);
+                    currentInventory.Quantity -= baseQuantity;
                     currentInventory.LastUpdated = System.DateTime.UtcNow;
                     _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
 
@@ -256,7 +256,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                         ProjectId = adjustment.ProjectId,
                         MaterialId = item.MaterialId,
                         TransactionType = (appIncident != null) ? (byte)9 : InventoryTransactionType.Adjustment,
-                        QuantityChange = -item.Quantity, // Âm cho giảm
+                        QuantityChange = -baseQuantity, // Âm cho giảm, luôn theo đơn vị cơ bản
                         BalanceAfter = currentInventory.Quantity,
                         ReferenceId = adjustment.AdjustmentId,
                         ReferenceType = EntityType.InventoryAdjustment,
