@@ -7,10 +7,11 @@ import { masterDataService } from '../../../services/masterDataService';
 import { directPurchaseService } from '../../../services/directPurchaseService';
 import type { CurrentInventory } from '../../../types/inventory';
 import type { IncidentReport } from '../../../types/common';
-import { incidentService } from '../../../services/incidentService';
+import type { MaterialCatalog } from '../../../types/masterData';
 import { Search, X } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
 import { LazyImage } from '../../../utils/imageOptimizer';
+import { parseInventoryIncidentDamage } from '../../../utils/inventoryIncidentDamage';
 
 interface Props {
   isOpen: boolean;
@@ -24,7 +25,7 @@ interface Props {
 export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId, incident }) => {
   const [loading, setLoading] = useState(false);
   const [inventoryList, setInventoryList] = useState<CurrentInventory[]>([]);
-  const [masterMaterials, setMasterMaterials] = useState<any[]>([]);
+  const [masterMaterials, setMasterMaterials] = useState<MaterialCatalog[]>([]);
   const [phases, setPhases] = useState<any[]>([]);
 
   const [reason, setReason] = useState('Cân bằng tồn kho sau kiểm kê định kỳ');
@@ -33,7 +34,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   const [description, setDescription] = useState('');
   const [phaseId, setPhaseId] = useState<number | ''>(incident ? (incident as any).phaseId || '' : '');
   const [createdAdjustmentId, setCreatedAdjustmentId] = useState<number | null>(null);
-  const [items, setItems] = useState<{ materialId: number; quantity: number; fallbackCode?: string; fallbackName?: string; fallbackUnit?: string }[]>([]);
+  const [items, setItems] = useState<{ materialId: number; unitId: number; quantity: number; fallbackCode?: string; fallbackName?: string; fallbackUnit?: string }[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('');
@@ -45,6 +46,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     materialId: number;
     materialCode: string;
     materialName: string;
+    unitId: number;
     unitName: string;
     stockQuantity: number;
   }[]>([]);
@@ -78,17 +80,33 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         .then(boqItems => {
           const invMap = new Map<number, number>();
           (inventoryList || []).forEach(inv => {
-            const qty = inv.quantity ?? inv.availableQuantity ?? 0;
+            const qty = inv.availableQuantity ?? inv.quantity ?? 0;
             invMap.set(inv.materialId, qty);
           });
 
+          const boqMaterialIds = new Set((boqItems || []).map(b => b.materialId));
           const mapped = (boqItems || []).map(boq => ({
             materialId: boq.materialId,
             materialCode: boq.materialCode,
             materialName: boq.materialName,
+            unitId: boq.unitId,
             unitName: boq.unitName,
-            stockQuantity: invMap.get(boq.materialId) || 0
+            // CurrentInventory is stored in the base unit; show/validate in the BOQ unit.
+            stockQuantity: (invMap.get(boq.materialId) || 0) * (boq.conversionRate || 1)
           }));
+
+          (inventoryList || []).forEach(inv => {
+            if (!boqMaterialIds.has(inv.materialId)) {
+              mapped.push({
+                materialId: inv.materialId,
+                materialCode: inv.materialCode,
+                materialName: inv.materialName,
+                unitId: inv.unitId,
+                unitName: inv.unitName,
+                stockQuantity: inv.availableQuantity ?? inv.quantity ?? 0
+              });
+            }
+          });
 
           setPhaseMaterials(mapped);
         })
@@ -129,10 +147,14 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
   const loadData = async () => {
     try {
-      const [invData, phaseData, matCatalogRes] = await Promise.all([
+      const incidentPhaseId = incident?.phaseId ? Number(incident.phaseId) : 0;
+      const [invData, phaseData, matCatalogRes, incidentBoqItems] = await Promise.all([
         inventoryService.getCurrentInventory(projectId).catch(() => []),
         projectService.getPhases(projectId.toString()).catch(() => []),
-        masterDataService.getMaterials({ pageSize: 1000 }).catch(() => ({ items: [] }))
+        masterDataService.getMaterials({ pageSize: 1000 }).catch(() => ({ items: [] })),
+        incidentPhaseId
+          ? directPurchaseService.getPhaseBOQ(projectId, incidentPhaseId).catch(() => [])
+          : Promise.resolve([])
       ]);
 
       const catItems = matCatalogRes?.items || [];
@@ -151,47 +173,43 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       // Auto-populate items from incident description/damageDescription
       const textToParse = [incident?.damageDescription, incident?.description].filter(Boolean).join('\n');
       if (incident && textToParse) {
-        const lines = textToParse.split('\n');
-        const newItems: { materialId: number; quantity: number; fallbackCode?: string; fallbackName?: string; fallbackUnit?: string }[] = [];
-        for (const line of lines) {
-          if (line.trim().startsWith('|') && !line.includes('Mã vật tư') && !line.includes('Mã VT') && !line.includes('---')) {
-            const parts = line.split('|').map(p => p.trim());
-            if (parts.length >= 5) {
-              const materialCode = parts[1];
-              const materialName = parts[2];
-              const unitName = parts[3];
-              const qtyStr = parts[4].replace(/\*/g, ''); // remove **
-              const qty = parseFloat(qtyStr);
+        const newItems: { materialId: number; unitId: number; quantity: number; fallbackCode?: string; fallbackName?: string; fallbackUnit?: string }[] = [];
+        const damageItems = parseInventoryIncidentDamage(incident.damageDescription);
+        const incidentItems = damageItems.length > 0
+          ? damageItems
+          : parseInventoryIncidentDamage(incident.description);
 
-              if ((materialCode || materialName) && !isNaN(qty) && qty > 0) {
-                // Try to find materialId in inventory
-                const invItem = (invData || []).find((x: CurrentInventory) =>
-                  (materialCode && x.materialCode.toLowerCase() === materialCode.toLowerCase()) ||
-                  (materialName && x.materialName.toLowerCase() === materialName.toLowerCase())
-                );
+        for (const damageItem of incidentItems) {
+          // V2 reports carry stable IDs. Legacy reports still resolve by code/name.
+          const invItem = (invData || []).find((inventoryItem: CurrentInventory) =>
+            (damageItem.materialId != null && inventoryItem.materialId === damageItem.materialId)
+            || inventoryItem.materialCode.toLowerCase() === damageItem.materialCode.toLowerCase()
+            || inventoryItem.materialName.toLowerCase() === damageItem.materialName.toLowerCase()
+          );
+          const catItem = catItems.find((catalogItem: MaterialCatalog) =>
+            (damageItem.materialId != null && catalogItem.materialId === damageItem.materialId)
+            || catalogItem.code.toLowerCase() === damageItem.materialCode.toLowerCase()
+            || catalogItem.name.toLowerCase() === damageItem.materialName.toLowerCase()
+          );
 
-                // Try to find in master catalog
-                const catItem = catItems.find((x: any) =>
-                  (materialCode && (x.code || x.materialCode)?.toLowerCase() === materialCode.toLowerCase()) ||
-                  (materialName && x.name?.toLowerCase() === materialName.toLowerCase())
-                );
+          const materialId = damageItem.materialId ?? invItem?.materialId ?? catItem?.materialId;
+          if (!materialId || newItems.some(item => item.materialId === materialId)) continue;
 
-                const foundMatId = invItem?.materialId || catItem?.materialId || (catItem as any)?.id;
+          const boqItem = (incidentBoqItems || []).find(boq =>
+            boq.materialId === materialId
+            && (!damageItem.unitName || boq.unitName.toLowerCase() === damageItem.unitName.toLowerCase())
+          );
+          const unitId = damageItem.unitId ?? boqItem?.unitId ?? invItem?.unitId ?? catItem?.baseUnitId;
+          if (!unitId) continue;
 
-                if (foundMatId) {
-                  if (!newItems.some(x => x.materialId === foundMatId)) {
-                    newItems.push({
-                      materialId: foundMatId,
-                      quantity: qty,
-                      fallbackCode: invItem?.materialCode || catItem?.code || (catItem as any)?.materialCode || materialCode,
-                      fallbackName: invItem?.materialName || catItem?.name || materialName,
-                      fallbackUnit: invItem?.unitName || catItem?.baseUnitName || unitName
-                    });
-                  }
-                }
-              }
-            }
-          }
+          newItems.push({
+            materialId,
+            unitId,
+            quantity: damageItem.quantityLost,
+            fallbackCode: invItem?.materialCode ?? catItem?.code ?? damageItem.materialCode,
+            fallbackName: invItem?.materialName ?? catItem?.name ?? damageItem.materialName,
+            fallbackUnit: damageItem.unitName || boqItem?.unitName || invItem?.unitName || catItem?.baseUnitName,
+          });
         }
 
         if (newItems.length > 0) {
@@ -226,7 +244,10 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     }
 
     const currentMat = phaseMaterials.find(x => x.materialId === Number(selectedMaterialId));
-    const stockQty = currentMat ? currentMat.stockQuantity : (inventoryList.find(x => x.materialId === Number(selectedMaterialId))?.quantity ?? 0);
+    const inventoryItem = inventoryList.find(x => x.materialId === Number(selectedMaterialId));
+    const stockQty = currentMat
+      ? currentMat.stockQuantity
+      : (inventoryItem?.availableQuantity ?? inventoryItem?.quantity ?? 0);
 
     if (stockQty <= 0) {
       setLocalError(`Vật tư "${currentMat?.materialName || 'này'}" không có trong kho (Tồn kho: 0), không thể giảm tồn.`);
@@ -248,6 +269,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       ...items,
       {
         materialId: Number(selectedMaterialId),
+        unitId: currentMat?.unitId ?? inventoryItem?.unitId ?? 0,
         quantity: Number(selectedQuantity),
         fallbackCode: currentMat?.materialCode,
         fallbackName: currentMat?.materialName,
@@ -277,6 +299,24 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       return;
     }
 
+    const itemWithoutUnit = items.find(item => item.unitId <= 0);
+    if (itemWithoutUnit) {
+      setLocalError('Có vật tư chưa cấu hình đơn vị tính.');
+      return;
+    }
+
+    const insufficientItem = items.find(item => {
+      const phaseMat = phaseMaterials.find(material => material.materialId === item.materialId);
+      if (phaseMat) return item.quantity > phaseMat.stockQuantity;
+
+      const inventoryItem = inventoryList.find(inventory => inventory.materialId === item.materialId);
+      return item.quantity > (inventoryItem?.availableQuantity ?? inventoryItem?.quantity ?? 0);
+    });
+    if (insufficientItem) {
+      setLocalError('Số lượng giảm vượt quá tồn kho khả dụng. Vui lòng tải lại và kiểm tra số lượng.');
+      return;
+    }
+
     setLoading(true);
     setLocalError(null);
     try {
@@ -302,21 +342,6 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         });
         newAdjustmentId = (result as any).data || (result as any).id || 1;
         setCreatedAdjustmentId(newAdjustmentId);
-      }
-
-      // Nếu có incident, gọi confirmIncident để chuyển trạng thái từ WaitingAccountant → WaitingDirector
-      // Chỉ gọi một lần duy nhất, KHÔNG gọi lại nếu đã tạo phiếu trước đó
-      if (incident && !createdAdjustmentId) {
-        try {
-          await incidentService.confirmIncident(Number(incident.id || (incident as any).incidentId), {
-            incidentId: Number(incident.id || (incident as any).incidentId),
-            createReworkTask: false,
-            handlingInstruction: description || 'Kế toán đã xác minh.'
-          });
-        } catch (confirmErr: any) {
-          // Bỏ qua lỗi confirm nếu trạng thái đã chuyển (có thể do race condition)
-          console.warn('[CreateDecreaseAdjustmentModal] confirmIncident error (ignored):', confirmErr?.message);
-        }
       }
 
       onSuccess(createdAdjustmentId ? 'Xác minh thành công' : 'Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt');
@@ -676,10 +701,12 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                 {items.map(item => {
                   const phaseMat = phaseMaterials.find(x => x.materialId === item.materialId);
                   const invItem = inventoryList.find(x => x.materialId === item.materialId);
-                  const catItem = masterMaterials.find(x => x.id === item.materialId);
-                  const currentQty = phaseMat ? phaseMat.stockQuantity : (invItem?.quantity ?? 0);
+                  const catItem = masterMaterials.find(x => x.materialId === item.materialId);
+                  const currentQty = phaseMat
+                    ? phaseMat.stockQuantity
+                    : (invItem?.availableQuantity ?? invItem?.quantity ?? 0);
                   const remainingQty = Math.max(0, currentQty - item.quantity);
-                  const matCode = phaseMat?.materialCode || invItem?.materialCode || catItem?.materialCode || item.fallbackCode || '-';
+                  const matCode = phaseMat?.materialCode || invItem?.materialCode || catItem?.code || item.fallbackCode || '-';
                   const matName = phaseMat?.materialName || invItem?.materialName || catItem?.name || item.fallbackName || '-';
                   const uName = phaseMat?.unitName || invItem?.unitName || catItem?.baseUnitName || item.fallbackUnit || '';
 

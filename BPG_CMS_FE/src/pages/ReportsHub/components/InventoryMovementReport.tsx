@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { reportService, type InventoryMovementReportDto } from '../../../services/reportService';
-import { ArrowUpRight, ArrowDownLeft, RefreshCw, Layers } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 
 interface Props {
@@ -10,23 +10,61 @@ interface Props {
 }
 
 export const InventoryMovementReport: React.FC<Props> = ({ projectId, fromDate, toDate }) => {
-  const [data, setData] = useState<InventoryMovementReportDto | null>(null);
-  const [loading, setLoading] = useState(true);
-
   const numProjectId = projectId === 'all' ? 0 : Number(projectId);
+  const requestIdentity = useMemo(
+    () => ({ numProjectId, fromDate, toDate }),
+    [numProjectId, fromDate, toDate],
+  );
+  const [loadState, setLoadState] = useState<{
+    requestIdentity: object;
+    data: InventoryMovementReportDto | null;
+    error: string | null;
+  } | null>(null);
+  const requestIdRef = useRef(0);
+
+  const isCurrentResult = loadState?.requestIdentity === requestIdentity;
+  const data = isCurrentResult ? loadState.data : null;
+  const error = isCurrentResult ? loadState.error : null;
+  const loading = !isCurrentResult;
 
   useEffect(() => {
-    setLoading(true);
-    reportService.getInventoryMovement(numProjectId, { fromDate, toDate })
-      .then(res => setData(res))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [numProjectId, fromDate, toDate]);
+    const requestId = ++requestIdRef.current;
+    reportService.getInventoryMovement(requestIdentity.numProjectId, {
+      fromDate: requestIdentity.fromDate,
+      toDate: requestIdentity.toDate,
+    })
+      .then(report => {
+        if (requestId === requestIdRef.current) {
+          setLoadState({ requestIdentity, data: report, error: null });
+        }
+      })
+      .catch(err => {
+        if (requestId !== requestIdRef.current) return;
+        console.error('Error fetching inventory movement report', err);
+        setLoadState({
+          requestIdentity,
+          data: null,
+          error: err instanceof Error ? err.message : 'Không thể tải báo cáo biến động tồn kho.',
+        });
+      });
+
+    return () => {
+      if (requestIdRef.current === requestId) requestIdRef.current += 1;
+    };
+  }, [requestIdentity]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <LoadingSpinner size="md" label="Đang tải báo cáo biến động tồn kho..." />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-10 text-center text-red-500 font-semibold bg-[hsl(var(--bg-main))] border border-[hsl(var(--border))] rounded-xl m-4">
+        {error}
       </div>
     );
   }
@@ -39,41 +77,15 @@ export const InventoryMovementReport: React.FC<Props> = ({ projectId, fromDate, 
     );
   }
 
-  const totalOpening = data.items.reduce((sum, item) => sum + item.openingBalance, 0);
-  const totalReceived = data.items.reduce((sum, item) => sum + item.totalReceived, 0);
-  const totalIssued = data.items.reduce((sum, item) => sum + item.totalIssued, 0);
-  const totalClosing = data.items.reduce((sum, item) => sum + item.closingBalance, 0);
-
   return (
     <div className="p-4 flex flex-col gap-6 animate-fade-in">
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Quantities with different units must not be added together. */}
+      <div className="grid grid-cols-1 gap-4">
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-1">
           <span className="text-xs uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5">
-            <Layers size={14} /> Tồn đầu kỳ
+            <Layers size={14} /> Tổng chủng loại trong báo cáo
           </span>
-          <span className="text-xl font-bold text-slate-800">{totalOpening.toLocaleString()}</span>
-        </div>
-
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-wider font-semibold text-emerald-600 flex items-center gap-1.5">
-            <ArrowDownLeft size={14} /> Tổng nhập trong kỳ
-          </span>
-          <span className="text-xl font-bold text-emerald-700">+{totalReceived.toLocaleString()}</span>
-        </div>
-
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-wider font-semibold text-amber-600 flex items-center gap-1.5">
-            <ArrowUpRight size={14} /> Tổng xuất trong kỳ
-          </span>
-          <span className="text-xl font-bold text-amber-700">-{totalIssued.toLocaleString()}</span>
-        </div>
-
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-wider font-semibold text-blue-600 flex items-center gap-1.5">
-            <RefreshCw size={14} /> Tồn cuối kỳ
-          </span>
-          <span className="text-xl font-bold text-blue-800">{totalClosing.toLocaleString()}</span>
+          <span className="text-xl font-bold text-slate-800">{data.totalMaterials.toLocaleString('vi-VN')}</span>
         </div>
       </div>
 

@@ -35,6 +35,13 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             if (adjustment == null) throw new NotFoundException(nameof(InventoryAdjustment), request.AdjustmentId);
 
+            if (adjustment.ProjectId != request.ProjectId)
+            {
+                throw new BusinessException(
+                    "ERR_ADJUSTMENT_PROJECT_MISMATCH",
+                    "Phiếu điều chỉnh không thuộc dự án trong đường dẫn.");
+            }
+
             var project = await _unitOfWork.Repository<Project>().GetByIdAsync(adjustment.ProjectId);
             if (project == null) throw new NotFoundException(nameof(Project), adjustment.ProjectId);
 
@@ -59,6 +66,36 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     throw new ForbiddenException("Chỉ Giám đốc mới được duyệt phiếu giảm tồn.");
             }
 
+            Incident? linkedIncident = null;
+            if (!isIncrease && adjustment.IncidentId.HasValue)
+            {
+                linkedIncident = await _unitOfWork.Repository<Incident>()
+                    .GetByIdAsync(adjustment.IncidentId.Value, cancellationToken);
+                if (linkedIncident == null)
+                {
+                    throw new BusinessException(
+                        "ERR_INVALID_INCIDENT",
+                        "Không tìm thấy sự cố đã liên kết với phiếu giảm tồn.");
+                }
+
+                if (linkedIncident.ProjectId != adjustment.ProjectId
+                    || linkedIncident.PhaseId != adjustment.PhaseId
+                    || (linkedIncident.IncidentType != "InventoryLoss"
+                        && linkedIncident.IncidentType != "InventoryDamage"))
+                {
+                    throw new BusinessException(
+                        "ERR_INVALID_INCIDENT",
+                        "Sự cố liên kết không khớp với phiếu giảm tồn.");
+                }
+
+                if (linkedIncident.Status != "WaitingDirector")
+                {
+                    throw new BusinessException(
+                        "ERR_INVALID_INCIDENT_STATUS",
+                        "Sự cố liên kết không ở trạng thái chờ Giám đốc duyệt.");
+                }
+            }
+
             if (!request.IsApproved)
             {
                 adjustment.Status = InventoryAdjustmentStatus.Rejected;
@@ -72,64 +109,36 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 {
                     foreach (var item in adjustment.Items)
                     {
+                        var baseQuantity = GetBaseQuantity(item);
                         var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
                             .FirstOrDefaultAsync(
                                 inventory => inventory.ProjectId == adjustment.ProjectId && inventory.MaterialId == item.MaterialId,
                                 cancellationToken);
                         if (currentInventory != null)
                         {
-                            currentInventory.ReservedQuantity = System.Math.Max(0, currentInventory.ReservedQuantity - item.Quantity);
+                            currentInventory.ReservedQuantity = System.Math.Max(
+                                0,
+                                currentInventory.ReservedQuantity - baseQuantity);
                             currentInventory.LastUpdated = System.DateTime.UtcNow;
                             _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
                         }
                     }
 
-                    Incident? rejIncident = null;
-                    if (adjustment.IncidentId.HasValue && adjustment.IncidentId.Value > 0)
+                    if (linkedIncident != null)
                     {
-                        rejIncident = await _unitOfWork.Repository<Incident>().GetByIdAsync(adjustment.IncidentId.Value);
-                    }
-                    if (rejIncident == null && !string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("System Liên kết sự cố #"))
-                    {
-                        var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
-                        if (match.Success)
-                        {
-                            var incidentId = long.Parse(match.Groups[1].Value);
-                            rejIncident = await _unitOfWork.Repository<Incident>().Query()
-                                .FirstOrDefaultAsync(i => i.IncidentId == incidentId, cancellationToken);
-                        }
-                    }
-
-                    if (rejIncident == null)
-                    {
-                        rejIncident = await _unitOfWork.Repository<Incident>().Query()
-                            .Where(i => i.ProjectId == adjustment.ProjectId && i.PhaseId == adjustment.PhaseId && i.Status == "WaitingDirector")
-                            .OrderBy(i => i.IncidentId)
-                            .FirstOrDefaultAsync(cancellationToken);
-                    }
-
-                    if (rejIncident != null)
-                    {
-                        rejIncident.Status = "Rejected";
-                        rejIncident.ReviewedBy = _currentUserService.GetRequiredUserId();
-                        rejIncident.HandlingInstruction = $"Giám đốc đã từ chối phiếu giảm tồn kho liên quan. Lý do: {request.RejectedReason}";
-                        _unitOfWork.Repository<Incident>().Update(rejIncident);
-
-                        await _realtimeSender.SendToGroupAsync(
-                            HubMethodNames.GroupProject + rejIncident.ProjectId,
-                            HubMethodNames.IncidentUpdated,
-                            rejIncident.IncidentId,
-                            cancellationToken);
-
-                        await _realtimeSender.SendToGroupAsync(
-                            HubMethodNames.GroupProject + 0,
-                            HubMethodNames.IncidentUpdated,
-                            rejIncident.IncidentId,
-                            cancellationToken);
+                        linkedIncident.Status = "Rejected";
+                        linkedIncident.ReviewedBy = _currentUserService.GetRequiredUserId();
+                        linkedIncident.HandlingInstruction = $"Giám đốc đã từ chối phiếu giảm tồn kho liên quan. Lý do: {request.RejectedReason}";
+                        _unitOfWork.Repository<Incident>().Update(linkedIncident);
                     }
                 }
 
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await SaveDecisionAsync(cancellationToken);
+
+                if (linkedIncident != null)
+                {
+                    await SendIncidentUpdatedAsync(linkedIncident, cancellationToken);
+                }
 
                 // Gửi thông báo DB cho người tạo phiếu
                 if (adjustment.CreatedBy.HasValue)
@@ -172,35 +181,9 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             adjustment.ApprovedBy = _currentUserService.GetRequiredUserId();
             adjustment.ApprovedAt = System.DateTime.UtcNow;
 
-            Incident? appIncident = null;
-            if (!isIncrease)
-            {
-                if (adjustment.IncidentId.HasValue && adjustment.IncidentId.Value > 0)
-                {
-                    appIncident = await _unitOfWork.Repository<Incident>().GetByIdAsync(adjustment.IncidentId.Value);
-                }
-                if (appIncident == null && !string.IsNullOrEmpty(adjustment.Description) && adjustment.Description.Contains("System Liên kết sự cố #"))
-                {
-                    var match = System.Text.RegularExpressions.Regex.Match(adjustment.Description, @"\[System\] Liên kết sự cố #(\d+)");
-                    if (match.Success)
-                    {
-                        var incidentId = long.Parse(match.Groups[1].Value);
-                        appIncident = await _unitOfWork.Repository<Incident>().Query()
-                            .FirstOrDefaultAsync(i => i.IncidentId == incidentId, cancellationToken);
-                    }
-                }
-
-                if (appIncident == null)
-                {
-                    appIncident = await _unitOfWork.Repository<Incident>().Query()
-                        .Where(i => i.ProjectId == adjustment.ProjectId && i.PhaseId == adjustment.PhaseId && i.Status == "WaitingDirector")
-                        .OrderBy(i => i.IncidentId)
-                        .FirstOrDefaultAsync(cancellationToken);
-                }
-            }
-
             foreach (var item in adjustment.Items)
             {
+                var baseQuantity = GetBaseQuantity(item);
                 var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
                     .FirstOrDefaultAsync(x => x.ProjectId == adjustment.ProjectId && x.MaterialId == item.MaterialId, cancellationToken);
 
@@ -208,19 +191,27 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 {
                     if (currentInventory == null)
                     {
+                        var material = await _unitOfWork.Repository<MaterialCatalog>()
+                            .Query()
+                            .IgnoreQueryFilters()
+                            .FirstOrDefaultAsync(
+                                candidate => candidate.MaterialId == item.MaterialId,
+                                cancellationToken)
+                            ?? throw new NotFoundException(nameof(MaterialCatalog), item.MaterialId);
+
                         currentInventory = new CurrentInventory
                         {
                             ProjectId = adjustment.ProjectId,
                             MaterialId = item.MaterialId,
-                            UnitId = item.UnitId,
-                            Quantity = item.Quantity,
+                            UnitId = material.BaseUnitId,
+                            Quantity = baseQuantity,
                             LastUpdated = System.DateTime.UtcNow
                         };
                         await _unitOfWork.Repository<CurrentInventory>().AddAsync(currentInventory);
                     }
                     else
                     {
-                        currentInventory.Quantity += item.Quantity;
+                        currentInventory.Quantity += baseQuantity;
                         currentInventory.LastUpdated = System.DateTime.UtcNow;
                         _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
                     }
@@ -230,7 +221,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                         ProjectId = adjustment.ProjectId,
                         MaterialId = item.MaterialId,
                         TransactionType = InventoryTransactionType.Adjustment,
-                        QuantityChange = item.Quantity, // Dương cho tăng
+                        QuantityChange = baseQuantity, // Inventory ledger is always in base units.
                         BalanceAfter = currentInventory.Quantity,
                         ReferenceId = adjustment.AdjustmentId,
                         ReferenceType = EntityType.InventoryAdjustment,
@@ -241,13 +232,15 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 }
                 else
                 {
-                    if (currentInventory == null || currentInventory.Quantity < item.Quantity)
+                    if (currentInventory == null || currentInventory.Quantity < baseQuantity)
                     {
                         throw new BusinessException("ERR_INSUFFICIENT_STOCK", $"Không đủ tồn kho cho vật tư ID {item.MaterialId}");
                     }
 
-                    currentInventory.Quantity -= item.Quantity;
-                    currentInventory.ReservedQuantity = System.Math.Max(0, currentInventory.ReservedQuantity - item.Quantity);
+                    currentInventory.Quantity -= baseQuantity;
+                    currentInventory.ReservedQuantity = System.Math.Max(
+                        0,
+                        currentInventory.ReservedQuantity - baseQuantity);
                     currentInventory.LastUpdated = System.DateTime.UtcNow;
                     _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
 
@@ -255,8 +248,10 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     {
                         ProjectId = adjustment.ProjectId,
                         MaterialId = item.MaterialId,
-                        TransactionType = (appIncident != null) ? (byte)9 : InventoryTransactionType.Adjustment,
-                        QuantityChange = -item.Quantity, // Âm cho giảm
+                        TransactionType = linkedIncident != null
+                            ? InventoryTransactionType.IncidentLoss
+                            : InventoryTransactionType.Adjustment,
+                        QuantityChange = -baseQuantity,
                         BalanceAfter = currentInventory.Quantity,
                         ReferenceId = adjustment.AdjustmentId,
                         ReferenceType = EntityType.InventoryAdjustment,
@@ -269,27 +264,20 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             _unitOfWork.Repository<InventoryAdjustment>().Update(adjustment);
 
-            if (!isIncrease && appIncident != null)
+            if (!isIncrease && linkedIncident != null)
             {
-                appIncident.Status = "Approved";
-                appIncident.ReviewedBy = _currentUserService.GetRequiredUserId();
-                appIncident.HandlingInstruction = "Giám đốc đã phê duyệt phiếu giảm tồn kho liên quan.";
-                _unitOfWork.Repository<Incident>().Update(appIncident);
-
-                await _realtimeSender.SendToGroupAsync(
-                    HubMethodNames.GroupProject + appIncident.ProjectId,
-                    HubMethodNames.IncidentUpdated,
-                    appIncident.IncidentId,
-                    cancellationToken);
-
-                await _realtimeSender.SendToGroupAsync(
-                    HubMethodNames.GroupProject + 0,
-                    HubMethodNames.IncidentUpdated,
-                    appIncident.IncidentId,
-                    cancellationToken);
+                linkedIncident.Status = "Approved";
+                linkedIncident.ReviewedBy = _currentUserService.GetRequiredUserId();
+                linkedIncident.HandlingInstruction = "Giám đốc đã phê duyệt phiếu giảm tồn kho liên quan.";
+                _unitOfWork.Repository<Incident>().Update(linkedIncident);
             }
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await SaveDecisionAsync(cancellationToken);
+
+            if (linkedIncident != null)
+            {
+                await SendIncidentUpdatedAsync(linkedIncident, cancellationToken);
+            }
 
             // Gửi thông báo DB cho người tạo phiếu
             if (adjustment.CreatedBy.HasValue)
@@ -325,6 +313,64 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 cancellationToken);
 
             return ApiResponse<bool>.SuccessResult(true, isIncrease ? "Phê duyệt phiếu điều chỉnh tăng tồn thành công" : "Phê duyệt phiếu điều chỉnh giảm tồn thành công");
+        }
+
+        private static decimal GetBaseQuantity(AdjustmentItem item)
+            => InventoryAdjustmentQuantity.ToBase(item);
+
+        private async Task SaveDecisionAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                throw new BusinessException(
+                    "ERR_ADJUSTMENT_ALREADY_PROCESSED",
+                    "Phiếu điều chỉnh đã được xử lý bởi một phiên làm việc khác. Vui lòng tải lại dữ liệu.");
+            }
+            catch (DbUpdateException exception) when (IsCurrentInventoryUniqueViolation(exception))
+            {
+                throw new BusinessException(
+                    "ERR_INVENTORY_STATE_CHANGED",
+                    "Tồn kho vật tư đã được khởi tạo bởi một phiên làm việc khác. Vui lòng tải lại và thử lại.");
+            }
+        }
+
+        private static bool IsCurrentInventoryUniqueViolation(DbUpdateException exception)
+        {
+            for (Exception? current = exception; current != null; current = current.InnerException)
+            {
+                var numberProperty = current.GetType().GetProperty("Number");
+                if (numberProperty?.GetValue(current) is int number
+                    && (number == 2601 || number == 2627)
+                    && current.Message.Contains(
+                        "IX_CurrentInventories_ProjectId_MaterialId_UnitId",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private async Task SendIncidentUpdatedAsync(
+            Incident linkedIncident,
+            CancellationToken cancellationToken)
+        {
+            await _realtimeSender.SendToGroupAsync(
+                HubMethodNames.GroupProject + linkedIncident.ProjectId,
+                HubMethodNames.IncidentUpdated,
+                linkedIncident.IncidentId,
+                cancellationToken);
+
+            await _realtimeSender.SendToGroupAsync(
+                HubMethodNames.GroupProject + 0,
+                HubMethodNames.IncidentUpdated,
+                linkedIncident.IncidentId,
+                cancellationToken);
         }
     }
 }

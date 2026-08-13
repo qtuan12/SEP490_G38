@@ -12,6 +12,7 @@ import { inventoryService } from '../../../services/inventoryService';
 import type { CurrentInventory } from '../../../types/inventory';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { LazyImage } from '../../../utils/imageOptimizer';
+import { parseInventoryIncidentDamage } from '../../../utils/inventoryIncidentDamage';
 interface IncidentDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -85,7 +86,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   onResolveClick,
   onSuccessAction
 }) => {
-  const { isProjectLeader } = useProjectAccess(incident.projectId);
+  const { isProjectLeader, isProjectActive } = useProjectAccess(incident.projectId);
   const [isRejecting, setIsRejecting] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
   const [isResubmittingByDirector, setIsResubmittingByDirector] = useState(false);
@@ -917,31 +918,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   // Do the same for damageDescription
   const { mainDesc: damageDescClean, meta: damageMetaClean } = extractMetaFromDesc(isDescriptionJson ? (parsedDescJson.thietHaiTaiSan || '') : (incident.damageDescription || ''));
 
-  interface DamagedItem {
-    code: string;
-    name: string;
-    unit: string;
-    quantityLost: number;
-  }
-  const parsedDamagedItems: DamagedItem[] = [];
-  if (isInventoryIncident && incident.damageDescription) {
-    const lines = incident.damageDescription.split('\n');
-    lines.forEach(line => {
-      if (line.trim().startsWith('|') && !line.includes('Mã vật tư') && !line.includes('---')) {
-        const parts = line.split('|').map(p => p.trim());
-        if (parts.length >= 5) {
-          const code = parts[1];
-          const name = parts[2];
-          const unit = parts[3];
-          const qtyStr = parts[4].replace(/\*\*/g, '');
-          const qty = parseFloat(qtyStr) || 0;
-          if (code && name) {
-            parsedDamagedItems.push({ code, name, unit, quantityLost: qty });
-          }
-        }
-      }
-    });
-  }
+  const parsedDamagedItems = isInventoryIncident
+    ? parseInventoryIncidentDamage(incident.damageDescription)
+    : [];
 
   const extractedImages = imageLines.map(l => {
     const match = l.match(/!\[.*?\]\((.*?)\)/);
@@ -1338,28 +1317,60 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                       </thead>
                       <tbody>
                         {parsedDamagedItems.map((it, idx) => {
-                          const invItem = inventory.find(inv => inv.materialCode === it.code);
+                          const invItem = inventory.find(inv =>
+                            (it.materialId != null && inv.materialId === it.materialId)
+                            || inv.materialCode.toLowerCase() === it.materialCode.toLowerCase()
+                          );
                           const hasInv = !!invItem;
 
                           let stockBeforeStr = '-';
                           let stockAfterStr = '-';
 
                           if (hasInv) {
-                            const isAlreadyDecreased = incident.status === 'Approved';
-                            const stockBeforeVal = isAlreadyDecreased ? invItem.quantity + it.quantityLost : invItem.quantity;
-                            const stockAfterVal = isAlreadyDecreased ? invItem.quantity : invItem.quantity - it.quantityLost;
+                            const hasStableUnitMetadata = it.materialId != null || it.unitId != null;
+                            const legacyPhaseMaterial = hasStableUnitMetadata
+                              ? undefined
+                              : phase?.materials?.find(material =>
+                                material.materialId === invItem.materialId
+                                && material.unit.trim().toLowerCase() === it.unitName.trim().toLowerCase()
+                              );
+                            const isBaseUnit = invItem.unitName.trim().toLowerCase() === it.unitName.trim().toLowerCase();
+                            const resolvedConversionRate = hasStableUnitMetadata
+                              ? it.conversionRate
+                              : (legacyPhaseMaterial?.conversionRate ?? (isBaseUnit ? 1 : undefined));
 
-                            stockBeforeStr = `${stockBeforeVal} ${it.unit}`;
-                            stockAfterStr = `${stockAfterVal} ${it.unit}`;
+                            // CurrentInventory is expressed in the material base unit. The
+                            // incident quantity is expressed in its captured selected unit.
+                            // If an old record has neither metadata nor a matching BOQ unit,
+                            // leave stock unknown instead of labelling a base balance as the
+                            // legacy unit and showing a mathematically incorrect subtraction.
+                            if (resolvedConversionRate != null && resolvedConversionRate > 0) {
+                              const currentStockInIncidentUnit = invItem.quantity * resolvedConversionRate;
+                              const isAlreadyDecreased = incident.status === 'Approved';
+                              const hasCapturedStock = it.stockQuantity != null;
+                              const stockBeforeVal = hasCapturedStock
+                                ? it.stockQuantity!
+                                : (isAlreadyDecreased
+                                  ? currentStockInIncidentUnit + it.quantityLost
+                                  : currentStockInIncidentUnit);
+                              const stockAfterVal = hasCapturedStock
+                                ? Math.max(0, stockBeforeVal - it.quantityLost)
+                                : (isAlreadyDecreased
+                                  ? currentStockInIncidentUnit
+                                  : Math.max(0, currentStockInIncidentUnit - it.quantityLost));
+
+                              stockBeforeStr = `${stockBeforeVal.toLocaleString('vi-VN', { maximumFractionDigits: 3 })} ${it.unitName}`;
+                              stockAfterStr = `${stockAfterVal.toLocaleString('vi-VN', { maximumFractionDigits: 3 })} ${it.unitName}`;
+                            }
                           }
 
                           return (
                             <tr key={idx} style={{ borderBottom: idx < parsedDamagedItems.length - 1 ? '1px solid hsl(var(--border))' : 'none' }}>
-                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))' }}>{it.code}</td>
-                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))' }}>{it.name}</td>
+                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))' }}>{it.materialCode}</td>
+                              <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))' }}>{it.materialName}</td>
                               <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))', textAlign: 'center' }}>{stockBeforeStr}</td>
                               <td style={{ padding: '8px 12px', color: 'red', fontWeight: 600, textAlign: 'center' }}>
-                                -{it.quantityLost} {it.unit}
+                                -{it.quantityLost.toLocaleString('vi-VN', { maximumFractionDigits: 3 })} {it.unitName}
                               </td>
                               <td style={{ padding: '8px 12px', color: 'hsl(var(--text-primary))', fontWeight: 700, textAlign: 'right' }}>{stockAfterStr}</td>
                             </tr>
@@ -1914,7 +1925,13 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
             <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }}>
               ❌ Từ chối
             </button>
-            <button onClick={onResolveClick} className="btn btn-primary" style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(210, 70%, 45%)' }}>
+            <button
+              onClick={onResolveClick}
+              className="btn btn-primary"
+              style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(210, 70%, 45%)' }}
+              disabled={!isProjectActive}
+              title={!isProjectActive ? 'Chỉ có thể tạo phiếu khi dự án đang thực hiện' : undefined}
+            >
               📦 Xác minh &amp; Tạo Phiếu (Kế toán)
             </button>
           </div>
