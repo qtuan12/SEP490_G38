@@ -60,8 +60,8 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<MaterialIssuanceDetail | null>(null);
-  const { isProjectActive, canManageInventory } = useProjectAccess(projectId);
-  const allowReturn = (canReturnMaterial || canManageInventory) && isProjectActive;
+  const { isProjectActive } = useProjectAccess(projectId);
+  const allowReturn = canReturnMaterial && isProjectActive;
   const [error, setError] = useState<string | null>(null);
 
   // Return history

@@ -70,7 +70,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         }
 
         [Fact]
-        public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnCreatedReturnId()
+        public async Task UTCID01_Handle_ProjectLeaderWithValidRequest_ShouldReturnCreatedReturnId()
         {
             SetupTechnicalManager();
             SetupIssuances(Issuance(IssuanceItem(CementId, 30)));
@@ -159,6 +159,18 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var exception = await act.Should().ThrowAsync<ForbiddenException>();
             exception.Which.ErrorCode.Should().Be("AUTH_002");
+            exception.Which.Message.Should().Be("Chỉ Trưởng dự án mới được tạo phiếu hoàn trả vật tư.");
+        }
+
+        [Fact]
+        public async Task Handle_TechnicalManagerWhoIsNotProjectLeader_ShouldThrowForbiddenException()
+        {
+            SetupTechnicalManagerWithoutProjectLeader();
+            SetupIssuances(Issuance(IssuanceItem(CementId, 30)));
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
             exception.Which.Message.Should().Be("Chỉ Trưởng dự án mới được tạo phiếu hoàn trả vật tư.");
         }
 
@@ -312,6 +324,13 @@ namespace BPG.Application.UnitTests.MaterialReturns
         private void SetupTechnicalManager()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
+        }
+
+        private void SetupTechnicalManagerWithoutProjectLeader()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = false });
         }
 
         private void SetupProjectLeader()

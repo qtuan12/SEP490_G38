@@ -73,14 +73,11 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                 throw new BusinessException("ERR_PROJECT_NOT_FOUND", "Không tìm thấy dự án liên kết với phiếu xuất kho này.");
             }
 
-            if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
-            {
-                var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
-                    member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
-                    cancellationToken);
-                if (!isProjectLeader)
-                    throw new ForbiddenException("Chỉ Trưởng dự án mới được tạo phiếu hoàn trả vật tư.");
-            }
+            var isProjectLeader = await _uow.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == project.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                cancellationToken);
+            if (!isProjectLeader)
+                throw new ForbiddenException("Chỉ Trưởng dự án mới được tạo phiếu hoàn trả vật tư.");
 
             var taskName = issuance.Task?.Name ?? "công việc liên quan";
 
