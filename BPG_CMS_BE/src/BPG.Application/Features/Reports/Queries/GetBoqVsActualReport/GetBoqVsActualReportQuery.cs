@@ -58,7 +58,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
                 MaterialCode = g.First().Material.Code,
                 MaterialName = g.First().Material.Name,
                 UnitName = g.First().Material.BaseUnit?.UnitName ?? string.Empty,
-                BoqLimit = g.Sum(x => x.Quantity * (x.ConversionRate > 0 ? x.ConversionRate : 1m))
+                BoqLimit = g.Sum(x => x.Quantity / (x.ConversionRate > 0 ? x.ConversionRate : 1m))
             })
             .ToList();
 
@@ -108,7 +108,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
 
         var issuedGrouped = issuanceItems
             .GroupBy(i => i.MaterialId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity * (x.ConversionRate > 0 ? x.ConversionRate : 1m)));
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity / (x.ConversionRate > 0 ? x.ConversionRate : 1m)));
 
         // Fetch returns (normalized by ConversionRate)
         var returnQuery = _unitOfWork.Repository<MaterialReturnItem>()
@@ -140,7 +140,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
         var returnItems = await returnQuery.ToListAsync(cancellationToken);
         var returnedGrouped = returnItems
             .GroupBy(r => r.MaterialId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity * (x.ConversionRate > 0 ? x.ConversionRate : 1m)));
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity / (x.ConversionRate > 0 ? x.ConversionRate : 1m)));
 
         // Pending POs
         var poQuery = _unitOfWork.Repository<PurchaseOrderItem>()
@@ -168,7 +168,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
                 .Query()
                 .Where(gri => poIds.Contains(gri.Receipt.POId) && gri.Receipt.Status == GoodsReceiptStatus.Approved)
                 .GroupBy(gri => new { POId = gri.Receipt.POId, gri.MaterialId })
-                .Select(g => new { g.Key.POId, g.Key.MaterialId, Total = g.Sum(x => x.Quantity * (x.ConversionRate > 0 ? x.ConversionRate : 1m)) })
+                .Select(g => new { g.Key.POId, g.Key.MaterialId, Total = g.Sum(x => x.Quantity / (x.ConversionRate > 0 ? x.ConversionRate : 1m)) })
                 .ToDictionaryAsync(x => (x.POId, x.MaterialId), x => x.Total, cancellationToken);
 
         var poGrouped = activePoItems
@@ -177,7 +177,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
                 g => g.Key,
                 g => g.Sum(pi =>
                 {
-                    decimal poQtyNormalized = pi.Quantity * (pi.ConversionRate > 0 ? pi.ConversionRate : 1m);
+                    decimal poQtyNormalized = pi.Quantity / (pi.ConversionRate > 0 ? pi.ConversionRate : 1m);
                     receivedMap.TryGetValue((pi.POId, pi.MaterialId), out var recQty);
                     return Math.Max(0, poQtyNormalized - recQty);
                 })
@@ -203,7 +203,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
 
         var mrGrouped = mrItems
             .GroupBy(m => m.MaterialId)
-            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity * (x.ConversionRate > 0 ? x.ConversionRate : 1m)));
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity / (x.ConversionRate > 0 ? x.ConversionRate : 1m)));
 
         // Fetch average unit prices from PO items
         var avgPricesMap = await _unitOfWork.Repository<PurchaseOrderItem>()
@@ -220,7 +220,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             .Select(g => new
             {
                 MaterialId = g.Key,
-                AvgPrice = g.Average(x => x.UnitPrice / (x.ConversionRate > 0 ? x.ConversionRate : 1m))
+                AvgPrice = g.Average(x => x.UnitPrice * (x.ConversionRate > 0 ? x.ConversionRate : 1m))
             })
             .ToDictionaryAsync(x => x.MaterialId, x => x.AvgPrice, cancellationToken);
 
@@ -307,12 +307,12 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             decimal consumedVal = monthIssuance.Sum(i =>
             {
                 var price = avgPricesMap.GetValueOrDefault(i.MaterialId, 0m);
-                var qty = i.Quantity * (i.ConversionRate > 0 ? i.ConversionRate : 1m);
+                var qty = i.Quantity / (i.ConversionRate > 0 ? i.ConversionRate : 1m);
                 return qty * price;
             }) - monthReturn.Sum(r =>
             {
                 var price = avgPricesMap.GetValueOrDefault(r.MaterialId, 0m);
-                var qty = r.Quantity * (r.ConversionRate > 0 ? r.ConversionRate : 1m);
+                var qty = r.Quantity / (r.ConversionRate > 0 ? r.ConversionRate : 1m);
                 return qty * price;
             });
 
