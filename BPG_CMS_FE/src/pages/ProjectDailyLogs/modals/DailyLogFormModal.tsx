@@ -58,6 +58,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
   // Selected new files with upload status
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
+  const [rejectedImageNames, setRejectedImageNames] = useState<string[]>([]);
   // Keep track of existing images in edit mode
   const [existingImages, setExistingImages] = useState<string[]>([]);
   // File dragging state
@@ -119,6 +120,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
   useEffect(() => {
     setUploadedFiles([]);
+    setRejectedImageNames([]);
     
     if (isEditMode && editLog) {
       setExistingImages(editLog.images || []);
@@ -165,6 +167,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
     if (e.target.files && e.target.files.length > 0) {
       addImages(Array.from(e.target.files));
     }
+    e.target.value = '';
   };
 
   const addImages = (files: File[]) => {
@@ -172,11 +175,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
     const MAX_SIZE = 10 * 1024 * 1024;
     const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
     if (oversizedFiles.length > 0) {
-      toast.error('Hình ảnh không được vượt quá 10MB.');
-      return;
+      setRejectedImageNames(oversizedFiles.map(file => file.name));
+      toast.error('Một số hình ảnh vượt quá 10MB và không được thêm.');
     }
 
-    const validFiles = files.filter(f => f.type.startsWith('image/'));
+    const validFiles = files.filter(f => f.type.startsWith('image/') && f.size <= MAX_SIZE);
     if (validFiles.length === 0) return;
 
     validFiles.forEach(file => {
@@ -577,6 +580,13 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                     <AlertCircle size={16} className="text-red-600 shrink-0" />
                     <span>Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.</span>
                   </div>
+                </div>
+              )}
+
+              {rejectedImageNames.length > 0 && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-start gap-2" onClick={e => e.stopPropagation()}>
+                  <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                  <span>Không thêm ảnh vượt quá 10MB: {rejectedImageNames.join(', ')}.</span>
                 </div>
               )}
 

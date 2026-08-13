@@ -56,13 +56,41 @@ namespace BPG.Application.Features.Inventory.Handlers
                 .Select(g => new { g.Key.MaterialId, g.Key.PhaseId, TotalBoq = g.Sum(x => x.BaseQty) })
                 .ToListAsync(cancellationToken);
 
-            // Fetch Used (issued) quantities grouped by (MaterialId, PhaseId)
-            var usedByPhase = await _uow.Repository<MaterialIssuanceItem>().Query()
+            // Fetch issued quantities grouped by (MaterialId, PhaseId)
+            var issuedByPhase = await _uow.Repository<MaterialIssuanceItem>().Query()
                 .Where(mii => mii.Issuance.Task.Phase.ProjectId == request.ProjectId && !mii.Issuance.IsDeleted)
                 .Select(mii => new { mii.MaterialId, mii.Issuance.Task.PhaseId, BaseQty = mii.Quantity / (mii.ConversionRate == 0 ? 1 : mii.ConversionRate) })
                 .GroupBy(mii => new { mii.MaterialId, mii.PhaseId })
-                .Select(g => new { g.Key.MaterialId, g.Key.PhaseId, TotalUsed = g.Sum(x => x.BaseQty) })
+                .Select(g => new { g.Key.MaterialId, g.Key.PhaseId, TotalIssued = g.Sum(x => x.BaseQty) })
                 .ToListAsync(cancellationToken);
+
+            // Returned material is linked to the phase through its original issuance.
+            var returnedByPhase = await _uow.Repository<MaterialReturnItem>().Query()
+                .Where(mri => mri.Return.OriginalIssuance.Task.Phase.ProjectId == request.ProjectId
+                    && !mri.Return.IsDeleted
+                    && !mri.Return.OriginalIssuance.IsDeleted)
+                .Select(mri => new
+                {
+                    mri.MaterialId,
+                    mri.Return.OriginalIssuance.Task.PhaseId,
+                    BaseQty = mri.Quantity / (mri.ConversionRate == 0 ? 1 : mri.ConversionRate)
+                })
+                .GroupBy(mri => new { mri.MaterialId, mri.PhaseId })
+                .Select(g => new { g.Key.MaterialId, g.Key.PhaseId, TotalReturned = g.Sum(x => x.BaseQty) })
+                .ToListAsync(cancellationToken);
+
+            var returnedLookup = returnedByPhase.ToDictionary(
+                x => (x.MaterialId, x.PhaseId),
+                x => x.TotalReturned);
+
+            var usedByPhase = issuedByPhase
+                .Select(x => new
+                {
+                    x.MaterialId,
+                    x.PhaseId,
+                    TotalUsed = x.TotalIssued - returnedLookup.GetValueOrDefault((x.MaterialId, x.PhaseId))
+                })
+                .ToList();
 
             // The latest supplier comes from actual approved receipts, not merely ordered or cancelled POs.
             var latestReceiptSources = await _uow.Repository<GoodsReceiptItem>().Query()

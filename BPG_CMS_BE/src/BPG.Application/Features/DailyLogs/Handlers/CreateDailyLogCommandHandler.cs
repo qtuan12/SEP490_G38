@@ -9,6 +9,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,6 +27,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         private readonly INotificationService _notificationService;
         private readonly IRealtimeNotificationSender _realtimeSender;
         private readonly IProgressRollupService _progressRollupService;
+        private readonly ILogger<CreateDailyLogCommandHandler>? _logger;
 
         public CreateDailyLogCommandHandler(
             IUnitOfWork uow, 
@@ -33,7 +35,8 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             ICurrentUserService currentUserService,
             INotificationService notificationService,
             IRealtimeNotificationSender realtimeSender,
-            IProgressRollupService progressRollupService)
+            IProgressRollupService progressRollupService,
+            ILogger<CreateDailyLogCommandHandler>? logger = null)
         {
             _uow = uow;
             _mapper = mapper;
@@ -41,6 +44,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
             _notificationService = notificationService;
             _realtimeSender = realtimeSender;
             _progressRollupService = progressRollupService;
+            _logger = logger;
         }
 
         public async Task<DailyLogDto> Handle(CreateDailyLogCommand request, CancellationToken cancellationToken)
@@ -291,10 +295,20 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.CanEdit = true;
 
                 // 10. Gửi thông báo đến những người liên quan
-                await SendNotificationsAsync(task, creator?.FullName ?? "Kỹ sư", request.NewProgressPercent, cancellationToken);
+                try
+                {
+                    await SendNotificationsAsync(task, creator?.FullName ?? "Kỹ sư", request.NewProgressPercent, cancellationToken);
 
-                // 11. Gửi realtime cho client dòng thời gian dự án
-                await _realtimeSender.SendToGroupAsync($"Project_{project.ProjectId}", "ReceiveDailyLogCreated", dto, cancellationToken);
+                    // 11. Gửi realtime cho client dòng thời gian dự án
+                    await _realtimeSender.SendToGroupAsync($"Project_{project.ProjectId}", "ReceiveDailyLogCreated", dto, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex,
+                        "Daily log {DailyLogId} was committed, but post-commit notification/realtime failed for project {ProjectId}.",
+                        log.LogId,
+                        project.ProjectId);
+                }
 
                 return dto;
             }
