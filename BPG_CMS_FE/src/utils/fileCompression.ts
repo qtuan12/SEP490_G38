@@ -1,6 +1,6 @@
 import imageCompression from 'browser-image-compression';
 
-const IMAGE_COMPRESSION_THRESHOLD_BYTES = 1024 * 1024;
+const IMAGE_COMPRESSION_THRESHOLD_BYTES = 300 * 1024;
 
 const COMPRESSIBLE_IMAGE_TYPES = new Set([
   'image/jpeg',
@@ -21,8 +21,8 @@ export const compressImageFile = async (file: File): Promise<File> => {
 
   try {
     const compressed = await imageCompression(file, {
-      maxSizeMB: 0.5,
-      maxWidthOrHeight: 1200,
+      maxSizeMB: 0.3,
+      maxWidthOrHeight: 1024,
       useWebWorker: true,
       preserveExif: false,
     });

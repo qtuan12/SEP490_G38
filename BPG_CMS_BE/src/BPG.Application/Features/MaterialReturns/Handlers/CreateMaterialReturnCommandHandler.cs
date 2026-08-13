@@ -93,7 +93,16 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                 );
 
             // 2.1 Lấy toàn bộ danh sách vật tư đã được hoàn trả trước đó cho phiếu xuất này để tính lũy kế
+            await _uow.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var lockResource = $"MaterialReturn_Issuance_{request.OriginalIssuanceId}";
+                await _uow.ExecuteSqlAsync(
+                    $"EXEC sp_getapplock @Resource = {lockResource}, @LockMode = 'Exclusive', @LockOwner = 'Transaction'",
+                    cancellationToken);
+
             var previousReturnItems = await _uow.Repository<MaterialReturnItem>().Query()
+                .AsNoTracking()
                 .Include(ri => ri.Return)
                 .Where(ri => ri.Return.OriginalIssuanceId == request.OriginalIssuanceId && !ri.Return.IsDeleted)
                 .ToListAsync(cancellationToken);
@@ -106,6 +115,8 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                 );
 
             // 3. Validate từng dòng hoàn trả
+            var resolvedItems = new Dictionary<long, (int UnitId, decimal ConversionRate)>();
+
             foreach (var item in request.Items)
             {
                 if (!issuedBaseQtyMap.TryGetValue(item.MaterialId, out var issuedQty))
@@ -116,7 +127,15 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
 
                 previousReturnedBaseQtyMap.TryGetValue(item.MaterialId, out var alreadyReturnedQty);
 
-                decimal conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1;
+                var originalItem = issuance.Items.FirstOrDefault(issuedItem =>
+                    issuedItem.MaterialId == item.MaterialId && issuedItem.UnitId == item.UnitId);
+                if (originalItem == null || originalItem.ConversionRate <= 0)
+                {
+                    throw new BusinessException("ERR_INVALID_RETURN_UNIT",
+                        $"Unit ID {item.UnitId} does not match the unit recorded on the original issuance for material ID {item.MaterialId}.");
+                }
+
+                decimal conversionRate = originalItem.ConversionRate;
                 decimal returnBaseQty = item.Quantity / conversionRate;
 
                 if (returnBaseQty <= 0)
@@ -131,12 +150,10 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                     throw new BusinessException("ERR_RETURN_EXCEEDS_ISSUED",
                         $"Số lượng hoàn trả ({returnBaseQty.ToString("G29")}) vượt quá giới hạn còn lại có thể trả ({remainingReturnableQty.ToString("G29")}) cho vật tư ID {item.MaterialId} (Tổng xuất: {issuedQty.ToString("G29")}, Đã trả trước đó: {alreadyReturnedQty.ToString("G29")}) trong phiếu xuất #{issuance.IssuanceNo}.");
                 }
+
+                resolvedItems[item.MaterialId] = (originalItem.UnitId, conversionRate);
             }
 
-            // 4. Bắt đầu transaction
-            await _uow.BeginTransactionAsync(cancellationToken);
-            try
-            {
                 // Sinh mã phiếu trả hàng, ví dụ: MR-20240624-A3F8B2
                 var vnNow = VietnamTime.Now;
                 var returnNo = $"PTra-{vnNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpper()}";
@@ -157,14 +174,15 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
 
                 foreach (var item in request.Items)
                 {
-                    decimal conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1;
+                    var resolvedItem = resolvedItems[item.MaterialId];
+                    decimal conversionRate = resolvedItem.ConversionRate;
                     decimal baseQty = item.Quantity / conversionRate;
 
                     returnItems.Add(new MaterialReturnItem
                     {
                         MaterialReturnId = materialReturn.MaterialReturnId,
                         MaterialId = item.MaterialId,
-                        UnitId = item.UnitId,
+                        UnitId = resolvedItem.UnitId,
                         Quantity = item.Quantity,
                         ConversionRate = conversionRate
                     });

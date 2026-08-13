@@ -110,13 +110,22 @@ namespace BPG.Application.Features.GoodsReceipts.Queries
                 }
             }
 
+            var historicalSupplierName = gr.PurchaseOrder?.SupplierId is long supplierId
+                ? await _uow.Repository<Supplier>().Query()
+                    .IgnoreQueryFilters()
+                    .AsNoTracking()
+                    .Where(supplier => supplier.SupplierId == supplierId)
+                    .Select(supplier => supplier.SupplierName)
+                    .FirstOrDefaultAsync(cancellationToken)
+                : null;
+
             var dto = new GoodsReceiptDetailDto
             {
                 ReceiptId = gr.ReceiptId,
                 ReceiptNo = gr.ReceiptNo,
                 POId = gr.POId,
                 PONumber = gr.PurchaseOrder?.PONumber ?? string.Empty,
-                SupplierName = gr.PurchaseOrder?.Supplier?.SupplierName,
+                SupplierName = historicalSupplierName,
                 DelivererInfo = gr.DelivererInfo,
                 DeliveryDocNo = gr.DeliveryDocNo,
                 Status = gr.Status,

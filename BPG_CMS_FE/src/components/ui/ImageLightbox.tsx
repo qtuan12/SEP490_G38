@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { getOptimizedImageUrl } from '../../utils/imageOptimizer';
 
 interface ImageLightboxProps {
   /** Danh sách ảnh của cùng một nhóm — cho phép lật qua lại mà không cần đóng mở lại. */
@@ -119,8 +120,10 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         style={{ position: 'relative', maxWidth: '100%', maxHeight: '100%', display: 'flex' }}
       >
         <img
-          src={currentUrl}
+          src={getOptimizedImageUrl(currentUrl, { width: 1600, quality: 'auto' })}
           alt={label ?? 'Ảnh'}
+          loading="lazy"
+          decoding="async"
           style={{
             maxWidth: '100%',
             maxHeight: 'calc(100vh - 96px)',
