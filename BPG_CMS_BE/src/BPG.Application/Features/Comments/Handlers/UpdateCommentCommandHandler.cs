@@ -8,6 +8,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,17 +21,20 @@ namespace BPG.Application.Features.Comments.Handlers
         private readonly IMapper _mapper;
         private readonly ICurrentUserService _currentUserService;
         private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly ILogger<UpdateCommentCommandHandler>? _logger;
 
         public UpdateCommentCommandHandler(
             IUnitOfWork uow, 
             IMapper mapper, 
             ICurrentUserService currentUserService,
-            IRealtimeNotificationSender realtimeSender)
+            IRealtimeNotificationSender realtimeSender,
+            ILogger<UpdateCommentCommandHandler>? logger = null)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
             _realtimeSender = realtimeSender;
+            _logger = logger;
         }
 
         public async Task<CommentDto> Handle(UpdateCommentCommand request, CancellationToken cancellationToken)
@@ -76,7 +80,17 @@ namespace BPG.Application.Features.Comments.Handlers
             var dto = _mapper.Map<CommentDto>(comment);
 
             // Gửi realtime cho client thuộc dự án
-            await _realtimeSender.SendToGroupAsync($"Project_{comment.DailyLog.Task.Phase.ProjectId}", "ReceiveCommentUpdated", dto, cancellationToken);
+            try
+            {
+                await _realtimeSender.SendToGroupAsync($"Project_{comment.DailyLog.Task.Phase.ProjectId}", "ReceiveCommentUpdated", dto, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex,
+                    "Comment {CommentId} was updated, but post-commit realtime failed for project {ProjectId}.",
+                    comment.CommentId,
+                    comment.DailyLog.Task.Phase.ProjectId);
+            }
 
             return dto;
         }

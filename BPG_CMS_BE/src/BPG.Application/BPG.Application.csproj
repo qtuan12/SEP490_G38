@@ -14,11 +14,6 @@
     <PackageReference Include="AutoMapper" Version="13.0.1" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Features\Auth\Queries\" />
-    <Folder Include="Features\NewFolder\NewFolder\" />
-  </ItemGroup>
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

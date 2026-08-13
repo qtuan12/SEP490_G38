@@ -6,6 +6,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,15 +17,18 @@ namespace BPG.Application.Features.Comments.Handlers
         private readonly IUnitOfWork _uow;
         private readonly ICurrentUserService _currentUserService;
         private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly ILogger<DeleteCommentCommandHandler>? _logger;
 
         public DeleteCommentCommandHandler(
             IUnitOfWork uow, 
             ICurrentUserService currentUserService,
-            IRealtimeNotificationSender realtimeSender)
+            IRealtimeNotificationSender realtimeSender,
+            ILogger<DeleteCommentCommandHandler>? logger = null)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _realtimeSender = realtimeSender;
+            _logger = logger;
         }
 
         public async Task<bool> Handle(DeleteCommentCommand request, CancellationToken cancellationToken)
@@ -69,7 +73,17 @@ namespace BPG.Application.Features.Comments.Handlers
 
             if (isSuccess && projectId > 0)
             {
-                await _realtimeSender.SendToGroupAsync($"Project_{projectId}", "ReceiveCommentDeleted", new { commentId, logId }, cancellationToken);
+                try
+                {
+                    await _realtimeSender.SendToGroupAsync($"Project_{projectId}", "ReceiveCommentDeleted", new { commentId, logId }, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex,
+                        "Comment {CommentId} was deleted, but post-commit realtime failed for project {ProjectId}.",
+                        commentId,
+                        projectId);
+                }
             }
 
             return isSuccess;

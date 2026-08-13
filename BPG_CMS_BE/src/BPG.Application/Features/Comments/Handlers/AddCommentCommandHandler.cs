@@ -8,6 +8,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Threading;
@@ -22,19 +23,22 @@ namespace BPG.Application.Features.Comments.Handlers
         private readonly ICurrentUserService _currentUserService;
         private readonly INotificationService _notificationService;
         private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly ILogger<AddCommentCommandHandler>? _logger;
 
         public AddCommentCommandHandler(
             IUnitOfWork uow, 
             IMapper mapper, 
             ICurrentUserService currentUserService,
             INotificationService notificationService,
-            IRealtimeNotificationSender realtimeSender)
+            IRealtimeNotificationSender realtimeSender,
+            ILogger<AddCommentCommandHandler>? logger = null)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
             _notificationService = notificationService;
             _realtimeSender = realtimeSender;
+            _logger = logger;
         }
 
         public async Task<CommentDto> Handle(AddCommentCommand request, CancellationToken cancellationToken)
@@ -80,7 +84,11 @@ namespace BPG.Application.Features.Comments.Handlers
 
             comment.Author = author!;
 
+            var committedDto = _mapper.Map<CommentDto>(comment);
+
             // 5. Gửi thông báo đến người tạo DailyLog (nếu người bình luận không phải người tạo log)
+            try
+            {
             if (dailyLog.CreatedBy != currentUserId)
             {
                 await _notificationService.SendNotificationAsync(
@@ -118,8 +126,16 @@ namespace BPG.Application.Features.Comments.Handlers
 
             // Gửi realtime cho client thuộc dự án
             await _realtimeSender.SendToGroupAsync($"Project_{dailyLog.Task.Phase.ProjectId}", "ReceiveCommentAdded", dto, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex,
+                    "Comment {CommentId} was committed, but post-commit notification/realtime failed for project {ProjectId}.",
+                    comment.CommentId,
+                    dailyLog.Task.Phase.ProjectId);
+            }
 
-            return dto;
+            return committedDto;
         }
     }
 }
