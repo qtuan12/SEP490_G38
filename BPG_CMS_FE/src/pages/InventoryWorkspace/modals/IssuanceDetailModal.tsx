@@ -43,6 +43,7 @@ interface ReturnItemInput {
   materialName: string;
   unitId: number;
   unitName: string;
+  isDiscrete: boolean;
   conversionRate: number;
   maxReturnableQty: number;
   quantity: string;
@@ -130,6 +131,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
           materialName: i.materialName,
           unitId: i.unitId,
           unitName: i.unitName,
+          isDiscrete: i.isDiscrete,
           conversionRate: i.conversionRate,
           maxReturnableQty: maxReturnable,
           quantity: ''
@@ -193,7 +195,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
     }
   };
 
-  const handleQtyChange = (index: number, val: string, maxQty: number) => {
+  const handleQtyChange = (index: number, val: string, maxQty: number, isDiscrete: boolean) => {
     setReturnItems(prev => {
       const copy = [...prev];
       const item = copy[index];
@@ -203,6 +205,8 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
         const parsed = parseQuantityInput(val);
         if (isNaN(parsed) || parsed <= 0) {
           err = 'Số lượng phải lớn hơn 0.';
+        } else if (isDiscrete && !Number.isInteger(parsed)) {
+          err = 'Đơn vị này chỉ nhận số nguyên.';
         } else if (isGreaterThanQuantity(parsed, maxQty)) {
           err = `Tối đa: ${formatQuantity(maxQty)}`;
         }
@@ -535,11 +539,11 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
                           <div>
                             <Input
                               type="number"
-                              step="any"
+                              step={item.isDiscrete ? 1 : 'any'}
                               disabled={submittingReturn}
                               placeholder="Nhập..."
                               value={item.quantity}
-                              onChange={e => handleQtyChange(idx, e.target.value, item.maxReturnableQty)}
+                              onChange={e => handleQtyChange(idx, e.target.value, item.maxReturnableQty, item.isDiscrete)}
                               error={!!item.error}
                               className="text-right"
                             />

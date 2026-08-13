@@ -119,6 +119,7 @@ export interface MaterialIssuanceItemDetail {
   materialName: string;
   unitId: number;
   unitName: string;
+  isDiscrete: boolean;
   quantity: number;
   conversionRate: number;
 }

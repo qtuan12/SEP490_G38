@@ -67,6 +67,8 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
 
   // Xuất báo cáo Excel (xlsx) với auto-fit cột và styling chuyên nghiệp
   const exportToExcel = async () => {
+    if (filteredInventory.length === 0) return;
+
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'BPG-CMS';
     workbook.created = new Date();
@@ -372,8 +374,11 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
 
           <button
             onClick={exportToExcel}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm cursor-pointer"
-            title="Xuất file Excel (.xlsx) báo cáo tồn kho hiện tại"
+            disabled={filteredInventory.length === 0}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm cursor-pointer"
+            title={filteredInventory.length === 0
+              ? 'Không có dữ liệu phù hợp để xuất Excel'
+              : 'Xuất file Excel (.xlsx) báo cáo tồn kho hiện tại'}
           >
             <Download size={14} />
             <span>Xuất Excel</span>

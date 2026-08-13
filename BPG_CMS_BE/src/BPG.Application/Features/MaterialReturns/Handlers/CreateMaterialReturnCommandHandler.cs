@@ -59,6 +59,7 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                 .Include(i => i.Task)
                     .ThenInclude(t => t.Assignees)
                 .Include(i => i.Items)
+                    .ThenInclude(item => item.Unit)
                 .FirstOrDefaultAsync(i => i.MaterialIssuanceId == request.OriginalIssuanceId, cancellationToken);
 
             if (issuance == null)
@@ -137,6 +138,13 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                 {
                     throw new BusinessException("ERR_INVALID_RETURN_UNIT",
                         $"Unit ID {item.UnitId} does not match the unit recorded on the original issuance for material ID {item.MaterialId}.");
+                }
+
+                if (originalItem.Unit?.IsDiscrete == true && item.Quantity % 1 != 0)
+                {
+                    throw new BusinessException(
+                        ErrorCodes.InvalidUnitQuantity,
+                        $"Đơn vị tính '{originalItem.Unit.UnitName}' yêu cầu số lượng hoàn trả phải là số nguyên.");
                 }
 
                 decimal conversionRate = originalItem.ConversionRate;

@@ -79,6 +79,7 @@ namespace BPG.Application.Features.MaterialIssuances.Queries
                     MaterialName = i.Material.Name,
                     UnitId = i.UnitId,
                     UnitName = i.Unit.UnitName,
+                    IsDiscrete = i.Unit.IsDiscrete,
                     Quantity = i.Quantity,
                     ConversionRate = i.ConversionRate
                 }).ToList()

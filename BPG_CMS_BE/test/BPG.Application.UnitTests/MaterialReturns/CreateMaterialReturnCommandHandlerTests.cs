@@ -240,6 +240,19 @@ namespace BPG.Application.UnitTests.MaterialReturns
             exception.Which.Message.Should().Be("Số lượng hoàn trả (5) vượt quá giới hạn còn lại có thể trả (4) cho vật tư ID 50 (Tổng xuất: 10, Đã trả trước đó: 6) trong phiếu xuất #PXK-500.");
         }
 
+        [Fact]
+        public async Task Handle_DiscreteUnitWithFractionalQuantity_ShouldThrowInvalidUnitQuantity()
+        {
+            SetupTechnicalManager();
+            SetupIssuances(Issuance(IssuanceItem(CementId, 10, isDiscrete: true, unitName: "Bao")));
+
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 0.5m) }), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            exception.Which.Message.Should().Be("Đơn vị tính 'Bao' yêu cầu số lượng hoàn trả phải là số nguyên.");
+        }
+
         private static CreateMaterialReturnCommand Command(
             long originalIssuanceId = OriginalIssuanceId,
             string reason = "Reason",
@@ -272,13 +285,19 @@ namespace BPG.Application.UnitTests.MaterialReturns
                 Items = items.ToList()
             };
 
-        private static MaterialIssuanceItem IssuanceItem(long materialId, decimal quantity, decimal conversionRate = 1)
+        private static MaterialIssuanceItem IssuanceItem(
+            long materialId,
+            decimal quantity,
+            decimal conversionRate = 1,
+            bool isDiscrete = false,
+            string unitName = "Unit")
             => new()
             {
                 MaterialId = materialId,
                 UnitId = UnitId,
                 Quantity = quantity,
-                ConversionRate = conversionRate
+                ConversionRate = conversionRate,
+                Unit = new Unit { UnitId = UnitId, UnitName = unitName, IsDiscrete = isDiscrete }
             };
 
         private static MaterialReturnItem PreviousReturnItem(long materialId, decimal quantity, decimal conversionRate = 1)
