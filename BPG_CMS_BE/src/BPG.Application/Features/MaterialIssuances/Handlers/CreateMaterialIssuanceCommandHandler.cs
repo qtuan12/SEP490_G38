@@ -8,6 +8,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,19 +24,22 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
         private readonly IInventoryService _inventoryService;
         private readonly IRealtimeNotificationSender _realtimeSender;
         private readonly INotificationService _notificationService;
+        private readonly ILogger<CreateMaterialIssuanceCommandHandler>? _logger;
 
         public CreateMaterialIssuanceCommandHandler(
             IUnitOfWork uow, 
             ICurrentUserService currentUserService,
             IInventoryService inventoryService,
             IRealtimeNotificationSender realtimeSender,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ILogger<CreateMaterialIssuanceCommandHandler>? logger = null)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _inventoryService = inventoryService;
             _realtimeSender = realtimeSender;
             _notificationService = notificationService;
+            _logger = logger;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateMaterialIssuanceCommand request, CancellationToken cancellationToken)
@@ -266,6 +270,8 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
 
+                try
+                {
                 var actorName = await _uow.Repository<User>().Query()
                     .AsNoTracking()
                     .Where(u => u.UserId == currentUserId)
@@ -328,6 +334,14 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                     HubMethodNames.MaterialIssuanceChanged,
                     issuance.MaterialIssuanceId,
                     cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex,
+                        "Material issuance {IssuanceId} was committed, but post-commit notification/realtime failed for project {ProjectId}.",
+                        issuance.MaterialIssuanceId,
+                        project.ProjectId);
+                }
 
                 return ApiResponse<long>.SuccessResult(issuance.MaterialIssuanceId, "Tạo phiếu xuất kho thành công.");
             }

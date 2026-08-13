@@ -8,6 +8,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,19 +24,22 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
         private readonly IInventoryService _inventoryService;
         private readonly IRealtimeNotificationSender _realtimeSender;
         private readonly INotificationService _notificationService;
+        private readonly ILogger<CreateMaterialReturnCommandHandler>? _logger;
 
         public CreateMaterialReturnCommandHandler(
             IUnitOfWork uow,
             ICurrentUserService currentUserService,
             IInventoryService inventoryService,
             IRealtimeNotificationSender realtimeSender,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ILogger<CreateMaterialReturnCommandHandler>? logger = null)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _inventoryService = inventoryService;
             _realtimeSender = realtimeSender;
             _notificationService = notificationService;
+            _logger = logger;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateMaterialReturnCommand request, CancellationToken cancellationToken)
@@ -203,6 +207,8 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
 
+                try
+                {
                 var actorName = await _uow.Repository<User>().Query()
                     .AsNoTracking()
                     .Where(u => u.UserId == currentUserId)
@@ -252,6 +258,14 @@ namespace BPG.Application.Features.MaterialReturns.Handlers
                     HubMethodNames.MaterialReturnChanged,
                     materialReturn.MaterialReturnId,
                     cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex,
+                        "Material return {ReturnId} was committed, but post-commit notification/realtime failed for project {ProjectId}.",
+                        materialReturn.MaterialReturnId,
+                        project.ProjectId);
+                }
 
                 return ApiResponse<long>.SuccessResult(materialReturn.MaterialReturnId, $"Tạo phiếu hoàn trả {returnNo} thành công. Tồn kho đã được cập nhật.");
             }
