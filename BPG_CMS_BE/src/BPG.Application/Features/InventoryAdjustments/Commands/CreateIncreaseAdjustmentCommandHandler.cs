@@ -80,18 +80,28 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     .FirstOrDefaultAsync(m => m.MaterialId == item.MaterialId, cancellationToken);
                 if (material == null) throw new NotFoundException(nameof(MaterialCatalog), item.MaterialId);
 
-                if (material.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                // The form displays the selected phase BOQ unit, so persist its authoritative unit and conversion.
+                var boqItem = await _unitOfWork.Repository<BOQItem>().Query()
+                    .Include(b => b.Unit)
+                    .FirstOrDefaultAsync(b => b.PhaseId == request.PhaseId && b.MaterialId == item.MaterialId, cancellationToken);
+                if (boqItem == null)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidTransition,
+                        $"Vật tư [{material.Name}] không thuộc BOQ của giai đoạn đã chọn.");
+                }
+
+                if (boqItem.Unit != null && boqItem.Unit.IsDiscrete && item.Quantity % 1 != 0)
                 {
                     throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
-                        $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng phải là số nguyên.");
+                        $"Đơn vị tính '{boqItem.Unit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng phải là số nguyên.");
                 }
 
                 adjustment.Items.Add(new AdjustmentItem
                 {
                     MaterialId = item.MaterialId,
-                    UnitId = material.BaseUnitId,
+                    UnitId = boqItem.UnitId,
                     Quantity = item.Quantity,
-                    ConversionRate = 1
+                    ConversionRate = boqItem.ConversionRate == 0 ? 1m : boqItem.ConversionRate
                 });
             }
 

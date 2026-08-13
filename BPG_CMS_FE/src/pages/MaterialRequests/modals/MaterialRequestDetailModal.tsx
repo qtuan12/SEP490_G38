@@ -108,6 +108,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
 
       // Lũy kế yêu cầu của tất cả các phiếu trong phase (gồm cả phiếu hiện tại) quy đổi về đơn vị BOQ
       const cumulativeQtyInBOQ = parseFloat((totalRequestedInBase * boqCR).toFixed(3));
+      const remainingQtyInBOQ = parseFloat((Math.max(0, boqLimitInBase - totalRequestedInBase) * boqCR).toFixed(3));
 
       return {
         name: item.name,
@@ -117,6 +118,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
         boqUnit: boqUnit,
         used: usedQtyInBOQ,
         cumulative: cumulativeQtyInBOQ,
+        remaining: remainingQtyInBOQ,
         isOver: isOver,
         overAmount: overAmount,
         dbIsOver: item.isOverBOQ || false
@@ -200,8 +202,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
 
           {/* Bảng đối chiếu chi tiết vật tư */}
           {(() => {
-            const isPendingAccountant = request.status === 'pending_accountant';
-            const showStatusColumn = isPendingAccountant;
+            const showStatusColumn = true;
             return (
               <div className="flex flex-col gap-2">
                 <h4 className="text-sm font-bold text-slate-700 m-0 flex items-center gap-1.5">
@@ -215,11 +216,8 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                         <th className="p-3 w-[35%]">Tên vật tư kỹ thuật / Quy cách</th>
                         <th className="p-3 text-center">Số lượng</th>
                         <th className="p-3 text-center">Đơn vị</th>
-                        {isPendingAccountant ? (
-                          <th className="p-3 text-center">Tổng yêu cầu vật tư</th>
-                        ) : (
-                          <th className="p-3 text-center">Định mức</th>
-                        )}
+                        <th className="p-3 text-center">Lũy kế yêu cầu / Định mức</th>
+                        <th className="p-3 text-center">BOQ còn lại hiện tại</th>
                         {showStatusColumn && (
                           <th className="p-3 text-center w-[160px]">Trạng thái</th>
                         )}
@@ -233,21 +231,16 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                           <td className="p-3 text-center text-slate-900 font-bold text-sm bg-slate-50/30">{item.requested}</td>
                           <td className="p-3 text-center text-slate-500">{item.unit}</td>
                           <td className="p-3 text-center text-slate-600 font-medium">
-                            {isPendingAccountant ? (
-                              <>
-                                <span className={item.cumulative > 0 ? "text-slate-700 font-semibold" : "text-slate-400"}>
-                                  {item.cumulative}
-                                </span>
-                                <span className="text-slate-300"> / </span>
-                                <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
-                                  {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'N/A (Ngoài định mức)'}
-                                </span>
-                              </>
-                            ) : (
-                              <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
-                                {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'N/A (Ngoài định mức)'}
-                              </span>
-                            )}
+                            <span className={item.cumulative > 0 ? "text-slate-700 font-semibold" : "text-slate-400"}>
+                              {item.cumulative}
+                            </span>
+                            <span className="text-slate-300"> / </span>
+                            <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
+                              {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'N/A (Ngoài định mức)'}
+                            </span>
+                          </td>
+                          <td className={`p-3 text-center font-semibold ${item.isOver ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {item.boqLimit > 0 ? `${item.remaining.toLocaleString('vi-VN')} ${item.boqUnit}` : '0'}
                           </td>
                           {showStatusColumn && (
                             <td className="p-3 text-center">
@@ -275,6 +268,31 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
               </div>
             );
           })()}
+
+          <div className="flex flex-col gap-2">
+            <h4 className="text-sm font-bold text-slate-700 m-0">Lịch sử xử lý phiếu</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                <div className="font-bold text-slate-700">1. Tạo yêu cầu</div>
+                <div className="mt-1 text-slate-600">{request.requesterName} · {formatDate(request.date)}</div>
+              </div>
+              <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                <div className="font-bold text-slate-700">2. Kế toán kiểm tra</div>
+                <div className="mt-1 text-slate-600">{request.checkedByName ? `Đã xử lý bởi ${request.checkedByName}` : 'Chưa xử lý'}</div>
+                {request.accountantNote && <div className="mt-1 text-slate-500 italic">Ghi chú: {request.accountantNote}</div>}
+              </div>
+              <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                <div className="font-bold text-slate-700">3. Giám đốc duyệt vượt BOQ</div>
+                <div className="mt-1 text-slate-600">
+                  {request.isOverBOQ
+                    ? (request.approvedByName ? `Đã xử lý bởi ${request.approvedByName}` : 'Chưa xử lý')
+                    : 'Không áp dụng - yêu cầu trong BOQ'}
+                </div>
+                {request.approvalNote && <div className="mt-1 text-slate-500 italic">Ghi chú: {request.approvalNote}</div>}
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 m-0">Lượng BOQ còn lại là số dư tại thời điểm đang xem, đã tính các yêu cầu vật tư đang hiệu lực trong cùng giai đoạn.</p>
+          </div>
 
           {request.reason && (
             <div className="flex flex-col gap-1.5">

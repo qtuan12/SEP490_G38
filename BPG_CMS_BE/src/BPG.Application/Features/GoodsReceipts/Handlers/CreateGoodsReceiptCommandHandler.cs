@@ -8,6 +8,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -24,19 +25,22 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
         private readonly IInventoryService _inventoryService;
         private readonly IRealtimeNotificationSender _realtimeSender;
         private readonly INotificationService _notificationService;
+        private readonly ILogger<CreateGoodsReceiptCommandHandler>? _logger;
 
         public CreateGoodsReceiptCommandHandler(
             IUnitOfWork uow,
             ICurrentUserService currentUserService,
             IInventoryService inventoryService,
             IRealtimeNotificationSender realtimeSender,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ILogger<CreateGoodsReceiptCommandHandler>? logger = null)
         {
             _uow = uow;
             _currentUserService = currentUserService;
             _inventoryService = inventoryService;
             _realtimeSender = realtimeSender;
             _notificationService = notificationService;
+            _logger = logger;
         }
 
         public async Task<ApiResponse<long>> Handle(CreateGoodsReceiptCommand request, CancellationToken cancellationToken)
@@ -277,6 +281,8 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 await _uow.SaveChangesAsync(cancellationToken);
                 await _uow.CommitTransactionAsync(cancellationToken);
 
+                try
+                {
                 var actorName = await _uow.Repository<User>().Query()
                     .AsNoTracking()
                     .Where(u => u.UserId == currentUserId)
@@ -318,6 +324,14 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     HubMethodNames.GoodsReceiptChanged,
                     goodsReceipt.ReceiptId,
                     cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex,
+                        "Goods receipt {ReceiptId} was committed, but post-commit notification/realtime failed for project {ProjectId}.",
+                        goodsReceipt.ReceiptId,
+                        project.ProjectId);
+                }
 
                 return ApiResponse<long>.SuccessResult(goodsReceipt.ReceiptId, "Tạo phiếu nhập kho thành công.");
             }

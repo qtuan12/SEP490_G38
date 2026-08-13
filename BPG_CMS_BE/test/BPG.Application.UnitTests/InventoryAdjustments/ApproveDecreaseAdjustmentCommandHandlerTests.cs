@@ -154,6 +154,22 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         }
 
         [Fact]
+        public async Task Handle_ApproveIncreaseInTon_ShouldAddBaseKilogramsToInventory()
+        {
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager)).Returns(true);
+            SetupAdjustments(Adjustment(
+                adjustmentType: BPG.Domain.Constants.InventoryAdjustmentType.Increase,
+                quantity: 0.002m,
+                conversionRate: 0.001m));
+            var inventory = Inventory(quantity: 10);
+            SetupInventories(inventory);
+
+            await _handler.Handle(Command(isApproved: true), CancellationToken.None);
+
+            inventory.Quantity.Should().Be(12m);
+        }
+
+        [Fact]
         public async Task UTCID07_Handle_RejectIncreaseAdjustment_ShouldReturnSuccessResponse()
         {
             _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager)).Returns(true);
@@ -177,7 +193,8 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         private static InventoryAdjustment Adjustment(
             string status = InventoryAdjustmentStatus.Pending,
             string adjustmentType = BPG.Domain.Constants.InventoryAdjustmentType.Decrease,
-            decimal quantity = 20)
+            decimal quantity = 20,
+            decimal conversionRate = 1)
             => new()
             {
                 AdjustmentId = AdjustmentId,
@@ -187,7 +204,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
                 CreatedBy = 10,
                 Items = new List<AdjustmentItem>
                 {
-                    new() { MaterialId = MaterialId, Quantity = quantity }
+                    new() { MaterialId = MaterialId, Quantity = quantity, ConversionRate = conversionRate }
                 }
             };
 
