@@ -1,106 +1,248 @@
 using AutoMapper;
+using BPG.Application.DTOs.Incidents;
 using BPG.Application.Features.Incidents.Commands.CreateAndAssessIncident;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.UnitTests.Helpers;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
-namespace BPG.Application.UnitTests.Incidents
+namespace BPG.Application.UnitTests.Incidents;
+
+public class CreateAndAssessIncidentCommandHandlerTests
 {
-    public class CreateAndAssessIncidentCommandHandlerTests
+    private const long CurrentUserId = 10;
+    private const long ProjectId = 100;
+    private const long PhaseId = 200;
+    private const long TaskId = 300;
+
+    private readonly Mock<IUnitOfWork> _uow = new();
+    private readonly Mock<ICurrentUserService> _currentUser = new();
+    private readonly Mock<IMapper> _mapper = new();
+    private readonly Mock<IGenericRepository<Project>> _projectRepository = new();
+    private readonly Mock<IGenericRepository<ProjectMember>> _memberRepository = new();
+    private readonly Mock<IGenericRepository<ProjectTask>> _taskRepository = new();
+    private readonly Mock<IGenericRepository<Phase>> _phaseRepository = new();
+    private readonly Mock<IGenericRepository<Incident>> _incidentRepository = new();
+    private readonly List<Incident> _incidents = [];
+    private readonly CreateAndAssessIncidentCommandHandler _handler;
+
+    public CreateAndAssessIncidentCommandHandlerTests()
     {
-        private const long CurrentUserId = 10;
-        private const long ProjectId = 100;
+        _uow.Setup(unit => unit.Repository<Project>()).Returns(_projectRepository.Object);
+        _uow.Setup(unit => unit.Repository<ProjectMember>()).Returns(_memberRepository.Object);
+        _uow.Setup(unit => unit.Repository<ProjectTask>()).Returns(_taskRepository.Object);
+        _uow.Setup(unit => unit.Repository<Phase>()).Returns(_phaseRepository.Object);
+        _uow.Setup(unit => unit.Repository<Incident>()).Returns(_incidentRepository.Object);
+        _uow.Setup(unit => unit.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        private readonly Mock<IUnitOfWork> _mockUow;
-        private readonly Mock<ICurrentUserService> _mockCurrentUserService;
-        private readonly Mock<IMapper> _mockMapper;
-        private readonly Mock<IGenericRepository<Project>> _mockProjectRepo;
-        private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
-        private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
-        private readonly Mock<IGenericRepository<Phase>> _mockPhaseRepo;
-        private readonly Mock<IGenericRepository<Incident>> _mockIncidentRepo;
-        private readonly Mock<IGenericRepository<User>> _mockUserRepo;
-        private readonly List<Incident> _incidentList;
-        private readonly CreateAndAssessIncidentCommandHandler _handler;
+        _currentUser.Setup(service => service.UserId).Returns(CurrentUserId);
+        _currentUser.Setup(service => service.GetRequiredUserId()).Returns(CurrentUserId);
+        _currentUser.Setup(service => service.IsInRole(It.IsAny<string>())).Returns(false);
 
-        public CreateAndAssessIncidentCommandHandlerTests()
-        {
-            _mockUow = new Mock<IUnitOfWork>();
-            _mockCurrentUserService = new Mock<ICurrentUserService>();
-            _mockMapper = new Mock<IMapper>();
-            _mockProjectRepo = new Mock<IGenericRepository<Project>>();
-            _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
-            _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
-            _mockPhaseRepo = new Mock<IGenericRepository<Phase>>();
-            _mockIncidentRepo = new Mock<IGenericRepository<Incident>>();
-            _mockUserRepo = new Mock<IGenericRepository<User>>();
+        _projectRepository.SetupMockData([]);
+        _memberRepository.SetupMockData([]);
+        _taskRepository.SetupMockData([]);
+        _phaseRepository.SetupMockData([]);
+        _incidentRepository.SetupMockData(_incidents);
+        _incidentRepository
+            .Setup(repository => repository.AddAsync(It.IsAny<Incident>(), It.IsAny<CancellationToken>()))
+            .Callback<Incident, CancellationToken>((incident, _) =>
+            {
+                incident.IncidentId = 50;
+                _incidents.Add(incident);
+            })
+            .Returns(Task.CompletedTask);
 
-            _mockUow.Setup(u => u.Repository<Project>()).Returns(_mockProjectRepo.Object);
-            _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
-            _mockUow.Setup(u => u.Repository<ProjectTask>()).Returns(_mockTaskRepo.Object);
-            _mockUow.Setup(u => u.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
-            _mockUow.Setup(u => u.Repository<Incident>()).Returns(_mockIncidentRepo.Object);
-            _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
+        _mapper.Setup(mapper => mapper.Map<IncidentDto>(It.IsAny<Incident>()))
+            .Returns((Incident incident) => new IncidentDto
+            {
+                IncidentId = incident.IncidentId,
+                ProjectId = incident.ProjectId,
+                TaskId = incident.TaskId,
+                PhaseId = incident.PhaseId,
+                IncidentType = incident.IncidentType,
+                Description = incident.Description,
+                Status = incident.Status,
+                IsEmergency = incident.IsEmergency
+            });
 
-            _mockCurrentUserService.Setup(c => c.UserId).Returns(CurrentUserId);
-            _mockCurrentUserService.Setup(c => c.GetRequiredUserId()).Returns(CurrentUserId);
-            _mockCurrentUserService.Setup(c => c.IsInRole(It.IsAny<string>())).Returns(true);
-
-            _mockProjectRepo.SetupMockData(new List<Project>());
-            _mockMemberRepo.SetupMockData(new List<ProjectMember>());
-            _mockTaskRepo.SetupMockData(new List<ProjectTask>());
-            _mockPhaseRepo.SetupMockData(new List<Phase>());
-            _mockUserRepo.SetupMockData(new List<User>());
-
-            _incidentList = new List<Incident>();
-            _mockIncidentRepo.SetupMockData(_incidentList);
-            _mockIncidentRepo.Setup(r => r.AddAsync(It.IsAny<Incident>(), It.IsAny<CancellationToken>()))
-                .Callback<Incident, CancellationToken>((inc, _) =>
-                {
-                    inc.IncidentId = 50;
-                    _incidentList.Add(inc);
-                })
-                .Returns(Task.CompletedTask);
-
-            _handler = new CreateAndAssessIncidentCommandHandler(
-                _mockUow.Object,
-                _mockMapper.Object,
-                _mockCurrentUserService.Object,
-                ServiceStubFactory.NotificationService(),
-                ServiceStubFactory.RealtimeSender());
-        }
-
-        [Fact]
-        public async Task Handle_ProjectNotFound_ShouldThrowNotFoundException()
-        {
-            _mockProjectRepo.SetupMockData(new List<Project>());
-
-            var command = new CreateAndAssessIncidentCommand(
-                ProjectId, null, null, "Construction", "Mô tả sự cố", null, null, null, null, null, false);
-
-            var act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            await act.Should().ThrowAsync<NotFoundException>();
-        }
-
-        [Fact]
-        public async Task Handle_ValidConstructionIncident_ShouldCreateIncident()
-        {
-            var project = new Project { ProjectId = ProjectId, Name = "Dự án B" };
-            _mockProjectRepo.SetupMockData(new List<Project> { project });
-
-            var command = new CreateAndAssessIncidentCommand(
-                ProjectId, null, null, "Construction", "Máy hỏng động cơ", null, null, null, null, null, false);
-
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            _mockIncidentRepo.Verify(r => r.AddAsync(It.Is<Incident>(i => i.Description == command.Description), It.IsAny<CancellationToken>()), Times.Once);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce());
-        }
+        _handler = new CreateAndAssessIncidentCommandHandler(
+            _uow.Object,
+            _mapper.Object,
+            _currentUser.Object,
+            ServiceStubFactory.NotificationService(),
+            ServiceStubFactory.RealtimeSender());
     }
+
+    [Fact]
+    public async Task UTCID01_Handle_ProjectNotFound_ShouldThrowNotFoundException()
+    {
+        Func<Task> act = () => _handler.Handle(ConstructionCommand(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Theory]
+    [InlineData(ProjectStatus.Draft)]
+    [InlineData(ProjectStatus.Paused)]
+    [InlineData(ProjectStatus.Completed)]
+    [InlineData(ProjectStatus.Closed)]
+    public async Task UTCID02_Handle_ProjectNotInProgress_ShouldThrowExpectedErrorCode(string status)
+    {
+        SetupProject(status);
+
+        Func<Task> act = () => _handler.Handle(ConstructionCommand(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+    }
+
+    [Fact]
+    public async Task UTCID03_Handle_UserOutsideProject_ShouldThrowForbiddenException()
+    {
+        SetupProject(ProjectStatus.InProgress, includeCurrentUser: false);
+
+        Func<Task> act = () => _handler.Handle(ConstructionCommand(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ForbiddenException>();
+    }
+
+    [Fact]
+    public async Task UTCID04_Handle_TaskOutsideSelectedPhase_ShouldThrowExpectedErrorCode()
+    {
+        SetupProject();
+        _taskRepository.SetupMockData([new ProjectTask { TaskId = TaskId, PhaseId = PhaseId }]);
+
+        Func<Task> act = () => _handler.Handle(
+            ConstructionCommand(phaseId: PhaseId + 1),
+            CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_TASK_PHASE_MISMATCH");
+    }
+
+    [Fact]
+    public async Task UTCID05_Handle_TaskOutsideProject_ShouldThrowExpectedErrorCode()
+    {
+        SetupProject();
+        _taskRepository.SetupMockData([new ProjectTask { TaskId = TaskId, PhaseId = PhaseId }]);
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId + 1 }]);
+
+        Func<Task> act = () => _handler.Handle(ConstructionCommand(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_TASK_PROJECT_MISMATCH");
+    }
+
+    [Fact]
+    public async Task UTCID06_Handle_InventoryPhaseOutsideProject_ShouldThrowExpectedErrorCode()
+    {
+        SetupProject();
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId + 1 }]);
+
+        var command = new CreateAndAssessIncidentCommand(
+            ProjectId, null, PhaseId, "InventoryLoss", "Mất vật tư", "Thiếu 10 bao xi măng",
+            null, null, null, null, false);
+        Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_PHASE_PROJECT_MISMATCH");
+    }
+
+    [Fact]
+    public async Task UTCID07_Handle_ProjectHasActiveEmergency_ShouldThrowExpectedErrorCode()
+    {
+        SetupProject();
+        _incidents.Add(new Incident
+        {
+            IncidentId = 49,
+            ProjectId = ProjectId,
+            IncidentType = "Construction",
+            IsEmergency = true,
+            Status = "WaitingRecoveryPlan"
+        });
+        _incidentRepository.SetupMockData(_incidents);
+
+        Func<Task> act = () => _handler.Handle(
+            ConstructionCommand(taskId: null, phaseId: null, isEmergency: true),
+            CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_ACTIVE_EMERGENCY_EXISTS");
+    }
+
+    [Fact]
+    public async Task UTCID08_Handle_ValidConstructionIncident_ShouldReturnCreatedIncident()
+    {
+        SetupProject();
+        _taskRepository.SetupMockData([new ProjectTask { TaskId = TaskId, PhaseId = PhaseId }]);
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId }]);
+
+        var result = await _handler.Handle(ConstructionCommand(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().BeEquivalentTo(new IncidentDto
+        {
+            IncidentId = 50,
+            ProjectId = ProjectId,
+            TaskId = TaskId,
+            PhaseId = PhaseId,
+            IncidentType = "Construction",
+            Description = "Máy hỏng động cơ",
+            Status = "WaitingReview",
+            IsEmergency = false
+        });
+    }
+
+    [Fact]
+    public async Task UTCID09_Handle_ConcurrentEmergencyCreation_ShouldReturnStableBusinessError()
+    {
+        SetupProject();
+        _uow.Setup(unit => unit.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        Func<Task> act = () => _handler.Handle(
+            ConstructionCommand(taskId: null, phaseId: null, isEmergency: true),
+            CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_ACTIVE_EMERGENCY_EXISTS");
+        _projectRepository.Verify(repository => repository.Update(
+            It.Is<Project>(project => project.ProjectId == ProjectId)), Times.Once);
+    }
+
+    private void SetupProject(string status = ProjectStatus.InProgress, bool includeCurrentUser = true)
+    {
+        _projectRepository.SetupMockData([new Project
+        {
+            ProjectId = ProjectId,
+            Name = "Dự án B",
+            Status = status
+        }]);
+        _memberRepository.SetupMockData(includeCurrentUser
+            ? [new ProjectMember { ProjectMemberId = 1, ProjectId = ProjectId, UserId = CurrentUserId }]
+            : []);
+    }
+
+    private static CreateAndAssessIncidentCommand ConstructionCommand(
+        long? taskId = TaskId,
+        long? phaseId = PhaseId,
+        bool isEmergency = false)
+        => new(
+            ProjectId,
+            taskId,
+            phaseId,
+            "Construction",
+            "Máy hỏng động cơ",
+            null,
+            null,
+            null,
+            null,
+            null,
+            isEmergency);
 }

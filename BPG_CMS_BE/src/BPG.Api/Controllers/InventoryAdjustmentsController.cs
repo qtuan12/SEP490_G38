@@ -47,6 +47,7 @@ namespace BPG.Api.Controllers
         [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
         public async Task<IActionResult> ApproveDecrease(long projectId, long id, [FromBody] ApproveDecreaseAdjustmentCommand command)
         {
+            command.ProjectId = projectId;
             command.AdjustmentId = id;
             var result = await Mediator.Send(command);
             return ApiOk(result);

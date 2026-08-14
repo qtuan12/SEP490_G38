@@ -87,6 +87,18 @@ namespace BPG.Application.UnitTests.Inventory
 
             var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement", Specification = "Grade 50" };
             var unit = new Unit { UnitId = 2, UnitName = "Bag" };
+            var phase = new Phase { PhaseId = 20, ProjectId = projectId, Name = "Foundation", IsDeleted = false };
+            var boqItem = new BOQItem
+            {
+                PhaseId = phase.PhaseId,
+                Phase = phase,
+                MaterialId = material.MaterialId,
+                Quantity = 100,
+                ConversionRate = 1,
+                IsDeleted = false
+            };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
+            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem> { boqItem }.AsQueryable().BuildMock());
             var inventory = new CurrentInventory
             {
                 InventoryId = 300,
@@ -236,6 +248,7 @@ namespace BPG.Application.UnitTests.Inventory
             var dto = result.Data!.First();
             dto.BoqQuantity.Should().Be(100);
             dto.UsedQuantity.Should().Be(40);
+            dto.SafetyThreshold.Should().Be(6); // 10% of the remaining BOQ demand (100 - 40)
         }
 
         [Fact]
@@ -384,6 +397,18 @@ namespace BPG.Application.UnitTests.Inventory
 
             var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement" };
             var unit = new Unit { UnitName = "Bag" };
+            var phase = new Phase { PhaseId = 20, ProjectId = 5, Name = "Foundation", IsDeleted = false };
+            var boqItem = new BOQItem
+            {
+                PhaseId = phase.PhaseId,
+                Phase = phase,
+                MaterialId = material.MaterialId,
+                Quantity = 100,
+                ConversionRate = 1,
+                IsDeleted = false
+            };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
+            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem> { boqItem }.AsQueryable().BuildMock());
             var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Material = material, Unit = unit };
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
 
@@ -393,7 +418,7 @@ namespace BPG.Application.UnitTests.Inventory
             var result = await _handler.Handle(query, CancellationToken.None);
 
             // Assert
-            result.Data!.First().SafetyThreshold.Should().Be(10m); // Fallback threshold
+            result.Data!.First().SafetyThreshold.Should().Be(10m); // Default: 10% of 100 remaining BOQ
         }
 
 

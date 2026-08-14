@@ -73,6 +73,45 @@ namespace BPG.Application.Common.Mappings
 
             CreateMap<BPG.Application.Features.Tasks.Commands.UpdateTaskCommand, ProjectTask>();
 
+            CreateMap<Phase, Phase>()
+                .ForMember(dest => dest.PhaseId, opt => opt.Ignore())
+                .ForMember(dest => dest.OrderIndex, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedBy, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedBy, opt => opt.Ignore())
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
+                .ForMember(dest => dest.Project, opt => opt.Ignore())
+                .ForMember(dest => dest.Tasks, opt => opt.Ignore())
+                .ForMember(dest => dest.Acceptances, opt => opt.Ignore())
+                .ForMember(dest => dest.BOQItems, opt => opt.Ignore())
+                .ForMember(dest => dest.MaterialRequests, opt => opt.Ignore());
+
+            CreateMap<ProjectTask, ProjectTask>()
+                .ForMember(dest => dest.TaskId, opt => opt.Ignore())
+                .ForMember(dest => dest.PhaseId, opt => opt.Ignore())
+                .ForMember(dest => dest.ParentTaskId, opt => opt.Ignore())
+                .ForMember(dest => dest.IncidentId, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore())
+                .ForMember(dest => dest.ProgressPercent, opt => opt.Ignore())
+                .ForMember(dest => dest.ObsoleteReason, opt => opt.Ignore())
+                .ForMember(dest => dest.IsLocked, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedBy, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedBy, opt => opt.Ignore())
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
+                .ForMember(dest => dest.Phase, opt => opt.Ignore())
+                .ForMember(dest => dest.ParentTask, opt => opt.Ignore())
+                .ForMember(dest => dest.LinkedIncident, opt => opt.Ignore())
+                .ForMember(dest => dest.SubTasks, opt => opt.Ignore())
+                .ForMember(dest => dest.Assignees, opt => opt.Ignore())
+                .ForMember(dest => dest.DailyLogs, opt => opt.Ignore())
+                .ForMember(dest => dest.ProgressLogs, opt => opt.Ignore())
+                .ForMember(dest => dest.Dependencies, opt => opt.Ignore())
+                .ForMember(dest => dest.Dependents, opt => opt.Ignore());
+
             // Mapping cho Supplier
             CreateMap<Supplier, BPG.Application.DTOs.Suppliers.SupplierDto>().ReverseMap();
             // Mapping cho MaterialCategory

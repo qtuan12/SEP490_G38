@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertOctagon, CheckCircle, AlertTriangle, Wrench, Construction, Search, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type IncidentReportDto } from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { parseDateSafe } from '../../../utils/dateHelpers';
+import { getNearestAvailableYear } from '../../../utils/reportYearHelpers';
 
 interface Props {
   projectId: string | null;
@@ -23,6 +24,7 @@ const STATUS_LABELS: Record<string, string> = {
   Approved: 'Đã phê duyệt',
   Resolved: 'Đã giải quyết',
   Closed: 'Đã đóng',
+  Rejected: 'Bị từ chối',
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -30,6 +32,7 @@ const TYPE_LABELS: Record<string, string> = {
   Material: 'Vật tư kho',
   Safety: 'An toàn',
   InventoryDamage: 'Hư hỏng vật tư',
+  InventoryLoss: 'Thất thoát vật tư',
 };
 
 const getCleanDescription = (desc?: string): string => {
@@ -39,21 +42,61 @@ const getCleanDescription = (desc?: string): string => {
 };
 
 export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate }) => {
-  const [data, setData] = useState<IncidentReportDto | null>(null);
-  const [loading, setLoading] = useState(false);
+  const requestIdentity = useMemo(
+    () => ({ projectId, fromDate, toDate }),
+    [projectId, fromDate, toDate],
+  );
+  const [loadState, setLoadState] = useState<{
+    requestIdentity: object;
+    data: IncidentReportDto | null;
+    error: string | null;
+  } | null>(null);
   const [filter, setFilter] = useState<'all' | 'open' | 'resolved'>('all');
   const [search, setSearch] = useState('');
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const requestIdRef = useRef(0);
+  const isCurrentResult = loadState?.requestIdentity === requestIdentity;
+  const data = isCurrentResult ? loadState.data : null;
+  const error = isCurrentResult ? loadState.error : null;
+  const loading = Boolean(projectId && projectId !== 'all' && !isCurrentResult);
 
   useEffect(() => {
-    if (!projectId || projectId === 'all') { setData(null); return; }
-    setLoading(true);
-    reportService.getIncidentReport(Number(projectId), { fromDate, toDate })
-      .then(setData)
-      .catch(err => console.error('Error fetching incident report', err))
-      .finally(() => setLoading(false));
-  }, [projectId, fromDate, toDate]);
+    const requestId = ++requestIdRef.current;
+    const requestedProjectId = requestIdentity.projectId;
+
+    if (!requestedProjectId || requestedProjectId === 'all') {
+      return () => {
+        if (requestIdRef.current === requestId) requestIdRef.current += 1;
+      };
+    }
+
+    reportService.getIncidentReport(Number(requestedProjectId), {
+      fromDate: requestIdentity.fromDate,
+      toDate: requestIdentity.toDate,
+    })
+      .then(report => {
+        if (requestId !== requestIdRef.current) return;
+        setLoadState({ requestIdentity, data: report, error: null });
+        setSelectedYear(year => getNearestAvailableYear(
+          year,
+          (report.monthlyTrends || []).map(trend => trend.year),
+        ) ?? year);
+      })
+      .catch(err => {
+        if (requestId !== requestIdRef.current) return;
+        console.error('Error fetching incident report', err);
+        setLoadState({
+          requestIdentity,
+          data: null,
+          error: err instanceof Error ? err.message : 'Không thể tải báo cáo sự cố.',
+        });
+      });
+
+    return () => {
+      if (requestIdRef.current === requestId) requestIdRef.current += 1;
+    };
+  }, [requestIdentity]);
 
   if (projectId === 'all') {
     return <div className="p-10 text-center text-slate-400">Báo cáo sự cố chỉ xem được theo từng dự án cụ thể.</div>;
@@ -67,17 +110,23 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
     );
   }
 
+  if (error) {
+    return <div className="p-10 text-center text-red-500 font-semibold">{error}</div>;
+  }
+
   if (!data) return null;
 
   const resolvedStatuses = ['Approved', 'Resolved', 'Closed', 'Completed'];
+  const terminalStatuses = [...resolvedStatuses, 'Rejected'];
 
   const filteredIncidents = (data?.incidents || []).filter(i => {
     const status = i?.status || '';
     const description = getCleanDescription(i?.description);
     const reporterName = i?.reporterName || '';
-    const isOpen = !resolvedStatuses.includes(status);
+    const isResolved = resolvedStatuses.includes(status);
+    const isOpen = !terminalStatuses.includes(status);
     if (filter === 'open' && !isOpen) return false;
-    if (filter === 'resolved' && isOpen) return false;
+    if (filter === 'resolved' && !isResolved) return false;
     if (search && !description.toLowerCase().includes(search.toLowerCase()) &&
       !reporterName.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -101,10 +150,13 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
 
   const getStatusBadge = (status: string) => {
     const isResolved = resolvedStatuses.includes(status);
+    const isRejected = status === 'Rejected';
     return (
-      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isResolved
-        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'}`}>
+      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isRejected
+        ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
+        : isResolved
+          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+          : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'}`}>
         {STATUS_LABELS[status] || status}
       </span>
     );
@@ -219,7 +271,7 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                     <XAxis dataKey="monthLabel" tick={{ fontSize: 10, fontWeight: 600 }} />
                     <YAxis tick={{ fontSize: 10 }} />
-                    <RechartsTooltip formatter={(value: any, name: any) => [`${value} sự cố`, String(name || '')]} />
+                    <RechartsTooltip formatter={(value, name) => [`${value} sự cố`, String(name || '')]} />
                     <Legend wrapperStyle={{ fontSize: '11px' }} />
                     <Bar dataKey="totalIncidentsCount" name="Sự cố phát sinh" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={24} />
                     <Bar dataKey="resolvedIncidentsCount" name="Đã giải quyết" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={24} />

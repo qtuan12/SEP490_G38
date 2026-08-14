@@ -11,6 +11,7 @@ public class Project : BaseEntity
     public string? PauseReason { get; set; }
     public DateTime? PausedAt { get; set; }
     public DateTime? ResumedAt { get; set; }
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     public ICollection<ProjectMember> Members { get; set; } = new List<ProjectMember>();
     public ICollection<Phase> Phases { get; set; } = new List<Phase>();

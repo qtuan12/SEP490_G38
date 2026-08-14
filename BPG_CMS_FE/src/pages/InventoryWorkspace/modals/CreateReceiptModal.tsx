@@ -220,10 +220,10 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
             prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
           );
         },
-        () => {
-          toast.error(`Không thể tải ảnh ${file.name} lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.`);
+        (message) => {
+          toast.error(message);
           setUploadedFiles(prev =>
-            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
+            prev.map(f => f.id === tempId ? { ...f, status: 'error', errorMessage: message } : f)
           );
         }
       );
@@ -235,7 +235,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
     if (!target || !target.file) return;
 
     setUploadedFiles(prev =>
-      prev.map(f => f.id === id ? { ...f, status: 'uploading' } : f)
+      prev.map(f => f.id === id ? { ...f, status: 'uploading', errorMessage: undefined } : f)
     );
 
     compressAndUploadFile(
@@ -246,10 +246,10 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
           prev.map(f => f.id === id ? { ...f, status: 'success', url: uploadedUrl } : f)
         );
       },
-      () => {
-        toast.error(`Không thể tải ảnh ${target.name} lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.`);
+      (message) => {
+        toast.error(message);
         setUploadedFiles(prev =>
-          prev.map(f => f.id === id ? { ...f, status: 'error' } : f)
+          prev.map(f => f.id === id ? { ...f, status: 'error', errorMessage: message } : f)
         );
       }
     );
@@ -323,7 +323,8 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       setImageError('Vui lòng chờ hình ảnh tải lên hoàn tất.');
       hasFieldError = true;
     } else if (uploadedFiles.some(f => f.status === 'error') || uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
-      setImageError('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
+      setImageError(uploadedFiles.find(f => f.status === 'error')?.errorMessage
+        || 'Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
       hasFieldError = true;
     }
 

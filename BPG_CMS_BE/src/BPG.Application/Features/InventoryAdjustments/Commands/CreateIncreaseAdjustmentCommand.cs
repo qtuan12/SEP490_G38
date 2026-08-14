@@ -18,6 +18,8 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
     public class AdjustmentItemRequest
     {
         public long MaterialId { get; set; }
+        // Null/0 keeps backward compatibility with older clients and means base unit.
+        public int? UnitId { get; set; }
         public decimal Quantity { get; set; }
     }
 
@@ -32,6 +34,10 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             RuleForEach(x => x.Items).ChildRules(items =>
             {
                 items.RuleFor(i => i.MaterialId).GreaterThan(0).WithMessage("ERR_VALIDATION");
+                items.RuleFor(i => i.UnitId)
+                    .GreaterThanOrEqualTo(0)
+                    .When(i => i.UnitId.HasValue)
+                    .WithMessage("ERR_VALIDATION");
                 items.RuleFor(i => i.Quantity).GreaterThan(0).WithMessage("ERR_VALIDATION");
             });
         }

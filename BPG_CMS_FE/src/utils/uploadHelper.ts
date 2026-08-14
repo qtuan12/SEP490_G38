@@ -7,13 +7,14 @@ export interface UploadedFileState {
   url?: string;
   status: 'uploading' | 'success' | 'error';
   file?: File;
+  errorMessage?: string;
 }
 
 export const compressAndUploadFile = async (
   file: File,
   folder: string,
   onSuccess: (url: string) => void,
-  onError: () => void
+  onError: (message: string) => void
 ) => {
   try {
     const fileToSend = await compressImageFile(file);
@@ -21,10 +22,12 @@ export const compressAndUploadFile = async (
     if (urls && urls.length > 0) {
       onSuccess(urls[0]);
     } else {
-      onError();
+      onError('Máy chủ không trả về đường dẫn tệp sau khi tải lên.');
     }
   } catch (err) {
     console.error("Upload error:", err);
-    onError();
+    onError(err instanceof Error && err.message
+      ? err.message
+      : 'Không thể tải tệp lên. Vui lòng thử lại.');
   }
 };

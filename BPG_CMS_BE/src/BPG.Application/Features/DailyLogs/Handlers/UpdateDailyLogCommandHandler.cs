@@ -8,6 +8,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,17 +24,20 @@ namespace BPG.Application.Features.DailyLogs.Handlers
         private readonly IMapper _mapper;
         private readonly ICurrentUserService _currentUserService;
         private readonly IRealtimeNotificationSender _realtimeSender;
+        private readonly ILogger<UpdateDailyLogCommandHandler>? _logger;
 
         public UpdateDailyLogCommandHandler(
             IUnitOfWork uow, 
             IMapper mapper, 
             ICurrentUserService currentUserService,
-            IRealtimeNotificationSender realtimeSender)
+            IRealtimeNotificationSender realtimeSender,
+            ILogger<UpdateDailyLogCommandHandler>? logger = null)
         {
             _uow = uow;
             _mapper = mapper;
             _currentUserService = currentUserService;
             _realtimeSender = realtimeSender;
+            _logger = logger;
         }
 
         public async Task<DailyLogDto> Handle(UpdateDailyLogCommand request, CancellationToken cancellationToken)
@@ -210,7 +214,17 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.CanEdit = true; // vừa chỉnh sửa thành công => vẫn trong cửa sổ
 
                 // Gửi realtime cho client dòng thời gian dự án
-                await _realtimeSender.SendToGroupAsync($"Project_{project.ProjectId}", "ReceiveDailyLogUpdated", dto, cancellationToken);
+                try
+                {
+                    await _realtimeSender.SendToGroupAsync($"Project_{project.ProjectId}", "ReceiveDailyLogUpdated", dto, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex,
+                        "Daily log {DailyLogId} was committed, but post-commit realtime failed for project {ProjectId}.",
+                        log.LogId,
+                        project.ProjectId);
+                }
 
                 return dto;
             }

@@ -8,6 +8,9 @@ import { Download, FileText, UploadCloud, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import type { IncidentReport } from '../../../types/common';
 
+const MAX_RECOVERY_PLAN_FILES = 5;
+const MAX_RECOVERY_PLAN_FILE_SIZE = 10 * 1024 * 1024;
+
 export interface CreateRecoveryPlanFormProps {
   incident: IncidentReport;
   onSuccess: (msg: string) => void;
@@ -202,7 +205,24 @@ export const CreateRecoveryPlanForm: React.FC<CreateRecoveryPlanFormProps> = ({
   const addFiles = (files: File[]) => {
     const validFiles: File[] = [];
     const allowedExtensions = ['doc', 'docx', 'pdf', 'xls', 'xlsx', 'zip', 'rar', 'png', 'jpg', 'jpeg'];
+    const remainingSlots = MAX_RECOVERY_PLAN_FILES - selectedFiles.length;
+
+    if (remainingSlots <= 0) {
+      toast.error(`Chỉ được đính kèm tối đa ${MAX_RECOVERY_PLAN_FILES} tệp.`);
+      return;
+    }
+
     for (const file of files) {
+      if (validFiles.length >= remainingSlots) {
+        toast.error(`Chỉ được đính kèm tối đa ${MAX_RECOVERY_PLAN_FILES} tệp.`);
+        break;
+      }
+
+      if (file.size > MAX_RECOVERY_PLAN_FILE_SIZE) {
+        toast.error(`Tệp ${file.name} vượt quá giới hạn 10 MB.`);
+        continue;
+      }
+
       const ext = file.name.split('.').pop()?.toLowerCase();
       if (allowedExtensions.includes(ext || '')) {
         validFiles.push(file);
@@ -232,6 +252,12 @@ export const CreateRecoveryPlanForm: React.FC<CreateRecoveryPlanFormProps> = ({
   const mutation = useMutation({
     mutationFn: async () => {
       if (selectedFiles.length === 0) throw new Error('Vui lòng chọn tệp kế hoạch khắc phục.');
+      if (selectedFiles.length > MAX_RECOVERY_PLAN_FILES) {
+        throw new Error(`Chỉ được đính kèm tối đa ${MAX_RECOVERY_PLAN_FILES} tệp.`);
+      }
+      if (selectedFiles.some(file => file.size > MAX_RECOVERY_PLAN_FILE_SIZE)) {
+        throw new Error('Mỗi tệp kế hoạch khắc phục không được vượt quá 10 MB.');
+      }
       
       const uploadedUrls = await projectService.uploadFiles(selectedFiles, 'incidents');
       if (!uploadedUrls || uploadedUrls.length !== selectedFiles.length) {
@@ -331,6 +357,7 @@ export const CreateRecoveryPlanForm: React.FC<CreateRecoveryPlanFormProps> = ({
               accept=".doc,.docx,.pdf,.xls,.xlsx,.zip,.rar,image/*"
               multiple
               onChange={handleFileChange}
+              disabled={selectedFiles.length >= MAX_RECOVERY_PLAN_FILES}
             />
             
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
@@ -339,7 +366,7 @@ export const CreateRecoveryPlanForm: React.FC<CreateRecoveryPlanFormProps> = ({
                 Kéo thả hoặc Click để chọn nhiều tệp
               </span>
               <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>
-                Hỗ trợ: Word, Excel, PDF, tệp nén hoặc ảnh
+                Hỗ trợ: Word, Excel, PDF, tệp nén hoặc ảnh — tối đa 5 tệp, 10 MB/tệp
               </span>
             </div>
           </div>

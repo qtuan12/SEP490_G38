@@ -12,6 +12,8 @@ namespace BPG.Application.UnitTests.Phases;
 
 public class DeletePhaseCommandHandlerTests
 {
+    private const long PhaseId = 1;
+
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IGenericRepository<Phase>> _phaseRepo = new();
     private readonly Mock<IGenericRepository<ProjectTask>> _taskRepo = new();
@@ -27,35 +29,69 @@ public class DeletePhaseCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID01_Handle_ValidPhase_ShouldReturnSuccess()
+    public async Task UTCID01_Handle_TaskProgressAtZero_ShouldReturnSuccess()
     {
-        var result = await _handler.Handle(new DeletePhaseCommand(1), CancellationToken.None);
+        SetupPhases(Phase(new ProjectTask { TaskId = 10, ProgressPercent = 0 }));
+
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
         result.Success.Should().BeTrue();
     }
 
     [Fact]
-    public async Task UTCID02_Handle_ApprovedPhase_ShouldThrowExpectedErrorCode()
+    public async Task UTCID02_Handle_PhaseNotFound_ShouldThrowNotFoundException()
+    {
+        SetupPhases();
+
+        Func<Task> act = () => _handler.Handle(Command(999), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.NotFound);
+    }
+
+    [Fact]
+    public async Task UTCID03_Handle_ProjectInInvalidStatus_ShouldThrowInvalidTransition()
+    {
+        SetupPhases(Phase(projectStatus: ProjectStatus.Completed));
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
+    }
+
+    [Fact]
+    public async Task UTCID04_Handle_ApprovedPhase_ShouldThrowExpectedErrorCode()
     {
         SetupPhases(Phase(status: PhaseStatus.Approved));
-        Func<Task> act = () => _handler.Handle(new DeletePhaseCommand(1), CancellationToken.None);
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
         var exception = await act.Should().ThrowAsync<BusinessException>();
         exception.Which.ErrorCode.Should().Be("ERR_PHASE_APPROVED");
     }
 
     [Fact]
-    public async Task UTCID03_Handle_PhaseHasTaskInProgress_ShouldThrowExpectedErrorCode()
+    public async Task UTCID05_Handle_TaskProgressAtOne_ShouldThrowExpectedErrorCode()
     {
-        SetupPhases(Phase(new ProjectTask { TaskId = 10, ProgressPercent = 10 }));
-        Func<Task> act = () => _handler.Handle(new DeletePhaseCommand(1), CancellationToken.None);
+        SetupPhases(Phase(new ProjectTask { TaskId = 10, ProgressPercent = 1 }));
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
         var exception = await act.Should().ThrowAsync<BusinessException>();
         exception.Which.ErrorCode.Should().Be("ERR_PHASE_HAS_IN_PROGRESS_TASKS");
     }
 
-    private static Phase Phase(ProjectTask? task = null, string status = PhaseStatus.Draft) => new()
+    private static DeletePhaseCommand Command(long phaseId = PhaseId) => new(phaseId);
+
+    private static Phase Phase(
+        ProjectTask? task = null,
+        string status = PhaseStatus.Draft,
+        string projectStatus = ProjectStatus.InProgress) => new()
     {
-        PhaseId = 1,
+        PhaseId = PhaseId,
         Status = status,
-        Project = new Project { ProjectId = 2, Status = ProjectStatus.InProgress },
+        Project = new Project { ProjectId = 2, Status = projectStatus },
         Tasks = task == null ? new List<ProjectTask>() : new List<ProjectTask> { task }
     };
 

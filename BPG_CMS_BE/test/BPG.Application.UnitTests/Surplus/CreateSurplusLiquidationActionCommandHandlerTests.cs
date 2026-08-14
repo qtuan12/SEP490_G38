@@ -7,6 +7,7 @@ using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using MockQueryable;
 using Moq;
 
@@ -14,6 +15,8 @@ namespace BPG.Application.UnitTests.Surplus;
 
 public class CreateSurplusLiquidationActionCommandHandlerTests
 {
+    private const long GeneratedLiquidationId = 50;
+
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IGenericRepository<SurplusRequestItem>> _itemRepo = new();
     private readonly Mock<IGenericRepository<SurplusTransfer>> _transferRepo = new();
@@ -21,6 +24,8 @@ public class CreateSurplusLiquidationActionCommandHandlerTests
     private readonly Mock<IGenericRepository<SurplusLiquidation>> _liquidationRepo = new();
     private readonly Mock<IGenericRepository<SurplusRequest>> _requestRepo = new();
     private readonly Mock<IGenericRepository<ProjectMember>> _memberRepo = new();
+    private readonly Mock<IGenericRepository<Attachment>> _attachmentRepo = new();
+    private readonly Mock<IFileStorageService> _fileStorage = new();
     private readonly CreateSurplusLiquidationActionCommandHandler _handler;
 
     public CreateSurplusLiquidationActionCommandHandlerTests()
@@ -31,11 +36,19 @@ public class CreateSurplusLiquidationActionCommandHandlerTests
         _uow.Setup(x => x.Repository<SurplusLiquidation>()).Returns(_liquidationRepo.Object);
         _uow.Setup(x => x.Repository<SurplusRequest>()).Returns(_requestRepo.Object);
         _uow.Setup(x => x.Repository<ProjectMember>()).Returns(_memberRepo.Object);
+        _uow.Setup(x => x.Repository<Attachment>()).Returns(_attachmentRepo.Object);
         _uow.Setup(x => x.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _uow.Setup(x => x.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _uow.Setup(x => x.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _uow.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        _liquidationRepo.Setup(x => x.AddAsync(It.IsAny<SurplusLiquidation>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _liquidationRepo.Setup(x => x.AddAsync(It.IsAny<SurplusLiquidation>(), It.IsAny<CancellationToken>()))
+            .Callback<SurplusLiquidation, CancellationToken>((liquidation, _) =>
+                liquidation.SurplusLiquidationId = GeneratedLiquidationId)
+            .Returns(Task.CompletedTask);
+        _attachmentRepo.Setup(x => x.AddAsync(It.IsAny<Attachment>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _fileStorage.Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("liquidation-evidence.jpg");
         SetupItems(Item());
         SetupTransfers();
         SetupInventory(new CurrentInventory { ProjectId = 3, MaterialId = 4, Quantity = 20 });
@@ -45,7 +58,7 @@ public class CreateSurplusLiquidationActionCommandHandlerTests
             _uow.Object,
             ServiceStubFactory.CurrentUserService(),
             ServiceStubFactory.InventoryService(),
-            Mock.Of<IFileStorageService>(),
+            _fileStorage.Object,
             ServiceStubFactory.NotificationService());
     }
 
@@ -54,6 +67,8 @@ public class CreateSurplusLiquidationActionCommandHandlerTests
     {
         var result = await _handler.Handle(Command(), CancellationToken.None);
         result.Success.Should().BeTrue();
+        result.Data.Should().Be(GeneratedLiquidationId);
+        result.Message.Should().Be(ResponseMessages.CreateSuccess);
     }
 
     [Fact]
@@ -90,7 +105,52 @@ public class CreateSurplusLiquidationActionCommandHandlerTests
         exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
     }
 
-    private static CreateSurplusLiquidationActionCommand Command(decimal quantity = 5) => new(1, "Buyer", quantity, 1000, null);
+    [Fact]
+    public async Task UTCID06_Handle_ProjectInactive_ShouldThrowInvalidTransition()
+    {
+        var item = Item();
+        item.SurplusRequest.Project.Status = ProjectStatus.Completed;
+        SetupItems(item);
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
+    }
+
+    [Fact]
+    public async Task UTCID07_Handle_InventoryMissing_ShouldThrowInsufficientStock()
+    {
+        SetupInventory();
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InsufficientStock);
+    }
+
+    [Fact]
+    public async Task UTCID08_Handle_QuantityExceedsAvailableInventory_ShouldThrowInsufficientStock()
+    {
+        SetupInventory(new CurrentInventory { ProjectId = 3, MaterialId = 4, Quantity = 5, ReservedQuantity = 1 });
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InsufficientStock);
+    }
+
+    private static CreateSurplusLiquidationActionCommand Command(decimal quantity = 5) =>
+        new(1, "Buyer", quantity, 1000, new List<IFormFile> { File() });
+
+    private static IFormFile File()
+    {
+        var file = new Mock<IFormFile>();
+        file.SetupGet(x => x.FileName).Returns("liquidation-evidence.jpg");
+        file.SetupGet(x => x.ContentType).Returns("image/jpeg");
+        file.SetupGet(x => x.Length).Returns(128);
+        return file.Object;
+    }
     private static SurplusRequestItem Item(string batchStatus = SurplusRequestStatus.Processing, bool isDiscrete = false) => new()
     {
         SurplusRequestItemId = 1,

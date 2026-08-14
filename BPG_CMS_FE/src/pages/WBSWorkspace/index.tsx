@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -22,9 +22,13 @@ interface WBSWorkspaceProps {
   projectId: string;
 }
 
+type CloneTarget =
+  | { type: 'phase'; id: string; name: string }
+  | { type: 'task'; id: string; name: string };
+
 export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { user, hasAnyRole } = useAuth();
-  const { isProjectLeader } = useProjectAccess(projectId);
+  const { isProjectLeader, isProjectMember } = useProjectAccess(projectId);
   const navigate = useNavigate();
 
   const queryClient = useQueryClient();
@@ -190,6 +194,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
   // ── INCIDENT modal state ────────────────────────
   const [isReportIncidentOpen, setIsReportIncidentOpen] = useState(false);
+  const [cloneTarget, setCloneTarget] = useState<CloneTarget | null>(null);
 
   // ── Hover state ──────────────────────────────────────
   const [hoveredPhaseId, setHoveredPhaseId] = useState<string | null>(null);
@@ -209,28 +214,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
 
-
-  useEffect(() => {
-    if (wbsData?.phases) {
-      setExpandedPhases(prev => {
-        if (Object.keys(prev).length === 0) {
-          const expands: Record<string, boolean> = {};
-          wbsData.phases.forEach(p => { expands[p.id] = true; });
-          return expands;
-        }
-        return prev;
-      });
-    }
-  }, [wbsData?.phases]);
-
-  // Auto-expand all phases when searching
-  useEffect(() => {
-    if (searchTerm.trim() && phases.length > 0) {
-      const expands: Record<string, boolean> = {};
-      phases.forEach(p => { expands[p.id] = true; });
-      setExpandedPhases(prev => ({ ...prev, ...expands }));
-    }
-  }, [searchTerm]);
 
   // Support opening task detail from URL
   useEffect(() => {
@@ -265,6 +248,33 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   };
   const handleError = (msg: string) => {
     toast.error(msg);
+  };
+
+  const cloneMutation = useMutation<number, Error, CloneTarget>({
+    mutationFn: (target) => target.type === 'phase'
+      ? wbsService.clonePhase(
+          Number(projectId.replace(/^p-/, '')),
+          Number(target.id.replace(/^ph-/, '')),
+        )
+      : wbsService.cloneTask(Number(target.id.replace(/^t-/, ''))),
+    onSuccess: (_, target) => {
+      setCloneTarget(null);
+      handleSuccess(target.type === 'phase'
+        ? `Đã nhân bản Giai đoạn "${target.name}" và toàn bộ Công việc bên trong.`
+        : `Đã nhân bản Công việc "${target.name}" và toàn bộ Công việc con.`);
+    },
+    onError: (cloneError) => {
+      setCloneTarget(null);
+      handleError(cloneError.message || 'Không thể nhân bản dữ liệu WBS.');
+    },
+  });
+
+  const handleClonePhase = (phaseId: string, phaseName: string) => {
+    setCloneTarget({ type: 'phase', id: phaseId, name: phaseName });
+  };
+
+  const handleCloneTask = (taskId: string, taskName: string) => {
+    setCloneTarget({ type: 'task', id: taskId, name: taskName });
   };
 
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
@@ -388,8 +398,8 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const contextValue = {
-    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, filterAssignee,
-    expandedPhases, togglePhase, setExpandedPhases,
+    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isProjectMember, isTPKT, canEdit, materialRequests, filterAssignee,
+    expandedPhases, togglePhase,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
 
@@ -420,10 +430,10 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     isReportInventoryIncidentOpen, setIsReportInventoryIncidentOpen,
     selectedPhaseForInventoryIncident, setSelectedPhaseForInventoryIncident,
     isReportIncidentOpen, setIsReportIncidentOpen,
-
     handleApproveByLeader, handleApproveByTPKT,
     handleRejectMatReq, handleCancelMatReq, handleConfirmReceived,
-    isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask, handleDeleteTask, handleDeletePhase, navigate, loadWBSData
+    isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask,
+    handleDeleteTask, handleDeletePhase, handleCloneTask, handleClonePhase, navigate, loadWBSData
   };
 
   if (loading) {
@@ -505,6 +515,21 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
           title={confirmDialog.title}
           message={confirmDialog.message}
           isDanger={confirmDialog.isDanger}
+        />
+
+        <ConfirmDialog
+          isOpen={cloneTarget !== null}
+          onClose={() => { if (!cloneMutation.isPending) setCloneTarget(null); }}
+          onConfirm={() => {
+            if (cloneTarget && !cloneMutation.isPending) cloneMutation.mutate(cloneTarget);
+          }}
+          title={cloneTarget?.type === 'phase' ? 'Nhân bản Giai đoạn' : 'Nhân bản Công việc'}
+          message={cloneTarget?.type === 'phase'
+            ? `Nhân bản Giai đoạn "${cloneTarget.name}" cùng toàn bộ Công việc bên trong?`
+            : `Nhân bản Công việc "${cloneTarget?.name ?? ''}" cùng toàn bộ Công việc con?`}
+          confirmText="Nhân bản"
+          isDanger={false}
+          isLoading={cloneMutation.isPending}
         />
       </div>
     </WBSContext.Provider>

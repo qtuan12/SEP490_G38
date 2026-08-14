@@ -33,17 +33,26 @@ public class ReviewSurplusTransferCommandHandlerTests
         _handler = new ReviewSurplusTransferCommandHandler(_uow.Object, ServiceStubFactory.CurrentUserService(), ServiceStubFactory.NotificationService());
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task UTCID01_Handle_PendingTransfer_ShouldReturnSuccess(bool approved)
+    [Fact]
+    public async Task UTCID01_Handle_PendingTransferApproved_ShouldReturnSuccess()
     {
-        var result = await _handler.Handle(new ReviewSurplusTransferCommand(1, approved), CancellationToken.None);
+        var result = await _handler.Handle(new ReviewSurplusTransferCommand(1, true), CancellationToken.None);
+
         result.Success.Should().BeTrue();
+        result.Message.Should().Be(ResponseMessages.ApproveSuccess);
     }
 
     [Fact]
-    public async Task UTCID02_Handle_TransferNotFound_ShouldThrowNotFoundException()
+    public async Task UTCID02_Handle_PendingTransferRejected_ShouldReturnSuccess()
+    {
+        var result = await _handler.Handle(new ReviewSurplusTransferCommand(1, false), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Message.Should().Be(ResponseMessages.RejectSuccess);
+    }
+
+    [Fact]
+    public async Task UTCID03_Handle_TransferNotFound_ShouldThrowNotFoundException()
     {
         SetupTransfers();
         Func<Task> act = () => _handler.Handle(new ReviewSurplusTransferCommand(1, true), CancellationToken.None);
@@ -51,11 +60,24 @@ public class ReviewSurplusTransferCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID03_Handle_TransferNotPending_ShouldThrowStatusTransitionException()
+    public async Task UTCID04_Handle_TransferNotPending_ShouldThrowStatusTransitionException()
     {
         SetupTransfers(Transfer(SurplusTransferStatus.Approved));
         Func<Task> act = () => _handler.Handle(new ReviewSurplusTransferCommand(1, true), CancellationToken.None);
         await act.Should().ThrowAsync<InvalidStatusTransitionException>();
+    }
+
+    [Fact]
+    public async Task UTCID05_Handle_ProjectInactive_ShouldThrowInvalidTransition()
+    {
+        var transfer = Transfer();
+        transfer.ToProject.Status = ProjectStatus.Completed;
+        SetupTransfers(transfer);
+
+        Func<Task> act = () => _handler.Handle(new ReviewSurplusTransferCommand(1, true), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
     }
 
     private static SurplusTransfer Transfer(string status = SurplusTransferStatus.Pending) => new()

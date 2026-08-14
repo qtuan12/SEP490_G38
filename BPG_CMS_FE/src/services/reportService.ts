@@ -337,8 +337,8 @@ export interface InventoryLedgerReportDto {
 // Procurement Report
 // ============================================================
 export interface PurchaseOrderSummaryDto {
-  pOId: number;
-  pONumber: string;
+  poId: number;
+  poNumber: string;
   status: string;
   supplierName?: string;
   totalAmount: number;

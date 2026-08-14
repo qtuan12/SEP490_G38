@@ -1,6 +1,7 @@
 using BPG.Domain.Common;
 using BPG.Domain.Exceptions;
 using BPG.Application.DTOs;
+using BPG.Application.Features.Wbs.Services;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
@@ -8,6 +9,7 @@ using BPG.Domain.Entities;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace BPG.Application.Features.PhaseAcceptances.Commands.AcceptPhase;
 
@@ -52,10 +54,18 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
 
     public async Task<long> Handle(AcceptPhaseCommand request, CancellationToken ct)
     {
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+        {
+            throw new ForbiddenException("Chỉ Trưởng phòng kỹ thuật mới được phép nghiệm thu giai đoạn.");
+        }
+
         var phaseRepo = _unitOfWork.Repository<Phase>();
         var taskRepo = _unitOfWork.Repository<ProjectTask>();
         var acceptanceRepo = _unitOfWork.Repository<PhaseAcceptance>();
         var userRepo = _unitOfWork.Repository<User>();
+
+        await _unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        await _unitOfWork.ExecuteSqlAsync(WbsStructureLock.AcquirePhase(request.PhaseId), ct);
 
         // 1. Get Phase
         var phase = await phaseRepo.Query()
@@ -134,6 +144,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         phaseRepo.Update(phase);
 
         await _unitOfWork.SaveChangesAsync(ct);
+        await _unitOfWork.CommitTransactionAsync(ct);
 
         // Gửi thông báo realtime
         try

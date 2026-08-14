@@ -592,7 +592,38 @@ function App() {
           </LoadingProvider>
         </CompanyProvider>
       </ThemeProvider>
-      <Toaster position="top-right" />
+      <Toaster
+        position="top-right"
+        gutter={8}
+        toastOptions={{
+          duration: 3500,
+          style: {
+            borderRadius: '12px',
+            background: 'hsl(var(--bg-card, #ffffff))',
+            color: 'hsl(var(--text-primary, #1e293b))',
+            border: '1px solid hsl(var(--border, #e2e8f0))',
+            fontSize: '13px',
+            fontWeight: 500,
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            padding: '12px 16px',
+            maxWidth: '450px',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#16a34a',
+              secondary: '#ffffff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#ffffff',
+            },
+          },
+        }}
+      />
     </QueryClientProvider>
   );
 }
