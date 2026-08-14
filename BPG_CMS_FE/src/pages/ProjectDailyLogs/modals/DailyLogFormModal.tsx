@@ -204,10 +204,10 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
             prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
           );
         },
-        () => {
-          toast.error(`Không thể tải ảnh ${file.name} lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.`);
+        (message) => {
+          toast.error(message);
           setUploadedFiles(prev =>
-            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
+            prev.map(f => f.id === tempId ? { ...f, status: 'error', errorMessage: message } : f)
           );
         }
       );
@@ -219,7 +219,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
     if (!target || !target.file) return;
 
     setUploadedFiles(prev =>
-      prev.map(f => f.id === id ? { ...f, status: 'uploading' } : f)
+      prev.map(f => f.id === id ? { ...f, status: 'uploading', errorMessage: undefined } : f)
     );
 
     compressAndUploadFile(
@@ -230,10 +230,10 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
           prev.map(f => f.id === id ? { ...f, status: 'success', url: uploadedUrl } : f)
         );
       },
-      () => {
-        toast.error(`Không thể tải ảnh ${target.name} lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.`);
+      (message) => {
+        toast.error(message);
         setUploadedFiles(prev =>
-          prev.map(f => f.id === id ? { ...f, status: 'error' } : f)
+          prev.map(f => f.id === id ? { ...f, status: 'error', errorMessage: message } : f)
         );
       }
     );
@@ -320,14 +320,14 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
     // 2. Chặn submit nếu có hình ảnh bị lỗi upload (timeout / kết nối / dung lượng)
     if (uploadedFiles.some(f => f.status === 'error')) {
-      toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
+      toast.error(uploadedFiles.find(f => f.status === 'error')?.errorMessage || 'Không thể tải ảnh lên. Vui lòng thử lại.');
       return;
     }
 
     // 3. Đảm bảo tất cả file mới đều có URL remote hợp lệ
     const hasInvalidUploads = uploadedFiles.some(f => !f.url || !f.url.startsWith('http'));
     if (hasInvalidUploads) {
-      toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
+      toast.error(uploadedFiles.find(f => f.status === 'error')?.errorMessage || 'Không thể tải ảnh lên. Vui lòng thử lại.');
       return;
     }
 
@@ -578,7 +578,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-center justify-between gap-2" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center gap-2 text-left">
                     <AlertCircle size={16} className="text-red-600 shrink-0" />
-                    <span>Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.</span>
+                    <span>{uploadedFiles.find(f => f.status === 'error')?.errorMessage || 'Không thể tải ảnh lên. Vui lòng thử lại.'}</span>
                   </div>
                 </div>
               )}
