@@ -144,7 +144,14 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
       return;
     }
 
-    if (uploadedFiles.some(f => f.status === 'error') || uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
+    const failedUploadMessage = uploadedFiles.find(f => f.status === 'error')?.errorMessage;
+    if (failedUploadMessage) {
+      toast.error(failedUploadMessage);
+      setActionError(failedUploadMessage);
+      return;
+    }
+
+    if (uploadedFiles.some(f => !f.url || !f.url.startsWith('http'))) {
       toast.error('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
       setActionError('Không thể tải ảnh lên. Vui lòng kiểm tra lại kết nối hoặc dung lượng file.');
       return;
@@ -234,7 +241,8 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
         id: tempId,
         name: file.name,
         url: localUrl,
-        status: 'uploading'
+        status: 'uploading',
+        file
       };
 
       setUploadedFiles(prev => [...prev, newFileState]);
@@ -247,10 +255,11 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
             prev.map(f => f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f)
           );
         },
-        () => {
-          toast.error(`Không thể tải ảnh ${file.name} lên.`);
+        (message) => {
+          toast.error(message);
+          setActionError(message);
           setUploadedFiles(prev =>
-            prev.map(f => f.id === tempId ? { ...f, status: 'error' } : f)
+            prev.map(f => f.id === tempId ? { ...f, status: 'error', errorMessage: message } : f)
           );
         }
       );

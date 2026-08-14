@@ -210,7 +210,7 @@ public static class DbSeeder
         {
             var desiredConfigs = new List<SystemConfig>
             {
-                new SystemConfig { ConfigKey = "NguongTonKhoThap", ConfigValue = "10", DataType = "number", DisplayName = "Ngưỡng tồn kho thấp", Description = "Số lượng tồn kho tối thiểu.", Unit = "đơn vị", CreatedAt = DateTime.UtcNow },
+                new SystemConfig { ConfigKey = "NguongTonKhoThap", ConfigValue = "10", DataType = "percentage", DisplayName = "Tỷ lệ cảnh báo tồn kho thấp", Description = "Tỷ lệ phần trăm trên nhu cầu BOQ còn lại dùng để tính ngưỡng cảnh báo riêng cho từng vật tư.", Unit = "%", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "HanHuyPhieuNgay", ConfigValue = "7", DataType = "number", DisplayName = "Hạn hủy phiếu nhập kho", Description = "Số ngày tối đa kể từ khi tạo phiếu nhập kho mà người dùng có thể hủy phiếu.", Unit = "ngày", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "DailyLogEditWindowHours", ConfigValue = "24", DataType = "number", DisplayName = "Giờ được sửa nhật ký thi công", Description = "Số giờ kể từ lúc tạo mà kỹ sư còn được phép chỉnh sửa nhật ký thi công.", Unit = "giờ", CreatedAt = DateTime.UtcNow },
                 new SystemConfig { ConfigKey = "DirectPurchasePhaseMaxAmount", ConfigValue = "20000000", DataType = "number", DisplayName = "Hạn mức mua khẩn cấp một giai đoạn", Description = "Tổng giá trị mua khẩn cấp cộng dồn tối đa của một giai đoạn, tính cả phiếu bị từ chối duyệt chi. Đặt 0 để bỏ giới hạn.", Unit = "đ", CreatedAt = DateTime.UtcNow },

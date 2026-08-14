@@ -37,10 +37,13 @@ namespace BPG.Application.Features.Inventory.Handlers
             var config = await _uow.Repository<SystemConfig>().Query()
                 .FirstOrDefaultAsync(c => c.ConfigKey == SystemConfigKeys.LowStockThreshold
                                        || c.ConfigKey == SystemConfigKeys.LowStockThresholdEn, cancellationToken);
-            decimal threshold = 10m;
-            if (config != null && decimal.TryParse(config.ConfigValue, out var val))
+            decimal thresholdPercentage = 10m;
+            if (config != null
+                && decimal.TryParse(config.ConfigValue, out var val)
+                && val >= 0m
+                && val <= 100m)
             {
-                threshold = val;
+                thresholdPercentage = val;
             }
 
             // Query Phase names for mapping
@@ -158,7 +161,7 @@ namespace BPG.Application.Features.Inventory.Handlers
                     UnitName = ci.Unit.UnitName,
                     Quantity = ci.Quantity,
                     ReservedQuantity = ci.ReservedQuantity,
-                    SafetyThreshold = threshold,
+                    SafetyThreshold = 0,
                     LastUpdated = ci.LastUpdated,
                     SupplierName = supplierName ?? "Chưa nhập",
                     BoqQuantity = 0,
@@ -212,6 +215,11 @@ namespace BPG.Application.Features.Inventory.Handlers
                 // Overall cumulative budget & usage across all phases
                 item.BoqQuantity = item.PhaseUsages.Sum(x => x.BoqQuantity);
                 item.UsedQuantity = item.PhaseUsages.Sum(x => x.UsedQuantity);
+
+                // Stock is stored in each material's base unit. A percentage of remaining BOQ
+                // demand gives every material a comparable, unit-safe warning threshold.
+                var remainingBoqQuantity = System.Math.Max(item.BoqQuantity - item.UsedQuantity, 0m);
+                item.SafetyThreshold = remainingBoqQuantity * thresholdPercentage / 100m;
             }
 
             return ApiResponse<List<CurrentInventoryDto>>.SuccessResult(inventory);
