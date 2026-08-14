@@ -32,6 +32,15 @@ public class TasksController : BaseApiController
         return ApiOk(result);
     }
 
+    [HttpPost("{taskId}/clone")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
+    public async Task<IActionResult> CloneTask([FromRoute] long taskId, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new CloneTaskCommand(taskId), ct);
+        return ApiOk(result);
+    }
+
     [HttpPut("{taskId}")]
     [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]

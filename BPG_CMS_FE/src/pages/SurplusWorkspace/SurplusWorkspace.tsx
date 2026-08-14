@@ -107,7 +107,6 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
 
     const handleSurplusUpdated = (_payload: any) => {
       scheduleRealtimeRefresh();
-      toast('Dữ liệu Vật tư thừa đã được cập nhật!', { icon: '🔄' });
     };
 
     connection.on('SurplusUpdated', handleSurplusUpdated);
@@ -158,8 +157,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
     }
   };
 
-  const handleActionSuccess = (message: string) => {
-    console.log(message);
+  const handleActionCompleted = () => {
     scheduleRealtimeRefresh();
   };
 
@@ -245,7 +243,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateSurplusRequestModal
           isOpen={showCreateBatch}
           onClose={() => setShowCreateBatch(false)}
-          onSuccess={() => { handleActionSuccess('Đã tạo đề xuất xử lý vật tư thừa.'); setShowCreateBatch(false); }}
+          onSuccess={() => { handleActionCompleted(); setShowCreateBatch(false); }}
           projectId={projectId}
           projectName={projectName}
         />
@@ -255,7 +253,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateReturnModal
           isOpen={!!returnItem}
           onClose={() => setReturnItem(null)}
-          onSuccess={() => { handleActionSuccess('Đã tạo phiếu trả vật tư thừa cho nhà cung cấp.'); setReturnItem(null); }}
+          onSuccess={() => { handleActionCompleted(); setReturnItem(null); }}
           item={returnItem}
           projectId={projectId}
         />
@@ -265,7 +263,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateTransferModal
           isOpen={!!transferItem}
           onClose={() => setTransferItem(null)}
-          onSuccess={() => { handleActionSuccess('Đã tạo phiếu điều chuyển vật tư thừa.'); setTransferItem(null); }}
+          onSuccess={() => { handleActionCompleted(); setTransferItem(null); }}
           item={transferItem}
           currentProjectId={projectId}
         />
@@ -275,7 +273,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <CreateLiquidationModal
           isOpen={!!liquidationItem}
           onClose={() => setLiquidationItem(null)}
-          onSuccess={() => { handleActionSuccess('Đã tạo phiếu thanh lý vật tư thừa.'); setLiquidationItem(null); }}
+          onSuccess={() => { handleActionCompleted(); setLiquidationItem(null); }}
           item={liquidationItem}
         />
       )}

@@ -3,6 +3,7 @@ using BPG.Application.IServices;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Infrastructure.Data;
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -82,6 +83,12 @@ public class UnitOfWork : IUnitOfWork
     {
         _pendingChangedEntities.Clear();
         _transaction = await _context.Database.BeginTransactionAsync(ct);
+    }
+
+    public async Task BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken ct = default)
+    {
+        _pendingChangedEntities.Clear();
+        _transaction = await _context.Database.BeginTransactionAsync(isolationLevel, ct);
     }
 
     public async Task CommitTransactionAsync(CancellationToken ct = default)

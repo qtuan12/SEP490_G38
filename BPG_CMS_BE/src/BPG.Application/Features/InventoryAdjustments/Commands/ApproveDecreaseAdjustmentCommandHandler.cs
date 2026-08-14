@@ -30,7 +30,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
         public async Task<ApiResponse<bool>> Handle(ApproveDecreaseAdjustmentCommand request, CancellationToken cancellationToken)
         {
             var adjustment = await _unitOfWork.Repository<InventoryAdjustment>().Query()
-                .Include(a => a.Items)
+                .Include(a => a.Items).ThenInclude(i => i.Material)
                 .FirstOrDefaultAsync(a => a.AdjustmentId == request.AdjustmentId, cancellationToken);
 
             if (adjustment == null) throw new NotFoundException(nameof(InventoryAdjustment), request.AdjustmentId);

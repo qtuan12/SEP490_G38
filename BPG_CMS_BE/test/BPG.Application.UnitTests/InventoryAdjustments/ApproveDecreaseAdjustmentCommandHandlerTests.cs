@@ -172,6 +172,22 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         }
 
         [Fact]
+        public async Task Handle_ApproveIncreaseInTon_ShouldAddBaseKilogramsToInventory()
+        {
+            _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager)).Returns(true);
+            SetupAdjustments(Adjustment(
+                adjustmentType: BPG.Domain.Constants.InventoryAdjustmentType.Increase,
+                quantity: 0.002m,
+                conversionRate: 0.001m));
+            var inventory = Inventory(quantity: 10);
+            SetupInventories(inventory);
+
+            await _handler.Handle(Command(isApproved: true), CancellationToken.None);
+
+            inventory.Quantity.Should().Be(12m);
+        }
+
+        [Fact]
         public async Task UTCID07_Handle_RejectIncreaseAdjustment_ShouldReturnSuccessResponse()
         {
             _mockCurrentUserService.Setup(c => c.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager)).Returns(true);

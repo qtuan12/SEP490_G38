@@ -90,37 +90,49 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
             }
         }
 
-        var oldProgress = task.ProgressPercent;
-        task.ProgressPercent = request.NewProgress;
-        
-        if (request.NewProgress == 100)
-            task.Status = BPG.Domain.Constants.TaskStatus.Completed;
-        else if (request.NewProgress > 0 && request.NewProgress < 100)
-            task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
-        else
-            task.Status = task.Assignees.Any()
-                ? BPG.Domain.Constants.TaskStatus.Assigned
-                : BPG.Domain.Constants.TaskStatus.New;
+        await _unitOfWork.BeginTransactionAsync(ct);
 
-        task.ProgressLogs.Add(new TaskProgressLog
+        try
         {
-            OldProgress = oldProgress,
-            NewProgress = request.NewProgress,
-            UpdateReason = $"Điều chỉnh trực tiếp: {request.UpdateReason}",
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = currentUserId,
-            UpdatedAt = DateTime.UtcNow,
-            UpdatedBy = currentUserId
-        });
+            var oldProgress = task.ProgressPercent;
+            task.ProgressPercent = request.NewProgress;
 
-        _unitOfWork.Repository<ProjectTask>().Update(task);
-        await _unitOfWork.SaveChangesAsync(ct);
+            if (request.NewProgress == 100)
+                task.Status = BPG.Domain.Constants.TaskStatus.Completed;
+            else if (request.NewProgress > 0 && request.NewProgress < 100)
+                task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
+            else
+                task.Status = task.Assignees.Any()
+                    ? BPG.Domain.Constants.TaskStatus.Assigned
+                    : BPG.Domain.Constants.TaskStatus.New;
 
-        // Cuộn tiến độ
-        if (task.ParentTaskId.HasValue)
-        {
-            await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, task.TaskId, ct);
+            task.ProgressLogs.Add(new TaskProgressLog
+            {
+                OldProgress = oldProgress,
+                NewProgress = request.NewProgress,
+                UpdateReason = $"Điều chỉnh trực tiếp: {request.UpdateReason}",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = currentUserId,
+                UpdatedAt = DateTime.UtcNow,
+                UpdatedBy = currentUserId
+            });
+
+            _unitOfWork.Repository<ProjectTask>().Update(task);
             await _unitOfWork.SaveChangesAsync(ct);
+
+            // Cuộn tiến độ
+            if (task.ParentTaskId.HasValue)
+            {
+                await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, task.TaskId, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+            }
+
+            await _unitOfWork.CommitTransactionAsync(ct);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackTransactionAsync(CancellationToken.None);
+            throw;
         }
 
         // Notify assignees

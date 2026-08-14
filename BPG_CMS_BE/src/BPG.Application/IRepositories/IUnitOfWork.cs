@@ -1,3 +1,5 @@
+using System.Data;
+
 namespace BPG.Application.IRepositories;
 
 /// <summary>
@@ -17,6 +19,9 @@ public interface IUnitOfWork : IDisposable
 
     /// <summary>Bắt đầu explicit transaction (dùng khi cần multi-step atomic operation).</summary>
     Task BeginTransactionAsync(CancellationToken ct = default);
+
+    /// <summary>Bắt đầu transaction với isolation level cụ thể cho nghiệp vụ có tranh chấp đồng thời.</summary>
+    Task BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken ct = default);
 
     /// <summary>Commit explicit transaction.</summary>
     Task CommitTransactionAsync(CancellationToken ct = default);

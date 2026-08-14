@@ -32,7 +32,7 @@ public class DispatchSurplusTransferCommandHandlerTests
         _fileStorage.Setup(x => x.UploadFileAsync(It.IsAny<IFormFile>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("evidence.jpg");
         SetupTransfers(Transfer());
         _memberRepo.Setup(x => x.Query()).Returns(Array.Empty<ProjectMember>().AsQueryable().BuildMock());
-        _handler = new DispatchSurplusTransferCommandHandler(_uow.Object, ServiceStubFactory.CurrentUserService(), ServiceStubFactory.NotificationService(), _fileStorage.Object);
+        _handler = new DispatchSurplusTransferCommandHandler(_uow.Object, ServiceStubFactory.CurrentUserService(), ServiceStubFactory.ProjectAccessService(), ServiceStubFactory.NotificationService(), _fileStorage.Object);
     }
 
     [Fact]
@@ -40,6 +40,7 @@ public class DispatchSurplusTransferCommandHandlerTests
     {
         var result = await _handler.Handle(new DispatchSurplusTransferCommand(1, new List<IFormFile> { File() }), CancellationToken.None);
         result.Success.Should().BeTrue();
+        result.Message.Should().Be(ResponseMessages.UpdateSuccess);
     }
 
     [Fact]
@@ -56,6 +57,33 @@ public class DispatchSurplusTransferCommandHandlerTests
         SetupTransfers(Transfer(SurplusTransferStatus.Pending));
         Func<Task> act = () => _handler.Handle(new DispatchSurplusTransferCommand(1, new List<IFormFile> { File() }), CancellationToken.None);
         await act.Should().ThrowAsync<InvalidStatusTransitionException>();
+    }
+
+    [Fact]
+    public async Task UTCID04_Handle_TransferNotFound_ShouldThrowNotFoundException()
+    {
+        SetupTransfers();
+
+        Func<Task> act = () => _handler.Handle(
+            new DispatchSurplusTransferCommand(1, new List<IFormFile> { File() }),
+            CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Fact]
+    public async Task UTCID05_Handle_ProjectInactive_ShouldThrowInvalidTransition()
+    {
+        var transfer = Transfer();
+        transfer.FromProject.Status = ProjectStatus.Completed;
+        SetupTransfers(transfer);
+
+        Func<Task> act = () => _handler.Handle(
+            new DispatchSurplusTransferCommand(1, new List<IFormFile> { File() }),
+            CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
     }
 
     private static SurplusTransfer Transfer(string status = SurplusTransferStatus.Approved) => new()

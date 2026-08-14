@@ -2,6 +2,7 @@ using BPG.Application.Features.Wbs.Handlers;
 using BPG.Application.Features.Wbs.Queries;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
@@ -77,14 +78,21 @@ public class GetWbsTreeQueryHandlerTests
         result.ProjectId.Should().Be(ProjectId);
         result.Phases.Should().ContainSingle();
         var phaseDto = result.Phases.Single();
+        phaseDto.PhaseId.Should().Be(20);
+        phaseDto.ProgressPercent.Should().Be(25);
         phaseDto.Tasks.Should().ContainSingle();
-        phaseDto.Materials.Should().ContainSingle(x => x.Name == "Cement" && x.Quantity == 100);
+        var materialDto = phaseDto.Materials.Should().ContainSingle().Which;
+        materialDto.MaterialId.Should().Be(50);
+        materialDto.Name.Should().Be("Cement");
+        materialDto.Quantity.Should().Be(100);
+        materialDto.Unit.Should().Be("Bag");
         var taskDto = phaseDto.Tasks.Single();
+        taskDto.TaskId.Should().Be(30);
         taskDto.Name.Should().Be("Root");
         taskDto.AssignedTo.Should().Be("99");
         taskDto.AssignedName.Should().Be("Site Engineer");
         taskDto.PredecessorTaskIds.Should().Equal(77);
-        taskDto.SubTasks.Should().ContainSingle(x => x.Name == "Child");
+        taskDto.SubTasks.Should().ContainSingle(x => x.TaskId == 31 && x.Name == "Child");
     }
 
     [Fact]
@@ -95,7 +103,8 @@ public class GetWbsTreeQueryHandlerTests
 
         Func<Task> act = () => _handler.Handle(new GetWbsTreeQuery(ProjectId), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ForbiddenException>();
+        var exception = await act.Should().ThrowAsync<ForbiddenException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
     }
 
     [Fact]
@@ -105,21 +114,48 @@ public class GetWbsTreeQueryHandlerTests
 
         Func<Task> act = () => _handler.Handle(new GetWbsTreeQuery(ProjectId), CancellationToken.None);
 
-        await act.Should().ThrowAsync<NotFoundException>();
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.NotFound);
     }
 
     [Fact]
-    public async Task UTCID04_Handle_WeightedRootTasks_ShouldCalculatePhaseProgress()
+    public async Task UTCID04_Handle_CustomWeightedRootTasks_ShouldCalculatePhaseProgress()
     {
         var phase = Phase(20);
         var shortTask = Task(30, phase, "Short", progress: 100, start: new DateOnly(2026, 8, 1), end: new DateOnly(2026, 8, 1));
         var longTask = Task(31, phase, "Long", progress: 0, start: new DateOnly(2026, 8, 1), end: new DateOnly(2026, 8, 3));
+        shortTask.Weight = 2;
+        longTask.Weight = 1;
         SetupPhases(phase);
         SetupTasks(shortTask, longTask);
 
         var result = await _handler.Handle(new GetWbsTreeQuery(ProjectId), CancellationToken.None);
 
-        result.Phases.Single().ProgressPercent.Should().Be(25);
+        result.ProjectId.Should().Be(ProjectId);
+        var phaseDto = result.Phases.Should().ContainSingle().Which;
+        phaseDto.PhaseId.Should().Be(20);
+        phaseDto.ProgressPercent.Should().Be(40);
+        phaseDto.Tasks.Should().Contain(task => task.TaskId == 30 && task.Weight == 2 && task.ProgressPercent == 100);
+        phaseDto.Tasks.Should().Contain(task => task.TaskId == 31 && task.Weight == 1 && task.ProgressPercent == 0);
+    }
+
+    [Fact]
+    public async Task UTCID05_Handle_PhaseWithOnlyObsoleteRootTask_ShouldReturnZeroProgress()
+    {
+        var phase = Phase(20);
+        var obsoleteTask = Task(30, phase, "Cancelled work", progress: 100);
+        obsoleteTask.Status = BPG.Domain.Constants.TaskStatus.Obsolete;
+        obsoleteTask.ObsoleteReason = "Removed from execution plan";
+        SetupPhases(phase);
+        SetupTasks(obsoleteTask);
+
+        var result = await _handler.Handle(new GetWbsTreeQuery(ProjectId), CancellationToken.None);
+
+        var phaseDto = result.Phases.Single();
+        phaseDto.ProgressPercent.Should().Be(0);
+        phaseDto.Tasks.Should().ContainSingle(task =>
+            task.Status == BPG.Domain.Constants.TaskStatus.Obsolete
+            && task.ObsoleteReason == "Removed from execution plan");
     }
 
     private static Project Project() => new()

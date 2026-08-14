@@ -9,6 +9,7 @@ using BPG.Domain.Exceptions;
 using FluentAssertions;
 using MockQueryable;
 using Moq;
+using System.Linq.Expressions;
 
 namespace BPG.Application.UnitTests.Tasks;
 
@@ -46,30 +47,73 @@ public class RestoreTaskCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID01_Handle_ObsoleteTask_ShouldReturnSuccess()
+    public async Task UTCID01_Handle_ObsoleteTaskByTechnicalManager_ShouldReturnSuccess()
     {
         var result = await _handler.Handle(new RestoreTaskCommand(TaskId), CancellationToken.None);
+
         result.Success.Should().BeTrue();
+        result.Message.Should().Be("Khôi phục công việc thành công.");
     }
 
     [Fact]
-    public async Task UTCID02_Handle_TaskNotFound_ShouldThrowNotFoundException()
+    public async Task UTCID02_Handle_ObsoleteTaskByProjectLeader_ShouldReturnSuccess()
+    {
+        _currentUser.SetupUser(1);
+        SetupMembers(new ProjectMember { ProjectId = 3, UserId = 1, IsLeader = true });
+
+        var result = await _handler.Handle(new RestoreTaskCommand(TaskId), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Message.Should().Be("Khôi phục công việc thành công.");
+    }
+
+    [Fact]
+    public async Task UTCID03_Handle_TaskNotFound_ShouldThrowNotFoundException()
     {
         SetupTasks();
+
         Func<Task> act = () => _handler.Handle(new RestoreTaskCommand(TaskId), CancellationToken.None);
-        await act.Should().ThrowAsync<NotFoundException>();
+
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.NotFound);
     }
 
     [Fact]
-    public async Task UTCID03_Handle_TaskNotObsolete_ShouldReturnIdempotentSuccess()
+    public async Task UTCID04_Handle_InactiveProject_ShouldThrowInvalidTransition()
+    {
+        SetupTasks(TaskEntity(projectStatus: ProjectStatus.Paused));
+
+        Func<Task> act = () => _handler.Handle(new RestoreTaskCommand(TaskId), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
+    }
+
+    [Fact]
+    public async Task UTCID05_Handle_UserWithoutPermission_ShouldThrowForbiddenException()
+    {
+        _currentUser.SetupUser(1);
+        SetupMembers();
+
+        Func<Task> act = () => _handler.Handle(new RestoreTaskCommand(TaskId), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<ForbiddenException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
+    }
+
+    [Fact]
+    public async Task UTCID06_Handle_TaskNotObsolete_ShouldReturnIdempotentSuccess()
     {
         SetupTasks(TaskEntity(BPG.Domain.Constants.TaskStatus.InProgress));
+
         var result = await _handler.Handle(new RestoreTaskCommand(TaskId), CancellationToken.None);
+
         result.Success.Should().BeTrue();
+        result.Message.Should().Be("Công việc không ở trạng thái tạm dừng để khôi phục.");
     }
 
     [Fact]
-    public async Task UTCID04_Handle_TaskStoppedByIncident_ShouldThrowCannotRestore()
+    public async Task UTCID07_Handle_TaskStoppedByIncident_ShouldThrowCannotRestore()
     {
         SetupTasks(TaskEntity(reason: "Sự cố thi công nghiêm trọng"));
         Func<Task> act = () => _handler.Handle(new RestoreTaskCommand(TaskId), CancellationToken.None);
@@ -78,7 +122,7 @@ public class RestoreTaskCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID05_Handle_ObsoletePredecessor_ShouldThrowExpectedErrorCode()
+    public async Task UTCID08_Handle_ObsoletePredecessor_ShouldThrowExpectedErrorCode()
     {
         SetupDependencies(new TaskDependency
         {
@@ -91,19 +135,27 @@ public class RestoreTaskCommandHandlerTests
         exception.Which.ErrorCode.Should().Be("ERR_DEPENDENCY_OBSOLETE");
     }
 
-    private static ProjectTask TaskEntity(string status = BPG.Domain.Constants.TaskStatus.Obsolete, string reason = "Paused by manager") => new()
+    private static ProjectTask TaskEntity(
+        string status = BPG.Domain.Constants.TaskStatus.Obsolete,
+        string reason = "Paused by manager",
+        string projectStatus = ProjectStatus.InProgress) => new()
     {
         TaskId = TaskId,
         Name = "Foundation",
         Status = status,
         ObsoleteReason = reason,
         ProgressPercent = 20,
-        Phase = new Phase { PhaseId = 2, ProjectId = 3, Project = new Project { ProjectId = 3, Status = ProjectStatus.InProgress } },
+        Phase = new Phase { PhaseId = 2, ProjectId = 3, Project = new Project { ProjectId = 3, Status = projectStatus } },
         Assignees = new List<TaskAssignee>(),
         ProgressLogs = new List<TaskProgressLog>()
     };
 
     private void SetupTasks(params ProjectTask[] tasks) => _taskRepo.Setup(x => x.Query()).Returns(tasks.AsQueryable().BuildMock());
-    private void SetupMembers(params ProjectMember[] members) => _memberRepo.Setup(x => x.Query()).Returns(members.AsQueryable().BuildMock());
+    private void SetupMembers(params ProjectMember[] members) =>
+        _memberRepo.Setup(x => x.AnyAsync(
+                It.IsAny<Expression<Func<ProjectMember, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns((Expression<Func<ProjectMember, bool>> predicate, CancellationToken _) =>
+                Task.FromResult(members.AsQueryable().Any(predicate)));
     private void SetupDependencies(params TaskDependency[] dependencies) => _dependencyRepo.Setup(x => x.Query()).Returns(dependencies.AsQueryable().BuildMock());
 }

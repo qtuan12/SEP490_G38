@@ -6,7 +6,7 @@ import { projectService } from '../../services/projectService';
 import { DailyLogFormModal } from '../ProjectDailyLogs/modals/DailyLogFormModal';
 import { LoadingSpinner, Input } from '../../components/ui';
 import { TaskRow } from '../../components/field/TaskRow';
-import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVisibleTasksForUser } from '../../utils/taskPermissions';
+import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVisibleTasksForUser, hasSiteEngineerRole } from '../../utils/taskPermissions';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
 import type { Project, WBSTask } from '../../types/common';
@@ -18,7 +18,7 @@ export const FieldTaskList: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('projectId') || '';
-  const { isProjectLeader } = useProjectAccess(projectId);
+  const { isProjectLeader, isProjectMember } = useProjectAccess(projectId);
   const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
 
   const [project, setProject] = useState<Project | null>(null);
@@ -132,7 +132,7 @@ export const FieldTaskList: React.FC = () => {
               key={task.id}
               task={task}
               currentUserId={user?.id}
-              canCreateLog={canCreateDailyLog(task, user, isProjectLeader)}
+              canCreateLog={canCreateDailyLog(task, user, isProjectLeader, isProjectMember)}
               showAssignee={isProjectWideView}
               onOpen={() => navigate(`/tasks/${task.id.replace(/^t-/, '')}`)}
               onCreateLog={() => setLogModalTaskId(task.id)}
@@ -149,6 +149,13 @@ export const FieldTaskList: React.FC = () => {
           tasks={tasks}
           engineerId={user.id}
           engineerName={user.name}
+          canCreate={canCreateDailyLog(
+            tasks.find(task => task.id === logModalTaskId),
+            user,
+            isProjectLeader,
+            isProjectMember,
+          )}
+          isSiteEngineer={hasSiteEngineerRole(user)}
           canManageTechnical={canDecreaseDailyLogProgress}
           onSuccess={() => {
             setLogModalTaskId(null);

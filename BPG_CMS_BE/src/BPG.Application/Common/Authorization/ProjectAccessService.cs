@@ -63,7 +63,9 @@ public sealed class ProjectAccessService : IProjectAccessService
     {
         var userId = _currentUser.GetRequiredUserId();
         return await _unitOfWork.Repository<ProjectMember>()
-            .AnyAsync(member => member.ProjectId == projectId && member.UserId == userId, ct);
+            .AnyAsync(member => member.ProjectId == projectId
+                && member.UserId == userId
+                && !member.IsDeleted, ct);
     }
 
     public async Task<bool> IsCurrentUserProjectLeaderAsync(long projectId, CancellationToken ct = default)
@@ -73,7 +75,8 @@ public sealed class ProjectAccessService : IProjectAccessService
             .AnyAsync(
                 member => member.ProjectId == projectId
                     && member.UserId == userId
-                    && member.IsLeader,
+                    && member.IsLeader
+                    && !member.IsDeleted,
                 ct);
     }
 }

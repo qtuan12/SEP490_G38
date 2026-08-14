@@ -26,6 +26,18 @@ public class PhasesController : BaseApiController
         return ApiOk(result);
     }
 
+    [HttpPost("{phaseId}/clone")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
+    public async Task<IActionResult> ClonePhase(
+        [FromRoute] long projectId,
+        [FromRoute] long phaseId,
+        CancellationToken ct)
+    {
+        var result = await Mediator.Send(new ClonePhaseCommand(projectId, phaseId), ct);
+        return ApiOk(result);
+    }
+
     [HttpPut("{phaseId}")]
     [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.TechnicalManager)]

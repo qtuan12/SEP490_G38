@@ -73,6 +73,32 @@ public class CloseSurplusRequestItemCommandHandlerTests
         exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
     }
 
+    [Fact]
+    public async Task UTCID06_Handle_ProjectInactive_ShouldThrowInvalidTransition()
+    {
+        var item = Item();
+        item.SurplusRequest.Project.Status = ProjectStatus.Completed;
+        SetupItems(item);
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
+    }
+
+    [Fact]
+    public async Task UTCID07_Handle_BatchProcessed_ShouldThrowInvalidTransition()
+    {
+        var item = Item();
+        item.SurplusRequest.Status = SurplusRequestStatus.Processed;
+        SetupItems(item);
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
+    }
+
     private static CloseSurplusRequestItemCommand Command() => new(ItemId, "No longer needed at site");
 
     private static SurplusRequestItem Item(string status = SurplusRequestItemStatus.Pending) => new()

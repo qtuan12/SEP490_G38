@@ -144,8 +144,8 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
     if (isNaN(numVal)) {
       setErrors(prev => ({ ...prev, [materialId]: 'Vui lòng nhập số lượng hợp lệ.' }));
-    } else if (numVal <= 0) {
-      setErrors(prev => ({ ...prev, [materialId]: 'Số lượng nhận phải lớn hơn 0.' }));
+    } else if (numVal < 0) {
+      setErrors(prev => ({ ...prev, [materialId]: 'Số lượng nhận không được âm.' }));
     } else if (numVal > remaining) {
       setErrors(prev => ({
         ...prev,

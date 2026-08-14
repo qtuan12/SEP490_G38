@@ -9,7 +9,7 @@ import { Badge, LoadingSpinner } from '../components/ui';
 import type { BadgeVariant } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useProjectAccess } from '../hooks/useProjectAccess';
-import { canCreateDailyLog } from '../utils/taskPermissions';
+import { canCreateDailyLog, hasSiteEngineerRole } from '../utils/taskPermissions';
 import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../constants/realtimeEntities';
@@ -50,7 +50,7 @@ export const TaskDetailSE: React.FC = () => {
   const [detail, setDetail] = useState<TaskDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [logModalOpen, setLogModalOpen] = useState(false);
-  const { isProjectLeader } = useProjectAccess(detail ? String(detail.projectId) : undefined);
+  const { isProjectLeader, isProjectMember } = useProjectAccess(detail ? String(detail.projectId) : undefined);
   const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
 
   const loadDetail = useCallback((silent = false) => {
@@ -107,7 +107,7 @@ export const TaskDetailSE: React.FC = () => {
 
   const overdue = !['Completed', 'Approved', 'Obsolete'].includes(detail.status) && new Date(detail.endDate) < new Date();
 
-  // Backend chỉ cho TM/Admin / Trưởng dự án (leader) / người được gán vào đúng task này tạo nhật ký (403 với người khác).
+  // Chỉ Site Engineer được gán vào task hoặc Site Engineer là Project Leader được tạo nhật ký.
   const taskForModal: WBSTask = {
     id: String(detail.taskId),
     phaseId: String(detail.phaseId),
@@ -121,7 +121,8 @@ export const TaskDetailSE: React.FC = () => {
     status: detail.status === 'Obsolete' ? 'obsolete' : undefined,
     history: [],
   };
-  const canCreateLog = detail.status !== 'Obsolete' && canCreateDailyLog(taskForModal, user, isProjectLeader);
+  const canCreateLog = detail.status !== 'Obsolete'
+    && canCreateDailyLog(taskForModal, user, isProjectLeader, isProjectMember);
 
   return (
     <div className="max-w-md mx-auto flex flex-col gap-4 animate-fade-in pb-8">
@@ -220,6 +221,8 @@ export const TaskDetailSE: React.FC = () => {
           task={taskForModal}
           engineerId={user.id}
           engineerName={user.name}
+          canCreate={canCreateLog}
+          isSiteEngineer={hasSiteEngineerRole(user)}
           canManageTechnical={canDecreaseDailyLogProgress}
           onSuccess={() => {
             setLogModalOpen(false);

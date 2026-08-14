@@ -77,6 +77,7 @@ public class CreateTaskCommandHandlerTests
 
         result.Success.Should().BeTrue();
         result.Data.Should().Be(GeneratedTaskId);
+        result.Message.Should().Be("Tạo công việc thành công.");
     }
 
     [Fact]
@@ -86,7 +87,8 @@ public class CreateTaskCommandHandlerTests
 
         Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
 
-        await act.Should().ThrowAsync<NotFoundException>();
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.NotFound);
     }
 
     [Fact]
@@ -100,31 +102,42 @@ public class CreateTaskCommandHandlerTests
         exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
     }
 
-    [Theory]
-    [InlineData("2026-07-31", "2026-08-10")]
-    [InlineData("2026-08-01", "2026-09-01")]
-    public async Task UTCID04_Handle_TaskOutsidePhaseDates_ShouldThrowDateInvalid(string start, string end)
+    [Fact]
+    public async Task UTCID04_Handle_StartDateBeforePhase_ShouldThrowDateInvalid()
     {
         Func<Task> act = () => _handler.Handle(
-            Command(DateOnly.Parse(start), DateOnly.Parse(end)), CancellationToken.None);
+            Command(new DateOnly(2026, 7, 31), new DateOnly(2026, 8, 10)),
+            CancellationToken.None);
 
         var exception = await act.Should().ThrowAsync<BusinessException>();
         exception.Which.ErrorCode.Should().Be("ERR_TASK_DATE_INVALID");
     }
 
     [Fact]
-    public async Task UTCID05_Handle_UserWithoutManagerOrLeaderPermission_ShouldThrowForbiddenException()
+    public async Task UTCID05_Handle_EndDateAfterPhase_ShouldThrowDateInvalid()
+    {
+        Func<Task> act = () => _handler.Handle(
+            Command(new DateOnly(2026, 8, 1), new DateOnly(2026, 9, 1)),
+            CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_TASK_DATE_INVALID");
+    }
+
+    [Fact]
+    public async Task UTCID06_Handle_UserWithoutManagerOrLeaderPermission_ShouldThrowForbiddenException()
     {
         _currentUser.SetupUser(UserId);
         SetupMembers(new ProjectMember { ProjectId = ProjectId, UserId = UserId, IsLeader = false });
 
         Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
 
-        await act.Should().ThrowAsync<ForbiddenException>();
+        var exception = await act.Should().ThrowAsync<ForbiddenException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
     }
 
     [Fact]
-    public async Task UTCID06_Handle_ParentIsAlreadySubtask_ShouldThrowMaxDepthExceeded()
+    public async Task UTCID07_Handle_ParentIsAlreadySubtask_ShouldThrowMaxDepthExceeded()
     {
         SetupTasks(new ProjectTask
         {
@@ -140,6 +153,49 @@ public class CreateTaskCommandHandlerTests
 
         var exception = await act.Should().ThrowAsync<BusinessException>();
         exception.Which.ErrorCode.Should().Be("ERR_MAX_DEPTH_EXCEEDED");
+    }
+
+    [Fact]
+    public async Task UTCID08_Handle_ProjectLeader_ShouldReturnCreatedTaskId()
+    {
+        _currentUser.SetupUser(UserId);
+        SetupMembers(new ProjectMember { ProjectId = ProjectId, UserId = UserId, IsLeader = true });
+
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Be(GeneratedTaskId);
+        result.Message.Should().Be("Tạo công việc thành công.");
+    }
+
+    [Fact]
+    public async Task UTCID09_Handle_ParentTaskNotFound_ShouldThrowNotFoundException()
+    {
+        SetupTasks();
+
+        Func<Task> act = () => _handler.Handle(Command(parentTaskId: 50), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.NotFound);
+        exception.Which.Message.Should().Contain("ParentTask");
+    }
+
+    [Fact]
+    public async Task UTCID10_Handle_ChildDatesOutsideParent_ShouldThrowDateInvalid()
+    {
+        SetupTasks(new ProjectTask
+        {
+            TaskId = 50,
+            PhaseId = PhaseId,
+            StartDate = new DateOnly(2026, 8, 5),
+            EndDate = new DateOnly(2026, 8, 25),
+            Assignees = new List<TaskAssignee>()
+        });
+
+        Func<Task> act = () => _handler.Handle(Command(parentTaskId: 50), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_TASK_DATE_INVALID");
     }
 
     private static CreateTaskCommand Command(

@@ -147,6 +147,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
               <> · ngưỡng cảnh báo <strong>{delayThreshold}%</strong></>
             )}
           </div>
+          <div className="text-[11px] text-slate-500 mt-1">Thực tế được tổng hợp theo trọng số công việc; kế hoạch kỳ vọng được tính theo thời gian bắt đầu - kết thúc.</div>
         </div>
 
         {/* Metric 2: Schedule Variance in Days */}
