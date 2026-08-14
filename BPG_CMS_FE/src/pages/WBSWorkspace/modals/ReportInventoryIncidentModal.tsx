@@ -14,6 +14,7 @@ import { directPurchaseService } from '../../../services/directPurchaseService';
 import type { PhaseBOQItemDto } from '../../../services/directPurchaseService';
 import { inventoryService } from '../../../services/inventoryService';
 import { serializeInventoryIncidentDamage } from '../../../utils/inventoryIncidentDamage';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
 const getLocalISOString = () => {
   const now = new Date();
@@ -60,7 +61,7 @@ interface IncidentMaterialOption {
   isInPhaseBoq: boolean;
 }
 
-type DamagedMaterial = IncidentMaterialOption & { quantityLost: number };
+type DamagedMaterial = IncidentMaterialOption & { rawQuantity?: string; quantityLost: number };
 
 const formatQuantity = (value: number) => value.toLocaleString('vi-VN', {
   maximumFractionDigits: 3,
@@ -209,7 +210,15 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
 
     const emptyItem = damagedMaterials.find(m => !m.quantityLost || isNaN(m.quantityLost) || m.quantityLost <= 0);
     if (emptyItem) {
-      toast.error(`Vui lòng nhập số lượng lỗi/mất lớn hơn 0 cho vật tư "${emptyItem.materialName}".`);
+      toast.error(`Vui lòng nhập SL > 0 cho vật tư "${emptyItem.materialName}".`);
+      return;
+    }
+
+    const nonIntegerDiscreteItem = damagedMaterials.find(
+      m => isDiscreteUnit(m.unitName) && m.quantityLost % 1 !== 0
+    );
+    if (nonIntegerDiscreteItem) {
+      toast.error(`Đơn vị tính '${nonIntegerDiscreteItem.unitName}' của vật tư "${nonIntegerDiscreteItem.materialName}" yêu cầu số lượng phải là số nguyên.`);
       return;
     }
 
@@ -470,7 +479,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                             style={{ fontSize: '0.75rem', fontWeight: 600 }}
                             onClick={() => {
                               if (!damagedMaterials.find(m => m.materialId === item.materialId)) {
-                                setDamagedMaterials([...damagedMaterials, { ...item, quantityLost: 0 }]);
+                                setDamagedMaterials([...damagedMaterials, { ...item, rawQuantity: '', quantityLost: 0 }]);
                               }
                             }}
                           >
@@ -498,55 +507,66 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                         </tr>
                       </thead>
                       <tbody>
-                        {damagedMaterials.map((m, idx) => (
-                          <tr key={m.materialId}>
-                            <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
-                              <div style={{ fontWeight: 600 }}>{m.materialCode}</div>
-                              <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>{m.materialName}</div>
-                            </td>
-                            <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <input
-                                    type="number"
-                                    min={0.01}
-                                    step="any"
-                                    placeholder="Nhập SL..."
-                                    className="input"
-                                    style={{
-                                      width: '90px',
-                                      padding: '4px 8px',
-                                      borderColor: (!m.quantityLost || m.quantityLost <= 0 || m.quantityLost > m.stockQuantity) ? '#dc2626' : undefined
-                                    }}
-                                    value={m.quantityLost === 0 ? '' : m.quantityLost}
-                                    onChange={e => {
-                                      const val = parseFloat(e.target.value) || 0;
-                                      const newArr = [...damagedMaterials];
-                                      newArr[idx].quantityLost = val;
-                                      setDamagedMaterials(newArr);
-                                    }}
-                                  />
-                                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>{m.unitName}</span>
+                        {damagedMaterials.map((m, idx) => {
+                          const isDiscrete = isDiscreteUnit(m.unitName);
+                          return (
+                            <tr key={m.materialId}>
+                              <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
+                                <div style={{ fontWeight: 600 }}>{m.materialCode}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>{m.materialName}</div>
+                              </td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step={isDiscrete ? "1" : "any"}
+                                      placeholder="Nhập SL..."
+                                      className="input"
+                                      style={{
+                                        width: '90px',
+                                        padding: '4px 8px',
+                                        borderColor: (
+                                          (m.quantityLost > m.stockQuantity) ||
+                                          (isDiscrete && m.quantityLost > 0 && m.quantityLost % 1 !== 0)
+                                        ) ? '#dc2626' : undefined
+                                      }}
+                                      value={m.rawQuantity !== undefined ? m.rawQuantity : (m.quantityLost ? String(m.quantityLost) : '')}
+                                      onChange={e => {
+                                        const raw = e.target.value;
+                                        const num = parseFloat(raw);
+                                        const newArr = [...damagedMaterials];
+                                        newArr[idx] = {
+                                          ...newArr[idx],
+                                          rawQuantity: raw,
+                                          quantityLost: isNaN(num) ? 0 : num
+                                        };
+                                        setDamagedMaterials(newArr);
+                                      }}
+                                    />
+                                    <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>{m.unitName}</span>
+                                  </div>
+                                  {m.quantityLost > 0 && isDiscrete && m.quantityLost % 1 !== 0 && (
+                                    <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Đơn vị '{m.unitName}' phải là số nguyên</span>
+                                  )}
+                                  {m.quantityLost > m.stockQuantity && (
+                                    <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Vượt tồn kho ({formatQuantity(m.stockQuantity)} {m.unitName})</span>
+                                  )}
                                 </div>
-                                {(!m.quantityLost || m.quantityLost <= 0) && (
-                                  <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Vui lòng nhập SL &gt; 0</span>
-                                )}
-                                {m.quantityLost > m.stockQuantity && (
-                                  <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Vượt tồn kho ({formatQuantity(m.stockQuantity)} {m.unitName})</span>
-                                )}
-                              </div>
-                            </td>
-                            <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={() => setDamagedMaterials(damagedMaterials.filter((_, i) => i !== idx))}
-                                style={{ color: 'hsl(var(--danger))', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setDamagedMaterials(damagedMaterials.filter((_, i) => i !== idx))}
+                                  style={{ color: 'hsl(var(--danger))', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -556,8 +576,6 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                   </div>
                 )}
               </div>
-
-
             </div>
           </div>
         </div>

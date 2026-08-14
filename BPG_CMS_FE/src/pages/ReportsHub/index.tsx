@@ -6,13 +6,10 @@ import { PortfolioDashboard } from './components/PortfolioDashboard';
 import { ConstructionProgressReport } from './components/ConstructionProgressReport';
 import { IncidentReport } from './components/IncidentReport';
 import { ProcurementReport } from './components/ProcurementReport';
-import { InventoryMovementReport } from './components/InventoryMovementReport';
-import { InventoryLedgerReport } from './components/InventoryLedgerReport';
 import { BoqVsActualReport } from '../Reports/BoqVsActualReport';
-import { ConsolidatedReportModal } from './components/ConsolidatedReportModal';
 import {
   LayoutDashboard, HardHat, AlertOctagon, Package, ShoppingCart,
-  Calendar, ChevronDown, Check, FolderKanban, ArrowLeftRight, Warehouse, FileDown
+  Calendar, ChevronDown, Check, FolderKanban
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { TableLoader } from '../../components/ui';
@@ -63,7 +60,6 @@ export const ReportsHub: React.FC = () => {
   const [toDate, setToDate] = useState<string>('');
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [projectSearch, setProjectSearch] = useState('');
-  const [showConsolidatedModal, setShowConsolidatedModal] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedProjectId = searchParams.get('projectId') || 'all';
@@ -71,10 +67,9 @@ export const ReportsHub: React.FC = () => {
 
   useEffect(() => {
     const validTabs = new Set([
-      'executive', 'construction', 'incidents', 'boq', 'procurement',
-      'inventory-movement', 'inventory-ledger'
+      'executive', 'construction', 'incidents', 'boq', 'procurement'
     ]);
-    const projectOnlyTabs = new Set(['construction', 'incidents', 'inventory-ledger']);
+    const projectOnlyTabs = new Set(['construction', 'incidents']);
     if (!validTabs.has(activeTab)
       || (selectedProjectId === 'all' && projectOnlyTabs.has(activeTab))) {
       setSearchParams({ projectId: selectedProjectId, tab: 'executive' }, { replace: true });
@@ -100,7 +95,7 @@ export const ReportsHub: React.FC = () => {
   const selectedProject = projects.find(p => p.id.toString() === selectedProjectId);
 
   const handleProjectSelect = (id: string) => {
-    const projectOnlyTabs = ['construction', 'incidents', 'inventory-ledger'];
+    const projectOnlyTabs = ['construction', 'incidents'];
     const nextTab = id === 'all' && projectOnlyTabs.includes(activeTab)
       ? 'executive'
       : activeTab;
@@ -135,8 +130,6 @@ export const ReportsHub: React.FC = () => {
     { id: 'incidents', label: 'Sự cố', icon: <AlertOctagon size={16} />, showForAll: false },
     { id: 'boq', label: 'Định mức BOQ', icon: <Package size={16} />, showForAll: true },
     { id: 'procurement', label: 'Mua sắm & Chi phí', icon: <ShoppingCart size={16} />, showForAll: true },
-    { id: 'inventory-movement', label: 'Biến động tồn kho', icon: <ArrowLeftRight size={16} />, showForAll: true },
-    { id: 'inventory-ledger', label: 'Sổ kho', icon: <Warehouse size={16} />, showForAll: false },
   ];
 
   const visibleTabs = tabs.filter(tab => {
@@ -286,12 +279,6 @@ export const ReportsHub: React.FC = () => {
               Xóa bộ lọc
             </button>
           )}
-          <button
-            onClick={() => setShowConsolidatedModal(true)}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-hover))] text-white transition-colors cursor-pointer flex items-center gap-1.5"
-          >
-            <FileDown size={14} /> Báo cáo tổng hợp
-          </button>
         </div>
       </div>
 
@@ -342,26 +329,10 @@ export const ReportsHub: React.FC = () => {
               {activeTab === 'procurement' && (
                 <ProcurementReport projectId={selectedProjectId} {...filterProps} />
               )}
-              {activeTab === 'inventory-movement' && (
-                <InventoryMovementReport projectId={selectedProjectId} {...filterProps} />
-              )}
-              {activeTab === 'inventory-ledger' && (
-                <InventoryLedgerReport projectId={selectedProjectId} />
-              )}
             </div>
           </ReportErrorBoundary>
         )}
       </div>
-
-      {/* Consolidated Executive Report Modal */}
-      {showConsolidatedModal && (
-        <ConsolidatedReportModal
-          projectId={selectedProjectId === 'all' ? 0 : Number(selectedProjectId)}
-          fromDate={fromDate || undefined}
-          toDate={toDate || undefined}
-          onClose={() => setShowConsolidatedModal(false)}
-        />
-      )}
     </div>
   );
 };
