@@ -15,12 +15,12 @@ import { DailyLogFormModal } from '../../ProjectDailyLogs/modals/DailyLogFormMod
 import { AdjustProgressModal } from '../modals/AdjustProgressModal';
 import { ReportIncidentModal } from '../../Incidents/modals/ReportIncidentModal';
 import { ReportInventoryIncidentModal } from '../modals/ReportInventoryIncidentModal';
-import { canCreateDailyLog } from '../../../utils/taskPermissions';
+import { canCreateDailyLog, hasSiteEngineerRole } from '../../../utils/taskPermissions';
 
 
 export const WBSModalsContainer = () => {
   const {
-    projectId, user, isPL, isTPKT, materialRequests, tasks, members,
+    projectId, user, isPL, isProjectMember, isTPKT, materialRequests, tasks, members,
     isDetailOpen, setIsDetailOpen, project, isTPKTOrPL, handleDeleteTask, setCreateMatReqType, isAssignOpen, setIsAssignOpen,
     isLogOpen, setIsLogOpen,
     isCreateMatReqOpen, setIsCreateMatReqOpen, createMatReqType,
@@ -43,7 +43,10 @@ export const WBSModalsContainer = () => {
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
   const selectedTaskPhase = selectedTask ? phases.find(p => String(p.id).replace('ph-', '') === String(selectedTask.phaseId).replace('ph-', '')) || null : null;
   const selectedTaskHasChildren = !!selectedTask && tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
-  const canOpenDailyLogForm = !!selectedTask && !!user && !selectedTaskHasChildren && canCreateDailyLog(selectedTask, user, isPL);
+  const canOpenDailyLogForm = !!selectedTask
+    && !!user
+    && !selectedTaskHasChildren
+    && canCreateDailyLog(selectedTask, user, isPL, isProjectMember);
 
   return (
     <>
@@ -61,6 +64,7 @@ export const WBSModalsContainer = () => {
           isTPKTOrPL={isTPKTOrPL}
           isTPKT={isTPKT}
           isPL={isPL}
+          isProjectMember={isProjectMember}
           onCreateMatReqOpen={(type) => { setIsDetailOpen(false); setCreateMatReqType(type); setIsCreateMatReqOpen(true); }}
           onObsolete={() => {
             setIsDetailOpen(false);
@@ -120,7 +124,8 @@ export const WBSModalsContainer = () => {
           task={selectedTask}
           engineerId={user.id}
           engineerName={user.name}
-          isPL={isPL}
+          canCreate={canOpenDailyLogForm}
+          isSiteEngineer={hasSiteEngineerRole(user)}
           canManageTechnical={isTPKT}
           onSuccess={() => {
             loadWBSData();
@@ -170,6 +175,8 @@ export const WBSModalsContainer = () => {
           phase={selectedPhaseForEdit}
           onSuccess={handleSuccess}
           onError={handleError}
+          project={project}
+          phases={phases}
         />
       )}
 
@@ -262,6 +269,8 @@ export const WBSModalsContainer = () => {
           tasks={tasks}
           onSuccess={handleSuccess}
           onError={handleError}
+          project={project}
+          phase={phases.find(p => p.id === selectedTaskForEdit.phaseId) || null}
         />
       )}
 

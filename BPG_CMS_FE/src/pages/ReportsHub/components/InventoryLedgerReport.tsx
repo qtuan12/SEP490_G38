@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Warehouse, TrendingDown, TrendingUp, Filter } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type InventoryLedgerReportDto, type InventoryTransactionSummaryDto } from '../../../services/reportService';
@@ -20,20 +20,50 @@ const TRANSACTION_TYPE_LABELS: Record<string, { label: string; color: string }> 
 };
 
 export const InventoryLedgerReport: React.FC<Props> = ({ projectId }) => {
-  const [data, setData] = useState<InventoryLedgerReportDto | null>(null);
-  const [loading, setLoading] = useState(false);
+  const requestIdentity = useMemo(() => ({ projectId }), [projectId]);
+  const [loadState, setLoadState] = useState<{
+    requestIdentity: object;
+    data: InventoryLedgerReportDto | null;
+    error: string | null;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<'stock' | 'ledger'>('stock');
   const [materialFilter, setMaterialFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const requestIdRef = useRef(0);
+  const isCurrentResult = loadState?.requestIdentity === requestIdentity;
+  const data = isCurrentResult ? loadState.data : null;
+  const error = isCurrentResult ? loadState.error : null;
+  const loading = Boolean(projectId && projectId !== 'all' && !isCurrentResult);
 
   useEffect(() => {
-    if (!projectId || projectId === 'all') { setData(null); return; }
-    setLoading(true);
-    reportService.getInventoryLedger(Number(projectId))
-      .then(setData)
-      .catch(err => console.error('Error fetching inventory ledger', err))
-      .finally(() => setLoading(false));
-  }, [projectId]);
+    const requestId = ++requestIdRef.current;
+    const requestedProjectId = requestIdentity.projectId;
+    if (!requestedProjectId || requestedProjectId === 'all') {
+      return () => {
+        if (requestIdRef.current === requestId) requestIdRef.current += 1;
+      };
+    }
+
+    reportService.getInventoryLedger(Number(requestedProjectId))
+      .then(report => {
+        if (requestId === requestIdRef.current) {
+          setLoadState({ requestIdentity, data: report, error: null });
+        }
+      })
+      .catch(err => {
+        if (requestId !== requestIdRef.current) return;
+        console.error('Error fetching inventory ledger', err);
+        setLoadState({
+          requestIdentity,
+          data: null,
+          error: err instanceof Error ? err.message : 'Không thể tải sổ cái kho.',
+        });
+      });
+
+    return () => {
+      if (requestIdRef.current === requestId) requestIdRef.current += 1;
+    };
+  }, [requestIdentity]);
 
   if (projectId === 'all') {
     return <div className="p-10 text-center text-[hsl(var(--text-muted))]">Báo cáo kho chỉ xem được theo từng dự án cụ thể.</div>;
@@ -45,6 +75,10 @@ export const InventoryLedgerReport: React.FC<Props> = ({ projectId }) => {
         <LoadingSpinner size="md" label="Đang tải Sổ cái Kho..." />
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="p-10 text-center text-red-500 font-semibold">{error}</div>;
   }
 
   if (!data) return null;

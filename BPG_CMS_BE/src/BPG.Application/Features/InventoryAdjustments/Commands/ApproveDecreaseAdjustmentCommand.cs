@@ -7,6 +7,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 {
     public class ApproveDecreaseAdjustmentCommand : IRequest<ApiResponse<bool>>
     {
+        public long ProjectId { get; set; }
         public long AdjustmentId { get; set; }
         public bool IsApproved { get; set; }
         public string? RejectedReason { get; set; }
@@ -16,6 +17,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
     {
         public ApproveDecreaseAdjustmentCommandValidator()
         {
+            RuleFor(x => x.ProjectId).GreaterThan(0).WithMessage("ERR_VALIDATION");
             RuleFor(x => x.AdjustmentId).GreaterThan(0).WithMessage("ERR_VALIDATION");
             When(x => !x.IsApproved, () =>
             {

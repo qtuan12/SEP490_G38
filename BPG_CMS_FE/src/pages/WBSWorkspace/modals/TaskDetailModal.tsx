@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../../components/ui/Modal';
-import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft, Users, RotateCcw } from 'lucide-react';
+import { AlertCircle, User, Calendar, UserPlus, Trash2, TrendingUp, CheckCircle, Package, FileText, ArrowLeft, Users, RotateCcw, PauseCircle } from 'lucide-react';
 import { AssignEngineerForm } from './AssignEngineerModal';
 import { AdjustProgressForm } from './AdjustProgressModal';
 import { ObsoleteTaskForm } from './ObsoleteTaskModal';
@@ -11,7 +11,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { wbsService } from '../../../services/wbsService';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
-import { canCreateDailyLog } from '../../../utils/taskPermissions';
+import { canCreateDailyLog, hasSiteEngineerRole } from '../../../utils/taskPermissions';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -25,6 +25,7 @@ interface TaskDetailModalProps {
   isTPKTOrPL: boolean;
   isTPKT: boolean;
   isPL: boolean;
+  isProjectMember: boolean;
   onCreateMatReqOpen: (type: 'normal' | 'emergency') => void;
   onObsolete: () => void;
   onReportIncidentOpen: () => void;
@@ -46,7 +47,7 @@ const getAvatarColor = (userId: string) => {
 };
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
-  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isTPKT, isPL,
+  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isTPKT, isPL, isProjectMember,
   onObsolete,
   onReportIncidentOpen,
   onSuccess, onError
@@ -170,7 +171,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   }
 
   const isParentTask = tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
-  const canReportDailyLog = canCreateDailyLog(selectedTask, user, isPL) && !isParentTask;
+  const canReportDailyLog = canCreateDailyLog(selectedTask, user, isPL, isProjectMember) && !isParentTask;
 
   const isBlocked = (() => {
     const predIds = selectedTask.predecessorTaskIds;
@@ -381,7 +382,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       onObsolete();
                     }
                   }} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: activeForm === 'obsolete' ? 'hsl(var(--danger))' : 'hsl(var(--bg-main))', color: activeForm === 'obsolete' ? '#fff' : 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
-                    <Trash2 size={16} /><span>{selectedTask.progress > 0 ? 'Tạm dừng công việc' : 'Xóa công việc'}</span>
+                    {selectedTask.progress > 0 ? <PauseCircle size={16} /> : <Trash2 size={16} />}<span>{selectedTask.progress > 0 ? 'Tạm dừng công việc' : 'Xóa công việc'}</span>
                   </button>
                 </>
               )}
@@ -400,7 +401,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <FileText size={15} />
                 <span>Xem Nhật ký thi công</span>
               </button>
-              {isPL ? (
+              {isPL && !isParentTask && (
                 <button 
                   onClick={() => onReportIncidentOpen()} 
                   className="btn btn-outline" 
@@ -409,7 +410,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   <AlertCircle size={15} />
                   <span>Báo cáo Sự cố</span>
                 </button>
-              ) : (
+              )}
+              {(!isPL || isParentTask) && (
                 <button 
                   onClick={() => { onClose(); navigate(`/projects/${project?.id}?tab=incidents&taskId=${selectedTask.id}`); }} 
                   className="btn btn-outline" 
@@ -495,7 +497,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       </div>
                       {selectedTask.status !== 'obsolete' && (
                         <button onClick={() => navigate(`/projects/${project?.id}/phases/${selectedTask.phaseId}/acceptance`)} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'fit-content', marginTop: '4px', borderColor: 'hsl(var(--success))', color: 'hsl(var(--success))', backgroundColor: 'transparent' }}>
-                          Xem chi tiết & Hủy nghiệm thu
+                          {isTPKT ? 'Xem chi tiết và hủy nghiệm thu' : 'Xem biên bản nghiệm thu'}
                         </button>
                       )}
                     </div>
@@ -538,7 +540,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <ObsoleteTaskForm task={selectedTask} onSuccess={handleFormSuccess} onCancel={() => setActiveForm(null)} />
             )}
             {activeForm === 'log' && canReportDailyLog && (
-              <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} isPL={isPL} canManageTechnical={isTPKT} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} />
+              <DailyLogForm task={selectedTask} engineerId={user?.id} engineerName={user?.name || user?.userName} canCreate={canReportDailyLog} isSiteEngineer={hasSiteEngineerRole(user)} canManageTechnical={isTPKT} onSuccess={handleFormSuccess} onError={handleFormError} onCancel={() => setActiveForm(null)} suppressSuccessToast />
             )}
           </div>
         )}

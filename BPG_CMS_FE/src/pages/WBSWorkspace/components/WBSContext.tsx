@@ -11,12 +11,13 @@ export interface WBSContextType {
   user: any;
   isTPKTOrPL: boolean;
   isPL: boolean;
+  isProjectMember: boolean;
   isTPKT: boolean;
   canEdit: boolean;
+  filterAssignee: string;
 
   expandedPhases: Record<string, boolean>;
   togglePhase: (phaseId: string) => void;
-  setExpandedPhases: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 
   hoveredPhaseId: string | null;
   setHoveredPhaseId: (id: string | null) => void;
@@ -128,6 +129,8 @@ export interface WBSContextType {
   handleReorderTask: (phaseId: string, taskId: string, direction: 'up' | 'down') => void;
   handleDeleteTask: (taskId: string, taskName: string) => void;
   handleDeletePhase: (phaseId: string, phaseName: string) => void;
+  handleCloneTask: (taskId: string, taskName: string) => void;
+  handleClonePhase: (phaseId: string, phaseName: string) => void;
   loadWBSData: () => void;
 }
 

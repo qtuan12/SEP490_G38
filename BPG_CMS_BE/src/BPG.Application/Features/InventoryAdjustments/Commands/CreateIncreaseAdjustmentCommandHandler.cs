@@ -73,25 +73,19 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 CreatedBy = userId
             };
 
-            foreach (var item in request.Items)
+            var resolvedItems = await InventoryAdjustmentItemResolver.ResolveAsync(
+                _unitOfWork,
+                request.Items,
+                cancellationToken);
+
+            foreach (var resolvedItem in resolvedItems)
             {
-                var material = await _unitOfWork.Repository<MaterialCatalog>().Query()
-                    .Include(m => m.BaseUnit)
-                    .FirstOrDefaultAsync(m => m.MaterialId == item.MaterialId, cancellationToken);
-                if (material == null) throw new NotFoundException(nameof(MaterialCatalog), item.MaterialId);
-
-                if (material.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
-                {
-                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
-                        $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng phải là số nguyên.");
-                }
-
                 adjustment.Items.Add(new AdjustmentItem
                 {
-                    MaterialId = item.MaterialId,
-                    UnitId = material.BaseUnitId,
-                    Quantity = item.Quantity,
-                    ConversionRate = 1
+                    MaterialId = resolvedItem.Request.MaterialId,
+                    UnitId = resolvedItem.UnitId,
+                    Quantity = resolvedItem.Request.Quantity,
+                    ConversionRate = resolvedItem.ConversionRate
                 });
             }
 

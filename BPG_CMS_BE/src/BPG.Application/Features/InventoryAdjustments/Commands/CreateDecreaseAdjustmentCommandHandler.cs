@@ -46,60 +46,133 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 throw new BusinessException("ERR_DUPLICATE_MATERIAL", "Danh sách vật tư không được chứa vật tư trùng lặp.");
             }
 
+            Incident? linkedIncident = null;
+            if (request.IncidentId.HasValue)
+            {
+                linkedIncident = await _unitOfWork.Repository<Incident>().GetByIdAsync(
+                    request.IncidentId.Value,
+                    cancellationToken);
+                if (linkedIncident == null)
+                {
+                    throw new NotFoundException(nameof(Incident), request.IncidentId.Value);
+                }
+
+                if (linkedIncident.ProjectId != request.ProjectId)
+                {
+                    throw new BusinessException("ERR_INVALID_INCIDENT", "Sự cố được chọn không thuộc về dự án này.");
+                }
+
+                if (linkedIncident.PhaseId != request.PhaseId)
+                {
+                    throw new BusinessException("ERR_INVALID_INCIDENT", "Sự cố được chọn không thuộc giai đoạn này.");
+                }
+
+                var isInventoryIncident = linkedIncident.IncidentType == "InventoryLoss"
+                    || linkedIncident.IncidentType == "InventoryDamage";
+                if (!isInventoryIncident)
+                {
+                    throw new BusinessException("ERR_INVALID_INCIDENT", "Chỉ được liên kết phiếu giảm tồn kho với sự cố vật tư kho.");
+                }
+
+                if (linkedIncident.Status != "WaitingAccountant")
+                {
+                    throw new BusinessException(
+                        "ERR_INVALID_INCIDENT_STATUS",
+                        "Chỉ có thể tạo phiếu giảm tồn khi sự cố đang chờ Kế toán xác minh.");
+                }
+
+                var alreadyHasAdjustment = await _unitOfWork.Repository<InventoryAdjustment>()
+                    .AnyAsync(
+                        adjustment => adjustment.IncidentId == request.IncidentId.Value,
+                        cancellationToken);
+                if (alreadyHasAdjustment)
+                {
+                    throw new BusinessException(
+                        "ERR_INCIDENT_ALREADY_ADJUSTED",
+                        "Sự cố này đã có phiếu giảm tồn liên kết.");
+                }
+            }
+
             var adjustment = new InventoryAdjustment
             {
                 ProjectId = request.ProjectId,
                 PhaseId = request.PhaseId,
-                IncidentId = request.IncidentId,
+                IncidentId = linkedIncident?.IncidentId,
                 AdjustmentType = InventoryAdjustmentType.Decrease,
                 Reason = request.Reason,
                 Description = request.Description,
                 Status = InventoryAdjustmentStatus.Pending, // Accountant creates, must be approved by Director
-                CreatedBy = _currentUserService.UserId
+                CreatedBy = _currentUserService.GetRequiredUserId()
             };
 
-            if (request.IncidentId.HasValue && request.IncidentId.Value > 0)
-            {
-                var incident = await _unitOfWork.Repository<Incident>().GetByIdAsync(request.IncidentId.Value);
-                if (incident != null && (incident.Status == "WaitingAccountant" || incident.Status == "Reported"))
-                {
-                    incident.Status = "WaitingDirector";
-                    if (!string.IsNullOrWhiteSpace(request.Description))
-                    {
-                        incident.HandlingInstruction = request.Description;
-                    }
-                    _unitOfWork.Repository<Incident>().Update(incident);
-                }
-            }
+            var resolvedItems = await InventoryAdjustmentItemResolver.ResolveAsync(
+                _unitOfWork,
+                request.Items,
+                cancellationToken);
 
-            foreach (var item in request.Items)
+            foreach (var resolvedItem in resolvedItems)
             {
-                var material = await _unitOfWork.Repository<MaterialCatalog>().Query()
-                    .Include(m => m.BaseUnit)
-                    .FirstOrDefaultAsync(m => m.MaterialId == item.MaterialId, cancellationToken);
-                if (material == null) throw new NotFoundException(nameof(MaterialCatalog), item.MaterialId);
-
-                if (material.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
+                var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
+                    .FirstOrDefaultAsync(
+                        inventory => inventory.ProjectId == request.ProjectId
+                            && inventory.MaterialId == resolvedItem.Request.MaterialId,
+                        cancellationToken);
+                var availableQuantity = currentInventory?.Quantity - currentInventory?.ReservedQuantity ?? 0;
+                if (currentInventory == null || availableQuantity < resolvedItem.BaseQuantity)
                 {
-                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
-                        $"Đơn vị tính '{material.BaseUnit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng phải là số nguyên.");
+                    throw new InsufficientStockException(
+                        resolvedItem.Material.Name,
+                        availableQuantity,
+                        resolvedItem.BaseQuantity,
+                        resolvedItem.Material.BaseUnit?.UnitName ?? "đơn vị");
                 }
+
+                currentInventory.ReservedQuantity += resolvedItem.BaseQuantity;
+                currentInventory.LastUpdated = System.DateTime.UtcNow;
+                _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
 
                 adjustment.Items.Add(new AdjustmentItem
                 {
-                    MaterialId = item.MaterialId,
-                    UnitId = material.BaseUnitId,
-                    Quantity = item.Quantity,
-                    ConversionRate = 1
+                    MaterialId = resolvedItem.Request.MaterialId,
+                    UnitId = resolvedItem.UnitId,
+                    Quantity = resolvedItem.Request.Quantity,
+                    ConversionRate = resolvedItem.ConversionRate
                 });
+            }
+
+            if (linkedIncident != null)
+            {
+                linkedIncident.Status = "WaitingDirector";
+                if (!string.IsNullOrWhiteSpace(request.Description))
+                {
+                    linkedIncident.HandlingInstruction = request.Description;
+                }
+                _unitOfWork.Repository<Incident>().Update(linkedIncident);
             }
 
             await _unitOfWork.Repository<InventoryAdjustment>().AddAsync(adjustment);
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException exception) when (
+                request.IncidentId.HasValue
+                && IsIncidentAdjustmentUniqueViolation(exception))
+            {
+                throw new BusinessException(
+                    "ERR_INCIDENT_ALREADY_ADJUSTED",
+                    "Sự cố này đã có phiếu giảm tồn liên kết.");
+            }
+            catch (DbUpdateConcurrencyException) when (request.IncidentId.HasValue)
+            {
+                throw new BusinessException(
+                    "ERR_INCIDENT_STATE_CHANGED",
+                    "Sự cố đã được xử lý bởi một phiên làm việc khác. Vui lòng tải lại dữ liệu.");
+            }
 
-            // Note: Decrease does not update CurrentInventory nor create InventoryTransaction yet.
-            // It waits for Approval.
+            // The physical quantity is unchanged until approval, but the pending decrease is
+            // reserved immediately so other outbound flows cannot consume damaged/lost stock.
 
             // Gửi thông báo DB đến Giám đốc để phê duyệt
             await _notificationService.SendNotificationToRoleAsync(
@@ -127,6 +200,24 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 cancellationToken);
 
             return ApiResponse<long>.SuccessResult(adjustment.AdjustmentId, "Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt");
+        }
+
+        private static bool IsIncidentAdjustmentUniqueViolation(DbUpdateException exception)
+        {
+            for (Exception? current = exception; current != null; current = current.InnerException)
+            {
+                var numberProperty = current.GetType().GetProperty("Number");
+                if (numberProperty?.GetValue(current) is int number
+                    && (number == 2601 || number == 2627)
+                    && current.Message.Contains(
+                        "IX_InventoryAdjustments_IncidentId",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

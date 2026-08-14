@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Button, FormItem } from '../../../components/ui';
 import { AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { surplusService } from '../../../services/surplusService';
 
 interface CreateSurplusRequestModalProps {
@@ -34,6 +35,7 @@ export const CreateSurplusRequestModal: React.FC<CreateSurplusRequestModalProps>
     setSubmitting(true);
     try {
       await surplusService.createRequest(projectId, reason.trim() || undefined);
+      toast.success('Đã tạo đề xuất xử lý vật tư thừa.');
       onSuccess();
       handleClose();
     } catch (err: any) {

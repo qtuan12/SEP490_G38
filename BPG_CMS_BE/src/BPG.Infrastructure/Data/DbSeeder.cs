@@ -2134,16 +2134,70 @@ public static class DbSeeder
         List<Unit> units,
         List<MaterialCatalog> catalogs)
     {
-        const string marker = "SEED_TEST_INVENTORY_INCIDENT";
-        var oldAdjustments = await context.InventoryAdjustments.Where(a => a.Reason.Contains(marker)).ToListAsync();
+        const string marker = "[INC-AUDIT]";
+        const string reservationMarker = "[System] InventoryAuditSeedReservationV1";
+        var oldIncidents = await context.Incidents.Where(i =>
+            i.Description.Contains(marker) ||
+            i.Description.Contains("SEED_TEST") ||
+            i.Description.Contains("Kiểm tra độ nghiêng") ||
+            i.Description.Contains("Sụt lún cục bộ") ||
+            i.Description.Contains("Báo cáo 18 bao xi măng") ||
+            i.Description.Contains("Thất thoát vật tư kho") ||
+            i.Description.Contains("Xử lý 95m thép") ||
+            i.Description.Contains("Xử lý rỗ bê tông")).ToListAsync();
+        var oldIncidentIds = oldIncidents.Select(i => i.IncidentId).ToList();
+
+        var oldAdjustments = await context.InventoryAdjustments.Where(a =>
+            a.Reason.Contains(marker) ||
+            a.Reason.Contains("SEED_TEST") ||
+            a.Reason.Contains("Kiểm kê đột xuất") ||
+            a.Reason.Contains("Kiểm kê phát hiện") ||
+            (a.IncidentId.HasValue && oldIncidentIds.Contains(a.IncidentId.Value))).ToListAsync();
         if (oldAdjustments.Any())
         {
             var oldAdjIds = oldAdjustments.Select(a => a.AdjustmentId).ToList();
             var oldItems = await context.AdjustmentItems.Where(i => oldAdjIds.Contains(i.AdjustmentId)).ToListAsync();
+
+            // Only reservations created by this version of the seed are released.
+            // Older seed rows never reserved stock, so subtracting them would consume
+            // reservations owned by real business records.
+            var reservedSeedAdjustments = oldAdjustments
+                .Where(adjustment => adjustment.Status == InventoryAdjustmentStatus.Pending
+                    && adjustment.AdjustmentType == InventoryAdjustmentType.Decrease
+                    && adjustment.Description != null
+                    && adjustment.Description.Contains(reservationMarker))
+                .ToDictionary(adjustment => adjustment.AdjustmentId);
+            if (reservedSeedAdjustments.Count > 0)
+            {
+                var reservedKeys = oldItems
+                    .Where(item => reservedSeedAdjustments.ContainsKey(item.AdjustmentId))
+                    .Select(item => new
+                    {
+                        reservedSeedAdjustments[item.AdjustmentId].ProjectId,
+                        item.MaterialId
+                    })
+                    .Distinct()
+                    .ToList();
+
+                foreach (var key in reservedKeys)
+                {
+                    var inventory = await context.CurrentInventories.FirstOrDefaultAsync(
+                        current => current.ProjectId == key.ProjectId
+                            && current.MaterialId == key.MaterialId);
+                    if (inventory == null) continue;
+
+                    var reservedBySeed = oldItems
+                        .Where(item => item.MaterialId == key.MaterialId
+                            && reservedSeedAdjustments.TryGetValue(item.AdjustmentId, out var adjustment)
+                            && adjustment.ProjectId == key.ProjectId)
+                        .Sum(item => item.Quantity / (item.ConversionRate > 0 ? item.ConversionRate : 1m));
+                    inventory.ReservedQuantity = Math.Max(0, inventory.ReservedQuantity - reservedBySeed);
+                }
+            }
+
             context.AdjustmentItems.RemoveRange(oldItems);
             context.InventoryAdjustments.RemoveRange(oldAdjustments);
         }
-        var oldIncidents = await context.Incidents.Where(i => i.Description.Contains(marker)).ToListAsync();
         if (oldIncidents.Any())
         {
             context.Incidents.RemoveRange(oldIncidents);
@@ -2205,8 +2259,8 @@ public static class DbSeeder
         await AddAdjustmentAsync(
             InventoryAdjustmentType.Decrease,
             InventoryAdjustmentStatus.Pending,
-            $"{marker} - Kiem ke dot xuat thieu vat tu tai cong truong",
-            "Ke toan da doi chieu so sach va so dem thuc te, dang cho Giam doc phe duyet giam ton.",
+            "Kiểm kê đột xuất phát hiện thiếu vật tư tại bãi chứa công trình",
+            "Kế toán đã đối chiếu sổ sách và kết quả kiểm đếm thực tế bãi chứa phía Bắc. Đang trình Giám đốc phê duyệt phiếu giảm tồn.",
             ketoan.UserId,
             null,
             null,
@@ -2216,8 +2270,8 @@ public static class DbSeeder
         await AddAdjustmentAsync(
             InventoryAdjustmentType.Increase,
             InventoryAdjustmentStatus.Pending,
-            $"{marker} - Kiem ke phat hien vat tu nhap thua chua ghi so",
-            "Phat hien them son va thep trong khu tap ket tam, dang cho truong phong ky thuat xac nhan.",
+            "Kiểm kê phát hiện dư thừa vật tư chưa ghi sổ kho",
+            "Phát hiện 06 thùng sơn nước và 120kg thép thanh dư thừa tại khu vực tập kết tạm sau đợt giao ca. Đang chờ Trưởng phòng Kỹ thuật xác nhận nhập kho.",
             leader.UserId,
             null,
             null,
@@ -2227,8 +2281,8 @@ public static class DbSeeder
         await AddAdjustmentAsync(
             InventoryAdjustmentType.Increase,
             InventoryAdjustmentStatus.Approved,
-            $"{marker} - Dieu chinh tang sau kiem ke cuoi tuan",
-            "Da xac nhan vat tu con thua sau khi doi chieu phieu nhap va bien ban giao ca.",
+            "Điều chỉnh tăng kho sau đối chiếu biên bản kiểm kê cuối tuần",
+            "Đã xác nhận vật tư còn thừa sau khi đối chiếu phiếu giao nhận và biên bản bàn giao ca thi công.",
             leader.UserId,
             tpkt.UserId,
             null,
@@ -2238,8 +2292,8 @@ public static class DbSeeder
         await AddAdjustmentAsync(
             InventoryAdjustmentType.Decrease,
             InventoryAdjustmentStatus.Approved,
-            $"{marker} - Dieu chinh giam do hao hut khi kiem ke",
-            "Da phe duyet giam ton cho phan vat tu hao hut co bien ban xac minh tai cong truong.",
+            "Điều chỉnh giảm tồn cho phần vật tư hao hụt định mức thi công",
+            "Đã phê duyệt giảm tồn cho phần vật tư hao hụt tự nhiên có biên bản xác minh thực tế tại công trường.",
             ketoan.UserId,
             gd.UserId,
             null,
@@ -2249,23 +2303,23 @@ public static class DbSeeder
         await AddAdjustmentAsync(
             InventoryAdjustmentType.Decrease,
             InventoryAdjustmentStatus.Rejected,
-            $"{marker} - Phieu giam ton bi tu choi do thieu anh doi chung",
-            "Giam doc yeu cau kiem ke lai va bo sung anh hien truong truoc khi lap phieu moi.",
+            "Yêu cầu kiểm kê lại phiếu giảm tồn thiếu chứng từ đối chứng",
+            "Giám đốc yêu cầu kiểm kê lại và bổ sung ảnh hiện trường thực tế kèm biên bản có chữ ký của Chỉ hữu trưởng.",
             ketoan.UserId,
             gd.UserId,
-            "Chua du bang chung kiem ke va bien ban co chu ky chi huy truong.",
+            "Chưa đủ bằng chứng kiểm kê và thiếu biên bản xác nhận của Chỉ huy trưởng công trình.",
             new[] { (son, 3m) },
             now.AddDays(-4));
 
         var waitingAccountant = await AddIncidentAsync(
             "InventoryDamage",
             "WaitingAccountant",
-            $"{marker} - Bao cao vat tu bi uot trong kho tam, cho Ke toan xac minh.",
-            "18 bao xi mang dat sat cua kho, vo bao bi am va can kiem tra kha nang su dung.",
+            "Báo cáo 18 bao xi măng bị ngấm nước mưa tại bãi tập kết tạm kho B, chờ Kế toán xác minh.",
+            "18 bao xi măng Hà Tiên PC40 đặt gần cửa kho bị giông lốc làm ẩm vỏ bao. Cần Kế toán kiểm kê xác minh khả năng sử dụng.",
             1_710_000,
             0.5m,
             1,
-            "Kiem dem lai lo xi mang, lap phieu giam ton neu xac nhan hong.",
+            "Kiểm đếm lại lô xi măng, lập phiếu giảm tồn nếu xác nhận hỏng.",
             leader.UserId,
             null,
             false,
@@ -2274,12 +2328,12 @@ public static class DbSeeder
         var waitingDirector = await AddIncidentAsync(
             "InventoryLoss",
             "WaitingDirector",
-            $"{marker} - Ke toan da xac minh mat vat tu, cho Giam doc phe duyet.",
-            "Thieu 9 bao xi mang va 180 vien gach sau khi doi chieu the kho.",
+            "Thất thoát vật tư kho sau đối chiếu thẻ kho định kỳ, chờ Giám đốc phê duyệt.",
+            "Thiếu hụt 09 bao xi măng Hà Tiên PC40 và 180 viên gạch tuynel sau khi Kế toán kiểm tra thẻ kho và sổ giao nhận bãi chứa.",
             1_350_000,
             0.5m,
             1,
-            "Phe duyet phieu giam ton lien quan va yeu cau bao ve kiem soat khu tap ket.",
+            "Phê duyệt phiếu giảm tồn liên quan và yêu cầu bảo vệ tăng cường kiểm soát khu vực bãi kho.",
             leader.UserId,
             ketoan.UserId,
             false,
@@ -2288,23 +2342,24 @@ public static class DbSeeder
         await AddAdjustmentAsync(
             InventoryAdjustmentType.Decrease,
             InventoryAdjustmentStatus.Pending,
-            $"{marker} - Phieu giam ton lien ket su co #{waitingDirector.IncidentId}",
-            $"[System] Liên kết sự cố #{waitingDirector.IncidentId}. Giam ton sau khi ke toan xac minh su co mat vat tu.",
+            $"Phiếu giảm tồn liên kết sự cố #{waitingDirector.IncidentId}",
+            $"[System] Liên kết sự cố #{waitingDirector.IncidentId}. Giảm tồn sau khi kế toán xác minh sự cố thất thoát vật tư.",
             ketoan.UserId,
             null,
             null,
             new[] { (xiMang, 9m), (gach, 180m) },
-            now.AddDays(-2).AddHours(1));
+            now.AddDays(-2).AddHours(1),
+            incidentId: waitingDirector.IncidentId);
 
         var approvedInventory = await AddIncidentAsync(
             "InventoryDamage",
             "Approved",
-            $"{marker} - Su co vat tu da duoc Giam doc phe duyet xu ly.",
-            "Thep D12 bi cong venh do xe nang va cham, mot phan khong dam bao nghiem thu.",
+            "Xử lý 95m thép D12 bị biến dạng do va chạm xe nâng tại bãi tập kết.",
+            "Lô thép thanh vằn D12 bị cong vênh do sự cố xe tải khi lùi vào bãi kho, một phần không đủ điều kiện nghiệm thu thi công.",
             2_400_000,
             1,
             2,
-            "Giam ton phan thep hu hong va tang cuong rao chan khu tap ket.",
+            "Giảm tồn phần thép hư hỏng và tăng cường rào chắn khu vực bãi dầm.",
             leader.UserId,
             gd.UserId,
             false,
@@ -2313,24 +2368,25 @@ public static class DbSeeder
         await AddAdjustmentAsync(
             InventoryAdjustmentType.Decrease,
             InventoryAdjustmentStatus.Approved,
-            $"{marker} - Phieu giam ton da phe duyet cho su co #{approvedInventory.IncidentId}",
-            $"[System] Liên kết sự cố #{approvedInventory.IncidentId}. Giam ton do vat tu hu hong da duoc phe duyet.",
+            $"Phiếu giảm tồn đã phê duyệt cho sự cố #{approvedInventory.IncidentId}",
+            $"[System] Liên kết sự cố #{approvedInventory.IncidentId}. Giảm tồn do vật tư hư hỏng đã được phê duyệt.",
             ketoan.UserId,
             gd.UserId,
             null,
             new[] { (thep, 95m) },
             now.AddDays(-7).AddHours(2),
-            InventoryTransactionType.IncidentLoss);
+            InventoryTransactionType.IncidentLoss,
+            approvedInventory.IncidentId);
 
         var approvedConstruction = await AddIncidentAsync(
             "Construction",
             "Approved",
-            $"{marker} - Su co thi cong da duoc TPKT phe duyet va tao task khac phuc.",
-            "Be mat be tong tang 1 bi rong nhe tai mep dam, can duc sua cuc bo.",
+            "Xử lý rỗ bê tông mặt dầm sàn Tầng 1 trục C3-C5.",
+            "Bề mặt bê tông dầm sàn tầng 1 bị rỗ tổ ong cục bộ tại khu vực mép dầm do đầm dùi chưa kỹ. Cần đục sửa và trám vữa chuyên dụng.",
             3_200_000,
             2,
             2,
-            "Tao task khac phuc, duc sua be tong va nghiem thu lai truoc khi thi cong tiep.",
+            "Tạo công việc khắc phục, đục sửa bê tông yếu và nghiệm thu lại trước khi thi công tầng tiếp theo.",
             leader.UserId,
             tpkt.UserId,
             false,
@@ -2341,8 +2397,8 @@ public static class DbSeeder
             PhaseId = phase.PhaseId,
             ParentTaskId = task.ParentTaskId,
             IncidentId = approvedConstruction.IncidentId,
-            Name = "SEED TEST - Khac phuc be tong rong sau su co",
-            Description = "Task khac phuc duoc tao tu du lieu seed de test luong su co thi cong.",
+            Name = "Khắc phục rỗ bê tông dầm sàn Tầng 1 trục C3-C5",
+            Description = "Công việc xử lý đục bỏ bê tông rỗ, vệ sinh bề mặt và trám vữa sửa chữa cường độ cao SikaGrout.",
             OrderIndex = task.OrderIndex + 100,
             StartDate = DateOnly.FromDateTime(now.AddDays(-2)),
             EndDate = DateOnly.FromDateTime(now.AddDays(2)),
@@ -2355,22 +2411,22 @@ public static class DbSeeder
         context.Tasks.Add(reworkTask);
         await context.SaveChangesAsync();
         approvedConstruction.ReworkTaskId = reworkTask.TaskId;
-        approvedConstruction.RecoveryPlanText = "Khoan duc phan be tong loi, ve sinh be mat, dung vua sua chua chuyen dung va nghiem thu lai.";
+        approvedConstruction.RecoveryPlanText = "Khoan đục phần bê tông lỗi, vệ sinh bề mặt, dùng vữa sửa chữa chuyên dụng SikaGrout và nghiệm thu lại.";
         approvedConstruction.RecoveryEstimateCost = 3_200_000;
         context.TaskAssignees.Add(new TaskAssignee { TaskId = reworkTask.TaskId, UserId = engineer.UserId, AssignedAt = now.AddDays(-3) });
         await context.SaveChangesAsync();
 
-        await AddIncidentAsync("Construction", "WaitingReview", $"{marker} - Su co thi cong moi, cho Truong phong ky thuat tham dinh.", "Cop pha dam tang 2 bi xeo sau mua lon, can kiem tra truoc khi do be tong.", 0, 1, 1, "Tam dung khu vuc dam, can TPKT danh gia bien phap gia co.", leader.UserId, null, false, now.AddHours(-5));
-        await AddIncidentAsync("Construction", "WaitingStopApproval", $"{marker} - Su co khan cap yeu cau tam dung thi cong.", "Lun sut cuc bo khu vuc san thao tac, co nguy co mat an toan lao dong.", 6_500_000, 3, 4, "Tam dung thi cong khu vuc anh huong va yeu cau TPKT phe duyet dung khan cap.", leader.UserId, null, true, now.AddHours(-3));
-        await AddIncidentAsync("Construction", "WaitingRecoveryPlan", $"{marker} - Da duoc phe duyet tam dung, cho TPKT lap phuong an khac phuc.", "Nut san thao tac khu vuc mat sau, du an dang tam dung mot phan.", 8_000_000, 4, 5, "TPKT can nop phuong an chong do va kiem dinh lai khu vuc bi anh huong.", leader.UserId, tpkt.UserId, true, now.AddDays(-1));
-        await AddIncidentAsync("Construction", "WaitingDirectorApproval", $"{marker} - Phuong an khac phuc da nop, cho Giam doc phe duyet.", "Can phe duyet chi phi gia co tam va kiem dinh an toan truoc khi thi cong lai.", 12_000_000, 5, 6, "Giam doc xem xet phe duyet phuong an va ngan sach khac phuc.", leader.UserId, tpkt.UserId, true, now.AddDays(-2), "Lap he chong tam, moi don vi kiem dinh doc lap, sau do thi cong bu.", 12_000_000);
+        await AddIncidentAsync("Construction", "WaitingReview", "Kiểm tra độ nghiêng cốp pha dầm sàn Tầng 2 sau mưa lớn.", "Hệ cốp pha dầm Tầng 2 bị xiêu lệch nhẹ sau trận mưa lớn kéo dài. Cần Trưởng phòng Kỹ thuật thẩm định độ an toàn trước khi đổ bê tông.", 0, 1, 1, "Tạm dừng khu vực dầm Tầng 2, cần TPKT đánh giá biện pháp gia cố chân kích.", leader.UserId, null, false, now.AddHours(-5));
+        await AddIncidentAsync("Construction", "WaitingStopApproval", "Sụt lún cục bộ chân kích giàn giáo sàn thao tác Tầng 3.", "Sụt lún cục bộ chân kích giàn giáo tại sàn thao tác Tầng 3, đe dọa mất an toàn lao động. Yêu cầu dừng khẩn cấp khu vực trục A.", 6_500_000, 3, 4, "Tạm dừng thi công khu vực ảnh hưởng và yêu cầu TPKT phê duyệt lệnh dừng khẩn cấp.", leader.UserId, null, true, now.AddHours(-3));
+        await AddIncidentAsync("Construction", "WaitingRecoveryPlan", "Tạm dừng thi công khu vực vách hố móng phía Tây do xuất hiện vết nứt.", "Xuất hiện vết nứt kéo dài trên vách hố móng sâu phía Tây. Công trình đang tạm dừng một phần để TPKT lập phương án gia cố kè chống.", 8_000_000, 4, 5, "TPKT cần nộp phương án chống đỡ và kiểm định lại khu vực vách móng bị ảnh hưởng.", leader.UserId, tpkt.UserId, true, now.AddDays(-1));
+        await AddIncidentAsync("Construction", "WaitingDirectorApproval", "Trình Giám đốc phê duyệt phương án gia cố kè chống hố móng và dự toán khắc phục.", "TPKT đã hoàn tất phương án gia cố hệ chống đỡ tạm và thuê đơn vị kiểm định độc lập. Đang chờ Giám đốc duyệt ngân sách khắc phục.", 12_000_000, 5, 6, "Giám đốc xem xét phê duyệt phương án gia cố và ngân sách khắc phục sự cố.", leader.UserId, tpkt.UserId, true, now.AddDays(-2), "Lập hệ chống tạm, mời đơn vị kiểm định độc lập, sau đó thi công bù tiến độ.", 12_000_000);
 
         context.Notifications.AddRange(
             new Notification
             {
                 UserId = gd.UserId,
-                Title = "Seed test: phieu kiem ke cho phe duyet",
-                Content = "Da co phieu dieu chinh ton kho va su co vat tu dang cho Giam doc phe duyet.",
+                Title = "Phiếu kiểm kê tồn kho chờ phê duyệt",
+                Content = "Đã có phiếu điều chỉnh tồn kho và báo cáo sự cố vật tư đang chờ Giám đốc phê duyệt.",
                 NotificationType = NotificationType.Procurement,
                 ReferenceType = NotificationReferenceType.InventoryAdjustment,
                 ReferenceId = project.ProjectId,
@@ -2380,8 +2436,8 @@ public static class DbSeeder
             new Notification
             {
                 UserId = tpkt.UserId,
-                Title = "Seed test: su co thi cong cho tham dinh",
-                Content = "Da co su co thi cong dang cho TPKT tham dinh trong du lieu test.",
+                Title = "Sự cố thi công chờ thẩm định",
+                Content = "Đã có sự cố thi công mới phát sinh trên WBS đang chờ Trưởng phòng Kỹ thuật thẩm định.",
                 NotificationType = NotificationType.Incident,
                 ReferenceType = NotificationReferenceType.Incident,
                 ReferenceId = project.ProjectId,
@@ -2391,8 +2447,8 @@ public static class DbSeeder
             new Notification
             {
                 UserId = ketoan.UserId,
-                Title = "Seed test: su co vat tu cho xac minh",
-                Content = "Da co su co vat tu dang cho Ke toan xac minh.",
+                Title = "Sự cố vật tư kho chờ xác minh",
+                Content = "Đã có sự cố vật tư kho mới phát sinh đang chờ Kế toán xác minh.",
                 NotificationType = NotificationType.Incident,
                 ReferenceType = NotificationReferenceType.Incident,
                 ReferenceId = waitingAccountant.IncidentId,
@@ -2437,15 +2493,21 @@ public static class DbSeeder
             string? rejectedReason,
             IEnumerable<(MaterialCatalog Material, decimal Quantity)> items,
             DateTime createdAt,
-            byte transactionType = InventoryTransactionType.Adjustment)
+            byte transactionType = InventoryTransactionType.Adjustment,
+            long? incidentId = null)
         {
+            var reservesStock = status == InventoryAdjustmentStatus.Pending
+                && type == InventoryAdjustmentType.Decrease;
             var adjustment = new InventoryAdjustment
             {
                 ProjectId = project.ProjectId,
                 PhaseId = phase.PhaseId,
+                IncidentId = incidentId,
                 AdjustmentType = type,
                 Reason = reason,
-                Description = description,
+                Description = reservesStock
+                    ? $"{description}\n{reservationMarker}"
+                    : description,
                 Status = status,
                 ApprovedBy = approvedBy,
                 ApprovedAt = approvedBy.HasValue ? createdAt.AddHours(3) : null,
@@ -2488,6 +2550,13 @@ public static class DbSeeder
                         CreatedBy = approvedBy ?? createdBy,
                         CreatedAt = adjustment.ApprovedAt ?? createdAt
                     });
+                }
+                else if (reservesStock)
+                {
+                    var inventory = await context.CurrentInventories.FirstAsync(
+                        x => x.ProjectId == project.ProjectId && x.MaterialId == material.MaterialId);
+                    inventory.ReservedQuantity += quantity; // Seed items use base unit/rate = 1.
+                    inventory.LastUpdated = createdAt;
                 }
             }
 

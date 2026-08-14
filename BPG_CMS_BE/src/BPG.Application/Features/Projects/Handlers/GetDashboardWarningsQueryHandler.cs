@@ -62,7 +62,7 @@ public class GetDashboardWarningsQueryHandler : IRequestHandler<GetDashboardWarn
             {
                 var reworkTask = project.Phases.SelectMany(ph => ph.Tasks)
                     .FirstOrDefault(t => t.TaskId == incident.ReworkTaskId || 
-                                        (t.Name != null && incident.Task != null && t.Name.Contains(incident.Task.Name) && t.Name.StartsWith("[Rework]")));
+                                        (t.Name != null && incident.Task != null && t.Name.Contains(incident.Task.Name) && t.Name.StartsWith("Rework")));
                 
                 if (reworkTask != null)
                 {

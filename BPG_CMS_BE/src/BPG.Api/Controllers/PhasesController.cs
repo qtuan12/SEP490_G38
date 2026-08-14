@@ -1,9 +1,6 @@
-using BPG.Application.Features.Phases.Commands.CreatePhase;
+using BPG.Application.Features.Phases.Commands;
 using Microsoft.AspNetCore.RateLimiting;
 using BPG.Api.Configuration;
-using BPG.Application.Features.Phases.Commands.DeletePhase;
-using BPG.Application.Features.Phases.Commands.UpdatePhase;
-using BPG.Application.Features.Phases.Commands.UpdatePhaseBOQ;
 using BPG.Application.Features.Phases.Queries;
 using BPG.Application.DTOs.Phases;
 using BPG.Domain.Constants;
@@ -26,6 +23,18 @@ public class PhasesController : BaseApiController
             return BadRequest(new { Message = "ProjectId mismatch" });
 
         var result = await Mediator.Send(command, ct);
+        return ApiOk(result);
+    }
+
+    [HttpPost("{phaseId}/clone")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
+    public async Task<IActionResult> ClonePhase(
+        [FromRoute] long projectId,
+        [FromRoute] long phaseId,
+        CancellationToken ct)
+    {
+        var result = await Mediator.Send(new ClonePhaseCommand(projectId, phaseId), ct);
         return ApiOk(result);
     }
 

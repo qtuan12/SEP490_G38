@@ -69,6 +69,7 @@ public class GetIncidentReportQueryHandler
             .ToListAsync(cancellationToken);
 
         var resolvedStatuses = new[] { "Approved", "Resolved", "Closed", "Completed" };
+        var terminalStatuses = resolvedStatuses.Append("Rejected").ToHashSet();
 
         var summaries = incidents.Select(i => new IncidentSummaryDto
         {
@@ -137,7 +138,7 @@ public class GetIncidentReportQueryHandler
         {
             ProjectId = request.ProjectId,
             TotalIncidents = incidents.Count,
-            OpenIncidents = incidents.Count(i => !resolvedStatuses.Contains(i.Status)),
+            OpenIncidents = incidents.Count(i => !terminalStatuses.Contains(i.Status)),
             ResolvedIncidents = incidents.Count(i => resolvedStatuses.Contains(i.Status)),
             IncidentsWithRework = incidents.Count(i => i.ReworkTaskId.HasValue),
             Incidents = summaries,

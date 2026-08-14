@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -15,15 +15,20 @@ import { ConfirmDialog, FullScreenLoading } from '../../components/ui';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
 import toast from 'react-hot-toast';
+import { isPhaseReadyForAcceptance as checkPhaseAcceptanceReadiness } from '../../utils/phaseAcceptance';
 
 
 interface WBSWorkspaceProps {
   projectId: string;
 }
 
+type CloneTarget =
+  | { type: 'phase'; id: string; name: string }
+  | { type: 'task'; id: string; name: string };
+
 export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const { user, hasAnyRole } = useAuth();
-  const { isProjectLeader } = useProjectAccess(projectId);
+  const { isProjectLeader, isProjectMember } = useProjectAccess(projectId);
   const navigate = useNavigate();
 
   const queryClient = useQueryClient();
@@ -65,32 +70,45 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const allPhases = wbsData?.phases || [];
   const allTasks = wbsData?.tasks || [];
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterAssignee, setFilterAssignee] = useState('');
 
   let phases = allPhases;
   let tasks = allTasks;
 
-  if (searchTerm.trim()) {
+  if (searchTerm.trim() || filterAssignee) {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const matchingPhaseIds = new Set<string>();
     const matchingTaskIds = new Set<string>();
 
     allPhases.forEach(p => {
-      if (p.name.toLowerCase().includes(normalizedSearch)) matchingPhaseIds.add(p.id);
+      if (!filterAssignee && p.name.toLowerCase().includes(normalizedSearch)) matchingPhaseIds.add(p.id);
     });
+    
     allTasks.forEach(t => {
-      if (t.name.toLowerCase().includes(normalizedSearch)) matchingTaskIds.add(t.id);
+      const matchesSearch = !normalizedSearch || t.name.toLowerCase().includes(normalizedSearch);
+      const matchesAssignee = !filterAssignee || (t.assignedTo && t.assignedTo.toString() === filterAssignee.toString());
+      if (matchesSearch && matchesAssignee) matchingTaskIds.add(t.id);
     });
 
-    allTasks.forEach(t => {
-      if (matchingTaskIds.has(t.id)) {
-        if (t.parentTaskId) matchingTaskIds.add(t.parentTaskId);
-        matchingPhaseIds.add(t.phaseId);
-      }
-    });
+    let addedNew = true;
+    while(addedNew) {
+       addedNew = false;
+       allTasks.forEach(t => {
+         if (matchingTaskIds.has(t.id)) {
+           if (t.parentTaskId && !matchingTaskIds.has(t.parentTaskId)) {
+              matchingTaskIds.add(t.parentTaskId);
+              addedNew = true;
+           }
+           if (!matchingPhaseIds.has(t.phaseId)) {
+              matchingPhaseIds.add(t.phaseId);
+           }
+         }
+       });
+    }
 
     allPhases.forEach(p => {
       if (matchingPhaseIds.has(p.id)) {
-         if (p.name.toLowerCase().includes(normalizedSearch)) {
+         if (!filterAssignee && p.name.toLowerCase().includes(normalizedSearch)) {
             allTasks.filter(t => t.phaseId === p.id).forEach(t => matchingTaskIds.add(t.id));
          }
       }
@@ -176,6 +194,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
   // ── INCIDENT modal state ────────────────────────
   const [isReportIncidentOpen, setIsReportIncidentOpen] = useState(false);
+  const [cloneTarget, setCloneTarget] = useState<CloneTarget | null>(null);
 
   // ── Hover state ──────────────────────────────────────
   const [hoveredPhaseId, setHoveredPhaseId] = useState<string | null>(null);
@@ -195,28 +214,6 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
 
-
-  useEffect(() => {
-    if (wbsData?.phases) {
-      setExpandedPhases(prev => {
-        if (Object.keys(prev).length === 0) {
-          const expands: Record<string, boolean> = {};
-          wbsData.phases.forEach(p => { expands[p.id] = true; });
-          return expands;
-        }
-        return prev;
-      });
-    }
-  }, [wbsData?.phases]);
-
-  // Auto-expand all phases when searching
-  useEffect(() => {
-    if (searchTerm.trim() && phases.length > 0) {
-      const expands: Record<string, boolean> = {};
-      phases.forEach(p => { expands[p.id] = true; });
-      setExpandedPhases(prev => ({ ...prev, ...expands }));
-    }
-  }, [searchTerm]);
 
   // Support opening task detail from URL
   useEffect(() => {
@@ -253,6 +250,33 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     toast.error(msg);
   };
 
+  const cloneMutation = useMutation<number, Error, CloneTarget>({
+    mutationFn: (target) => target.type === 'phase'
+      ? wbsService.clonePhase(
+          Number(projectId.replace(/^p-/, '')),
+          Number(target.id.replace(/^ph-/, '')),
+        )
+      : wbsService.cloneTask(Number(target.id.replace(/^t-/, ''))),
+    onSuccess: (_, target) => {
+      setCloneTarget(null);
+      handleSuccess(target.type === 'phase'
+        ? `Đã nhân bản Giai đoạn "${target.name}" và toàn bộ Công việc bên trong.`
+        : `Đã nhân bản Công việc "${target.name}" và toàn bộ Công việc con.`);
+    },
+    onError: (cloneError) => {
+      setCloneTarget(null);
+      handleError(cloneError.message || 'Không thể nhân bản dữ liệu WBS.');
+    },
+  });
+
+  const handleClonePhase = (phaseId: string, phaseName: string) => {
+    setCloneTarget({ type: 'phase', id: phaseId, name: phaseName });
+  };
+
+  const handleCloneTask = (taskId: string, taskName: string) => {
+    setCloneTarget({ type: 'task', id: taskId, name: taskName });
+  };
+
   const selectedTask = tasks.find(t => t.id === selectedTaskId);
 
 
@@ -261,9 +285,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const isTPKTOrPL = isTPKT || isPL;
 
   const isPhaseReadyForAcceptance = (phaseId: string) => {
-    const phaseTasks = tasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
-    if (phaseTasks.length === 0) return false;
-    return phaseTasks.every(t => t.progress === 100);
+    return checkPhaseAcceptanceReadiness(tasks.filter(t => t.phaseId === phaseId));
   };
 
   const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
@@ -376,8 +398,8 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const contextValue = {
-    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests,
-    expandedPhases, togglePhase, setExpandedPhases,
+    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isProjectMember, isTPKT, canEdit, materialRequests, filterAssignee,
+    expandedPhases, togglePhase,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
 
@@ -408,10 +430,10 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     isReportInventoryIncidentOpen, setIsReportInventoryIncidentOpen,
     selectedPhaseForInventoryIncident, setSelectedPhaseForInventoryIncident,
     isReportIncidentOpen, setIsReportIncidentOpen,
-
     handleApproveByLeader, handleApproveByTPKT,
     handleRejectMatReq, handleCancelMatReq, handleConfirmReceived,
-    isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask, handleDeleteTask, handleDeletePhase, navigate, loadWBSData
+    isPhaseReadyForAcceptance, loading, handleSuccess, handleError, handleReorderTask,
+    handleDeleteTask, handleDeletePhase, handleCloneTask, handleClonePhase, navigate, loadWBSData
   };
 
   if (loading) {
@@ -442,6 +464,20 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 pr-4 py-1.5 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-[220px]"
               />
+            </div>
+            <div className="relative shrink-0 w-full sm:w-auto">
+              <select
+                value={filterAssignee}
+                onChange={(e) => setFilterAssignee(e.target.value)}
+                className="px-3 py-1.5 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-auto min-w-[180px]"
+              >
+                <option value="">Tất cả người phụ trách</option>
+                {members.map(member => (
+                  <option key={member.userId} value={member.userId}>
+                    {member.userName}
+                  </option>
+                ))}
+              </select>
             </div>
             <button
               onClick={() => navigate(`/projects/${projectId}/drawing`)}
@@ -479,6 +515,21 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
           title={confirmDialog.title}
           message={confirmDialog.message}
           isDanger={confirmDialog.isDanger}
+        />
+
+        <ConfirmDialog
+          isOpen={cloneTarget !== null}
+          onClose={() => { if (!cloneMutation.isPending) setCloneTarget(null); }}
+          onConfirm={() => {
+            if (cloneTarget && !cloneMutation.isPending) cloneMutation.mutate(cloneTarget);
+          }}
+          title={cloneTarget?.type === 'phase' ? 'Nhân bản Giai đoạn' : 'Nhân bản Công việc'}
+          message={cloneTarget?.type === 'phase'
+            ? `Nhân bản Giai đoạn "${cloneTarget.name}" cùng toàn bộ Công việc bên trong?`
+            : `Nhân bản Công việc "${cloneTarget?.name ?? ''}" cùng toàn bộ Công việc con?`}
+          confirmText="Nhân bản"
+          isDanger={false}
+          isLoading={cloneMutation.isPending}
         />
       </div>
     </WBSContext.Provider>

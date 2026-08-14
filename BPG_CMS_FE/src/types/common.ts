@@ -155,6 +155,10 @@ export interface MaterialRequest {
   reason?: string;
   date: string;
   approvedBy?: string;
+  checkedByName?: string;
+  approvedByName?: string;
+  accountantNote?: string;
+  approvalNote?: string;
   rejectionReason?: string;
   createdBy?: number;
 }

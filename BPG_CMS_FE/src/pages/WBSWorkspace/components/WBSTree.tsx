@@ -4,7 +4,7 @@ import { RoleGroup } from '../../../auth/roles';
 import { useAuth } from '../../../context/AuthContext';
 import type { WBSTask } from '../../../types/common';
 import { TableLoader } from '../../../components/ui';
-import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History } from 'lucide-react';
+import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History, PauseCircle, Copy } from 'lucide-react';
 
 
 const getInitials = (name: string) => {
@@ -23,8 +23,8 @@ const getAvatarColor = (userId: string) => {
 export const WBSTree = () => {
   const handleReorderPhase = (_phaseId: string, _direction: 'up' | 'down') => { };
   const {
-    phases, tasks, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, project,
-    expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase, setExpandedPhases,
+    phases, tasks, isTPKTOrPL, isPL, isTPKT, canEdit, materialRequests, project, filterAssignee,
+    expandedPhases, selectedTaskId, isCreatePhaseOpen, togglePhase,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
     setIsCreatePhaseOpen, setSelectedPhaseForEdit, setIsEditPhaseOpen,
@@ -34,12 +34,14 @@ export const WBSTree = () => {
     setSelectedTaskId, setIsDetailOpen, setIsObsoleteOpen,
     setIsReportInventoryIncidentOpen, setSelectedPhaseForInventoryIncident,
     setIsReportIncidentOpen,
-    isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase, projectId
+    isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase,
+    handleCloneTask, handleClonePhase, projectId
   } = useWBS();
 
   const navigate = useNavigate();
   const { hasAnyRole } = useAuth();
-  const canCreatePhase = canEdit && hasAnyRole(RoleGroup.Technical);
+  const isProjectEditable = project?.status === 'draft' || project?.status === 'inprogress';
+  const canCreatePhase = isProjectEditable && hasAnyRole(RoleGroup.Technical);
 
   const menuItemStyle = {
     padding: '8px 12px',
@@ -106,7 +108,6 @@ export const WBSTree = () => {
 
                   {/* Phase row */}
                   <div
-                    onClick={() => togglePhase(ph.id)}
                     onMouseEnter={() => setHoveredPhaseId(ph.id)}
                     onMouseLeave={() => setHoveredPhaseId(null)}
                     style={{
@@ -118,7 +119,6 @@ export const WBSTree = () => {
                       fontWeight: 600, fontSize: '0.9rem',
                       transition: 'all 0.13s ease',
                       position: 'relative',
-                      cursor: 'pointer',
                     }}
                   >
                     {/* Order number + ▲▼ buttons */}
@@ -150,7 +150,13 @@ export const WBSTree = () => {
                     </div>
 
                     {/* Collapse toggle */}
-                    <button onClick={(e) => { e.stopPropagation(); togglePhase(ph.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'hsl(var(--text-secondary))', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      aria-label={`${isExpanded ? 'Thu gọn' : 'Mở rộng'} ${ph.name}`}
+                      aria-expanded={!!isExpanded}
+                      onClick={() => togglePhase(ph.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--text-secondary))', flexShrink: 0 }}
+                    >
                       {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                     </button>
 
@@ -191,7 +197,16 @@ export const WBSTree = () => {
                     {/* Badge */}
                     {isFrozen ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                        <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>Đã nghiệm thu</span>
+                        <span
+                          className="badge badge-success"
+                          style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`);
+                          }}
+                        >
+                          Đã nghiệm thu
+                        </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--success))', minWidth: '28px', textAlign: 'right' }}>100%</span>
                           <div style={{ width: '50px', height: '6px', backgroundColor: 'hsl(var(--border))', borderRadius: '3px', overflow: 'hidden' }}>
@@ -202,7 +217,7 @@ export const WBSTree = () => {
                     ) : readyForAcceptance ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                         <span className="badge badge-warning animate-fade-in" style={{ fontSize: '0.6rem', padding: '1px 5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
-                          onClick={(e) => { e.stopPropagation(); if (isTPKTOrPL) navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>
+                          onClick={(e) => { e.stopPropagation(); navigate(`/projects/${projectId}/phases/${ph.id}/acceptance`); }}>
                           <FileSignature size={9} /><span>Chờ nghiệm thu</span>
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -233,11 +248,23 @@ export const WBSTree = () => {
                         {/* + Task */}
                         {!isFrozen && canEdit && (
                           <button
-                            onClick={e => { e.stopPropagation(); setExpandedPhases(prev => ({ ...prev, [ph.id]: true })); setSelectedPhaseForTask(ph.id); setParentTaskForNew(undefined); setParentDeadlineForNew(ph.deadline); setIsCreateTaskOpen(true); }}
+                            onClick={e => { e.stopPropagation(); setSelectedPhaseForTask(ph.id); setParentTaskForNew(undefined); setParentDeadlineForNew(ph.deadline); setIsCreateTaskOpen(true); }}
                             title="Thêm công việc"
                             style={{ background: 'hsl(var(--primary))', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', padding: 0 }}
                           >
                             <FilePlus2 size={11} />
+                          </button>
+                        )}
+
+                        {canCreatePhase && (
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); setPhaseMenuId(null); handleClonePhase(ph.id, ph.name); }}
+                            title="Nhân bản Giai đoạn"
+                            aria-label={`Nhân bản Giai đoạn ${ph.name}`}
+                            style={{ background: 'transparent', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'hsl(var(--text-muted))', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px', padding: 0 }}
+                          >
+                            <Copy size={11} />
                           </button>
                         )}
 
@@ -253,6 +280,24 @@ export const WBSTree = () => {
 
                           {showMenu && (
                             <div onClick={e => e.stopPropagation()} className="absolute top-[24px] z-[200] bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-md shadow-lg min-w-[160px] overflow-hidden left-0 sm:left-auto sm:right-0 py-1">
+                              {!isFrozen && canEdit && (
+                                <div
+                                  style={menuItemStyle}
+                                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--primary-glow))'}
+                                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
+                                  onClick={() => { 
+                                    setPhaseMenuId(null);
+                                    setSelectedPhaseForTask(ph.id); 
+                                    setParentTaskForNew(undefined); 
+                                    setParentDeadlineForNew(ph.deadline); 
+                                    setIsCreateTaskOpen(true); 
+                                  }}
+                                >
+                                  <FilePlus2 size={13} style={{ color: 'hsl(var(--primary))' }} />
+                                  <span>Thêm công việc</span>
+                                </div>
+                              )}
+
                               {!isFrozen && phaseProgress === 0 && canEdit && isTPKT && (
                                 <div
                                   style={menuItemStyle}
@@ -337,7 +382,7 @@ export const WBSTree = () => {
                                     onClick={() => { setPhaseMenuId(null); navigate(`/phase-acceptances?projectId=${projectId}&phaseId=${ph.id}`); }}
                                   >
                                     <CheckCircle size={13} style={{ color: 'hsl(var(--primary))' }} />
-                                    <span>Danh sách Nghiệm thu</span>
+                                    <span>Danh sách nghiệm thu</span>
                                   </div>
                                 </>
                               )}
@@ -392,9 +437,7 @@ export const WBSTree = () => {
                       {phaseTasks.map((t, taskIndex) => {
                         const isSelected = selectedTaskId === t.id;
                         const isHoveredTask = hoveredTaskId === t.id;
-
                         const showTaskMenu = taskMenuId === t.id;
-                        // Task is locked for rename/delete once it has been worked on
                         const isWorkedOn = t.progress > 0 || t.history.length > 0;
                         const isFirstTask = taskIndex === 0;
                         const isLastTask = taskIndex === phaseTasks.length - 1;
@@ -413,7 +456,7 @@ export const WBSTree = () => {
                               cursor: 'pointer',
                               fontSize: '0.85rem',
                               transition: 'all var(--transition-fast)',
-                              opacity: t.status === 'obsolete' ? 0.6 : 1,
+                              opacity: t.status === 'obsolete' ? 0.6 : (filterAssignee && (!t.assignedTo || !t.assignedTo.split(',').includes(filterAssignee)) ? 0.4 : 1),
                               position: 'relative',
                               marginLeft: t.parentTaskId ? '28px' : '0px',
                             }}
@@ -541,9 +584,23 @@ export const WBSTree = () => {
                               {t.progress}%
                             </span>
 
-                            {/* Task context menu */}
-                            {!isFrozen && t.status !== 'obsolete' && (
-                              <div style={{ position: 'relative', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                            {/* Task actions */}
+                            {!isFrozen && (
+                              <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                                {isProjectEditable && isTPKTOrPL && (
+                                  <button
+                                    type="button"
+                                    onClick={e => { e.stopPropagation(); setTaskMenuId(null); handleCloneTask(t.id, t.name); }}
+                                    title="Nhân bản Công việc"
+                                    aria-label={`Nhân bản Công việc ${t.name}`}
+                                    style={{ background: 'transparent', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'hsl(var(--text-muted))', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', padding: 0 }}
+                                  >
+                                    <Copy size={10} />
+                                  </button>
+                                )}
+
+                                {t.status !== 'obsolete' && (
+                                  <div style={{ position: 'relative', opacity: 1, transition: 'opacity 0.13s', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                                 <button
                                   onClick={e => { e.stopPropagation(); setTaskMenuId(showTaskMenu ? null : t.id); setPhaseMenuId(null); }}
                                   title="Tùy chọn"
@@ -647,9 +704,11 @@ export const WBSTree = () => {
                                           }
                                         }}
                                       >
-                                        <Trash2 size={12} /><span>{t.progress > 0 ? 'Tạm dừng công việc' : 'Xóa Công việc'}</span>
+                                        {t.progress > 0 ? <PauseCircle size={12} /> : <Trash2 size={12} />}<span>{t.progress > 0 ? 'Tạm dừng công việc' : 'Xóa Công việc'}</span>
                                       </div>
                                     )}
+                                  </div>
+                                )}
                                   </div>
                                 )}
                               </div>

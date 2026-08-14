@@ -29,11 +29,13 @@ interface DailyLogFormProps {
   editLog?: DailyLog;
   engineerId: string;
   engineerName: string;
-  isPL?: boolean;
+  canCreate: boolean;
+  isSiteEngineer: boolean;
   canManageTechnical?: boolean;
   onSuccess: (message: string) => void;
   onError?: (message: string) => void;
   hideHeader?: boolean;
+  suppressSuccessToast?: boolean;
 }
 
 export const DailyLogForm: React.FC<DailyLogFormProps> = ({
@@ -44,16 +46,19 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   editLog,
   engineerId,
   engineerName,
-  isPL = false,
+  canCreate,
+  isSiteEngineer,
   canManageTechnical = false,
   onSuccess,
-  hideHeader = false
+  hideHeader = false,
+  suppressSuccessToast = false
 }) => {
   const queryClient = useQueryClient();
   const isEditMode = !!editLog;
 
   // Selected new files with upload status
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
+  const [rejectedImageNames, setRejectedImageNames] = useState<string[]>([]);
   // Keep track of existing images in edit mode
   const [existingImages, setExistingImages] = useState<string[]>([]);
   // File dragging state
@@ -75,11 +80,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const minProgress = currentTask ? currentTask.progress : 0;
   const sliderMin = canManageTechnical ? 0 : minProgress;
   const isProgressDisabled = !currentTask || (!canManageTechnical && currentTask.progress === 100);
-  const hasTaskAssignee = currentTask?.assignedTo?.split(',').some(id => id.trim().length > 0) ?? false;
-  const isAssignedEngineer = !!currentTask
-    && !!engineerId
-    && (currentTask.assignedTo?.split(',').map(id => id.trim()).includes(String(engineerId)) ?? false);
-  const canCreateForCurrentTask = isEditMode || (hasTaskAssignee && (isPL || canManageTechnical || isAssignedEngineer));
+  const canCreateForCurrentTask = isEditMode || (!!currentTask && isSiteEngineer && canCreate);
 
   const schema = React.useMemo(() => {
     return z.object({
@@ -119,6 +120,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 
   useEffect(() => {
     setUploadedFiles([]);
+    setRejectedImageNames([]);
     
     if (isEditMode && editLog) {
       setExistingImages(editLog.images || []);
@@ -165,6 +167,7 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
     if (e.target.files && e.target.files.length > 0) {
       addImages(Array.from(e.target.files));
     }
+    e.target.value = '';
   };
 
   const addImages = (files: File[]) => {
@@ -172,11 +175,11 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
     const MAX_SIZE = 10 * 1024 * 1024;
     const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
     if (oversizedFiles.length > 0) {
-      toast.error('Hình ảnh không được vượt quá 10MB.');
-      return;
+      setRejectedImageNames(oversizedFiles.map(file => file.name));
+      toast.error('Một số hình ảnh vượt quá 10MB và không được thêm.');
     }
 
-    const validFiles = files.filter(f => f.type.startsWith('image/'));
+    const validFiles = files.filter(f => f.type.startsWith('image/') && f.size <= MAX_SIZE);
     if (validFiles.length === 0) return;
 
     validFiles.forEach(file => {
@@ -282,7 +285,9 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
       const msg = isEditMode
         ? 'Đã cập nhật nhật ký thi công.'
         : `Đã tạo nhật ký thi công cho công việc "${resLog.taskName}".`;
-      toast.success(msg);
+      if (!suppressSuccessToast) {
+        toast.success(msg);
+      }
       onSuccess(msg);
       
       const pId = task?.projectId || editLog?.projectId || (currentTask?.projectId);
@@ -578,6 +583,13 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 </div>
               )}
 
+              {rejectedImageNames.length > 0 && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex items-start gap-2" onClick={e => e.stopPropagation()}>
+                  <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                  <span>Không thêm ảnh vượt quá 10MB: {rejectedImageNames.join(', ')}.</span>
+                </div>
+              )}
+
               {totalImagesCount > 0 && (
                 <div className="mt-4 text-xs text-blue-600 font-semibold" onClick={e => e.stopPropagation()}>
                   <span
@@ -634,16 +646,15 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
 interface DailyLogFormModalProps extends Omit<DailyLogFormProps, 'onCancel'> {
   isOpen: boolean;
   onClose: () => void;
-  isPL?: boolean;
 }
 
 export const DailyLogFormModal: React.FC<DailyLogFormModalProps> = ({
-  isOpen, onClose, isPL, ...rest
+  isOpen, onClose, ...rest
 }) => {
-  if (!isOpen) return null;
+  if (!isOpen || (!rest.editLog && (!rest.isSiteEngineer || !rest.canCreate))) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={rest.editLog ? "Sửa Nhật ký công trường" : "Cập nhật Nhật ký công trường"} mobileFullScreen>
-      <DailyLogForm {...rest} isPL={isPL} onCancel={onClose} hideHeader={true} />
+      <DailyLogForm {...rest} onCancel={onClose} hideHeader={true} />
     </Modal>
   );
 };

@@ -601,6 +601,12 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<long?>("ReworkTaskId")
                         .HasColumnType("bigint");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -677,6 +683,12 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<string>("RejectedReason")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -691,7 +703,9 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("ApprovedBy");
 
-                    b.HasIndex("IncidentId");
+                    b.HasIndex("IncidentId")
+                        .IsUnique()
+                        .HasFilter("[IncidentId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.HasIndex("PhaseId");
 
@@ -1362,6 +1376,12 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<DateTime?>("ResumedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<string>("Status")
                         .IsRequired()

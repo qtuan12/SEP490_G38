@@ -6,6 +6,7 @@ import type { Project } from '../../types/common';
 import { ArrowLeft, AlertTriangle, PackageCheck, TrendingUp } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
+import { getNearestAvailableYear } from '../../utils/reportYearHelpers';
 
 interface Props {
   embeddedProjectId?: string;
@@ -53,12 +54,17 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
             projectService.getProjects(),
             reportService.getBoqVsActual(Number(projectId), { fromDate, toDate })
           ]);
+          const trends = report.monthlyTrends || [];
           setProject(projs.find(p => p.id === projectId) || null);
           setItems(report.items || []);
-          setMonthlyTrends(report.monthlyTrends || []);
+          setMonthlyTrends(trends);
+          setSelectedYear(year => getNearestAvailableYear(
+            year,
+            trends.map(trend => trend.year),
+          ) ?? year);
         }
-      } catch (err: any) {
-        setError(err.message || 'Lỗi tải báo cáo đối chiếu định mức');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Lỗi tải báo cáo đối chiếu định mức');
       } finally {
         setLoading(false);
       }
@@ -109,7 +115,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#cbd5e1" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 11, fontWeight: 600 }} />
-                  <RechartsTooltip formatter={(value: any) => [`${value} mã vật tư`, 'Vượt định mức']} />
+                  <RechartsTooltip formatter={(value) => [`${value} mã vật tư`, 'Vượt định mức']} />
                   <Bar dataKey="exceedCount" name="Mã vật tư vượt BOQ" fill="#ef4444" radius={[0, 6, 6, 0]} maxBarSize={36} />
                 </BarChart>
               </ResponsiveContainer>
@@ -207,7 +213,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                       <YAxis yAxisId="left" tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} tick={{ fontSize: 11 }} />
                       <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} label={{ value: 'Số Phiếu MR', angle: -90, position: 'insideRight', style: { fontSize: 10 } }} />
                       <RechartsTooltip
-                        formatter={(value: any, name: any) => [
+                        formatter={(value, name) => [
                           name === 'Chi phí tiêu thụ (VNĐ)'
                             ? `${Number(value || 0).toLocaleString('vi-VN')} VNĐ`
                             : value,
@@ -254,7 +260,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                     const netConsumption = item?.netConsumption ?? Math.max(0, (item?.totalIssued || 0) - totalReturned);
                     return (
                       <tr
-                        key={item?.materialId || Math.random()}
+                        key={item.materialId}
                         className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isExceeding ? 'bg-red-50/30 dark:bg-red-950/10' : isEarnedExceeding ? 'bg-amber-50/20 dark:bg-amber-950/10' : ''}`}
                       >
                         <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{item?.materialCode || '—'}</td>

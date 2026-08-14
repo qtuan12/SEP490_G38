@@ -48,6 +48,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
             _mockUow.Setup(u => u.Repository<MaterialReturn>()).Returns(_mockReturnRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialReturnItem>()).Returns(_mockReturnItemRepo.Object);
             _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.ExecuteSqlAsync(It.IsAny<FormattableString>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -69,7 +70,7 @@ namespace BPG.Application.UnitTests.MaterialReturns
         }
 
         [Fact]
-        public async Task UTCID01_Handle_TechnicalManagerWithValidRequest_ShouldReturnCreatedReturnId()
+        public async Task UTCID01_Handle_ProjectLeaderWithValidRequest_ShouldReturnCreatedReturnId()
         {
             SetupTechnicalManager();
             SetupIssuances(Issuance(IssuanceItem(CementId, 30)));
@@ -80,6 +81,23 @@ namespace BPG.Application.UnitTests.MaterialReturns
             result.Data.Should().Be(GeneratedReturnId);
             result.Message.Should().StartWith("Tạo phiếu hoàn trả PTra-");
             result.Message.Should().EndWith("thành công. Tồn kho đã được cập nhật.");
+            _mockUow.Verify(u => u.ExecuteSqlAsync(It.IsAny<FormattableString>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Handle_ClientConversionRateIsSpoofed_ShouldUseOriginalIssuanceRate()
+        {
+            SetupTechnicalManager();
+            SetupIssuances(Issuance(IssuanceItem(CementId, 10, conversionRate: 2)));
+            List<MaterialReturnItem>? savedItems = null;
+            _mockReturnItemRepo
+                .Setup(repo => repo.AddRangeAsync(It.IsAny<IEnumerable<MaterialReturnItem>>(), It.IsAny<CancellationToken>()))
+                .Callback<IEnumerable<MaterialReturnItem>, CancellationToken>((items, _) => savedItems = items.ToList())
+                .Returns(Task.CompletedTask);
+
+            await _handler.Handle(Command(items: new[] { Item(CementId, 4, conversionRate: 999) }), CancellationToken.None);
+
+            savedItems.Should().ContainSingle().Which.ConversionRate.Should().Be(2);
         }
 
         [Fact]
@@ -141,6 +159,18 @@ namespace BPG.Application.UnitTests.MaterialReturns
 
             var exception = await act.Should().ThrowAsync<ForbiddenException>();
             exception.Which.ErrorCode.Should().Be("AUTH_002");
+            exception.Which.Message.Should().Be("Chỉ Trưởng dự án mới được tạo phiếu hoàn trả vật tư.");
+        }
+
+        [Fact]
+        public async Task Handle_TechnicalManagerWhoIsNotProjectLeader_ShouldThrowForbiddenException()
+        {
+            SetupTechnicalManagerWithoutProjectLeader();
+            SetupIssuances(Issuance(IssuanceItem(CementId, 30)));
+
+            var act = async () => await _handler.Handle(Command(), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
             exception.Which.Message.Should().Be("Chỉ Trưởng dự án mới được tạo phiếu hoàn trả vật tư.");
         }
 
@@ -222,6 +252,19 @@ namespace BPG.Application.UnitTests.MaterialReturns
             exception.Which.Message.Should().Be("Số lượng hoàn trả (5) vượt quá giới hạn còn lại có thể trả (4) cho vật tư ID 50 (Tổng xuất: 10, Đã trả trước đó: 6) trong phiếu xuất #PXK-500.");
         }
 
+        [Fact]
+        public async Task Handle_DiscreteUnitWithFractionalQuantity_ShouldThrowInvalidUnitQuantity()
+        {
+            SetupTechnicalManager();
+            SetupIssuances(Issuance(IssuanceItem(CementId, 10, isDiscrete: true, unitName: "Bao")));
+
+            var act = async () => await _handler.Handle(Command(items: new[] { Item(CementId, 0.5m) }), CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+            exception.Which.Message.Should().Be("Đơn vị tính 'Bao' yêu cầu số lượng hoàn trả phải là số nguyên.");
+        }
+
         private static CreateMaterialReturnCommand Command(
             long originalIssuanceId = OriginalIssuanceId,
             string reason = "Reason",
@@ -254,13 +297,19 @@ namespace BPG.Application.UnitTests.MaterialReturns
                 Items = items.ToList()
             };
 
-        private static MaterialIssuanceItem IssuanceItem(long materialId, decimal quantity, decimal conversionRate = 1)
+        private static MaterialIssuanceItem IssuanceItem(
+            long materialId,
+            decimal quantity,
+            decimal conversionRate = 1,
+            bool isDiscrete = false,
+            string unitName = "Unit")
             => new()
             {
                 MaterialId = materialId,
                 UnitId = UnitId,
                 Quantity = quantity,
-                ConversionRate = conversionRate
+                ConversionRate = conversionRate,
+                Unit = new Unit { UnitId = UnitId, UnitName = unitName, IsDiscrete = isDiscrete }
             };
 
         private static MaterialReturnItem PreviousReturnItem(long materialId, decimal quantity, decimal conversionRate = 1)
@@ -275,6 +324,13 @@ namespace BPG.Application.UnitTests.MaterialReturns
         private void SetupTechnicalManager()
         {
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
+        }
+
+        private void SetupTechnicalManagerWithoutProjectLeader()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+            SetupProjectMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = false });
         }
 
         private void SetupProjectLeader()

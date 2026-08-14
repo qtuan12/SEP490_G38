@@ -1,4 +1,5 @@
 using AutoMapper;
+using BPG.Application.DTOs.Incidents;
 using BPG.Application.Features.Incidents.Commands.RejectIncident;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -6,97 +7,198 @@ using BPG.Application.UnitTests.Helpers;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Moq;
+using UserRoleConstants = BPG.Domain.Constants.UserRole;
 
-namespace BPG.Application.UnitTests.Incidents
+namespace BPG.Application.UnitTests.Incidents;
+
+public class RejectIncidentCommandHandlerTests
 {
-    public class RejectIncidentCommandHandlerTests
+    private const long CurrentUserId = 10;
+    private const long IncidentId = 50;
+    private const long ProjectId = 100;
+
+    private readonly Mock<IUnitOfWork> _uow = new();
+    private readonly Mock<ICurrentUserService> _currentUser = new();
+    private readonly Mock<IMapper> _mapper = new();
+    private readonly Mock<IGenericRepository<Incident>> _incidentRepository = new();
+    private readonly Mock<IGenericRepository<User>> _userRepository = new();
+    private readonly Mock<IGenericRepository<InventoryAdjustment>> _adjustmentRepository = new();
+    private readonly RejectIncidentCommandHandler _handler;
+
+    public RejectIncidentCommandHandlerTests()
     {
-        private const long CurrentUserId = 10;
-        private const long IncidentId = 50;
+        _uow.Setup(unit => unit.Repository<Incident>()).Returns(_incidentRepository.Object);
+        _uow.Setup(unit => unit.Repository<User>()).Returns(_userRepository.Object);
+        _uow.Setup(unit => unit.Repository<InventoryAdjustment>()).Returns(_adjustmentRepository.Object);
+        _uow.Setup(unit => unit.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        private readonly Mock<IUnitOfWork> _mockUow;
-        private readonly Mock<ICurrentUserService> _mockCurrentUserService;
-        private readonly Mock<IMapper> _mockMapper;
-        private readonly Mock<IGenericRepository<Incident>> _mockIncidentRepo;
-        private readonly Mock<IGenericRepository<User>> _mockUserRepo;
-        private readonly Mock<IGenericRepository<InventoryAdjustment>> _mockAdjustmentRepo;
-        private readonly RejectIncidentCommandHandler _handler;
+        _currentUser.Setup(service => service.UserId).Returns(CurrentUserId);
+        _currentUser.Setup(service => service.GetRequiredUserId()).Returns(CurrentUserId);
+        SetRoles(UserRoleConstants.TechnicalManager);
 
-        public RejectIncidentCommandHandlerTests()
-        {
-            _mockUow = new Mock<IUnitOfWork>();
-            _mockCurrentUserService = new Mock<ICurrentUserService>();
-            _mockMapper = new Mock<IMapper>();
-            _mockIncidentRepo = new Mock<IGenericRepository<Incident>>();
-            _mockUserRepo = new Mock<IGenericRepository<User>>();
-            _mockAdjustmentRepo = new Mock<IGenericRepository<InventoryAdjustment>>();
+        _incidentRepository.SetupMockData([]);
+        _userRepository.SetupMockData([]);
+        _adjustmentRepository.SetupMockData([]);
 
-            _mockUow.Setup(u => u.Repository<Incident>()).Returns(_mockIncidentRepo.Object);
-            _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
-            _mockUow.Setup(u => u.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
-
-            _mockCurrentUserService.Setup(c => c.UserId).Returns(CurrentUserId);
-            _mockCurrentUserService.Setup(c => c.GetRequiredUserId()).Returns(CurrentUserId);
-
-            _mockIncidentRepo.SetupMockData(new List<Incident>());
-            _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment>());
-
-            _handler = new RejectIncidentCommandHandler(
-                _mockUow.Object,
-                _mockMapper.Object,
-                _mockCurrentUserService.Object,
-                ServiceStubFactory.NotificationService(),
-                ServiceStubFactory.RealtimeSender());
-        }
-
-        [Fact]
-        public async Task Handle_IncidentNotFound_ShouldThrowNotFoundException()
-        {
-            _mockIncidentRepo.SetupMockData(new List<Incident>());
-
-            var command = new RejectIncidentCommand(IncidentId, "Lý do từ chối");
-            var act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            await act.Should().ThrowAsync<NotFoundException>();
-        }
-
-        [Fact]
-        public async Task Handle_IncidentAlreadyProcessed_ShouldThrowBusinessException()
-        {
-            var incident = new Incident
+        _mapper.Setup(mapper => mapper.Map<IncidentDto>(It.IsAny<Incident>()))
+            .Returns((Incident incident) => new IncidentDto
             {
-                IncidentId = IncidentId,
-                Status = "Approved"
-            };
-            _mockIncidentRepo.SetupMockData(new List<Incident> { incident });
+                IncidentId = incident.IncidentId,
+                ProjectId = incident.ProjectId,
+                IncidentType = incident.IncidentType,
+                Status = incident.Status,
+                ReviewedBy = incident.ReviewedBy,
+                HandlingInstruction = incident.HandlingInstruction,
+                IsEmergency = incident.IsEmergency
+            });
 
-            var command = new RejectIncidentCommand(IncidentId, "Lý do từ chối");
-            var act = async () => await _handler.Handle(command, CancellationToken.None);
-
-            var ex = await act.Should().ThrowAsync<BusinessException>();
-            ex.Which.ErrorCode.Should().Be("ERR_INCIDENT_ALREADY_PROCESSED");
-        }
-
-        [Fact]
-        public async Task Handle_ValidRequest_ShouldRejectIncident()
-        {
-            var incident = new Incident
-            {
-                IncidentId = IncidentId,
-                ProjectId = 100,
-                Status = "WaitingReview",
-                ReportedBy = 5
-            };
-            _mockIncidentRepo.SetupMockData(new List<Incident> { incident });
-
-            var command = new RejectIncidentCommand(IncidentId, "Thông tin chưa chính xác");
-            var result = await _handler.Handle(command, CancellationToken.None);
-
-            result.Success.Should().BeTrue();
-            incident.Status.Should().Be("Rejected");
-            incident.HandlingInstruction.Should().Be("Thông tin chưa chính xác");
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        }
+        _handler = new RejectIncidentCommandHandler(
+            _uow.Object,
+            _mapper.Object,
+            _currentUser.Object,
+            ServiceStubFactory.NotificationService(),
+            ServiceStubFactory.RealtimeSender());
     }
+
+    [Fact]
+    public async Task UTCID01_Handle_IncidentNotFound_ShouldThrowNotFoundException()
+    {
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Theory]
+    [InlineData("Approved")]
+    [InlineData("Rejected")]
+    public async Task UTCID02_Handle_TerminalIncident_ShouldThrowExpectedErrorCode(string status)
+    {
+        SetupIncident(ConstructionIncident(status));
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_INCIDENT_ALREADY_PROCESSED");
+    }
+
+    [Fact]
+    public async Task UTCID03_Handle_ConstructionByUnauthorizedRole_ShouldThrowForbidden()
+    {
+        SetupIncident(ConstructionIncident());
+        SetRoles(UserRoleConstants.Accountant);
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_FORBIDDEN");
+    }
+
+    [Fact]
+    public async Task UTCID04_Handle_EmergencyDirectorStepByTechnicalManager_ShouldThrowForbidden()
+    {
+        var incident = ConstructionIncident("WaitingDirectorApproval");
+        incident.IsEmergency = true;
+        SetupIncident(incident);
+        SetRoles(UserRoleConstants.TechnicalManager);
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_FORBIDDEN");
+    }
+
+    [Fact]
+    public async Task UTCID05_Handle_InventoryWaitingDirector_ShouldRequireAdjustmentApproval()
+    {
+        SetupIncident(InventoryIncident("WaitingDirector"));
+        SetRoles(UserRoleConstants.Director);
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_USE_ADJUSTMENT_APPROVAL");
+    }
+
+    [Fact]
+    public async Task UTCID06_Handle_ValidConstructionRequest_ShouldReturnRejectedIncident()
+    {
+        SetupIncident(ConstructionIncident());
+
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().BeEquivalentTo(new IncidentDto
+        {
+            IncidentId = IncidentId,
+            ProjectId = ProjectId,
+            IncidentType = "Construction",
+            Status = "Rejected",
+            ReviewedBy = CurrentUserId,
+            HandlingInstruction = "Thông tin chưa chính xác",
+            IsEmergency = false
+        });
+    }
+
+    [Fact]
+    public async Task UTCID07_Handle_InventoryAccountantStep_ShouldReturnRejectedIncident()
+    {
+        SetupIncident(InventoryIncident("WaitingAccountant"));
+        SetRoles(UserRoleConstants.Accountant);
+
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Status.Should().Be("Rejected");
+    }
+
+    [Fact]
+    public async Task UTCID08_Handle_ConcurrentReject_ShouldReturnStableBusinessError()
+    {
+        SetupIncident(ConstructionIncident());
+        _uow.Setup(unit => unit.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_INCIDENT_ALREADY_PROCESSED");
+    }
+
+    private void SetupIncident(Incident incident)
+        => _incidentRepository.SetupMockData([incident]);
+
+    private void SetRoles(params string[] roles)
+    {
+        _currentUser.Setup(service => service.IsInRole(It.IsAny<string>()))
+            .Returns((string role) => roles.Contains(role));
+        _currentUser.Setup(service => service.IsInAnyRole(It.IsAny<string[]>()))
+            .Returns((string[] requestedRoles) => requestedRoles.Any(roles.Contains));
+    }
+
+    private static Incident ConstructionIncident(string status = "WaitingReview")
+        => new()
+        {
+            IncidentId = IncidentId,
+            ProjectId = ProjectId,
+            IncidentType = "Construction",
+            Description = "Nứt móng",
+            Status = status,
+            ReportedBy = 5
+        };
+
+    private static Incident InventoryIncident(string status)
+        => new()
+        {
+            IncidentId = IncidentId,
+            ProjectId = ProjectId,
+            IncidentType = "InventoryLoss",
+            Description = "Mất vật tư",
+            Status = status,
+            ReportedBy = 5
+        };
+
+    private static RejectIncidentCommand Command()
+        => new(IncidentId, "Thông tin chưa chính xác");
 }

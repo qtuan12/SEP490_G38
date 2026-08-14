@@ -177,6 +177,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<CurrentInventory>()
             .Property(x => x.RowVersion)
             .IsRowVersion();
+
+        modelBuilder.Entity<Project>()
+            .Property(x => x.RowVersion)
+            .IsRowVersion();
         modelBuilder.Entity<CurrentInventory>()
             .Property(x => x.Quantity).HasPrecision(18, 3);
         modelBuilder.Entity<CurrentInventory>()
@@ -274,6 +278,10 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(i => i.PhaseId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Incident>()
+            .Property(i => i.RowVersion)
+            .IsRowVersion();
 
         // Comment cascade delete from DailyLog
         modelBuilder.Entity<Comment>()
@@ -477,6 +485,17 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(i => i.ApprovedBy)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<InventoryAdjustment>()
+            .Property(i => i.RowVersion)
+            .IsRowVersion();
+
+        // One inventory incident can be settled by at most one adjustment. Standalone
+        // adjustments keep IncidentId null and are therefore not affected by this index.
+        modelBuilder.Entity<InventoryAdjustment>()
+            .HasIndex(i => i.IncidentId)
+            .IsUnique()
+            .HasFilter("[IncidentId] IS NOT NULL AND [IsDeleted] = 0");
 
         // DirectPurchaseItem - explicit FK to avoid shadow property DirectPurchaseRequestDirectPurchaseId
         modelBuilder.Entity<DirectPurchaseItem>()

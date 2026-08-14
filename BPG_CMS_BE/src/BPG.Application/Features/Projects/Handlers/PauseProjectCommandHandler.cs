@@ -121,7 +121,7 @@ public class PauseProjectCommandHandler : IRequestHandler<PauseProjectCommand, b
     private string AppendStatusHistory(string? currentReason, string type, string? reason, System.DateTime timestamp, string userName)
     {
         System.Collections.Generic.List<StatusHistoryItem> historyList;
-        if (!string.IsNullOrEmpty(currentReason) && currentReason.Trim().StartsWith("["))
+        if (!string.IsNullOrEmpty(currentReason) && currentReason.Trim().StartsWith(""))
         {
             try
             {
