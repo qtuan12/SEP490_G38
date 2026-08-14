@@ -27,7 +27,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   const [phaseId, setPhaseId] = useState<number | ''>('');
   const [boqMaterials, setBoqMaterials] = useState<PhaseBOQItemDto[]>([]);
   const [loadingBOQ, setLoadingBOQ] = useState(false);
-  const [items, setItems] = useState<{ materialId: number; quantity: number }[]>([]);
+  const [items, setItems] = useState<{ materialId: number; unitId: number; quantity: number }[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('');
@@ -117,6 +117,12 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     const selectedBoqMaterial = boqMaterials.find(x => x.materialId === Number(selectedMaterialId));
     const selectedCatalog = materials.find(x => x.materialId === Number(selectedMaterialId));
     const unitName = selectedBoqMaterial?.unitName || selectedCatalog?.baseUnitName || '';
+    const unitId = selectedBoqMaterial?.unitId ?? selectedCatalog?.baseUnitId;
+
+    if (!unitId) {
+      setLocalError('Vật tư chưa cấu hình đơn vị tính.');
+      return;
+    }
 
     if (unitName && isDiscreteUnit(unitName) && Number(selectedQuantity) % 1 !== 0) {
       setLocalError(`Đơn vị '${unitName}' yêu cầu số lượng phải là số nguyên.`);
@@ -124,7 +130,11 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     }
 
     setLocalError(null);
-    setItems([...items, { materialId: Number(selectedMaterialId), quantity: Number(selectedQuantity) }]);
+    setItems([...items, {
+      materialId: Number(selectedMaterialId),
+      unitId,
+      quantity: Number(selectedQuantity)
+    }]);
     setSelectedMaterialId('');
     setSelectedQuantity('');
   };
@@ -319,7 +329,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
               <div className="flex flex-col gap-1 mt-1 animate-fade-in">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                    {searchKeyword.trim() ? "Kết quả tìm kiếm:" : "Vật tư thuộc BOQ giai đoạn (Nhấn để chọn):"}
+                    {searchKeyword.trim() ? "Kết quả tìm kiếm vật tư:" : (boqMaterials.length > 0 ? "Vật tư thuộc BOQ giai đoạn (Nhấn để chọn):" : "Tất cả vật tư danh mục (Nhấn để chọn):")}
                   </span>
                   <button
                     type="button"
@@ -330,58 +340,65 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                   </button>
                 </div>
                 <div className="max-h-48 overflow-y-auto bg-white border border-gray-300 rounded-xl divide-y divide-gray-100 shadow-sm">
-                  {boqMaterials.filter(m =>
-                    !searchKeyword.trim() ||
-                    m.materialCode.toLowerCase().includes(searchKeyword.toLowerCase().trim()) ||
-                    m.materialName.toLowerCase().includes(searchKeyword.toLowerCase().trim())
-                  ).length === 0 ? (
-                    <div className="p-3 text-center text-xs text-gray-500">
-                      {boqMaterials.length === 0
-                        ? "Giai đoạn này chưa có vật tư trong BOQ"
-                        : "Không tìm thấy vật tư phù hợp với từ khóa"}
-                    </div>
-                  ) : (
-                    boqMaterials
-                      .filter(m =>
-                        !searchKeyword.trim() ||
-                        m.materialCode.toLowerCase().includes(searchKeyword.toLowerCase().trim()) ||
-                        m.materialName.toLowerCase().includes(searchKeyword.toLowerCase().trim())
-                      )
-                      .map(mat => {
-                        const isAlreadyAdded = items.some(x => x.materialId === mat.materialId);
-                        return (
-                          <div
-                            key={mat.materialId}
-                            className={`p-2 px-3 flex items-center justify-between cursor-pointer transition-colors ${
-                              isAlreadyAdded
-                                ? 'bg-gray-50 opacity-60'
-                                : 'hover:bg-blue-50/80 text-gray-800'
-                            }`}
-                            onClick={() => {
-                              setSelectedMaterialId(mat.materialId);
-                              setSearchKeyword(`[${mat.materialCode}] ${mat.materialName}`);
-                              setIsDropdownOpen(false);
-                            }}
-                          >
-                            <div className="flex items-center gap-2 min-w-0 pr-2">
-                              <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-mono text-[11px] font-semibold shrink-0">
-                                {mat.materialCode}
-                              </span>
-                              <span className="text-xs font-medium text-gray-900 truncate">{mat.materialName}</span>
-                              <span className="text-[11px] text-gray-400 shrink-0">({mat.unitName})</span>
-                            </div>
+                  {(() => {
+                    const searchLower = searchKeyword.toLowerCase().trim();
+                    const matchedBoq = boqMaterials.filter(m =>
+                      !searchLower ||
+                      m.materialCode.toLowerCase().includes(searchLower) ||
+                      m.materialName.toLowerCase().includes(searchLower)
+                    );
+                    const matchedCatalog = materials.filter(m =>
+                      !searchLower ||
+                      m.code?.toLowerCase().includes(searchLower) ||
+                      m.name?.toLowerCase().includes(searchLower)
+                    );
+                    const listToDisplay = matchedBoq.length > 0
+                      ? matchedBoq.map(m => ({ materialId: m.materialId, code: m.materialCode, name: m.materialName, unitName: m.unitName }))
+                      : matchedCatalog.map(m => ({ materialId: m.materialId, code: m.code, name: m.name, unitName: m.baseUnitName }));
 
-                            <div className="flex items-center gap-2 shrink-0">
-                              {isAlreadyAdded ? (
-                                <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-medium">Đã thêm</span>
-                              ) : (
-                                <span className="text-xs text-blue-600 font-semibold hover:underline">Chọn</span>
-                              )}
-                            </div>
+                    if (listToDisplay.length === 0) {
+                      return (
+                        <div className="p-3 text-center text-xs text-gray-500">
+                          Không tìm thấy vật tư phù hợp với từ khóa
+                        </div>
+                      );
+                    }
+
+                    return listToDisplay.map(mat => {
+                      const isAlreadyAdded = items.some(x => x.materialId === mat.materialId);
+                      return (
+                        <div
+                          key={mat.materialId}
+                          className={`p-2 px-3 flex items-center justify-between cursor-pointer transition-colors ${
+                            isAlreadyAdded
+                              ? 'bg-gray-50 opacity-60'
+                              : 'hover:bg-blue-50/80 text-gray-800'
+                          }`}
+                          onClick={() => {
+                            setSelectedMaterialId(mat.materialId);
+                            setSearchKeyword(`[${mat.code}] ${mat.name}`);
+                            setIsDropdownOpen(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 pr-2">
+                            <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-mono text-[11px] font-semibold shrink-0">
+                              {mat.code}
+                            </span>
+                            <span className="text-xs font-medium text-gray-900 truncate">{mat.name}</span>
+                            <span className="text-[11px] text-gray-400 shrink-0">({mat.unitName})</span>
                           </div>
-                        );
-                      })
-                  )}
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isAlreadyAdded ? (
+                              <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-medium">Đã thêm</span>
+                            ) : (
+                              <span className="text-xs text-blue-600 font-semibold hover:underline">Chọn</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             )}

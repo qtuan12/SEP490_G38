@@ -13,6 +13,7 @@ public class InventoryAdjustment : BaseEntity
     public long? ApprovedBy { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public string? RejectedReason { get; set; }
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     public Project Project { get; set; } = null!;
     public Phase Phase { get; set; } = null!;

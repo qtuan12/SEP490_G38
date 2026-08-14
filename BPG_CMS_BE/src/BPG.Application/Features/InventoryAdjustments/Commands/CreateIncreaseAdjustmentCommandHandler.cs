@@ -73,35 +73,19 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 CreatedBy = userId
             };
 
-            foreach (var item in request.Items)
+            var resolvedItems = await InventoryAdjustmentItemResolver.ResolveAsync(
+                _unitOfWork,
+                request.Items,
+                cancellationToken);
+
+            foreach (var resolvedItem in resolvedItems)
             {
-                var material = await _unitOfWork.Repository<MaterialCatalog>().Query()
-                    .Include(m => m.BaseUnit)
-                    .FirstOrDefaultAsync(m => m.MaterialId == item.MaterialId, cancellationToken);
-                if (material == null) throw new NotFoundException(nameof(MaterialCatalog), item.MaterialId);
-
-                // The form displays the selected phase BOQ unit, so persist its authoritative unit and conversion.
-                var boqItem = await _unitOfWork.Repository<BOQItem>().Query()
-                    .Include(b => b.Unit)
-                    .FirstOrDefaultAsync(b => b.PhaseId == request.PhaseId && b.MaterialId == item.MaterialId, cancellationToken);
-                if (boqItem == null)
-                {
-                    throw new BusinessException(ErrorCodes.InvalidTransition,
-                        $"Vật tư [{material.Name}] không thuộc BOQ của giai đoạn đã chọn.");
-                }
-
-                if (boqItem.Unit != null && boqItem.Unit.IsDiscrete && item.Quantity % 1 != 0)
-                {
-                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
-                        $"Đơn vị tính '{boqItem.Unit.UnitName}' của vật tư [{material.Name}] yêu cầu số lượng phải là số nguyên.");
-                }
-
                 adjustment.Items.Add(new AdjustmentItem
                 {
-                    MaterialId = item.MaterialId,
-                    UnitId = boqItem.UnitId,
-                    Quantity = item.Quantity,
-                    ConversionRate = boqItem.ConversionRate == 0 ? 1m : boqItem.ConversionRate
+                    MaterialId = resolvedItem.Request.MaterialId,
+                    UnitId = resolvedItem.UnitId,
+                    Quantity = resolvedItem.Request.Quantity,
+                    ConversionRate = resolvedItem.ConversionRate
                 });
             }
 

@@ -2135,27 +2135,69 @@ public static class DbSeeder
         List<MaterialCatalog> catalogs)
     {
         const string marker = "[INC-AUDIT]";
-        var oldAdjustments = await context.InventoryAdjustments.Where(a => 
-            a.Reason.Contains(marker) || 
-            a.Reason.Contains("SEED_TEST") || 
-            a.Reason.Contains("Kiểm kê đột xuất") || 
-            a.Reason.Contains("Kiểm kê phát hiện")).ToListAsync();
+        const string reservationMarker = "[System] InventoryAuditSeedReservationV1";
+        var oldIncidents = await context.Incidents.Where(i =>
+            i.Description.Contains(marker) ||
+            i.Description.Contains("SEED_TEST") ||
+            i.Description.Contains("Kiểm tra độ nghiêng") ||
+            i.Description.Contains("Sụt lún cục bộ") ||
+            i.Description.Contains("Báo cáo 18 bao xi măng") ||
+            i.Description.Contains("Thất thoát vật tư kho") ||
+            i.Description.Contains("Xử lý 95m thép") ||
+            i.Description.Contains("Xử lý rỗ bê tông")).ToListAsync();
+        var oldIncidentIds = oldIncidents.Select(i => i.IncidentId).ToList();
+
+        var oldAdjustments = await context.InventoryAdjustments.Where(a =>
+            a.Reason.Contains(marker) ||
+            a.Reason.Contains("SEED_TEST") ||
+            a.Reason.Contains("Kiểm kê đột xuất") ||
+            a.Reason.Contains("Kiểm kê phát hiện") ||
+            (a.IncidentId.HasValue && oldIncidentIds.Contains(a.IncidentId.Value))).ToListAsync();
         if (oldAdjustments.Any())
         {
             var oldAdjIds = oldAdjustments.Select(a => a.AdjustmentId).ToList();
             var oldItems = await context.AdjustmentItems.Where(i => oldAdjIds.Contains(i.AdjustmentId)).ToListAsync();
+
+            // Only reservations created by this version of the seed are released.
+            // Older seed rows never reserved stock, so subtracting them would consume
+            // reservations owned by real business records.
+            var reservedSeedAdjustments = oldAdjustments
+                .Where(adjustment => adjustment.Status == InventoryAdjustmentStatus.Pending
+                    && adjustment.AdjustmentType == InventoryAdjustmentType.Decrease
+                    && adjustment.Description != null
+                    && adjustment.Description.Contains(reservationMarker))
+                .ToDictionary(adjustment => adjustment.AdjustmentId);
+            if (reservedSeedAdjustments.Count > 0)
+            {
+                var reservedKeys = oldItems
+                    .Where(item => reservedSeedAdjustments.ContainsKey(item.AdjustmentId))
+                    .Select(item => new
+                    {
+                        reservedSeedAdjustments[item.AdjustmentId].ProjectId,
+                        item.MaterialId
+                    })
+                    .Distinct()
+                    .ToList();
+
+                foreach (var key in reservedKeys)
+                {
+                    var inventory = await context.CurrentInventories.FirstOrDefaultAsync(
+                        current => current.ProjectId == key.ProjectId
+                            && current.MaterialId == key.MaterialId);
+                    if (inventory == null) continue;
+
+                    var reservedBySeed = oldItems
+                        .Where(item => item.MaterialId == key.MaterialId
+                            && reservedSeedAdjustments.TryGetValue(item.AdjustmentId, out var adjustment)
+                            && adjustment.ProjectId == key.ProjectId)
+                        .Sum(item => item.Quantity / (item.ConversionRate > 0 ? item.ConversionRate : 1m));
+                    inventory.ReservedQuantity = Math.Max(0, inventory.ReservedQuantity - reservedBySeed);
+                }
+            }
+
             context.AdjustmentItems.RemoveRange(oldItems);
             context.InventoryAdjustments.RemoveRange(oldAdjustments);
         }
-        var oldIncidents = await context.Incidents.Where(i => 
-            i.Description.Contains(marker) || 
-            i.Description.Contains("SEED_TEST") || 
-            i.Description.Contains("Kiểm tra độ nghiêng") || 
-            i.Description.Contains("Sụt lún cục bộ") || 
-            i.Description.Contains("Báo cáo 18 bao xi măng") || 
-            i.Description.Contains("Thất thoát vật tư kho") || 
-            i.Description.Contains("Xử lý 95m thép") || 
-            i.Description.Contains("Xử lý rỗ bê tông")).ToListAsync();
         if (oldIncidents.Any())
         {
             context.Incidents.RemoveRange(oldIncidents);
@@ -2306,7 +2348,8 @@ public static class DbSeeder
             null,
             null,
             new[] { (xiMang, 9m), (gach, 180m) },
-            now.AddDays(-2).AddHours(1));
+            now.AddDays(-2).AddHours(1),
+            incidentId: waitingDirector.IncidentId);
 
         var approvedInventory = await AddIncidentAsync(
             "InventoryDamage",
@@ -2332,7 +2375,8 @@ public static class DbSeeder
             null,
             new[] { (thep, 95m) },
             now.AddDays(-7).AddHours(2),
-            InventoryTransactionType.IncidentLoss);
+            InventoryTransactionType.IncidentLoss,
+            approvedInventory.IncidentId);
 
         var approvedConstruction = await AddIncidentAsync(
             "Construction",
@@ -2449,15 +2493,21 @@ public static class DbSeeder
             string? rejectedReason,
             IEnumerable<(MaterialCatalog Material, decimal Quantity)> items,
             DateTime createdAt,
-            byte transactionType = InventoryTransactionType.Adjustment)
+            byte transactionType = InventoryTransactionType.Adjustment,
+            long? incidentId = null)
         {
+            var reservesStock = status == InventoryAdjustmentStatus.Pending
+                && type == InventoryAdjustmentType.Decrease;
             var adjustment = new InventoryAdjustment
             {
                 ProjectId = project.ProjectId,
                 PhaseId = phase.PhaseId,
+                IncidentId = incidentId,
                 AdjustmentType = type,
                 Reason = reason,
-                Description = description,
+                Description = reservesStock
+                    ? $"{description}\n{reservationMarker}"
+                    : description,
                 Status = status,
                 ApprovedBy = approvedBy,
                 ApprovedAt = approvedBy.HasValue ? createdAt.AddHours(3) : null,
@@ -2500,6 +2550,13 @@ public static class DbSeeder
                         CreatedBy = approvedBy ?? createdBy,
                         CreatedAt = adjustment.ApprovedAt ?? createdAt
                     });
+                }
+                else if (reservesStock)
+                {
+                    var inventory = await context.CurrentInventories.FirstAsync(
+                        x => x.ProjectId == project.ProjectId && x.MaterialId == material.MaterialId);
+                    inventory.ReservedQuantity += quantity; // Seed items use base unit/rate = 1.
+                    inventory.LastUpdated = createdAt;
                 }
             }
 

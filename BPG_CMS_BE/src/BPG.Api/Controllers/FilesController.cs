@@ -1,4 +1,5 @@
 using BPG.Application.DTOs.Files;
+using BPG.Application.Common.Files;
 using BPG.Api.Configuration;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
@@ -28,14 +29,32 @@ namespace BPG.Api.Controllers
         [HttpPost("upload")]
         [EnableRateLimiting(RateLimitPolicies.Upload)]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> UploadSingleFile(IFormFile file, [FromForm] string? folder)
+        [RequestSizeLimit(UploadFilePolicy.MaxFileSizeBytes + UploadFilePolicy.MultipartOverheadBytesPerFile)]
+        public async Task<IActionResult> UploadSingleFile(
+            IFormFile file,
+            [FromForm] string? folder,
+            CancellationToken cancellationToken)
         {
-            if (file == null || file.Length == 0)
+            if (!UploadFilePolicy.TryResolveDestination(folder, out var destination, out var folderError))
             {
-                return ApiBadRequest("Tệp tải lên không hợp lệ hoặc rỗng.");
+                return ApiBadRequest(folderError);
             }
 
-            var fileUrl = await _fileStorageService.UploadFileAsync(file, folder ?? "general");
+            if (!destination.IsRoleAllowed(User.IsInRole))
+            {
+                return Forbid();
+            }
+
+            var validation = await UploadFilePolicy.ValidateFileAsync(file, destination, cancellationToken);
+            if (!validation.IsValid)
+            {
+                return ApiBadRequest(validation.ErrorMessage!);
+            }
+
+            var fileUrl = await _fileStorageService.UploadFileAsync(
+                file,
+                destination.CanonicalFolder,
+                cancellationToken);
 
             var response = new UploadFileResponse
             {
@@ -54,16 +73,44 @@ namespace BPG.Api.Controllers
         [HttpPost("upload-multiple")]
         [EnableRateLimiting(RateLimitPolicies.Upload)]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> UploadMultipleFiles(List<IFormFile> files, [FromForm] string? folder)
+        [RequestSizeLimit(UploadFilePolicy.MaxFilesPerRequest
+            * (UploadFilePolicy.MaxFileSizeBytes + UploadFilePolicy.MultipartOverheadBytesPerFile))]
+        public async Task<IActionResult> UploadMultipleFiles(
+            List<IFormFile> files,
+            [FromForm] string? folder,
+            CancellationToken cancellationToken)
         {
-            if (files == null || files.Count == 0)
+            var countValidation = UploadFilePolicy.ValidateFileCount(files?.Count ?? 0);
+            if (!countValidation.IsValid)
             {
-                return ApiBadRequest("Danh sách tệp tải lên rỗng.");
+                return ApiBadRequest(countValidation.ErrorMessage!);
+            }
+
+            if (!UploadFilePolicy.TryResolveDestination(folder, out var destination, out var folderError))
+            {
+                return ApiBadRequest(folderError);
+            }
+
+            if (!destination.IsRoleAllowed(User.IsInRole))
+            {
+                return Forbid();
+            }
+
+            foreach (var file in files!)
+            {
+                var validation = await UploadFilePolicy.ValidateFileAsync(file, destination, cancellationToken);
+                if (!validation.IsValid)
+                {
+                    return ApiBadRequest($"Tệp '{file?.FileName ?? "không xác định"}': {validation.ErrorMessage}");
+                }
             }
 
             async Task<UploadFileResponse> UploadAndMapAsync(IFormFile file)
             {
-                var fileUrl = await _fileStorageService.UploadFileAsync(file, folder ?? "general");
+                var fileUrl = await _fileStorageService.UploadFileAsync(
+                    file,
+                    destination.CanonicalFolder,
+                    cancellationToken);
                 return new UploadFileResponse
                 {
                     FileName = file.FileName,
@@ -74,12 +121,9 @@ namespace BPG.Api.Controllers
             }
 
             var uploadTasks = new List<Task<UploadFileResponse>>();
-            foreach (var file in files)
+            foreach (var file in files!)
             {
-                if (file.Length > 0)
-                {
-                    uploadTasks.Add(UploadAndMapAsync(file));
-                }
+                uploadTasks.Add(UploadAndMapAsync(file));
             }
 
             var results = await Task.WhenAll(uploadTasks);
@@ -92,6 +136,7 @@ namespace BPG.Api.Controllers
         /// xóa tệp qua URL.
         /// </summary>
         [HttpDelete("delete")]
+        [Authorize(Roles = RolePolicies.Admin)]
         [EnableRateLimiting(RateLimitPolicies.Mutation)]
         public async Task<IActionResult> DeleteFile([FromQuery] string fileUrl)
         {

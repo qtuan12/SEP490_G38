@@ -7,49 +7,70 @@ using BPG.Domain.Exceptions;
 using FluentAssertions;
 using Moq;
 using BPG.Domain.Constants;
+using Microsoft.EntityFrameworkCore;
 using ErrorCodes = BPG.Domain.Constants.ErrorCodes;
 
 namespace BPG.Application.UnitTests.InventoryAdjustments
 {
     public class CreateDecreaseAdjustmentCommandHandlerTests
     {
+        private const long CurrentUserId = 15;
         private const long ProjectId = 1;
         private const long PhaseId = 2;
         private const long MaterialId = 10;
+        private const long IncidentId = 30;
+        private const int AlternativeUnitId = 4;
         private const long GeneratedAdjustmentId = 900;
 
         private readonly Mock<IUnitOfWork> _mockUow;
+        private readonly Mock<ICurrentUserService> _mockCurrentUserService;
         private readonly Mock<IGenericRepository<Project>> _mockProjectRepo;
         private readonly Mock<IGenericRepository<Phase>> _mockPhaseRepo;
         private readonly Mock<IGenericRepository<MaterialCatalog>> _mockMaterialRepo;
+        private readonly Mock<IGenericRepository<MaterialConversion>> _mockConversionRepo;
         private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
         private readonly Mock<IGenericRepository<InventoryAdjustment>> _mockAdjustmentRepo;
+        private readonly Mock<IGenericRepository<Incident>> _mockIncidentRepo;
+        private InventoryAdjustment? _addedAdjustment;
         private readonly CreateDecreaseAdjustmentCommandHandler _handler;
 
         public CreateDecreaseAdjustmentCommandHandlerTests()
         {
             _mockUow = new Mock<IUnitOfWork>();
+            _mockCurrentUserService = new Mock<ICurrentUserService>();
             _mockProjectRepo = new Mock<IGenericRepository<Project>>();
             _mockPhaseRepo = new Mock<IGenericRepository<Phase>>();
             _mockMaterialRepo = new Mock<IGenericRepository<MaterialCatalog>>();
+            _mockConversionRepo = new Mock<IGenericRepository<MaterialConversion>>();
             _mockInventoryRepo = new Mock<IGenericRepository<CurrentInventory>>();
             _mockAdjustmentRepo = new Mock<IGenericRepository<InventoryAdjustment>>();
+            _mockIncidentRepo = new Mock<IGenericRepository<Incident>>();
 
             _mockUow.Setup(uow => uow.Repository<Project>()).Returns(_mockProjectRepo.Object);
             _mockUow.Setup(uow => uow.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
             _mockUow.Setup(uow => uow.Repository<MaterialCatalog>()).Returns(_mockMaterialRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<MaterialConversion>()).Returns(_mockConversionRepo.Object);
             _mockUow.Setup(uow => uow.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
             _mockUow.Setup(uow => uow.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<Incident>()).Returns(_mockIncidentRepo.Object);
 
             _mockMaterialRepo.SetupMockData(new List<MaterialCatalog>());
+            _mockConversionRepo.SetupMockData(new List<MaterialConversion>());
             _mockInventoryRepo.SetupMockData(new List<CurrentInventory>());
+            _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment>());
+            _mockIncidentRepo.SetupMockData(new List<Incident>());
+            _mockCurrentUserService.SetupUser(CurrentUserId);
             _mockAdjustmentRepo.Setup(repository => repository.AddAsync(It.IsAny<InventoryAdjustment>(), It.IsAny<CancellationToken>()))
-                .Callback<InventoryAdjustment, CancellationToken>((adjustment, _) => adjustment.AdjustmentId = GeneratedAdjustmentId)
+                .Callback<InventoryAdjustment, CancellationToken>((adjustment, _) =>
+                {
+                    _addedAdjustment = adjustment;
+                    adjustment.AdjustmentId = GeneratedAdjustmentId;
+                })
                 .Returns(Task.CompletedTask);
 
             _handler = new CreateDecreaseAdjustmentCommandHandler(
                 _mockUow.Object,
-                Mock.Of<ICurrentUserService>(),
+                _mockCurrentUserService.Object,
                 ServiceStubFactory.RealtimeSender(),
                 ServiceStubFactory.NotificationService());
         }
@@ -170,14 +191,154 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             exception.Which.ErrorCode.Should().Be(ErrorCodes.InsufficientStock);
         }
 
-        private static CreateDecreaseAdjustmentCommand Command(decimal quantity = 2)
+        [Fact]
+        public async Task Handle_AlternativeUnit_ShouldReserveBaseQuantityAndStoreHistoricalConversion()
+        {
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: false));
+            SetupConversions(new MaterialConversion
+            {
+                MaterialId = MaterialId,
+                AlternativeUnitId = AlternativeUnitId,
+                AlternativeUnit = new Unit
+                {
+                    UnitId = AlternativeUnitId,
+                    UnitName = "Tấn",
+                    IsDiscrete = false
+                },
+                ConversionRate = 0.001m
+            });
+            var inventory = Inventory(quantity: 5_000);
+            SetupInventories(inventory);
+
+            await _handler.Handle(
+                Command(quantity: 2m, unitId: AlternativeUnitId),
+                CancellationToken.None);
+
+            inventory.ReservedQuantity.Should().Be(2_000m);
+            var item = _addedAdjustment!.Items.Should().ContainSingle().Subject;
+            item.UnitId.Should().Be(AlternativeUnitId);
+            item.Quantity.Should().Be(2m);
+            item.ConversionRate.Should().Be(0.001m);
+        }
+
+        [Fact]
+        public async Task Handle_LinkedIncidentInWrongStatus_ShouldRejectRequest()
+        {
+            SetupValidPreconditions();
+            SetupIncident(Incident(status: "Reported"));
+
+            var act = async () => await _handler.Handle(
+                Command(incidentId: IncidentId),
+                CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INVALID_INCIDENT_STATUS");
+        }
+
+        [Fact]
+        public async Task Handle_LinkedIncidentWithExistingAdjustment_ShouldRejectRequest()
+        {
+            SetupValidPreconditions();
+            SetupIncident(Incident());
+            _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment>
+            {
+                new() { AdjustmentId = 99, IncidentId = IncidentId }
+            });
+
+            var act = async () => await _handler.Handle(
+                Command(incidentId: IncidentId),
+                CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INCIDENT_ALREADY_ADJUSTED");
+        }
+
+        [Fact]
+        public async Task Handle_LinkedIncident_ShouldTransitionOnlyThatIncidentAfterValidation()
+        {
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: false));
+            SetupInventories(Inventory(quantity: 10));
+            var incident = Incident();
+            SetupIncident(incident);
+
+            await _handler.Handle(
+                Command(quantity: 2, incidentId: IncidentId),
+                CancellationToken.None);
+
+            incident.Status.Should().Be("WaitingDirector");
+            _addedAdjustment!.IncidentId.Should().Be(IncidentId);
+        }
+
+        [Fact]
+        public async Task Handle_ConcurrentDuplicateIncident_ShouldMapUniqueViolationToBusinessError()
+        {
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: false));
+            SetupInventories(Inventory(quantity: 10));
+            SetupIncident(Incident());
+            _mockUow.Setup(unitOfWork => unitOfWork.SaveChangesAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new DbUpdateException(
+                    "Unique index violation",
+                    new FakeSqlException(
+                        2601,
+                        "Cannot insert duplicate key row in index 'IX_InventoryAdjustments_IncidentId'.")));
+
+            var act = async () => await _handler.Handle(
+                Command(quantity: 2, incidentId: IncidentId),
+                CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INCIDENT_ALREADY_ADJUSTED");
+        }
+
+        [Fact]
+        public async Task Handle_ConcurrentIncidentTransition_ShouldMapConcurrencyToBusinessError()
+        {
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: false));
+            SetupInventories(Inventory(quantity: 10));
+            SetupIncident(Incident());
+            _mockUow.Setup(unitOfWork => unitOfWork.SaveChangesAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new DbUpdateConcurrencyException());
+
+            var act = async () => await _handler.Handle(
+                Command(quantity: 2, incidentId: IncidentId),
+                CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_INCIDENT_STATE_CHANGED");
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public async Task Validator_NonPositiveIncidentId_ShouldFail(long incidentId)
+        {
+            var validator = new CreateDecreaseAdjustmentCommandValidator();
+
+            var result = await validator.ValidateAsync(Command(incidentId: incidentId));
+
+            result.IsValid.Should().BeFalse();
+            result.Errors.Should().Contain(error => error.PropertyName == nameof(CreateDecreaseAdjustmentCommand.IncidentId));
+        }
+
+        private static CreateDecreaseAdjustmentCommand Command(
+            decimal quantity = 2,
+            int? unitId = null,
+            long? incidentId = null)
             => new()
             {
                 ProjectId = ProjectId,
                 PhaseId = PhaseId,
+                IncidentId = incidentId,
                 Reason = "Giảm tồn do hư hỏng",
                 Description = "Sự cố vật tư",
-                Items = new List<AdjustmentItemRequest> { new() { MaterialId = MaterialId, Quantity = quantity } }
+                Items = new List<AdjustmentItemRequest>
+                {
+                    new() { MaterialId = MaterialId, UnitId = unitId, Quantity = quantity }
+                }
             };
 
         private static Project Project(string status = ProjectStatus.InProgress)
@@ -204,6 +365,16 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
                 ReservedQuantity = reservedQuantity
             };
 
+        private static Incident Incident(string status = "WaitingAccountant")
+            => new()
+            {
+                IncidentId = IncidentId,
+                ProjectId = ProjectId,
+                PhaseId = PhaseId,
+                IncidentType = "InventoryLoss",
+                Status = status
+            };
+
         private void SetupValidPreconditions()
         {
             SetupProject(Project());
@@ -227,9 +398,33 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             _mockMaterialRepo.SetupMockData(materials.ToList());
         }
 
+        private void SetupConversions(params MaterialConversion[] conversions)
+        {
+            _mockConversionRepo.SetupMockData(conversions.ToList());
+        }
+
         private void SetupInventories(params CurrentInventory[] inventories)
         {
             _mockInventoryRepo.SetupMockData(inventories.ToList());
+        }
+
+        private void SetupIncident(Incident incident)
+        {
+            _mockIncidentRepo.Setup(repository => repository.GetByIdAsync(
+                    incident.IncidentId,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(incident);
+        }
+
+        private sealed class FakeSqlException : Exception
+        {
+            public FakeSqlException(int number, string message)
+                : base(message)
+            {
+                Number = number;
+            }
+
+            public int Number { get; }
         }
     }
 }

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ShoppingCart, AlertCircle, DollarSign, Package, TrendingUp } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ProcurementReportDto } from '../../../services/reportService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatDateOnly, formatPlainDate } from '../../../utils/dateHelpers';
 import { getPOSupplierDisplayName } from '../../../utils/purchaseOrderHelpers';
+import { getNearestAvailableYear } from '../../../utils/reportYearHelpers';
 
 interface Props {
   projectId: string | null;
@@ -32,43 +33,91 @@ const DP_STATUS_LABELS: Record<string, string> = {
 };
 
 export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate }) => {
-  const [data, setData] = useState<ProcurementReportDto | null>(null);
-  const [allProjectsData, setAllProjectsData] = useState<{ name: string; po: number; dp: number }[]>([]);
-  const [loading, setLoading] = useState(false);
+  const requestIdentity = useMemo(
+    () => ({ projectId, fromDate, toDate }),
+    [projectId, fromDate, toDate],
+  );
+  const [loadState, setLoadState] = useState<{
+    requestIdentity: object;
+    data: ProcurementReportDto | null;
+    allProjectsData: { name: string; po: number; dp: number }[];
+    error: string | null;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<'po' | 'dp'>('po');
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const requestIdRef = useRef(0);
+  const isCurrentResult = loadState?.requestIdentity === requestIdentity;
+  const data = isCurrentResult ? loadState.data : null;
+  const allProjectsData = isCurrentResult ? loadState.allProjectsData : [];
+  const error = isCurrentResult ? loadState.error : null;
+  const loading = Boolean(projectId && !isCurrentResult);
 
   useEffect(() => {
-    if (!projectId) return;
-    setLoading(true);
-    if (projectId === 'all') {
-      import('../../../services/projectService').then(({ projectService }) => {
-        projectService.getProjects().then(projects => {
-          Promise.all(
-            projects.filter(p => p.status !== 'draft').map(p =>
-              reportService.getProcurementReport(Number(p.id), { fromDate, toDate }).catch(() => null)
-            )
-          ).then(reports => {
-            const aggregated = projects
-              .filter(p => p.status !== 'draft')
-              .map((p, i) => ({
-                name: p.name.length > 16 ? p.name.substring(0, 16) + '…' : p.name,
-                po: reports[i]?.totalPoCost || 0,
-                dp: reports[i]?.totalDirectPurchaseCost || 0,
-              }))
-              .filter(x => x.po > 0 || x.dp > 0);
-            setAllProjectsData(aggregated);
-          });
-        }).finally(() => setLoading(false));
-      });
-    } else {
-      reportService.getProcurementReport(Number(projectId), { fromDate, toDate })
-        .then(setData)
-        .catch(err => console.error(err))
-        .finally(() => setLoading(false));
+    const requestId = ++requestIdRef.current;
+    const requestedProjectId = requestIdentity.projectId;
+
+    if (!requestedProjectId) {
+      return () => {
+        if (requestIdRef.current === requestId) requestIdRef.current += 1;
+      };
     }
-  }, [projectId, fromDate, toDate]);
+
+    const loadReport = async () => {
+      try {
+        if (requestedProjectId === 'all') {
+          const { projectService } = await import('../../../services/projectService');
+          const projects = await projectService.getProjects();
+          const activeProjects = projects.filter(project => project.status !== 'draft');
+          const reports = await Promise.all(
+            activeProjects.map(project =>
+              reportService.getProcurementReport(Number(project.id), {
+                fromDate: requestIdentity.fromDate,
+                toDate: requestIdentity.toDate,
+              }).catch(() => null)
+            )
+          );
+
+          if (requestId !== requestIdRef.current) return;
+          const aggregatedData = activeProjects
+              .map((project, index) => ({
+                name: project.name.length > 16 ? project.name.substring(0, 16) + '…' : project.name,
+                po: reports[index]?.totalPoCost || 0,
+                dp: reports[index]?.totalDirectPurchaseCost || 0,
+              }))
+              .filter(item => item.po > 0 || item.dp > 0);
+          setLoadState({ requestIdentity, data: null, allProjectsData: aggregatedData, error: null });
+          return;
+        }
+
+        const report = await reportService.getProcurementReport(Number(requestedProjectId), {
+          fromDate: requestIdentity.fromDate,
+          toDate: requestIdentity.toDate,
+        });
+        if (requestId !== requestIdRef.current) return;
+        setLoadState({ requestIdentity, data: report, allProjectsData: [], error: null });
+        setSelectedYear(year => getNearestAvailableYear(
+          year,
+          (report.monthlyTrends || []).map(trend => trend.year),
+        ) ?? year);
+      } catch (err) {
+        if (requestId !== requestIdRef.current) return;
+        console.error('Error fetching procurement report', err);
+        setLoadState({
+          requestIdentity,
+          data: null,
+          allProjectsData: [],
+          error: err instanceof Error ? err.message : 'Không thể tải báo cáo mua sắm.',
+        });
+      }
+    };
+
+    void loadReport();
+
+    return () => {
+      if (requestIdRef.current === requestId) requestIdRef.current += 1;
+    };
+  }, [requestIdentity]);
 
   if (loading) {
     return (
@@ -76,6 +125,10 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
         <LoadingSpinner size="md" label="Đang tải Báo cáo Mua sắm & Chi phí..." />
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="p-10 text-center text-red-500 font-semibold">{error}</div>;
   }
 
   const formatCurrency = (v: number) => `${v.toLocaleString('vi-VN')} VNĐ`;
@@ -100,7 +153,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-35} textAnchor="end" />
                   <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} />
-                  <RechartsTooltip formatter={(value: any) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
+                  <RechartsTooltip formatter={(value) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
                   <Legend verticalAlign="top" height={36} />
                   <Bar dataKey="po" name="PO Đã duyệt" stackId="a" fill="#6366f1" maxBarSize={50} />
                   <Bar dataKey="dp" name="Mua ngoài khẩn cấp" stackId="a" fill="#ef4444" maxBarSize={50} radius={[4, 4, 0, 0]} />
@@ -210,7 +263,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                   <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fontWeight: 600 }} />
                   <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} tick={{ fontSize: 11 }} />
-                  <RechartsTooltip formatter={(value: any) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
+                  <RechartsTooltip formatter={(value) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
                   <Legend wrapperStyle={{ fontSize: '12px' }} />
                   <Bar dataKey="poCostVnd" name="Đơn PO" stackId="month" fill="#6366f1" maxBarSize={36} />
                   <Bar dataKey="directPurchaseCostVnd" name="Mua khẩn cấp" stackId="month" fill="#ef4444" maxBarSize={36} radius={[4, 4, 0, 0]} />
@@ -256,9 +309,9 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                 {data.purchaseOrders.map(po => {
                   const statusInfo = PO_STATUS_LABELS[po.status] || { label: po.status, colorClass: 'bg-slate-100 text-slate-600' };
                   return (
-                    <tr key={po.pOId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="px-4 py-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">{po.pONumber}</td>
-                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{getPOSupplierDisplayName(po.supplierName, po.pONumber) || '—'}</td>
+                    <tr key={po.poId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">{po.poNumber}</td>
+                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{getPOSupplierDisplayName(po.supplierName, po.poNumber) || '—'}</td>
                       <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{po.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.orderDate)}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.expectedDeliveryDate)}</td>

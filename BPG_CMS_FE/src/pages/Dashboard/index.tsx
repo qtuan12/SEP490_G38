@@ -12,7 +12,6 @@ import {
   Truck,
   Tags,
   Package,
-  Hammer,
   Clock,
   AlertCircle,
   TrendingUp,
@@ -626,46 +625,6 @@ export const Dashboard: React.FC = () => {
                   ))}
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-
-        <div className="glass-panel p-5">
-          <h3 className="text-[1.05rem] font-bold mb-4 flex items-center gap-2">
-            <Wrench size={18} className="text-[hsl(var(--primary))]" />
-            <span>Liên kết kỹ thuật nhanh</span>
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div
-              onClick={() => navigate('/materials-control')}
-              className="card p-4 flex items-center justify-between border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))] cursor-pointer hover:shadow-md transition-all rounded-lg"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] rounded-full">
-                  <Package size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm">Kiểm soát định mức BOQ</h4>
-                  <p className="text-[10px] text-[hsl(var(--text-secondary))] mt-0.5">Kiểm soát xuất vật tư công trường theo hạn ngạch</p>
-                </div>
-              </div>
-              <ChevronRight size={18} className="text-[hsl(var(--text-muted))]" />
-            </div>
-
-            <div
-              onClick={() => navigate('/projects')}
-              className="card p-4 flex items-center justify-between border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))] cursor-pointer hover:shadow-md transition-all rounded-lg"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-[hsl(142_70%_90%)] text-[hsl(142_70%_35%)] rounded-full">
-                  <Hammer size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm">Danh sách dự án xây dựng</h4>
-                  <p className="text-[10px] text-[hsl(var(--text-secondary))] mt-0.5">Theo dõi sơ đồ WBS, Gantt chart dự án</p>
-                </div>
-              </div>
-              <ChevronRight size={18} className="text-[hsl(var(--text-muted))]" />
             </div>
           </div>
         </div>

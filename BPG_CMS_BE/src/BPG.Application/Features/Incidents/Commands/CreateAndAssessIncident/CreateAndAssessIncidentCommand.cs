@@ -33,7 +33,10 @@ public class CreateAndAssessIncidentCommandValidator : AbstractValidator<CreateA
     public CreateAndAssessIncidentCommandValidator()
     {
         RuleFor(v => v.ProjectId).GreaterThan(0).WithMessage("ProjectId is required.");
-        RuleFor(v => v.IncidentType).NotEmpty().WithMessage("IncidentType is required.");
+        RuleFor(v => v.IncidentType)
+            .NotEmpty().WithMessage("IncidentType is required.")
+            .Must(type => type is "Construction" or "InventoryLoss" or "InventoryDamage")
+            .WithMessage("Loại sự cố không hợp lệ.");
         RuleFor(v => v.Description).NotEmpty().WithMessage("Description is required.");
 
         RuleFor(v => v.TaskId)
@@ -45,6 +48,16 @@ public class CreateAndAssessIncidentCommandValidator : AbstractValidator<CreateA
             .NotNull()
             .When(v => v.IncidentType == "InventoryLoss" || v.IncidentType == "InventoryDamage")
             .WithMessage("Sự cố vật tư yêu cầu PhaseId.");
+
+        RuleFor(v => v.DamageDescription)
+            .NotEmpty()
+            .When(v => v.IncidentType == "InventoryLoss" || v.IncidentType == "InventoryDamage")
+            .WithMessage("Mô tả thiệt hại vật tư là bắt buộc.");
+
+        RuleFor(v => v.IsEmergency)
+            .Equal(false)
+            .When(v => v.IncidentType == "InventoryLoss" || v.IncidentType == "InventoryDamage")
+            .WithMessage("Sự cố khẩn cấp phải là sự cố thi công.");
     }
 }
 
@@ -78,6 +91,13 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             throw new NotFoundException(nameof(Project), request.ProjectId);
         }
 
+        if (project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
+        {
+            throw new BusinessException(
+                "ERR_PROJECT_NOT_ACTIVE",
+                "Chỉ có thể báo cáo sự cố khi dự án đang thực hiện.");
+        }
+
         var isProjectMember = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
             member => member.ProjectId == request.ProjectId && member.UserId == currentUserId,
             cancellationToken);
@@ -90,10 +110,11 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         }
 
         long? phaseId = request.PhaseId;
+        ProjectTask? task = null;
 
         if (request.TaskId.HasValue)
         {
-            var task = await _unitOfWork.Repository<ProjectTask>()
+            task = await _unitOfWork.Repository<ProjectTask>()
                 .Query()
                 .FirstOrDefaultAsync(t => t.TaskId == request.TaskId.Value, cancellationToken);
 
@@ -114,6 +135,10 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             {
                 phaseId = task.PhaseId;
             }
+            else if (phaseId.Value != task.PhaseId)
+            {
+                throw new BusinessException("ERR_TASK_PHASE_MISMATCH", "Công việc không thuộc giai đoạn đã chọn.");
+            }
         }
 
         if (phaseId.HasValue)
@@ -125,6 +150,37 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             if (phase == null)
             {
                 throw new NotFoundException(nameof(Phase), phaseId.Value);
+            }
+
+            if (phase.ProjectId != request.ProjectId)
+            {
+                throw new BusinessException(
+                    task == null ? "ERR_PHASE_PROJECT_MISMATCH" : "ERR_TASK_PROJECT_MISMATCH",
+                    task == null
+                        ? "Giai đoạn không thuộc dự án đã chọn."
+                        : "Công việc không thuộc dự án đã chọn.");
+            }
+        }
+
+        if (request.IsEmergency)
+        {
+            // Mark the project as read so its RowVersion participates in this insert.
+            // Concurrent emergency submissions for the same project cannot both commit.
+            _unitOfWork.Repository<Project>().Update(project);
+
+            var hasActiveEmergency = await _unitOfWork.Repository<Incident>().AnyAsync(
+                i => i.ProjectId == request.ProjectId
+                    && i.IsEmergency
+                    && (i.Status == "WaitingStopApproval"
+                        || i.Status == "WaitingRecoveryPlan"
+                        || i.Status == "WaitingDirectorApproval"),
+                cancellationToken);
+
+            if (hasActiveEmergency)
+            {
+                throw new BusinessException(
+                    "ERR_ACTIVE_EMERGENCY_EXISTS",
+                    "Dự án đang có một sự cố khẩn cấp chưa xử lý xong.");
             }
         }
 
@@ -149,7 +205,16 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
         };
 
         await _unitOfWork.Repository<Incident>().AddAsync(incident);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException) when (request.IsEmergency)
+        {
+            throw new BusinessException(
+                "ERR_ACTIVE_EMERGENCY_EXISTS",
+                "Dự án hoặc danh sách sự cố khẩn cấp đã thay đổi. Vui lòng tải lại dữ liệu.");
+        }
 
         // Load relations for mapping
         incident = await _unitOfWork.Repository<Incident>()

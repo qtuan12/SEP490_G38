@@ -13,6 +13,8 @@ import type { UploadedFileState } from '../../../utils/uploadHelper';
 import { directPurchaseService } from '../../../services/directPurchaseService';
 import type { PhaseBOQItemDto } from '../../../services/directPurchaseService';
 import { inventoryService } from '../../../services/inventoryService';
+import { serializeInventoryIncidentDamage } from '../../../utils/inventoryIncidentDamage';
+import { isDiscreteUnit } from '../../../utils/unitHelpers';
 
 const getLocalISOString = () => {
   const now = new Date();
@@ -47,6 +49,24 @@ interface ReportInventoryIncidentModalProps {
   onError: (msg: string) => void;
 }
 
+interface IncidentMaterialOption {
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  unitId: number;
+  unitName: string;
+  conversionRate: number;
+  stockQuantity: number;
+  phaseBoqQuantity?: number;
+  isInPhaseBoq: boolean;
+}
+
+type DamagedMaterial = IncidentMaterialOption & { rawQuantity?: string; quantityLost: number };
+
+const formatQuantity = (value: number) => value.toLocaleString('vi-VN', {
+  maximumFractionDigits: 3,
+});
+
 export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModalProps> = ({
   isOpen,
   onClose,
@@ -59,8 +79,8 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
   const [dragging, setDragging] = useState(false);
 
-  const [damagedMaterials, setDamagedMaterials] = useState<Array<PhaseBOQItemDto & { stockQuantity: number; quantityLost: number }>>([]);
-  const [boqItems, setBoqItems] = useState<Array<PhaseBOQItemDto & { stockQuantity: number }>>([]);
+  const [damagedMaterials, setDamagedMaterials] = useState<DamagedMaterial[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<IncidentMaterialOption[]>([]);
   const [loadingBOQ, setLoadingBOQ] = useState(false);
   const [showMaterialSelector, setShowMaterialSelector] = useState(false);
   const [searchMaterial, setSearchMaterial] = useState('');
@@ -68,27 +88,53 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   React.useEffect(() => {
     if (isOpen && phaseId) {
       setLoadingBOQ(true);
-      setBoqItems([]);
+      setInventoryItems([]);
       setDamagedMaterials([]);
       Promise.all([
         directPurchaseService.getPhaseBOQ(Number(projectId), Number(phaseId)).catch(() => []),
         inventoryService.getCurrentInventory(Number(projectId)).catch(() => [])
       ])
         .then(([boqRes, invRes]) => {
-          const invMap = new Map<number, number>();
-          (invRes || []).forEach(inv => {
-            const qty = inv.availableQuantity ?? inv.quantity ?? 0;
-            invMap.set(inv.materialId, qty);
+          const boqByMaterial = new Map<number, PhaseBOQItemDto>();
+          (boqRes || []).forEach(item => {
+            if (!boqByMaterial.has(item.materialId)) boqByMaterial.set(item.materialId, item);
           });
 
-          const filtered = (boqRes || [])
-            .map(item => ({
-              ...item,
-              stockQuantity: invMap.get(item.materialId) || 0
-            }))
-            .filter(item => item.stockQuantity > 0);
+          // Inventory is the source of selectable materials. A matching phase BOQ row
+          // only enriches the option with its display unit and planned quantity.
+          const optionsByMaterial = new Map<number, IncidentMaterialOption>();
+          (invRes || []).forEach(inv => {
+            const availableBaseQuantity = inv.availableQuantity ?? inv.quantity ?? 0;
+            if (availableBaseQuantity <= 0) return;
 
-          setBoqItems(filtered);
+            const boqItem = boqByMaterial.get(inv.materialId);
+            const conversionRate = boqItem && boqItem.conversionRate > 0
+              ? boqItem.conversionRate
+              : 1;
+            const existing = optionsByMaterial.get(inv.materialId);
+
+            if (existing) {
+              existing.stockQuantity += availableBaseQuantity * existing.conversionRate;
+              return;
+            }
+
+            optionsByMaterial.set(inv.materialId, {
+              materialId: inv.materialId,
+              materialCode: inv.materialCode,
+              materialName: inv.materialName,
+              unitId: boqItem?.unitId ?? inv.unitId,
+              unitName: boqItem?.unitName ?? inv.unitName,
+              conversionRate,
+              stockQuantity: availableBaseQuantity * conversionRate,
+              phaseBoqQuantity: boqItem?.boqQuantity,
+              isInPhaseBoq: !!boqItem,
+            });
+          });
+
+          setInventoryItems([...optionsByMaterial.values()].sort((left, right) => {
+            if (left.isInPhaseBoq !== right.isInPhaseBoq) return left.isInPhaseBoq ? -1 : 1;
+            return left.materialCode.localeCompare(right.materialCode, 'vi');
+          }));
         })
         .catch(console.error)
         .finally(() => setLoadingBOQ(false));
@@ -123,15 +169,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
         finalDesc += '\n\n**Hình ảnh đính kèm:**\n' + successfulUrls.map((url, i) => `![Ảnh ${i + 1}](${url})`).join('\n');
       }
 
-      let finalDamageDesc = '';
-      if (damagedMaterials.length > 0) {
-        finalDamageDesc = `### Bảng thống kê vật tư thiệt hại\n\n| Mã vật tư | Tên vật tư | ĐVT | SL Lỗi/Mất |\n|---|---|---|---|\n`;
-        damagedMaterials.forEach(m => {
-          finalDamageDesc += `| ${m.materialCode} | ${m.materialName} | ${m.unitName} | **${m.quantityLost}** |\n`;
-        });
-      } else {
-        finalDamageDesc = 'Không có vật tư nào được thống kê cụ thể.';
-      }
+      const finalDamageDesc = serializeInventoryIncidentDamage(damagedMaterials);
 
       await incidentService.createAndAssessIncident({
         projectId: Number(projectId),
@@ -165,18 +203,29 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
       return;
     }
 
-    if (damagedMaterials.length > 0) {
-      const emptyItem = damagedMaterials.find(m => !m.quantityLost || isNaN(m.quantityLost) || m.quantityLost <= 0);
-      if (emptyItem) {
-        toast.error(`Vui lòng nhập số lượng lỗi/mất lớn hơn 0 cho vật tư "${emptyItem.materialName}".`);
-        return;
-      }
+    if (damagedMaterials.length === 0) {
+      toast.error('Vui lòng thêm ít nhất một vật tư bị mất hoặc hư hỏng.');
+      return;
+    }
 
-      const overStockItem = damagedMaterials.find(m => m.quantityLost > m.stockQuantity);
-      if (overStockItem) {
-        toast.error(`Số lượng thiệt hại của "${overStockItem.materialName}" (${overStockItem.quantityLost}) không được vượt quá số lượng tồn kho hiện có (${overStockItem.stockQuantity}).`);
-        return;
-      }
+    const emptyItem = damagedMaterials.find(m => !m.quantityLost || isNaN(m.quantityLost) || m.quantityLost <= 0);
+    if (emptyItem) {
+      toast.error(`Vui lòng nhập SL > 0 cho vật tư "${emptyItem.materialName}".`);
+      return;
+    }
+
+    const nonIntegerDiscreteItem = damagedMaterials.find(
+      m => isDiscreteUnit(m.unitName) && m.quantityLost % 1 !== 0
+    );
+    if (nonIntegerDiscreteItem) {
+      toast.error(`Đơn vị tính '${nonIntegerDiscreteItem.unitName}' của vật tư "${nonIntegerDiscreteItem.materialName}" yêu cầu số lượng phải là số nguyên.`);
+      return;
+    }
+
+    const overStockItem = damagedMaterials.find(m => m.quantityLost > m.stockQuantity);
+    if (overStockItem) {
+      toast.error(`Số lượng thiệt hại của "${overStockItem.materialName}" (${formatQuantity(overStockItem.quantityLost)} ${overStockItem.unitName}) không được vượt quá tồn khả dụng (${formatQuantity(overStockItem.stockQuantity)} ${overStockItem.unitName}).`);
+      return;
     }
 
     mutation.mutate(data);
@@ -279,18 +328,10 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
                   Loại sự cố vật tư <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
-                <div style={{
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  background: 'hsl(var(--bg-card))',
-                  border: '1px solid hsl(var(--border))',
-                  fontSize: '0.9rem',
-                  color: 'hsl(210, 70%, 45%)',
-                  fontWeight: 600,
-                }}>
-                  📦 Sự cố Vật tư Kho
-                </div>
-                <input type="hidden" {...register('incidentType')} value="InventoryLoss" />
+                <select className="input" {...register('incidentType')}>
+                  <option value="InventoryLoss">Mất mát vật tư</option>
+                  <option value="InventoryDamage">Hư hỏng vật tư</option>
+                </select>
               </div>
 
               <div>
@@ -418,14 +459,19 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                         <div style={{ padding: '10px', textAlign: 'center', fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
                           <Loader2 size={14} className="animate-spin inline mr-1" />Đang tải danh sách vật tư ...
                         </div>
-                      ) : boqItems.filter(item =>
+                      ) : inventoryItems.filter(item =>
                         item.materialCode.toLowerCase().includes(searchMaterial.toLowerCase()) ||
                         item.materialName.toLowerCase().includes(searchMaterial.toLowerCase())
                       ).slice(0, 20).map(item => (
                         <div key={item.materialId} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderBottom: '1px solid hsl(var(--border))', fontSize: '0.8rem' }}>
                           <div>
                             <div style={{ fontWeight: 600 }}>{item.materialCode} - {item.materialName}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>BOQ: {item.boqQuantity} {item.unitName} · Tồn kho hiện có: <span style={{ color: 'hsl(var(--primary))', fontWeight: 600 }}>{item.stockQuantity} {item.unitName}</span></div>
+                            <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>
+                              {item.isInPhaseBoq
+                                ? `BOQ giai đoạn: ${formatQuantity(item.phaseBoqQuantity ?? 0)} ${item.unitName}`
+                                : 'Vật tư ngoài BOQ giai đoạn'}
+                              {' · '}Tồn khả dụng: <span style={{ color: 'hsl(var(--primary))', fontWeight: 600 }}>{formatQuantity(item.stockQuantity)} {item.unitName}</span>
+                            </div>
                           </div>
                           <button
                             type="button"
@@ -433,7 +479,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                             style={{ fontSize: '0.75rem', fontWeight: 600 }}
                             onClick={() => {
                               if (!damagedMaterials.find(m => m.materialId === item.materialId)) {
-                                setDamagedMaterials([...damagedMaterials, { ...item, quantityLost: 0 }]);
+                                setDamagedMaterials([...damagedMaterials, { ...item, rawQuantity: '', quantityLost: 0 }]);
                               }
                             }}
                           >
@@ -441,9 +487,9 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                           </button>
                         </div>
                       ))}
-                      {!loadingBOQ && boqItems.length === 0 && (
+                      {!loadingBOQ && inventoryItems.length === 0 && (
                         <div style={{ padding: '10px', textAlign: 'center', fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
-                          Không có vật tư nào vừa thuộc BOQ giai đoạn vừa có sẵn trong kho.
+                          Dự án không có vật tư nào còn tồn khả dụng.
                         </div>
                       )}
                     </div>
@@ -461,55 +507,66 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                         </tr>
                       </thead>
                       <tbody>
-                        {damagedMaterials.map((m, idx) => (
-                          <tr key={m.materialId}>
-                            <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
-                              <div style={{ fontWeight: 600 }}>{m.materialCode}</div>
-                              <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>{m.materialName}</div>
-                            </td>
-                            <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <input
-                                    type="number"
-                                    min={0.01}
-                                    step="any"
-                                    placeholder="Nhập SL..."
-                                    className="input"
-                                    style={{
-                                      width: '90px',
-                                      padding: '4px 8px',
-                                      borderColor: (!m.quantityLost || m.quantityLost <= 0 || m.quantityLost > m.stockQuantity) ? '#dc2626' : undefined
-                                    }}
-                                    value={m.quantityLost === 0 ? '' : m.quantityLost}
-                                    onChange={e => {
-                                      const val = parseFloat(e.target.value) || 0;
-                                      const newArr = [...damagedMaterials];
-                                      newArr[idx].quantityLost = val;
-                                      setDamagedMaterials(newArr);
-                                    }}
-                                  />
-                                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>{m.unitName}</span>
+                        {damagedMaterials.map((m, idx) => {
+                          const isDiscrete = isDiscreteUnit(m.unitName);
+                          return (
+                            <tr key={m.materialId}>
+                              <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
+                                <div style={{ fontWeight: 600 }}>{m.materialCode}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>{m.materialName}</div>
+                              </td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step={isDiscrete ? "1" : "any"}
+                                      placeholder="Nhập SL..."
+                                      className="input"
+                                      style={{
+                                        width: '90px',
+                                        padding: '4px 8px',
+                                        borderColor: (
+                                          (m.quantityLost > m.stockQuantity) ||
+                                          (isDiscrete && m.quantityLost > 0 && m.quantityLost % 1 !== 0)
+                                        ) ? '#dc2626' : undefined
+                                      }}
+                                      value={m.rawQuantity !== undefined ? m.rawQuantity : (m.quantityLost ? String(m.quantityLost) : '')}
+                                      onChange={e => {
+                                        const raw = e.target.value;
+                                        const num = parseFloat(raw);
+                                        const newArr = [...damagedMaterials];
+                                        newArr[idx] = {
+                                          ...newArr[idx],
+                                          rawQuantity: raw,
+                                          quantityLost: isNaN(num) ? 0 : num
+                                        };
+                                        setDamagedMaterials(newArr);
+                                      }}
+                                    />
+                                    <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>{m.unitName}</span>
+                                  </div>
+                                  {m.quantityLost > 0 && isDiscrete && m.quantityLost % 1 !== 0 && (
+                                    <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Đơn vị '{m.unitName}' phải là số nguyên</span>
+                                  )}
+                                  {m.quantityLost > m.stockQuantity && (
+                                    <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Vượt tồn kho ({formatQuantity(m.stockQuantity)} {m.unitName})</span>
+                                  )}
                                 </div>
-                                {(!m.quantityLost || m.quantityLost <= 0) && (
-                                  <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Vui lòng nhập SL &gt; 0</span>
-                                )}
-                                {m.quantityLost > m.stockQuantity && (
-                                  <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Vượt tồn kho ({m.stockQuantity})</span>
-                                )}
-                              </div>
-                            </td>
-                            <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={() => setDamagedMaterials(damagedMaterials.filter((_, i) => i !== idx))}
-                                style={{ color: 'hsl(var(--danger))', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setDamagedMaterials(damagedMaterials.filter((_, i) => i !== idx))}
+                                  style={{ color: 'hsl(var(--danger))', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -519,8 +576,6 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                   </div>
                 )}
               </div>
-
-
             </div>
           </div>
         </div>

@@ -39,7 +39,7 @@ export interface CreateIncreaseAdjustmentCommand {
   phaseId: number;
   reason: string;
   description?: string;
-  items: { materialId: number; quantity: number }[];
+  items: { materialId: number; unitId: number; quantity: number }[];
 }
 
 export interface CreateDecreaseAdjustmentCommand {
@@ -47,7 +47,7 @@ export interface CreateDecreaseAdjustmentCommand {
   incidentId?: number;
   reason: string;
   description?: string;
-  items: { materialId: number; quantity: number }[];
+  items: { materialId: number; unitId: number; quantity: number }[];
 }
 
 export interface ApproveDecreaseAdjustmentCommand {
