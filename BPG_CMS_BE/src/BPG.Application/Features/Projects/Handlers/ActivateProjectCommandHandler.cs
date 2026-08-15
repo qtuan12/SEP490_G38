@@ -15,11 +15,16 @@ using System.Threading.Tasks;
 public class ActivateProjectCommandHandler : IRequestHandler<ActivateProjectCommand, MediatR.Unit>
 {
     private readonly IUnitOfWork _uow;
+    private readonly INotificationService _notificationService;
     private readonly IRealtimeNotificationSender _realtimeSender;
 
-    public ActivateProjectCommandHandler(IUnitOfWork uow, IRealtimeNotificationSender realtimeSender)
+    public ActivateProjectCommandHandler(
+        IUnitOfWork uow,
+        INotificationService notificationService,
+        IRealtimeNotificationSender realtimeSender)
     {
         _uow = uow;
+        _notificationService = notificationService;
         _realtimeSender = realtimeSender;
     }
 
@@ -44,8 +49,64 @@ public class ActivateProjectCommandHandler : IRequestHandler<ActivateProjectComm
         _uow.Repository<Project>().Update(project);
         await _uow.SaveChangesAsync(cancellationToken);
 
+        // Fetch and notify all project members
+        var projectMembers = await _uow.Repository<ProjectMember>()
+            .Query()
+            .Where(pm => pm.ProjectId == project.ProjectId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var pm in projectMembers)
+        {
+            await _notificationService.SendNotificationAsync(
+                pm.UserId,
+                "🚀 Dự án đã được kích hoạt",
+                $"Dự án {project.Name} đã chính thức được kích hoạt và bắt đầu thi công.",
+                NotificationType.Progress,
+                NotificationReferenceType.Project,
+                project.ProjectId,
+                cancellationToken
+            );
+        }
+
+        // Notify Key Roles (Director, TechnicalManager, Accountant)
+        await _notificationService.SendNotificationToRoleAsync(
+            BPG.Domain.Constants.UserRole.Director,
+            "🚀 Dự án đã được kích hoạt",
+            $"Dự án {project.Name} đã chính thức được kích hoạt và bắt đầu thi công.",
+            NotificationType.Progress,
+            NotificationReferenceType.Project,
+            project.ProjectId,
+            cancellationToken
+        );
+
+        await _notificationService.SendNotificationToRoleAsync(
+            BPG.Domain.Constants.UserRole.TechnicalManager,
+            "🚀 Dự án đã được kích hoạt",
+            $"Dự án {project.Name} đã chính thức được kích hoạt và bắt đầu thi công.",
+            NotificationType.Progress,
+            NotificationReferenceType.Project,
+            project.ProjectId,
+            cancellationToken
+        );
+
+        await _notificationService.SendNotificationToRoleAsync(
+            BPG.Domain.Constants.UserRole.Accountant,
+            "🚀 Dự án đã được kích hoạt",
+            $"Dự án {project.Name} đã chính thức được kích hoạt và bắt đầu thi công.",
+            NotificationType.Progress,
+            NotificationReferenceType.Project,
+            project.ProjectId,
+            cancellationToken
+        );
+
         await _realtimeSender.SendToGroupAsync(
-            $"Project_{project.ProjectId}",
+            HubMethodNames.GroupProject + project.ProjectId,
+            HubMethodNames.ProjectUpdated,
+            new { ProjectId = project.ProjectId, Status = project.Status },
+            cancellationToken);
+
+        await _realtimeSender.SendToGroupAsync(
+            HubMethodNames.GroupProject + 0,
             HubMethodNames.ProjectUpdated,
             new { ProjectId = project.ProjectId, Status = project.Status },
             cancellationToken);

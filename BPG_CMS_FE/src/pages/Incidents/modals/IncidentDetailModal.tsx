@@ -897,6 +897,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   const TypeIcon = meta.icon;
   const isInventoryIncident = incidentType === 'InventoryLoss' || incidentType === 'InventoryDamage';
   const isConstruction = !isInventoryIncident;
+  const isRegularConstruction = isConstruction && !incident.isEmergency;
 
   // Check if description is JSON
   let isDescriptionJson = false;
@@ -966,8 +967,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       {incident.isEmergency ? (
         <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: 'hsl(var(--bg-muted))', borderRadius: '10px', border: '1px solid hsl(var(--border))' }}>
           {[
-            { n: 1, label: 'PL Báo cáo dừng', done: true },
-            { n: 2, label: 'TPKT Duyệt dừng', done: incident.status !== 'WaitingStopApproval' },
+            { n: 1, label: 'Trưởng dự án Báo cáo dừng', done: true },
+            { n: 2, label: 'Trưởng phòng kĩ thuật Duyệt', done: incident.status !== 'WaitingStopApproval' },
             { n: 3, label: 'Lập báo cáo khắc phục', done: incident.status !== 'WaitingStopApproval' && incident.status !== 'WaitingRecoveryPlan' },
             { n: 4, label: 'Giám đốc phê duyệt', done: incident.status === 'Approved' },
           ].map((step, idx) => (
@@ -992,7 +993,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: 'hsl(var(--bg-muted))', borderRadius: '10px', border: '1px solid hsl(var(--border))' }}>
           {[
-            { n: 1, label: 'PL Báo cáo', done: true },
+            { n: 1, label: 'Trưởng dự án Báo cáo', done: true },
             { n: 2, label: isInventoryIncident ? 'Kế toán Xác minh' : 'TPKT Thẩm định', done: isInventoryIncident ? !['Reported', 'WaitingAccountant'].includes(incident.status) : !['Reported', 'WaitingReview'].includes(incident.status) },
             { n: 3, label: isInventoryIncident ? 'Chuyển sang Giám đốc' : 'Hoàn tất', done: ['Approved', 'Rejected', 'Closed', 'Resolved'].includes(incident.status) },
           ].map((step, idx) => (
@@ -1260,43 +1261,72 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
           )}
 
           {/* Seamless Damage Assessment & Supplementary Details (Only for non-JSON formal reports) */}
-          {!isDescriptionJson && incident.damageDescription && (
+          {!isDescriptionJson && (incident.damageDescription || (isRegularConstruction && (incident.proposedAction || incident.estimatedLaborDays != null || incident.estimatedDelayDays != null || (incident.estimatedMaterialLoss != null && incident.estimatedMaterialLoss > 0)))) && (
             <div style={{ borderTop: '1px solid hsl(var(--border))', paddingTop: '14px', marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 {isInventoryIncident ? 'Thống kê Vật tư Thiệt hại' : 'Đánh giá Thiệt hại & Vật tư Cấp bù'}
               </span>
 
               {/* Unified Stats & Meta Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
-                {isConstruction && incident.isEmergency && !!incident.estimatedMaterialLoss && (
-                  <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <AlertCircle size={12} />
-                      Ước tính chi phí vật tư sơ bộ
+              {(isRegularConstruction || Object.keys(damageMetaClean).length > 0) && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
+                  {isRegularConstruction && incident.proposedAction && (
+                    <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))', gridColumn: '1 / -1' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle size={12} />
+                        Đề xuất xử lý
+                      </div>
+                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--primary))' }}>{incident.proposedAction}</strong>
                     </div>
-                    <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
-                      {incident.estimatedMaterialLoss.toLocaleString('vi-VN')} VNĐ
-                    </strong>
-                  </div>
-                )}
+                  )}
 
-                {Object.entries(damageMetaClean).map(([key, val]) => (
-                  <div key={key} style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <AlertCircle size={12} />
-                      {key}
+                  {isRegularConstruction && (
+                    <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Users size={12} />
+                        Số ngày nhân công khắc phục
+                      </div>
+                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
+                        {incident.estimatedLaborDays != null ? `${incident.estimatedLaborDays} công` : '0 công'}
+                      </strong>
                     </div>
-                    <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{val}</strong>
-                  </div>
-                ))}
+                  )}
 
-                {isConstruction && incident.proposedAction && (
-                  <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))', gridColumn: '1 / -1' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} />Đề xuất xử lý</div>
-                    <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--primary))' }}>{incident.proposedAction}</strong>
-                  </div>
-                )}
-              </div>
+                  {isRegularConstruction && (
+                    <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={12} />
+                        Số ngày dự kiến trễ tiến độ
+                      </div>
+                      <strong style={{ fontSize: '0.95rem', color: (incident.estimatedDelayDays && incident.estimatedDelayDays > 0) ? 'hsl(var(--danger, #ef4444))' : 'hsl(var(--text-primary))' }}>
+                        {incident.estimatedDelayDays != null ? `${incident.estimatedDelayDays} ngày` : '0 ngày'}
+                      </strong>
+                    </div>
+                  )}
+
+                  {isRegularConstruction && !damageMetaClean['Ước tính thiệt hại'] && !!incident.estimatedMaterialLoss && incident.estimatedMaterialLoss > 0 && (
+                    <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <AlertCircle size={12} />
+                        Ước tính chi phí vật tư sơ bộ
+                      </div>
+                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
+                        {incident.estimatedMaterialLoss.toLocaleString('vi-VN')} VNĐ
+                      </strong>
+                    </div>
+                  )}
+
+                  {isRegularConstruction && Object.entries(damageMetaClean).map(([key, val]) => (
+                    <div key={key} style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <AlertCircle size={12} />
+                        {key}
+                      </div>
+                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{val}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Table for Inventory Incidents */}
               {isInventoryIncident && parsedDamagedItems.length > 0 && (
@@ -1932,7 +1962,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               disabled={!isProjectActive}
               title={!isProjectActive ? 'Chỉ có thể tạo phiếu khi dự án đang thực hiện' : undefined}
             >
-              📦 Xác minh &amp; Tạo Phiếu (Kế toán)
+              📦 Tạo phiếu giảm tồn
             </button>
           </div>
         )
