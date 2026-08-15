@@ -204,8 +204,8 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
             return updated;
           });
         },
-        () => {
-          toast.error(`Không thể tải file ${file.name} lên.`);
+        (message) => {
+          toast.error(message || `Không thể tải file ${file.name} lên.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' as const } : f)
           );
@@ -277,7 +277,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
             <input
               id="edit-drawing-file-input"
               type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
+              accept=".doc,.docx,.pdf,.png,.jpg,.jpeg"
               multiple
               className="hidden"
               onChange={handleFileSelect}

@@ -176,8 +176,8 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
             return updated;
           });
         },
-        () => {
-          toast.error(`Không thể tải file ${file.name} lên.`);
+        (message) => {
+          toast.error(message || `Không thể tải file ${file.name} lên.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' as const } : f)
           );
@@ -250,7 +250,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
             <input
               id="drawing-file-input"
               type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
+              accept=".doc,.docx,.pdf,.png,.jpg,.jpeg"
               multiple
               className="hidden"
               onChange={handleFileSelect}
