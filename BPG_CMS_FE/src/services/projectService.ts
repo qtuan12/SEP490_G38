@@ -992,6 +992,7 @@ export const projectService = {
         userId: c.authorId.toString(),
         userName: c.authorName,
         role: c.authorRole,
+        avatarUrl: c.avatarUrl ?? null,
         content: c.content,
         date: c.createdAt || ''
       });
@@ -1085,6 +1086,7 @@ export const projectService = {
         userId: c.authorId.toString(),
         userName: c.authorName,
         role: c.authorRole,
+        avatarUrl: c.avatarUrl ?? null,
         content: c.content,
         date: c.createdAt || ''
       });
@@ -1221,6 +1223,7 @@ export const projectService = {
         userId: c.authorId.toString(),
         userName: c.authorName,
         role: c.authorRole,
+        avatarUrl: c.avatarUrl ?? null,
         content: c.content,
         date: c.createdAt || ''
       });
