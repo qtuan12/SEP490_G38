@@ -202,6 +202,7 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId, o
       userId: c.authorId.toString(),
       userName: c.authorName,
       role: c.authorRole,
+      avatarUrl: c.avatarUrl ?? null,
       content: c.content,
       date: c.createdAt ? formatDateTime(c.createdAt) : ''
     });

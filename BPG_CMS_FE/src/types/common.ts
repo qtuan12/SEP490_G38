@@ -210,6 +210,7 @@ export interface DailyLogComment {
   userId: string;
   userName: string;
   role: string;
+  avatarUrl?: string | null;
   content: string;
   date: string;
 }

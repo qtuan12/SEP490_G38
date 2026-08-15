@@ -56,6 +56,7 @@ namespace BPG.Application.Common.Mappings
             // Mapping cho Daily Log và Comments
             CreateMap<Comment, BPG.Application.DTOs.DailyLogs.CommentDto>()
                 .ForMember(dest => dest.AuthorName, opt => opt.MapFrom(src => src.Author != null ? src.Author.FullName : string.Empty))
+                .ForMember(dest => dest.AvatarUrl, opt => opt.MapFrom(src => src.Author != null ? src.Author.AvatarUrl : null))
                 .ForMember(dest => dest.AuthorRole, opt => opt.MapFrom(src =>
                     src.Author != null && src.Author.UserRoles != null && src.Author.UserRoles.Any() && src.Author.UserRoles.FirstOrDefault()!.Role != null
                         ? src.Author.UserRoles.FirstOrDefault()!.Role!.RoleName
