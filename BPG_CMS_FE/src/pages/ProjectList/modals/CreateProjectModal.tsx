@@ -38,6 +38,17 @@ const schema = z.object({
   path: ["endDate"]
 });
 
+const isPreviewableImage = (fileName: string) =>
+  /\.(avif|bmp|gif|heic|heif|jfif|jpe?g|png|tiff?|webp)$/i.test(fileName);
+
+const getProjectAttachmentFileType = (fileName: string) => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  if (extension === 'pdf') return 'pdf';
+  if (extension === 'dwg' || extension === 'dxf') return 'cad';
+  if (extension === 'doc' || extension === 'docx') return 'document';
+  return 'image';
+};
+
 type FormData = z.infer<typeof schema>;
 
 interface CreateProjectModalProps {
@@ -82,9 +93,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const successUrls = uploadedFiles
+      const successfulFiles = uploadedFiles
         .filter(f => f.status === 'success' && f.url)
-        .map(f => f.url!);
+        .map(f => ({ name: f.name, url: f.url! }));
+      const successUrls = successfulFiles.map(f => f.url);
 
       const result = await projectService.createProject({
         name: data.name,
@@ -93,10 +105,10 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
         endDate: data.endDate,
         status: data.status,
         drawingUrls: successUrls,
-        attachments: successUrls.map(url => ({
-          fileName: url.substring(url.lastIndexOf('/') + 1),
-          fileUrl: url,
-          fileType: url.endsWith('.pdf') ? 'pdf' : 'image',
+        attachments: successfulFiles.map(file => ({
+          fileName: file.name,
+          fileUrl: file.url,
+          fileType: getProjectAttachmentFileType(file.name),
           attachmentType: 'design'
         }))
       });
@@ -147,8 +159,8 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
 
   const addFiles = (files: File[]) => {
     const totalSize = files.reduce((acc, f) => acc + f.size, 0);
-    if (totalSize > 20 * 1024 * 1024) {
-      toast.error(`Tổng dung lượng các file không được vượt quá 20MB (đã chọn: ${(totalSize / 1024 / 1024).toFixed(2)}MB).`);
+    if (totalSize > 50 * 1024 * 1024) {
+      toast.error(`Tổng dung lượng các bản vẽ không được vượt quá 50 MB (đã chọn: ${(totalSize / 1024 / 1024).toFixed(2)} MB).`);
       return;
     }
 
@@ -250,7 +262,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
             <input
               id="drawing-file-input"
               type="file"
-              accept=".doc,.docx,.pdf,.png,.jpg,.jpeg"
+              accept=".doc,.docx,.pdf,.png,.jpg,.jpeg,.webp,.dwg,.dxf"
               multiple
               className="hidden"
               onChange={handleFileSelect}
@@ -262,7 +274,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, 
                 {uploadedFiles.map((preview) => (
                   <div key={preview.id} className="flex flex-col items-center gap-1 group relative">
                     <div className={`relative w-16 h-16 rounded overflow-hidden shadow-sm border ${preview.status === 'error' ? 'border-red-500' : preview.status === 'success' ? 'border-green-500' : 'border-gray-200'}`}>
-                      {preview.url && (preview.url.startsWith('blob:') || !preview.url.endsWith('.pdf')) ? (
+                      {preview.url && isPreviewableImage(preview.name) ? (
                         <img
                           src={preview.url}
                           alt={preview.name}

@@ -97,6 +97,8 @@ public class UploadFilePolicyTests
     [Theory]
     [InlineData("design.doc", new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 })]
     [InlineData("design.docx", new byte[] { 0x50, 0x4B, 0x03, 0x04 })]
+    [InlineData("plan.dwg", new byte[] { (byte)'A', (byte)'C', (byte)'1', (byte)'0', (byte)'3', (byte)'2' })]
+    [InlineData("plan.dxf", new byte[] { (byte)'0', (byte)'\r', (byte)'\n', (byte)'S', (byte)'E', (byte)'C', (byte)'T', (byte)'I', (byte)'O', (byte)'N' })]
     public async Task ValidateFileAsync_ShouldAcceptWordDocumentsForProjectDesigns(
         string fileName,
         byte[] signature)
@@ -106,6 +108,23 @@ public class UploadFilePolicyTests
         var result = await UploadFilePolicy.ValidateFileAsync(File(fileName, signature), destination);
 
         result.IsValid.Should().BeTrue(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ValidateFileAsync_ShouldAllowFiftyMiBOnlyForProjectDesigns()
+    {
+        UploadFilePolicy.TryResolveDestination("projects/design", out var designs, out _).Should().BeTrue();
+        UploadFilePolicy.TryResolveDestination("incidents", out var incidents, out _).Should().BeTrue();
+        var signature = new byte[] { (byte)'A', (byte)'C', (byte)'1', (byte)'0', (byte)'3', (byte)'2' };
+
+        var designResult = await UploadFilePolicy.ValidateFileAsync(
+            File("large.dwg", signature, UploadFilePolicy.MaxProjectDesignFileSizeBytes), designs);
+        var incidentResult = await UploadFilePolicy.ValidateFileAsync(
+            File("large.pdf", "%PDF-1.7"u8.ToArray(), UploadFilePolicy.MaxFileSizeBytes + 1), incidents);
+
+        designResult.IsValid.Should().BeTrue(designResult.ErrorMessage);
+        incidentResult.IsValid.Should().BeFalse();
+        incidentResult.ErrorMessage.Should().Contain("10 MB");
     }
 
     [Fact]
