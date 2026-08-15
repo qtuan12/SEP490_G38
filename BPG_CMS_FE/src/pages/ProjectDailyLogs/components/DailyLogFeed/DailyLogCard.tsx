@@ -297,8 +297,11 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                     key={comm.id}
                     className={`flex gap-2.5 px-3 py-2 bg-[hsl(var(--bg-main)/0.4)] rounded-sm text-[0.825rem] border border-[hsl(var(--border)/0.5)] transition-all duration-200 min-w-0 w-full overflow-hidden ${commentClass}`}
                   >
-                    <div className={`w-[26px] h-[26px] rounded-full flex items-center justify-center font-bold text-[0.75rem] shrink-0 ${isManager ? 'bg-[hsl(var(--warning-glow))] text-[hsl(var(--warning))]' : 'bg-[hsl(var(--border))] text-[hsl(var(--text-primary))]'}`}>
-                      {comm.userName.charAt(0)}
+                    <div className={`w-[26px] h-[26px] rounded-full flex items-center justify-center font-bold text-[0.75rem] shrink-0 overflow-hidden ${isManager ? 'bg-[hsl(var(--warning-glow))] text-[hsl(var(--warning))]' : 'bg-[hsl(var(--border))] text-[hsl(var(--text-primary))]'}`}>
+                      {comm.avatarUrl
+                        ? <img src={comm.avatarUrl} alt={comm.userName} className="w-full h-full object-cover" />
+                        : comm.userName.charAt(0)
+                      }
                     </div>
 
                     <div className="flex flex-col gap-0.5 flex-1 min-w-0 w-full overflow-hidden">
