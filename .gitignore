@@ -106,3 +106,5 @@ outputs/
 scripts/
 test-cases/
 unit-test/
+system test/
+report6/

@@ -334,19 +334,6 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         };
                         await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
 
-                        var dailyLog = new DailyLog
-                        {
-                            TaskId = incident.Task.TaskId,
-                            LogDate = VietnamTime.Today,
-                            NewProgressPercent = (byte)request.DecreaseProgressTo.Value,
-                            Description = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason)
-                                ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}"
-                                : $"Giảm tiến độ do sự cố: {incident.Description}",
-                            CreatedBy = currentUserId,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        await _unitOfWork.Repository<DailyLog>().AddAsync(dailyLog);
-
                         incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
                         if (incident.Task.ProgressPercent < 100 && incident.Task.Status == BPG.Domain.Constants.TaskStatus.Completed)
                         {
@@ -456,20 +443,6 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         UpdatedAt = DateTime.UtcNow
                     };
                     await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
-
-                    // Also create a DailyLog so it appears on the project timeline
-                    var dailyLog = new DailyLog
-                    {
-                        TaskId = incident.Task.TaskId,
-                        LogDate = VietnamTime.Today,
-                        NewProgressPercent = (byte)request.DecreaseProgressTo.Value,
-                        Description = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason) 
-                            ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}" 
-                            : $"Giảm tiến độ do sự cố: {incident.Description}",
-                        CreatedBy = currentUserId,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    await _unitOfWork.Repository<DailyLog>().AddAsync(dailyLog);
 
                     incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
                     if (incident.Task.ProgressPercent < 100 && incident.Task.Status == BPG.Domain.Constants.TaskStatus.Completed)
