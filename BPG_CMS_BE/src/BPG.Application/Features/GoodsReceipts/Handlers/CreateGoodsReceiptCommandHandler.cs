@@ -289,18 +289,6 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     .Select(u => u.FullName)
                     .FirstOrDefaultAsync(cancellationToken) ?? "Người dùng";
 
-                var receiptTitle = "Nhập kho thành công";
-                var receiptContent = $"Bạn đã tạo phiếu nhập kho {goodsReceipt.ReceiptNo} cho đơn mua {po.PONumber} tại dự án {project.Name}.";
-
-                await _notificationService.SendNotificationAsync(
-                    currentUserId,
-                    receiptTitle,
-                    receiptContent,
-                    NotificationType.Procurement,
-                    $"/projects/{project.ProjectId}?tab=inventory&subTab=receipts&receiptId={goodsReceipt.ReceiptId}",
-                    goodsReceipt.ReceiptId,
-                    cancellationToken);
-
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.Accountant,
                     "Có phiếu nhập kho mới",
