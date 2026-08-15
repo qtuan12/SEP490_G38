@@ -31,6 +31,7 @@ public class ConfirmIncidentCommandHandlerTests
     private readonly Mock<IGenericRepository<ProjectTask>> _taskRepository = new();
     private readonly Mock<IGenericRepository<TaskProgressLog>> _progressLogRepository = new();
     private readonly Mock<IGenericRepository<DailyLog>> _dailyLogRepository = new();
+    private readonly Mock<IProgressRollupService> _rollupService = new();
     private readonly ConfirmIncidentCommandHandler _handler;
 
     public ConfirmIncidentCommandHandlerTests()
@@ -78,7 +79,8 @@ public class ConfirmIncidentCommandHandlerTests
             _mapper.Object,
             _currentUser.Object,
             ServiceStubFactory.NotificationService(),
-            ServiceStubFactory.RealtimeSender());
+            ServiceStubFactory.RealtimeSender(),
+            _rollupService.Object);
     }
 
     [Fact]
@@ -204,6 +206,27 @@ public class ConfirmIncidentCommandHandlerTests
         _dailyLogRepository.Verify(repository => repository.AddAsync(
             It.IsAny<DailyLog>(),
             It.IsAny<CancellationToken>()), Times.Never);
+        _rollupService.Verify(service => service.RecalculateParentTaskProgressAsync(
+            It.IsAny<long>(),
+            It.IsAny<long?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UTCID08A_Handle_ProgressDecreaseWithParent_ShouldRecalculateAncestors()
+    {
+        var incident = ConstructionIncident();
+        incident.Task.ParentTaskId = 301;
+        SetupIncident(incident);
+        SetRoles(UserRoleConstants.TechnicalManager);
+        SetupTaskProject();
+
+        await _handler.Handle(Command(decreaseProgressTo: 80), CancellationToken.None);
+
+        _rollupService.Verify(service => service.RecalculateParentTaskProgressAsync(
+            301,
+            TaskId,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
