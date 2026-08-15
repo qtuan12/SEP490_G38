@@ -68,24 +68,29 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
     private readonly ICurrentUserService _currentUserService;
     private readonly INotificationService _notificationService;
     private readonly IRealtimeNotificationSender _realtimeSender;
+    private readonly IProgressRollupService _rollupService;
 
     public ConfirmIncidentCommandHandler(
         IUnitOfWork unitOfWork,
         IMapper mapper,
         ICurrentUserService currentUserService,
         INotificationService notificationService,
-        IRealtimeNotificationSender realtimeSender)
+        IRealtimeNotificationSender realtimeSender,
+        IProgressRollupService rollupService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _currentUserService = currentUserService;
         _notificationService = notificationService;
         _realtimeSender = realtimeSender;
+        _rollupService = rollupService;
     }
 
     public async Task<ApiResponse<IncidentDto>> Handle(ConfirmIncidentCommand request, CancellationToken cancellationToken)
     {
         var currentUserId = Convert.ToInt64(_currentUserService.UserId);
+        long? taskIdWithProgressDecrease = null;
+        long? parentTaskIdToRecalculate = null;
 
         var incident = await _unitOfWork.Repository<Incident>()
             .Query()
@@ -335,6 +340,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
 
                         incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
+                        taskIdWithProgressDecrease = incident.Task.TaskId;
+                        parentTaskIdToRecalculate = incident.Task.ParentTaskId;
                         if (incident.Task.ProgressPercent < 100 && incident.Task.Status == BPG.Domain.Constants.TaskStatus.Completed)
                         {
                             incident.Task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
@@ -445,6 +452,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
 
                     incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
+                    taskIdWithProgressDecrease = incident.Task.TaskId;
+                    parentTaskIdToRecalculate = incident.Task.ParentTaskId;
                     if (incident.Task.ProgressPercent < 100 && incident.Task.Status == BPG.Domain.Constants.TaskStatus.Completed)
                     {
                         incident.Task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
@@ -519,6 +528,17 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             }
         }
 
+        // Save the incident/task first so the roll-up reads the decreased child progress,
+        // then recursively refresh every ancestor in the WBS tree.
+        if (parentTaskIdToRecalculate.HasValue && taskIdWithProgressDecrease.HasValue)
+        {
+            await _rollupService.RecalculateParentTaskProgressAsync(
+                parentTaskIdToRecalculate.Value,
+                taskIdWithProgressDecrease.Value,
+                cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
         // Map and return
         var updatedIncident = await _unitOfWork.Repository<Incident>()
             .Query()
@@ -539,6 +559,15 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             BPG.Domain.Constants.HubMethodNames.ProjectUpdated,
             updatedIncident.ProjectId,
             cancellationToken);
+
+        if (taskIdWithProgressDecrease.HasValue)
+        {
+            await _realtimeSender.SendToGroupAsync(
+                BPG.Domain.Constants.HubMethodNames.GroupProject + updatedIncident.ProjectId,
+                "WbsTreeUpdated",
+                new { TaskId = taskIdWithProgressDecrease.Value },
+                cancellationToken);
+        }
 
         // Realtime: broadcast to all members viewing global incidents (Project_0)
         await _realtimeSender.SendToGroupAsync(
