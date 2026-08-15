@@ -29,7 +29,7 @@ namespace BPG.Api.Controllers
         [HttpPost("upload")]
         [EnableRateLimiting(RateLimitPolicies.Upload)]
         [Consumes("multipart/form-data")]
-        [RequestSizeLimit(UploadFilePolicy.MaxFileSizeBytes + UploadFilePolicy.MultipartOverheadBytesPerFile)]
+        [RequestSizeLimit(UploadFilePolicy.MaxProjectDesignFileSizeBytes + UploadFilePolicy.MultipartOverheadBytesPerFile)]
         public async Task<IActionResult> UploadSingleFile(
             IFormFile file,
             [FromForm] string? folder,
@@ -74,7 +74,7 @@ namespace BPG.Api.Controllers
         [EnableRateLimiting(RateLimitPolicies.Upload)]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(UploadFilePolicy.MaxFilesPerRequest
-            * (UploadFilePolicy.MaxFileSizeBytes + UploadFilePolicy.MultipartOverheadBytesPerFile))]
+            * (UploadFilePolicy.MaxProjectDesignFileSizeBytes + UploadFilePolicy.MultipartOverheadBytesPerFile))]
         public async Task<IActionResult> UploadMultipleFiles(
             List<IFormFile> files,
             [FromForm] string? folder,

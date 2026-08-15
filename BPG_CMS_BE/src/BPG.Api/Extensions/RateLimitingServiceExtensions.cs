@@ -67,13 +67,27 @@ public static class RateLimitingServiceExtensions
 
     private static string GetPartitionKey(HttpContext context, string policyName)
     {
+        var scope = policyName == RateLimitPolicies.Auth
+            ? $"{policyName}:{GetRouteScope(context)}"
+            : policyName;
+
         var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!string.IsNullOrWhiteSpace(userId))
         {
-            return $"{policyName}:user:{userId}";
+            return $"{scope}:user:{userId}";
         }
 
         var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return $"{policyName}:ip:{ipAddress}";
+        return $"{scope}:ip:{ipAddress}";
     }
+
+    /// <summary>
+    /// Nhóm auth tách hạn mức theo từng route: nếu dùng chung, một lần gọi refresh-token lúc mở
+    /// trang đã ăn mất suất của login, khiến người dùng chạm trần sớm hơn số lần thực tế họ thử.
+    /// Lấy mẫu route (api/auth/login) chứ không lấy path thô để không sinh phân vùng theo tham số.
+    /// </summary>
+    private static string GetRouteScope(HttpContext context) =>
+        (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText?.ToLowerInvariant()
+        ?? context.Request.Path.Value?.ToLowerInvariant()
+        ?? "unknown";
 }

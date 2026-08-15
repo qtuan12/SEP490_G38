@@ -139,26 +139,6 @@ public class ProgressRollupService : IProgressRollupService
                 
                 await _unitOfWork.Repository<TaskProgressLog>().AddAsync(log, ct);
                 
-                if (newProgress < parentTask.ProgressPercent)
-                {
-                    var triggerTask = triggeringChildTaskId.HasValue
-                        ? allTasks.FirstOrDefault(t => t.TaskId == triggeringChildTaskId.Value)
-                        : null;
-
-                    var dailyLog = new DailyLog
-                    {
-                        TaskId = parentTask.TaskId,
-                        LogDate = VietnamTime.Today,
-                        NewProgressPercent = newProgress,
-                        Description = triggerTask != null
-                            ? $"Tiến độ giảm tự động từ {parentTask.ProgressPercent}% xuống {newProgress}% do ảnh hưởng bởi thay đổi tiến độ của công việc con '{triggerTask.Name}'."
-                            : $"Tiến độ giảm tự động từ {parentTask.ProgressPercent}% xuống {newProgress}% do ảnh hưởng bởi thay đổi tiến độ của công việc con.",
-                        CreatedBy = _currentUserService.UserId ?? 1,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    await _unitOfWork.Repository<DailyLog>().AddAsync(dailyLog, ct);
-                }
-                
                 parentTask.ProgressPercent = newProgress;
                 
                 if (newProgress > 0 && newProgress < 100 && parentTask.Status == BPG.Domain.Constants.TaskStatus.Assigned)

@@ -21,6 +21,17 @@ const schema = z.object({
   drawingNames: z.array(z.string()).default([])
 });
 
+const isPreviewableImage = (fileName: string) =>
+  /\.(avif|bmp|gif|heic|heif|jfif|jpe?g|png|tiff?|webp)$/i.test(fileName);
+
+const getProjectAttachmentFileType = (fileName: string) => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  if (extension === 'pdf') return 'pdf';
+  if (extension === 'dwg' || extension === 'dxf') return 'cad';
+  if (extension === 'doc' || extension === 'docx') return 'document';
+  return 'image';
+};
+
 type FormData = z.infer<typeof schema>;
 
 interface EditProjectModalProps {
@@ -111,7 +122,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
           return {
             fileName: f.name,
             fileUrl: f.url!,
-            fileType: f.url!.endsWith('.pdf') ? 'pdf' : 'image',
+            fileType: getProjectAttachmentFileType(f.name),
             attachmentType: 'design'
           };
         });
@@ -174,8 +185,8 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
 
   const addFiles = (files: File[]) => {
     const totalSize = files.reduce((acc, f) => acc + f.size, 0);
-    if (totalSize > 20 * 1024 * 1024) {
-      toast.error('Tổng dung lượng các file không được vượt quá 20MB.');
+    if (totalSize > 50 * 1024 * 1024) {
+      toast.error('Tổng dung lượng các bản vẽ không được vượt quá 50 MB.');
       return;
     }
 
@@ -204,8 +215,8 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
             return updated;
           });
         },
-        () => {
-          toast.error(`Không thể tải file ${file.name} lên.`);
+        (message) => {
+          toast.error(message || `Không thể tải file ${file.name} lên.`);
           setUploadedFiles(prev =>
             prev.map(f => f.id === tempId ? { ...f, status: 'error' as const } : f)
           );
@@ -277,7 +288,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
             <input
               id="edit-drawing-file-input"
               type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
+              accept=".doc,.docx,.pdf,.png,.jpg,.jpeg,.webp,.dwg,.dxf"
               multiple
               className="hidden"
               onChange={handleFileSelect}
@@ -298,7 +309,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ isOpen, onCl
                     </button>
                     
                     <div className={`relative w-16 h-16 rounded overflow-hidden shadow-sm border ${preview.status === 'error' ? 'border-red-500' : preview.status === 'success' ? 'border-green-500' : 'border-gray-200'}`}>
-                      {preview.url && (preview.url.startsWith('blob:') || !preview.url.endsWith('.pdf')) ? (
+                      {preview.url && isPreviewableImage(preview.name) ? (
                         <LazyImage 
                           src={preview.url} 
                           alt={preview.name} 

@@ -83,6 +83,11 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 {
                     source = "Direct";
                 }
+                else if (reason.Contains("Giảm tiến độ do sự cố")
+                    || reason.Contains("Phạt giảm tiến độ"))
+                {
+                    source = "Incident";
+                }
                 else if (dailyLogs.Any(dl =>
                     dl.CreatedBy == log.CreatedBy
                     && dl.NewProgressPercent == log.NewProgress
