@@ -78,7 +78,7 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
         var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
         var baseTransferQty = request.TransferQuantity / conversionRate;
 
-        // Reserve inventory in the sending project
+        // Kiểm tra tồn kho khả dụng (Reserved đã được set từ khi tạo batch)
         var inv = await _uow.Repository<CurrentInventory>().Query()
             .FirstOrDefaultAsync(ci => ci.ProjectId == fromProjectId && ci.MaterialId == item.MaterialId, ct)
             ?? throw new BusinessException(ErrorCodes.InsufficientStock, $"Vật tư không tồn tại trong kho của dự án.");
@@ -86,9 +86,8 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
         if ((inv.Quantity - inv.ReservedQuantity) < baseTransferQty)
             throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho khả dụng để chuyển. Tồn kho khả dụng: {(inv.Quantity - inv.ReservedQuantity).ToString("G29")}, Yêu cầu chuyển: {baseTransferQty.ToString("G29")} (base unit).");
 
-        inv.ReservedQuantity += baseTransferQty;
-        inv.LastUpdated = DateTime.UtcNow;
-        _uow.Repository<CurrentInventory>().Update(inv);
+        // Không tăng ReservedQuantity ở đây vì toàn bộ số lượng đã được lock từ khi tạo SurplusRequest.
+        // Reserved sẽ được giảm khi transfer được Received (ReceiveSurplusTransferCommandHandler).
 
         var transfer = new SurplusTransfer
         {
@@ -184,24 +183,12 @@ public class ReviewSurplusTransferCommandHandler : IRequestHandler<ReviewSurplus
 
         if (!request.IsApproved)
         {
-            // Release reserved quantity on item if rejected
+            // Khôi phục trạng thái item khi bị từ chối
             var item = transfer.SurplusRequestItem;
             item.Status = item.ProcessedQuantity > 0 ? SurplusRequestItemStatus.Processing : SurplusRequestItemStatus.Pending;
             _uow.Repository<SurplusRequestItem>().Update(item);
-
-            // Release inventory hold
-            var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
-            var baseTransferQty = transfer.TransferQuantity / conversionRate;
-            
-            var inv = await _uow.Repository<CurrentInventory>().Query()
-                .FirstOrDefaultAsync(ci => ci.ProjectId == transfer.FromProjectId && ci.MaterialId == item.MaterialId, ct);
-            if (inv != null)
-            {
-                inv.ReservedQuantity -= baseTransferQty;
-                if (inv.ReservedQuantity < 0) inv.ReservedQuantity = 0;
-                inv.LastUpdated = DateTime.UtcNow;
-                _uow.Repository<CurrentInventory>().Update(inv);
-            }
+            // Không cần thả ReservedQuantity vì Transfer create không lock thêm;
+            // toàn bộ được lock từ CreateSurplusRequest và chỉ được giảm khi xử lý thực sự (Receive/Return/Liquidation/Close).
         }
 
         await _uow.SaveChangesAsync(ct);

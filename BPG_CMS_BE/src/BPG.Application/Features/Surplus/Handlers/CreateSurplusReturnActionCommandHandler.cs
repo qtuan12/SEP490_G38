@@ -131,6 +131,16 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
                 userId,
                 ct);
 
+            // 🔓 Giải phóng ReservedQuantity tương ứng vì hàng đã rời kho thực sự (trả NCC)
+            var invToRelease = await _uow.Repository<CurrentInventory>().Query()
+                .FirstOrDefaultAsync(ci => ci.ProjectId == item.SurplusRequest.ProjectId && ci.MaterialId == item.MaterialId, ct);
+            if (invToRelease != null)
+            {
+                invToRelease.ReservedQuantity = Math.Max(0, invToRelease.ReservedQuantity - request.ReturnQuantity);
+                invToRelease.LastUpdated = DateTime.UtcNow;
+                _uow.Repository<CurrentInventory>().Update(invToRelease);
+            }
+
             await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
             await _uow.CommitTransactionAsync(ct);
         }

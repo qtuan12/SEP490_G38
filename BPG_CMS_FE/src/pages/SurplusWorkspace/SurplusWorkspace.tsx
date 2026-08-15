@@ -3,6 +3,7 @@ import { Button } from '../../components/ui';
 import { RefreshCw, PackageX } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { surplusService } from '../../services/surplusService';
+import { inventoryService } from '../../services/inventoryService';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useNotification } from '../../context/NotificationContext';
 
@@ -146,6 +147,19 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
 
       if (activeRequests.items.length > 0) {
         toast.error('Dự án đang có đợt xử lý vật tư thừa chưa hoàn tất.');
+        return;
+      }
+
+      // Check if there is any inventory to process
+      const inventory = await inventoryService.getCurrentInventory(projectId);
+      if (!inventory || inventory.length === 0) {
+        toast.error('Không có vật tư nào trong kho để tạo đề xuất xử lý.');
+        return;
+      }
+
+      const hasAvailableInventory = inventory.some(item => item.quantity > 0);
+      if (!hasAvailableInventory) {
+        toast.error('Không có vật tư nào trong kho để tạo đề xuất xử lý.');
         return;
       }
 

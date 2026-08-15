@@ -56,6 +56,23 @@ public class CloseSurplusRequestItemCommandHandler
         item.UpdatedBy = userId;
         _uow.Repository<SurplusRequestItem>().Update(item);
 
+        // 🔓 Giải phóng phần ReservedQuantity chưa được xử lý (Quantity - ProcessedQuantity)
+        // vì item được đóng, số lượng này sẽ không được xử lý nữa.
+        var unprocessedQty = item.Quantity - item.ProcessedQuantity;
+        if (unprocessedQty > 0)
+        {
+            var inv = await _uow.Repository<CurrentInventory>().Query()
+                .FirstOrDefaultAsync(
+                    ci => ci.ProjectId == item.SurplusRequest.ProjectId && ci.MaterialId == item.MaterialId,
+                    ct);
+            if (inv != null)
+            {
+                inv.ReservedQuantity = Math.Max(0, inv.ReservedQuantity - unprocessedQty);
+                inv.LastUpdated = now;
+                _uow.Repository<CurrentInventory>().Update(inv);
+            }
+        }
+
         var allOtherItemsDone = await _uow.Repository<SurplusRequestItem>().Query()
             .Where(i => i.SurplusRequestId == item.SurplusRequestId
                 && i.SurplusRequestItemId != item.SurplusRequestItemId)
