@@ -131,21 +131,25 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
         var notiTitle = "Thông báo thanh lý vật tư thừa";
         var notiContent = $"Vật tư thừa từ dự án {item.SurplusRequest.Project.Name} đã được thanh lý.";
 
-        // 1. Notify Accountant
+        // 1. Notify Accountant (trừ người thực hiện)
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.Accountant,
             notiTitle, notiContent,
-            NotificationType.Procurement, NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
+            NotificationType.Procurement,
+            excludeUserId: userId,
+            NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
 
-        // 2. Notify Technical Manager
+        // 2. Notify Technical Manager (trừ người thực hiện)
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.TechnicalManager,
             notiTitle, notiContent,
-            NotificationType.Procurement, NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
+            NotificationType.Procurement,
+            excludeUserId: userId,
+            NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
 
-        // 3. Notify Project Leader
+        // 3. Notify Project Leader (trừ người thực hiện)
         var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
-            .Where(pm => pm.ProjectId == item.SurplusRequest.ProjectId && pm.IsLeader)
+            .Where(pm => pm.ProjectId == item.SurplusRequest.ProjectId && pm.IsLeader && pm.UserId != userId)
             .Select(pm => pm.UserId)
             .FirstOrDefaultAsync(ct);
         if (projectLeaderId > 0)

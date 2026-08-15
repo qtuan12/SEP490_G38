@@ -149,19 +149,20 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         // Gửi thông báo realtime
         try
         {
-            // 1. Gửi thông báo đến Giám đốc
+            // 1. Gửi thông báo đến Giám đốc (trừ người thực hiện)
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Director,
                 "Nghiệm thu hoàn thành giai đoạn",
                 $"Giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' đã được nghiệm thu và hoàn thành.",
                 NotificationType.Progress,
+                userId,
                 $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/acceptance",
                 acceptance.AcceptanceId,
                 ct);
 
-            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án
+            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án (trừ người thực hiện)
             var projectLeader = await _unitOfWork.Repository<ProjectMember>().Query()
-                .FirstOrDefaultAsync(pm => pm.ProjectId == phase.ProjectId && pm.IsLeader, ct);
+                .FirstOrDefaultAsync(pm => pm.ProjectId == phase.ProjectId && pm.IsLeader && pm.UserId != userId, ct);
             if (projectLeader != null)
             {
                 await _notificationService.SendNotificationAsync(

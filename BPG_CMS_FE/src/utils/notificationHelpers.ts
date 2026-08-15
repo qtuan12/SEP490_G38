@@ -1,7 +1,16 @@
 export const resolveNotificationUrl = (noti: any): string | null => {
   if (!noti) return null;
   const referenceType = noti.referenceType;
-  const referenceId = noti.referenceId;
+  
+  // Trích xuất ID: ưu tiên referenceId, fallback trích xuất từ nội dung/tiêu đề dạng #123
+  let referenceId = noti.referenceId;
+  if (!referenceId) {
+    const extracted = noti.content?.match(/#(\d+)/)?.[1] || noti.title?.match(/#(\d+)/)?.[1];
+    if (extracted) {
+      referenceId = Number(extracted);
+    }
+  }
+
   const titleOrContent = ((noti.title || '') + ' ' + (noti.content || '')).toLowerCase();
 
   if (!referenceType) return null;
@@ -19,13 +28,28 @@ export const resolveNotificationUrl = (noti: any): string | null => {
       }
 
       if (projectId === '0') {
-        if (tab === 'inventoryadjustments') return '/inventory-adjustments';
-        if (tab === 'inventoryincidents') return '/materials-control';
+        if (tab === 'inventoryadjustments') {
+          return referenceId ? `/inventory-adjustments?adjustmentId=${referenceId}` : '/inventory-adjustments';
+        }
+        if (tab === 'inventoryincidents' || tab === 'incidents') {
+          return referenceId ? `/incidents?incidentId=${referenceId}` : '/incidents';
+        }
       }
 
-      // Mở thẳng chi tiết phiếu ngay trong phạm vi dự án, để đóng/quay lại thì thấy
-      // danh sách của dự án đó chứ không phải danh sách tổng toàn hệ thống.
+      // Mở thẳng chi tiết phiếu ngay trong phạm vi dự án
       if (referenceId) {
+        if (tab === 'inventoryadjustments') {
+          return `/projects/${projectId}?tab=inventoryadjustments&adjustmentId=${referenceId}`;
+        }
+        if (tab === 'incidents') {
+          return `/projects/${projectId}?tab=incidents&incidentId=${referenceId}`;
+        }
+        if (tab === 'inventoryincidents') {
+          return `/projects/${projectId}?tab=inventoryincidents&incidentId=${referenceId}`;
+        }
+        if (tab === 'materialrequests') {
+          return `/projects/${projectId}?tab=materialrequests&requestId=${referenceId}`;
+        }
         if (tab === 'directpurchases') {
           return `/projects/${projectId}?tab=directpurchases&directPurchaseId=${referenceId}`;
         }
@@ -40,8 +64,8 @@ export const resolveNotificationUrl = (noti: any): string | null => {
       return `/projects/${projectId}?tab=${tab}`;
     }
 
-    if (referenceType.includes('/acceptance') && referenceId) {
-      return `${referenceType}?historyId=${referenceId}`;
+    if (referenceType.includes('/acceptance')) {
+      return referenceId ? `${referenceType}?historyId=${referenceId}&acceptanceId=${referenceId}` : referenceType;
     }
 
     return referenceType;
@@ -80,23 +104,26 @@ export const resolveNotificationUrl = (noti: any): string | null => {
   }
 
   if (referenceType === 'DirectPurchaseRequest') {
-    return `/direct-purchases`;
+    return referenceId ? `/direct-purchases?directPurchaseId=${referenceId}` : `/direct-purchases`;
   }
 
-  if (referenceType === 'Incident') {
-    return `/incidents`;
+  if (referenceType === 'Incident' || referenceType === 'IncidentReported' || referenceType === 'InventoryIncidentReported' || referenceType === 'EmergencyStop') {
+    return referenceId ? `/incidents?incidentId=${referenceId}` : `/incidents`;
   }
 
   if (referenceType === 'PhaseAcceptance') {
-    return `/phase-acceptances`;
+    return referenceId ? `/phase-acceptances?acceptanceId=${referenceId}` : `/phase-acceptances`;
   }
 
   if (referenceType === 'InventoryAdjustment') {
-    return `/inventory-adjustments`;
+    return referenceId ? `/inventory-adjustments?adjustmentId=${referenceId}` : `/inventory-adjustments`;
+  }
+
+  if (referenceType === 'MaterialRequest') {
+    return referenceId ? `/projects/0?tab=materialrequests&requestId=${referenceId}` : `/projects`;
   }
 
   if (referenceType === 'SurplusRequest') {
-    // Old notifications didn't have projectId. We can't navigate to project surplus.
     return `/projects`;
   }
 

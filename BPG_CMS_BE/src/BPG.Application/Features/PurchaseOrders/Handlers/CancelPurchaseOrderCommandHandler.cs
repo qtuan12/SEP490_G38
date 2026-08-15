@@ -72,11 +72,20 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             var notiTitle = "Đơn hàng đã bị hủy";
             var notiContent = $"Đơn hàng {po.PONumber} đã bị hủy. Lý do: {po.CancelledReason}";
 
-            await _notificationService.SendNotificationToRoleAsync(
-                UserRole.Accountant, notiTitle, notiContent,
-                NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
-
             var currentUserId = _currentUserService.UserId;
+            if (currentUserId.HasValue)
+            {
+                await _notificationService.SendNotificationToRoleAsync(
+                    UserRole.Accountant, notiTitle, notiContent,
+                    NotificationType.Procurement, currentUserId.Value, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
+            }
+            else
+            {
+                await _notificationService.SendNotificationToRoleAsync(
+                    UserRole.Accountant, notiTitle, notiContent,
+                    NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
+            }
+
             var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
                 .Where(m => m.ProjectId == po.ProjectId && m.IsLeader && m.UserId != currentUserId)
                 .Select(m => m.UserId)

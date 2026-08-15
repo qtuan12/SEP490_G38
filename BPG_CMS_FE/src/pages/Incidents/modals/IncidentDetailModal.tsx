@@ -893,7 +893,14 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   }
 
   const incidentType = incident.incidentType as keyof typeof INCIDENT_META;
-  const meta = INCIDENT_META[incidentType] ?? INCIDENT_META.Construction;
+  const rawMeta = INCIDENT_META[incidentType] ?? INCIDENT_META.Construction;
+  const meta = incident.isEmergency ? {
+    label: 'Sự cố Khẩn cấp',
+    color: 'hsl(0, 84%, 55%)',
+    bg: 'hsl(0, 100%, 97%)',
+    border: 'hsl(0, 80%, 85%)',
+    icon: AlertCircle,
+  } : rawMeta;
   const TypeIcon = meta.icon;
   const isInventoryIncident = incidentType === 'InventoryLoss' || incidentType === 'InventoryDamage';
   const isConstruction = !isInventoryIncident;
@@ -1032,7 +1039,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       <div style={{ border: `1px solid ${meta.border}`, borderRadius: '10px', overflow: 'hidden' }}>
         <div style={{ padding: '10px 14px', background: meta.bg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.7rem', fontWeight: 700, color: meta.color, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Báo cáo Sự cố (Trưởng nhóm dự án)
+            {incident.isEmergency ? 'Báo cáo Sự cố Khẩn cấp' : 'Báo cáo Sự cố (Trưởng nhóm dự án)'}
           </span>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             {isDescriptionJson && (
@@ -1477,53 +1484,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   Tổng dự toán: {incident.recoveryEstimateCost.toLocaleString('vi-VN')} VNĐ
                 </span>
               )}
-              {parsedDoc?.isImported ? (
-                parsedDoc.files && parsedDoc.files.length > 0 ? (
-                  <a
-                    href={parsedDoc.files[0].fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      color: '#fff',
-                      background: 'hsl(210, 70%, 45%)',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      textDecoration: 'none'
-                    }}
-                  >
-                    📥 Tải tài liệu ({parsedDoc.files.length})
-                  </a>
-                ) : (
-                  <a
-                    href={parsedDoc.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      color: '#fff',
-                      background: 'hsl(210, 70%, 45%)',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      textDecoration: 'none'
-                    }}
-                  >
-                    📥 Tải kế hoạch Word
-                  </a>
-                )
-              ) : (
+              {!parsedDoc?.isImported && (
                 <>
                   <button
                     type="button"
