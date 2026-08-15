@@ -32,6 +32,20 @@ namespace BPG.Application.Features.Users.Handlers
                 .FirstOrDefaultAsync(u => u.UserId == request.Id && !u.IsDeleted, cancellationToken)
                 ?? throw new NotFoundException("Không tìm thấy tài khoản cần thay đổi trạng thái.");
 
+            // Tài khoản còn IsActive nhưng đang bị khóa tạm do sai mật khẩu quá số lần cho phép
+            // cũng hiển thị "locked" ngoài danh sách. Ở trạng thái này ý định của admin là gỡ khóa,
+            // không phải khóa hẳn, nên chỉ xóa mốc khóa tạm và dừng tại đây.
+            if (user.IsActive && user.LockedUntil.HasValue && user.LockedUntil > DateTime.UtcNow)
+            {
+                user.LockedUntil = null;
+                user.FailedLoginCount = 0;
+
+                _uow.Repository<User>().Update(user);
+                await _uow.SaveChangesAsync(cancellationToken);
+
+                return _mapper.Map<UserDto>(user);
+            }
+
             // Khóa tài khoản có cùng hậu quả với xóa (người đó không thao tác được nữa) nên
             // phải qua cùng bộ chốt chặn. Mở khóa thì không cần.
             if (user.IsActive)
