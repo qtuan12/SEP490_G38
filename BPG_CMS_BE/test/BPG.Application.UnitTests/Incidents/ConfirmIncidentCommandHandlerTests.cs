@@ -196,6 +196,14 @@ public class ConfirmIncidentCommandHandlerTests
             ReviewedBy = CurrentUserId,
             IsEmergency = false
         });
+        _progressLogRepository.Verify(repository => repository.AddAsync(
+            It.Is<TaskProgressLog>(log => log.OldProgress == 100
+                && log.NewProgress == 80
+                && log.UpdateReason!.Contains("Phạt giảm tiến độ")),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _dailyLogRepository.Verify(repository => repository.AddAsync(
+            It.IsAny<DailyLog>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
