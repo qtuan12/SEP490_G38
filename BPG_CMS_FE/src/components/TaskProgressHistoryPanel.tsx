@@ -16,7 +16,7 @@ interface TaskProgressHistoryPanelProps {
 
 type ProgressSource = {
   label: string;
-  tone: 'direct' | 'dailyLog' | 'auto' | 'unknown';
+  tone: 'direct' | 'dailyLog' | 'incident' | 'auto' | 'unknown';
 };
 
 const formatDate = (dateStr: string) => {
@@ -47,6 +47,9 @@ const getProgressSource = (source?: string | null, reason?: string | null): Prog
   if (source === 'Direct') {
     return { label: 'Trực tiếp', tone: 'direct' };
   }
+  if (source === 'Incident') {
+    return { label: 'Do xử lý sự cố', tone: 'incident' };
+  }
 
   const value = reason ?? '';
   if (value.includes('Cập nhật tự động')) {
@@ -57,6 +60,9 @@ const getProgressSource = (source?: string | null, reason?: string | null): Prog
   }
   if (value.includes('Điều chỉnh trực tiếp')) {
     return { label: 'Trực tiếp', tone: 'direct' };
+  }
+  if (value.includes('Giảm tiến độ do sự cố') || value.includes('Phạt giảm tiến độ')) {
+    return { label: 'Do xử lý sự cố', tone: 'incident' };
   }
   return { label: 'Chưa rõ nguồn', tone: 'unknown' };
 };
@@ -72,6 +78,12 @@ const sourceStyle = (source: ProgressSource): React.CSSProperties => {
     return {
       backgroundColor: 'hsl(var(--success-glow))',
       color: 'hsl(var(--success))',
+    };
+  }
+  if (source.tone === 'incident') {
+    return {
+      backgroundColor: 'hsl(var(--danger-glow))',
+      color: 'hsl(var(--danger))',
     };
   }
   if (source.tone === 'direct') {

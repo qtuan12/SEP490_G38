@@ -217,12 +217,12 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                         MaterialId = item.MaterialId,
                         UnitId = item.UnitId,
                         Quantity = item.Quantity,
-                        ConversionRate = poItem.ConversionRate
+                        ConversionRate = await ResolveConversionRateAsync(poItem, cancellationToken)
                     };
                     goodsReceiptItems.Add(gri);
 
                     // Chuyển đổi số lượng sang đơn vị cơ bản (Base Unit) để lưu vào CurrentInventory
-                    decimal conversionRate = poItem.ConversionRate > 0 ? poItem.ConversionRate : 1;
+                    decimal conversionRate = gri.ConversionRate;
                     decimal baseQty = item.Quantity / conversionRate;
 
                     // Gọi InventoryService để cập nhật tồn kho ảo và ghi nhận Thẻ kho đồng thời
@@ -289,18 +289,6 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     .Select(u => u.FullName)
                     .FirstOrDefaultAsync(cancellationToken) ?? "Người dùng";
 
-                var receiptTitle = "Nhập kho thành công";
-                var receiptContent = $"Bạn đã tạo phiếu nhập kho {goodsReceipt.ReceiptNo} cho đơn mua {po.PONumber} tại dự án {project.Name}.";
-
-                await _notificationService.SendNotificationAsync(
-                    currentUserId,
-                    receiptTitle,
-                    receiptContent,
-                    NotificationType.Procurement,
-                    $"/projects/{project.ProjectId}?tab=inventory&subTab=receipts&receiptId={goodsReceipt.ReceiptId}",
-                    goodsReceipt.ReceiptId,
-                    cancellationToken);
-
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.Accountant,
                     "Có phiếu nhập kho mới",
@@ -340,6 +328,31 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 await _uow.RollbackTransactionAsync(cancellationToken);
                 throw;
             }
+        }
+
+        private async Task<decimal> ResolveConversionRateAsync(PurchaseOrderItem poItem, CancellationToken cancellationToken)
+        {
+            var baseUnitId = poItem.Material.BaseUnitId != 0
+                ? poItem.Material.BaseUnitId
+                : poItem.Material.BaseUnit?.UnitId;
+
+            if (baseUnitId == poItem.UnitId)
+            {
+                return 1;
+            }
+
+            var conversion = await _uow.Repository<MaterialConversion>().Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(item => item.MaterialId == poItem.MaterialId
+                    && item.AlternativeUnitId == poItem.UnitId, cancellationToken);
+
+            if (conversion == null || conversion.ConversionRate <= 0)
+            {
+                throw new BusinessException("ERR_INVALID_MATERIAL_CONVERSION",
+                    $"Không tìm thấy tỷ lệ quy đổi hợp lệ cho vật tư [{poItem.Material.Name}] và đơn vị [{poItem.Unit.UnitName}].");
+            }
+
+            return conversion.ConversionRate;
         }
     }
 }

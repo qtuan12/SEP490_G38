@@ -11,6 +11,7 @@ namespace BPG.Application.Common.Files;
 public static class UploadFilePolicy
 {
     public const long MaxFileSizeBytes = 10 * 1024 * 1024;
+    public const long MaxProjectDesignFileSizeBytes = 50 * 1024 * 1024;
     public const long MultipartOverheadBytesPerFile = 1024 * 1024;
     public const int MaxFilesPerRequest = 5;
 
@@ -33,9 +34,18 @@ public static class UploadFilePolicy
         FileKind.Pdf
     };
 
+    private static readonly IReadOnlySet<FileKind> ProjectDesignFiles = new HashSet<FileKind>(ImagesAndPdf)
+    {
+        FileKind.LegacyOffice,
+        FileKind.OfficeOpenXml,
+        FileKind.Dwg,
+        FileKind.Dxf
+    };
+
     private static readonly IReadOnlySet<FileKind> IncidentFiles = new HashSet<FileKind>(ImagesAndPdf)
     {
         FileKind.LegacyOffice,
+        FileKind.OfficeOpenXml,
         FileKind.Zip,
         FileKind.Rar
     };
@@ -61,8 +71,10 @@ public static class UploadFilePolicy
             [".pdf"] = FileKind.Pdf,
             [".doc"] = FileKind.LegacyOffice,
             [".xls"] = FileKind.LegacyOffice,
-            [".docx"] = FileKind.Zip,
-            [".xlsx"] = FileKind.Zip,
+            [".docx"] = FileKind.OfficeOpenXml,
+            [".xlsx"] = FileKind.OfficeOpenXml,
+            [".dwg"] = FileKind.Dwg,
+            [".dxf"] = FileKind.Dxf,
             [".zip"] = FileKind.Zip,
             [".rar"] = FileKind.Rar
         };
@@ -109,9 +121,10 @@ public static class UploadFilePolicy
             return UploadValidationResult.Invalid("Tệp tải lên không hợp lệ hoặc rỗng.");
         }
 
-        if (file.Length > MaxFileSizeBytes)
+        if (file.Length > destination.MaxFileSizeBytes)
         {
-            return UploadValidationResult.Invalid("Kích thước tệp không được vượt quá 10 MB.");
+            return UploadValidationResult.Invalid(
+                $"Kích thước tệp không được vượt quá {destination.MaxFileSizeBytes / 1024 / 1024} MB.");
         }
 
         var extension = Path.GetExtension(file.FileName);
@@ -130,7 +143,13 @@ public static class UploadFilePolicy
             bytesRead = await stream.ReadAsync(signature.AsMemory(0, signature.Length), cancellationToken);
         }
 
-        if (!MatchesSignature(expectedKind, extension, signature.AsSpan(0, bytesRead)))
+        var matchesSignature = MatchesSignature(expectedKind, extension, signature.AsSpan(0, bytesRead));
+        var isIncidentRecoveryPlanHtml = !matchesSignature
+            && expectedKind == FileKind.LegacyOffice
+            && string.Equals(destination.CanonicalFolder, "incidents", StringComparison.OrdinalIgnoreCase)
+            && IsHtmlDocument(signature.AsSpan(0, bytesRead));
+
+        if (!matchesSignature && !isIncidentRecoveryPlanHtml)
         {
             return UploadValidationResult.Invalid(
                 "Nội dung tệp không khớp với phần mở rộng hoặc tệp đã bị hỏng.");
@@ -157,7 +176,11 @@ public static class UploadFilePolicy
             "company");
         AddAliases(
             destinations,
-            new UploadDestination(StorageFolders.ProjectDesigns, ImagesAndPdf, new[] { UserRole.TechnicalManager }),
+            new UploadDestination(
+                StorageFolders.ProjectDesigns,
+                ProjectDesignFiles,
+                new[] { UserRole.TechnicalManager },
+                MaxProjectDesignFileSizeBytes),
             "projects/design",
             StorageFolders.ProjectDesigns);
         AddAliases(
@@ -221,6 +244,9 @@ public static class UploadFilePolicy
             FileKind.Heif => IsIsoBaseMediaImage(bytes, "heic", "heix", "hevc", "hevx", "mif1", "msf1"),
             FileKind.Pdf => StartsWithAscii(bytes, "%PDF-"),
             FileKind.LegacyOffice => StartsWith(bytes, 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1),
+            FileKind.OfficeOpenXml => IsZip(bytes),
+            FileKind.Dwg => IsDwg(bytes),
+            FileKind.Dxf => IsDxf(bytes),
             FileKind.Zip => IsZip(bytes),
             FileKind.Rar => StartsWith(bytes, 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00)
                 || StartsWith(bytes, 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00),
@@ -253,6 +279,58 @@ public static class UploadFilePolicy
         StartsWith(bytes, 0x50, 0x4B, 0x03, 0x04)
         || StartsWith(bytes, 0x50, 0x4B, 0x05, 0x06)
         || StartsWith(bytes, 0x50, 0x4B, 0x07, 0x08);
+
+    private static bool IsDwg(ReadOnlySpan<byte> bytes) =>
+        bytes.Length >= 6
+        && StartsWithAscii(bytes, "AC10")
+        && bytes[4] is >= (byte)'0' and <= (byte)'9'
+        && bytes[5] is >= (byte)'0' and <= (byte)'9';
+
+    private static bool IsDxf(ReadOnlySpan<byte> bytes)
+    {
+        if (StartsWithAscii(bytes, "AutoCAD Binary DXF"))
+        {
+            return true;
+        }
+
+        var index = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+        while (index < bytes.Length && char.IsWhiteSpace((char)bytes[index]))
+        {
+            index++;
+        }
+
+        return index < bytes.Length && bytes[index] == (byte)'0'
+            && HasAscii(bytes, SkipLineBreak(bytes, index + 1), "SECTION");
+    }
+
+    private static int SkipLineBreak(ReadOnlySpan<byte> bytes, int index)
+    {
+        while (index < bytes.Length && char.IsWhiteSpace((char)bytes[index]))
+        {
+            index++;
+        }
+
+        return index;
+    }
+
+    // The Incident Recovery Plan template is generated in the browser as HTML
+    // with a .doc extension so Word can open and edit it. Accept that legacy
+    // Word-compatible representation only in the incident evidence folder.
+    private static bool IsHtmlDocument(ReadOnlySpan<byte> bytes)
+    {
+        var index = 0;
+        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        {
+            index = 3;
+        }
+
+        while (index < bytes.Length && char.IsWhiteSpace((char)bytes[index]))
+        {
+            index++;
+        }
+
+        return HasAscii(bytes, index, "<html") || HasAscii(bytes, index, "<!DOCTYPE html");
+    }
 
     private static bool StartsWith(ReadOnlySpan<byte> bytes, params byte[] signature) =>
         bytes.StartsWith(signature);
@@ -290,6 +368,9 @@ public static class UploadFilePolicy
         Heif,
         Pdf,
         LegacyOffice,
+        OfficeOpenXml,
+        Dwg,
+        Dxf,
         Zip,
         Rar
     }
@@ -299,16 +380,19 @@ public static class UploadFilePolicy
         internal UploadDestination(
             string canonicalFolder,
             IReadOnlySet<FileKind> allowedKinds,
-            IReadOnlyCollection<string> allowedRoles)
+            IReadOnlyCollection<string> allowedRoles,
+            long maxFileSizeBytes = UploadFilePolicy.MaxFileSizeBytes)
         {
             CanonicalFolder = canonicalFolder;
             AllowedKinds = allowedKinds;
             AllowedRoles = allowedRoles;
+            MaxFileSizeBytes = maxFileSizeBytes;
         }
 
         public string CanonicalFolder { get; }
         internal IReadOnlySet<FileKind> AllowedKinds { get; }
         public IReadOnlyCollection<string> AllowedRoles { get; }
+        public long MaxFileSizeBytes { get; }
 
         public bool IsRoleAllowed(Func<string, bool> isInRole) =>
             AllowedRoles.Count == 0 || AllowedRoles.Any(isInRole);
