@@ -127,5 +127,17 @@ namespace BPG.Application.UnitTests.Helpers
             mock.Setup(x => x.IsInAnyRole(It.IsAny<string[]>())).Returns(true);
             return mock.Object;
         }
+
+        public static IProjectAccessService ProjectAccessService()
+        {
+            var mock = new Mock<IProjectAccessService>();
+            mock.Setup(x => x.GetAccessibleProjectIdsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new HashSet<long> { 1, 2, 3, 4, 5 });
+            mock.Setup(x => x.IsCurrentUserProjectMemberAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            mock.Setup(x => x.IsCurrentUserProjectLeaderAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+            return mock.Object;
+        }
     }
 }

@@ -7,13 +7,17 @@ import { ConstructionProgressReport } from './components/ConstructionProgressRep
 import { IncidentReport } from './components/IncidentReport';
 import { ProcurementReport } from './components/ProcurementReport';
 import { BoqVsActualReport } from '../Reports/BoqVsActualReport';
-import { ConsolidatedReportModal } from './components/ConsolidatedReportModal';
 import {
   LayoutDashboard, HardHat, AlertOctagon, Package, ShoppingCart,
   Calendar, ChevronDown, Check, FolderKanban
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { TableLoader } from '../../components/ui';
+
+const formatLocalDateInput = (date: Date): string => {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
 
 class ReportErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -56,11 +60,21 @@ export const ReportsHub: React.FC = () => {
   const [toDate, setToDate] = useState<string>('');
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [projectSearch, setProjectSearch] = useState('');
-  const [showConsolidatedModal, setShowConsolidatedModal] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedProjectId = searchParams.get('projectId') || 'all';
   const activeTab = searchParams.get('tab') || 'executive';
+
+  useEffect(() => {
+    const validTabs = new Set([
+      'executive', 'construction', 'incidents', 'boq', 'procurement'
+    ]);
+    const projectOnlyTabs = new Set(['construction', 'incidents']);
+    if (!validTabs.has(activeTab)
+      || (selectedProjectId === 'all' && projectOnlyTabs.has(activeTab))) {
+      setSearchParams({ projectId: selectedProjectId, tab: 'executive' }, { replace: true });
+    }
+  }, [activeTab, selectedProjectId, setSearchParams]);
 
   useEffect(() => {
     projectService.getProjects()
@@ -81,7 +95,11 @@ export const ReportsHub: React.FC = () => {
   const selectedProject = projects.find(p => p.id.toString() === selectedProjectId);
 
   const handleProjectSelect = (id: string) => {
-    setSearchParams({ projectId: id, tab: activeTab });
+    const projectOnlyTabs = ['construction', 'incidents'];
+    const nextTab = id === 'all' && projectOnlyTabs.includes(activeTab)
+      ? 'executive'
+      : activeTab;
+    setSearchParams({ projectId: id, tab: nextTab });
     setProjectDropdownOpen(false);
   };
 
@@ -100,10 +118,10 @@ export const ReportsHub: React.FC = () => {
     if (preset === '30days') {
       start.setDate(end.getDate() - 30);
     } else if (preset === 'quarter') {
-      start.setMonth(end.getMonth() - 3);
+      start.setFullYear(end.getFullYear(), Math.floor(end.getMonth() / 3) * 3, 1);
     }
-    setFromDate(start.toISOString().split('T')[0]);
-    setToDate(end.toISOString().split('T')[0]);
+    setFromDate(formatLocalDateInput(start));
+    setToDate(formatLocalDateInput(end));
   };
 
   const tabs = [
@@ -261,8 +279,6 @@ export const ReportsHub: React.FC = () => {
               Xóa bộ lọc
             </button>
           )}
-
-
         </div>
       </div>
 
@@ -317,16 +333,6 @@ export const ReportsHub: React.FC = () => {
           </ReportErrorBoundary>
         )}
       </div>
-
-      {/* Consolidated Executive Report Modal */}
-      {showConsolidatedModal && (
-        <ConsolidatedReportModal
-          projectId={selectedProjectId === 'all' ? 0 : Number(selectedProjectId)}
-          fromDate={fromDate || undefined}
-          toDate={toDate || undefined}
-          onClose={() => setShowConsolidatedModal(false)}
-        />
-      )}
     </div>
   );
 };

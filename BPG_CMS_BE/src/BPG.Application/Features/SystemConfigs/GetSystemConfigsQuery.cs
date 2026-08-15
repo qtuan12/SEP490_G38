@@ -1,5 +1,6 @@
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +43,17 @@ namespace BPG.Application.Features.SystemConfigs
                     UpdatedAt = c.UpdatedAt
                 })
                 .ToListAsync(cancellationToken);
+
+            // Keep the deployed legacy key while exposing its effective percentage semantics.
+            foreach (var config in configs.Where(c =>
+                         c.ConfigKey == SystemConfigKeys.LowStockThreshold
+                         || c.ConfigKey == SystemConfigKeys.LowStockThresholdEn))
+            {
+                config.DataType = "percentage";
+                config.DisplayName = "Tỷ lệ cảnh báo tồn kho thấp";
+                config.Description = "Tỷ lệ phần trăm trên nhu cầu BOQ còn lại dùng để tính ngưỡng cảnh báo riêng cho từng vật tư.";
+                config.Unit = "%";
+            }
 
             return ApiResponse<List<SystemConfigDto>>.SuccessResult(configs);
         }

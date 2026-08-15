@@ -3,6 +3,7 @@ using BPG.Application.DTOs.Inventory;
 using BPG.Application.Features.Inventory.Handlers;
 using BPG.Application.Features.Inventory.Queries;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using FluentAssertions;
 using MockQueryable;
@@ -26,7 +27,10 @@ namespace BPG.Application.UnitTests.Inventory
         private readonly Mock<IGenericRepository<Phase>> _mockPhaseRepo;
         private readonly Mock<IGenericRepository<BOQItem>> _mockBoqRepo;
         private readonly Mock<IGenericRepository<MaterialIssuanceItem>> _mockIssuanceItemRepo;
+        private readonly Mock<IGenericRepository<MaterialReturnItem>> _mockReturnItemRepo;
         private readonly Mock<IGenericRepository<PurchaseOrderItem>> _mockPoItemRepo;
+        private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockGoodsReceiptItemRepo;
+        private readonly Mock<IGenericRepository<Supplier>> _mockSupplierRepo;
         private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
         private readonly Mock<IProjectAccessService> _mockProjectAccessService;
         private readonly GetCurrentInventoryQueryHandler _handler;
@@ -38,7 +42,10 @@ namespace BPG.Application.UnitTests.Inventory
             _mockPhaseRepo = new Mock<IGenericRepository<Phase>>();
             _mockBoqRepo = new Mock<IGenericRepository<BOQItem>>();
             _mockIssuanceItemRepo = new Mock<IGenericRepository<MaterialIssuanceItem>>();
+            _mockReturnItemRepo = new Mock<IGenericRepository<MaterialReturnItem>>();
             _mockPoItemRepo = new Mock<IGenericRepository<PurchaseOrderItem>>();
+            _mockGoodsReceiptItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
+            _mockSupplierRepo = new Mock<IGenericRepository<Supplier>>();
             _mockInventoryRepo = new Mock<IGenericRepository<CurrentInventory>>();
             _mockProjectAccessService = new Mock<IProjectAccessService>();
 
@@ -50,7 +57,10 @@ namespace BPG.Application.UnitTests.Inventory
             _mockUow.Setup(u => u.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
             _mockUow.Setup(u => u.Repository<BOQItem>()).Returns(_mockBoqRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialIssuanceItem>()).Returns(_mockIssuanceItemRepo.Object);
+            _mockUow.Setup(u => u.Repository<MaterialReturnItem>()).Returns(_mockReturnItemRepo.Object);
             _mockUow.Setup(u => u.Repository<PurchaseOrderItem>()).Returns(_mockPoItemRepo.Object);
+            _mockUow.Setup(u => u.Repository<GoodsReceiptItem>()).Returns(_mockGoodsReceiptItemRepo.Object);
+            _mockUow.Setup(u => u.Repository<Supplier>()).Returns(_mockSupplierRepo.Object);
             _mockUow.Setup(u => u.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
 
             // Defaults
@@ -58,7 +68,10 @@ namespace BPG.Application.UnitTests.Inventory
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase>().AsQueryable().BuildMock());
             _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem>().AsQueryable().BuildMock());
             _mockIssuanceItemRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuanceItem>().AsQueryable().BuildMock());
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new List<MaterialReturnItem>().AsQueryable().BuildMock());
             _mockPoItemRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrderItem>().AsQueryable().BuildMock());
+            _mockGoodsReceiptItemRepo.Setup(r => r.Query()).Returns(new List<GoodsReceiptItem>().AsQueryable().BuildMock());
+            _mockSupplierRepo.Setup(r => r.Query()).Returns(new List<Supplier>().AsQueryable().BuildMock());
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory>().AsQueryable().BuildMock());
 
             _handler = new GetCurrentInventoryQueryHandler(_mockUow.Object, _mockProjectAccessService.Object);
@@ -74,6 +87,18 @@ namespace BPG.Application.UnitTests.Inventory
 
             var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement", Specification = "Grade 50" };
             var unit = new Unit { UnitId = 2, UnitName = "Bag" };
+            var phase = new Phase { PhaseId = 20, ProjectId = projectId, Name = "Foundation", IsDeleted = false };
+            var boqItem = new BOQItem
+            {
+                PhaseId = phase.PhaseId,
+                Phase = phase,
+                MaterialId = material.MaterialId,
+                Quantity = 100,
+                ConversionRate = 1,
+                IsDeleted = false
+            };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
+            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem> { boqItem }.AsQueryable().BuildMock());
             var inventory = new CurrentInventory
             {
                 InventoryId = 300,
@@ -111,6 +136,7 @@ namespace BPG.Application.UnitTests.Inventory
             var po1 = new PurchaseOrder
             {
                 POId = 1,
+                ProjectId = projectId,
                 SupplierId = 10,
                 Supplier = new Supplier { SupplierId = 10, SupplierName = "Supplier Alpha" },
                 Request = new MaterialRequest { Phase = phase },
@@ -119,6 +145,7 @@ namespace BPG.Application.UnitTests.Inventory
             var po2 = new PurchaseOrder
             {
                 POId = 2,
+                ProjectId = projectId,
                 SupplierId = 10,
                 Supplier = new Supplier { SupplierId = 10, SupplierName = "Supplier Alpha" },
                 Request = new MaterialRequest { Phase = phase },
@@ -127,6 +154,20 @@ namespace BPG.Application.UnitTests.Inventory
             var poItem1 = new PurchaseOrderItem { POId = 1, MaterialId = 50, Quantity = 10, UnitPrice = 100, PurchaseOrder = po1 };
             var poItem2 = new PurchaseOrderItem { POId = 2, MaterialId = 50, Quantity = 20, UnitPrice = 130, PurchaseOrder = po2 };
             _mockPoItemRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrderItem> { poItem1, poItem2 }.AsQueryable().BuildMock());
+            _mockGoodsReceiptItemRepo.Setup(r => r.Query()).Returns(new List<GoodsReceiptItem>
+            {
+                new()
+                {
+                    MaterialId = 50,
+                    Receipt = new GoodsReceipt
+                    {
+                        Status = GoodsReceiptStatus.Approved,
+                        CreatedAt = DateTime.UtcNow.AddDays(-1),
+                        PurchaseOrder = po2
+                    }
+                }
+            }.AsQueryable().BuildMock());
+            _mockSupplierRepo.Setup(r => r.Query()).Returns(new List<Supplier> { po2.Supplier! }.AsQueryable().BuildMock());
 
             var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement", Specification = "Grade 50" };
             var unit = new Unit { UnitId = 2, UnitName = "Bag" };
@@ -207,6 +248,75 @@ namespace BPG.Application.UnitTests.Inventory
             var dto = result.Data!.First();
             dto.BoqQuantity.Should().Be(100);
             dto.UsedQuantity.Should().Be(40);
+            dto.SafetyThreshold.Should().Be(6); // 10% of the remaining BOQ demand (100 - 40)
+        }
+
+        [Fact]
+        public async Task Handle_IssuedTwentyAndReturnedFive_ShouldReportNetUsageOfFifteen()
+        {
+            // Arrange
+            const long projectId = 5;
+            var phase = new Phase { PhaseId = 20, ProjectId = projectId, Name = "Foundation Phase", IsDeleted = false };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new[] { phase }.AsQueryable().BuildMock());
+
+            var task = new ProjectTask { PhaseId = phase.PhaseId, Phase = phase };
+            var issuance = new MaterialIssuance
+            {
+                MaterialIssuanceId = 10,
+                IsDeleted = false,
+                Task = task
+            };
+            _mockIssuanceItemRepo.Setup(r => r.Query()).Returns(new[]
+            {
+                new MaterialIssuanceItem
+                {
+                    MaterialId = 50,
+                    Quantity = 20,
+                    ConversionRate = 1,
+                    Issuance = issuance
+                }
+            }.AsQueryable().BuildMock());
+
+            var materialReturn = new MaterialReturn
+            {
+                OriginalIssuanceId = issuance.MaterialIssuanceId,
+                OriginalIssuance = issuance,
+                IsDeleted = false
+            };
+            _mockReturnItemRepo.Setup(r => r.Query()).Returns(new[]
+            {
+                new MaterialReturnItem
+                {
+                    MaterialId = 50,
+                    Quantity = 5,
+                    ConversionRate = 1,
+                    Return = materialReturn
+                }
+            }.AsQueryable().BuildMock());
+
+            var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement" };
+            var unit = new Unit { UnitId = 1, UnitName = "kg" };
+            _mockInventoryRepo.Setup(r => r.Query()).Returns(new[]
+            {
+                new CurrentInventory
+                {
+                    InventoryId = 300,
+                    ProjectId = projectId,
+                    MaterialId = material.MaterialId,
+                    UnitId = unit.UnitId,
+                    Material = material,
+                    Unit = unit
+                }
+            }.AsQueryable().BuildMock());
+
+            // Act
+            var result = await _handler.Handle(new GetCurrentInventoryQuery(projectId), CancellationToken.None);
+
+            // Assert
+            result.Success.Should().BeTrue();
+            var dto = result.Data!.Single();
+            dto.UsedQuantity.Should().Be(15);
+            dto.PhaseUsages.Single().UsedQuantity.Should().Be(15);
         }
 
         [Fact]
@@ -287,6 +397,18 @@ namespace BPG.Application.UnitTests.Inventory
 
             var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement" };
             var unit = new Unit { UnitName = "Bag" };
+            var phase = new Phase { PhaseId = 20, ProjectId = 5, Name = "Foundation", IsDeleted = false };
+            var boqItem = new BOQItem
+            {
+                PhaseId = phase.PhaseId,
+                Phase = phase,
+                MaterialId = material.MaterialId,
+                Quantity = 100,
+                ConversionRate = 1,
+                IsDeleted = false
+            };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
+            _mockBoqRepo.Setup(r => r.Query()).Returns(new List<BOQItem> { boqItem }.AsQueryable().BuildMock());
             var inventory = new CurrentInventory { ProjectId = 5, MaterialId = 50, Material = material, Unit = unit };
             _mockInventoryRepo.Setup(r => r.Query()).Returns(new List<CurrentInventory> { inventory }.AsQueryable().BuildMock());
 
@@ -296,7 +418,7 @@ namespace BPG.Application.UnitTests.Inventory
             var result = await _handler.Handle(query, CancellationToken.None);
 
             // Assert
-            result.Data!.First().SafetyThreshold.Should().Be(10m); // Fallback threshold
+            result.Data!.First().SafetyThreshold.Should().Be(10m); // Default: 10% of 100 remaining BOQ
         }
 
 
@@ -359,7 +481,8 @@ namespace BPG.Application.UnitTests.Inventory
             {
                 POId = 1,
                 SupplierId = 10,
-                Supplier = new Supplier { SupplierName = "Supplier Alpha" },
+                ProjectId = projectId,
+                Supplier = new Supplier { SupplierId = 10, SupplierName = "Supplier Alpha" },
                 Request = new MaterialRequest { Phase = phase },
                 OrderDate = DateTime.UtcNow.AddDays(-2)
             };
@@ -368,7 +491,8 @@ namespace BPG.Application.UnitTests.Inventory
             {
                 POId = 2,
                 SupplierId = 20,
-                Supplier = new Supplier { SupplierName = "Supplier Beta" },
+                ProjectId = projectId,
+                Supplier = new Supplier { SupplierId = 20, SupplierName = "Supplier Beta" },
                 Request = new MaterialRequest { Phase = phase },
                 OrderDate = DateTime.UtcNow.AddDays(-1)
             };
@@ -376,6 +500,30 @@ namespace BPG.Application.UnitTests.Inventory
             var poItem1 = new PurchaseOrderItem { POId = 1, MaterialId = 50, Quantity = 10, UnitPrice = 100, PurchaseOrder = po1 };
             var poItem2 = new PurchaseOrderItem { POId = 2, MaterialId = 50, Quantity = 10, UnitPrice = 100, PurchaseOrder = po2 };
             _mockPoItemRepo.Setup(r => r.Query()).Returns(new List<PurchaseOrderItem> { poItem1, poItem2 }.AsQueryable().BuildMock());
+            _mockGoodsReceiptItemRepo.Setup(r => r.Query()).Returns(new List<GoodsReceiptItem>
+            {
+                new()
+                {
+                    MaterialId = 50,
+                    Receipt = new GoodsReceipt
+                    {
+                        Status = GoodsReceiptStatus.Approved,
+                        CreatedAt = DateTime.UtcNow.AddDays(-2),
+                        PurchaseOrder = po1
+                    }
+                },
+                new()
+                {
+                    MaterialId = 50,
+                    Receipt = new GoodsReceipt
+                    {
+                        Status = GoodsReceiptStatus.Approved,
+                        CreatedAt = DateTime.UtcNow.AddDays(-1),
+                        PurchaseOrder = po2
+                    }
+                }
+            }.AsQueryable().BuildMock());
+            _mockSupplierRepo.Setup(r => r.Query()).Returns(new List<Supplier> { po1.Supplier!, po2.Supplier! }.AsQueryable().BuildMock());
 
             var material = new MaterialCatalog { MaterialId = 50, Code = "MAT-50", Name = "Cement" };
             var unit = new Unit { UnitName = "Bag" };
@@ -389,7 +537,7 @@ namespace BPG.Application.UnitTests.Inventory
 
             // Assert
             result.Success.Should().BeTrue();
-            result.Data!.First().SupplierName.Should().Be("Supplier Beta"); // Picks Beta as it is the newest ordered PO
+            result.Data!.First().SupplierName.Should().Be("Supplier Beta"); // Picks Beta from the latest approved receipt.
         }
 
         [Fact]

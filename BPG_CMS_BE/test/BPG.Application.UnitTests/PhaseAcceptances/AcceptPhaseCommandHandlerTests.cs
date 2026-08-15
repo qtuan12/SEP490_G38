@@ -12,6 +12,7 @@ using MockQueryable.Moq;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,6 +61,16 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
             _mockUow.Setup(u => u.Repository<PhaseAcceptance>()).Returns(_mockAcceptanceRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockProjectMemberRepo.Object);
+            _mockUow.Setup(u => u.BeginTransactionAsync(
+                    IsolationLevel.Serializable,
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.ExecuteSqlAsync(
+                    It.IsAny<FormattableString>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
 
             _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
 
@@ -124,7 +135,20 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         }
 
         [Fact]
-        public async Task UTCID02_Handle_PhaseNotFound_ShouldThrowNotFoundException()
+        public async Task UTCID02_Handle_Director_ShouldThrowForbiddenException()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.Director);
+
+            Func<Task> act = () => _handler.Handle(
+                new AcceptPhaseCommand(PhaseId, "Nghiệm thu giai đoạn"),
+                CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<ForbiddenException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
+        }
+
+        [Fact]
+        public async Task UTCID03_Handle_PhaseNotFound_ShouldThrowNotFoundException()
         {
             // Arrange
             _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase>().AsQueryable().BuildMock());
@@ -139,7 +163,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         }
 
         [Fact]
-        public async Task UTCID03_Handle_PhaseAlreadyApproved_ShouldThrowBusinessException()
+        public async Task UTCID04_Handle_PhaseAlreadyApproved_ShouldThrowBusinessException()
         {
             // Arrange
             var phase = new Phase
@@ -160,7 +184,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         }
 
         [Fact]
-        public async Task UTCID04_Handle_PhaseHasNoActiveTasks_ShouldThrowBusinessException()
+        public async Task UTCID05_Handle_PhaseHasNoActiveTasks_ShouldThrowBusinessException()
         {
             // Arrange
             var phase = new Phase
@@ -190,7 +214,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         }
 
         [Fact]
-        public async Task UTCID05_Handle_PhaseHasIncompleteTasks_ShouldThrowBusinessException()
+        public async Task UTCID06_Handle_PhaseHasIncompleteTasks_ShouldThrowBusinessException()
         {
             // Arrange
             var phase = new Phase
@@ -216,7 +240,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         }
 
         [Fact]
-        public async Task UTCID06_Handle_ProjectNotActive_ShouldThrowBusinessException()
+        public async Task UTCID07_Handle_ProjectNotActive_ShouldThrowBusinessException()
         {
             // Arrange
             var phase = new Phase
@@ -238,7 +262,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
         }
 
         [Fact]
-        public async Task UTCID07_Handle_CompletedActiveTaskAndIncompleteObsoleteTask_ShouldAcceptPhaseSuccessfully()
+        public async Task UTCID08_Handle_CompletedActiveTaskAndIncompleteObsoleteTask_ShouldAcceptPhaseSuccessfully()
         {
             // Arrange
             var phase = new Phase

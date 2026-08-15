@@ -41,12 +41,23 @@ public class ConfirmIncidentCommandValidator : AbstractValidator<ConfirmIncident
             RuleFor(v => v.ReworkTaskStartDate).NotNull().WithMessage("ReworkTaskStartDate is required when creating a rework task.");
             RuleFor(v => v.ReworkTaskEndDate).NotNull().WithMessage("ReworkTaskEndDate is required when creating a rework task.");
             RuleFor(v => v.ReworkAssigneeId).NotNull().WithMessage("ReworkAssigneeId is required when creating a rework task.");
+            RuleFor(v => v.ReworkTaskEndDate)
+                .Must((command, endDate) =>
+                    !command.ReworkTaskStartDate.HasValue
+                    || !endDate.HasValue
+                    || endDate.Value.Date >= command.ReworkTaskStartDate.Value.Date)
+                .When(v => v.ReworkTaskStartDate.HasValue && v.ReworkTaskEndDate.HasValue)
+                .WithMessage("ReworkTaskEndDate must be on or after the calendar date of ReworkTaskStartDate.");
         }).Otherwise(() => {
             RuleFor(v => v.DecreaseProgressTo)
                 .GreaterThanOrEqualTo(0).LessThanOrEqualTo(100)
                 .When(v => v.DecreaseProgressTo.HasValue)
                 .WithMessage("DecreaseProgressTo must be between 0 and 100.");
         });
+
+        RuleFor(v => v.Decision)
+            .Must(decision => decision is null or "Approve" or "Resubmit")
+            .WithMessage("Decision must be either Approve or Resubmit.");
     }
 }
 
@@ -87,14 +98,15 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             throw new NotFoundException(nameof(Incident), request.IncidentId);
         }
 
-        if (incident.Status == "Approved")
+        if (incident.Status == "Approved" || incident.Status == "Rejected")
         {
             throw new BusinessException("ERR_INCIDENT_ALREADY_CONFIRMED", "Sự cố này đã được xác nhận.");
         }
 
-        var isEmergencyState = incident.Status == "WaitingStopApproval" || 
-                              incident.Status == "WaitingRecoveryPlan" || 
-                              incident.Status == "WaitingDirectorApproval";
+        var isEmergencyState = incident.IsEmergency;
+
+        ValidateTransitionAndPermission(incident, request);
+        await ValidateReworkAssigneeAsync(incident, request, cancellationToken);
 
         if (isEmergencyState)
         {
@@ -102,6 +114,11 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             {
                 if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
                     throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt dừng thi công.");
+
+                if (incident.Project.Status != ProjectStatus.InProgress)
+                    throw new BusinessException(
+                        "ERR_PROJECT_STATE_CHANGED",
+                        "Dự án không còn ở trạng thái đang thực hiện. Vui lòng tải lại dữ liệu trước khi xử lý sự cố.");
 
                 var currentUser = await _unitOfWork.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
                 var currentUserName = currentUser?.FullName ?? "Hệ thống";
@@ -113,7 +130,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     "pause",
                     newReason,
                     DateTime.UtcNow,
-                    currentUserName);
+                    currentUserName,
+                    incident.IncidentId);
                 incident.Project.PausedAt = DateTime.UtcNow;
                 _unitOfWork.Repository<Project>().Update(incident.Project);
 
@@ -123,6 +141,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 {
                     incident.HandlingInstruction = request.HandlingInstruction;
                 }
+
+                await SaveIncidentDecisionAsync(cancellationToken);
 
                 await _notificationService.SendNotificationAsync(
                     incident.ReportedBy,
@@ -192,6 +212,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     incident.HandlingInstruction = request.HandlingInstruction;
                 }
 
+                await SaveIncidentDecisionAsync(cancellationToken);
+
                 await _notificationService.SendNotificationToRoleAsync(
                     BPG.Domain.Constants.UserRole.Director,
                     "Kế hoạch khắc phục sự cố cần phê duyệt",
@@ -209,6 +231,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 {
                     incident.Status = "WaitingRecoveryPlan";
                     incident.HandlingInstruction = request.HandlingInstruction;
+
+                    await SaveIncidentDecisionAsync(cancellationToken);
 
                     await _notificationService.SendNotificationToRoleAsync(
                         BPG.Domain.Constants.UserRole.TechnicalManager,
@@ -267,28 +291,27 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         {
                             PhaseId = incident.Task.PhaseId,
                             ParentTaskId = incident.Task.ParentTaskId,
+                            IncidentId = incident.IncidentId,
                             Name = request.ReworkTaskName!,
-                            Description = string.Empty,
+                            Description = FormatReworkTaskDescription(incident.Description),
                             StartDate = DateOnly.FromDateTime(request.ReworkTaskStartDate!.Value),
                             EndDate = DateOnly.FromDateTime(request.ReworkTaskEndDate!.Value),
                             Status = "New",
-                            ProgressPercent = 0
+                            ProgressPercent = 0,
+                            CreatedBy = currentUserId,
+                            CreatedAt = DateTime.UtcNow
                         };
-                        await _unitOfWork.Repository<ProjectTask>().AddAsync(reworkTask);
-                        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
                         if (request.ReworkAssigneeId.HasValue)
                         {
-                            var assignee = new TaskAssignee
+                            reworkTask.Assignees.Add(new TaskAssignee
                             {
-                                TaskId = reworkTask.TaskId,
-                                UserId = request.ReworkAssigneeId.Value
-                            };
-                            await _unitOfWork.Repository<TaskAssignee>().AddAsync(assignee);
-                            await _unitOfWork.SaveChangesAsync(cancellationToken);
+                                UserId = request.ReworkAssigneeId.Value,
+                                AssignedAt = DateTime.UtcNow
+                            });
                         }
 
-                        incident.ReworkTaskId = reworkTask.TaskId;
+                        await _unitOfWork.Repository<ProjectTask>().AddAsync(reworkTask);
+                        incident.ReworkTask = reworkTask;
                     }
                     else if (incident.Task != null && request.DecreaseProgressTo.HasValue)
                     {
@@ -305,6 +328,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                             UpdateReason = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason)
                                 ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}"
                                 : $"Giảm tiến độ do sự cố: {incident.Description}",
+                            CreatedBy = currentUserId,
+                            CreatedAt = DateTime.UtcNow,
                             UpdatedAt = DateTime.UtcNow
                         };
                         await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
@@ -323,9 +348,9 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         await _unitOfWork.Repository<DailyLog>().AddAsync(dailyLog);
 
                         incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
-                        if (incident.Task.ProgressPercent < 100 && incident.Task.Status == "Done")
+                        if (incident.Task.ProgressPercent < 100 && incident.Task.Status == BPG.Domain.Constants.TaskStatus.Completed)
                         {
-                            incident.Task.Status = "InProgress";
+                            incident.Task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
                         }
                     }
 
@@ -336,6 +361,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         incident.HandlingInstruction = request.HandlingInstruction;
                     }
 
+                    await SaveIncidentDecisionAsync(cancellationToken);
 
                     await _notificationService.SendNotificationAsync(
                         incident.ReportedBy,
@@ -384,29 +410,28 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 {
                     PhaseId = incident.Task.PhaseId,
                     ParentTaskId = incident.Task.ParentTaskId,
+                    IncidentId = incident.IncidentId,
                     Name = request.ReworkTaskName!,
-                    Description = string.Empty,
+                    Description = FormatReworkTaskDescription(incident.Description),
                     StartDate = DateOnly.FromDateTime(request.ReworkTaskStartDate!.Value),
                     EndDate = DateOnly.FromDateTime(request.ReworkTaskEndDate!.Value),
                     Status = "New",
-                    ProgressPercent = 0
+                    ProgressPercent = 0,
+                    CreatedBy = currentUserId,
+                    CreatedAt = DateTime.UtcNow
                 };
-
-                await _unitOfWork.Repository<ProjectTask>().AddAsync(reworkTask);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 if (request.ReworkAssigneeId.HasValue)
                 {
-                    var assignee = new TaskAssignee
+                    reworkTask.Assignees.Add(new TaskAssignee
                     {
-                        TaskId = reworkTask.TaskId,
-                        UserId = request.ReworkAssigneeId.Value
-                    };
-                    await _unitOfWork.Repository<TaskAssignee>().AddAsync(assignee);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                        UserId = request.ReworkAssigneeId.Value,
+                        AssignedAt = DateTime.UtcNow
+                    });
                 }
 
-                incident.ReworkTaskId = reworkTask.TaskId;
+                await _unitOfWork.Repository<ProjectTask>().AddAsync(reworkTask);
+                incident.ReworkTask = reworkTask;
             }
             else
             {
@@ -426,6 +451,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         UpdateReason = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason) 
                             ? $"Phạt giảm tiến độ: {request.DecreaseProgressReason}" 
                             : $"Giảm tiến độ do sự cố: {incident.Description}",
+                        CreatedBy = currentUserId,
+                        CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
                     await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
@@ -445,9 +472,9 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     await _unitOfWork.Repository<DailyLog>().AddAsync(dailyLog);
 
                     incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
-                    if (incident.Task.ProgressPercent < 100 && incident.Task.Status == "Done")
+                    if (incident.Task.ProgressPercent < 100 && incident.Task.Status == BPG.Domain.Constants.TaskStatus.Completed)
                     {
-                        incident.Task.Status = "InProgress";
+                        incident.Task.Status = BPG.Domain.Constants.TaskStatus.InProgress;
                     }
                 }
             }
@@ -468,6 +495,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         incident.HandlingInstruction = request.HandlingInstruction;
                     }
 
+                    await SaveIncidentDecisionAsync(cancellationToken);
+
                     await _notificationService.SendNotificationToRoleAsync(
                         BPG.Domain.Constants.UserRole.Accountant,
                         "Báo cáo sự cố mới",
@@ -478,88 +507,15 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 }
                 else if (incident.Status == "WaitingAccountant")
                 {
-                    if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Accountant))
-                        throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền xác minh sự cố vật tư.");
-                    
-                    incident.Status = "WaitingDirector";
-                    if (!string.IsNullOrWhiteSpace(request.HandlingInstruction))
-                    {
-                        incident.HandlingInstruction = request.HandlingInstruction;
-                    }
-
-                    await _notificationService.SendNotificationToRoleAsync(
-                        BPG.Domain.Constants.UserRole.Director,
-                        "Báo cáo sự cố cần phê duyệt",
-                        $"Kế toán đã xác minh sự cố vật tư tại dự án. Vui lòng phê duyệt.",
-                        "IncidentAssessed",
-                        $"/projects/{incident.ProjectId}/workspace/incidents"
-                    );
+                    throw new BusinessException(
+                        "ERR_USE_ADJUSTMENT_CREATION",
+                        "Hãy tạo phiếu giảm tồn liên kết để xác minh sự cố vật tư.");
                 }
                 else if (incident.Status == "WaitingDirector")
                 {
-                    if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.Director))
-                        throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt sự cố vật tư.");
-
-                    incident.Status = "Approved";
-                    incident.ReviewedBy = currentUserId;
-                    if (!string.IsNullOrWhiteSpace(request.HandlingInstruction))
-                    {
-                        incident.HandlingInstruction = request.HandlingInstruction;
-                    }
-
-                    // Tìm phiếu giảm tồn kho liên kết đang chờ duyệt
-                    var adjustment = await _unitOfWork.Repository<InventoryAdjustment>().Query()
-                        .Include(a => a.Items)
-                        .Where(a => a.ProjectId == incident.ProjectId && a.PhaseId == incident.PhaseId && a.Status == InventoryAdjustmentStatus.Pending)
-                        .OrderBy(a => a.AdjustmentId)
-                        .FirstOrDefaultAsync(cancellationToken);
-
-                    if (adjustment != null)
-                    {
-                        // Phê duyệt phiếu giảm tồn kho
-                        adjustment.Status = InventoryAdjustmentStatus.Approved;
-                        adjustment.ApprovedBy = currentUserId;
-                        adjustment.ApprovedAt = System.DateTime.UtcNow;
-                        _unitOfWork.Repository<InventoryAdjustment>().Update(adjustment);
-
-                        // Trừ kho và ghi log Thẻ kho (InventoryTransaction) cho từng vật tư
-                        foreach (var item in adjustment.Items)
-                        {
-                            var currentInventory = await _unitOfWork.Repository<CurrentInventory>()
-                                .FirstOrDefaultAsync(x => x.ProjectId == adjustment.ProjectId && x.MaterialId == item.MaterialId, cancellationToken);
-
-                            if (currentInventory == null || currentInventory.Quantity < item.Quantity)
-                            {
-                                throw new BusinessException("ERR_INSUFFICIENT_STOCK", $"Không đủ tồn kho cho vật tư ID {item.MaterialId}");
-                            }
-
-                            currentInventory.Quantity -= item.Quantity;
-                            currentInventory.LastUpdated = System.DateTime.UtcNow;
-                            _unitOfWork.Repository<CurrentInventory>().Update(currentInventory);
-
-                            var transaction = new InventoryTransaction
-                            {
-                                ProjectId = adjustment.ProjectId,
-                                MaterialId = item.MaterialId,
-                                TransactionType = 9, // IncidentLoss (Giảm tồn do sự cố)
-                                QuantityChange = -item.Quantity, // Âm
-                                BalanceAfter = currentInventory.Quantity,
-                                ReferenceId = adjustment.AdjustmentId,
-                                ReferenceType = EntityType.InventoryAdjustment,
-                                CreatedBy = currentUserId,
-                                CreatedAt = System.DateTime.UtcNow
-                            };
-                            await _unitOfWork.Repository<InventoryTransaction>().AddAsync(transaction);
-                        }
-                    }
-
-                    await _notificationService.SendNotificationAsync(
-                        incident.ReportedBy,
-                        "Báo cáo sự cố đã được phê duyệt",
-                        $"Sự cố vật tư bạn báo cáo đã được Giám đốc phê duyệt.",
-                        "IncidentApproved",
-                        $"/projects/{incident.ProjectId}/workspace/incidents"
-                    );
+                    throw new BusinessException(
+                        "ERR_USE_ADJUSTMENT_APPROVAL",
+                        "Hãy phê duyệt phiếu giảm tồn liên kết để hoàn tất sự cố vật tư.");
                 }
                 else
                 {
@@ -568,12 +524,17 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             }
             else
             {
+                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager))
+                    throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt sự cố thi công.");
+
                 incident.Status = "Approved";
                 incident.ReviewedBy = currentUserId; 
                 if (!string.IsNullOrWhiteSpace(request.HandlingInstruction))
                 {
                     incident.HandlingInstruction = request.HandlingInstruction;
                 }
+
+                await SaveIncidentDecisionAsync(cancellationToken);
 
                 await _notificationService.SendNotificationAsync(
                     incident.ReportedBy,
@@ -584,8 +545,6 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 );
             }
         }
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Map and return
         var updatedIncident = await _unitOfWork.Repository<Incident>()
@@ -624,10 +583,126 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
         return ApiResponse<IncidentDto>.SuccessResult(_mapper.Map<IncidentDto>(updatedIncident), "Sự cố đã được xác nhận và xử lý.");
     }
 
-    private string AppendStatusHistory(string? currentReason, string type, string? reason, DateTime timestamp, string userName)
+    private async Task SaveIncidentDecisionAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new BusinessException(
+                "ERR_INCIDENT_ALREADY_PROCESSED",
+                "Sự cố hoặc trạng thái dự án đã được thay đổi bởi một phiên làm việc khác. Vui lòng tải lại dữ liệu.");
+        }
+    }
+
+    private void ValidateTransitionAndPermission(Incident incident, ConfirmIncidentCommand request)
+    {
+        if (incident.IsEmergency)
+        {
+            switch (incident.Status)
+            {
+                case "WaitingStopApproval":
+                case "WaitingRecoveryPlan":
+                    if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+                        throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền xử lý bước này của sự cố khẩn cấp.");
+                    break;
+
+                case "WaitingDirectorApproval":
+                    if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director))
+                        throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt kế hoạch khắc phục.");
+                    if (request.Decision is not ("Approve" or "Resubmit"))
+                        throw new BusinessException("ERR_INVALID_DECISION", "Quyết định phải là Approve hoặc Resubmit.");
+                    break;
+
+                default:
+                    throw new BusinessException("ERR_INVALID_STATUS", "Sự cố khẩn cấp không ở trạng thái có thể xử lý.");
+            }
+
+            return;
+        }
+
+        var isInventoryIncident = incident.IncidentType is "InventoryLoss" or "InventoryDamage";
+        if (isInventoryIncident)
+        {
+            if (request.CreateReworkTask || request.DecreaseProgressTo.HasValue)
+                throw new BusinessException("ERR_INVALID_INCIDENT_ACTION", "Sự cố vật tư không hỗ trợ thao tác làm lại hoặc giảm tiến độ.");
+
+            var isAllowed = incident.Status switch
+            {
+                "Reported" => incident.ReportedBy == Convert.ToInt64(_currentUserService.UserId)
+                    || _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin),
+                "WaitingAccountant" => throw new BusinessException(
+                    "ERR_USE_ADJUSTMENT_CREATION",
+                    "Hãy tạo phiếu giảm tồn liên kết để xác minh sự cố vật tư."),
+                "WaitingDirector" => throw new BusinessException(
+                    "ERR_USE_ADJUSTMENT_APPROVAL",
+                    "Hãy phê duyệt phiếu giảm tồn liên kết để hoàn tất sự cố vật tư."),
+                _ => throw new BusinessException("ERR_INVALID_STATUS", "Sự cố vật tư không ở trạng thái có thể duyệt.")
+            };
+
+            if (!isAllowed)
+                throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền xử lý bước này của sự cố vật tư.");
+
+            return;
+        }
+
+        if (incident.IncidentType != "Construction" || incident.Status != "WaitingReview")
+            throw new BusinessException("ERR_INVALID_STATUS", "Sự cố thi công không ở trạng thái có thể duyệt.");
+
+        if (!_currentUserService.IsInAnyRole(
+                BPG.Domain.Constants.UserRole.Admin,
+                BPG.Domain.Constants.UserRole.TechnicalManager))
+            throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt sự cố thi công.");
+    }
+
+    private async Task ValidateReworkAssigneeAsync(
+        Incident incident,
+        ConfirmIncidentCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (incident.Task != null)
+        {
+            if (incident.PhaseId.HasValue && incident.PhaseId.Value != incident.Task.PhaseId)
+                throw new BusinessException("ERR_INCIDENT_TASK_PHASE_MISMATCH", "Công việc của sự cố không thuộc giai đoạn đã ghi nhận.");
+
+            var taskBelongsToProject = await _unitOfWork.Repository<Phase>().AnyAsync(
+                phase => phase.PhaseId == incident.Task.PhaseId && phase.ProjectId == incident.ProjectId,
+                cancellationToken);
+            if (!taskBelongsToProject)
+                throw new BusinessException("ERR_INCIDENT_TASK_PROJECT_MISMATCH", "Công việc của sự cố không thuộc dự án.");
+        }
+
+        if (!request.CreateReworkTask)
+            return;
+
+        if (incident.Task == null)
+            throw new BusinessException("ERR_NO_TASK", "Sự cố không gắn với task nào để làm lại.");
+
+        if (!request.ReworkAssigneeId.HasValue)
+            throw new BusinessException("ERR_INVALID_INPUT", "Người phụ trách công việc làm lại là bắt buộc.");
+
+        var isProjectMember = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+            member => member.ProjectId == incident.ProjectId
+                && member.UserId == request.ReworkAssigneeId.Value,
+            cancellationToken);
+        if (!isProjectMember)
+            throw new BusinessException(
+                "ERR_TASK_ASSIGNEE_NOT_PROJECT_MEMBER",
+                "Người phụ trách công việc làm lại không thuộc dự án.");
+    }
+
+    private string AppendStatusHistory(
+        string? currentReason,
+        string type,
+        string? reason,
+        DateTime timestamp,
+        string userName,
+        long? emergencyIncidentId = null)
     {
         List<StatusHistoryItem> historyList;
-        if (!string.IsNullOrEmpty(currentReason) && currentReason.Trim().StartsWith(""))
+        if (!string.IsNullOrEmpty(currentReason) && currentReason.Trim().StartsWith("["))
         {
             try
             {
@@ -658,10 +733,35 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             Type = type,
             Reason = reason,
             Timestamp = timestamp,
-            User = userName
+            User = userName,
+            EmergencyIncidentId = emergencyIncidentId
         });
 
         return System.Text.Json.JsonSerializer.Serialize(historyList);
+    }
+
+    private static string FormatReworkTaskDescription(string? incidentDescription)
+    {
+        if (string.IsNullOrWhiteSpace(incidentDescription))
+        {
+            return "Công việc làm lại do sự cố";
+        }
+
+        var cleanDesc = incidentDescription;
+        var idx = cleanDesc.IndexOf("**Ngày/Giờ xảy ra:**", StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0)
+        {
+            cleanDesc = cleanDesc.Substring(0, idx).Trim();
+        }
+
+        cleanDesc = cleanDesc.Replace("[INC-AUDIT]", "").Replace("SEED_TEST_INVENTORY_INCIDENT", "").Trim(' ', '-', ':', '\r', '\n');
+
+        if (string.IsNullOrWhiteSpace(cleanDesc))
+        {
+            return "Công việc làm lại do sự cố";
+        }
+
+        return $"Công việc làm lại do sự cố: {cleanDesc}";
     }
 
     private class StatusHistoryItem
@@ -670,6 +770,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
         public string? Reason { get; set; }
         public DateTime Timestamp { get; set; }
         public string User { get; set; } = string.Empty;
+        public long? EmergencyIncidentId { get; set; }
     }
 }
 

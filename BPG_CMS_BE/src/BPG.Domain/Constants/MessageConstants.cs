@@ -107,6 +107,7 @@ public static class ResponseMessages
     public const string UpdateSuccess  = "Cập nhật thành công.";
     public const string DeleteSuccess  = "Xóa thành công.";
     public const string UploadSuccess  = "Tải file lên thành công.";
+    public const string CloneSuccess   = "Nhân bản thành công.";
     public const string ApproveSuccess = "Phê duyệt thành công.";
     public const string RejectSuccess  = "Từ chối thành công.";
     public const string SubmitSuccess  = "Gửi duyệt thành công.";
@@ -128,4 +129,11 @@ public static class ResponseMessages
     public const string AlreadyApproved            = "Phiếu đã được duyệt, không thể chỉnh sửa hoặc hủy.";
     public const string StockFrozen                = "Tồn kho đang bị đóng băng, không thể xuất kho.";
     public const string ExceedsDirectPurchaseLimit = "Giá trị vượt mức mua hàng khẩn. Cần phê duyệt từ cấp cao hơn.";
+}
+
+public static class WbsCloneConstants
+{
+    public const string CopySuffix = " (Bản sao)";
+    public const int MaxNameLength = 200;
+    public const string InitialProgressReason = "Khởi tạo từ bản sao";
 }

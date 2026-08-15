@@ -16,7 +16,7 @@ export const getTransactionTypeDetails = (type: number) => {
     case 5:
       return { name: 'Trả hàng NCC', color: 'bg-rose-50 text-rose-700 border-rose-200' };
     case 6:
-      return { name: 'Điều chỉnh/Hủy', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+      return { name: 'Tăng tồn', color: 'bg-amber-50 text-amber-700 border-amber-200' };
     case 7:
       return { name: 'Thanh lý', color: 'bg-slate-100 text-slate-800 border-slate-300' };
     case 8:

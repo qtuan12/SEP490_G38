@@ -21,6 +21,7 @@ public class Incident : BaseEntity
     public bool IsEmergency { get; set; } = false;
     public string? RecoveryPlanText { get; set; }
     public decimal? RecoveryEstimateCost { get; set; }
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     public Project Project { get; set; } = null!;
     public ProjectTask? Task { get; set; }

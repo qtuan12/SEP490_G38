@@ -22,11 +22,19 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
         {
             RuleFor(x => x.ProjectId).GreaterThan(0).WithMessage("ERR_VALIDATION");
             RuleFor(x => x.PhaseId).GreaterThan(0).WithMessage("ERR_VALIDATION");
+            RuleFor(x => x.IncidentId)
+                .GreaterThan(0)
+                .When(x => x.IncidentId.HasValue)
+                .WithMessage("ERR_VALIDATION");
             RuleFor(x => x.Reason).NotEmpty().WithMessage("ERR_VALIDATION");
             RuleFor(x => x.Items).NotEmpty().WithMessage("ERR_VALIDATION");
             RuleForEach(x => x.Items).ChildRules(items =>
             {
                 items.RuleFor(i => i.MaterialId).GreaterThan(0).WithMessage("ERR_VALIDATION");
+                items.RuleFor(i => i.UnitId)
+                    .GreaterThanOrEqualTo(0)
+                    .When(i => i.UnitId.HasValue)
+                    .WithMessage("ERR_VALIDATION");
                 items.RuleFor(i => i.Quantity).GreaterThan(0).WithMessage("ERR_VALIDATION");
             });
         }

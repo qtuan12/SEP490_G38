@@ -111,7 +111,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
               { label: 'Nhận chuyển kho', value: '3' },
               { label: 'Chuyển kho đi', value: '4' },
               { label: 'Trả hàng nhà cung cấp', value: '5' },
-              { label: 'Điều chỉnh/Hủy', value: '6' },
+              { label: 'Tăng tồn', value: '6' },
               { label: 'Thanh lý', value: '7' },
               { label: 'Hoàn trả thi công', value: '8' },
               { label: 'Giảm tồn do sự cố', value: '9' }

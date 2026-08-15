@@ -8,7 +8,7 @@ import { Badge, Modal, Input } from '../../components/ui';
 import { getRoleLabel, getRoleBadgeVariant } from '../../utils/roleHelpers';
 import { IOSInstallBanner } from '../../components/IOSInstallBanner';
 import { TaskRow, formatAssignees } from '../../components/field/TaskRow';
-import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVisibleTasksForUser } from '../../utils/taskPermissions';
+import { isProjectWideView as computeIsProjectWideView, canCreateDailyLog, getVisibleTasksForUser, hasSiteEngineerRole } from '../../utils/taskPermissions';
 import type { Project, WBSTask, DailyLog } from '../../types/common';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
@@ -71,7 +71,7 @@ export const FieldWorkbench: React.FC = () => {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [logModalTaskId, setLogModalTaskId] = useState<string | null>(null);
-  const { isProjectLeader } = useProjectAccess(projectId);
+  const { isProjectLeader, isProjectMember } = useProjectAccess(projectId);
   const canDecreaseDailyLogProgress = hasAnyRole(RoleGroup.Technical);
 
   useEffect(() => {
@@ -113,7 +113,12 @@ export const FieldWorkbench: React.FC = () => {
     loadProjectDetail(projectId);
   }, [projectId, loadProjectDetail]);
 
-  const canCreateLogFor = (task: WBSTask) => canCreateDailyLog(task, user, isProjectLeader);
+  const canCreateLogFor = (task: WBSTask) => canCreateDailyLog(
+    task,
+    user,
+    isProjectLeader,
+    isProjectMember,
+  );
 
   // TM/Admin/leader thật của dự án này xem toàn bộ công việc; Site Engineer chỉ xem đúng việc được gán cho mình.
   const isProjectWideView = computeIsProjectWideView(user, isProjectLeader);
@@ -126,8 +131,8 @@ export const FieldWorkbench: React.FC = () => {
   const myTasks = allMyTasks.slice(0, 5);
 
   const creatableTasks = useMemo(
-    () => tasks.filter(t => canCreateDailyLog(t, user, isProjectLeader)),
-    [tasks, user, isProjectLeader]
+    () => tasks.filter(t => canCreateDailyLog(t, user, isProjectLeader, isProjectMember)),
+    [tasks, user, isProjectLeader, isProjectMember]
   );
 
   const [taskPickerOpen, setTaskPickerOpen] = useState(false);
@@ -359,6 +364,13 @@ export const FieldWorkbench: React.FC = () => {
           tasks={tasks}
           engineerId={user.id}
           engineerName={user.name}
+          canCreate={canCreateDailyLog(
+            tasks.find(task => task.id === logModalTaskId),
+            user,
+            isProjectLeader,
+            isProjectMember,
+          )}
+          isSiteEngineer={hasSiteEngineerRole(user)}
           canManageTechnical={canDecreaseDailyLogProgress}
           onSuccess={() => {
             setLogModalTaskId(null);

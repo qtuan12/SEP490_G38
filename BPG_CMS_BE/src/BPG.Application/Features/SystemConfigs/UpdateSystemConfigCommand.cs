@@ -1,4 +1,5 @@
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentValidation;
@@ -42,7 +43,11 @@ namespace BPG.Application.Features.SystemConfigs
                     throw new BusinessException("ERR_INVALID_CONFIG_VALUE",
                         $"Giá trị '{request.ConfigValue}' không hợp lệ cho tham số kiểu số.");
 
-                if (config.DataType == "percentage" && numVal > 100)
+                var isPercentage = config.DataType == "percentage"
+                    || config.ConfigKey == SystemConfigKeys.LowStockThreshold
+                    || config.ConfigKey == SystemConfigKeys.LowStockThresholdEn;
+
+                if (isPercentage && numVal > 100)
                     throw new BusinessException("ERR_INVALID_CONFIG_VALUE",
                         "Giá trị phần trăm không được vượt quá 100.");
             }

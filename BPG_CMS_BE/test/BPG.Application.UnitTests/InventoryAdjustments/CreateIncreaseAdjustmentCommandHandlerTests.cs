@@ -18,6 +18,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         private const long ProjectId = 1;
         private const long PhaseId = 2;
         private const long MaterialId = 10;
+        private const int AlternativeUnitId = 2;
         private const long GeneratedAdjustmentId = 800;
 
         private readonly Mock<IUnitOfWork> _mockUow;
@@ -25,9 +26,12 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         private readonly Mock<IGenericRepository<Project>> _mockProjectRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<IGenericRepository<Phase>> _mockPhaseRepo;
+        private readonly Mock<IGenericRepository<BOQItem>> _mockBoqRepo;
         private readonly Mock<IGenericRepository<MaterialCatalog>> _mockMaterialRepo;
+        private readonly Mock<IGenericRepository<MaterialConversion>> _mockConversionRepo;
         private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
         private readonly Mock<IGenericRepository<InventoryAdjustment>> _mockAdjustmentRepo;
+        private InventoryAdjustment? _addedAdjustment;
         private readonly CreateIncreaseAdjustmentCommandHandler _handler;
 
         public CreateIncreaseAdjustmentCommandHandlerTests()
@@ -37,7 +41,9 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             _mockProjectRepo = new Mock<IGenericRepository<Project>>();
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockPhaseRepo = new Mock<IGenericRepository<Phase>>();
+            _mockBoqRepo = new Mock<IGenericRepository<BOQItem>>();
             _mockMaterialRepo = new Mock<IGenericRepository<MaterialCatalog>>();
+            _mockConversionRepo = new Mock<IGenericRepository<MaterialConversion>>();
             _mockInventoryRepo = new Mock<IGenericRepository<CurrentInventory>>();
             _mockAdjustmentRepo = new Mock<IGenericRepository<InventoryAdjustment>>();
             var transactionRepo = new Mock<IGenericRepository<InventoryTransaction>>();
@@ -45,20 +51,28 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             _mockUow.Setup(uow => uow.Repository<Project>()).Returns(_mockProjectRepo.Object);
             _mockUow.Setup(uow => uow.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
             _mockUow.Setup(uow => uow.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<BOQItem>()).Returns(_mockBoqRepo.Object);
             _mockUow.Setup(uow => uow.Repository<MaterialCatalog>()).Returns(_mockMaterialRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<MaterialConversion>()).Returns(_mockConversionRepo.Object);
             _mockUow.Setup(uow => uow.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
             _mockUow.Setup(uow => uow.Repository<InventoryTransaction>()).Returns(transactionRepo.Object);
             _mockUow.Setup(uow => uow.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
 
             _mockMemberRepo.SetupMockData(new List<ProjectMember>());
+            _mockBoqRepo.SetupMockData(new List<BOQItem>());
             _mockMaterialRepo.SetupMockData(new List<MaterialCatalog>());
+            _mockConversionRepo.SetupMockData(new List<MaterialConversion>());
             _mockInventoryRepo.SetupMockData(new List<CurrentInventory>());
             _mockInventoryRepo.Setup(repository => repository.AddAsync(It.IsAny<CurrentInventory>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
             transactionRepo.Setup(repository => repository.AddAsync(It.IsAny<InventoryTransaction>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
             _mockAdjustmentRepo.Setup(repository => repository.AddAsync(It.IsAny<InventoryAdjustment>(), It.IsAny<CancellationToken>()))
-                .Callback<InventoryAdjustment, CancellationToken>((adjustment, _) => adjustment.AdjustmentId = GeneratedAdjustmentId)
+                .Callback<InventoryAdjustment, CancellationToken>((adjustment, _) =>
+                {
+                    _addedAdjustment = adjustment;
+                    adjustment.AdjustmentId = GeneratedAdjustmentId;
+                })
                 .Returns(Task.CompletedTask);
 
             _handler = new CreateIncreaseAdjustmentCommandHandler(
@@ -126,6 +140,14 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         {
             SetupValidPreconditions();
             SetupMaterials(Material(isDiscrete: true));
+            SetupBoqItems(new BOQItem
+            {
+                PhaseId = PhaseId,
+                MaterialId = MaterialId,
+                UnitId = 1,
+                ConversionRate = 1m,
+                Unit = new Unit { UnitId = 1, UnitName = "Bao", IsDiscrete = true }
+            });
 
             var act = async () => await _handler.Handle(Command(quantity: 1.5m), CancellationToken.None);
 
@@ -154,6 +176,14 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             SetupUser(RoleConstants.SiteEngineer, hasRole: false);
             SetupMembers(new ProjectMember { ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = true });
             SetupPhase(Phase());
+            SetupBoqItems(new BOQItem
+            {
+                PhaseId = PhaseId,
+                MaterialId = MaterialId,
+                UnitId = 1,
+                ConversionRate = 1m,
+                Unit = new Unit { UnitId = 1, UnitName = "Bao", IsDiscrete = false }
+            });
             SetupMaterials(Material(isDiscrete: false));
 
             var result = await _handler.Handle(Command(quantity: 12.5m), CancellationToken.None);
@@ -163,14 +193,84 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             result.Message.Should().Be("Tạo phiếu điều chỉnh tăng tồn thành công, chờ phê duyệt");
         }
 
-        private static CreateIncreaseAdjustmentCommand Command(decimal quantity = 5)
+        [Fact]
+        public async Task Handle_AlternativeUnit_ShouldStoreSelectedUnitQuantityAndHistoricalRate()
+        {
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: false));
+            SetupConversions(new MaterialConversion
+            {
+                MaterialId = MaterialId,
+                AlternativeUnitId = AlternativeUnitId,
+                AlternativeUnit = new Unit
+                {
+                    UnitId = AlternativeUnitId,
+                    UnitName = "Tấn",
+                    IsDiscrete = false
+                },
+                ConversionRate = 0.001m
+            });
+
+            await _handler.Handle(
+                Command(quantity: 2m, unitId: AlternativeUnitId),
+                CancellationToken.None);
+
+            var item = _addedAdjustment!.Items.Should().ContainSingle().Subject;
+            item.UnitId.Should().Be(AlternativeUnitId);
+            item.Quantity.Should().Be(2m);
+            item.ConversionRate.Should().Be(0.001m);
+        }
+
+        [Fact]
+        public async Task Handle_AlternativeUnitThatNormalizesToFractionalDiscreteBase_ShouldReject()
+        {
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: true));
+            SetupConversions(new MaterialConversion
+            {
+                MaterialId = MaterialId,
+                AlternativeUnitId = AlternativeUnitId,
+                AlternativeUnit = new Unit
+                {
+                    UnitId = AlternativeUnitId,
+                    UnitName = "Thùng",
+                    IsDiscrete = false
+                },
+                ConversionRate = 2m
+            });
+
+            var act = async () => await _handler.Handle(
+                Command(quantity: 1m, unitId: AlternativeUnitId),
+                CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
+        }
+
+        [Fact]
+        public async Task Handle_LegacyPayloadWithoutUnitId_ShouldResolveAndStoreBaseUnit()
+        {
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: false));
+
+            await _handler.Handle(Command(quantity: 2m), CancellationToken.None);
+
+            var item = _addedAdjustment!.Items.Should().ContainSingle().Subject;
+            item.UnitId.Should().Be(1);
+            item.ConversionRate.Should().Be(1m);
+        }
+
+        private static CreateIncreaseAdjustmentCommand Command(decimal quantity = 5, int? unitId = null)
             => new()
             {
                 ProjectId = ProjectId,
                 PhaseId = PhaseId,
                 Reason = "Tăng tồn kho sau kiểm kê",
                 Description = "Kiểm kê thực tế",
-                Items = new List<AdjustmentItemRequest> { new() { MaterialId = MaterialId, Quantity = quantity } }
+                Items = new List<AdjustmentItemRequest>
+                {
+                    new() { MaterialId = MaterialId, UnitId = unitId, Quantity = quantity }
+                }
             };
 
         private static Project Project(string status = ProjectStatus.InProgress)
@@ -193,6 +293,14 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             SetupProject(Project());
             SetupUser(RoleConstants.Admin);
             SetupPhase(Phase());
+            SetupBoqItems(new BOQItem
+            {
+                PhaseId = PhaseId,
+                MaterialId = MaterialId,
+                UnitId = 1,
+                ConversionRate = 1m,
+                Unit = new Unit { UnitId = 1, UnitName = "Bao", IsDiscrete = false }
+            });
         }
 
         private void SetupProject(Project? project)
@@ -220,6 +328,16 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         private void SetupMaterials(params MaterialCatalog[] materials)
         {
             _mockMaterialRepo.SetupMockData(materials.ToList());
+        }
+
+        private void SetupConversions(params MaterialConversion[] conversions)
+        {
+            _mockConversionRepo.SetupMockData(conversions.ToList());
+        }
+
+        private void SetupBoqItems(params BOQItem[] boqItems)
+        {
+            _mockBoqRepo.SetupMockData(boqItems.ToList());
         }
     }
 }

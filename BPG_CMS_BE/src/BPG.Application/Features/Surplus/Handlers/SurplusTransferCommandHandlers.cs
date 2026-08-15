@@ -7,6 +7,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace BPG.Application.Features.Surplus.Handlers;
 
@@ -14,12 +15,18 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
 {
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
+    private readonly IProjectAccessService _projectAccess;
     private readonly INotificationService _notificationService;
 
-    public CreateSurplusTransferActionCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, INotificationService notificationService)
+    public CreateSurplusTransferActionCommandHandler(
+        IUnitOfWork uow,
+        ICurrentUserService currentUser,
+        IProjectAccessService projectAccess,
+        INotificationService notificationService)
     {
         _uow = uow;
         _currentUser = currentUser;
+        _projectAccess = projectAccess;
         _notificationService = notificationService;
     }
 
@@ -34,13 +41,16 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
             .FirstOrDefaultAsync(i => i.SurplusRequestItemId == request.SurplusRequestItemId, ct)
             ?? throw new NotFoundException(nameof(SurplusRequestItem), request.SurplusRequestItemId);
 
+        var fromProjectId = item.SurplusRequest.ProjectId;
+        if (!await _projectAccess.IsCurrentUserProjectLeaderAsync(fromProjectId, ct))
+            throw new ForbiddenException("Chỉ Trưởng dự án hiện tại của dự án nguồn mới được phép tạo yêu cầu chuyển kho vật tư thừa.");
+
         if (item.SurplusRequest.Project.Status != ProjectStatus.InProgress)
             throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án nguồn phải đang hoạt động để thực hiện thao tác này.");
 
         if (item.SurplusRequest.Status == SurplusRequestStatus.Processed)
             throw new BusinessException(ErrorCodes.AlreadyApproved, "Batch đã hoàn tất, không thể thêm action mới.");
 
-        var fromProjectId = item.SurplusRequest.ProjectId;
         var fromProjectName = item.SurplusRequest.Project.Name;
         
         if (request.ToProjectId == fromProjectId)
@@ -237,13 +247,20 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
 {
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
+    private readonly IProjectAccessService _projectAccess;
     private readonly INotificationService _notificationService;
     private readonly IFileStorageService _fileStorage;
 
-    public DispatchSurplusTransferCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, INotificationService notificationService, IFileStorageService fileStorage)
+    public DispatchSurplusTransferCommandHandler(
+        IUnitOfWork uow,
+        ICurrentUserService currentUser,
+        IProjectAccessService projectAccess,
+        INotificationService notificationService,
+        IFileStorageService fileStorage)
     {
         _uow = uow;
         _currentUser = currentUser;
+        _projectAccess = projectAccess;
         _notificationService = notificationService;
         _fileStorage = fileStorage;
     }
@@ -261,6 +278,9 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
             .Include(t => t.SurplusRequestItem)
             .FirstOrDefaultAsync(t => t.SurplusTransferId == request.SurplusTransferId, ct)
             ?? throw new NotFoundException(nameof(SurplusTransfer), request.SurplusTransferId);
+
+        if (!await _projectAccess.IsCurrentUserProjectLeaderAsync(transfer.FromProjectId, ct))
+            throw new ForbiddenException("Chỉ Trưởng dự án hiện tại của dự án nguồn mới được phép xác nhận xuất chuyển kho.");
 
         if (transfer.FromProject.Status != ProjectStatus.InProgress || transfer.ToProject.Status != ProjectStatus.InProgress)
             throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án giao và nhận đều phải đang hoạt động.");
@@ -338,14 +358,22 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
 {
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
+    private readonly IProjectAccessService _projectAccess;
     private readonly IInventoryService _inventoryService;
     private readonly INotificationService _notificationService;
     private readonly IFileStorageService _fileStorage;
 
-    public ReceiveSurplusTransferCommandHandler(IUnitOfWork uow, ICurrentUserService currentUser, IInventoryService inventoryService, INotificationService notificationService, IFileStorageService fileStorage)
+    public ReceiveSurplusTransferCommandHandler(
+        IUnitOfWork uow,
+        ICurrentUserService currentUser,
+        IProjectAccessService projectAccess,
+        IInventoryService inventoryService,
+        INotificationService notificationService,
+        IFileStorageService fileStorage)
     {
         _uow = uow;
         _currentUser = currentUser;
+        _projectAccess = projectAccess;
         _inventoryService = inventoryService;
         _notificationService = notificationService;
         _fileStorage = fileStorage;
@@ -358,86 +386,90 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
         if (request.Attachments == null || !request.Attachments.Any())
             throw new BusinessException(ErrorCodes.ValidationFailed, "Bắt buộc phải tải lên ít nhất 1 file minh chứng phiếu nhận / ảnh chụp.");
 
-        var transfer = await _uow.Repository<SurplusTransfer>().Query()
-            .Include(t => t.FromProject)
-            .Include(t => t.ToProject)
-            .Include(t => t.SurplusRequestItem)
-                .ThenInclude(i => i.SurplusRequest)
-            .FirstOrDefaultAsync(t => t.SurplusTransferId == request.SurplusTransferId, ct)
-            ?? throw new NotFoundException(nameof(SurplusTransfer), request.SurplusTransferId);
-
-        if (transfer.FromProject.Status != ProjectStatus.InProgress || transfer.ToProject.Status != ProjectStatus.InProgress)
-            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án giao và nhận đều phải đang hoạt động.");
-
-        if (transfer.Status != SurplusTransferStatus.Dispatched)
-            throw new InvalidStatusTransitionException(nameof(SurplusTransfer), transfer.Status, SurplusTransferStatus.Received);
-
-        transfer.Status = SurplusTransferStatus.Received;
-        transfer.ReceivedBy = userId;
-        transfer.ReceivedAt = DateTime.UtcNow;
-        _uow.Repository<SurplusTransfer>().Update(transfer);
-
-        // Upload attachments
-        foreach (var file in request.Attachments)
+        SurplusTransfer transfer;
+        await _uow.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        try
         {
-            var fileUrl = await _fileStorage.UploadFileAsync(file, "surplus_transfer_receives", ct);
-            var fileAttachment = new Attachment
+            // Re-read status inside the transaction so concurrent receive requests cannot both succeed.
+            transfer = await _uow.Repository<SurplusTransfer>().Query()
+                .Include(t => t.FromProject)
+                .Include(t => t.ToProject)
+                .Include(t => t.SurplusRequestItem)
+                    .ThenInclude(i => i.SurplusRequest)
+                .FirstOrDefaultAsync(t => t.SurplusTransferId == request.SurplusTransferId, ct)
+                ?? throw new NotFoundException(nameof(SurplusTransfer), request.SurplusTransferId);
+
+            if (!await _projectAccess.IsCurrentUserProjectLeaderAsync(transfer.ToProjectId, ct))
+                throw new ForbiddenException("Chỉ Trưởng dự án hiện tại của dự án đích mới được phép xác nhận nhận chuyển kho.");
+
+            if (transfer.FromProject.Status != ProjectStatus.InProgress || transfer.ToProject.Status != ProjectStatus.InProgress)
+                throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án giao và nhận đều phải đang hoạt động.");
+
+            if (transfer.Status != SurplusTransferStatus.Dispatched)
+                throw new InvalidStatusTransitionException(nameof(SurplusTransfer), transfer.Status, SurplusTransferStatus.Received);
+
+            transfer.Status = SurplusTransferStatus.Received;
+            transfer.ReceivedBy = userId;
+            transfer.ReceivedAt = DateTime.UtcNow;
+            _uow.Repository<SurplusTransfer>().Update(transfer);
+
+            foreach (var file in request.Attachments)
             {
-                EntityType = EntityType.SurplusTransferReceive,
-                EntityId = transfer.SurplusTransferId,
-                FileName = file.FileName,
-                FileUrl = fileUrl,
-                ContentType = file.ContentType,
-                FileSizeBytes = file.Length,
-                CreatedBy = userId
-            };
-            await _uow.Repository<Attachment>().AddAsync(fileAttachment, ct);
-        }
+                var fileUrl = await _fileStorage.UploadFileAsync(file, "surplus_transfer_receives", ct);
+                await _uow.Repository<Attachment>().AddAsync(new Attachment
+                {
+                    EntityType = EntityType.SurplusTransferReceive,
+                    EntityId = transfer.SurplusTransferId,
+                    FileName = file.FileName,
+                    FileUrl = fileUrl,
+                    ContentType = file.ContentType,
+                    FileSizeBytes = file.Length,
+                    CreatedBy = userId
+                }, ct);
+            }
 
-        // Update SurplusRequestItem processed quantity
-        var item = transfer.SurplusRequestItem;
-        item.ProcessedQuantity += transfer.TransferQuantity;
-        item.Status = item.ProcessedQuantity >= item.Quantity
-            ? SurplusRequestItemStatus.Completed
-            : SurplusRequestItemStatus.Processing;
-        _uow.Repository<SurplusRequestItem>().Update(item);
+            var item = transfer.SurplusRequestItem;
+            item.ProcessedQuantity += transfer.TransferQuantity;
+            item.Status = item.ProcessedQuantity >= item.Quantity
+                ? SurplusRequestItemStatus.Completed
+                : SurplusRequestItemStatus.Processing;
+            _uow.Repository<SurplusRequestItem>().Update(item);
 
-        await _uow.SaveChangesAsync(ct);
+            var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
+            var baseTransferQty = transfer.TransferQuantity / conversionRate;
 
-        var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
-        var baseTransferQty = transfer.TransferQuantity / conversionRate;
+            var fromInv = await _inventoryService.UpdateStockAsync(
+                transfer.FromProjectId,
+                item.MaterialId,
+                -baseTransferQty,
+                InventoryTransactionType.TransferOut,
+                transfer.SurplusTransferId,
+                EntityType.SurplusRequest,
+                userId,
+                ct);
 
-        // TransferOut: reduce from-project inventory
-        var fromInv = await _inventoryService.UpdateStockAsync(
-            transfer.FromProjectId,
-            item.MaterialId,
-            -baseTransferQty,
-            InventoryTransactionType.TransferOut,
-            transfer.SurplusTransferId,
-            EntityType.SurplusRequest,
-            userId,
-            ct);
-
-        // Decrease ReservedQuantity since the items actually left the warehouse
-        if (fromInv != null)
-        {
-            fromInv.ReservedQuantity -= baseTransferQty;
-            if (fromInv.ReservedQuantity < 0) fromInv.ReservedQuantity = 0;
+            fromInv.ReservedQuantity = Math.Max(0, fromInv.ReservedQuantity - baseTransferQty);
             _uow.Repository<CurrentInventory>().Update(fromInv);
+
+            await _inventoryService.UpdateStockAsync(
+                transfer.ToProjectId,
+                item.MaterialId,
+                baseTransferQty,
+                InventoryTransactionType.TransferIn,
+                transfer.SurplusTransferId,
+                EntityType.SurplusRequest,
+                userId,
+                ct);
+
+            await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
+            await _uow.SaveChangesAsync(ct);
+            await _uow.CommitTransactionAsync(ct);
         }
-
-        // TransferIn: add to to-project inventory
-        await _inventoryService.UpdateStockAsync(
-            transfer.ToProjectId,
-            item.MaterialId,
-            baseTransferQty,
-            InventoryTransactionType.TransferIn,
-            transfer.SurplusTransferId,
-            EntityType.SurplusRequest,
-            userId,
-            ct);
-
-        await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
+        catch
+        {
+            await _uow.RollbackTransactionAsync(CancellationToken.None);
+            throw;
+        }
 
         // Thông báo xác nhận đã nhận
         var receiveTitle = "Bên nhận đã xác nhận hàng";

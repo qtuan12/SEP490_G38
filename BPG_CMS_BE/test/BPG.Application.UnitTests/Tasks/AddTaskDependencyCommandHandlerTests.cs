@@ -51,6 +51,7 @@ public class AddTaskDependencyCommandHandlerTests
         var result = await _handler.Handle(Command(), CancellationToken.None);
 
         result.Success.Should().BeTrue();
+        result.Message.Should().Be("Thêm liên kết phụ thuộc thành công.");
     }
 
     [Fact]
@@ -60,11 +61,59 @@ public class AddTaskDependencyCommandHandlerTests
 
         Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
 
-        await act.Should().ThrowAsync<NotFoundException>();
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.NotFound);
     }
 
     [Fact]
-    public async Task UTCID03_Handle_SelfDependency_ShouldThrowExpectedErrorCode()
+    public async Task UTCID03_Handle_ProjectNotInProgress_ShouldThrowInvalidTransition()
+    {
+        SetupTasks(Task(TaskId, projectStatus: ProjectStatus.Completed), Task(PredecessorId));
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
+    }
+
+    [Fact]
+    public async Task UTCID04_Handle_ProjectLeader_ShouldReturnSuccess()
+    {
+        _currentUser.SetupUser(1);
+        SetupProjectLeaderAccess(true);
+
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Message.Should().Be("Thêm liên kết phụ thuộc thành công.");
+    }
+
+    [Fact]
+    public async Task UTCID05_Handle_UserWithoutManagerOrLeaderPermission_ShouldThrowForbiddenException()
+    {
+        _currentUser.SetupUser(1);
+        SetupProjectLeaderAccess(false);
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<ForbiddenException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.Forbidden);
+    }
+
+    [Fact]
+    public async Task UTCID06_Handle_PredecessorNotFound_ShouldThrowNotFoundException()
+    {
+        SetupTasks(Task(TaskId));
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<NotFoundException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.NotFound);
+        exception.Which.Message.Should().Contain("PredecessorTask");
+    }
+
+    [Fact]
+    public async Task UTCID07_Handle_SelfDependency_ShouldThrowExpectedErrorCode()
     {
         Func<Task> act = () => _handler.Handle(
             new AddTaskDependencyCommand(TaskId, TaskId), CancellationToken.None);
@@ -74,7 +123,29 @@ public class AddTaskDependencyCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID04_Handle_DifferentPhases_ShouldThrowExpectedErrorCode()
+    public async Task UTCID08_Handle_PredecessorIsAncestor_ShouldThrowExpectedErrorCode()
+    {
+        SetupTasks(Task(TaskId, parentTaskId: PredecessorId), Task(PredecessorId));
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_DEPENDENCY_PARENT");
+    }
+
+    [Fact]
+    public async Task UTCID09_Handle_PredecessorIsDescendant_ShouldThrowExpectedErrorCode()
+    {
+        SetupTasks(Task(TaskId), Task(PredecessorId, parentTaskId: TaskId));
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_DEPENDENCY_CHILD");
+    }
+
+    [Fact]
+    public async Task UTCID10_Handle_DifferentPhases_ShouldThrowExpectedErrorCode()
     {
         SetupTasks(Task(TaskId), Task(PredecessorId, phaseId: 99));
 
@@ -85,17 +156,18 @@ public class AddTaskDependencyCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID05_Handle_ExistingDependency_ShouldReturnSuccess()
+    public async Task UTCID11_Handle_ExistingDependency_ShouldReturnSuccess()
     {
         SetupDependencies(Dependency(TaskId, PredecessorId));
 
         var result = await _handler.Handle(Command(), CancellationToken.None);
 
         result.Success.Should().BeTrue();
+        result.Message.Should().Be("Liên kết phụ thuộc đã tồn tại.");
     }
 
     [Fact]
-    public async Task UTCID06_Handle_CircularDependency_ShouldThrowExpectedErrorCode()
+    public async Task UTCID12_Handle_CircularDependency_ShouldThrowExpectedErrorCode()
     {
         SetupDependencies(Dependency(PredecessorId, TaskId));
 
@@ -105,31 +177,22 @@ public class AddTaskDependencyCommandHandlerTests
         exception.Which.ErrorCode.Should().Be("ERR_CIRCULAR_DEPENDENCY");
     }
 
-    [Fact]
-    public async Task UTCID07_Handle_UserWithoutManagerOrLeaderPermission_ShouldThrowForbiddenException()
-    {
-        _currentUser.SetupUser(1);
-        _memberRepo.Setup(x => x.AnyAsync(
-                It.IsAny<System.Linq.Expressions.Expression<Func<ProjectMember, bool>>>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-
-        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
-
-        await act.Should().ThrowAsync<ForbiddenException>();
-    }
-
     private static AddTaskDependencyCommand Command() => new(TaskId, PredecessorId);
 
-    private static ProjectTask Task(long id, long phaseId = PhaseId) => new()
+    private static ProjectTask Task(
+        long id,
+        long phaseId = PhaseId,
+        long? parentTaskId = null,
+        string projectStatus = ProjectStatus.InProgress) => new()
     {
         TaskId = id,
         PhaseId = phaseId,
+        ParentTaskId = parentTaskId,
         Phase = new Phase
         {
             PhaseId = phaseId,
             ProjectId = ProjectId,
-            Project = new Project { ProjectId = ProjectId, Status = ProjectStatus.InProgress }
+            Project = new Project { ProjectId = ProjectId, Status = projectStatus }
         }
     };
 
@@ -145,4 +208,10 @@ public class AddTaskDependencyCommandHandlerTests
 
     private void SetupDependencies(params TaskDependency[] dependencies) =>
         _dependencyRepo.Setup(x => x.Query()).Returns(dependencies.AsQueryable().BuildMock());
+
+    private void SetupProjectLeaderAccess(bool isLeader) =>
+        _memberRepo.Setup(x => x.AnyAsync(
+                It.IsAny<System.Linq.Expressions.Expression<Func<ProjectMember, bool>>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(isLeader);
 }

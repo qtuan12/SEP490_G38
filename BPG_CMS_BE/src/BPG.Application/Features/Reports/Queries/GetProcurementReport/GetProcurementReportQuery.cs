@@ -35,6 +35,21 @@ public class GetProcurementReportQueryHandler
             throw new BPG.Domain.Exceptions.BusinessException("ERR_FORBIDDEN", "Bạn không có quyền xem báo cáo của dự án này.");
         }
 
+        // Approved direct purchases create a technical PO/receipt for inventory
+        // traceability. Those auto POs must not be counted again as normal procurement.
+        var autoPoQuery = _unitOfWork.Repository<DirectPurchaseRequest>()
+            .Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(d => d.AutoPOId.HasValue);
+        autoPoQuery = request.ProjectId > 0
+            ? autoPoQuery.Where(d => d.ProjectId == request.ProjectId)
+            : autoPoQuery.Where(d => accessibleIds.Contains(d.ProjectId));
+        var autoPoIds = await autoPoQuery
+            .Select(d => d.AutoPOId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
         var poQuery = _unitOfWork.Repository<PurchaseOrder>()
             .Query()
             .Include(p => p.Supplier)
@@ -44,7 +59,8 @@ public class GetProcurementReportQueryHandler
             .Where(p => p.Status != PurchaseOrderStatus.Draft
                      && p.Status != PurchaseOrderStatus.PendingApproval
                      && p.Status != PurchaseOrderStatus.Rejected
-                     && p.Status != PurchaseOrderStatus.Cancelled)
+                     && p.Status != PurchaseOrderStatus.Cancelled
+                     && !autoPoIds.Contains(p.POId))
             .AsNoTracking();
 
         var fromDt = request.FromDate?.Date;
@@ -101,6 +117,19 @@ public class GetProcurementReportQueryHandler
             .OrderByDescending(d => d.PurchaseDate)
             .ToListAsync(cancellationToken);
 
+        var supplierIds = pos
+            .Where(po => po.SupplierId.HasValue)
+            .Select(po => po.SupplierId!.Value)
+            .Distinct()
+            .ToList();
+        var supplierNames = supplierIds.Count == 0
+            ? new Dictionary<long, string>()
+            : await _unitOfWork.Repository<Supplier>().Query()
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(supplier => supplierIds.Contains(supplier.SupplierId))
+                .ToDictionaryAsync(supplier => supplier.SupplierId, supplier => supplier.SupplierName, cancellationToken);
+
         decimal totalPoCost = pos.Sum(p => p.TotalAmount > 0
             ? p.TotalAmount
             : p.Items.Sum(i => i.Quantity * i.UnitPrice));
@@ -114,7 +143,10 @@ public class GetProcurementReportQueryHandler
             POId = p.POId,
             PONumber = p.PONumber,
             Status = p.Status,
-            SupplierName = p.Supplier?.SupplierName,
+            SupplierName = p.SupplierId.HasValue
+                && supplierNames.TryGetValue(p.SupplierId.Value, out var supplierName)
+                    ? supplierName
+                    : null,
             TotalAmount = p.TotalAmount > 0 ? p.TotalAmount : p.Items.Sum(i => i.Quantity * i.UnitPrice),
             OrderDate = p.OrderDate,
             ExpectedDeliveryDate = p.ExpectedDeliveryDate
@@ -197,7 +229,7 @@ public class GetProcurementReportQueryHandler
 
         var issuanceItems = await issuanceQuery.ToListAsync(cancellationToken);
 
-        var avgPricesMap = await _unitOfWork.Repository<PurchaseOrderItem>()
+        var priceQuery = _unitOfWork.Repository<PurchaseOrderItem>()
             .Query()
             .Where(p => p.UnitPrice > 0
                 && p.PurchaseOrder!.Status != PurchaseOrderStatus.Draft
@@ -206,19 +238,31 @@ public class GetProcurementReportQueryHandler
                 && p.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
                 && (request.ProjectId > 0
                     ? p.PurchaseOrder.ProjectId == request.ProjectId
-                    : accessibleIds.Contains(p.PurchaseOrder.ProjectId)))
+                    : accessibleIds.Contains(p.PurchaseOrder.ProjectId)));
+        if (toDt.HasValue)
+        {
+            priceQuery = priceQuery.Where(p => p.PurchaseOrder!.OrderDate <= toDt.Value);
+        }
+
+        var priceTotals = await priceQuery
             .GroupBy(p => p.MaterialId)
             .Select(g => new
             {
                 MaterialId = g.Key,
-                AvgPrice = g.Average(x => x.UnitPrice / (x.ConversionRate > 0 ? x.ConversionRate : 1m))
+                TotalBaseQuantity = g.Sum(x => x.Quantity / (x.ConversionRate > 0 ? x.ConversionRate : 1m)),
+                TotalValue = g.Sum(x => x.Quantity * x.UnitPrice)
             })
-            .ToDictionaryAsync(x => x.MaterialId, x => x.AvgPrice, cancellationToken);
+            .ToListAsync(cancellationToken);
+        var avgPricesMap = priceTotals.ToDictionary(
+            total => total.MaterialId,
+            total => total.TotalBaseQuantity > 0
+                ? total.TotalValue / total.TotalBaseQuantity
+                : 0m);
 
         decimal totalMaterialIssuanceVal = issuanceItems.Sum(i =>
         {
             var price = avgPricesMap.GetValueOrDefault(i.MaterialId, 0m);
-            return i.Quantity * (i.ConversionRate > 0 ? i.ConversionRate : 1m) * price;
+            return i.Quantity / (i.ConversionRate > 0 ? i.ConversionRate : 1m) * price;
         });
 
         var dto = new ProcurementReportDto
