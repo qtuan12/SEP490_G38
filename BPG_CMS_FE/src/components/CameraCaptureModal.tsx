@@ -26,6 +26,15 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ isOpen, 
     setError(null);
     setReady(false);
 
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError(
+        window.isSecureContext
+          ? 'Trình duyệt không hỗ trợ mở camera trong ứng dụng.'
+          : 'Trang đang chạy qua HTTP nên trình duyệt chặn camera. Hãy truy cập bằng HTTPS (hoặc localhost).'
+      );
+      return;
+    }
+
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'environment' }, audio: false })
       .then(stream => {
@@ -36,11 +45,23 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ isOpen, 
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          // iOS/Safari không phải lúc nào cũng tự chạy dù có autoPlay — gọi play() cho chắc.
+          videoRef.current.play().catch(() => {});
         }
         setReady(true);
       })
-      .catch(() => {
-        if (!cancelled) setError('Không thể mở camera. Vui lòng kiểm tra quyền truy cập camera cho trình duyệt.');
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const name = err instanceof Error ? err.name : '';
+        if (name === 'NotAllowedError' || name === 'SecurityError') {
+          setError('Bạn đã từ chối quyền camera. Vào cài đặt trình duyệt/ứng dụng để cấp lại quyền Camera cho trang này.');
+        } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+          setError('Không tìm thấy camera phù hợp trên thiết bị.');
+        } else if (name === 'NotReadableError') {
+          setError('Camera đang được ứng dụng khác sử dụng. Hãy đóng ứng dụng đó rồi thử lại.');
+        } else {
+          setError('Không thể mở camera. Vui lòng kiểm tra quyền truy cập camera cho trình duyệt.');
+        }
       });
 
     return () => {
@@ -71,7 +92,9 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({ isOpen, 
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+    // z-index phải cao hơn Modal (zIndex 1000) — CameraCaptureModal thường được mở từ trong
+    // một Modal, nếu thấp hơn thì camera bật nhưng bị lớp overlay của Modal che hoàn toàn.
+    <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 2000 }}>
       <div
         className="flex items-center justify-between px-4 pt-3 pb-2 text-white shrink-0"
         style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
