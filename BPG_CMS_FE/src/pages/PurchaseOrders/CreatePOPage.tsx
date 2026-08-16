@@ -8,7 +8,6 @@ import { Button, Input, Select } from '../../components/ui';
 import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ApiError } from '../../services/api';
-import { PO_ORDER_DATE_ERRORS, PO_DELIVERY_DATE_ERRORS } from '../../constants/errorCodes';
 import { todayVnISO } from '../../utils/dateHelpers';
 
 interface POItem {
@@ -311,15 +310,8 @@ export const CreatePOPage: React.FC = () => {
         return;
       }
 
-      // 2. Lỗi nghiệp vụ (BIZ_*) → gắn theo errorCode, không so khớp nội dung message.
-      const code = apiErr?.errorCode;
-      if (code && PO_ORDER_DATE_ERRORS.includes(code)) {
-        setOrderDateError(msg);
-      } else if (code && PO_DELIVERY_DATE_ERRORS.includes(code)) {
-        setDeliveryDateError(msg);
-      } else {
-        setFormError(msg);
-      }
+      // 2. Lỗi nghiệp vụ (BIZ_*) không còn mã nào gắn riêng cho ô ngày — hiển thị ở đầu form.
+      setFormError(msg);
     },
   });
 

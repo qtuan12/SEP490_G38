@@ -125,52 +125,45 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             exception.Which.ErrorCode.Should().Be("BIZ_001");
         }
 
-        [Fact]
-        public async Task UTCID05_Handle_OrderDateBeforeProjectStart_ShouldThrowBusinessException()
+        [Theory]
+        [InlineData(ProjectStatus.Draft)]
+        [InlineData(ProjectStatus.Paused)]
+        [InlineData(ProjectStatus.Completed)]
+        [InlineData(ProjectStatus.Closed)]
+        public async Task UTCID05_Handle_ProjectNotInProgress_ShouldThrowBusinessException(string projectStatus)
         {
-            var command = Command(orderDate: ProjectStart.AddDays(-1));
+            SetupProjects(ProjectEntity(status: projectStatus));
 
-            Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
+            Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoOrderDateBeforeProject);
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoProjectNotActive);
+        }
+
+        // Ngày đơn hàng / hạn giao hàng không còn bị ràng buộc theo ngày dự án & giai đoạn:
+        // đặt trước cho giai đoạn sau, hoặc hẹn giao sau ngày kết thúc giai đoạn, đều hợp lệ.
+        [Fact]
+        public async Task UTCID06_Handle_OrderDateOutsideProjectAndPhaseRange_ShouldReturnCreatedPOId()
+        {
+            var command = Command(orderDate: PhaseEnd.AddDays(1), expectedDeliveryDate: PhaseEnd.AddDays(30));
+
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            result.Should().Be(GeneratedPOId);
         }
 
         [Fact]
-        public async Task UTCID06_Handle_OrderDateAfterPhaseEnd_ShouldThrowBusinessException()
-        {
-            var command = Command(orderDate: PhaseEnd.AddDays(1));
-
-            Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoOrderDateAfterPhase);
-        }
-
-        [Fact]
-        public async Task UTCID07_Handle_DeliveryDateBeforeProjectStart_ShouldThrowBusinessException()
+        public async Task UTCID07_Handle_DeliveryDateBeforeProjectStart_ShouldReturnCreatedPOId()
         {
             var command = Command(expectedDeliveryDate: ProjectStart.AddDays(-1));
 
-            Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
+            var result = await _handler.Handle(command, CancellationToken.None);
 
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoDeliveryDateBeforeProject);
+            result.Should().Be(GeneratedPOId);
         }
 
         [Fact]
-        public async Task UTCID08_Handle_DeliveryDateAfterPhaseEnd_ShouldThrowBusinessException()
-        {
-            var command = Command(expectedDeliveryDate: PhaseEnd.AddDays(1));
-
-            Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoDeliveryDateAfterPhase);
-        }
-
-        [Fact]
-        public async Task UTCID09_Handle_MaterialNotInLinkedRequest_ShouldThrowBusinessException()
+        public async Task UTCID08_Handle_MaterialNotInLinkedRequest_ShouldThrowBusinessException()
         {
             var command = Command(items: [Item(materialId: 99, quantity: 5)]);
 
@@ -181,7 +174,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID10_Handle_QuantityExceedsRemainingOfRequest_ShouldThrowBusinessException()
+        public async Task UTCID09_Handle_QuantityExceedsRemainingOfRequest_ShouldThrowBusinessException()
         {
             SetupExistingPOItems(ExistingPOItem(poId: 200, PurchaseOrderStatus.Sent, quantity: 60));
 
@@ -194,7 +187,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID11_Handle_QuantityEqualsRemainingOfRequest_ShouldReturnCreatedPOId()
+        public async Task UTCID10_Handle_QuantityEqualsRemainingOfRequest_ShouldReturnCreatedPOId()
         {
             SetupExistingPOItems(ExistingPOItem(poId: 200, PurchaseOrderStatus.Sent, quantity: 60));
 
@@ -204,7 +197,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID12_Handle_CancelledAndRejectedPOsDoNotHoldQuantity_ShouldReturnCreatedPOId()
+        public async Task UTCID11_Handle_CancelledAndRejectedPOsDoNotHoldQuantity_ShouldReturnCreatedPOId()
         {
             SetupExistingPOItems(
                 ExistingPOItem(poId: 200, PurchaseOrderStatus.Cancelled, quantity: 60),
@@ -216,7 +209,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID13_Handle_ClosedPOOnlyHoldsReceivedQuantity_ShouldThrowWhenExceedingReleasedRemainder()
+        public async Task UTCID12_Handle_ClosedPOOnlyHoldsReceivedQuantity_ShouldThrowWhenExceedingReleasedRemainder()
         {
             // PO đã đóng đặt 60 nhưng chỉ nhận 20 → chỉ 20 còn giữ chỗ, còn được đặt tối đa 80.
             SetupExistingPOItems(ExistingPOItem(poId: 200, PurchaseOrderStatus.Closed, quantity: 60));
@@ -229,7 +222,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID14_Handle_FractionalQuantityForDiscreteUnit_ShouldThrowBusinessException()
+        public async Task UTCID13_Handle_FractionalQuantityForDiscreteUnit_ShouldThrowBusinessException()
         {
             SetupMaterialRequests(ApprovedRequest(isDiscreteUnit: true));
 
@@ -242,7 +235,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID15_Handle_ManualPONumberAlreadyExists_ShouldThrowBusinessException()
+        public async Task UTCID14_Handle_ManualPONumberAlreadyExists_ShouldThrowBusinessException()
         {
             SetupExistingPurchaseOrders(new PurchaseOrder { POId = 200, PONumber = "PO-20260310-0001" });
 
@@ -255,7 +248,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID16_Handle_ManualPONumberNotUsed_ShouldReturnCreatedPOId()
+        public async Task UTCID15_Handle_ManualPONumberNotUsed_ShouldReturnCreatedPOId()
         {
             var result = await _handler.Handle(Command(poNumber: "PO-CUSTOM-01"), CancellationToken.None);
 
@@ -326,12 +319,12 @@ namespace BPG.Application.UnitTests.PurchaseOrders
                 ]
             };
 
-        private static Project ProjectEntity()
+        private static Project ProjectEntity(string status = ProjectStatus.InProgress)
             => new()
             {
                 ProjectId = ProjectId,
                 Name = "Nhà máy Bắc Ninh",
-                Status = ProjectStatus.InProgress,
+                Status = status,
                 PlannedStart = ProjectStart,
                 PlannedEnd = new DateOnly(2027, 1, 1)
             };
