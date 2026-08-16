@@ -245,12 +245,62 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           {/* Progress */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 600 }}>
-              <span>Tiến độ hoàn thành:</span>
+              <span>Tiến độ thực tế:</span>
               <span style={{ color: 'hsl(var(--primary))' }}>{selectedTask.progress}%</span>
             </div>
             <div style={{ height: '8px', backgroundColor: 'hsl(var(--border))', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-              <div style={{ width: `${selectedTask.progress}%`, height: '100%', backgroundColor: selectedTask.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--primary))', transition: 'width 0.4s ease' }} />
+              <div style={{ width: `${selectedTask.progress}%`, height: '100%', backgroundColor: selectedTask.progress === 100 ? 'hsl(var(--success))' : selectedTask.progress >= 70 ? 'hsl(var(--primary))' : selectedTask.progress >= 30 ? 'hsl(var(--warning))' : selectedTask.progress > 0 ? 'hsl(var(--danger))' : 'hsl(var(--text-secondary))', transition: 'width 0.4s ease' }} />
             </div>
+            
+            {/* Expected Progress */}
+            {(() => {
+              let expectedProgress = 0;
+              if (selectedTask.startDate && selectedTask.deadline) {
+                const start = new Date(selectedTask.startDate);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(selectedTask.deadline);
+                end.setHours(23, 59, 59, 999);
+                const now = new Date();
+                
+                const startMs = start.getTime();
+                const endMs = end.getTime();
+                const nowMs = now.getTime();
+                
+                if (endMs > startMs) {
+                  if (nowMs >= endMs) expectedProgress = 100;
+                  else if (nowMs > startMs) {
+                    expectedProgress = Math.round(((nowMs - startMs) / (endMs - startMs)) * 100);
+                  }
+                }
+              }
+              
+              const isBehind = selectedTask.progress < expectedProgress;
+              const isAhead = selectedTask.progress > expectedProgress;
+              
+              return (
+                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>Tiến độ dự kiến:</span>
+                      {selectedTask.progress !== 100 && isBehind && (
+                        <span style={{ fontSize: '0.65rem', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
+                          Chậm tiến độ
+                        </span>
+                      )}
+                      {selectedTask.progress !== 100 && isAhead && (
+                        <span style={{ fontSize: '0.65rem', color: 'hsl(var(--success))', backgroundColor: 'hsl(var(--success-glow))', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
+                          Nhanh hơn tiến độ
+                        </span>
+                      )}
+                    </div>
+                    <span>{expectedProgress}%</span>
+                  </div>
+                  <div style={{ height: '4px', backgroundColor: 'hsl(var(--border-light))', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                    <div style={{ width: `${expectedProgress}%`, height: '100%', backgroundColor: 'hsl(var(--text-muted))', transition: 'width 0.4s ease' }} />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Assignee + Start Date + Deadline + Weight */}
