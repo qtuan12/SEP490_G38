@@ -21,7 +21,9 @@ export const NotificationsList: React.FC = () => {
     fetchNotifications(page, PAGE_SIZE);
   }, [page, fetchNotifications]);
 
-  const filtered = filter === 'unread' ? notifications.filter(n => !n.isRead) : notifications;
+  const filteredAll = filter === 'unread' ? notifications.filter(n => !n.isRead) : notifications;
+  const startIndex = (page - 1) * PAGE_SIZE;
+  const filtered = filteredAll.slice(startIndex, startIndex + PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const handleItemClick = async (noti: any) => {

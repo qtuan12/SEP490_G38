@@ -61,10 +61,9 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
         if (hasActiveBatch)
             throw new BusinessException(ErrorCodes.DuplicateEntry, "Dự án đang có đợt xử lý vật tư thừa chưa hoàn tất.");
 
-        // Pull all inventory with quantity > 0
+        // Pull all inventory with quantity > 0 (tracked for ReservedQuantity update)
         var inventoryItems = await _uow.Repository<CurrentInventory>().Query()
             .Where(ci => ci.ProjectId == request.ProjectId && ci.Quantity > 0)
-            .AsNoTracking()
             .ToListAsync(ct);
 
         if (!inventoryItems.Any())
@@ -87,6 +86,19 @@ public class CreateSurplusRequestCommandHandler : IRequestHandler<CreateSurplusR
         };
 
         await _uow.Repository<SurplusRequest>().AddAsync(batch, ct);
+
+        // 🔒 Tạm khóa toàn bộ số lượng vật tư vào ReservedQuantity để ngăn xuất kho
+        // trong khi đợt xử lý thừa đang diễn ra.
+        // availableQty trong CreateMaterialIssuance = Quantity - ReservedQuantity,
+        // nên sau bước này tất cả vật tư sẽ có availableQty = 0.
+        var now = DateTime.UtcNow;
+        foreach (var inv in inventoryItems)
+        {
+            inv.ReservedQuantity += inv.Quantity;
+            inv.LastUpdated = now;
+            _uow.Repository<CurrentInventory>().Update(inv);
+        }
+
         await _uow.SaveChangesAsync(ct);
 
         var creator = await _uow.Repository<User>().Query()

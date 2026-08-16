@@ -67,6 +67,10 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 .GroupBy(i => i.MaterialId)
                 .ToDictionary(g => g.Key, g => g.First().Material?.Name ?? $"#{g.Key}");
 
+            var requestedItemsByMaterial = linkedRequest.Items
+                .GroupBy(i => i.MaterialId)
+                .ToDictionary(g => g.Key, g => g.First());
+
             // Số lượng đã đặt cho yêu cầu này qua các PO còn hiệu lực (không tính PO đã hủy hoặc bị
             // Giám đốc từ chối). PO đã đóng (Closed) chỉ còn giữ chỗ phần ĐÃ NHẬN thực tế — phần chưa
             // nhận được giải phóng trở lại yêu cầu vật tư để có thể tạo PO khác.
@@ -119,6 +123,12 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                         $"chỉ còn được đặt tối đa {(remaining < 0 ? 0 : remaining)}.");
 
                 var reqItem = linkedRequest.Items.FirstOrDefault(ri => ri.MaterialId == item.MaterialId);
+                if (reqItem == null || item.UnitId != reqItem.UnitId)
+                {
+                    throw new BusinessException("ERR_INVALID_PO_UNIT",
+                        $"Đơn vị tính của vật tư '{materialNames[item.MaterialId]}' phải khớp với yêu cầu vật tư đã được duyệt.");
+                }
+
                 var material = reqItem?.Material;
                 if (material?.BaseUnit != null && material.BaseUnit.IsDiscrete && item.Quantity % 1 != 0)
                 {
@@ -183,7 +193,11 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     Quantity = i.Quantity,
                     UnitPrice = i.UnitPrice,
                     LineTotal = i.Quantity * i.UnitPrice,
-                    ConversionRate = i.ConversionRate,
+                    // PO inherits the approved request's historical unit conversion;
+                    // never trust a conversion rate supplied by the client.
+                    ConversionRate = requestedItemsByMaterial[i.MaterialId].ConversionRate > 0
+                        ? requestedItemsByMaterial[i.MaterialId].ConversionRate
+                        : 1,
                     Notes = i.Notes?.Trim()
                 }).ToList();
 

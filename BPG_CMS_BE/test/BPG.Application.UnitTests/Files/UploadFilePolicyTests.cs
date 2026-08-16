@@ -94,6 +94,39 @@ public class UploadFilePolicyTests
         result.IsValid.Should().BeTrue(result.ErrorMessage);
     }
 
+    [Theory]
+    [InlineData("design.doc", new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 })]
+    [InlineData("design.docx", new byte[] { 0x50, 0x4B, 0x03, 0x04 })]
+    [InlineData("plan.dwg", new byte[] { (byte)'A', (byte)'C', (byte)'1', (byte)'0', (byte)'3', (byte)'2' })]
+    [InlineData("plan.dxf", new byte[] { (byte)'0', (byte)'\r', (byte)'\n', (byte)'S', (byte)'E', (byte)'C', (byte)'T', (byte)'I', (byte)'O', (byte)'N' })]
+    public async Task ValidateFileAsync_ShouldAcceptWordDocumentsForProjectDesigns(
+        string fileName,
+        byte[] signature)
+    {
+        UploadFilePolicy.TryResolveDestination("projects/design", out var destination, out _).Should().BeTrue();
+
+        var result = await UploadFilePolicy.ValidateFileAsync(File(fileName, signature), destination);
+
+        result.IsValid.Should().BeTrue(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ValidateFileAsync_ShouldAllowFiftyMiBOnlyForProjectDesigns()
+    {
+        UploadFilePolicy.TryResolveDestination("projects/design", out var designs, out _).Should().BeTrue();
+        UploadFilePolicy.TryResolveDestination("incidents", out var incidents, out _).Should().BeTrue();
+        var signature = new byte[] { (byte)'A', (byte)'C', (byte)'1', (byte)'0', (byte)'3', (byte)'2' };
+
+        var designResult = await UploadFilePolicy.ValidateFileAsync(
+            File("large.dwg", signature, UploadFilePolicy.MaxProjectDesignFileSizeBytes), designs);
+        var incidentResult = await UploadFilePolicy.ValidateFileAsync(
+            File("large.pdf", "%PDF-1.7"u8.ToArray(), UploadFilePolicy.MaxFileSizeBytes + 1), incidents);
+
+        designResult.IsValid.Should().BeTrue(designResult.ErrorMessage);
+        incidentResult.IsValid.Should().BeFalse();
+        incidentResult.ErrorMessage.Should().Contain("10 MB");
+    }
+
     [Fact]
     public async Task ValidateFileAsync_ShouldRejectRecoveryDocumentInAnImageOnlyFolder()
     {
@@ -133,9 +166,22 @@ public class UploadFilePolicyTests
     {
         yield return new object[] { "plan.pdf", "%PDF-1.7"u8.ToArray() };
         yield return new object[] { "plan.doc", new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 } };
+        yield return new object[] { "plan-from-template.doc", "\uFEFF<html xmlns='http://www.w3.org/1999/xhtml'>"u8.ToArray() };
         yield return new object[] { "plan.docx", new byte[] { 0x50, 0x4B, 0x03, 0x04 } };
         yield return new object[] { "evidence.zip", new byte[] { 0x50, 0x4B, 0x05, 0x06 } };
         yield return new object[] { "evidence.rar", new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00 } };
+    }
+
+    [Fact]
+    public async Task ValidateFileAsync_ShouldRejectHtmlDisguisedAsWordOutsideIncidentPlans()
+    {
+        UploadFilePolicy.TryResolveDestination("projects/design", out var destination, out _).Should().BeTrue();
+        var file = File("design.doc", "\uFEFF<html>not a Word binary</html>"u8.ToArray());
+
+        var result = await UploadFilePolicy.ValidateFileAsync(file, destination);
+
+        result.IsValid.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("không khớp");
     }
 
     private static IFormFile File(string name, byte[] content, long? reportedLength = null)

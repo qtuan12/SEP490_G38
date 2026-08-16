@@ -30,7 +30,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
+        private readonly Mock<IGenericRepository<MaterialConversion>> _mockConversionRepo;
         private readonly Mock<ICurrentUserService> _mockCurrentUserService;
+        private readonly Mock<IInventoryService> _mockInventoryService;
         private readonly CreateGoodsReceiptCommandHandler _handler;
 
         public CreateGoodsReceiptCommandHandlerTests()
@@ -42,7 +44,9 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
             _mockUserRepo = new Mock<IGenericRepository<User>>();
+            _mockConversionRepo = new Mock<IGenericRepository<MaterialConversion>>();
             _mockCurrentUserService = new Mock<ICurrentUserService>();
+            _mockInventoryService = new Mock<IInventoryService>();
 
             _mockUow.Setup(u => u.Repository<PurchaseOrder>()).Returns(_mockPoRepo.Object);
             _mockUow.Setup(u => u.Repository<GoodsReceipt>()).Returns(_mockReceiptRepo.Object);
@@ -50,6 +54,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
+            _mockUow.Setup(u => u.Repository<MaterialConversion>()).Returns(_mockConversionRepo.Object);
             _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.ExecuteSqlAsync(It.IsAny<FormattableString>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
@@ -64,12 +69,17 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             SetupApprovedReceiptItems();
             SetupProjectMembers();
             SetupUsers(new User { UserId = CurrentUserId, FullName = "Current User" });
+            SetupConversions();
             SetupReceiptIdGeneration();
+            _mockInventoryService.Setup(service => service.UpdateStockAsync(
+                    It.IsAny<long>(), It.IsAny<long>(), It.IsAny<decimal>(), It.IsAny<byte>(),
+                    It.IsAny<long>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CurrentInventory());
 
             _handler = new CreateGoodsReceiptCommandHandler(
                 _mockUow.Object,
                 _mockCurrentUserService.Object,
-                ServiceStubFactory.InventoryService(),
+                _mockInventoryService.Object,
                 ServiceStubFactory.RealtimeSender(),
                 ServiceStubFactory.NotificationService());
         }
@@ -255,6 +265,31 @@ namespace BPG.Application.UnitTests.GoodsReceipts
             exception.Which.Message.Should().Be("Danh sách vật tư nhận thực tế phải chứa ít nhất một vật tư có số lượng lớn hơn 0.");
         }
 
+        [Fact]
+        public async Task UTCID14_Handle_LegacyTonPurchaseOrder_ShouldNormalizeToKilogramsFromMaterialConversion()
+        {
+            const int tonUnitId = 2;
+            SetupProjectLeader();
+            SetupPurchaseOrders(PurchaseOrderWithItems(
+                PurchaseOrderStatus.Sent,
+                POItem(CementId, "Cement", 20, conversionRate: 1, unitId: tonUnitId, baseUnitId: UnitId)));
+            SetupConversions(new MaterialConversion
+            {
+                MaterialId = CementId,
+                AlternativeUnitId = tonUnitId,
+                ConversionRate = 0.001m
+            });
+
+            var result = await _handler.Handle(
+                Command(items: new[] { Item(CementId, 20, tonUnitId) }),
+                CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            _mockInventoryService.Verify(service => service.UpdateStockAsync(
+                ProjectId, CementId, 20_000m, InventoryTransactionType.GoodsReceipt,
+                GeneratedReceiptId, EntityType.GoodsReceipt, CurrentUserId, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
         private static CreateGoodsReceiptCommand Command(
             long poId = POId,
             IEnumerable<CreateGoodsReceiptItemDto>? items = null,
@@ -268,8 +303,8 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 items?.ToList() ?? new List<CreateGoodsReceiptItemDto> { Item(CementId, 5) },
                 images?.ToList());
 
-        private static CreateGoodsReceiptItemDto Item(long materialId, decimal quantity)
-            => new(materialId, UnitId, quantity);
+        private static CreateGoodsReceiptItemDto Item(long materialId, decimal quantity, int unitId = UnitId)
+            => new(materialId, unitId, quantity);
 
         private static PurchaseOrder PurchaseOrderWithItems(string status, params PurchaseOrderItem[] items)
             => PurchaseOrderWithItems(status, ProjectStatus.InProgress, items);
@@ -290,20 +325,28 @@ namespace BPG.Application.UnitTests.GoodsReceipts
                 Items = items.ToList()
             };
 
-        private static PurchaseOrderItem POItem(long materialId, string name, decimal quantity, decimal conversionRate = 1, bool isDiscrete = false)
+        private static PurchaseOrderItem POItem(
+            long materialId,
+            string name,
+            decimal quantity,
+            decimal conversionRate = 1,
+            bool isDiscrete = false,
+            int unitId = UnitId,
+            int baseUnitId = UnitId)
             => new()
             {
                 MaterialId = materialId,
-                UnitId = UnitId,
+                UnitId = unitId,
                 Quantity = quantity,
                 ConversionRate = conversionRate,
                 Material = new MaterialCatalog
                 {
                     MaterialId = materialId,
                     Name = name,
-                    BaseUnit = new Unit { UnitId = UnitId, UnitName = "Bag", IsDiscrete = isDiscrete }
+                    BaseUnitId = baseUnitId,
+                    BaseUnit = new Unit { UnitId = baseUnitId, UnitName = "Kg", IsDiscrete = isDiscrete }
                 },
-                Unit = new Unit { UnitId = UnitId, UnitName = "Bag", IsDiscrete = isDiscrete }
+                Unit = new Unit { UnitId = unitId, UnitName = unitId == 2 ? "Tấn" : "Bag", IsDiscrete = isDiscrete }
             };
 
         private void SetupTechnicalManager()
@@ -349,6 +392,12 @@ namespace BPG.Application.UnitTests.GoodsReceipts
         private void SetupUsers(params User[] users)
         {
             _mockUserRepo.Setup(r => r.Query()).Returns(users.AsQueryable().BuildMock());
+        }
+
+        private void SetupConversions(params MaterialConversion[] conversions)
+        {
+            _mockConversionRepo.Setup(repository => repository.Query())
+                .Returns(conversions.AsQueryable().BuildMock());
         }
 
         private void SetupReceiptIdGeneration()
