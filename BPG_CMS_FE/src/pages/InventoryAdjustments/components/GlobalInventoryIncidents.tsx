@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../../context/AuthContext';
 import { projectService } from '../../../services/projectService';
@@ -39,6 +40,20 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
   const [loadingRowAction, setLoadingRowAction] = useState<string | null>(null);
+
+  const [searchParams] = useSearchParams();
+  const incidentIdParam = searchParams.get('incidentId');
+
+  // Auto-open incident detail when incidentId is in query params
+  useEffect(() => {
+    if (incidentIdParam && incidents.length > 0) {
+      const target = incidents.find(i => i.id === incidentIdParam);
+      if (target) {
+        setSelectedIncident(target);
+        setIsDetailOpen(true);
+      }
+    }
+  }, [incidentIdParam, incidents]);
 
   const [error, setError] = useState<string | null>(null);
 

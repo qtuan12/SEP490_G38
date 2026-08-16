@@ -1,5 +1,5 @@
-// Force IDE TS Server to re-parse this file
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import { Button, Badge, Pagination } from '../../../components/ui';
@@ -42,10 +42,22 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const [searchParams] = useSearchParams();
+  const targetAdjustmentId = searchParams.get('adjustmentId');
+
   // Modals state
   const [isIncreaseOpen, setIsIncreaseOpen] = useState(false);
   const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
   const [reviewId, setReviewId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (targetAdjustmentId) {
+      const parsed = Number(targetAdjustmentId);
+      if (parsed > 0) {
+        setReviewId(parsed);
+      }
+    }
+  }, [targetAdjustmentId]);
 
   const loadData = async (showLoading = true) => {
     if (showLoading) setLoading(true);

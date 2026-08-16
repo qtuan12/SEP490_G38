@@ -57,6 +57,11 @@ public static class NotificationTemplates
     public const string TaskCompleted = "Công việc [{0}] đã hoàn thành, đang chờ nghiệm thu.";
     public const string TaskApproved  = "Công việc [{0}] đã được nghiệm thu và chấp thuận.";
     public const string TaskOverdue   = "Công việc [{0}] tại dự án [{1}] đã quá hạn hoàn thành.";
+
+    // ==================== DỰ ÁN ====================
+    public const string ProjectActivated = "Dự án [{0}] đã chính thức được kích hoạt và bắt đầu thi công.";
+    public const string ProjectPaused    = "Dự án [{0}] đã tạm dừng thi công.";
+    public const string ProjectResumed   = "Dự án [{0}] đã tiếp tục thi công.";
 }
 
 /// <summary>

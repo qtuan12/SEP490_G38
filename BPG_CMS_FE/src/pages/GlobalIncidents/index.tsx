@@ -27,6 +27,7 @@ export const GlobalIncidents: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requestedProjectId = searchParams.get('projectId');
+  const requestedIncidentId = searchParams.get('incidentId');
 
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -43,8 +44,6 @@ export const GlobalIncidents: React.FC = () => {
   const ITEMS_PER_PAGE = 10;
 
   // GET /incidents/all chỉ cho phép technicalmanager/admin/accountant/director.
-  // siteengineer (kể cả khi được gán làm leader của một dự án cụ thể) xem sự cố theo đúng dự án
-  // đang chọn ở "Việc của tôi" — không có quyền xem toàn hệ thống.
   const isPrivileged = !!user?.role && ['technicalmanager', 'admin', 'accountant', 'director'].includes(user.role);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
 
@@ -78,6 +77,21 @@ export const GlobalIncidents: React.FC = () => {
   const [loadingRowAction, setLoadingRowAction] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-open incident detail when incidentId is in query params
+  useEffect(() => {
+    if (requestedIncidentId && incidents.length > 0) {
+      const target = incidents.find(i => i.id === requestedIncidentId);
+      if (target) {
+        setSelectedIncident(target);
+        if (target.isEmergency) setActiveTab('emergency');
+        else if (target.incidentType === 'InventoryLoss' || target.incidentType === 'InventoryDamage') setActiveTab('inventory');
+        else setActiveTab('construction');
+        if (target.projectId) setSelectedProjectId(target.projectId);
+        setIsDetailOpen(true);
+      }
+    }
+  }, [requestedIncidentId, incidents]);
 
   const visibleIncidents = incidents.filter(inc => {
     const matchesProject = !selectedProjectId || inc.projectId === selectedProjectId;
